@@ -20,23 +20,83 @@ from __future__ import annotations
 from moto import mock_ec2
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-from airflow.providers.amazon.aws.operators.ec2 import EC2StartInstanceOperator, EC2StopInstanceOperator
+from airflow.providers.amazon.aws.operators.ec2 import (
+    EC2CreateInstanceOperator,
+    EC2StartInstanceOperator,
+    EC2StopInstanceOperator,
+    EC2TerminateInstanceOperator,
+)
 
 
 class BaseEc2TestClass:
     @classmethod
-    def _create_instance(cls, hook: EC2Hook):
-        """Create Instance and return instance id."""
+    def _get_image_id(cls, hook):
+        """Get a valid image id to create an instance."""
         conn = hook.get_conn()
         try:
             ec2_client = conn.meta.client
         except AttributeError:
             ec2_client = conn
-
-        # We need existed AMI Image ID otherwise `moto` will raise DeprecationWarning.
+        
+        # We need an existing AMI Image ID otherwise `moto` will raise DeprecationWarning.
         images = ec2_client.describe_images()["Images"]
-        response = ec2_client.run_instances(MaxCount=1, MinCount=1, ImageId=images[0]["ImageId"])
-        return response["Instances"][0]["InstanceId"]
+        return images[0]["ImageId"]
+
+class TestEC2CreateInstanceOperator(BaseEc2TestClass):
+    def test_init(self):
+        ec2_operator = EC2CreateInstanceOperator(
+            task_id="test_create_instance",
+            image_id="test_image_id",
+        )
+
+        assert ec2_operator.task_id == "test_create_instance"
+        assert ec2_operator.image_id == "test_image_id"
+        assert ec2_operator.max_count == 1
+        assert ec2_operator.min_count == 1
+        assert ec2_operator.max_attempts == 20
+        assert ec2_operator.poll_interval == 20
+
+    @mock_ec2
+    def test_create_intance(self):
+        ec2_hook = EC2Hook()
+        create_instance = EC2CreateInstanceOperator(
+            image_id=self._get_image_id(ec2_hook),
+            task_id="test_create_instance",
+        )
+        instance_id = create_instance.execute(None)
+
+        assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
+
+
+class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
+    def test_init(self):
+        ec2_operator = EC2TerminateInstanceOperator(
+            task_id="test_terminate_instance",
+            instance_id="test_image_id",
+        )
+
+        assert ec2_operator.task_id == "test_terminate_instance"
+        assert ec2_operator.max_attempts == 20
+        assert ec2_operator.poll_interval == 20
+
+    @mock_ec2
+    def test_terminate_intance(self):
+        ec2_hook = EC2Hook()
+
+        create_instance = EC2CreateInstanceOperator(
+            image_id=self._get_image_id(ec2_hook),
+            task_id="test_create_instance",
+        )
+        instance_id = create_instance.execute(None)
+
+        assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
+
+        terminate_instance = EC2TerminateInstanceOperator(
+            task_id="test_terminate_instance", instance_id=instance_id
+        )
+        terminate_instance.execute(None)
+
+        assert ec2_hook.get_instance_state(instance_id=instance_id) == "terminated"
 
 
 class TestEC2StartInstanceOperator(BaseEc2TestClass):
@@ -58,7 +118,11 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
     def test_start_instance(self):
         # create instance
         ec2_hook = EC2Hook()
-        instance_id = self._create_instance(ec2_hook)
+        create_instance = EC2CreateInstanceOperator(
+            image_id=self._get_image_id(ec2_hook),
+            task_id="test_create_instance",
+        )
+        instance_id = create_instance.execute(None)
 
         # start instance
         start_test = EC2StartInstanceOperator(
@@ -89,7 +153,11 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
     def test_stop_instance(self):
         # create instance
         ec2_hook = EC2Hook()
-        instance_id = self._create_instance(ec2_hook)
+        create_instance = EC2CreateInstanceOperator(
+            image_id=self._get_image_id(ec2_hook),
+            task_id="test_create_instance",
+        )
+        instance_id = create_instance.execute(None)
 
         # stop instance
         stop_test = EC2StopInstanceOperator(
@@ -99,3 +167,4 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
         stop_test.execute(None)
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id) == "stopped"
+

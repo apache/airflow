@@ -24,7 +24,12 @@ import boto3
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.ec2 import EC2StartInstanceOperator, EC2StopInstanceOperator
+from airflow.providers.amazon.aws.operators.ec2 import (
+    EC2CreateInstanceOperator,
+    EC2StartInstanceOperator,
+    EC2StopInstanceOperator,
+    EC2TerminateInstanceOperator,
+)
 from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -62,35 +67,6 @@ def create_key_pair(key_name: str):
     return key_pair_id
 
 
-@task
-def create_instance(instance_name: str, key_pair_id: str):
-    client = boto3.client("ec2")
-
-    # Create the instance
-    instance_id = client.run_instances(
-        ImageId=_get_latest_ami_id(),
-        MinCount=1,
-        MaxCount=1,
-        InstanceType="t2.micro",
-        KeyName=key_pair_id,
-        TagSpecifications=[{"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}],
-        # Use IMDSv2 for greater security, see the following doc for more details:
-        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
-        MetadataOptions={"HttpEndpoint": "enabled", "HttpTokens": "required"},
-    )["Instances"][0]["InstanceId"]
-
-    # Wait for it to exist
-    waiter = client.get_waiter("instance_status_ok")
-    waiter.wait(InstanceIds=[instance_id])
-
-    return instance_id
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def terminate_instance(instance: str):
-    boto3.client("ec2").terminate_instances(InstanceIds=[instance])
-
-
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_key_pair(key_pair_id: str):
     boto3.client("ec2").delete_key_pair(KeyName=key_pair_id)
@@ -105,43 +81,78 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
-
+    instance_name = f"{env_id}-instance"
     key_name = create_key_pair(key_name=f"{env_id}_key_pair")
-    instance_id = create_instance(instance_name=f"{env_id}-instance", key_pair_id=key_name)
+
+    config = {
+        "InstanceType": "t2.micro",
+        "KeyName": key_name,
+        "TagSpecifications": [
+            {"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}
+        ],
+        # Use IMDSv2 for greater security, see the following doc for more details:
+        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+        "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
+    }
+    # [START howto_operator_ec2_create_instance]
+    create_instance = EC2CreateInstanceOperator(
+        task_id="create_instance",
+        image_id=_get_latest_ami_id(),
+        max_count=1,
+        min_count=1,
+        config=config,
+        wait_for_completion=True,
+    )
+    # [END howto_operator_ec2_create_instance]
+
+    # [START howto_operator_ec2_stop_instance]
+    stop_instance_1 = EC2StopInstanceOperator(
+        task_id="stop_instance_1",
+        instance_id=create_instance.output,
+    )
+    # [END howto_operator_ec2_stop_instance]
+    stop_instance_1.trigger_rule = TriggerRule.ALL_DONE
+
     # [START howto_operator_ec2_start_instance]
     start_instance = EC2StartInstanceOperator(
         task_id="start_instance",
-        instance_id=instance_id,
+        instance_id=create_instance.output,
     )
     # [END howto_operator_ec2_start_instance]
 
     # [START howto_sensor_ec2_instance_state]
     await_instance = EC2InstanceStateSensor(
         task_id="await_instance",
-        instance_id=instance_id,
+        instance_id=create_instance.output,
         target_state="running",
     )
     # [END howto_sensor_ec2_instance_state]
 
-    # [START howto_operator_ec2_stop_instance]
-    stop_instance = EC2StopInstanceOperator(
-        task_id="stop_instance",
-        instance_id=instance_id,
+    stop_instance_2 = EC2StopInstanceOperator(
+        task_id="stop_instance_2",
+        instance_id=create_instance.output,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [END howto_operator_ec2_stop_instance]
-    stop_instance.trigger_rule = TriggerRule.ALL_DONE
-
+    # [START howto_operator_ec2_terminate_instance]
+    terminate_instance = EC2TerminateInstanceOperator(
+        task_id="terminate_instance",
+        instance_id=create_instance.output,
+        wait_for_completion=True,
+    )
+    # [END howto_operator_ec2_terminate_instance]
+    terminate_instance.trigger_rule = TriggerRule.ALL_DONE
     chain(
         # TEST SETUP
         test_context,
         key_name,
-        instance_id,
         # TEST BODY
+        create_instance,
+        stop_instance_1,
         start_instance,
         await_instance,
-        stop_instance,
+        stop_instance_2,
+        terminate_instance,
         # TEST TEARDOWN
-        terminate_instance(instance_id),
         delete_key_pair(key_name),
     )
 

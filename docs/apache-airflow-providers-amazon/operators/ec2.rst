@@ -58,6 +58,31 @@ To stop an Amazon EC2 instance you can use
     :start-after: [START howto_operator_ec2_stop_instance]
     :end-before: [END howto_operator_ec2_stop_instance]
 
+
+Create and start an Amazon EC2 instance
+=======================================
+
+To create and start an Amazon EC2 instance you can use
+:class:`~airflow.providers.amazon.aws.operators.ec2.EC2CreateInstanceOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ec2_create_instance]
+    :end-before: [END howto_operator_ec2_create_instance]
+
+
+Terminate an Amazon EC2 instance
+================================
+
+To terminate an Amazon EC2 instance you can use
+:class:`~airflow.providers.amazon.aws.operators.ec2.EC2TerminateInstanceOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_ec2_terminate_instance]
+    :end-before: [END howto_operator_ec2_terminate_instance]
 Sensors
 -------
 
