@@ -24,7 +24,7 @@ import re
 import sys
 from importlib import import_module
 from types import ModuleType
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar, Union, cast
 
 import attr
 
@@ -57,10 +57,8 @@ _deserializers: dict[str, ModuleType] = {}
 _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
-_iterables = (list, set, tuple)
+_builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
 _patterns: list[re.Pattern] = []
-
-_reverse_cache: dict[int, tuple[ModuleType, str, int]] = {}
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
@@ -73,18 +71,24 @@ def decode(d: dict[str, str | int | T]) -> tuple:
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
-    """
-    Recursively serializes objects into a primitive. Primitives (int, float, int, bool)
-    are returned as is. Tuples and dicts are iterated over, where it is assumed that keys
-    for dicts can be represented as str. Values that are not primitives are serialized if
-    a serializer is found for them. The order in which serializers are used
-    is 1) a serialize function provided by the object 2) a registered serializer in
-    the namespace of airflow.serialization.serializers and 3) an attr or dataclass annotations.
-    If a serializer cannot be found a TypeError is raised.
+    """Serialize an object into a representation consisting only built-in types.
 
-    :param o: object to serialize
-    :param depth: private
-    :return: a primitive
+    Primitives (int, float, bool, str) are returned as-is. Built-in collections
+    are iterated over, where it is assumed that keys in a dict can be represented
+    as str.
+
+    Values that are not of a built-in type are serialized if a serializer is
+    found for them. The order in which serializers are used is
+
+    1. A ``serialize`` function provided by the object.
+    2. A registered serializer in the namespace of ``airflow.serialization.serializers``
+    3. Annotations from attr or dataclass.
+
+    :param o: The object to serialize.
+    :param depth: Private tracker for nested serialization.
+    :raise TypeError: A serializer cannot be found.
+    :raise RecursionError: The object is too nested for the function to handle.
+    :return: A representation of ``o`` that consists of only built-in types.
     """
     if depth == MAX_RECURSION_DEPTH:
         raise RecursionError("maximum recursion depth reached for serialization")
@@ -101,7 +105,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
         return o
 
     # tuples and plain dicts are iterated over recursively
-    if isinstance(o, _iterables):
+    if isinstance(o, _builtin_collections):
         s = [serialize(d, depth + 1) for d in o]
         if isinstance(o, tuple):
             return tuple(s)
@@ -150,7 +154,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
     # attr annotated
     if attr.has(cls):
         # Only include attributes which we can pass back to the classes constructor
-        data = attr.asdict(o, recurse=True, filter=lambda a, v: a.init)  # type: ignore[arg-type]
+        data = attr.asdict(cast(attr.AttrsInstance, o), recurse=True, filter=lambda a, v: a.init)
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -176,7 +180,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if isinstance(o, _primitives):
         return o
 
-    if isinstance(o, _iterables):
+    if isinstance(o, _builtin_collections):
         return [deserialize(d) for d in o]
 
     if not isinstance(o, dict):
@@ -204,7 +208,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
         classname, version, value = decode(o)
         if not _match(classname) and classname not in _extra_allowed:
             raise ImportError(
-                f"{classname} was not found in allow list for deserialization imports."
+                f"{classname} was not found in allow list for deserialization imports. "
                 f"To allow it, add it to allowed_deserialization_classes in the configuration"
             )
 
@@ -249,22 +253,18 @@ def _convert(old: dict) -> dict:
 
 
 def _match(classname: str) -> bool:
-    for p in _patterns:
-        if p.match(classname):
-            return True
-
-    return False
+    return any(p.match(classname) is not None for p in _patterns)
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
     s = f"{classname}@version={version}("
     if isinstance(value, _primitives):
         s += f"{value})"
-    elif isinstance(value, _iterables):
-        s += ",".join(str(serialize(value, False)))
+    elif isinstance(value, _builtin_collections):
+        s += ",".join(str(serialize(value)))
     elif isinstance(value, dict):
         for k, v in value.items():
-            s += f"{k}={str(serialize(v, False))},"
+            s += f"{k}={serialize(v)},"
         s = s[:-1] + ")"
 
     return s

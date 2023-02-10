@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.5.0"
+ARG AIRFLOW_VERSION="2.5.1"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=22.3.1
+ARG AIRFLOW_PIP_VERSION=23.0
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -408,7 +408,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="22.3.1"
+            export AIRFLOW_PIP_VERSION="23.0"
         fi
     fi
 }
@@ -1025,7 +1025,8 @@ while true; do
     xargs -0 rm -f
 
   seconds=$(( $(date -u +%s) % EVERY))
-  (( seconds < 1 )) || sleep $((EVERY - seconds))
+  (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
+  sleep 1
 done
 EOF
 

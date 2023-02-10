@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import urllib
 from datetime import timedelta
 from unittest import mock
 
@@ -35,6 +36,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.www import _check_last_log
 
 
 @pytest.fixture(scope="module")
@@ -511,15 +513,15 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         "url, expected_dag_run_ids",
         [
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18%3A00%3A00%2B00%3A00",
                 ["TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18%3A00%3A00%2B00%3A00",
                 ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte= 2020-06-15T18:00:00+00:00"
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18%3A00%3A00%2B00%3A00"
                 "&start_date_gte=2020-06-12T18:00:00Z",
                 [
                     "TEST_START_EXEC_DAY_12",
@@ -529,7 +531,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 ],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18%3A00%3A00%2B00%3A00",
                 [
                     "TEST_START_EXEC_DAY_10",
                     "TEST_START_EXEC_DAY_11",
@@ -538,7 +540,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 ],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18%3A00%3A00%2B00%3A00",
                 [
                     "TEST_START_EXEC_DAY_16",
                     "TEST_START_EXEC_DAY_17",
@@ -594,12 +596,12 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
         [
             (
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
-                f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+                f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 [],
             ),
             (
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
-                f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+                f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
             ),
         ],
@@ -785,7 +787,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             ),
             ({"dag_ids": ["TEST_DAG_ID"], "page_limit": 0}, "0 is less than the minimum of 1 - 'page_limit'"),
             ({"dag_ids": "TEST_DAG_ID"}, "'TEST_DAG_ID' is not of type 'array' - 'dag_ids'"),
-            ({"start_date_gte": "2020-06-12T18"}, "{'start_date_gte': ['Not a valid datetime.']}"),
+            ({"start_date_gte": "2020-06-12T18"}, "'2020-06-12T18' is not a 'date-time' - 'start_date_gte'"),
         ],
     )
     def test_payload_validation(self, payload, error):
@@ -794,7 +796,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert error == response.json.get("detail")
+        assert response.json.get("detail") == error
 
     def test_should_raises_401_unauthenticated(self):
         self._create_test_dag_run()
@@ -969,24 +971,30 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
     @pytest.mark.parametrize(
         "payload, expected_response",
         [
-            ({"execution_date_gte": "2020-11-09T16:25:56.939143"}, "Naive datetime is disallowed"),
+            (
+                {"execution_date_gte": "2020-11-09T16:25:56.939143"},
+                "'2020-11-09T16:25:56.939143' is not a 'date-time' - 'execution_date_gte'",
+            ),
             (
                 {"start_date_gte": "2020-06-18T16:25:56.939143"},
-                "Naive datetime is disallowed",
+                "'2020-06-18T16:25:56.939143' is not a 'date-time' - 'start_date_gte'",
             ),
             (
                 {"start_date_lte": "2020-06-18T18:00:00.564434"},
-                "Naive datetime is disallowed",
+                "'2020-06-18T18:00:00.564434' is not a 'date-time' - 'start_date_lte'",
             ),
             (
                 {"start_date_lte": "2020-06-15T18:00:00.653434", "start_date_gte": "2020-06-12T18:00.343534"},
-                "Naive datetime is disallowed",
+                "'2020-06-12T18:00.343534' is not a 'date-time' - 'start_date_gte'",
             ),
             (
                 {"execution_date_lte": "2020-06-13T18:00:00.353454"},
-                "Naive datetime is disallowed",
+                "'2020-06-13T18:00:00.353454' is not a 'date-time' - 'execution_date_lte'",
             ),
-            ({"execution_date_gte": "2020-06-16T18:00:00.676443"}, "Naive datetime is disallowed"),
+            (
+                {"execution_date_gte": "2020-06-16T18:00:00.676443"},
+                "'2020-06-16T18:00:00.676443' is not a 'date-time' - 'execution_date_gte'",
+            ),
         ],
     )
     def test_naive_date_filters_raises_400(self, payload, expected_response):
@@ -1025,14 +1033,14 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 class TestPostDagRun(TestDagRunEndpoint):
     @pytest.mark.parametrize("logical_date_field_name", ["execution_date", "logical_date"])
     @pytest.mark.parametrize(
-        "dag_run_id, logical_date",
+        "dag_run_id, logical_date, note",
         [
-            pytest.param("TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", id="both-present"),
-            pytest.param(None, "2020-06-11T18:00:00+00:00", id="only-date"),
-            pytest.param(None, None, id="both-missing"),
+            pytest.param("TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", "test-note", id="all-present"),
+            pytest.param(None, "2020-06-11T18:00:00+00:00", None, id="only-date"),
+            pytest.param(None, None, None, id="all-missing"),
         ],
     )
-    def test_should_respond_200(self, logical_date_field_name, dag_run_id, logical_date):
+    def test_should_respond_200(self, session, logical_date_field_name, dag_run_id, logical_date, note):
         self._create_dag("TEST_DAG_ID")
 
         # We'll patch airflow.utils.timezone.utcnow to always return this so we
@@ -1044,7 +1052,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             request_json[logical_date_field_name] = logical_date
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
-
+        request_json["note"] = note
         with mock.patch("airflow.utils.timezone.utcnow", lambda: fixed_now):
             response = self.client.post(
                 "api/v1/dags/TEST_DAG_ID/dagRuns",
@@ -1075,8 +1083,9 @@ class TestPostDagRun(TestDagRunEndpoint):
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
             "run_type": "manual",
-            "note": None,
+            "note": note,
         }
+        _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""
@@ -1144,10 +1153,22 @@ class TestPostDagRun(TestDagRunEndpoint):
     @pytest.mark.parametrize(
         "data, expected",
         [
-            ({"execution_date": "2020-11-10T08:25:56.939143"}, "Naive datetime is disallowed"),
-            ({"execution_date": "2020-11-10T08:25:56P"}, "{'logical_date': ['Not a valid datetime.']}"),
-            ({"logical_date": "2020-11-10T08:25:56.939143"}, "Naive datetime is disallowed"),
-            ({"logical_date": "2020-11-10T08:25:56P"}, "{'logical_date': ['Not a valid datetime.']}"),
+            (
+                {"execution_date": "2020-11-10T08:25:56.939143"},
+                "'2020-11-10T08:25:56.939143' is not a 'date-time' - 'execution_date'",
+            ),
+            (
+                {"execution_date": "2020-11-10T08:25:56P"},
+                "'2020-11-10T08:25:56P' is not a 'date-time' - 'execution_date'",
+            ),
+            (
+                {"logical_date": "2020-11-10T08:25:56.939143"},
+                "'2020-11-10T08:25:56.939143' is not a 'date-time' - 'logical_date'",
+            ),
+            (
+                {"logical_date": "2020-11-10T08:25:56P"},
+                "'2020-11-10T08:25:56P' is not a 'date-time' - 'logical_date'",
+            ),
         ],
     )
     def test_should_response_400_for_naive_datetime_and_bad_datetime(self, data, expected):

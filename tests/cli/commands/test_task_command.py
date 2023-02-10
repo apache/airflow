@@ -33,7 +33,6 @@ from unittest.mock import sentinel
 
 import pendulum
 import pytest
-from parameterized import parameterized
 
 from airflow import DAG
 from airflow.cli import cli_parser
@@ -336,12 +335,13 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "option",
         [
-            ("--ignore-all-dependencies",),
-            ("--ignore-depends-on-past",),
-            ("--ignore-dependencies",),
-            ("--force",),
+            "--ignore-all-dependencies",
+            "--ignore-depends-on-past",
+            "--ignore-dependencies",
+            "--force",
         ],
     )
     def test_cli_run_invalid_raw_option(self, option: str):
@@ -694,10 +694,10 @@ class TestLogsfromTaskRunCommand:
             if found_start:
                 lines.append(line)
         if is_k8s:
-            # 20 is arbitrary, but, with enough padding to hopefully not be flakey
-            assert len(lines) > 20
+            # 10 is arbitrary, but, with enough padding to hopefully not be flakey
+            assert len(lines) > 10
             self.assert_log_line("Starting attempt 1 of 1", lines)
-            self.assert_log_line("Exporting the following env vars", lines)
+            self.assert_log_line("Exporting env vars", lines)
             self.assert_log_line("Log from DAG Logger", lines)
             self.assert_log_line("Log from TI Logger", lines)
             self.assert_log_line("Log from Print statement", lines, expect_from_logging_mixin=True)

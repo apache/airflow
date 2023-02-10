@@ -79,7 +79,6 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
-    :param notes: Set a custom note for the newly created DagRun.
     """
 
     template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")

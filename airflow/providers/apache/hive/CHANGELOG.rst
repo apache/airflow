@@ -24,6 +24,29 @@
 Changelog
 ---------
 
+5.1.2
+.....
+
+Misc
+~~~~
+
+* ``Fixed MyPy errors introduced by new mysql-connector-python (#28995)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove conn.close() ignores (#29005)" (#29010)``
+   * ``Remove conn.close() ignores (#29005)``
+
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Move local_infile option from extra to hook parameter (#28811)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.1.0
 .....
 

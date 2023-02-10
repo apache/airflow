@@ -26,7 +26,7 @@ readonly CLEANUP_DIRS
 # shellcheck source=./clients/gen/common.sh
 source "${CLIENTS_GEN_DIR}/common.sh"
 
-VERSION=2.3.0
+VERSION=2.5.1
 readonly VERSION
 
 python_config=(

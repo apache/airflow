@@ -27,6 +27,19 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed MyPy errors introduced by new mysql-connector-python (#28995)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove conn.close() ignores (#29005)" (#29010)``
+   * ``Remove conn.close() ignores (#29005)``
+
 4.0.0
 .....
 
@@ -35,6 +48,8 @@ Breaking Changes
 
 You can no longer pass "local_infile" as extra in the connection. You should pass it instead as
 hook's "local_infile" parameter when you create the MySqlHook (either directly or via hook_params).
+
+* ``Move local_infile option from extra to hook parameter (#28811)``
 
 3.4.0
 .....

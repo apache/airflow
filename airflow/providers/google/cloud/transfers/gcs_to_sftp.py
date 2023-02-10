@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -128,6 +129,10 @@ class GCSToSFTPOperator(BaseOperator):
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.sftp_conn_id = sftp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.sftp_dirs = None

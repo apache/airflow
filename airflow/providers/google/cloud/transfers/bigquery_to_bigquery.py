@@ -105,6 +105,10 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.labels = labels
         self.encryption_configuration = encryption_configuration

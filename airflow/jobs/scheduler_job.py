@@ -614,7 +614,7 @@ class SchedulerJob(BaseJob):
                 state,
                 ti_key.try_number,
             )
-            if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS, TaskInstanceState.QUEUED):
+            if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -637,7 +637,7 @@ class SchedulerJob(BaseJob):
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
 
-            if state == TaskInstanceState.QUEUED:
+            if state == State.QUEUED:
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
@@ -686,7 +686,10 @@ class SchedulerJob(BaseJob):
             ti_requeued = ti.queued_by_job_id != self.id or self.executor.has_task(ti)
 
             if ti_queued and not ti_requeued:
-                Stats.incr("scheduler.tasks.killed_externally")
+                Stats.incr(
+                    "scheduler.tasks.killed_externally",
+                    tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id},
+                )
                 msg = (
                     "Executor reports task instance %s finished (%s) although the "
                     "task says its %s. (Info: %s) Was the task killed externally?"
@@ -1198,6 +1201,7 @@ class SchedulerJob(BaseJob):
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
+                Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
                 session.query(DatasetDagRunQueue).filter(
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
@@ -1321,6 +1325,8 @@ class SchedulerJob(BaseJob):
             )
 
             dag_run.notify_dagrun_state_changed()
+            duration = dag_run.end_date - dag_run.start_date
+            Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
             return callback_to_execute
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
@@ -1563,7 +1569,9 @@ class SchedulerJob(BaseJob):
             )
             self.log.error("Detected zombie job: %s", request)
             self.executor.send_callback(request)
-            Stats.incr("zombies_killed")
+            Stats.incr(
+                "zombies_killed", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+            )
 
     @staticmethod
     def _generate_zombie_message_details(ti: TaskInstance):
@@ -1607,6 +1615,11 @@ class SchedulerJob(BaseJob):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
+    def _set_orphaned(self, dataset: DatasetModel) -> int:
+        self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
+        dataset.is_orphaned = expression.true()
+        return 1
+
     @provide_session
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
@@ -1633,6 +1646,6 @@ class SchedulerJob(BaseJob):
                 )
             )
         )
-        for dataset in orphaned_dataset_query:
-            self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
-            dataset.is_orphaned = expression.true()
+
+        updated_count = sum(self._set_orphaned(dataset) for dataset in orphaned_dataset_query)
+        Stats.gauge("dataset.orphaned", updated_count)
