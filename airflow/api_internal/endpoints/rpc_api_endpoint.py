@@ -35,7 +35,9 @@ log = logging.getLogger(__name__)
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
-    from airflow.models.dag import DagModel
+    from airflow.models import TaskInstance
+    from airflow.models.dag import DAG, DagModel
+    from airflow.models.serialized_dag import SerializedDagModel
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
@@ -50,6 +52,12 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.set,
         Variable.update,
         Variable.delete,
+        DAG.fetch_callback,
+        DAG.fetch_dagrun,
+        SerializedDagModel.get_serialized_dag,
+        TaskInstance.get_task_instance,
+        TaskInstance.fetch_handle_failure_context,
+        TaskInstance.save_to_db,
     ]
     return {f"{func.__module__}.{func.__name__}": func for func in functions}
 
