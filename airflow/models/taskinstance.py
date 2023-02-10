@@ -797,10 +797,14 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str,
         task_id: str,
         map_index: int,
+        select_columns: bool = False,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
-        query = session.query(*TaskInstance.__table__.columns).filter_by(
+        query = (
+            session.query(*TaskInstance.__table__.columns) if select_columns else session.query(TaskInstance)
+        )
+        query = query.filter_by(
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
@@ -834,6 +838,7 @@ class TaskInstance(Base, LoggingMixin):
             task_id=self.task_id,
             run_id=self.run_id,
             map_index=self.map_index,
+            select_columns=True,
             lock_for_update=lock_for_update,
             session=session,
         )
