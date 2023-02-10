@@ -37,7 +37,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
-The installation of Airflow is painless if you are following the instructions below. Airflow uses
+The installation of Airflow is painless if you follow the instructions below. Airflow uses
 constraint files to enable reproducible installation, so using ``pip`` and constraint files is recommended.
 
 .. code-block:: bash
@@ -61,7 +61,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
     # Visit localhost:8080 in the browser and use the admin account details
     # shown on the terminal to login.
-    # Enable the example_bash_operator dag in the home page
+    # Enable the example_bash_operator DAG in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.

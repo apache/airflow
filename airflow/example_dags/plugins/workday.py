@@ -78,6 +78,9 @@ class AfterWorkdayTimetable(Timetable):
 
     # [END howto_timetable_next_dagrun_info]
 
+    def validate(self):
+        pass
+
 
 class WorkdayTimetablePlugin(AirflowPlugin):
     name = "workday_timetable_plugin"

@@ -37,7 +37,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get an import error."""
-    error = session.query(ImportErrorModel).get(import_error_id)
+    error = session.get(ImportErrorModel, import_error_id)
 
     if error is None:
         raise NotFound(

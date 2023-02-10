@@ -34,6 +34,7 @@ from airflow import AirflowException
 from airflow.exceptions import PodReconciliationError
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -544,10 +545,12 @@ class TestKubernetesExecutor:
 
     @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
     def test_change_state_failed_no_deletion(
-        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_patch_pod = mock_kubescheduler.return_value.patch_pod_executor_done
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods = False
         executor.kube_config.delete_worker_pods_on_failure = False
@@ -555,10 +558,11 @@ class TestKubernetesExecutor:
         try:
             key = ("dag_id", "task_id", "run_id", "try_number3")
             executor.running = {key}
-            executor._change_state(key, State.FAILED, "pod_id", "default")
+            executor._change_state(key, State.FAILED, "pod_id", "test-namespace")
             assert executor.event_buffer[key][0] == State.FAILED
             assert executor.running == set()
             mock_delete_pod.assert_not_called()
+            mock_patch_pod.assert_called_once_with(pod_name="pod_id", namespace="test-namespace")
         finally:
             executor.end()
 
@@ -605,7 +609,7 @@ class TestKubernetesExecutor:
             assert executor.event_buffer[key][0] == State.SUCCESS
             assert executor.running == set()
             mock_delete_pod.assert_not_called()
-            mock_patch_pod.assert_called_once_with(pod_id="pod_id", namespace="test-namespace")
+            mock_patch_pod.assert_called_once_with(pod_name="pod_id", namespace="test-namespace")
         finally:
             executor.end()
 
@@ -654,7 +658,9 @@ class TestKubernetesExecutor:
         # First adoption
         reset_tis = executor.try_adopt_task_instances([mock_ti])
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="airflow-worker=1"
+            namespace="default",
+            field_selector="status.phase!=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker=1,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once_with(mock_kube_client, pod, {ti_key: mock_ti})
         mock_adopt_completed_pods.assert_called_once()
@@ -672,7 +678,9 @@ class TestKubernetesExecutor:
 
         reset_tis = executor.try_adopt_task_instances([mock_ti])
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="airflow-worker=10"
+            namespace="default",
+            field_selector="status.phase!=Succeeded",
+            label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
         )
         mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
         mock_adopt_completed_pods.assert_called_once()
@@ -695,8 +703,16 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 2
         mock_kube_client.list_namespaced_pod.assert_has_calls(
             [
-                mock.call(namespace="default", label_selector="airflow-worker=10"),
-                mock.call(namespace="default", label_selector="airflow-worker=40"),
+                mock.call(
+                    namespace="default",
+                    field_selector="status.phase!=Succeeded",
+                    label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
+                ),
+                mock.call(
+                    namespace="default",
+                    field_selector="status.phase!=Succeeded",
+                    label_selector="kubernetes_executor=True,airflow-worker=40,airflow_executor_done!=True",
+                ),
             ],
             any_order=True,
         )
@@ -1202,6 +1218,34 @@ class TestKubernetesExecutor:
         ti1.refresh_from_db()
         assert ti0.state == State.SCHEDULED
         assert ti1.state == State.QUEUED
+
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
+        """fetch task log from pod"""
+        mock_kube_client = mock_get_kube_client.return_value
+
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "x"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
+
+        executor = KubernetesExecutor()
+        messages, logs = executor.get_task_log(ti=ti)
+
+        mock_kube_client.read_namespaced_pod_log.assert_called_once()
+        assert "Trying to get logs (last 100 lines) from worker pod " in messages
+        assert logs[0] == "a_\nb_\nc_"
+
+        mock_kube_client.reset_mock()
+        mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
+
+        messages, logs = executor.get_task_log(ti=ti)
+        assert logs == [""]
+        assert messages == [
+            "Trying to get logs (last 100 lines) from worker pod ",
+            "Reading from k8s pod logs failed: error_fetching_pod_log",
+        ]
 
     def test_supports_pickling(self):
         assert KubernetesExecutor.supports_pickling

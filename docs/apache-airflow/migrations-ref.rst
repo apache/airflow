@@ -27,8 +27,8 @@ Here's the list of all the Database Migrations that are executed via when you ru
    "DB conscious" users might perform an analysis on the migrations and draw conclusions about the impact
    of the migrations on their Airflow database. Those users might also want to take a look at the
    :doc:`database-erd-ref` document to understand how the internal DB of Airflow structure looks like.
-   However you should be aware that the structure is internal and you should not access the DB directly
-   to retrieve or modify any data - you should use :doc:`stable-rest-api-ref` to do that instead.
+   However, you should be aware that the structure is internal and you should not access the DB directly
+   to retrieve or modify any data - you should use the :doc:`REST API <stable-rest-api-ref>` to do that instead.
 
 
 
@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``6abdffdd4815`` (head)         | ``290244fb8b83``  | ``2.6.0``         | add dttm index on log table                                  |
+| ``98ae134e6fff`` (head)         | ``6abdffdd4815``  | ``2.6.0``         | Increase length of user identifier columns in ``ab_user``    |
+|                                 |                   |                   | and ``ab_register_user`` tables                              |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``6abdffdd4815``                | ``290244fb8b83``  | ``2.6.0``         | add dttm index on log table                                  |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``290244fb8b83``                | ``1986afd32c1b``  | ``2.5.0``         | Add is_orphaned to DatasetModel                              |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+

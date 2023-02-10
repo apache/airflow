@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Translate Hook."""
 from __future__ import annotations
 
+import warnings
 from typing import Sequence
 
 from google.cloud.translate_v2 import Client
@@ -40,6 +41,10 @@ class CloudTranslateHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,

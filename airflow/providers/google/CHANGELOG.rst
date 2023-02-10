@@ -23,6 +23,37 @@
 Changelog
 ---------
 
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable capability to existing ''DataprocDeleteClusterOperator'' (#29349)``
+* ``Add deferrable mode to dataflow operators (#27776)``
+* ``Add deferrable mode to DataprocCreateBatchOperator (#28457)``
+* ``Add deferrable mode to DataprocCreateClusterOperator and DataprocUpdateClusterOperator (#28529)``
+* ``Add deferrable mode to MLEngineStartTrainingJobOperator (#27405)``
+* ``Add deferrable mode to DataFusionStartPipelineOperator (#28690)``
+* ``Add deferrable mode for Big Query Transfer operator (#27833)``
+* ``Add support for write_on_empty in BaseSQLToGCSOperator (#28959)``
+* ``Add DataprocCancelOperationOperator (#28456)``
+* ``Enable individual trigger logging (#27758)``
+* ``Auto ML assets (#25466)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GoogleDriveHook writing files to trashed folders on upload v2 (#29119)``
+* ``fix Google provider CHANGELOG.rst (#29122)``
+* ``fix Google provider CHANGELOG.rst (#29114)``
+* ``Keyfile dict can be dict not str (#29135)``
+* ``GCSTaskHandler may use remote log conn id (#29117)``
+
+Misc
+~~~~
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 8.8.0
 .....
 
@@ -70,6 +101,7 @@ Bug Fixes
 
 Misc
 ~~~~
+
 * ``Remove 'pylint' messages control instructions (#28555)``
 * ``Remove deprecated AIPlatformConsoleLinkk from google/provider.yaml (#28449)``
 * ``Use object instead of array in config.yml for config template (#28417)``
@@ -127,7 +159,7 @@ So for example you may store the keyfile json as ``keyfile_dict`` instead of
 ``extra__google_cloud_platform__keyfile_dict``.  If both are present, the short name will be preferred.
 
 * ``Add backward compatibility with old versions of Apache Beam (#27263)``
-* ``Add deferrable mode to GCPToBigQueryOperator + tests (#27052)``
+* ``Add deferrable mode to GCSToBigQueryOperator + tests (#27052)``
 * ``Add system tests for Vertex AI operators in new approach (#27053)``
 * ``Dataform operators, links, update system tests and docs (#27144)``
 * ``Allow values in WorkflowsCreateExecutionOperator execution argument to be dicts (#27361)``
@@ -544,11 +576,10 @@ Misc
 * ``Cleanup Google provider CHANGELOG.rst (#23390)``
 * ``migrate system test gcs_to_bigquery into new design (#22753)``
 * ``Add example DAG for demonstrating usage of GCS sensors (#22808)``
-
-   * ``Clean up in-line f-string concatenation (#23591)``
-   * ``Bump pre-commit hook versions (#22887)``
-   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
-   * ``Fix new MyPy errors in main (#22884)``
+* ``Clean up in-line f-string concatenation (#23591)``
+* ``Bump pre-commit hook versions (#22887)``
+* ``Use new Breese for building, pulling and verifying the images. (#23104)``
+* ``Fix new MyPy errors in main (#22884)``
 
 6.8.0
 .....

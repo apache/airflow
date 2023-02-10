@@ -54,27 +54,30 @@ class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
     @classmethod
-    def incr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
+    def incr(cls, stat: str, count: int = 1, rate: int = 1, tags: dict[str, str] | None = None) -> None:
         """Increment stat."""
 
     @classmethod
-    def decr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
+    def decr(cls, stat: str, count: int = 1, rate: int = 1, tags: dict[str, str] | None = None) -> None:
         """Decrement stat."""
 
     @classmethod
-    def gauge(cls, stat: str, value: float, rate: int = 1, delta: bool = False) -> None:
+    def gauge(
+        cls, stat: str, value: float, rate: int = 1, delta: bool = False, tags: dict[str, str] | None = None
+    ) -> None:
         """Gauge stat."""
 
     @classmethod
-    def timing(cls, stat: str, dt: float | datetime.timedelta) -> None:
+    def timing(cls, stat: str, dt: float | datetime.timedelta, tags: dict[str, str] | None = None) -> None:
         """Stats timing."""
 
     @classmethod
     def timer(cls, *args, **kwargs) -> TimerProtocol:
         """Timer metric that can be cancelled."""
+        raise NotImplementedError()
 
 
-class Timer:
+class Timer(TimerProtocol):
     """
     Timer that records duration, and optional sends to StatsD backend.
 
@@ -156,19 +159,19 @@ class DummyStatsLogger:
     """If no StatsLogger is configured, DummyStatsLogger is used as a fallback."""
 
     @classmethod
-    def incr(cls, stat, count=1, rate=1):
+    def incr(cls, stat, count=1, rate=1, tags=None):
         """Increment stat."""
 
     @classmethod
-    def decr(cls, stat, count=1, rate=1):
+    def decr(cls, stat, count=1, rate=1, tags=None):
         """Decrement stat."""
 
     @classmethod
-    def gauge(cls, stat, value, rate=1, delta=False):
+    def gauge(cls, stat, value, rate=1, delta=False, tags=None):
         """Gauge stat."""
 
     @classmethod
-    def timing(cls, stat, dt):
+    def timing(cls, stat, dt, tags=None):
         """Stats timing."""
 
     @classmethod
@@ -256,35 +259,35 @@ class SafeStatsdLogger:
         self.allow_list_validator = allow_list_validator
 
     @validate_stat
-    def incr(self, stat, count=1, rate=1):
+    def incr(self, stat, count=1, rate=1, tags: dict[str, str] | None = None):
         """Increment stat."""
         if self.allow_list_validator.test(stat):
             return self.statsd.incr(stat, count, rate)
         return None
 
     @validate_stat
-    def decr(self, stat, count=1, rate=1):
+    def decr(self, stat, count=1, rate=1, tags: dict[str, str] | None = None):
         """Decrement stat."""
         if self.allow_list_validator.test(stat):
             return self.statsd.decr(stat, count, rate)
         return None
 
     @validate_stat
-    def gauge(self, stat, value, rate=1, delta=False):
+    def gauge(self, stat, value, rate=1, delta=False, tags: dict[str, str] | None = None):
         """Gauge stat."""
         if self.allow_list_validator.test(stat):
             return self.statsd.gauge(stat, value, rate, delta)
         return None
 
     @validate_stat
-    def timing(self, stat, dt):
+    def timing(self, stat, dt, tags: dict[str, str] | None = None):
         """Stats timing."""
         if self.allow_list_validator.test(stat):
             return self.statsd.timing(stat, dt)
         return None
 
     @validate_stat
-    def timer(self, stat=None, *args, **kwargs):
+    def timer(self, stat=None, *args, tags: dict[str, str] | None = None, **kwargs):
         """Timer metric that can be cancelled."""
         if stat and self.allow_list_validator.test(stat):
             return Timer(self.statsd.timer(stat, *args, **kwargs))
@@ -294,55 +297,71 @@ class SafeStatsdLogger:
 class SafeDogStatsdLogger:
     """DogStatsd Logger."""
 
-    def __init__(self, dogstatsd_client, allow_list_validator=AllowListValidator()):
+    def __init__(self, dogstatsd_client, allow_list_validator=AllowListValidator(), metrics_tags=False):
         self.dogstatsd = dogstatsd_client
         self.allow_list_validator = allow_list_validator
+        self.metrics_tags = metrics_tags
 
     @validate_stat
-    def incr(self, stat, count=1, rate=1, tags=None):
+    def incr(self, stat, count=1, rate=1, tags: dict[str, str] | None = None):
         """Increment stat."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+        else:
+            tags_list = []
         if self.allow_list_validator.test(stat):
-            tags = tags or []
-            return self.dogstatsd.increment(metric=stat, value=count, tags=tags, sample_rate=rate)
+            return self.dogstatsd.increment(metric=stat, value=count, tags=tags_list, sample_rate=rate)
         return None
 
     @validate_stat
-    def decr(self, stat, count=1, rate=1, tags=None):
+    def decr(self, stat, count=1, rate=1, tags: dict[str, str] | None = None):
         """Decrement stat."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+        else:
+            tags_list = []
         if self.allow_list_validator.test(stat):
-            tags = tags or []
-            return self.dogstatsd.decrement(metric=stat, value=count, tags=tags, sample_rate=rate)
+            return self.dogstatsd.decrement(metric=stat, value=count, tags=tags_list, sample_rate=rate)
         return None
 
     @validate_stat
-    def gauge(self, stat, value, rate=1, delta=False, tags=None):
+    def gauge(self, stat, value, rate=1, delta=False, tags: dict[str, str] | None = None):
         """Gauge stat."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+        else:
+            tags_list = []
         if self.allow_list_validator.test(stat):
-            tags = tags or []
-            return self.dogstatsd.gauge(metric=stat, value=value, tags=tags, sample_rate=rate)
+            return self.dogstatsd.gauge(metric=stat, value=value, tags=tags_list, sample_rate=rate)
         return None
 
     @validate_stat
-    def timing(self, stat, dt: float | datetime.timedelta, tags: list[str] | None = None):
+    def timing(self, stat, dt: float | datetime.timedelta, tags: dict[str, str] | None = None):
         """Stats timing."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+        else:
+            tags_list = []
         if self.allow_list_validator.test(stat):
-            tags = tags or []
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds()
-            return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
+            return self.dogstatsd.timing(metric=stat, value=dt, tags=tags_list)
         return None
 
     @validate_stat
     def timer(self, stat=None, *args, tags=None, **kwargs):
         """Timer metric that can be cancelled."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+        else:
+            tags_list = []
         if stat and self.allow_list_validator.test(stat):
-            tags = tags or []
-            return Timer(self.dogstatsd.timed(stat, *args, tags=tags, **kwargs))
+            return Timer(self.dogstatsd.timed(stat, *args, tags=tags_list, **kwargs))
         return Timer()
 
 
 class _Stats(type):
-    factory = None
+    factory: Callable[[], StatsLogger]
     instance: StatsLogger | None = None
 
     def __getattr__(cls, name):
@@ -356,7 +375,7 @@ class _Stats(type):
 
     def __init__(cls, *args, **kwargs):
         super().__init__(cls)
-        if cls.__class__.factory is None:
+        if not hasattr(cls.__class__, "factory"):
             is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
             if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
                 cls.__class__.factory = cls.get_dogstatsd_logger
@@ -407,7 +426,8 @@ class _Stats(type):
         )
         dogstatsd_allow_list = conf.get("metrics", "statsd_allow_list", fallback=None)
         allow_list_validator = AllowListValidator(dogstatsd_allow_list)
-        return SafeDogStatsdLogger(dogstatsd, allow_list_validator)
+        datadog_metrics_tags = conf.get("metrics", "statsd_datadog_metrics_tags", fallback=True)
+        return SafeDogStatsdLogger(dogstatsd, allow_list_validator, datadog_metrics_tags)
 
     @classmethod
     def get_constant_tags(cls):

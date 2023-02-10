@@ -164,6 +164,7 @@ with DAG(
         run_id=submit_glue_job.output,
     )
     # [END howto_sensor_glue]
+    wait_for_job.poke_interval = 10
 
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",

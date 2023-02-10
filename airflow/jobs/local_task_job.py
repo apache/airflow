@@ -24,13 +24,13 @@ import psutil
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
-from airflow.listeners.events import register_task_instance_state_events
-from airflow.listeners.listener import get_listener_manager
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskReturnCode
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.net import get_hostname
+from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -105,8 +105,7 @@ class LocalTaskJob(BaseJob):
 
         super().__init__(*args, **kwargs)
 
-    def _execute(self):
-        self._enable_task_listeners()
+    def _execute(self) -> int | None:
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
@@ -134,7 +133,10 @@ class LocalTaskJob(BaseJob):
 
         signal.signal(signal.SIGSEGV, segfault_signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
-        signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
+
+        if not IS_WINDOWS:
+            # This is not supported on Windows systems
+            signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
             mark_success=self.mark_success,
@@ -148,8 +150,9 @@ class LocalTaskJob(BaseJob):
             external_executor_id=self.external_executor_id,
         ):
             self.log.info("Task is not able to be run")
-            return
+            return None
 
+        return_code = None
         try:
             self.task_runner.start()
 
@@ -182,7 +185,7 @@ class LocalTaskJob(BaseJob):
                 return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
                     self.handle_task_exit(return_code)
-                    return
+                    return return_code
 
                 self.heartbeat()
 
@@ -197,6 +200,7 @@ class LocalTaskJob(BaseJob):
                         f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
                         f"({heartbeat_time_limit}s)."
                     )
+            return return_code
         finally:
             self.on_kill()
 
@@ -208,10 +212,15 @@ class LocalTaskJob(BaseJob):
         """
         # Without setting this, heartbeat may get us
         self.terminating = True
-        self.log.info("Task exited with return code %s", return_code)
         self._log_return_code_metric(return_code)
+        is_deferral = return_code == TaskReturnCode.DEFERRED.value
+        if is_deferral:
+            self.log.info("Task exited with return code %s (task deferral)", return_code)
+            _set_task_deferred_context_var()
+        else:
+            self.log.info("Task exited with return code %s", return_code)
 
-        if not self.task_instance.test_mode:
+        if not self.task_instance.test_mode and not is_deferral:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks()
 
@@ -282,9 +291,3 @@ class LocalTaskJob(BaseJob):
         Stats.incr(
             f"local_task_job.task_exit.{self.id}.{self.dag_id}.{self.task_instance.task_id}.{return_code}"
         )
-
-    @staticmethod
-    def _enable_task_listeners():
-        """Check for registered listeners, then register sqlalchemy hooks for TI state changes."""
-        if get_listener_manager().has_listeners:
-            register_task_instance_state_events()

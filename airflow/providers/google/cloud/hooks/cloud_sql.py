@@ -31,6 +31,7 @@ import string
 import subprocess
 import time
 import uuid
+import warnings
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -94,6 +95,10 @@ class CloudSQLHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -685,8 +690,6 @@ class CloudSQLDatabaseHook(BaseHook):
     default_conn_name = "google_cloud_sqldb_default"
     conn_type = "gcpcloudsqldb"
     hook_name = "Google Cloud SQL Database"
-
-    _conn = None
 
     def __init__(
         self,

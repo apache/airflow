@@ -23,11 +23,12 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import Action, ArgumentError, RawTextHelpFormatter
+from argparse import Action, ArgumentError
 from functools import lru_cache
 from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
+from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
@@ -142,7 +143,16 @@ class Arg:
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser."""
+        if "metavar" in self.kwargs and "type" not in self.kwargs:
+            if self.kwargs["metavar"] == "DIRPATH":
+                type = lambda x: self._is_valid_directory(parser, x)
+                self.kwargs["type"] = type
         parser.add_argument(*self.flags, **self.kwargs)
+
+    def _is_valid_directory(self, parser, arg):
+        if not os.path.isdir(arg):
+            parser.error(f"The directory '{arg}' does not exist!")
+        return arg
 
 
 def positive_int(*, allow_zero):
@@ -468,7 +478,23 @@ ARG_DB_SKIP_ARCHIVE = Arg(
     help="Don't preserve purged records in an archive table.",
     action="store_true",
 )
-
+ARG_DB_EXPORT_FORMAT = Arg(
+    ("--export-format",),
+    help="The file format to export the cleaned data",
+    choices=("csv",),
+    default="csv",
+)
+ARG_DB_OUTPUT_PATH = Arg(
+    ("--output-path",),
+    metavar="DIRPATH",
+    help="The path to the output directory to export the cleaned data. This directory must exist.",
+    required=True,
+)
+ARG_DB_DROP_ARCHIVES = Arg(
+    ("--drop-archives",),
+    help="Drop the archive tables after exporting. Use with caution.",
+    action="store_true",
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -675,6 +701,50 @@ ARG_ERROR_LOGFILE = Arg(
 ARG_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     default=conf.get("webserver", "ACCESS_LOGFORMAT"),
+    help="The access log format for gunicorn logs",
+)
+
+
+# internal-api
+ARG_INTERNAL_API_PORT = Arg(
+    ("-p", "--port"),
+    default=9080,
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_INTERNAL_API_WORKERS = Arg(
+    ("-w", "--workers"),
+    default=4,
+    type=int,
+    help="Number of workers to run the Internal API-on",
+)
+ARG_INTERNAL_API_WORKERCLASS = Arg(
+    ("-k", "--workerclass"),
+    default="sync",
+    choices=["sync", "eventlet", "gevent", "tornado"],
+    help="The worker class to use for Gunicorn",
+)
+ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
+    ("-t", "--worker-timeout"),
+    default=120,
+    type=int,
+    help="The timeout for waiting on Internal API workers",
+)
+ARG_INTERNAL_API_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default="0.0.0.0",
+    help="Set the hostname on which to run the web server",
+)
+ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
+    ("-A", "--access-logfile"),
+    help="The logfile to store the access log. Use '-' to print to stdout",
+)
+ARG_INTERNAL_API_ERROR_LOGFILE = Arg(
+    ("-E", "--error-logfile"),
+    help="The logfile to store the error log. Use '-' to print to stderr",
+)
+ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
 
@@ -1545,6 +1615,23 @@ DB_COMMANDS = (
             ARG_DB_SKIP_ARCHIVE,
         ),
     ),
+    ActionCommand(
+        name="export-cleaned",
+        help="Export cleaned data from the archive tables",
+        func=lazy_load_command("airflow.cli.commands.db_command.export_cleaned"),
+        args=(
+            ARG_DB_EXPORT_FORMAT,
+            ARG_DB_OUTPUT_PATH,
+            ARG_DB_DROP_ARCHIVES,
+            ARG_DB_TABLES,
+        ),
+    ),
+    ActionCommand(
+        name="drop-archived",
+        help="Drop archived tables created through the db clean command",
+        func=lazy_load_command("airflow.cli.commands.db_command.drop_archived"),
+        args=(ARG_DB_TABLES, ARG_YES),
+    ),
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
@@ -1969,6 +2056,29 @@ airflow_commands: list[CLICommand] = [
         ),
     ),
     ActionCommand(
+        name="internal-api",
+        help="Start a Airflow Internal API instance",
+        func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
+        args=(
+            ARG_INTERNAL_API_PORT,
+            ARG_INTERNAL_API_WORKERS,
+            ARG_INTERNAL_API_WORKERCLASS,
+            ARG_INTERNAL_API_WORKER_TIMEOUT,
+            ARG_INTERNAL_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_INTERNAL_API_ACCESS_LOGFILE,
+            ARG_INTERNAL_API_ERROR_LOGFILE,
+            ARG_INTERNAL_API_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
+        ),
+    ),
+    ActionCommand(
         name="scheduler",
         help="Start a scheduler instance",
         func=lazy_load_command("airflow.cli.commands.scheduler_command.scheduler"),
@@ -2005,6 +2115,7 @@ airflow_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_CAPACITY,
             ARG_VERBOSE,
+            ARG_SKIP_SERVE_LOGS,
         ),
     ),
     ActionCommand(
@@ -2134,46 +2245,46 @@ dag_cli_commands: list[CLICommand] = [
 DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
 
 
-class AirflowHelpFormatter(argparse.HelpFormatter):
+class AirflowHelpFormatter(RichHelpFormatter):
     """
     Custom help formatter to display help message.
 
     It displays simple commands and groups of commands in separate sections.
     """
 
-    def _format_action(self, action: Action):
+    def _iter_indented_subactions(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
-
-            parts = []
-            action_header = self._format_action_invocation(action)
-            action_header = "%*s%s\n" % (self._current_indent, "", action_header)
-            parts.append(action_header)
 
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
-            parts.append("\n")
-            parts.append("%*s%s:\n" % (self._current_indent, "", "Groups"))
+            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Groups"), nargs=0)
             self._indent()
-            for subaction in group_subcommands:
-                parts.append(self._format_action(subaction))
+            yield from group_subcommands
             self._dedent()
 
-            parts.append("\n")
-            parts.append("%*s%s:\n" % (self._current_indent, "", "Commands"))
+            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Commands"), nargs=0)
             self._indent()
-
-            for subaction in action_subcommands:
-                parts.append(self._format_action(subaction))
+            yield from action_subcommands
             self._dedent()
             self._dedent()
+        else:
+            yield from super()._iter_indented_subactions(action)
 
-            # return a single string
-            return self._join_parts(parts)
 
-        return super()._format_action(action)
+class LazyRichHelpFormatter(RawTextRichHelpFormatter):
+    """
+    Custom help formatter to display help message.
+
+    It resolves lazy help string before printing it using rich.
+    """
+
+    def add_argument(self, action: Action) -> None:
+        if isinstance(action.help, lazy_object_proxy.Proxy):
+            action.help = str(action.help)
+        return super().add_argument(action)
 
 
 @lru_cache(maxsize=None)
@@ -2208,7 +2319,7 @@ def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> Non
     sub_proc = subparsers.add_parser(
         sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
     )
-    sub_proc.formatter_class = RawTextHelpFormatter
+    sub_proc.formatter_class = LazyRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
         _add_group_command(sub, sub_proc)

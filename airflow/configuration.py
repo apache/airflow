@@ -43,6 +43,7 @@ from typing_extensions import overload
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
@@ -206,6 +207,7 @@ class AirflowConfigParser(ConfigParser):
         ("metrics", "stat_name_handler"): ("scheduler", "stat_name_handler", "2.0.0"),
         ("metrics", "statsd_datadog_enabled"): ("scheduler", "statsd_datadog_enabled", "2.0.0"),
         ("metrics", "statsd_datadog_tags"): ("scheduler", "statsd_datadog_tags", "2.0.0"),
+        ("metrics", "statsd_datadog_metrics_tags"): ("scheduler", "statsd_datadog_metrics_tags", "2.6.0"),
         ("metrics", "statsd_custom_client_path"): ("scheduler", "statsd_custom_client_path", "2.0.0"),
         ("scheduler", "parsing_processes"): ("scheduler", "max_threads", "1.10.14"),
         ("scheduler", "scheduler_idle_sleep_time"): ("scheduler", "processor_poll_interval", "2.2.0"),
@@ -433,13 +435,11 @@ class AirflowConfigParser(ConfigParser):
         Values are considered invalid when they conflict with other config values
         or system-level limitations and requirements.
         """
-        is_executor_without_sqlite_support = self.get("core", "executor") not in (
-            "DebugExecutor",
-            "SequentialExecutor",
-        )
+        executor, _ = ExecutorLoader.import_default_executor_cls()
         is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
-        if is_sqlite and is_executor_without_sqlite_support:
-            raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
+
+        if is_sqlite and not executor.is_single_threaded:
+            raise AirflowConfigException(f"error: cannot use sqlite with the {executor.__name__}")
         if is_sqlite:
             import sqlite3
 

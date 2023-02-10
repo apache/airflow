@@ -216,12 +216,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
-    # dnspython 2.3.0 is not compatible with eventlet.
-    # This can be removed when the issue is resolved (reported in two places):
-    # * https://github.com/eventlet/eventlet/issues/781
-    # * https://datastax-oss.atlassian.net/browse/PYTHON-1320
-    "dnspython<2.3.0",
-    "eventlet>=0.9.7",
+    "eventlet>=0.33.3",
     "gevent>=0.13",
     "greenlet>=0.4.9",
 ]
@@ -343,7 +338,7 @@ mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==0.971",
+    "mypy==0.991",
     "types-boto",
     "types-certifi",
     "types-croniter",
@@ -388,18 +383,12 @@ devel_only = [
     "pre-commit",
     "pypsrp",
     "pygithub",
-    # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
-    # It contains a number of potential breaking changes but none of them looks breaking our use
-    # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
-    # TODO: upgrade it and remove the limit
-    "pytest~=6.0",
+    "pytest",
     "pytest-asyncio",
     "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
-    # We should attempt to remove the limit when we upgrade Pytest
-    # TODO: remove the limit when we upgrade pytest
-    "pytest-rerunfailures~=9.1",
+    "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
     "python-jose",

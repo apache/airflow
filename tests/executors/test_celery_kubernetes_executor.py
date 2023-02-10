@@ -43,6 +43,9 @@ class TestCeleryKubernetesExecutor:
     def test_serve_logs_default_value(self):
         assert not CeleryKubernetesExecutor.serve_logs
 
+    def test_is_single_threaded_default_value(self):
+        assert not CeleryKubernetesExecutor.is_single_threaded
+
     def test_queued_tasks(self):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
@@ -172,6 +175,22 @@ class TestCeleryKubernetesExecutor:
         cke.try_adopt_task_instances(celery_tis + k8s_tis)
         celery_executor_mock.try_adopt_task_instances.assert_called_once_with(celery_tis)
         k8s_executor_mock.try_adopt_task_instances.assert_called_once_with(k8s_tis)
+
+    def test_log_is_fetched_from_k8s_executor_only_for_k8s_queue(self):
+        celery_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
+        simple_task_instance = mock.MagicMock()
+        simple_task_instance.queue = KUBERNETES_QUEUE
+        cke.get_task_log(ti=simple_task_instance)
+        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance)
+
+        k8s_executor_mock.reset_mock()
+
+        simple_task_instance.queue = "test-queue"
+        log = cke.get_task_log(ti=simple_task_instance)
+        k8s_executor_mock.get_task_log.assert_not_called()
+        assert log == ([], [])
 
     def test_get_event_buffer(self):
         celery_executor_mock = mock.MagicMock()

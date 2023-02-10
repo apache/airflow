@@ -123,6 +123,7 @@ backfill
 backfillable
 backfilled
 backfilling
+backfilljob
 BackfillJobTest
 Backfills
 backfills
@@ -347,6 +348,9 @@ DataFrame
 Dataframe
 dataframe
 dataframes
+DataFusion
+Datafusion
+datafusion
 Datalake
 Datanodes
 datapipe
@@ -640,6 +644,7 @@ Grpc
 gRPC
 grpc
 GSoD
+gsuite
 Gunicorn
 gz
 Gzip
@@ -1269,6 +1274,7 @@ schedulable
 schedulername
 schemas
 sdk
+sdks
 searchpath
 SearchResultGenerator
 SecretManagerClient

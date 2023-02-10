@@ -39,13 +39,13 @@ Dynamic DAGs with environment variables
 If you want to use variables to configure your code, you should always use
 `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ in your
 top-level code rather than :doc:`Airflow Variables </core-concepts/variables>`. Using Airflow Variables
-at top-level code creates a connection to metadata DB of Airflow to fetch the value, which can slow
-down parsing and place extra load on the DB. See the `Airflow Variables <_best_practices/airflow_variables>`_
-on how to make best use of Airflow Variables in your DAGs using Jinja templates .
+in top-level code creates a connection to the metadata DB of Airflow to fetch the value, which can slow
+down parsing and place extra load on the DB. See the `best practices on Airflow Variables <best_practices/airflow_variables>`_
+to make the best use of Airflow Variables in your DAGs using Jinja templates.
 
 For example you could set ``DEPLOYMENT`` variable differently for your production and development
 environments. The variable ``DEPLOYMENT`` could be set to ``PROD`` in your production environment and to
-``DEV`` in your development environment. Then you could build your dag differently in production and
+``DEV`` in your development environment. Then you could build your DAG differently in production and
 development environment, depending on the value of the environment variable.
 
 .. code-block:: python
@@ -198,7 +198,7 @@ a single DAG object (when executing the task).
 
 The :py:meth:`~airflow.utils.dag_parsing_context.get_parsing_context` return the current parsing
 context. The context is of :py:class:`~airflow.utils.dag_parsing_context.AirflowParsingContext` and
-in case only single dag/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
+in case only single DAG/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
 In case "full" parsing is needed (for example in DAG File Processor), ``dag_id`` and ``task_id``
 of the context are set to ``None``.
 
