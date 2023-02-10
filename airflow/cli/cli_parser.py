@@ -1626,6 +1626,12 @@ DB_COMMANDS = (
             ARG_DB_TABLES,
         ),
     ),
+    ActionCommand(
+        name="drop-archived",
+        help="Drop archived tables created through the db clean command",
+        func=lazy_load_command("airflow.cli.commands.db_command.drop_archived"),
+        args=(ARG_DB_TABLES, ARG_YES),
+    ),
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
