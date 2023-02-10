@@ -687,6 +687,10 @@ class MappedOperator(AbstractOperator):
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 
+        # Since the operators that extend `BaseOperator` are not subclasses of
+        # `MappedOperator`, we need to call `_do_render_template_fields` from
+        # the unmapped task in order to call the operator method when we override
+        # it to customize the parsing of nested fields.
         unmapped_task._do_render_template_fields(
             parent=unmapped_task,
             template_fields=self.template_fields,
