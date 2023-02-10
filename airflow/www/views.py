@@ -3713,9 +3713,7 @@ class Airflow(AirflowBaseView):
                 )
                 .join(
                     DatasetEvent,
-                    and_(
-                        DatasetEvent.dataset_id == DatasetModel.id,
-                    ),
+                    DatasetEvent.dataset_id == DatasetModel.id,
                     isouter=True,
                 )
                 .filter(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
