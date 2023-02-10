@@ -110,7 +110,7 @@ class TestSFTPSensor:
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_present_with_pattern(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
-        sftp_hook_mock.return_value.get_file_by_pattern.return_value = "/path/to/file/text_file.txt"
+        sftp_hook_mock.return_value.get_file_by_pattern.return_value = "text_file.txt"
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/", file_pattern="*.txt")
         context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
