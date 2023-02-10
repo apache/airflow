@@ -35,10 +35,12 @@ class LogGroomerTestBase:
 
     def test_log_groomer_collector_can_be_disabled(self):
         docs = render_chart(
-            values={f"{self.obj_name}": {"logGroomerSidecar": {"enabled": False}}},
+            values={f"{self.folder}": {"logGroomerSidecar": {"enabled": False}}},
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
-        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        actual = jmespath.search("spec.template.spec.containers", docs[0])
+
+        assert len(actual) == 1
 
     def test_log_groomer_collector_default_command_and_args(self):
         docs = render_chart(show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"])
@@ -58,7 +60,7 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_log_groomer_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={f"{self.obj_name}": {"logGroomerSidecar": {"command": command, "args": args}}},
+            values={f"{self.folder}": {"logGroomerSidecar": {"command": command, "args": args}}},
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
@@ -68,7 +70,7 @@ class LogGroomerTestBase:
     def test_log_groomer_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
-                f"{self.obj_name}": {
+                f"{self.folder}": {
                     "logGroomerSidecar": {
                         "command": ["{{ .Release.Name }}"],
                         "args": ["{{ .Release.Service }}"],
@@ -84,7 +86,7 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize("retention_days, retention_result", [(None, None), (30, "30")])
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         docs = render_chart(
-            values={f"{self.obj_name}": {"logGroomerSidecar": {"retentionDays": retention_days}}},
+            values={f"{self.folder}": {"logGroomerSidecar": {"retentionDays": retention_days}}},
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
@@ -101,7 +103,7 @@ class LogGroomerTestBase:
     def test_log_groomer_resources(self):
         docs = render_chart(
             values={
-                f"{self.obj_name}": {
+                f"{self.folder}": {
                     "logGroomerSidecar": {
                         "resources": {
                             "requests": {"memory": "2Gi", "cpu": "1"},
