@@ -59,7 +59,7 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance.fetch_handle_failure_context,
         TaskInstance.save_to_db,
     ]
-    return {f"{func.__module__}.{func.__name__}": func for func in functions}
+    return {f"{func.__module__}.{func.__qualname__}": func for func in functions}
 
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
