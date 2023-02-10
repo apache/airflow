@@ -1338,8 +1338,10 @@ class DAG(LoggingMixin):
         :param reason: Completion reason
         :param session: Database session
         """
-        callbacks, context = DAG.fetch_callback(
-            dag=self, dagrun=dagrun, success=success, reason=reason, session=session
+        callbacks, context = (
+            DAG.fetch_callback(dag=self, dagrun=dagrun, success=success, reason=reason, session=session)
+            or None,
+            None,
         )
         DAG.execute_callback(callbacks, context, self.dag_id, dagrun.run_id)
 
