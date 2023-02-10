@@ -800,7 +800,7 @@ class TaskInstance(Base, LoggingMixin):
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
-        query = session.query(TaskInstance).filter_by(
+        query = session.query(*TaskInstance.__table__.columns).filter_by(
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
@@ -811,10 +811,10 @@ class TaskInstance(Base, LoggingMixin):
             for attempt in run_with_db_retries(logger=cls.logger()):
                 with attempt:
                     return query.with_for_update().one_or_none()
-            else:
-                return None
         else:
             return query.one_or_none()
+
+        return None
 
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
@@ -826,6 +826,9 @@ class TaskInstance(Base, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
+        if self in session:
+            session.refresh(self, TaskInstance.__mapper__.column_attrs.keys())
+
         ti = TaskInstance.get_task_instance(
             dag_id=self.dag_id,
             task_id=self.task_id,
@@ -1833,30 +1836,13 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def fetch_handle_failure_context(
         cls,
-        dag_id: str,
-        run_id: str,
-        task_id: str,
-        map_index: int,
+        ti: TaskInstance,
         error: None | str | Exception | KeyboardInterrupt,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
         session: Session = NEW_SESSION,
     ):
-        ti = TaskInstance.get_task_instance(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            session=session,
-        )
-
-        if ti is None:
-            raise AirflowException(
-                f"Unable to fetch the task instance from the database. dag_id={dag_id},"
-                f"task_id={task_id}, run_id={run_id}, map_index={map_index}"
-            )
-
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
         )
@@ -1873,7 +1859,7 @@ class TaskInstance(Base, LoggingMixin):
         ti.end_date = timezone.utcnow()
         ti.set_duration()
         Stats.incr(f"operator_failures_{ti.operator}")
-        Stats.incr("ti_failures", tags={"dag_id": dag_id, "run_id": run_id, "task_id": task_id})
+        Stats.incr("ti_failures", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id})
         if not test_mode:
             session.add(Log(State.FAILED, ti))
 
@@ -1949,10 +1935,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode = self.test_mode
 
         failure_context = TaskInstance.fetch_handle_failure_context(
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            task_id=self.task_id,
-            map_index=self.map_index,
+            ti=self,
             error=error,
             test_mode=test_mode,
             context=context,

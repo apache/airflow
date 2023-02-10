@@ -2555,7 +2555,8 @@ class TestTaskInstance:
             pass  # expected
         assert State.UP_FOR_RETRY == ti.state
 
-    def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
+    @patch.object(TaskInstance, "logger")
+    def test_stacktrace_on_failure_starts_with_task_execute_method(self, mock_get_log, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
 
@@ -2567,11 +2568,13 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        with patch.object(TI, "log") as log, pytest.raises(AirflowException):
+        mock_log = mock.Mock()
+        mock_get_log.return_value = mock_log
+        with pytest.raises(AirflowException):
             ti.run()
-        log.error.assert_called_once()
-        assert log.error.call_args[0] == ("Task failed with exception",)
-        exc_info = log.error.call_args[1]["exc_info"]
+        mock_log.error.assert_called_once()
+        assert mock_log.error.call_args[0] == ("Task failed with exception",)
+        exc_info = mock_log.error.call_args[1]["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
         formatted_exc = format_exception(*exc_info)
         assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
