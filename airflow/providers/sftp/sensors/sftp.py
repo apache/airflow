@@ -18,6 +18,7 @@
 """This module contains SFTP sensor."""
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Sequence
 
@@ -69,7 +70,7 @@ class SFTPSensor(BaseSensorOperator):
         if self.file_pattern:
             file_from_pattern = self.hook.get_file_by_pattern(self.path, self.file_pattern)
             if file_from_pattern:
-                actual_file_to_check = file_from_pattern
+                actual_file_to_check = os.path.join(self.path, file_from_pattern)
             else:
                 return False
         else:
