@@ -85,7 +85,7 @@ class State:
     FAILED = TaskInstanceState.FAILED
 
     # These are TaskState only
-    NONE = None
+    NONE: None = None
     REMOVED = TaskInstanceState.REMOVED
     SCHEDULED = TaskInstanceState.SCHEDULED
     QUEUED = TaskInstanceState.QUEUED

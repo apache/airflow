@@ -28,7 +28,7 @@ from airflow.typing_compat import ParamSpec
 @contextlib.contextmanager
 def create_session() -> Generator[settings.SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
-    if not settings.Session:
+    if not hasattr(settings, "Session") or settings.Session is None:
         raise RuntimeError("Session must be set before!")
     session = settings.Session()
     try:

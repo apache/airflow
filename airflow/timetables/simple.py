@@ -55,6 +55,9 @@ class _TrivialTimetable(Timetable):
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval.exact(run_after)
 
+    def validate(self):
+        pass
+
 
 class NullTimetable(_TrivialTimetable):
     """Timetable that never schedules anything.
