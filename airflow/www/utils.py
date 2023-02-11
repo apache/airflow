@@ -143,7 +143,7 @@ def get_dag_run_conf(
     if isinstance(dag_run_conf, str):
         conf = dag_run_conf
     elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
-        conf = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder)
+        conf = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False)
         conf_is_json = True
 
     return conf, conf_is_json
