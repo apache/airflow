@@ -26,9 +26,7 @@ if typing.TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
 
-running: list[DagRun] = []
-success: list[DagRun] = []
-failure: list[DagRun] = []
+running, success, failure = [], [], []
 
 
 @hookimpl

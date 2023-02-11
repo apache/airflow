@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-_listener_manager: ListenerManager | None = None
+_listener_manager = None
 
 
 class ListenerManager:

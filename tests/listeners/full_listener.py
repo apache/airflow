@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
-
 from airflow.listeners import hookimpl
 from airflow.utils.state import State
 
-started_component: Any = None
-stopped_component: Any = None
-state: list[Any] = []
+started_component = None
+stopped_component = None
+state = []
 
 
 @hookimpl

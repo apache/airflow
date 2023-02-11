@@ -489,7 +489,7 @@ class DecoratedMappedOperator(MappedOperator):
         return super()._get_unmap_kwargs(kwargs, strict=False)
 
 
-class Task(Protocol, Generic[FParams, FReturn]):
+class Task(Generic[FParams, FReturn]):
     """Declaration of a @task-decorated callable for type-checking.
 
     An instance of this type inherits the call signature of the decorated

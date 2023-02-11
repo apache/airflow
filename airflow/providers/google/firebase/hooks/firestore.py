@@ -53,7 +53,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     """
 
-    _conn: build | None = None
+    _conn = None
 
     def __init__(
         self,

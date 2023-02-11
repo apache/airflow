@@ -30,7 +30,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
-from types import ClassMethodDescriptorType, FunctionType
+from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -169,7 +169,7 @@ def get_merged_defaults(
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
-    class_method: ClassMethodDescriptorType | None = None
+    class_method = None
 
     def __get__(
         self, obj: BaseOperator, cls: type[BaseOperator] | None = None

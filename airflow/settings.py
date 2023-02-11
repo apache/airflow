@@ -411,7 +411,7 @@ def dispose_orm():
     global engine
     global Session
 
-    if Session is not None:
+    if Session:
         Session.remove()
         Session = None
     if engine:

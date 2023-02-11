@@ -90,11 +90,11 @@ class BaseHook(LoggingMixin):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        return {}
+        ...
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        return {}
+        ...
 
 
 class DiscoverableHook(Protocol):

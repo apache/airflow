@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -31,7 +30,7 @@ from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
 
-CONNECTION: dict[str, Any] = {
+CONNECTION = {
     "conn_id": "test_conn",
     "conn_type": "http",
     "description": "description",
@@ -42,8 +41,13 @@ CONNECTION: dict[str, Any] = {
 }
 
 
-def conn_with_extra() -> dict[str, Any]:
-    return {**CONNECTION, "extra": '{"x_secret": "testsecret","y_secret": "test"}'}
+def conn_with_extra():
+    CONNECTION.update(
+        {
+            "extra": '{"x_secret": "testsecret","y_secret": "test"}',
+        }
+    )
+    return CONNECTION
 
 
 @pytest.fixture(autouse=True)

@@ -19,4 +19,4 @@ from __future__ import annotations
 try:
     from rich_click import RichGroup as BreezeGroup
 except ImportError:
-    from click import Group as BreezeGroup  # type: ignore[assignment] # noqa
+    from click import Group as BreezeGroup  # type: ignore[misc] # noqa
