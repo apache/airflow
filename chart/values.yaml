@@ -1068,9 +1068,7 @@ triggerer:
   # Args to use when running Airflow triggerer (templated).
   args: ["bash", "-c", "exec airflow triggerer"]
 
-  # Update Strategy when triggerer is deployed as a StatefulSet
-  updateStrategy: ~
-  # Update Strategy when triggerer is deployed as a Deployment
+  # Update Strategy for triggerers
   strategy:
     rollingUpdate:
       maxSurge: "100%"
@@ -1101,20 +1099,6 @@ triggerer:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
-
-  persistence:
-    # Enable persistent volumes
-    enabled: true
-    # Volume size for triggerer StatefulSet
-    size: 100Gi
-    # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
-    # Execute init container to chown log directory.
-    # This is currently only needed in kind, due to usage
-    # of local-path provisioner.
-    fixPermissions: false
-    # Annotations to add to triggerer volumes
-    annotations: {}
 
   resources: {}
   #  limits:
@@ -1650,7 +1634,6 @@ ports:
   flowerUI: 5555
   airflowUI: 8080
   workerLogs: 8793
-  triggererLogs: 8794
   redisDB: 6379
   statsdIngest: 9125
   statsdScrape: 9102
