@@ -28,6 +28,7 @@ import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import partial
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
@@ -138,6 +139,17 @@ if TYPE_CHECKING:
 
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+
+class TaskReturnCode(Enum):
+    """
+    Enum to signal manner of exit for task run command.
+
+    :meta private:
+    """
+
+    DEFERRED = 100
+    """When task exits with deferral to trigger."""
 
 
 @contextlib.contextmanager
@@ -1294,7 +1306,10 @@ class TaskInstance(Base, LoggingMixin):
                 session.commit()
                 return False
 
-        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
+        if self.next_kwargs is not None:
+            self.log.info("Resuming after deferral")
+        else:
+            self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
         self._try_number += 1
 
         if not test_mode:
@@ -1356,7 +1371,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> TaskReturnCode | None:
         """
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
@@ -1412,7 +1427,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self)
                 session.commit()
-            return
+            return TaskReturnCode.DEFERRED
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1424,7 +1439,7 @@ class TaskInstance(Base, LoggingMixin):
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
-            return
+            return None
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
@@ -1441,7 +1456,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.clear_next_method_args()
                 session.merge(self)
                 session.commit()
-                return
+                return None
             else:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
@@ -1474,6 +1489,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             session.commit()
+        return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:
