@@ -2200,14 +2200,6 @@
                         "exec airflow triggerer"
                     ]
                 },
-                "updateStrategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
-                    "type": [
-                        "null",
-                        "object"
-                    ],
-                    "default": null
-                },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
                     "type": [
@@ -2241,44 +2233,6 @@
                         },
                         "annotations": {
                             "description": "Annotations to add to the triggerer Kubernetes ServiceAccount.",
-                            "type": "object",
-                            "default": {},
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "persistence": {
-                    "description": "Persistence configuration.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable persistent volumes.",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "size": {
-                            "description": "Volume size for triggerer StatefulSet.",
-                            "type": "string",
-                            "default": "100Gi"
-                        },
-                        "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": null
-                        },
-                        "fixPermissions": {
-                            "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
-                            "type": "boolean",
-                            "default": false
-                        },
-                        "annotations": {
-                            "description": "Annotations to add to triggerer volumes.",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -4994,11 +4948,6 @@
                     "description": "Worker logs port.",
                     "type": "integer",
                     "default": 8793
-                },
-                "triggererLogs": {
-                    "description": "Triggerer logs port.",
-                    "type": "integer",
-                    "default": 8794
                 },
                 "redisDB": {
                     "description": "Redis port.",

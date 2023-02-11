@@ -72,8 +72,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     MAX_LINE_PER_PAGE = 1000
     LOG_NAME = "Elasticsearch"
 
-    trigger_should_wrap = True
-
     def __init__(
         self,
         base_log_folder: str,
@@ -326,9 +324,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         :param ti: task instance object
         """
-        is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
-        is_ti_raw = getattr(ti, "raw", None)
-        self.mark_end_on_close = not is_ti_raw and not is_trigger_log_context
+        self.mark_end_on_close = not ti.raw
 
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
@@ -364,9 +360,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.closed:
             return
 
-        # todo: remove `getattr` when min airflow version >= 2.6
-        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
-            # when we're closing due to task deferral, don't mark end of log
+        if not self.mark_end_on_close:
             self.closed = True
             return
 
