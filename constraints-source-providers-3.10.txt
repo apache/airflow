@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-08T01:17:48Z
+# This constraints file was automatically generated on 2023-02-11T07:20:15Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -62,7 +62,7 @@ apispec==3.3.2
 appdirs==1.4.4
 argcomplete==2.0.0
 arrow==1.2.3
-asana==3.0.0
+asana==3.1.0
 asgiref==3.6.0
 asn1crypto==1.5.1
 astroid==2.11.7
@@ -72,7 +72,7 @@ asynctest==0.13.0
 atlasclient==1.0.0
 atlassian-python-api==3.32.2
 attrs==22.2.0
-aws-sam-translator==1.58.1
+aws-sam-translator==1.59.0
 aws-xray-sdk==2.11.0
 azure-batch==13.0.0
 azure-common==1.1.28
@@ -101,13 +101,13 @@ backoff==1.10.0
 bcrypt==4.0.1
 beautifulsoup4==4.11.2
 billiard==3.6.4.0
-bitarray==2.7.0
+bitarray==2.7.1
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.66
+boto3==1.26.69
 boto==2.49.0
-botocore==1.29.66
+botocore==1.29.69
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -117,7 +117,7 @@ celery==5.2.7
 certifi==2022.12.7
 cffi==1.15.1
 cfgv==3.3.1
-cfn-lint==0.72.10
+cfn-lint==0.73.1
 cgroupspy==0.2.2
 chardet==4.0.0
 charset-normalizer==2.1.1
@@ -140,7 +140,7 @@ cron-descriptor==1.2.35
 croniter==1.3.8
 cryptography==38.0.4
 curlify==2.2.1
-dask==2023.1.1
+dask==2023.2.0
 databricks-sql-connector==2.2.0
 datadog==0.44.0
 db-dtypes==1.0.5
@@ -148,7 +148,7 @@ decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
 distlib==0.3.6
-distributed==2023.1.1
+distributed==2023.2.0
 dnspython==2.3.0
 docker==6.0.1
 docopt==0.6.2
@@ -257,7 +257,7 @@ inflection==0.5.1
 influxdb-client==1.36.0
 iniconfig==2.0.0
 ipdb==0.13.11
-ipython==8.9.0
+ipython==8.10.0
 isodate==0.6.1
 itsdangerous==2.1.2
 jaraco.classes==3.2.3
@@ -332,7 +332,7 @@ openapi-schema-validator==0.4.3
 openapi-spec-validator==0.5.5
 opsgenie-sdk==2.1.5
 oracledb==1.2.2
-orjson==3.8.5
+orjson==3.8.6
 oscrypto==1.3.0
 oss2==2.16.0
 packaging==21.3
@@ -372,7 +372,7 @@ ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
 py4j==0.10.9.5
-pyOpenSSL==22.1.0
+pyOpenSSL==23.0.0
 pyarrow==9.0.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
@@ -402,7 +402,7 @@ pytest-capture-warnings==0.0.4
 pytest-cov==4.0.0
 pytest-httpx==0.21.3
 pytest-instafail==0.4.2
-pytest-rerunfailures==11.0
+pytest-rerunfailures==11.1
 pytest-timeouts==1.2.1
 pytest-xdist==3.2.0
 pytest==7.2.1
@@ -440,8 +440,9 @@ rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-click==1.6.1
 rich==13.3.1
+rich_argparse==1.0.0
 rsa==4.9
-ruff==0.0.243
+ruff==0.0.245
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
@@ -459,8 +460,8 @@ smbprotocol==1.10.1
 smmap==5.0.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==2.9.0
-snowflake-sqlalchemy==1.4.4
+snowflake-connector-python==3.0.0
+snowflake-sqlalchemy==1.4.6
 sortedcontainers==2.4.0
 soupsieve==2.3.2.post1
 sphinx-airflow-theme==0.0.11
@@ -509,9 +510,9 @@ traitlets==5.9.0
 trino==0.321.0
 twine==4.0.2
 types-Deprecated==1.2.9
-types-Markdown==3.4.2.2
+types-Markdown==3.4.2.3
 types-PyMySQL==1.0.19.2
-types-PyYAML==6.0.12.4
+types-PyYAML==6.0.12.5
 types-boto==2.49.18.5
 types-certifi==2021.10.8.3
 types-croniter==1.3.2.3
@@ -522,9 +523,9 @@ types-pyOpenSSL==23.0.0.2
 types-python-dateutil==2.8.19.6
 types-python-slugify==8.0.0.0
 types-pytz==2022.7.1.0
-types-redis==4.4.0.6
+types-redis==4.5.1.0
 types-requests==2.28.11.12
-types-setuptools==67.1.0.2
+types-setuptools==67.2.0.1
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
 types-toml==0.10.8.3
@@ -532,13 +533,13 @@ types-urllib3==1.26.25.5
 typing_extensions==4.4.0
 tzdata==2022.7
 tzlocal==4.2
-uamqp==1.6.3
+uamqp==1.6.4
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.26.14
 userpath==1.8.0
-vertica-python==1.2.0
+vertica-python==1.3.0
 vine==5.0.0
 virtualenv==20.19.0
 volatile==2.1.0
@@ -554,7 +555,7 @@ yarl==1.8.2
 zeep==4.2.1
 zenpy==2.0.25
 zict==2.2.0
-zipp==3.12.1
+zipp==3.13.0
 zope.event==4.6
 zope.interface==5.5.2
 zstandard==0.19.0
