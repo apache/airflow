@@ -1119,9 +1119,7 @@ triggerer:
   # Args to use when running Airflow triggerer (templated).
   args: ["bash", "-c", "exec airflow triggerer"]
 
-  # Update Strategy when triggerer is deployed as a StatefulSet
-  updateStrategy: ~
-  # Update Strategy when triggerer is deployed as a Deployment
+  # Update Strategy for triggerers
   strategy:
     rollingUpdate:
       maxSurge: "100%"
@@ -1739,7 +1737,6 @@ ports:
   flowerUI: 5555
   airflowUI: 8080
   workerLogs: 8793
-  triggererLogs: 8794
   redisDB: 6379
   statsdIngest: 9125
   statsdScrape: 9102

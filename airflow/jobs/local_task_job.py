@@ -24,11 +24,10 @@ import psutil
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
-from airflow.models.taskinstance import TaskInstance, TaskReturnCode
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
-from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import provide_session
@@ -105,7 +104,7 @@ class LocalTaskJob(BaseJob):
 
         super().__init__(*args, **kwargs)
 
-    def _execute(self) -> int | None:
+    def _execute(self):
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
@@ -150,9 +149,8 @@ class LocalTaskJob(BaseJob):
             external_executor_id=self.external_executor_id,
         ):
             self.log.info("Task is not able to be run")
-            return None
+            return
 
-        return_code = None
         try:
             self.task_runner.start()
 
@@ -185,7 +183,7 @@ class LocalTaskJob(BaseJob):
                 return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
                     self.handle_task_exit(return_code)
-                    return return_code
+                    return
 
                 self.heartbeat()
 
@@ -200,7 +198,6 @@ class LocalTaskJob(BaseJob):
                         f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
                         f"({heartbeat_time_limit}s)."
                     )
-            return return_code
         finally:
             self.on_kill()
 
@@ -212,15 +209,10 @@ class LocalTaskJob(BaseJob):
         """
         # Without setting this, heartbeat may get us
         self.terminating = True
+        self.log.info("Task exited with return code %s", return_code)
         self._log_return_code_metric(return_code)
-        is_deferral = return_code == TaskReturnCode.DEFERRED.value
-        if is_deferral:
-            self.log.info("Task exited with return code %s (task deferral)", return_code)
-            _set_task_deferred_context_var()
-        else:
-            self.log.info("Task exited with return code %s", return_code)
 
-        if not self.task_instance.test_mode and not is_deferral:
+        if not self.task_instance.test_mode:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks()
 

@@ -1219,7 +1219,7 @@ class TestKubernetesExecutor:
         assert ti0.state == State.SCHEDULED
         assert ti1.state == State.QUEUED
 
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
         """fetch task log from pod"""
         mock_kube_client = mock_get_kube_client.return_value
@@ -1231,21 +1231,20 @@ class TestKubernetesExecutor:
         ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
 
         executor = KubernetesExecutor()
-        messages, logs = executor.get_task_log(ti=ti)
+        log = executor.get_task_log(ti=ti, log="test_init_log")
 
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
-        assert "Trying to get logs (last 100 lines) from worker pod " in messages
-        assert logs[0] == "a_\nb_\nc_"
+        assert "test_init_log" in log
+        assert "Trying to get logs (last 100 lines) from worker pod" in log
+        assert "a_b_c" in log
 
         mock_kube_client.reset_mock()
         mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
 
-        messages, logs = executor.get_task_log(ti=ti)
-        assert logs == [""]
-        assert messages == [
-            "Trying to get logs (last 100 lines) from worker pod ",
-            "Reading from k8s pod logs failed: error_fetching_pod_log",
-        ]
+        log = executor.get_task_log(ti=ti, log="test_init_log")
+        assert len(log) == 2
+        assert "error_fetching_pod_log" in log[0]
+        assert log[1]["end_of_log"]
 
     def test_supports_pickling(self):
         assert KubernetesExecutor.supports_pickling

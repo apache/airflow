@@ -17,9 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import os
-from pathlib import Path
 from typing import Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
@@ -28,7 +26,7 @@ from google.cloud import storage  # type: ignore[attr-defined]
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
-from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -39,8 +37,6 @@ _DEFAULT_SCOPESS = frozenset(
         "https://www.googleapis.com/auth/devstorage.read_write",
     ]
 )
-
-logger = logging.getLogger(__name__)
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -64,8 +60,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
     """
-
-    trigger_should_wrap = True
 
     def __init__(
         self,
@@ -122,10 +116,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
-        full_path = self.handler.baseFilename
-        self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
-        is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
-        self.upload_on_close = is_trigger_log_context or not ti.raw
+        self.log_relative_path = self._render_filename(ti, ti.try_number)
+        self.upload_on_close = not ti.raw
 
     def close(self):
         """Close and upload local log file to remote storage GCS."""
@@ -152,60 +144,33 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _add_message(self, msg):
-        filename, lineno, func, stackinfo = logger.findCaller()
-        record = logging.LogRecord("", logging.INFO, filename, lineno, msg + "\n", None, None, func=func)
-        return self.format(record)
-
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
-        # Explicitly getting log relative path is necessary because this method
-        # is called from webserver from TaskLogReader, where we don't call set_context
-        # and can read logs for different TIs in each request
-        messages = []
-        logs = []
-        worker_log_relative_path = self._render_filename(ti, try_number)
-        remote_loc = os.path.join(self.remote_base, worker_log_relative_path)
-        uris = []
-        bucket, prefix = _parse_gcs_url(remote_loc)
-        blobs = list(self.client.list_blobs(bucket_or_name=bucket, prefix=prefix))
-
-        if blobs:
-            uris = [f"gs://{bucket}/{b.name}" for b in blobs]
-            messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
-        else:
-            messages.append(f"No logs found in GCS; ti=%s {ti}")
-        try:
-            for key in sorted(uris):
-                blob = storage.Blob.from_string(key, self.client)
-                remote_log = blob.download_as_bytes().decode()
-                if remote_log:
-                    logs.append(remote_log)
-        except Exception as e:
-            messages.append(f"Unable to read remote log {e}")
-        return messages, logs
-
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
-
-        todo: when min airflow version >= 2.6, remove this method
 
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
         """
-        if hasattr(super(), "_read_remote_logs"):
-            # from Airflow 2.6, we don't implement the `_read` method.
-            # if parent has _read_remote_logs, we're >= 2.6
-            return super()._read(ti, try_number, metadata)
+        # Explicitly getting log relative path is necessary as the given
+        # task instance might be different than task instance passed in
+        # in set_context method.
+        log_relative_path = self._render_filename(ti, try_number)
+        remote_loc = os.path.join(self.remote_base, log_relative_path)
 
-        messages, logs = self._read_remote_logs(ti, try_number, metadata)
-        if not logs:
-            return super()._read(ti, try_number, metadata)
-
-        return "".join([f"*** {x}\n" for x in messages]) + "\n".join(logs), {"end_of_log": True}
+        try:
+            blob = storage.Blob.from_string(remote_loc, self.client)
+            remote_log = blob.download_as_bytes().decode()
+            log = f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
+            return log, {"end_of_log": True}
+        except Exception as e:
+            log = f"*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n"
+            self.log.error(log)
+            local_log, metadata = super()._read(ti, try_number, metadata)
+            log += local_log
+            return log, metadata
 
     def gcs_write(self, log, remote_log_location):
         """
@@ -220,28 +185,12 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             old_log = blob.download_as_bytes().decode()
             log = "\n".join([old_log, log]) if old_log else log
         except Exception as e:
-            if self.no_log_found(e):
-                pass
-            else:
-                log += self._add_message(
-                    f"Error checking for previous log; if exists, may be overwritten: {str(e)}"
-                )
-                self.log.warning("Error checking for previous log: %s", e)
+            if not hasattr(e, "resp") or e.resp.get("status") != "404":
+                log = f"*** Previous log discarded: {str(e)}\n\n" + log
+                self.log.info("Previous log discarded: %s", e)
+
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
             self.log.error("Could not write logs to %s: %s", remote_log_location, e)
-
-    @staticmethod
-    def no_log_found(exc):
-        """
-        Given exception, determine whether it is result of log not found.
-
-        :meta private:
-        """
-        if exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]:
-            return True
-        elif getattr(exc, "resp", {}).get("status") == "404":
-            return True
-        return False

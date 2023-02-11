@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-from contextvars import ContextVar
 from typing import Collection
 from urllib.parse import urlencode
 
@@ -33,13 +32,6 @@ from airflow.compat.functools import cached_property
 from airflow.models import TaskInstance
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
-
-try:
-    # todo: remove this conditional import when min airflow version >= 2.6
-    ctx_indiv_trigger: ContextVar | None
-    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
-except ImportError:
-    ctx_indiv_trigger = None
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
@@ -85,11 +77,6 @@ class StackdriverTaskHandler(logging.Handler):
     LABEL_TRY_NUMBER = "try_number"
     LOG_VIEWER_BASE_URL = "https://console.cloud.google.com/logs/viewer"
     LOG_NAME = "Google Stackdriver"
-
-    trigger_supported = True
-    trigger_should_queue = False
-    trigger_should_wrap = False
-    trigger_send_end_marker = False
 
     def __init__(
         self,
@@ -145,36 +132,23 @@ class StackdriverTaskHandler(logging.Handler):
         # arguments are a requirement for any class that derives from Transport class, hence ignore:
         return self.transport_type(self._client, self.name)  # type: ignore[call-arg]
 
-    def _get_labels(self, task_instance=None):
-        """When"""
-        if task_instance:
-            ti_labels = self._task_instance_to_labels(task_instance)
-        else:
-            ti_labels = self.task_instance_labels
-        labels: dict[str, str] | None
-        if self.labels and ti_labels:
-            labels = {}
-            labels.update(self.labels)
-            labels.update(ti_labels)
-        elif self.labels:
-            labels = self.labels
-        elif ti_labels:
-            labels = ti_labels
-        else:
-            labels = None
-        return labels or {}
-
     def emit(self, record: logging.LogRecord) -> None:
         """Actually log the specified logging record.
 
         :param record: The record to be logged.
         """
         message = self.format(record)
-        ti = None
-        # todo: remove ctx_indiv_trigger is not None check when min airflow version >= 2.6
-        if ctx_indiv_trigger is not None and getattr(record, ctx_indiv_trigger.name, None):
-            ti = getattr(record, "task_instance", None)  # trigger context
-        labels = self._get_labels(ti)
+        labels: dict[str, str] | None
+        if self.labels and self.task_instance_labels:
+            labels = {}
+            labels.update(self.labels)
+            labels.update(self.task_instance_labels)
+        elif self.labels:
+            labels = self.labels
+        elif self.task_instance_labels:
+            labels = self.task_instance_labels
+        else:
+            labels = None
         self._transport.send(record, message, resource=self.resource, labels=labels)
 
     def set_context(self, task_instance: TaskInstance) -> None:
@@ -317,10 +291,8 @@ class StackdriverTaskHandler(logging.Handler):
         page: ListLogEntriesResponse = next(response.pages)
         messages = []
         for entry in page.entries:
-            if "message" in (entry.json_payload or {}):
+            if "message" in entry.json_payload:
                 messages.append(entry.json_payload["message"])
-            elif entry.text_payload:
-                messages.append(entry.text_payload)
         return "\n".join(messages), page.next_page_token
 
     @classmethod

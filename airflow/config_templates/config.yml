@@ -788,24 +788,6 @@ logging:
       type: string
       example: ~
       default: "8793"
-    trigger_log_server_port:
-      description: |
-        Port to serve logs from for triggerer.  See worker_log_server_port description
-        for more info.
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: "8794"
-    interleave_timestamp_parser:
-      description: |
-        We must parse timestamps to interleave logs between trigger and task.  To do so,
-        we need to parse timestamps in log files. In case your log format is non-standard,
-        you may provide import path to callable which takes a string log line and returns
-        the timestamp (datetime.datetime compatible).
-      version_added: 2.6.0
-      type: string
-      example: path.to.my_func
-      default: ~
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.

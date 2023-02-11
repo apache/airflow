@@ -44,7 +44,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
-from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -59,7 +58,6 @@ from airflow.utils.cli import (
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
-from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
@@ -184,7 +182,7 @@ def _get_ti(
     return ti, dr_created
 
 
-def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | TaskReturnCode:
+def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     """
     Runs the task based on a mode.
 
@@ -195,11 +193,11 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | Tas
     - by executor
     """
     if args.local:
-        return _run_task_by_local_task_job(args, ti)
+        _run_task_by_local_task_job(args, ti)
     elif args.raw:
-        return _run_raw_task(args, ti)
+        _run_raw_task(args, ti)
     else:
-        return _run_task_by_executor(args, dag, ti)
+        _run_task_by_executor(args, dag, ti)
 
 
 def _run_task_by_executor(args, dag, ti):
@@ -241,7 +239,7 @@ def _run_task_by_executor(args, dag, ti):
     executor.end()
 
 
-def _run_task_by_local_task_job(args, ti) -> TaskReturnCode | None:
+def _run_task_by_local_task_job(args, ti):
     """Run LocalTaskJob, which monitors the raw task execution process."""
     run_job = LocalTaskJob(
         task_instance=ti,
@@ -256,14 +254,11 @@ def _run_task_by_local_task_job(args, ti) -> TaskReturnCode | None:
         external_executor_id=_extract_external_executor_id(args),
     )
     try:
-        ret = run_job.run()
+        run_job.run()
 
     finally:
         if args.shut_down_logging:
             logging.shutdown()
-    with suppress(ValueError):
-        return TaskReturnCode(ret)
-    return None
 
 
 RAW_TASK_UNSUPPORTED_OPTION = [
@@ -274,9 +269,9 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
+def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code."""
-    return ti._run_raw_task(
+    ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
@@ -412,21 +407,18 @@ def task_run(args, dag=None):
     # this should be last thing before running, to reduce likelihood of an open session
     # which can cause trouble if running process in a fork.
     settings.reconfigure_orm(disable_connection_pool=True)
-    task_return_code = None
+
     try:
         if args.interactive:
-            task_return_code = _run_task_by_selected_method(args, dag, ti)
+            _run_task_by_selected_method(args, dag, ti)
         else:
             with _move_task_handlers_to_root(ti), _redirect_stdout_to_ti_log(ti):
-                task_return_code = _run_task_by_selected_method(args, dag, ti)
-                if task_return_code == TaskReturnCode.DEFERRED:
-                    _set_task_deferred_context_var()
+                _run_task_by_selected_method(args, dag, ti)
     finally:
         try:
             get_listener_manager().hook.before_stopping(component=TaskCommandMarker())
         except Exception:
             pass
-    return task_return_code
 
 
 @cli_utils.action_cli(check_db=False)

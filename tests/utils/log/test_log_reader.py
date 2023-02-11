@@ -74,11 +74,11 @@ class TestLogView:
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config["handlers"]["task"]["base_log_folder"] = log_dir
         logging_config["handlers"]["task"]["filename_template"] = self.FILENAME_TEMPLATE
-        settings_file = os.path.join(settings_folder, "airflow_local_settings_test.py")
+        settings_file = os.path.join(settings_folder, "airflow_local_settings.py")
         with open(settings_file, "w") as handle:
             new_logging_file = f"LOGGING_CONFIG = {logging_config}"
             handle.writelines(new_logging_file)
-        with conf_vars({("logging", "logging_config_class"): "airflow_local_settings_test.LOGGING_CONFIG"}):
+        with conf_vars({("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG"}):
             settings.configure_logging()
         yield
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -117,82 +117,79 @@ class TestLogView:
 
     def test_test_read_log_chunks_should_read_one_try(self):
         task_log_reader = TaskLogReader()
-        ti = copy.copy(self.ti)
-        ti.state = TaskInstanceState.SUCCESS
-        logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=1, metadata={})
-        assert logs[0] == [
+        logs, metadatas = task_log_reader.read_log_chunks(ti=self.ti, try_number=1, metadata={})
+
+        assert [
             (
                 "localhost",
-                "*** Found local files:\n"
-                f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                "try_number=1.",
+                f"*** Reading local file: "
+                f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                f"try_number=1.\n",
             )
-        ]
-        assert metadatas == {"end_of_log": True, "log_pos": 13}
+        ] == logs[0]
+        assert metadatas == {"end_of_log": True, "log_pos": 102 + len(self.log_dir)}
 
     def test_test_read_log_chunks_should_read_all_files(self):
         task_log_reader = TaskLogReader()
-        ti = copy.copy(self.ti)
-        ti.state = TaskInstanceState.SUCCESS
-        logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
+        logs, metadatas = task_log_reader.read_log_chunks(ti=self.ti, try_number=None, metadata={})
 
-        assert logs == [
+        assert [
             [
                 (
                     "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                    "try_number=1.",
+                    "*** Reading local file: "
+                    f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                    "try_number=1.\n",
                 )
             ],
             [
                 (
                     "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                    f"try_number=2.",
+                    f"*** Reading local file: "
+                    f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
+                    f"try_number=2.\n",
                 )
             ],
             [
                 (
                     "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                    f"try_number=3.",
+                    f"*** Reading local file: "
+                    f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
+                    f"try_number=3.\n",
                 )
             ],
-        ]
-        assert metadatas == {"end_of_log": True, "log_pos": 13}
+        ] == logs
+        assert {"end_of_log": True, "log_pos": 102 + len(self.log_dir)} == metadatas
 
     def test_test_test_read_log_stream_should_read_one_try(self):
         task_log_reader = TaskLogReader()
-        ti = copy.copy(self.ti)
-        ti.state = TaskInstanceState.SUCCESS
-        stream = task_log_reader.read_log_stream(ti=ti, try_number=1, metadata={})
-        assert list(stream) == [
-            "localhost\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+        stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
+
+        assert [
+            "localhost\n*** Reading local file: "
+            f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
             "try_number=1.\n"
-        ]
+            "\n"
+        ] == list(stream)
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        assert list(stream) == [
-            "localhost\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1."
+        assert [
+            "localhost\n*** Reading local file: "
+            f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+            "try_number=1.\n"
             "\n",
-            "localhost\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            "try_number=2."
+            "localhost\n*** Reading local file: "
+            f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
+            "try_number=2.\n"
             "\n",
-            "localhost\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            "try_number=3."
+            "localhost\n*** Reading local file: "
+            f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
+            "try_number=3.\n"
             "\n",
-        ]
+        ] == list(stream)
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_support_multiple_chunks(self, mock_read):

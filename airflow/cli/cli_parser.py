@@ -2115,7 +2115,6 @@ airflow_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_CAPACITY,
             ARG_VERBOSE,
-            ARG_SKIP_SERVE_LOGS,
         ),
     ),
     ActionCommand(
