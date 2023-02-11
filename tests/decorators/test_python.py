@@ -98,13 +98,13 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 ...
 
         @task_decorator
-        def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:
+        def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
             ...
 
         assert t1(5, 5).operator.multiple_outputs is True
 
         @task_decorator
-        def t2(x: "FakeTypeCheckingOnlyClass", y: int) -> "Dict[int, int]":
+        def t2(x: "FakeTypeCheckingOnlyClass", y: int) -> "Dict[int, int]":  # type: ignore[empty-body]
             ...
 
         assert t2(5, 5).operator.multiple_outputs is True
@@ -112,7 +112,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
 
             @task_decorator
-            def t3(x: "FakeTypeCheckingOnlyClass", y: int) -> "UnresolveableName[int, int]":
+            def t3(  # type: ignore[empty-body]
+                x: "FakeTypeCheckingOnlyClass",
+                y: int,
+            ) -> "UnresolveableName[int, int]":
                 ...
 
             line = sys._getframe().f_lineno - 3
