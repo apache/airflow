@@ -84,7 +84,6 @@ def pod_mutation_hook(pod) -> None:
     """
     Mutate pod before scheduling.
 
-
     This setting allows altering ``kubernetes.client.models.V1Pod`` object before they are passed to the
     Kubernetes client for scheduling.
 
@@ -141,7 +140,7 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: lis
     Turn the functions from airflow_local_settings module into a custom/local plugin, so that
     plugin-registered functions can co-operate with pluggy/setuptool entrypoint plugins of the same methods.
 
-    Airflow local settings will "win" as they are the last plugin registered.
+    Airflow local settings will be "win" (i.e. they have the final say) as they are the last plugin registered.
 
     :meta private:
     """
