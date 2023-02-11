@@ -42,11 +42,9 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
         port = conf.getint("logging", "trigger_log_server_port", fallback=8794)
         sub_proc = Process(target=partial(serve_logs, port=port))
         sub_proc.start()
-    try:
-        yield
-    finally:
-        if sub_proc:
-            sub_proc.terminate()
+    yield
+    if sub_proc:
+        sub_proc.terminate()
 
 
 @cli_utils.action_cli
