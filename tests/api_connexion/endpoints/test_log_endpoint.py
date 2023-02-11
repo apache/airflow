@@ -166,10 +166,10 @@ class TestGetLog:
         )
         assert (
             response.json["content"]
-            == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\nLog for testing.')]"
+            == f"[('localhost', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json["continuation_token"])
-        assert info == {"end_of_log": True, "log_pos": 16}
+        assert info == {"end_of_log": True, "log_pos": 41 + len(expected_filename)}
         assert 200 == response.status_code
 
     @pytest.mark.parametrize(
@@ -203,7 +203,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     @pytest.mark.parametrize(
@@ -244,7 +244,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_response_with_ti_equal_to_none(self):
