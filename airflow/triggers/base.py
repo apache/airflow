@@ -37,18 +37,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     """
 
     def __init__(self, **kwargs):
-
-        # these values are set by triggerer when preparing to run the instance
-        # when run, they are injected into logger record.
-        self.task_instance = None
-        self.trigger_id = None
-
-    def _set_context(self, context):
-        """
-        This method, part of LoggingMixin, is used mainly for configuration of logging
-        for tasks, but is not used for triggers.
-        """
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
