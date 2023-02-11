@@ -1,0 +1,8 @@
+The date-time fields passed as API parameters or Params should be RFC3339-compliant.
+
+In case of API calls, it was possible that "+" passed as part of the date-time fields were not URL-encoded, and
+such date-time fields could pass validation. Such date-time parameters should now be URL-encoded (as ``%2B``).
+
+In case of parameters, we still allow IS8601-compliant date-time (so for example it is possible that
+' ' was used instead of ``T`` separating date from time and no timezone was specified) but we raise
+deprecation warning.

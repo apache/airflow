@@ -46,6 +46,7 @@ from typing import Any, Generator, Iterable, NamedTuple
 import jsonschema
 import rich_click as click
 import semver as semver
+from black import Mode, TargetVersion, format_str, parse_pyproject_toml
 from packaging.version import Version
 from rich.console import Console
 from rich.syntax import Syntax
@@ -669,6 +670,31 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]
     return ALL_DEPENDENCIES[provider_package_id][CROSS_PROVIDERS_DEPS]
 
 
+def make_current_directory_safe(verbose: bool):
+    """
+    Makes current directory safe for Git.
+
+    New git checks if git ownership for the folder is not manipulated with. We are running this command
+    only inside the container where the directory is mounted from "regular" user to "root" user which is
+    used inside the container, so this is quite ok to assume the directory it is used is safe.
+
+    It's also ok to leave it as safe - it is a global option inside the container so it will disappear
+    when we exit.
+
+    :param verbose: whether to print commands being executed
+    :return:
+    """
+    safe_dir_remove_command = ["git", "config", "--global", "--unset-all", "safe.directory"]
+    if verbose:
+        console.print(f"Running command: '{' '.join(safe_dir_remove_command)}'")
+    # we ignore result of this call
+    subprocess.call(safe_dir_remove_command)
+    safe_dir_add_command = ["git", "config", "--global", "--add", "safe.directory", "/opt/airflow"]
+    if verbose:
+        console.print(f"Running command: '{' '.join(safe_dir_add_command)}'")
+    subprocess.check_call(safe_dir_add_command)
+
+
 def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     """
     Make sure that apache remote exist in git. We need to take a log from the apache
@@ -677,6 +703,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     Also, the local repo might be shallow, so we need to un-shallow it.
 
     This will:
+    * mark current directory as safe for ownership (it is run in the container)
     * check if the remote exists and add if it does not
     * check if the local repo is shallow, mark it to un-shallow in this case
     * fetch from the remote including all tags and overriding local tags in case they are set differently
@@ -684,6 +711,8 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     :param git_update: If the git remote already exists, should we try to update it
     :param verbose: print verbose messages while fetching
     """
+
+    make_current_directory_safe(verbose)
     try:
         check_remote_command = ["git", "remote", "get-url", HTTPS_REMOTE]
         if verbose:
@@ -709,10 +738,8 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
             if verbose:
                 console.print(f"Running command: '{' '.join(remote_add_command)}'")
             try:
-                subprocess.check_output(
+                subprocess.check_call(
                     remote_add_command,
-                    stderr=subprocess.STDOUT,
-                    text=True,
                 )
             except subprocess.CalledProcessError as ex:
                 console.print("[red]Error: when adding remote:[/]", ex)
@@ -1387,29 +1414,16 @@ def update_commits_rst(
 
 
 @lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
+def black_mode() -> Mode:
     config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT_PATH, "pyproject.toml"))
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
+    target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
     return Mode(
         target_versions=target_versions,
         line_length=config.get("line_length", Mode.line_length),
-        is_pyi=bool(config.get("is_pyi", Mode.is_pyi)),
-        string_normalization=not bool(config.get("skip_string_normalization", not Mode.string_normalization)),
-        experimental_string_processing=bool(
-            config.get("experimental_string_processing", Mode.experimental_string_processing)
-        ),
     )
 
 
 def black_format(content) -> str:
-    from black import format_str
-
     return format_str(content, mode=black_mode())
 
 

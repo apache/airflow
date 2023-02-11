@@ -235,7 +235,7 @@ In addition, you can also manually trigger a DAG Run using the web UI (tab **DAG
 
 .. _dagrun:parameters:
 
-Passing Parameters when triggering dags
+Passing Parameters when triggering DAGs
 ------------------------------------------
 
 When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAG Run as
