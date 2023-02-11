@@ -73,8 +73,33 @@ def triggerer(args):
             with daemon_context, _serve_logs(args.skip_serve_logs):
                 job.run()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-        signal.signal(signal.SIGQUIT, sigquit_handler)
-        with _serve_logs(args.skip_serve_logs):
+        sub_proc = None
+
+        def _sigint_handler(sig, frame):
+            if sub_proc:
+                sub_proc.terminate()
+            return sigint_handler(sig, frame)
+
+        def _sigquit_handler(sig, frame):
+            if sub_proc:
+                sub_proc.terminate()
+            return sigquit_handler(sig, frame)
+
+        def _sigkill_handler(sig, frame):
+            if sub_proc:
+                sub_proc.kill()
+            return sigint_handler(sig, frame)
+
+        signal.signal(signal.SIGINT, _sigint_handler)
+        signal.signal(signal.SIGTERM, _sigint_handler)
+        signal.signal(signal.SIGKILL, _sigkill_handler)
+        signal.signal(signal.SIGQUIT, _sigquit_handler)
+        try:
+            if args.skip_serve_logs is False:
+                port = conf.getint("logging", "trigger_log_server_port", fallback=8794)
+                sub_proc = Process(target=partial(serve_logs, port=port))
+                sub_proc.start()
             job.run()
+        finally:
+            if sub_proc:
+                sub_proc.terminate()
