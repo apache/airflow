@@ -1975,7 +1975,7 @@ class Airflow(AirflowBaseView):
                     is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                 )
 
-        if unpause and dag.is_paused:
+        if unpause and dag.get_is_paused():
             models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
 
         try:
