@@ -28,7 +28,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleSearchAdsHook(GoogleBaseHook):
     """Hook for Google Search Ads 360."""
 
-    _conn: build | None = None
+    _conn = None
 
     def __init__(
         self,
