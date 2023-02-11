@@ -16,9 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import copy
-import tempfile
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -56,7 +53,7 @@ class TestWasbTaskHandler:
     def setup_method(self):
         self.wasb_log_folder = "wasb://container/remote/log/location"
         self.remote_log_location = "remote/log/location/1.log"
-        self.local_log_location = str(Path(tempfile.tempdir) / "local/log/location")
+        self.local_log_location = "local/log/location"
         self.container_name = "wasb-container"
         self.wasb_task_handler = WasbTaskHandler(
             base_log_folder=self.local_log_location,
@@ -64,9 +61,6 @@ class TestWasbTaskHandler:
             wasb_container=self.container_name,
             delete_local_copy=True,
         )
-
-    def teardown_method(self):
-        self.wasb_task_handler.close()
 
     @conf_vars({("logging", "remote_log_conn_id"): "wasb_default"})
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
@@ -87,11 +81,11 @@ class TestWasbTaskHandler:
     def test_set_context_raw(self, ti):
         ti.raw = True
         self.wasb_task_handler.set_context(ti)
-        assert self.wasb_task_handler.upload_on_close is False
+        assert not self.wasb_task_handler.upload_on_close
 
     def test_set_context_not_raw(self, ti):
         self.wasb_task_handler.set_context(ti)
-        assert self.wasb_task_handler.upload_on_close is True
+        assert self.wasb_task_handler.upload_on_close
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_log_exists(self, mock_hook):
@@ -103,23 +97,20 @@ class TestWasbTaskHandler:
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    def test_wasb_read(self, mock_hook_cls, ti):
-        mock_hook = mock_hook_cls.return_value
-        mock_hook.get_blobs_list.return_value = ["abc/hello.log"]
-        mock_hook.read_file.return_value = "Log line"
+    def test_wasb_read(self, mock_hook, ti):
+        mock_hook.return_value.read_file.return_value = "Log line"
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
-        ti = copy.copy(ti)
-        ti.state = TaskInstanceState.SUCCESS
         assert self.wasb_task_handler.read(ti) == (
             [
                 [
                     (
                         "localhost",
-                        "*** Found remote logs:\n" "***   * wasb://wasb-container/abc/hello.log\n" "Log line",
+                        "*** Reading remote log from wasb://container/remote/log/location/1.log.\n"
+                        "Log line\n",
                     )
                 ]
             ],
-            [{"end_of_log": True, "log_pos": 8}],
+            [{"end_of_log": True}],
         )
 
     @mock.patch(

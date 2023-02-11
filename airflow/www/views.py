@@ -2102,7 +2102,7 @@ class Airflow(AirflowBaseView):
                     recent_confs=recent_confs,
                 )
 
-        if unpause and dag.is_paused:
+        if unpause and dag.get_is_paused():
             models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
 
         try:
