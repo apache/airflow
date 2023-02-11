@@ -43,7 +43,7 @@ from airflow.utils.db_cleanup import (
     _dump_table_to_file,
     config_dict,
     drop_archived_tables,
-    export_cleaned_records,
+    export_archived_records,
     run_cleanup,
 )
 from airflow.utils.session import create_session
@@ -346,7 +346,7 @@ class TestDBCleanup:
         """test that drop confirmation input is called when appropriate"""
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run__233"]
-        export_cleaned_records(
+        export_archived_records(
             export_format="csv", output_path="path", drop_archives=drop_archive, session=MagicMock()
         )
         if drop_archive:
@@ -398,14 +398,14 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup._dump_table_to_file")
     @patch("airflow.utils.db_cleanup.inspect")
     @patch("builtins.input", side_effect=["drop archived tables"])
-    def test_export_cleaned_records_only_archived_tables(
+    def test_export_archived_records_only_archived_tables(
         self, mock_input, inspect_mock, dump_mock, caplog, drop_archive
     ):
-        """Test export_cleaned_records and show that only tables with the archive prefix are exported."""
+        """Test export_archived_records and show that only tables with the archive prefix are exported."""
         session_mock = MagicMock()
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run__233", "task_instance"]
-        export_cleaned_records(
+        export_archived_records(
             export_format="csv", output_path="path", drop_archives=drop_archive, session=session_mock
         )
         dump_mock.assert_called_once_with(
@@ -426,7 +426,7 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup.inspect")
     @patch("airflow.utils.db_cleanup._confirm_drop_archives")
     @patch("builtins.input", side_effect=["drop archived tables"])
-    def test_export_cleaned_no_confirm_if_no_tables(
+    def test_export_archived_no_confirm_if_no_tables(
         self, mock_input, mock_confirm, inspect_mock, dump_mock, caplog, drop_archive
     ):
         """Test no confirmation if no archived tables found"""
@@ -434,7 +434,7 @@ class TestDBCleanup:
         inspector = inspect_mock.return_value
         # No tables with the archive prefix
         inspector.get_table_names.return_value = ["dag_run", "task_instance"]
-        export_cleaned_records(
+        export_archived_records(
             export_format="csv", output_path="path", drop_archives=drop_archive, session=session_mock
         )
         mock_confirm.assert_not_called()
