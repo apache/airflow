@@ -195,25 +195,25 @@ with DAG(
             </td></tr></tbody></table>
             <script lang="javascript">
                 const hex_chars = "0123456789ABCDEF";
-                const dgebi = document.getElementById;
                 function i2hex(name) {
-                    var i = dgebi(name).value;
+                    var i = document.getElementById(name).value;
                     return hex_chars.substr(parseInt(i / 16), 1) + hex_chars.substr(parseInt(i % 16), 1)
                 }
                 function u_{name}() {
-                    dgebi("{name}").value = "#"+i2hex("r_{name}")+i2hex("g_{name}")+i2hex("b_{name}");
-                    dgebi("preview_{name}").style.background = dgebi("{name}").value;
+                    var hex_val = "#"+i2hex("r_{name}")+i2hex("g_{name}")+i2hex("b_{name}");
+                    document.getElementById("{name}").value = hex_val;
+                    document.getElementById("preview_{name}").style.background = hex_val;
                     updateJSONconf();
                 }
                 function hex2i(text) {
                     return hex_chars.indexOf(text.substr(0,1)) * 16 + hex_chars.indexOf(text.substr(1,1));
                 }
                 function v_{name}() {
-                    var value = dgebi("{name}").value.toUpperCase();
-                    dgebi("r_{name}").value = hex2i(value.substr(1,2));
-                    dgebi("g_{name}").value = hex2i(value.substr(3,2));
-                    dgebi("b_{name}").value = hex2i(value.substr(5,2));
-                    dgebi("preview_{name}").style.background = dgebi("{name}").value;
+                    var value = document.getElementById("{name}").value.toUpperCase();
+                    document.getElementById("r_{name}").value = hex2i(value.substr(1,2));
+                    document.getElementById("g_{name}").value = hex2i(value.substr(3,2));
+                    document.getElementById("b_{name}").value = hex2i(value.substr(5,2));
+                    document.getElementById("preview_{name}").style.background = value;
                 }
                 v_{name}();
             </script>""",
