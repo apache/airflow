@@ -43,4 +43,10 @@ gen_client go \
     --git-repo-id airflow-client-go/airflow \
     --additional-properties "${go_config[*]}"
 
+# fix client content type validation regexp:
+# https://github.com/OpenAPITools/openapi-generator/issues/4890
+sed -i "s/(?:vnd\\\.\[^;\]+\\\+)?json/(?:(?:vnd\\\.\[^;\]+\\\+)|(?:problem\\\+))?json/g" "${OUTPUT_DIR}/client.go"
+sed -i "s/(?i:(?:application|text)\/xml/(?i:(?:application|text)\/(?:problem\\\+)?xml/g" "${OUTPUT_DIR}/client.go"
+
 run_pre_commit
+echo "Generation successful"
