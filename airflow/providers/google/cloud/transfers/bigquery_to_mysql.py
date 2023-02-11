@@ -35,6 +35,9 @@ class BigQueryToMySqlOperator(BaseOperator):
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and insert that data into a MySQL table.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryToMySqlOperator`
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
@@ -47,12 +50,14 @@ class BigQueryToMySqlOperator(BaseOperator):
 
     **Example**: ::
 
+       # [START howto_operator_bigquery_to_mysql]
        transfer_data = BigQueryToMySqlOperator(
             task_id='task_id',
             dataset_table='origin_bq_table',
             mysql_table='dest_table_name',
             replace=True,
         )
+        # [END howto_operator_bigquery_to_mysql]
 
     :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
     :param selected_fields: List of fields to return (comma-separated). If

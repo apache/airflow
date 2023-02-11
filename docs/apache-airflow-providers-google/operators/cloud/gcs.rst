@@ -32,30 +32,6 @@ Prerequisite Tasks
 Operators
 ^^^^^^^^^
 
-.. _howto/operator:GCSToBigQueryOperator:
-
-GCSToBigQueryOperator
----------------------
-
-Use the
-:class:`~airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator`
-to execute a BigQuery load job to load existing dataset from Google Cloud Storage to BigQuery table.
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_bigquery.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcs_to_bigquery]
-    :end-before: [END howto_operator_gcs_to_bigquery]
-
-Also you can use GCSToBigQueryOperator in the deferrable mode:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_bigquery_async.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcs_to_bigquery_async]
-    :end-before: [END howto_operator_gcs_to_bigquery_async]
-
-
 .. _howto/operator:GCSTimeSpanFileTransformOperator:
 
 GCSTimeSpanFileTransformOperator

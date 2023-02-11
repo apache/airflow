@@ -34,6 +34,9 @@ class BigQueryToBigQueryOperator(BaseOperator):
     Copies data from one BigQuery table to another.
 
     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryToBigQueryOperator`
+    .. seealso::
         For more details about these parameters:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
 
