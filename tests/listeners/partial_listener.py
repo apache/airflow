@@ -20,7 +20,7 @@ from __future__ import annotations
 from airflow.listeners import hookimpl
 from airflow.utils.state import State
 
-state: list[State] = []
+state = []
 
 
 @hookimpl
