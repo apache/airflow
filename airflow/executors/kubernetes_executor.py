@@ -781,14 +781,16 @@ class KubernetesExecutor(BaseExecutor):
             namespace = pod_override.metadata.namespace
         return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
 
-    def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
-
+    def get_task_log(self, ti: TaskInstance) -> tuple[list[str], list[str]]:
+        messages = []
+        log = []
         try:
+            from airflow.kubernetes.kube_client import get_kube_client
             from airflow.kubernetes.pod_generator import PodGenerator
 
             client = get_kube_client()
 
-            log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
+            messages.append(f"Trying to get logs (last 100 lines) from worker pod {ti.hostname}")
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -816,13 +818,10 @@ class KubernetesExecutor(BaseExecutor):
             )
 
             for line in res:
-                log += line.decode()
-
-            return log
-
-        except Exception as f:
-            log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
-            return log, {"end_of_log": True}
+                log.append(line.decode())
+        except Exception as e:
+            messages.append(f"Reading from k8s pod logs failed: {str(e)}")
+        return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
