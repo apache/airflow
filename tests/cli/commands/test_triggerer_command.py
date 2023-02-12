@@ -33,11 +33,15 @@ class TestTriggererCommand:
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJob")
+    @mock.patch("airflow.cli.commands.triggerer_command._serve_logs")
     def test_capacity_argument(
         self,
-        mock_scheduler_job,
+        mock_serve,
+        mock_triggerer_job,
     ):
         """Ensure that the capacity argument is passed correctly"""
         args = self.parser.parse_args(["triggerer", "--capacity=42"])
         triggerer_command.triggerer(args)
-        mock_scheduler_job.assert_called_once_with(capacity=42)
+        mock_serve.return_value.__enter__.assert_called_once()
+        mock_serve.return_value.__exit__.assert_called_once()
+        mock_triggerer_job.assert_called_once_with(capacity=42)

@@ -211,6 +211,36 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
+        {{- if .Values.triggerer.logGroomerSidecar.enabled }}
+        - name: triggerer-log-groomer
+          resources:
+{{ toYaml .Values.triggerer.logGroomerSidecar.resources | indent 12 }}
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.triggerer.logGroomerSidecar.command }}
+          command: {{ tpl (toYaml .Values.triggerer.logGroomerSidecar.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.args }}
+          args: {{ tpl (toYaml .Values.triggerer.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
+          {{ if .Values.triggerer.logGroomerSidecar.retentionDays }}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
+{{- if .Values.triggerer.extraVolumeMounts }}
+{{ toYaml .Values.triggerer.extraVolumeMounts | indent 12 }}
+{{- end }}
+{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+{{ include "airflow_webserver_config_mount" . | indent 12 }}
+{{- end }}
+          {{- end }}
         {{- if .Values.triggerer.extraContainers }}
         {{- toYaml .Values.triggerer.extraContainers | nindent 8 }}
         {{- end }}
