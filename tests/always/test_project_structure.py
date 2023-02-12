@@ -21,7 +21,6 @@ import glob
 import itertools
 import mmap
 import os
-import unittest
 
 import pytest
 
@@ -30,7 +29,7 @@ ROOT_FOLDER = os.path.realpath(
 )
 
 
-class TestProjectStructure(unittest.TestCase):
+class TestProjectStructure:
     def test_reference_to_providers_from_core(self):
         for filename in glob.glob(f"{ROOT_FOLDER}/example_dags/**/*.py", recursive=True):
             self.assert_file_not_contains(filename, "providers")
@@ -90,8 +89,10 @@ class TestProjectStructure(unittest.TestCase):
 
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
-        with self.subTest("Detect missing tests in providers module"):
+        try:
             assert set() == missing_tests_files
+        except Exception:
+            pytest.fail("Detect missing tests in providers module")
 
 
 def get_imports_from_file(filepath: str):
