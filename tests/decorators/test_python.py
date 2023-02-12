@@ -18,7 +18,7 @@
 import sys
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import Dict, Tuple  # noqa: F401  # This is used by annotation tests.
+from typing import TYPE_CHECKING, Dict, Tuple
 
 import pytest
 
@@ -87,6 +87,44 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return {"x": x, "y": y}
 
         assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
+
+    def test_infer_multiple_outputs_forward_annotation(self):
+        if TYPE_CHECKING:
+
+            class FakeTypeCheckingOnlyClass:
+                ...
+
+            class UnresolveableName:
+                ...
+
+        @task_decorator
+        def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
+            ...
+
+        assert t1(5, 5).operator.multiple_outputs is True
+
+        @task_decorator
+        def t2(x: "FakeTypeCheckingOnlyClass", y: int) -> "Dict[int, int]":  # type: ignore[empty-body]
+            ...
+
+        assert t2(5, 5).operator.multiple_outputs is True
+
+        with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
+
+            @task_decorator
+            def t3(  # type: ignore[empty-body]
+                x: "FakeTypeCheckingOnlyClass",
+                y: int,
+            ) -> "UnresolveableName[int, int]":
+                ...
+
+            line = sys._getframe().f_lineno - 3
+
+        warn = recwarn[0]
+        assert warn.filename == __file__
+        assert warn.lineno == line
+
+        assert t3(5, 5).operator.multiple_outputs is False
 
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
