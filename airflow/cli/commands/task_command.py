@@ -59,6 +59,7 @@ from airflow.utils.cli import (
     suppress_logs_and_warning,
 )
 from airflow.utils.dates import timezone
+from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
@@ -418,6 +419,8 @@ def task_run(args, dag=None):
         else:
             with _move_task_handlers_to_root(ti), _redirect_stdout_to_ti_log(ti):
                 task_return_code = _run_task_by_selected_method(args, dag, ti)
+                if task_return_code == TaskReturnCode.DEFERRED:
+                    _set_task_deferred_context_var()
     finally:
         try:
             get_listener_manager().hook.before_stopping(component=TaskCommandMarker())

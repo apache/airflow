@@ -28,6 +28,7 @@ from airflow.models.taskinstance import TaskInstance, TaskReturnCode
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import provide_session
@@ -215,6 +216,7 @@ class LocalTaskJob(BaseJob):
         is_deferral = return_code == TaskReturnCode.DEFERRED.value
         if is_deferral:
             self.log.info("Task exited with return code %s (task deferral)", return_code)
+            _set_task_deferred_context_var()
         else:
             self.log.info("Task exited with return code %s", return_code)
 
