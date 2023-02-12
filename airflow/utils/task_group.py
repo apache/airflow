@@ -266,8 +266,12 @@ class TaskGroup(DAGNode):
             # Handles setting relationship between a TaskGroup and another TaskGroup
             if upstream:
                 parent, child = (self, other)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, other.downstream_join_id, self.upstream_join_id)
             else:
                 parent, child = (other, self)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, self.downstream_join_id, other.upstream_join_id)
 
             parent.upstream_group_ids.add(child.group_id)
             child.downstream_group_ids.add(parent.group_id)
