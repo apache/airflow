@@ -134,6 +134,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Stop flags",
             "options": [
                 "--preserve-volumes",
+                "--cleanup-mypy-cache",
             ],
         },
     ],
