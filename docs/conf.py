@@ -188,6 +188,8 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
+        # Included in the cluster-policies doc
+        "_api/airflow/policies/index.rst",
         "README.rst",
     ]
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
@@ -217,7 +219,7 @@ def _get_rst_filepath_from_path(filepath: pathlib.Path):
 if PACKAGE_NAME == "apache-airflow":
     # Exclude top-level packages
     # do not exclude these top-level modules from the doc build:
-    _allowed_top_level = ("exceptions.py",)
+    _allowed_top_level = ("exceptions.py", "policies.py")
 
     browsable_packages = {
         "hooks",
