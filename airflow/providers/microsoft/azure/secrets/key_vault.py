@@ -28,6 +28,8 @@ from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
 
+from functools import lru_cache
+import time
 
 def _parse_version(val):
     val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), val)
@@ -69,6 +71,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         If set to None (null), requests for configurations will not be sent to Azure Key Vault
     :param vault_url: The URL of an Azure Key Vault to use
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "-"
+    :param ttl: ttl for the cache in seconds. Default: 1 
     """
 
     def __init__(
@@ -78,10 +81,15 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = "airflow-config",
         vault_url: str = "",
         sep: str = "-",
+        ttl: int = 1,
         **kwargs,
     ) -> None:
         super().__init__()
         self.vault_url = vault_url
+        if ttl <= 0:
+            self.ttl = 1 #ensure that ttl is always set to 1 in case of negative or 0 value
+        else:
+            self.ttl = ttl
         if connections_prefix is not None:
             self.connections_prefix = connections_prefix.rstrip(sep)
         else:
@@ -175,13 +183,16 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             path = f"{path_prefix}{sep}{secret_id}"
         return path.replace("_", sep)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
+    @lru_cache(maxsize=128)
+    def _get_secret(self, path_prefix: str, secret_id: str, ttl: int = round(time.time()/self.ttl)) -> str | None:
         """
         Get an Azure Key Vault secret value
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
+        :param ttl: time to live for the cache expiry in seconds
         """
+        del ttl #delete as value has already been used for caching
         name = self.build_path(path_prefix, secret_id, self.sep)
         try:
             secret = self.client.get_secret(name=name)
