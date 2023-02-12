@@ -93,9 +93,11 @@ class TestBranchDateTimeOperator:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
                 try:
-                    assert ((ti.state)==(expected_state))
-                except Exception as err:
-                    pytest.fail(f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}")
+                    assert (ti.state) == (expected_state)
+                except Exception:
+                    pytest.fail(
+                        f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
+                    )
 
     def test_no_target_time(self):
         """Check if BranchDateTimeOperator raises exception on missing target"""
@@ -111,12 +113,10 @@ class TestBranchDateTimeOperator:
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
-        [
-            (target_lower,target_upper) for (target_lower,target_upper) in targets
-        ]
+        [(target_lower, target_upper) for (target_lower, target_upper) in targets],
     )
     @time_machine.travel("2020-07-07 10:54:05")
-    def test_branch_datetime_operator_falls_within_range(self,target_lower,target_upper):
+    def test_branch_datetime_operator_falls_within_range(self, target_lower, target_upper):
         """Check BranchDateTimeOperator branch operation"""
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = target_upper
@@ -132,11 +132,9 @@ class TestBranchDateTimeOperator:
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
-        [
-            (target_lower,target_upper) for (target_lower,target_upper) in targets
-        ]
+        [(target_lower, target_upper) for (target_lower, target_upper) in targets],
     )
-    def test_branch_datetime_operator_falls_outside_range(self,target_lower,target_upper):
+    def test_branch_datetime_operator_falls_outside_range(self, target_lower, target_upper):
         """Check BranchDateTimeOperator branch operation"""
         dates = [
             datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
@@ -158,14 +156,9 @@ class TestBranchDateTimeOperator:
                     }
                 )
 
-    @pytest.mark.parametrize(
-        "target_upper",
-        [
-            target_upper for (_,target_upper) in targets
-        ]
-    )
+    @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
     @time_machine.travel("2020-07-07 10:54:05")
-    def test_branch_datetime_operator_upper_comparison_within_range(self,target_upper):
+    def test_branch_datetime_operator_upper_comparison_within_range(self, target_upper):
         """Check BranchDateTimeOperator branch operation"""
         self.branch_op.target_upper = target_upper
         self.branch_op.target_lower = None
@@ -180,14 +173,9 @@ class TestBranchDateTimeOperator:
             }
         )
 
-    @pytest.mark.parametrize(
-        "target_lower",
-        [
-            target_lower for (target_lower,_) in targets
-        ]
-    )
+    @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
     @time_machine.travel("2020-07-07 10:54:05")
-    def test_branch_datetime_operator_lower_comparison_within_range(self,target_lower):
+    def test_branch_datetime_operator_lower_comparison_within_range(self, target_lower):
         """Check BranchDateTimeOperator branch operation"""
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = None
@@ -202,14 +190,9 @@ class TestBranchDateTimeOperator:
             }
         )
 
-    @pytest.mark.parametrize(
-        "target_upper",
-        [
-            target_upper for (_,target_upper) in targets
-        ]
-    )
+    @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
     @time_machine.travel("2020-07-07 12:00:00")
-    def test_branch_datetime_operator_upper_comparison_outside_range(self,target_upper):
+    def test_branch_datetime_operator_upper_comparison_outside_range(self, target_upper):
         """Check BranchDateTimeOperator branch operation"""
         self.branch_op.target_upper = target_upper
         self.branch_op.target_lower = None
@@ -224,14 +207,9 @@ class TestBranchDateTimeOperator:
             }
         )
 
-    @pytest.mark.parametrize(
-        "target_lower",
-        [
-            target_lower for (target_lower,_) in targets
-        ]
-    )
+    @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
     @time_machine.travel("2020-07-07 09:00:00")
-    def test_branch_datetime_operator_lower_comparison_outside_range(self,target_lower):
+    def test_branch_datetime_operator_lower_comparison_outside_range(self, target_lower):
         """Check BranchDateTimeOperator branch operation"""
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = None
@@ -248,12 +226,10 @@ class TestBranchDateTimeOperator:
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
-        [
-            (target_lower,target_upper) for (target_lower,target_upper) in targets
-        ]
+        [(target_lower, target_upper) for (target_lower, target_upper) in targets],
     )
     @time_machine.travel("2020-12-01 09:00:00")
-    def test_branch_datetime_operator_use_task_logical_date(self,target_lower,target_upper):
+    def test_branch_datetime_operator_use_task_logical_date(self, target_lower, target_upper):
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
         self.branch_op.use_task_logical_date = True

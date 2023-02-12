@@ -55,7 +55,7 @@ class TestMySql:
         [
             "mysqlclient",
             "mysql-connector-python",
-        ]
+        ],
     )
     def test_mysql_to_mysql(self, client):
         from tests.providers.mysql.hooks.test_mysql import MySqlContext

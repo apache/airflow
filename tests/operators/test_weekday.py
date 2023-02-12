@@ -232,7 +232,7 @@ class TestBranchDayOfWeekOperator:
             ("string", "Thsday", "Thsday"),
             ("list", ["Monday", "Thsday"], "Thsday"),
             ("set", {WeekDay.MONDAY, "Thsday"}, "Thsday"),
-        ]
+        ],
     )
     def test_weekday_branch_invalid_weekday_value(self, _, week_day, fail_msg):
         """Check if BranchDayOfWeekOperator raises exception on wrong value of weekday"""

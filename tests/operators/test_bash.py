@@ -44,7 +44,7 @@ class TestBashOperator:
         [
             (False, None, "MY_PATH_TO_AIRFLOW_HOME"),
             (True, {"AIRFLOW_HOME": "OVERRIDDEN_AIRFLOW_HOME"}, "OVERRIDDEN_AIRFLOW_HOME"),
-        ]
+        ],
     )
     def test_echo_env_variables(self, append_env, user_defined_env, expected_airflow_home):
         """
@@ -105,7 +105,7 @@ class TestBashOperator:
             ("test-val\ntest-val\n", ""),
             ("test-val\ntest-val", "test-val"),
             ("", ""),
-        ]
+        ],
     )
     def test_return_value(self, val, expected):
         op = BashOperator(task_id="abc", bash_command=f'set -e; echo "{val}";')
@@ -176,7 +176,7 @@ class TestBashOperator:
             ({"skip_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_exit_code": 100}, 101, AirflowException),
             ({"skip_exit_code": None}, 99, AirflowException),
-        ]
+        ],
     )
     def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
         kwargs = dict(task_id="abc", bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
