@@ -20,11 +20,11 @@ from typing import Any
 
 from rich.markup import escape
 
-from airflow_breeze.utils.console import get_stderr_console
+from airflow_breeze.utils.console import get_console
 
 
 def get_ga_output(name: str, value: Any) -> str:
     output_name = name.replace("_", "-")
     printed_value = str(value).lower() if isinstance(value, bool) else value
-    get_stderr_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
+    get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
     return f"{output_name}={printed_value}"
