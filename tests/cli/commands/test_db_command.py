@@ -463,7 +463,7 @@ class TestCLIDBClean:
         db_command.export_archived(args)
 
         export_archived_mock.assert_called_once_with(
-            export_format="csv", output_path="path", table_names=None, drop_archives=False
+            export_format="csv", output_path="path", table_names=None, drop_archives=False, needs_confirm=True
         )
 
     @pytest.mark.parametrize(
@@ -485,7 +485,11 @@ class TestCLIDBClean:
         )
         db_command.export_archived(args)
         export_archived_mock.assert_called_once_with(
-            export_format="csv", output_path="path", table_names=expected, drop_archives=False
+            export_format="csv",
+            output_path="path",
+            table_names=expected,
+            drop_archives=False,
+            needs_confirm=True,
         )
 
     @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
@@ -505,7 +509,11 @@ class TestCLIDBClean:
         )
         db_command.export_archived(args)
         export_archived_mock.assert_called_once_with(
-            export_format="csv", output_path="path", table_names=None, drop_archives=expected
+            export_format="csv",
+            output_path="path",
+            table_names=None,
+            drop_archives=expected,
+            needs_confirm=True,
         )
 
     @pytest.mark.parametrize(

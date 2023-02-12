@@ -217,6 +217,7 @@ def export_archived(args):
         output_path=args.output_path,
         table_names=args.tables,
         drop_archives=args.drop_archives,
+        needs_confirm=not args.yes,
     )
 
 

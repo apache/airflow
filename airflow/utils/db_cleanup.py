@@ -429,13 +429,18 @@ def run_cleanup(
 
 @provide_session
 def export_archived_records(
-    export_format, output_path, table_names=None, drop_archives=False, session: Session = NEW_SESSION
+    export_format,
+    output_path,
+    table_names=None,
+    drop_archives=False,
+    needs_confirm=True,
+    session: Session = NEW_SESSION,
 ):
     """Export archived data to the given output path in the given format."""
     archived_table_names = _get_archived_table_names(table_names, session)
     # If user chose to drop archives, check there are archive tables that exists
     # before asking for confirmation
-    if drop_archives and archived_table_names:
+    if drop_archives and archived_table_names and needs_confirm:
         _confirm_drop_archives(tables=sorted(archived_table_names))
     export_count = 0
     dropped_count = 0
