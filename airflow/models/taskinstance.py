@@ -28,7 +28,9 @@ import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import partial
+from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
 from urllib.parse import quote
@@ -138,6 +140,17 @@ if TYPE_CHECKING:
 
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+
+class TaskReturnCode(Enum):
+    """
+    Enum to signal manner of exit for task run command.
+
+    :meta private:
+    """
+
+    DEFERRED = 100
+    """When task exits with deferral to trigger."""
 
 
 @contextlib.contextmanager
@@ -440,7 +453,7 @@ class TaskInstance(Base, LoggingMixin):
         viewonly=True,
     )
 
-    trigger = relationship("Trigger", uselist=False)
+    trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
@@ -448,6 +461,12 @@ class TaskInstance(Base, LoggingMixin):
     task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
+
+    is_trigger_log_context: bool = False
+    """Indicate to FileTaskHandler that logging context should be set up for trigger logging.
+
+    :meta private:
+    """
 
     def __init__(
         self,
@@ -599,15 +618,17 @@ class TaskInstance(Base, LoggingMixin):
         """
         dag: DAG | DagModel
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
-        if hasattr(self, "task") and hasattr(self.task, "dag"):
+        if hasattr(self, "task") and hasattr(self.task, "dag") and self.task.dag is not None:
             dag = self.task.dag
         else:
             dag = self.dag_model
 
         should_pass_filepath = not pickle_id and dag
-        path = None
+        path: PurePath | None = None
         if should_pass_filepath:
             if dag.is_subdag:
+                if TYPE_CHECKING:
+                    assert dag.parent_dag is not None
                 path = dag.parent_dag.relative_fileloc
             else:
                 path = dag.relative_fileloc
@@ -615,7 +636,6 @@ class TaskInstance(Base, LoggingMixin):
             if path:
                 if not path.is_absolute():
                     path = "DAGS_FOLDER" / path
-                path = str(path)
 
         return TaskInstance.generate_command(
             self.dag_id,
@@ -650,7 +670,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         local: bool = False,
         pickle_id: int | None = None,
-        file_path: str | None = None,
+        file_path: PurePath | str | None = None,
         raw: bool = False,
         job_id: str | None = None,
         pool: str | None = None,
@@ -706,7 +726,7 @@ class TaskInstance(Base, LoggingMixin):
         if raw:
             cmd.extend(["--raw"])
         if file_path:
-            cmd.extend(["--subdir", file_path])
+            cmd.extend(["--subdir", os.fspath(file_path)])
         if cfg_path:
             cmd.extend(["--cfg-path", cfg_path])
         if map_index != -1:
@@ -1294,7 +1314,10 @@ class TaskInstance(Base, LoggingMixin):
                 session.commit()
                 return False
 
-        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
+        if self.next_kwargs is not None:
+            self.log.info("Resuming after deferral")
+        else:
+            self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
         self._try_number += 1
 
         if not test_mode:
@@ -1356,7 +1379,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> TaskReturnCode | None:
         """
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
@@ -1412,7 +1435,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self)
                 session.commit()
-            return
+            return TaskReturnCode.DEFERRED
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1424,7 +1447,7 @@ class TaskInstance(Base, LoggingMixin):
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
-            return
+            return None
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
@@ -1441,7 +1464,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.clear_next_method_args()
                 session.merge(self)
                 session.commit()
-                return
+                return None
             else:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
@@ -1474,6 +1497,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             session.commit()
+        return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:

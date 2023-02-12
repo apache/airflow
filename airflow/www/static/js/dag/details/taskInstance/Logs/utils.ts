@@ -46,7 +46,6 @@ export const parseLogs = (
   if (!data) {
     return {};
   }
-
   let lines;
 
   let warning;

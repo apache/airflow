@@ -154,23 +154,6 @@ class TestCloudwatchTaskHandler:
             [{"end_of_log": True}],
         )
 
-    def test_should_read_from_local_on_failure_to_fetch_remote_logs(self):
-        """Check that local logs are displayed on failure to fetch remote logs"""
-        self.cloudwatch_task_handler.set_context(self.ti)
-        with mock.patch.object(self.cloudwatch_task_handler, "get_cloudwatch_logs") as mock_get_logs:
-            mock_get_logs.side_effect = Exception("Failed to connect")
-            log, metadata = self.cloudwatch_task_handler._read(self.ti, self.ti.try_number)
-        expected_log = (
-            f"*** Unable to read remote logs from Cloudwatch (log_group: {self.remote_log_group}, "
-            f"log_stream: {self.remote_log_stream})\n*** Failed to connect\n\n"
-            # The value of "log_pos" is equal to the length of this next line
-            f"*** Reading local file: {self.local_log_location}/{self.remote_log_stream}\n"
-        )
-        assert log == expected_log
-        expected_log_pos = 26 + len(self.local_log_location) + len(self.remote_log_stream)
-        assert metadata == {"end_of_log": False, "log_pos": expected_log_pos}
-        mock_get_logs.assert_called_once_with(stream_name=self.remote_log_stream)
-
     def test_close_prevents_duplicate_calls(self):
         with mock.patch("watchtower.CloudWatchLogHandler.close") as mock_log_handler_close:
             with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.set_context"):

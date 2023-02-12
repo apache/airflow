@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import os
 import shutil
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from azure.core.exceptions import HttpResponseError
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -33,6 +36,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     task instance logs. It extends airflow FileTaskHandler and
     uploads to and reads from Wasb remote storage.
     """
+
+    trigger_should_wrap = True
 
     def __init__(
         self,
@@ -74,8 +79,13 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
-        self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.raw
+        if TYPE_CHECKING:
+            assert self.handler is not None
+
+        full_path = self.handler.baseFilename
+        self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
+        is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
+        self.upload_on_close = is_trigger_log_context or not ti.raw
 
     def close(self) -> None:
         """Close and upload local log file to remote storage Wasb."""
@@ -104,6 +114,43 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
+    def _read_remote_logs(self, ti, try_number, metadata=None):
+        messages = []
+        logs = []
+        worker_log_relative_path = self._render_filename(ti, try_number)
+        # todo: fix this
+        # for some reason this handler was designed such that (1) container name is not configurable
+        # (i.e. it's hardcoded in airflow_local_settings.py) and (2) the "relative path" is actually...
+        # whatever you put in REMOTE_BASE_LOG_FOLDER i.e. it includes the "wasb://" in the blob
+        # name. it's very screwed up but to change it we have to be careful not to break backcompat.
+        prefix = os.path.join(self.remote_base, worker_log_relative_path)
+        blob_names = []
+        try:
+            blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)
+        except HttpResponseError as e:
+            messages.append(f"tried listing blobs with prefix={prefix} and container={self.wasb_container}")
+            messages.append("could not list blobs " + str(e))
+            self.log.exception("can't list blobs")
+
+        if blob_names:
+            uris = [f"wasb://{self.wasb_container}/{b}" for b in blob_names]
+            messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
+        else:
+            messages.append(f"No logs found in WASB; ti=%s {ti}")
+
+        for name in sorted(blob_names):
+            remote_log = ""
+            try:
+                remote_log = self.hook.read_file(self.wasb_container, name)
+                if remote_log:
+                    logs.append(remote_log)
+            except Exception as e:
+                messages.append(
+                    f"Unable to read remote blob '{name}' in container '{self.wasb_container}'\n{e}"
+                )
+                self.log.exception("Could not read blob")
+        return messages, logs
+
     def _read(
         self, ti, try_number: int, metadata: dict[str, Any] | None = None
     ) -> tuple[str, dict[str, bool]]:
@@ -111,26 +158,23 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.
 
+        todo: when min airflow version >= 2.6, remove this method
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
         """
-        # Explicitly getting log relative path is necessary as the given
-        # task instance might be different than task instance passed in
-        # in set_context method.
-        log_relative_path = self._render_filename(ti, try_number)
-        remote_loc = os.path.join(self.remote_base, log_relative_path)
-
-        if self.wasb_log_exists(remote_loc):
-            # If Wasb remote file exists, we do not fetch logs from task instance
-            # local machine even if there are errors reading remote logs, as
-            # returned remote_log will contain error messages.
-            remote_log = self.wasb_read(remote_loc, return_error=True)
-            log = f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
-            return log, {"end_of_log": True}
-        else:
+        if hasattr(super(), "_read_remote_logs"):
+            # from Airflow 2.6, we don't implement the `_read` method.
+            # if parent has _read_remote_logs, we're >= 2.6
             return super()._read(ti, try_number, metadata)
+
+        # below is backcompat, for airflow < 2.6
+        messages, logs = self._read_remote_logs(ti, try_number, metadata)
+        if not logs:
+            return super()._read(ti, try_number, metadata)
+        return "".join([f"*** {x}\n" for x in messages]) + "\n".join(logs), {"end_of_log": True}
 
     def wasb_log_exists(self, remote_log_location: str) -> bool:
         """
