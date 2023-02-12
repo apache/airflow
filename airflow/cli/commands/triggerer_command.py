@@ -91,8 +91,7 @@ def triggerer(args):
             return sigint_handler(sig, frame)
 
         signal.signal(signal.SIGINT, _sigint_handler)
-        signal.signal(signal.SIGTERM, _sigint_handler)
-        signal.signal(signal.SIGKILL, _sigkill_handler)
+        signal.signal(signal.SIGTERM, _sigkill_handler)
         signal.signal(signal.SIGQUIT, _sigquit_handler)
         try:
             if args.skip_serve_logs is False:
