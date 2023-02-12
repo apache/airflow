@@ -1720,30 +1720,6 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                        },
-                        "securityContexts": {
-                            "description": "Security context definition for the Airflow workers log groomer sidecar. If not set, the values from global `securityContexts` will be used.",
-                            "type": "object",
-                            "x-docsSection": "Kubernetes",
-                            "properties": {
-                                "container": {
-                                    "description": "Container security context definition for the Airflow workers log groomer sidecar.",
-                                    "type": "object",
-                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                                    "default": {},
-                                    "x-docsSection": "Kubernetes",
-                                    "examples": [
-                                        {
-                                            "allowPrivilegeEscalation": false,
-                                            "capabilities": {
-                                                "drop": [
-                                                    "ALL"
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
                         }
                     }
                 },
@@ -2204,30 +2180,6 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                        },
-                        "securityContexts": {
-                            "description": "Security context definition for the log groomer sidecar. If not set, the values from global `securityContexts` will be used.",
-                            "type": "object",
-                            "x-docsSection": "Kubernetes",
-                            "properties": {
-                                "container": {
-                                    "description": "Container security context definition for the log groomer sidecar.",
-                                    "type": "object",
-                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                                    "default": {},
-                                    "x-docsSection": "Kubernetes",
-                                    "examples": [
-                                        {
-                                            "allowPrivilegeEscalation": false,
-                                            "capabilities": {
-                                                "drop": [
-                                                    "ALL"
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
                         }
                     }
                 },
@@ -2676,44 +2628,6 @@
                             "fsGroup": 0
                         }
                     ]
-                },
-                "securityContexts": {
-                    "description": "Security context definition for the triggerer. If not set, the values from global `securityContexts` will be used.",
-                    "type": "object",
-                    "x-docsSection": "Kubernetes",
-                    "properties": {
-                        "pod": {
-                            "description": "Pod security context definition for the triggerer.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "runAsUser": 50000,
-                                    "runAsGroup": 0,
-                                    "fsGroup": 0
-                                }
-                            ]
-                        },
-                        "container": {
-                            "description": "Container security context definition for the triggerer.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "allowPrivilegeEscalation": false,
-                                    "capabilities": {
-                                        "drop": [
-                                            "ALL"
-                                        ]
-                                    }
-                                }
-                            ]
-                        }
-                    }
                 },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
@@ -9047,6 +8961,66 @@
                     "type": "integer"
                 }
             ]
+        },
+        "logGroomerConfigType": {
+            "description": "Configuration for log groomer sidecar",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Whether to deploy the Airflow log groomer sidecar.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow log groomer sidecar (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow log groomer sidecar (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "/clean-logs"
+                    ]
+                },
+                "retentionDays": {
+                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
+                    "type": "integer",
+                    "default": 15
+                },
+                "resources": {
+                    "description": "Resources for Airflow log groomer sidecar.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                }
+            }
         }
     }
 }
