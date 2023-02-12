@@ -21,7 +21,6 @@ import glob
 import itertools
 import mmap
 import os
-import unittest
 
 import pytest
 
@@ -30,7 +29,7 @@ ROOT_FOLDER = os.path.realpath(
 )
 
 
-class TestProjectStructure(unittest.TestCase):
+class TestProjectStructure:
     def test_reference_to_providers_from_core(self):
         for filename in glob.glob(f"{ROOT_FOLDER}/example_dags/**/*.py", recursive=True):
             self.assert_file_not_contains(filename, "providers")
@@ -47,12 +46,12 @@ class TestProjectStructure(unittest.TestCase):
     def assert_file_not_contains(self, filename: str, pattern: str):
         with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
             if content.find(bytes(pattern, "utf-8")) != -1:
-                self.fail(f"File {filename} not contains pattern - {pattern}")
+                pytest.fail(f"File {filename} not contains pattern - {pattern}")
 
     def assert_file_contains(self, filename: str, pattern: str):
         with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
             if content.find(bytes(pattern, "utf-8")) == -1:
-                self.fail(f"File {filename} contains illegal pattern - {pattern}")
+                pytest.fail(f"File {filename} contains illegal pattern - {pattern}")
 
     def test_providers_modules_should_have_tests(self):
         """
@@ -90,8 +89,7 @@ class TestProjectStructure(unittest.TestCase):
 
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
-        with self.subTest("Detect missing tests in providers module"):
-            assert set() == missing_tests_files
+        assert set() == missing_tests_files, "Detect missing tests in providers module"
 
 
 def get_imports_from_file(filepath: str):
@@ -419,7 +417,7 @@ class TestDockerProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "docker"
 
 
-class TestOperatorsHooks(unittest.TestCase):
+class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
         files = itertools.chain(

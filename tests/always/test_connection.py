@@ -20,14 +20,12 @@ from __future__ import annotations
 import json
 import os
 import re
-import unittest
 from collections import namedtuple
 from unittest import mock
 
 import pytest
 import sqlalchemy
 from cryptography.fernet import Fernet
-from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
@@ -61,16 +59,15 @@ class UriTestCaseConfig:
         return f"{func.__name__}_{num}_{param.args[0].description.replace(' ', '_')}"
 
 
-class TestConnection(unittest.TestCase):
-    def setUp(self):
+class TestConnection:
+    def setup_method(self):
         crypto._fernet = None
-        patcher = mock.patch("airflow.models.connection.mask_secret", autospec=True)
-        self.mask_secret = patcher.start()
+        self.patcher = mock.patch("airflow.models.connection.mask_secret", autospec=True)
+        self.mask_secret = self.patcher.start()
 
-        self.addCleanup(patcher.stop)
-
-    def tearDown(self):
+    def teardown_method(self):
         crypto._fernet = None
+        self.patcher.stop()
 
     @conf_vars({("core", "fernet_key"): ""})
     def test_connection_extra_no_encryption(self):
@@ -350,7 +347,7 @@ class TestConnection(unittest.TestCase):
         ),
     ]
 
-    @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
+    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
 
         connection = Connection(uri=test_config.test_uri)
@@ -372,7 +369,7 @@ class TestConnection(unittest.TestCase):
 
         self.mask_secret.assert_has_calls(expected_calls)
 
-    @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
+    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
     def test_connection_get_uri_from_uri(self, test_config: UriTestCaseConfig):
         """
         This test verifies that when we create a conn_1 from URI, and we generate a URI from that conn, that
@@ -393,7 +390,7 @@ class TestConnection(unittest.TestCase):
         assert connection.schema == new_conn.schema
         assert connection.extra_dejson == new_conn.extra_dejson
 
-    @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
+    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
     def test_connection_get_uri_from_conn(self, test_config: UriTestCaseConfig):
         """
         This test verifies that if we create conn_1 from attributes (rather than from URI), and we generate a
@@ -421,7 +418,8 @@ class TestConnection(unittest.TestCase):
             else:
                 assert actual_val == expected_val
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "uri,uri_parts",
         [
             (
                 "http://:password@host:80/database",
@@ -486,7 +484,7 @@ class TestConnection(unittest.TestCase):
                     schema="",
                 ),
             ),
-        ]
+        ],
     )
     def test_connection_from_with_auth_info(self, uri, uri_parts):
         connection = Connection(uri=uri)
@@ -498,46 +496,50 @@ class TestConnection(unittest.TestCase):
         assert connection.port == uri_parts.port
         assert connection.schema == uri_parts.schema
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "extra,expected",
         [
             ('{"extra": null}', None),
             ('{"extra": "hi"}', "hi"),
             ('{"extra": {"yo": "hi"}}', '{"yo": "hi"}'),
             ('{"extra": "{\\"yo\\": \\"hi\\"}"}', '{"yo": "hi"}'),
-        ]
+        ],
     )
     def test_from_json_extra(self, extra, expected):
         """json serialization should support extra stored as object _or_ as string"""
         assert Connection.from_json(extra).extra == expected
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val,expected",
         [
             ('{"conn_type": "abc-abc"}', "abc_abc"),
             ('{"conn_type": "abc_abc"}', "abc_abc"),
             ('{"conn_type": "postgresql"}', "postgres"),
-        ]
+        ],
     )
     def test_from_json_conn_type(self, val, expected):
         """two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
         assert Connection.from_json(val).conn_type == expected
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val,expected",
         [
             ('{"port": 1}', 1),
             ('{"port": "1"}', 1),
             ('{"port": null}', None),
-        ]
+        ],
     )
     def test_from_json_port(self, val, expected):
         """two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
         assert Connection.from_json(val).port == expected
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val,expected",
         [
             ('pass :/!@#$%^&*(){}"', 'pass :/!@#$%^&*(){}"'),  # these are the same
             (None, None),
             ("", None),  # this is a consequence of the password getter
-        ]
+        ],
     )
     def test_from_json_special_characters(self, val, expected):
         """two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
