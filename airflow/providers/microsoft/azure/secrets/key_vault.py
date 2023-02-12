@@ -184,7 +184,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         return path.replace("_", sep)
 
     @lru_cache(maxsize=128)
-    def _get_secret(self, path_prefix: str, secret_id: str, ttl: int = round(time.time()/self.ttl)) -> str | None:
+    def _get_secret(self, path_prefix: str, secret_id: str, ttl_hash: int = round(time.time()/self.ttl)) -> str | None:
         """
         Get an Azure Key Vault secret value
 
@@ -192,7 +192,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :param secret_id: Secret Key
         :param ttl: time to live for the cache expiry in seconds
         """
-        del ttl #delete as value has already been used for caching
+        del ttl_hash #delete as value has already been used for caching
         name = self.build_path(path_prefix, secret_id, self.sep)
         try:
             secret = self.client.get_secret(name=name)
