@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from copy import copy
+
 import jmespath
 import pytest
 
@@ -41,7 +43,6 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Deployment", "test-rbac-webserver"),
     ("Deployment", "test-rbac-flower"),
     ("Deployment", "test-rbac-pgbouncer"),
-    ("Deployment", "test-rbac-triggerer"),
     ("StatefulSet", "test-rbac-postgresql"),
     ("StatefulSet", "test-rbac-redis"),
     ("StatefulSet", "test-rbac-worker"),
@@ -112,14 +113,19 @@ class TestRBAC:
             values["airflowVersion"] = version
         return values
 
-    def _get_object_count(self, version):
+    @staticmethod
+    def _get_object_tuples(version):
+        tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
+        if version == "2.6.0":
+            tuples.append(("Service", "test-rbac-triggerer"))
+            tuples.append(("StatefulSet", "test-rbac-triggerer"))
+        else:
+            tuples.append(("Deployment", "test-rbac-triggerer"))
         if version == "2.3.2":
-            return [
-                ("Secret", "test-rbac-airflow-result-backend")
-            ] + DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
-        return DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
+            tuples.append(("Secret", "test-rbac-airflow-result-backend"))
+        return tuples
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
     def test_deployments_no_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -155,9 +161,9 @@ class TestRBAC:
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_count(version))
+        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(version))
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
     def test_deployments_no_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -175,10 +181,10 @@ class TestRBAC:
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES
+        real_list_of_kind_names = self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
     def test_deployments_with_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -213,10 +219,10 @@ class TestRBAC:
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_count(version) + RBAC_ENABLED_KIND_NAME_TUPLES
+        real_list_of_kind_names = self._get_object_tuples(version) + RBAC_ENABLED_KIND_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
     def test_deployments_with_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -234,7 +240,7 @@ class TestRBAC:
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
-            self._get_object_count(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+            self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
         )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
