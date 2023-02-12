@@ -1624,6 +1624,7 @@ DB_COMMANDS = (
             ARG_DB_OUTPUT_PATH,
             ARG_DB_DROP_ARCHIVES,
             ARG_DB_TABLES,
+            ARG_YES,
         ),
     ),
     ActionCommand(
