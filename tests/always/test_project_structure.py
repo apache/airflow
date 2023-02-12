@@ -89,10 +89,7 @@ class TestProjectStructure:
 
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
 
-        try:
-            assert set() == missing_tests_files
-        except Exception:
-            pytest.fail("Detect missing tests in providers module")
+        assert set() == missing_tests_files, "Detect missing tests in providers module"
 
 
 def get_imports_from_file(filepath: str):
