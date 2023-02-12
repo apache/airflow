@@ -76,7 +76,6 @@ class TestSqoopHook:
     _config_json = {
         "namenode": "http://0.0.0.0:50070/",
         "job_tracker": "http://0.0.0.0:50030/",
-        "libjars": "/path/to/jars",
         "files": "/path/to/files",
         "archives": "/path/to/archives",
     }
@@ -117,7 +116,7 @@ class TestSqoopHook:
         mock_popen.return_value.__enter__.return_value = mock_proc
 
         # When
-        hook = SqoopHook(conn_id="sqoop_test")
+        hook = SqoopHook(conn_id="sqoop_test", libjars="/path/to/jars")
         hook.export_table(**self._config_export)
 
         # Then
@@ -130,7 +129,7 @@ class TestSqoopHook:
                 "-jt",
                 self._config_json["job_tracker"],
                 "-libjars",
-                self._config_json["libjars"],
+                "/path/to/jars",
                 "-files",
                 self._config_json["files"],
                 "-archives",
@@ -199,9 +198,6 @@ class TestSqoopHook:
 
         if self._config_json["job_tracker"]:
             assert f"-jt {self._config_json['job_tracker']}" in cmd
-
-        if self._config_json["libjars"]:
-            assert f"-libjars {self._config_json['libjars']}" in cmd
 
         if self._config_json["files"]:
             assert f"-files {self._config_json['files']}" in cmd

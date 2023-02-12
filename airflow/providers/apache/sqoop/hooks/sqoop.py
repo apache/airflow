@@ -36,7 +36,6 @@ class SqoopHook(BaseHook):
 
         * ``job_tracker``: Job tracker local|jobtracker:port.
         * ``namenode``: Namenode.
-        * ``lib_jars``: Comma separated jar files to include in the classpath.
         * ``files``: Comma separated files to be copied to the map reduce cluster.
         * ``archives``: Comma separated archives to be unarchived on the compute
             machines.
@@ -46,6 +45,7 @@ class SqoopHook(BaseHook):
     :param verbose: Set sqoop to verbose.
     :param num_mappers: Number of map tasks to import in parallel.
     :param properties: Properties to set via the -D argument
+    :param libjars: Optional Comma separated jar files to include in the classpath.
     """
 
     conn_name_attr = "conn_id"
@@ -61,6 +61,7 @@ class SqoopHook(BaseHook):
         hcatalog_database: str | None = None,
         hcatalog_table: str | None = None,
         properties: dict[str, Any] | None = None,
+        libjars: str | None = None,
     ) -> None:
         # No mutable types in the default parameters
         super().__init__()
@@ -68,7 +69,7 @@ class SqoopHook(BaseHook):
         connection_parameters = self.conn.extra_dejson
         self.job_tracker = connection_parameters.get("job_tracker", None)
         self.namenode = connection_parameters.get("namenode", None)
-        self.libjars = connection_parameters.get("libjars", None)
+        self.libjars = libjars
         self.files = connection_parameters.get("files", None)
         self.archives = connection_parameters.get("archives", None)
         self.password_file = connection_parameters.get("password_file", None)
