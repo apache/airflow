@@ -46,12 +46,12 @@ class TestProjectStructure:
     def assert_file_not_contains(self, filename: str, pattern: str):
         with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
             if content.find(bytes(pattern, "utf-8")) != -1:
-                self.fail(f"File {filename} not contains pattern - {pattern}")
+                pytest.fail(f"File {filename} not contains pattern - {pattern}")
 
     def assert_file_contains(self, filename: str, pattern: str):
         with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
             if content.find(bytes(pattern, "utf-8")) == -1:
-                self.fail(f"File {filename} contains illegal pattern - {pattern}")
+                pytest.fail(f"File {filename} contains illegal pattern - {pattern}")
 
     def test_providers_modules_should_have_tests(self):
         """
