@@ -93,7 +93,7 @@ def pod_mutation_hook(pod) -> None:
 
 
 @local_settings_hookspec(firstresult=True)
-def get_airflow_context_vars(context) -> dict[str, str]:
+def get_airflow_context_vars(context) -> dict[str, str]:  # type: ignore[empty-body]
     """
     This setting allows getting the airflow context vars, which are key value pairs.  They are then injected
     to default airflow context vars, which in the end are available as environment variables when running
@@ -101,11 +101,10 @@ def get_airflow_context_vars(context) -> dict[str, str]:
 
     :param context: The context for the task_instance of interest.
     """
-    ...
 
 
 @local_settings_hookspec(firstresult=True)
-def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
+def get_dagbag_import_timeout(dag_file_path: str) -> int | float:  # type: ignore[empty-body]
     """
     This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
 
@@ -114,7 +113,6 @@ def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
 
     If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
     """
-    ...
 
 
 class DefaultPolicy:
@@ -140,7 +138,8 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: lis
     Turn the functions from airflow_local_settings module into a custom/local plugin, so that
     plugin-registered functions can co-operate with pluggy/setuptool entrypoint plugins of the same methods.
 
-    Airflow local settings will be "win" (i.e. they have the final say) as they are the last plugin registered.
+    Airflow local settings will be "win" (i.e. they have the final say) as they are the last plugin
+    registered.
 
     :meta private:
     """
