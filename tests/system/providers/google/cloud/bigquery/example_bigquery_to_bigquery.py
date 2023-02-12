@@ -74,11 +74,13 @@ with models.DAG(
         ],
     )
 
+    # [START howto_operator_bigquery_to_bigquery]
     copy_selected_data = BigQueryToBigQueryOperator(
         task_id="copy_selected_data",
         source_project_dataset_tables=f"{DATASET_NAME}.{ORIGIN}",
         destination_project_dataset_table=f"{DATASET_NAME}.{TARGET}",
     )
+    # [END howto_operator_bigquery_to_bigquery]
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
