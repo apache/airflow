@@ -127,6 +127,14 @@ require Breeze Docker image to be build locally.
   the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
 
+.. note:: Mypy volume cache
+
+  MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
+  execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
+  will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
+  is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
+  cases you might need to manually remove the cache volume by running ``breeze stop --cleanup-mypy-cache``.
+
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
