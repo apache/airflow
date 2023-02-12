@@ -76,6 +76,7 @@ class TaskFail(Base):
             self.duration = int((self.end_date - self.start_date).total_seconds())
         else:
             self.duration = None
+        self.execution_date = None
 
     def __repr__(self):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
