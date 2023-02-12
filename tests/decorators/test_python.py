@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Dict, Tuple
 
 import pytest
 
+from airflow import PY38
 from airflow.decorators import task as task_decorator
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
@@ -118,7 +119,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             ) -> "UnresolveableName[int, int]":
                 ...
 
-            line = sys._getframe().f_lineno - 3
+            line = sys._getframe().f_lineno - 6 if PY38 else sys._getframe().f_lineno - 3
 
         warn = recwarn[0]
         assert warn.filename == __file__
