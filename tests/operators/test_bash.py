@@ -25,7 +25,6 @@ from time import sleep
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models.dag import DAG
@@ -40,7 +39,8 @@ INTERVAL = timedelta(hours=12)
 
 
 class TestBashOperator:
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "append_env,user_defined_env,expected_airflow_home",
         [
             (False, None, "MY_PATH_TO_AIRFLOW_HOME"),
             (True, {"AIRFLOW_HOME": "OVERRIDDEN_AIRFLOW_HOME"}, "OVERRIDDEN_AIRFLOW_HOME"),
@@ -98,7 +98,8 @@ class TestBashOperator:
                 output = "".join(file.readlines())
                 assert expected == output
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val,expected",
         [
             ("test-val", "test-val"),
             ("test-val\ntest-val\n", ""),
@@ -168,7 +169,8 @@ class TestBashOperator:
             with open(f"{test_cwd_folder}/outputs.txt") as tmp_file:
                 assert tmp_file.read().splitlines()[0] == "xxxx"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "extra_kwargs,actual_exit_code,expected_exc",
         [
             (None, 99, AirflowSkipException),
             ({"skip_exit_code": 100}, 100, AirflowSkipException),

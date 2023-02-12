@@ -21,7 +21,6 @@ import datetime
 
 import pytest
 import time_machine
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI, XCom
@@ -227,7 +226,8 @@ class TestBranchDayOfWeekOperator:
                 dag=self.dag,
             )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "_,week_day,fail_msg",
         [
             ("string", "Thsday", "Thsday"),
             ("list", ["Monday", "Thsday"], "Thsday"),

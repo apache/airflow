@@ -21,7 +21,6 @@ from contextlib import closing
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
@@ -51,10 +50,11 @@ class TestMySql:
                 with closing(conn.cursor()) as cur:
                     cur.execute(f"DROP TABLE IF EXISTS {table}")
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "client",
         [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
+            "mysqlclient",
+            "mysql-connector-python",
         ]
     )
     def test_mysql_to_mysql(self, client):
