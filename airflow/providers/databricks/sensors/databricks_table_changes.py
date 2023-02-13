@@ -20,7 +20,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Sequence
 
 from airflow.exceptions import AirflowException
@@ -53,7 +53,8 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
     :param timestamp: Timestamp to check event history for a Delta table.
-    :param change_filter_operator: Operator to specify filter condition to check table changes, defaults to >=.
+    :param change_filter_operator: Operator to specify filter condition to check table changes,
+        defaults to >=.
     """
 
     template_fields: Sequence[str] = ("databricks_conn_id", "catalog", "schema", "table_name")
@@ -102,7 +103,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         time_range_filter: str,
     ) -> str:
         formatted_opts = f"{prefix} {table_name}{suffix}{time_range_filter}"
-        self.log.info("Formatted options: %s", formatted_opts)
+        self.log.debug("Formatted options: %s", formatted_opts)
 
         return formatted_opts.strip()
 
@@ -130,12 +131,12 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             time_range_filter=_timestamp_literal,
             table_name=table_name,
         )
-        self.log.info("Query to be executed: %s", query)
+        self.log.debug("Query to be executed: %s", query)
         result = self._sql_sensor(query)[0][0]
-        self.log.info("Query result: %s", result)
+        self.log.debug("Query result: %s", result)
         return result
 
-    def _get_results(self, context) -> bool:
+    def _get_results_table_changes(self, context) -> bool:
         complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", complete_table_name)
 
@@ -159,7 +160,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             if prev_version != version:
                 self.set_version(lookup_key=lookup_key, version=version, context=context)
             self.log.debug("Result: %s", result)
-            return result
+            return True
 
     def poke(self, context: Context) -> bool:
-        return self._get_results(context=context)
+        return self._get_results_table_changes(context=context)
