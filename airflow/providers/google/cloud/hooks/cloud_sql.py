@@ -668,6 +668,8 @@ class CloudSQLDatabaseHook(BaseHook):
     * **public_ip** - IP to connect to for public connection (from host of the URI).
     * **public_port** - Port to connect to for public connection (from port of the URI).
     * **database** - Database to connect to (from schema of the URI).
+    * **sql_proxy_binary_path** - Optional path to Cloud SQL Proxy binary. If the binary
+      is not specified or the binary is not present, it is automatically downloaded.
 
     Remaining parameters are retrieved from the extras (URI query parameters):
 
@@ -682,8 +684,6 @@ class CloudSQLDatabaseHook(BaseHook):
       You cannot use proxy and SSL together.
     * **sql_proxy_use_tcp** - (default False) If set to true, TCP is used to connect via
       proxy, otherwise UNIX sockets are used.
-    * **sql_proxy_binary_path** - Optional path to Cloud SQL Proxy binary. If the binary
-      is not specified or the binary is not present, it is automatically downloaded.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
       v1.13). If not specified, the latest version is downloaded.
     * **sslcert** - Path to client certificate to authenticate when SSL is used.
@@ -707,6 +707,7 @@ class CloudSQLDatabaseHook(BaseHook):
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
         gcp_conn_id: str = "google_cloud_default",
         default_gcp_project_id: str | None = None,
+        sql_proxy_binary_path: str | None = None,
     ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
@@ -722,7 +723,7 @@ class CloudSQLDatabaseHook(BaseHook):
         self.use_ssl = self._get_bool(self.extras.get("use_ssl", "False"))
         self.sql_proxy_use_tcp = self._get_bool(self.extras.get("sql_proxy_use_tcp", "False"))
         self.sql_proxy_version = self.extras.get("sql_proxy_version")
-        self.sql_proxy_binary_path = self.extras.get("sql_proxy_binary_path")
+        self.sql_proxy_binary_path = sql_proxy_binary_path
         self.user = self.cloudsql_connection.login
         self.password = self.cloudsql_connection.password
         self.public_ip = self.cloudsql_connection.host
