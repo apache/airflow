@@ -102,7 +102,7 @@ spec:
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
-            {{ toYaml .Values.volumeMounts | nindent 12 }}
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.flower.extraVolumeMounts }}
             {{ toYaml .Values.flower.extraVolumeMounts | nindent 12 }}
