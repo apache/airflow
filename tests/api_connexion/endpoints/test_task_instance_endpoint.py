@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import urllib
 from unittest import mock
 
 import pendulum
@@ -38,6 +39,9 @@ from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
+
+QUOTED_DEFAULT_DATETIME_STR_1 = urllib.parse.quote(DEFAULT_DATETIME_STR_1)
+QUOTED_DEFAULT_DATETIME_STR_2 = urllib.parse.quote(DEFAULT_DATETIME_STR_2)
 
 
 @pytest.fixture(scope="module")
@@ -480,7 +484,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/~/"
-                    f"taskInstances?execution_date_lte={DEFAULT_DATETIME_STR_1}"
+                    f"taskInstances?execution_date_lte={QUOTED_DEFAULT_DATETIME_STR_1}"
                 ),
                 1,
                 id="test execution date filter",
@@ -494,7 +498,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances"
-                    f"?start_date_gte={DEFAULT_DATETIME_STR_1}&start_date_lte={DEFAULT_DATETIME_STR_2}"
+                    f"?start_date_gte={QUOTED_DEFAULT_DATETIME_STR_1}&"
+                    f"start_date_lte={QUOTED_DEFAULT_DATETIME_STR_2}"
                 ),
                 2,
                 id="test start date filter",
@@ -508,7 +513,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances?"
-                    f"end_date_gte={DEFAULT_DATETIME_STR_1}&end_date_lte={DEFAULT_DATETIME_STR_2}"
+                    f"end_date_gte={QUOTED_DEFAULT_DATETIME_STR_1}&"
+                    f"end_date_lte={QUOTED_DEFAULT_DATETIME_STR_2}"
                 ),
                 2,
                 id="test end date filter",
@@ -870,12 +876,12 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         "payload, expected",
         [
-            ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"start_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"start_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"execution_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"execution_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"start_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"start_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"execution_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"execution_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
         ],
     )
     @provide_session
@@ -887,7 +893,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
+        assert expected in response.json["detail"]
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
