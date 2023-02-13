@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from enum import Enum
 
-from airflow.settings import STATE_COLORS
-
 
 class TaskInstanceState(str, Enum):
     """
@@ -122,7 +120,6 @@ class State:
         TaskInstanceState.SCHEDULED: "tan",
         TaskInstanceState.DEFERRED: "mediumpurple",
     }
-    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):

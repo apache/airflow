@@ -70,6 +70,7 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.settings import TIMEZONE
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -2307,13 +2308,13 @@ class TestTaskInstance:
         )
         context = ti.get_template_context()
         with pytest.deprecated_call():
-            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=timezone.TIMEZONE)
+            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["next_ds"] == "2021-09-07"
         with pytest.deprecated_call():
             assert context["next_ds_nodash"] == "20210907"
         with pytest.deprecated_call():
-            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=timezone.TIMEZONE)
+            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["prev_ds"] is None, "Does not make sense for custom timetable"
         with pytest.deprecated_call():
