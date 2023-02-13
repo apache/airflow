@@ -133,7 +133,9 @@ def get_dataset_events(
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET)])
 @provide_session
 def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
-    """Create a dataset event"""
+    """Create an external dataset event. This endpoint is useful if you want to update a dataset and
+    trigger downstream DAG runs from external services.
+    """
     try:
         json_body = dataset_change_schema.load(get_json_request_dict())
     except ValidationError as err:

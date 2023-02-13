@@ -67,6 +67,8 @@ class DatasetManager(LoggingMixin):
                 extra=extra,
             )
         else:
+            # When an external dataset change is made through the API, it isn't triggered by a task instance,
+            # so we create a DatasetEvent without the task and dag data.
             dataset_event = DatasetEvent(
                 dataset_id=dataset_model.id,
                 extra=extra,
