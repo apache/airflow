@@ -56,9 +56,13 @@ from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from airflow.www.decorators import action_logging
+
+RESOURCE_EVENT_PREFIX = "dag_run"
 
 
 @security.requires_access(
@@ -133,6 +137,8 @@ def _fetch_dag_runs(
     execution_date_lte: str | None,
     start_date_gte: str | None,
     start_date_lte: str | None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     limit: int | None,
     offset: int | None,
     order_by: str,
@@ -151,6 +157,11 @@ def _fetch_dag_runs(
         query = query.filter(DagRun.end_date >= end_date_gte)
     if end_date_lte:
         query = query.filter(DagRun.end_date <= end_date_lte)
+    # filter updated at
+    if updated_at_gte:
+        query = query.filter(DagRun.updated_at >= updated_at_gte)
+    if updated_at_lte:
+        query = query.filter(DagRun.updated_at <= updated_at_lte)
 
     total_entries = query.count()
     to_replace = {"dag_run_id": "run_id"}
@@ -162,6 +173,7 @@ def _fetch_dag_runs(
         "dag_run_id",
         "start_date",
         "end_date",
+        "updated_at",
         "external_trigger",
         "conf",
     ]
@@ -183,6 +195,8 @@ def _fetch_dag_runs(
         "execution_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "updated_at_gte": format_datetime,
+        "updated_at_lte": format_datetime,
         "limit": check_limit,
     }
 )
@@ -196,6 +210,8 @@ def get_dag_runs(
     execution_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     state: list[str] | None = None,
     offset: int | None = None,
     limit: int | None = None,
@@ -223,6 +239,8 @@ def get_dag_runs(
         execution_date_lte=execution_date_lte,
         start_date_gte=start_date_gte,
         start_date_lte=start_date_lte,
+        updated_at_gte=updated_at_gte,
+        updated_at_lte=updated_at_lte,
         limit=limit,
         offset=offset,
         order_by=order_by,
@@ -281,6 +299,12 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     ],
 )
 @provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()

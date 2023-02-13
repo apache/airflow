@@ -317,6 +317,22 @@ export interface paths {
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
         /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
+        /**
          * Returns objects greater than or equal to the specified values.
          *
          * This can be combined with duration_lte parameter to receive only the selected period.
@@ -2292,6 +2308,28 @@ export interface components {
      */
     OnlyActive: boolean;
     /**
+     * @description Returns objects less or equal the specified date.
+     *
+     * This can be combined with updated_at_gte parameter to receive only the selected period.
+     *
+     * *New in version 2.6.0*
+     */
+    FilterUpdatedAtLTE: string;
+    /**
+     * @description Returns objects greater or equal the specified date.
+     *
+     * This can be combined with updated_at_lte parameter to receive only the selected period.
+     *
+     * *New in version 2.6.0*
+     */
+    FilterUpdatedAtGTE: string;
+    /**
+     * @description Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
+     *
+     * *New in version 2.6.0*
+     */
+    Paused: boolean;
+    /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
      * extensibility, because the format of encrypted data may change.
@@ -2474,6 +2512,12 @@ export interface operations {
          * *New in version 2.1.1*
          */
         only_active?: components["parameters"]["OnlyActive"];
+        /**
+         * Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
+         *
+         * *New in version 2.6.0*
+         */
+        paused?: components["parameters"]["Paused"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };
@@ -2787,6 +2831,22 @@ export interface operations {
          * This can be combined with start_date_gte parameter to receive only the selected period.
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
+        /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         state?: components["parameters"]["FilterState"];
         /**
@@ -3286,6 +3346,22 @@ export interface operations {
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
         /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
+        /**
          * Returns objects greater than or equal to the specified values.
          *
          * This can be combined with duration_lte parameter to receive only the selected period.
@@ -3497,6 +3573,22 @@ export interface operations {
          * This can be combined with start_date_gte parameter to receive only the selected period.
          */
         end_date_lte?: components["parameters"]["FilterEndDateLTE"];
+        /**
+         * Returns objects greater or equal the specified date.
+         *
+         * This can be combined with updated_at_lte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_gte?: components["parameters"]["FilterUpdatedAtGTE"];
+        /**
+         * Returns objects less or equal the specified date.
+         *
+         * This can be combined with updated_at_gte parameter to receive only the selected period.
+         *
+         * *New in version 2.6.0*
+         */
+        updated_at_lte?: components["parameters"]["FilterUpdatedAtLTE"];
         /**
          * Returns objects greater than or equal to the specified values.
          *

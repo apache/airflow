@@ -24,6 +24,11 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+* ``Add TableauOperator.template_fields = find, match_with (#29360)``
+
 4.0.0
 .....
 

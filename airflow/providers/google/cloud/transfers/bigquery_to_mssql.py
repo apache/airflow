@@ -36,6 +36,9 @@ class BigQueryToMsSqlOperator(BaseOperator):
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and insert that data into a MSSQL table.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryToMsSqlOperator`
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
