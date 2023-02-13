@@ -152,7 +152,7 @@ spec:
             {{ toYaml .Values.dagProcessor.resources | nindent 12 }}
           volumeMounts:
             {{- if .Values.volumeMounts }}
-            {{ toYaml .Values.volumeMounts | nindent 12 }}
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
             {{ toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}

@@ -373,9 +373,9 @@ def build_docs(
 @click.option(
     "-t",
     "--type",
-    help="Type(s) of the static checks to run (multiple can be added).",
+    "type_",
+    help="Type(s) of the static checks to run.",
     type=BetterChoice(PRE_COMMIT_LIST),
-    multiple=True,
 )
 @click.option("-a", "--all-files", help="Run checks on all files.", is_flag=True)
 @click.option("-f", "--file", help="List of files to run the checks on.", type=click.Path(), multiple=True)
@@ -404,7 +404,7 @@ def static_checks(
     show_diff_on_failure: bool,
     last_commit: bool,
     commit_ref: str,
-    type: tuple[str],
+    type_: str,
     file: Iterable[str],
     precommit_args: tuple,
     github_repository: str,
@@ -415,8 +415,8 @@ def static_checks(
     if last_commit and commit_ref:
         get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
         sys.exit(1)
-    for single_check in type:
-        command_to_execute.append(single_check)
+    if type_:
+        command_to_execute.append(type_)
     if all_files:
         command_to_execute.append("--all-files")
     if show_diff_on_failure:
@@ -472,12 +472,18 @@ def compile_www_assets(dev: bool):
 @click.option(
     "-p",
     "--preserve-volumes",
-    help="Skip removing volumes when stopping Breeze.",
+    help="Skip removing database volumes when stopping Breeze.",
+    is_flag=True,
+)
+@click.option(
+    "-c",
+    "--cleanup-mypy-cache",
+    help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
 @option_verbose
 @option_dry_run
-def stop(preserve_volumes: bool):
+def stop(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
     command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
     if not preserve_volumes:
@@ -485,7 +491,7 @@ def stop(preserve_volumes: bool):
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, env=env_variables)
-    if not preserve_volumes:
+    if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute, env=env_variables)
 

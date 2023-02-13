@@ -98,13 +98,16 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_update_cluster_operator_async]
 
+    # [START how_to_cloud_dataproc_delete_cluster_operator_async]
     delete_cluster = DataprocDeleteClusterOperator(
         task_id="delete_cluster",
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,
         region=REGION,
         trigger_rule=TriggerRule.ALL_DONE,
+        deferrable=True,
     )
+    # [END how_to_cloud_dataproc_delete_cluster_operator_async]
 
     create_cluster >> update_cluster >> delete_cluster
 

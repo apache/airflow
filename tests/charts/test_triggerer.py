@@ -20,6 +20,7 @@ import jmespath
 import pytest
 
 from tests.charts.helm_template_generator import render_chart
+from tests.charts.log_groomer import LogGroomerTestBase
 
 
 class TestTriggerer:
@@ -362,7 +363,10 @@ class TestTriggerer:
     )
     def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={
+                "triggerer": {"persistence": {"enabled": False}},
+                "logs": {"persistence": log_persistence_values},
+            },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
@@ -407,20 +411,44 @@ class TestTriggerer:
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        "strategy, expected_strategy",
+        "persistence, update_strategy, expected_update_strategy",
         [
-            (None, None),
+            (False, None, None),
+            (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (True, None, None),
+        ],
+    )
+    def test_update_strategy(self, persistence, update_strategy, expected_update_strategy):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.6.0",
+                "executor": "CeleryExecutor",
+                "triggerer": {
+                    "persistence": {"enabled": persistence},
+                    "updateStrategy": update_strategy,
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
+
+    @pytest.mark.parametrize(
+        "persistence, strategy, expected_strategy",
+        [
+            (True, None, None),
             (
+                False,
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
+            (False, None, None),
         ],
     )
-    def test_strategy(self, strategy, expected_strategy):
-        """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
+    def test_strategy(self, persistence, strategy, expected_strategy):
         docs = render_chart(
             values={
-                "triggerer": {"strategy": strategy},
+                "triggerer": {"persistence": {"enabled": persistence}, "strategy": strategy},
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
@@ -534,3 +562,8 @@ class TestTriggererServiceAccount:
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+
+class TestTriggererLogGroomer(LogGroomerTestBase):
+    obj_name = "triggerer"
+    folder = "triggerer"

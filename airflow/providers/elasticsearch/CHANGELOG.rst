@@ -24,11 +24,20 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Enable individual trigger logging (#27758)``
+
 4.3.3
 .....
 
 Bug Fixes
 ~~~~~~~~~
+
 * ``Allow nested attr in elasticsearch host_field (#28878)``
 
 4.3.2
@@ -36,10 +45,8 @@ Bug Fixes
 
 Bug Fixes
 ~~~~~~~~~
-* ``Support restricted index patterns in Elasticsearch log handler (#23888)``
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
+* ``Support restricted index patterns in Elasticsearch log handler (#23888)``
 
 4.3.1
 .....

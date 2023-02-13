@@ -224,7 +224,7 @@ jobs:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
-        run: breeze ci selective-check >> ${GITHUB_OUTPUT}
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:
@@ -410,7 +410,7 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
 
-  run-new-breeze-tests:
+  run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -1018,7 +1018,7 @@ jobs:
       BACKEND: "postgres"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
@@ -1075,10 +1075,10 @@ jobs:
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "postgres"
+      BACKEND: "mysql"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"

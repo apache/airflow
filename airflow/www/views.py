@@ -596,13 +596,13 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0],
-            airflow_version=version,
+            python_version=sys.version.split(" ")[0] if g.user.is_authenticated else "redact",
+            airflow_version=version if g.user.is_authenticated else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True) and g.user.is_authenticated
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE", fallback=True)
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE", fallback=True) and g.user.is_authenticated
             else "Error! Please contact server admin.",
         ),
         500,
@@ -1950,7 +1950,35 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_orm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+        dag_orm: DagModel = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+
+        # Prepare form fields with param struct details to render a proper form with schema information
+        form_fields = {}
+        for k, v in dag.params.items():
+            form_fields[k] = v.dump()
+            # If no schema is provided, auto-detect on default values
+            if "schema" not in form_fields[k]:
+                form_fields[k]["schema"] = {}
+            if "type" not in form_fields[k]["schema"]:
+                if isinstance(form_fields[k]["value"], bool):
+                    form_fields[k]["schema"]["type"] = "boolean"
+                elif isinstance(form_fields[k]["value"], int):
+                    form_fields[k]["schema"]["type"] = ["integer", "null"]
+                elif isinstance(form_fields[k]["value"], list):
+                    form_fields[k]["schema"]["type"] = ["array", "null"]
+                elif isinstance(form_fields[k]["value"], dict):
+                    form_fields[k]["schema"]["type"] = ["object", "null"]
+            # Mark markup fields as safe
+            if (
+                "description_html" in form_fields[k]["schema"]
+                and form_fields[k]["schema"]["description_html"]
+            ):
+                form_fields[k]["description"] = Markup(form_fields[k]["schema"]["description_html"])
+            if "custom_html_form" in form_fields[k]["schema"]:
+                form_fields[k]["schema"]["custom_html_form"] = Markup(
+                    form_fields[k]["schema"]["custom_html_form"]
+                )
+
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
@@ -1960,7 +1988,9 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         recent_runs = (
-            session.query(DagRun.conf, func.max(DagRun.execution_date))
+            session.query(
+                DagRun.conf, func.max(DagRun.run_id).label("run_id"), func.max(DagRun.execution_date)
+            )
             .filter(
                 DagRun.dag_id == dag_id,
                 DagRun.run_type == DagRunType.MANUAL,
@@ -1972,8 +2002,11 @@ class Airflow(AirflowBaseView):
             .all()
         )
 
-        recent_confs = [getattr(run, "conf") for run in recent_runs]
-        recent_confs = [conf[0] for conf in map(wwwutils.get_dag_run_conf, recent_confs) if conf[1]]
+        recent_confs = {}
+        for run in recent_runs:
+            recent_conf = getattr(run, "conf")
+            if isinstance(recent_conf, dict) and any(recent_conf):
+                recent_confs[getattr(run, "run_id")] = json.dumps(recent_conf)
 
         if request.method == "GET":
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1995,6 +2028,7 @@ class Airflow(AirflowBaseView):
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
                 "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 conf=default_conf,
@@ -2011,6 +2045,7 @@ class Airflow(AirflowBaseView):
             form = DateTimeForm(data={"execution_date": timezone.utcnow().isoformat()})
             return self.render_template(
                 "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 conf=request_conf,
@@ -2045,6 +2080,7 @@ class Airflow(AirflowBaseView):
                     form = DateTimeForm(data={"execution_date": execution_date})
                     return self.render_template(
                         "airflow/trigger.html",
+                        form_fields=form_fields,
                         dag_id=dag_id,
                         origin=origin,
                         conf=request_conf,
@@ -2057,6 +2093,7 @@ class Airflow(AirflowBaseView):
                 form = DateTimeForm(data={"execution_date": execution_date})
                 return self.render_template(
                     "airflow/trigger.html",
+                    form_fields=form_fields,
                     dag_id=dag_id,
                     origin=origin,
                     conf=request_conf,
@@ -2065,7 +2102,7 @@ class Airflow(AirflowBaseView):
                     recent_confs=recent_confs,
                 )
 
-        if unpause and dag.is_paused:
+        if unpause and dag.get_is_paused():
             models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
 
         try:
@@ -2082,8 +2119,12 @@ class Airflow(AirflowBaseView):
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
             form = DateTimeForm(data={"execution_date": execution_date})
+            # Take over "bad" submitted fields for new form display
+            for k, v in form_fields.items():
+                form_fields[k]["value"] = run_conf[k]
             return self.render_template(
                 "airflow/trigger.html",
+                form_fields=form_fields,
                 dag_id=dag_id,
                 origin=origin,
                 conf=request_conf,
@@ -2648,20 +2689,6 @@ class Airflow(AirflowBaseView):
         kwargs = {**sanitize_args(request.args), "dag_id": dag_id}
         return redirect(url_for("Airflow.grid", **kwargs))
 
-    @expose("/legacy_tree")
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
-        ]
-    )
-    @gzipped
-    @action_logging
-    def legacy_tree(self):
-        """Redirect to the replacement - grid view."""
-        return redirect(url_for("Airflow.grid", **sanitize_args(request.args)))
-
     @expose("/tree")
     @auth.has_access(
         [
@@ -2672,7 +2699,7 @@ class Airflow(AirflowBaseView):
     )
     @gzipped
     @action_logging
-    def tree(self):
+    def legacy_tree(self):
         """Redirect to the replacement - grid view. Kept for backwards compatibility."""
         return redirect(url_for("Airflow.grid", **sanitize_args(request.args)))
 
@@ -2920,7 +2947,11 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+            filter_upstream = True if request.args.get("filter_upstream") == "true" else False
+            filter_downstream = True if request.args.get("filter_downstream") == "true" else False
+            dag = dag.partial_subset(
+                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            )
         arrange = request.args.get("arrange", dag.orientation)
 
         nodes = task_group_to_dict(dag.task_group)

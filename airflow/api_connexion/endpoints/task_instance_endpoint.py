@@ -152,6 +152,8 @@ def get_mapped_task_instance(
         "start_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "updated_at_gte": format_datetime,
+        "updated_at_lte": format_datetime,
     },
 )
 @security.requires_access(
@@ -173,6 +175,8 @@ def get_mapped_task_instances(
     start_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     duration_gte: float | None = None,
     duration_lte: float | None = None,
     state: list[str] | None = None,
@@ -216,6 +220,7 @@ def get_mapped_task_instances(
     query = _apply_range_filter(query, key=TI.start_date, value_range=(start_date_gte, start_date_lte))
     query = _apply_range_filter(query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
     query = _apply_range_filter(query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    query = _apply_range_filter(query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte))
     query = _apply_array_filter(query, key=TI.state, values=states)
     query = _apply_array_filter(query, key=TI.pool, values=pool)
     query = _apply_array_filter(query, key=TI.queue, values=queue)
@@ -286,6 +291,8 @@ def _apply_range_filter(query: Query, key: ClauseElement, value_range: tuple[T, 
         "start_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "updated_at_gte": format_datetime,
+        "updated_at_lte": format_datetime,
     },
 )
 @security.requires_access(
@@ -307,6 +314,8 @@ def get_task_instances(
     start_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     duration_gte: float | None = None,
     duration_lte: float | None = None,
     state: list[str] | None = None,
@@ -335,6 +344,9 @@ def get_task_instances(
     )
     base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
     base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    base_query = _apply_range_filter(
+        base_query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte)
+    )
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
