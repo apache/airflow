@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
@@ -44,12 +45,16 @@ class DatabricksSqlSensor(BaseSensorOperator):
     :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers on every request.
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
     :param sql: SQL query to be executed.
+    :param catalog: Database name/catalog name, defaults to "hive_metastore"
+    :param schema: Schema name, defaults to "default"
+    :param handler: The result handler which is called with the result of each statement.
     """
 
     template_fields: Sequence[str] = (
         "databricks_conn_id",
         "sql",
-        "_catalog",
+        "catalog",
+        "schema",
         "http_headers",
     )
 
@@ -71,14 +76,27 @@ class DatabricksSqlSensor(BaseSensorOperator):
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
+        """_summary_
+
+        :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
+        :param http_path: _description_, defaults to None
+        :param sql_endpoint_name: _description_, defaults to None
+        :param session_configuration: _description_, defaults to None
+        :param http_headers: _description_, defaults to None
+        :param catalog: _description_, defaults to "hive_metastore"
+        :param schema: _description_, defaults to "default"
+        :param sql: _description_, defaults to None
+        :param handler: _description_, defaults to fetch_all_handler
+        :param client_parameters: _description_, defaults to None
+        """
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self._http_path = http_path
         self._sql_endpoint_name = sql_endpoint_name
         self.session_config = session_configuration
         self.http_headers = http_headers
-        self._catalog = catalog
-        self._schema = schema
+        self.catalog = catalog
+        self.schema = schema
         self.sql = sql
         self.caller = "DatabricksSqlSensor"
         self.client_parameters = client_parameters or {}
@@ -92,8 +110,8 @@ class DatabricksSqlSensor(BaseSensorOperator):
             self._sql_endpoint_name,
             self.session_config,
             self.http_headers,
-            self._catalog,
-            self._schema,
+            self.catalog,
+            self.schema,
             self.caller,
             **self.client_parameters,
             **self.hook_params,
@@ -107,13 +125,12 @@ class DatabricksSqlSensor(BaseSensorOperator):
         )
         return sql_result
 
-    def _get_results(self, context: Context) -> bool:
+    def _get_results(self) -> bool:
         result = self._sql_sensor(self.sql)
         self.log.debug("SQL result: %s", result)
-        if isinstance(result, list):
-            return len(result) > 0
-        else:
-            return False
+        if len(result) < 1:
+            raise AirflowException("No results for SQL sensor.")
+        return True
 
     def poke(self, context: Context) -> bool:
-        return self._get_results(context=context)
+        return self._get_results()

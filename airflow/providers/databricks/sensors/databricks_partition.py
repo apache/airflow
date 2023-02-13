@@ -44,8 +44,8 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         it could be specified in the Databricks connection's extra parameters.
     :param http_headers: An optional list of (k, v) pairs that will be set
         as HTTP headers on every request. (templated)
-    :param _catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)
-    :param _schema: An optional initial schema to use. Requires DBR version 9.0+ (templated)
+    :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)
+    :param schema: An optional initial schema to use. Requires DBR version 9.0+ (templated)
     :param table_name: Table name to generate the SQL query.
     :param partitions: Partitions to check, supplied via a dict.
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_one_handler
@@ -55,9 +55,9 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
 
     template_fields: Sequence[str] = (
         "databricks_conn_id",
-        "_schema",
+        "schema",
         "http_headers",
-        "_catalog",
+        "catalog",
         "table_name",
         "partitions",
     )
@@ -84,8 +84,8 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
             self._sql_endpoint_name,
             self.session_config,
             self.http_headers,
-            self._catalog,
-            self._schema,
+            self.catalog,
+            self.schema,
             self.caller,
             **self.client_parameters,
             **self.hook_params,
@@ -125,7 +125,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
-                    if isinstance(partition_value, (str, datetime.date)):
+                    if isinstance(partition_value, (str, datetime.datetime)):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
@@ -140,7 +140,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         return formatted_opts.strip()
 
     def _check_table_partitions(self) -> list:
-        _fully_qualified_table_name = str(self._catalog + "." + self._schema + "." + self.table_name)
+        _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
         _joiner_val = " AND "
         _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
@@ -156,12 +156,12 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         )
         return self._sql_sensor(partition_sql)
 
-    def _get_results(self, context: Context) -> bool:
+    def _get_results(self) -> bool:
         result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", result)
         if len(result) < 1:
-            raise AirflowException("Databricks SQL partition sensor failed.")
+            raise AirflowException("No results for SQL sensor.")
         return True
 
     def poke(self, context: Context) -> bool:
-        return self._get_results(context=context)
+        return self._get_results()

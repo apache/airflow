@@ -45,24 +45,23 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         it could be specified in the Databricks connection's extra parameters., defaults to None
     :param http_headers: An optional list of (k, v) pairs
         that will be set as HTTP headers on every request. (templated).
-    :param _catalog: An optional initial catalog to use.
+    :param catalog: An optional initial catalog to use.
         Requires DBR version 9.0+ (templated), defaults to ""
-    :param _schema: An optional initial schema to use.
+    :param schema: An optional initial schema to use.
         Requires DBR version 9.0+ (templated), defaults to "default"
     :param table_name: Table name to generate the SQL query, defaults to ""
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
-    :param timestamp: Timestamp to check event history for a Delta table,
-        defaults to datetime.now()-timedelta(days=7)
-    :param filter operator: Operator to specify filter condition to check table changes.
+    :param timestamp: Timestamp to check event history for a Delta table.
+    :param change_filter_operator: Operator to specify filter condition to check table changes, defaults to >=.
     """
 
-    template_fields: Sequence[str] = ("databricks_conn_id", "_catalog", "_schema", "table_name", "timestamp")
+    template_fields: Sequence[str] = ("databricks_conn_id", "catalog", "schema", "table_name")
 
     def __init__(
         self,
         table_name: str,
-        timestamp: datetime = datetime.now() - timedelta(days=7),
+        timestamp: datetime | None = None,
         change_filter_operator: str = ">=",
         *args,
         **kwargs,
@@ -80,8 +79,8 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             self._sql_endpoint_name,
             self.session_config,
             self.http_headers,
-            self._catalog,
-            self._schema,
+            self.catalog,
+            self.schema,
             self.caller,
             **self.client_parameters,
             **self.hook_params,
@@ -99,14 +98,11 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         self,
         prefix: str,
         suffix: str,
-        joiner_val: str,
         table_name: str,
-        time_range: str,
-        operation_filter: str,
+        time_range_filter: str,
     ) -> str:
-        formatted_opts = ""
-        formatted_opts = f"{prefix} {table_name}{suffix} {joiner_val} '{time_range}'{operation_filter}"
-        self.log.debug("Formatted options: %s", formatted_opts)
+        formatted_opts = f"{prefix} {table_name}{suffix}{time_range_filter}"
+        self.log.info("Formatted options: %s", formatted_opts)
 
         return formatted_opts.strip()
 
@@ -118,26 +114,29 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
     def set_version(context: Context, lookup_key, version):
         context["ti"].xcom_push(key=lookup_key, value=version)
 
-    def get_current_table_version(self, table_name, time_range, operator):
-        _count_describe_literal = "SELECT MAX(version) AS versions FROM (DESCRIBE HISTORY"
-        _filter_predicate_literal = ") WHERE timestamp"
-        _operation_filter_literal = "AND operation NOT LIKE '%CONVERT%' AND operation NOT LIKE '%OPTIMIZE%' \
-            AND operation NOT LIKE  '%CLONE%' AND operation NOT LIKE  '%RESTORE%';"
+    def get_current_table_version(self, table_name):
+        _prefix = "SELECT MAX(version) AS versions FROM (DESCRIBE HISTORY"
+        _data_operations_filter = ") WHERE operation NOT IN ('CONVERT', 'OPTIMIZE', 'CLONE', \
+        'RESTORE', 'FSCK', 'VACUUM START', 'VACUUM END')"
+        if self.timestamp is not None:
+            if self.change_filter_operator not in ("=", ">", "<", ">=", "<=", "!="):
+                raise AirflowException("Invalid comparison operator specified for time range filter.")
+            _timestamp_literal = f" AND timestamp {self.change_filter_operator} '{self.timestamp}'"
+        else:
+            _timestamp_literal = ""
         query = self._generate_query(
-            prefix=_count_describe_literal,
-            suffix=_filter_predicate_literal,
-            time_range=time_range,
-            joiner_val=operator,
-            operation_filter=_operation_filter_literal,
+            prefix=_prefix,
+            suffix=_data_operations_filter,
+            time_range_filter=_timestamp_literal,
             table_name=table_name,
         )
         self.log.info("Query to be executed: %s", query)
         result = self._sql_sensor(query)[0][0]
-        self.log.debug("Query result: %s", result)
+        self.log.info("Query result: %s", result)
         return result
 
-    def _get_results(self, context: Context) -> bool:
-        complete_table_name = str(self._catalog + "." + self._schema + "." + self.table_name)
+    def _get_results(self, context) -> bool:
+        complete_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", complete_table_name)
 
         prev_version = -1
@@ -149,11 +148,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
                 prev_version = prev_data
             elif prev_data is not None:
                 raise AirflowException("Incorrect type for previous XCom data: %s", type(prev_data))
-            version = self.get_current_table_version(
-                table_name=complete_table_name,
-                time_range=self.timestamp,
-                operator=self.change_filter_operator,
-            )
+            version = self.get_current_table_version(table_name=complete_table_name)
             self.log.debug("Current version: %s", version)
             if version is None:
                 raise AirflowException("No current version of the table found for the specified timeframe.")
