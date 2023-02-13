@@ -772,8 +772,8 @@ class LazyXComAccess(collections.abc.Sequence):
             yield self._query
             return
 
-        if Session is None:
-            raise
+        if getattr(setting, "Session", None) is None:
+            raise RuntimeError("Session must be set before!")
         session = settings.Session()
         try:
             yield self._query.with_session(session)
