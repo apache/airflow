@@ -160,6 +160,22 @@ DAG over many runs.
 
 ------------
 
+Landing Times
+.............
+Airflow landing times are calculated from the task's scheduled time to 
+the time the task finishes, either with success or another state (see 
+:ref:`concepts:task-instances`).  When subtracting the task duration 
+(above) from the landing time you will find the adoption time.  If the 
+adoption time exceeds the 
+:ref:`task adoption timeout <config:celery__task_adoption_timeout>` 
+then the task will be terminated and, if applicable, rescheduled.
+
+------------
+
+.. image:: img/landing_times.png
+
+------------
+
 Code View
 .........
 Transparency is everything. While the code for your pipeline is in source
