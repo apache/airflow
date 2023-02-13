@@ -160,7 +160,8 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             if prev_version != version:
                 self.set_version(lookup_key=lookup_key, version=version, context=context)
             self.log.debug("Result: %s", result)
-            return True
+            return result
+        return False
 
     def poke(self, context: Context) -> bool:
         return self._get_results_table_changes(context=context)
