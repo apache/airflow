@@ -140,6 +140,14 @@ To delete a cluster you can use:
     :start-after: [START how_to_cloud_dataproc_delete_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_delete_cluster_operator]
 
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_delete_cluster_operator_async]
+    :end-before: [END how_to_cloud_dataproc_delete_cluster_operator_async]
+
 Submit a job to a cluster
 -------------------------
 

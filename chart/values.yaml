@@ -1068,7 +1068,9 @@ triggerer:
   # Args to use when running Airflow triggerer (templated).
   args: ["bash", "-c", "exec airflow triggerer"]
 
-  # Update Strategy for triggerers
+  # Update Strategy when triggerer is deployed as a StatefulSet
+  updateStrategy: ~
+  # Update Strategy when triggerer is deployed as a Deployment
   strategy:
     rollingUpdate:
       maxSurge: "100%"
@@ -1099,6 +1101,20 @@ triggerer:
   #  runAsUser: 50000
   #  fsGroup: 0
   #  runAsGroup: 0
+
+  persistence:
+    # Enable persistent volumes
+    enabled: true
+    # Volume size for triggerer StatefulSet
+    size: 100Gi
+    # If using a custom storageClass, pass name ref to all statefulSets here
+    storageClassName:
+    # Execute init container to chown log directory.
+    # This is currently only needed in kind, due to usage
+    # of local-path provisioner.
+    fixPermissions: false
+    # Annotations to add to triggerer volumes
+    annotations: {}
 
   resources: {}
   #  limits:
@@ -1148,6 +1164,23 @@ triggerer:
 
   # Labels specific to triggerer objects and pods
   labels: {}
+
+  logGroomerSidecar:
+    # Whether to deploy the Airflow triggerer log groomer sidecar.
+    enabled: true
+    # Command to use when running the Airflow triggerer log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow triggerer log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+    # Number of days to retain logs
+    retentionDays: 15
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1634,6 +1667,7 @@ ports:
   flowerUI: 5555
   airflowUI: 8080
   workerLogs: 8793
+  triggererLogs: 8794
   redisDB: 6379
   statsdIngest: 9125
   statsdScrape: 9102
