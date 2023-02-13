@@ -24,7 +24,6 @@ from datetime import datetime
 from typing import Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils.context import Context
 
@@ -72,6 +71,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         self.caller = "DatabricksTableChangesSensor"
         self.change_filter_operator = change_filter_operator
         self.table_name = table_name
+
     def _sql_sensor(self, sql):
         hook = self._get_hook()
         sql_result = hook.run(
