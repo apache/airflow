@@ -489,9 +489,6 @@ class TaskInstance(Base, LoggingMixin):
 
         Deprecated, prefer to use "from_task" or "deserialize" static methods.
         """
-        if ti_dict is not None:
-            # Should only be used by deserialize method.
-            return
         if task is not None:
             self._init_from_task(task, execution_date, run_id, state, map_index)
             return
@@ -592,7 +589,10 @@ class TaskInstance(Base, LoggingMixin):
     def deserialize(ti_dict: dict[str, Any], version: int) -> TaskInstance:
         """Deserialize TaskInstance from dictionary."""
         if version > TaskInstance.__version__:
-            raise TypeError("version too big, dont know hot to deserialize")
+            raise TypeError(
+                f"""Version "{version}" is too big, don't know how to deserialize.
+              Latest supported version: {TaskInstance.__version}"""
+            )
         ti = TaskInstance()
         ti.__dict__ = ti_dict.copy()
         ti.init_on_load()
