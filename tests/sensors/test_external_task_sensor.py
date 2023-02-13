@@ -881,7 +881,10 @@ class TestExternalTaskAsyncSensor:
 
         with pytest.raises(AirflowException):
             sensor.execute_complete(
-                context=mock.MagicMock(), event={"status": "timeout", "message": "Dag was not started"}
+                context=mock.MagicMock(), event={
+                    "status": "timeout",
+                    "message": "Dag was not started within 1 minute, assuming fail."
+                }
             )
 
     def test_defer_execute_check_correct_logging(self):
@@ -897,7 +900,7 @@ class TestExternalTaskAsyncSensor:
                 context=mock.MagicMock(),
                 event={"status": "success"},
             )
-        mock_log_info.assert_called_with("External task %s has executed successfully", self.EXTERNAL_TASK_ID)
+        mock_log_info.assert_called_with("External task %s has executed successfully.", self.EXTERNAL_TASK_ID)
 
 
 def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):
