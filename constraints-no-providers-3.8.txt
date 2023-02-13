@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-12T15:54:00Z
+# This constraints file was automatically generated on 2023-02-13T10:34:15Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -35,7 +35,7 @@ SQLAlchemy==1.4.46
 WTForms==3.0.1
 Werkzeug==2.2.2
 adal==1.2.7
-aiohttp==3.8.3
+aiohttp==3.8.4
 aiosignal==1.3.1
 alembic==1.9.3
 amqp==5.1.1
@@ -57,7 +57,7 @@ certifi==2022.12.7
 cffi==1.15.1
 cgroupspy==0.2.2
 chardet==4.0.0
-charset-normalizer==2.1.1
+charset-normalizer==3.0.1
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
@@ -167,7 +167,7 @@ sortedcontainers==2.4.0
 statsd==4.0.1
 tabulate==0.9.0
 tblib==1.7.0
-tenacity==8.1.0
+tenacity==8.2.1
 termcolor==2.2.0
 text-unidecode==1.3
 thrift-sasl==0.4.3

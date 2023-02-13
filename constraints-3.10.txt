@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-12T15:55:28Z
+# This constraints file was automatically generated on 2023-02-13T10:36:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ WTForms==3.0.1
 Werkzeug==2.2.2
 adal==1.2.7
 aiofiles==22.1.0
-aiohttp==3.8.3
+aiohttp==3.8.4
 aiosignal==1.3.1
 alabaster==0.7.13
 alembic==1.9.3
@@ -173,7 +173,7 @@ backoff==1.10.0
 bcrypt==4.0.1
 beautifulsoup4==4.11.2
 billiard==3.6.4.0
-bitarray==2.7.1
+bitarray==2.7.2
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
@@ -514,7 +514,7 @@ rich-click==1.6.1
 rich==13.3.1
 rich_argparse==1.0.0
 rsa==4.9
-ruff==0.0.245
+ruff==0.0.246
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
@@ -566,7 +566,7 @@ statsd==4.0.1
 tableauserverclient==0.23.4
 tabulate==0.9.0
 tblib==1.7.0
-tenacity==8.1.0
+tenacity==8.2.1
 termcolor==2.2.0
 text-unidecode==1.3
 textwrap3==0.9.2
