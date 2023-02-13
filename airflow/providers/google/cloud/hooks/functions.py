@@ -40,7 +40,7 @@ class CloudFunctionsHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn: build | None = None
+    _conn = None
 
     def __init__(
         self,

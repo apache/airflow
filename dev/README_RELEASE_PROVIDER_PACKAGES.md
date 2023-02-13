@@ -333,6 +333,14 @@ cd airflow-site
 export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```
 
+Note if this is not the first time you clone the repo make sure main branch is rebased:
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+git checkout main
+git rebase --pull
+```
+
 - Then you can go to the directory and build the necessary documentation packages
 
 ```shell script
@@ -901,7 +909,7 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-Copy links to updated packages.
+Copy links to updated packages, sort it aphabeticly and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -937,11 +945,7 @@ the artifacts have been published.
 
 Subject:
 
-```shell script
-cat <<EOF
-Airflow Providers prepared on $(date "+%B %d, %Y") are ready
-EOF
-```
+[ANNOUNCE] Apache Airflow Providers prepared on <DATE OF CUT RC> are released
 
 Body:
 
@@ -984,5 +988,5 @@ Don't forget to thank the folks who tested and close the issue tracking the test
 ```shell script
 Thank you everyone.
 Providers are released
-I invite everyone to help improve providers for the next release, a list of open bugs can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Akind%3Abug+label%3Aarea%3Aproviders).
+I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
 ```

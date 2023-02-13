@@ -74,10 +74,9 @@ class StatsLogger(Protocol):
     @classmethod
     def timer(cls, *args, **kwargs) -> TimerProtocol:
         """Timer metric that can be cancelled."""
-        raise NotImplementedError()
 
 
-class Timer(TimerProtocol):
+class Timer:
     """
     Timer that records duration, and optional sends to StatsD backend.
 
@@ -361,7 +360,7 @@ class SafeDogStatsdLogger:
 
 
 class _Stats(type):
-    factory: Callable[[], StatsLogger]
+    factory = None
     instance: StatsLogger | None = None
 
     def __getattr__(cls, name):
@@ -375,7 +374,7 @@ class _Stats(type):
 
     def __init__(cls, *args, **kwargs):
         super().__init__(cls)
-        if not hasattr(cls.__class__, "factory"):
+        if cls.__class__.factory is None:
             is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
             if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
                 cls.__class__.factory = cls.get_dogstatsd_logger
