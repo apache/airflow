@@ -44,9 +44,9 @@ class AirflowJsonProvider(JSONProvider):
 
 
 class WebEncoder(json.JSONEncoder):
-    """
-    This encodes values into a web understandable format. There is no deserializer.
-    It parses datetime, dates, Decimal and bytes. In order to parse the custom
+    """This encodes values into a web understandable format. There is no deserializer.
+
+    This parses datetime, dates, Decimal and bytes. In order to parse the custom
     classes and the other types, and since it's just to show the result in the UI,
     we return repr(object) for everything else.
     """
