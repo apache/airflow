@@ -163,6 +163,7 @@ class Timetable(Protocol):
 
         :raises: AirflowTimetableInvalid on validation failure.
         """
+        return
 
     @property
     def summary(self) -> str:

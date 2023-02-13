@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# mypy: disable-error-code=var-annotated
 from __future__ import annotations
 
 import base64

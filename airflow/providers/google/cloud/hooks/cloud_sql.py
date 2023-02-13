@@ -702,8 +702,6 @@ class CloudSQLDatabaseHook(BaseHook):
     conn_type = "gcpcloudsqldb"
     hook_name = "Google Cloud SQL Database"
 
-    _conn = None
-
     def __init__(
         self,
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
