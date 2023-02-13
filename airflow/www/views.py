@@ -2866,7 +2866,7 @@ class Airflow(AirflowBaseView):
                         break
                     dates[dt.date()] += 1
             else:
-                prev_logical_date = datetime.min
+                prev_logical_date = timezone.make_aware(datetime.min)
                 while True:
                     curr_info = dag.timetable.next_dagrun_info(
                         last_automated_data_interval=last_automated_data_interval,
