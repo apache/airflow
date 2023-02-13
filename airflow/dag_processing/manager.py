@@ -1188,9 +1188,7 @@ class DagFileProcessorManager(LoggingMixin):
             random.Random(get_hostname()).shuffle(file_paths)
 
         if file_paths_to_stop_watching:
-            self.set_file_paths(
-                [path for path in self._file_paths if path not in file_paths_to_stop_watching]
-            )
+            self.set_file_paths(self._file_paths - file_paths_to_stop_watching)
 
         files_paths_at_run_limit = [
             file_path for file_path, stat in self._file_stats.items() if stat.run_count == self._max_runs
