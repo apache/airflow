@@ -54,7 +54,7 @@ class LifeSciencesHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     """
 
-    _conn = None
+    _conn: build | None = None
 
     def __init__(
         self,
