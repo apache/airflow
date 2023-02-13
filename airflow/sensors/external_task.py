@@ -516,7 +516,7 @@ class ExternalTaskAsyncSensor(ExternalTaskSensor):
     def execute_complete(self, context, event=None):
         """Callback for when the trigger fires - returns immediately."""
         if event["status"] == "success":
-            self.log.info("External task %s has executed successfully", self.external_task_id)
+            self.log.info("External task %s has executed successfully.", self.external_task_id)
             return None
         elif event["status"] == "timeout":
             raise AirflowException("Dag was not started within 1 minute, assuming fail.")
