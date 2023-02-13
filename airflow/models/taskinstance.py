@@ -66,6 +66,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators, case
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
@@ -1207,9 +1208,11 @@ class TaskInstance(Base, LoggingMixin):
 
         return dr
 
+    @staticmethod
+    @internal_api_call
     @provide_session
     def check_and_change_state_before_execution(
-        self,
+        ti: TaskInstance,
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -1228,6 +1231,7 @@ class TaskInstance(Base, LoggingMixin):
         True if and only if state is set to RUNNING, which implies that task should be
         executed, in preparation for _run_raw_task
 
+        :param ti: the task instance
         :param verbose: whether to turn on more verbose logging
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
         :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
@@ -1242,20 +1246,20 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :return: whether the state was changed to running or not
         """
-        task = self.task
-        self.refresh_from_task(task, pool_override=pool)
-        self.test_mode = test_mode
-        self.refresh_from_db(session=session, lock_for_update=True)
-        self.job_id = job_id
-        self.hostname = get_hostname()
-        self.pid = None
+        task = ti.task
+        ti.refresh_from_task(task, pool_override=pool)
+        ti.test_mode = test_mode
+        ti.refresh_from_db(session=session, lock_for_update=True)
+        ti.job_id = job_id
+        ti.hostname = get_hostname()
+        ti.pid = None
 
-        if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
+        if not ignore_all_deps and not ignore_ti_state and ti.state == State.SUCCESS:
             Stats.incr(
                 "previously_succeeded",
                 1,
                 1,
-                tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id},
+                tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id},
             )
 
         if not mark_success:
@@ -1270,7 +1274,7 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_task_deps=ignore_task_deps,
                 description="non-requeueable deps",
             )
-            if not self.are_dependencies_met(
+            if not ti.are_dependencies_met(
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
             ):
                 session.commit()
@@ -1282,11 +1286,11 @@ class TaskInstance(Base, LoggingMixin):
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
             # If the task continues after being deferred (next_method is set), use the original start_date
-            self.start_date = self.start_date if self.next_method else timezone.utcnow()
-            if self.state == State.UP_FOR_RESCHEDULE:
-                task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
+            ti.start_date = ti.start_date if ti.next_method else timezone.utcnow()
+            if ti.state == State.UP_FOR_RESCHEDULE:
+                task_reschedule: TR = TR.query_for_task_instance(ti, session=session).first()
                 if task_reschedule:
-                    self.start_date = task_reschedule.start_date
+                    ti.start_date = task_reschedule.start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,
@@ -1300,33 +1304,33 @@ class TaskInstance(Base, LoggingMixin):
                 ignore_ti_state=ignore_ti_state,
                 description="requeueable deps",
             )
-            if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
-                self.state = State.NONE
-                self.log.warning(
+            if not ti.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
+                ti.state = State.NONE
+                ti.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
                     "%s. State set to NONE.",
-                    self.try_number,
-                    self.max_tries + 1,
+                    ti.try_number,
+                    ti.max_tries + 1,
                 )
-                self.queued_dttm = timezone.utcnow()
-                session.merge(self)
+                ti.queued_dttm = timezone.utcnow()
+                session.merge(ti)
                 session.commit()
                 return False
 
-        if self.next_kwargs is not None:
-            self.log.info("Resuming after deferral")
+        if ti.next_kwargs is not None:
+            ti.log.info("Resuming after deferral")
         else:
-            self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self._try_number += 1
+            ti.log.info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
+        ti._try_number += 1
 
         if not test_mode:
-            session.add(Log(State.RUNNING, self))
-        self.state = State.RUNNING
-        self.external_executor_id = external_executor_id
-        self.end_date = None
+            session.add(Log(State.RUNNING, ti))
+        ti.state = State.RUNNING
+        ti.external_executor_id = external_executor_id
+        ti.end_date = None
         if not test_mode:
-            session.merge(self).task = task
+            session.merge(ti).task = task
         session.commit()
 
         # Closing all pooled connections to prevent
@@ -1334,9 +1338,9 @@ class TaskInstance(Base, LoggingMixin):
         settings.engine.dispose()  # type: ignore
         if verbose:
             if mark_success:
-                self.log.info("Marking success for %s on %s", self.task, self.execution_date)
+                ti.log.info("Marking success for %s on %s", ti.task, ti.execution_date)
             else:
-                self.log.info("Executing %s on %s", self.task, self.execution_date)
+                ti.log.info("Executing %s on %s", ti.task, ti.execution_date)
         return True
 
     def _date_or_empty(self, attr: str) -> str:
@@ -1715,7 +1719,8 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> None:
         """Run TaskInstance"""
-        res = self.check_and_change_state_before_execution(
+        res = TaskInstance.check_and_change_state_before_execution(
+            self,
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,

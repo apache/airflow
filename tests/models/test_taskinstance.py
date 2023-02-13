@@ -1495,7 +1495,7 @@ class TestTaskInstance:
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
         assert ti_from_deserialized_task._try_number == 0
-        assert ti_from_deserialized_task.check_and_change_state_before_execution()
+        assert TI.check_and_change_state_before_execution(ti_from_deserialized_task)
         # State should be running, and try_number column should be incremented
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task._try_number == 1
@@ -1508,7 +1508,7 @@ class TestTaskInstance:
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
-        assert not ti2.check_and_change_state_before_execution()
+        assert not TI.check_and_change_state_before_execution(ti2)
 
     def test_check_and_change_state_before_execution_dep_not_met_already_running(self, create_task_instance):
         """return False if the task instance state is running"""
@@ -1521,7 +1521,7 @@ class TestTaskInstance:
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
-        assert not ti_from_deserialized_task.check_and_change_state_before_execution()
+        assert not TI.check_and_change_state_before_execution(ti_from_deserialized_task)
         assert ti_from_deserialized_task.state == State.RUNNING
 
     def test_check_and_change_state_before_execution_dep_not_met_not_runnable_state(
@@ -1537,7 +1537,7 @@ class TestTaskInstance:
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
-        assert not ti_from_deserialized_task.check_and_change_state_before_execution()
+        assert not TI.check_and_change_state_before_execution(ti_from_deserialized_task)
         assert ti_from_deserialized_task.state == State.FAILED
 
     def test_try_number(self, create_task_instance):

@@ -27,6 +27,7 @@ from flask import Response
 from airflow.api_connexion.types import APIResponse
 from airflow.models import Trigger, Variable, XCom
 from airflow.models.dagwarning import DagWarning
+from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_paused_dag_ids,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        TaskInstance.check_and_change_state_before_execution,
         XCom.get_value,
         XCom.get_one,
         XCom.get_many,

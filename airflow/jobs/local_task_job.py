@@ -138,7 +138,8 @@ class LocalTaskJob(BaseJob):
             # This is not supported on Windows systems
             signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
 
-        if not self.task_instance.check_and_change_state_before_execution(
+        if not TaskInstance.check_and_change_state_before_execution(
+            self.task_instance,
             mark_success=self.mark_success,
             ignore_all_deps=self.ignore_all_deps,
             ignore_depends_on_past=self.ignore_depends_on_past,
