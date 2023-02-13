@@ -24,9 +24,10 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import pendulum
+import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
@@ -34,6 +35,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
+from airflow import policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
@@ -141,106 +143,39 @@ def replace_showwarning(replacement):
 original_show_warning = replace_showwarning(custom_show_warning)
 atexit.register(functools.partial(replace_showwarning, original_show_warning))
 
-
-def task_policy(task) -> None:
-    """
-    This policy setting allows altering tasks after they are loaded in the DagBag.
-
-    It allows administrator to rewire some task's parameters.
-    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
-    to stop DAG from being executed.
-
-    To define policy, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``task_policy`` function.
-
-    Here are a few examples of how this can be useful:
-
-    * You could enforce a specific queue (say the ``spark`` queue)
-        for tasks using the ``SparkOperator`` to make sure that these
-        tasks get wired to the right workers
-    * You could enforce a task timeout policy, making sure that no tasks run
-        for more than 48 hours
-
-    :param task: task to be mutated
-    """
+POLICY_PLUGIN_MANAGER: Any = None  # type: ignore
 
 
-def dag_policy(dag) -> None:
-    """
-    This policy setting allows altering DAGs after they are loaded in the DagBag.
+def task_policy(task):
+    return POLICY_PLUGIN_MANAGER.hook.task_policy(task=task)
 
-    It allows administrator to rewire some DAG's parameters.
-    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
-    to stop DAG from being executed.
 
-    To define policy, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``dag_policy`` function.
-
-    Here are a few examples of how this can be useful:
-
-    * You could enforce default user for DAGs
-    * Check if every DAG has configured tags
-
-    :param dag: dag to be mutated
-    """
+def dag_policy(dag):
+    return POLICY_PLUGIN_MANAGER.hook.dag_policy(dag=dag)
 
 
 def task_instance_mutation_hook(task_instance):
-    """
-    This setting allows altering task instances before being queued by the Airflow scheduler.
-
-    To define task_instance_mutation_hook, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``task_instance_mutation_hook`` function.
-
-    This could be used, for instance, to modify the task instance during retries.
-
-    :param task_instance: task instance to be mutated
-    """
+    return POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook(task_instance=task_instance)
 
 
 task_instance_mutation_hook.is_noop = True  # type: ignore
 
 
 def pod_mutation_hook(pod):
-    """
-    Mutate pod before scheduling.
-
-    This setting allows altering ``kubernetes.client.models.V1Pod`` object
-    before they are passed to the Kubernetes client for scheduling.
-
-    To define a pod mutation hook, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``pod_mutation_hook`` function.
-    It receives a ``Pod`` object and can alter it where needed.
-
-    This could be used, for instance, to add sidecar or init containers
-    to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
-    """
+    return POLICY_PLUGIN_MANAGER.hook.pod_mutation_hook(pod=pod)
 
 
 def get_airflow_context_vars(context):
-    """
-    This setting allows getting the airflow context vars, which are key value pairs.
-    They are then injected to default airflow context vars, which in the end are
-    available as environment variables when running tasks
-    dag_id, task_id, execution_date, dag_run_id, try_number are reserved keys.
-    To define it, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``get_airflow_context_vars`` function.
-
-    :param context: The context for the task_instance of interest.
-    """
-    return {}
+    return POLICY_PLUGIN_MANAGER.hook.get_airflow_context_vars(context=context)
 
 
-def get_dagbag_import_timeout(dag_file_path: str) -> int | float:
-    """
-    This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
+def get_dagbag_import_timeout(dag_file_path: str):
+    return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
 
-    It is useful when there are a few DAG files requiring longer parsing times, while others do not.
-    You can control them separately instead of having one value for all DAG files.
 
-    If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
-    """
-    return conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
+def load_policy_plugins(pm: pluggy.PluginManager):
+    # We can't log duration etc  here, as logging hasn't yet been configured!
+    pm.load_setuptools_entrypoints("airflow.policy")
 
 
 def configure_vars():
@@ -249,6 +184,7 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
+    global POLICY_PLUGIN_MANAGER
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -260,6 +196,10 @@ def configure_vars():
     # to get all the logs from the print & log statements in the DAG files before a task is run
     # The handlers are restored after the task completes execution.
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
+
+    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
+    POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
+    POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
 
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
@@ -524,25 +464,33 @@ def import_local_settings():
         import airflow_local_settings
 
         if hasattr(airflow_local_settings, "__all__"):
-            for i in airflow_local_settings.__all__:
-                globals()[i] = getattr(airflow_local_settings, i)
+            names = list(airflow_local_settings.__all__)
         else:
-            for k, v in airflow_local_settings.__dict__.items():
-                if not k.startswith("__"):
-                    globals()[k] = v
+            names = list(filter(lambda n: not n.startswith("__"), airflow_local_settings.__dict__.keys()))
 
-        # TODO: Remove once deprecated
-        if "policy" in globals() and "task_policy" not in globals():
+        if "policy" in names and "task_policy" not in names:
             warnings.warn(
                 "Using `policy` in airflow_local_settings.py is deprecated. "
                 "Please rename your `policy` to `task_policy`.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
                 stacklevel=2,
             )
-            globals()["task_policy"] = globals()["policy"]
-            del globals()["policy"]
+            setattr(airflow_local_settings, "task_policy", airflow_local_settings.policy)
+            names.remove("policy")
 
-        if not hasattr(task_instance_mutation_hook, "is_noop"):
+        plugin_functions = policies.make_plugin_from_local_settings(
+            POLICY_PLUGIN_MANAGER, airflow_local_settings, names
+        )
+
+        for name in names:
+            # If we have already handled a function by adding it to the plugin, then don't clobber the global
+            # function
+            if name in plugin_functions:
+                continue
+
+            globals()[name] = getattr(airflow_local_settings, name)
+
+        if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
@@ -564,6 +512,9 @@ def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
     prepare_syspath()
+    # Load policy plugins _before_ importing airflow_local_settings, as Pluggy uses LIFO and we want anything
+    # in airflow_local_settings to take precendec
+    load_policy_plugins(POLICY_PLUGIN_MANAGER)
     import_local_settings()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
