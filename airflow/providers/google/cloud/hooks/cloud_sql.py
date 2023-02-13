@@ -59,6 +59,8 @@ UNIX_PATH_MAX = 108
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 20
 
+CLOUD_SQL_PROXY_VERSION_REGEX = re.compile(r"^v?(\d+\.\d+\.\d+)(-\w*.?\d?)?$")
+
 
 class CloudSqlOperationStatus:
     """Helper class with operation statuses."""
@@ -449,16 +451,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         if os.path.isfile(self.sql_proxy_path):
             self.log.info("cloud-sql-proxy is already present")
             return
-        system = platform.system().lower()
-        processor = os.uname().machine
-        if processor == "x86_64":
-            processor = "amd64"
-        if not self.sql_proxy_version:
-            download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
-        else:
-            download_url = CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL.format(
-                self.sql_proxy_version, system, processor
-            )
+        download_url = self._get_sql_proxy_download_url()
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
         # httpx has a breaking API change (follow_redirects vs allow_redirects)
@@ -481,6 +474,24 @@ class CloudSqlProxyRunner(LoggingMixin):
         shutil.move(proxy_path_tmp, self.sql_proxy_path)
         os.chmod(self.sql_proxy_path, 0o744)  # Set executable bit
         self.sql_proxy_was_downloaded = True
+
+    def _get_sql_proxy_download_url(self):
+        system = platform.system().lower()
+        processor = os.uname().machine
+        if processor == "x86_64":
+            processor = "amd64"
+        if not self.sql_proxy_version:
+            download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
+        else:
+            if not CLOUD_SQL_PROXY_VERSION_REGEX.match(self.sql_proxy_version):
+                raise ValueError(
+                    "The sql_proxy_version should match the regular expression "
+                    f"{CLOUD_SQL_PROXY_VERSION_REGEX.pattern}"
+                )
+            download_url = CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL.format(
+                self.sql_proxy_version, system, processor
+            )
+        return download_url
 
     def _get_credential_parameters(self) -> list[str]:
         extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
