@@ -565,13 +565,16 @@ class KubernetesPodOperator(BaseOperator):
 
     def convert_config_file_to_dict(self):
         """Converts passed config_file to dict format."""
-        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
+        config_file = None
+        if self.config_file:
+            config_file = self.config_file
+        elif self.kubernetes_conn_id:
+            connection = Connection.get_connection_from_secrets(self.kubernetes_conn_id)
+            extra = connection.extra_dejson
+            if "extra__kubernetes__kube_config_path" in extra:
+                config_file = extra["extra__kubernetes__kube_config_path"]
         if not config_file:
-            if self.kubernetes_conn_id:
-                connection = Connection.get_connection_from_secrets(self.kubernetes_conn_id)
-                extra = connection.extra_dejson
-                if "extra__kubernetes__kube_config_path" in extra:
-                    config_file = extra["extra__kubernetes__kube_config_path"]
+            config_file = os.environ.get(KUBE_CONFIG_ENV_VAR)
         if config_file:
             with open(config_file) as f:
                 self._config_dict = yaml.safe_load(f)

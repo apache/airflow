@@ -1361,7 +1361,7 @@ class TestKubernetesPodOperatorAsync:
     @pytest.mark.parametrize(
         "create_conn, export_env_var, extra_kwarg, config_file_path, should_be_called",
         [
-            (True, False, {}, "/path/to/config/file1", True),
+            (True, False, {"kubernetes_conn_id": "kubernetes_test_conf"}, "/path/to/config/file1", True),
             (False, True, {}, "/path/to/config/file2", True),
             (False, False, {"config_file": "/path/to/config/file3"}, "/path/to/config/file3", True),
             (False, False, {}, None, False),
@@ -1382,7 +1382,6 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
-            kubernetes_conn_id="kubernetes_test_conf",
             **extra_kwarg,
         )
         if create_conn:
@@ -1400,4 +1399,10 @@ class TestKubernetesPodOperatorAsync:
         if should_be_called:
             mock_file.assert_called_with(config_file_path)
         else:
-            mock_file.assert_not_called
+            mock_file.assert_not_called()
+
+        if create_conn:
+            with create_session() as session:
+                session.query(Connection).filter(Connection.conn_id == "kubernetes_test_conf").delete()
+        if export_env_var:
+            del os.environ["KUBECONFIG"]
