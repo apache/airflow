@@ -252,7 +252,10 @@ class TestMigrateDatabaseJob:
         assert ttl == 0
 
     def test_job_ttl_after_finished_nil(self):
-        docs = render_chart(show_only=["templates/jobs/migrate-database-job.yaml"])
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"ttlSecondsAfterFinished": None}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
         spec = jmespath.search("spec", docs[0])
         assert "ttlSecondsAfterFinished" not in spec
 

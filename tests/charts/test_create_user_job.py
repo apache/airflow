@@ -258,7 +258,10 @@ class TestCreateUserJob:
         assert ttl == 0
 
     def test_job_ttl_after_finished_nil(self):
-        docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
+        docs = render_chart(
+            values={"createUserJob": {"ttlSecondsAfterFinished": None}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
         spec = jmespath.search("spec", docs[0])
         assert "ttlSecondsAfterFinished" not in spec
 

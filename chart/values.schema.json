@@ -2951,7 +2951,7 @@
                         "integer",
                         "null"
                     ],
-                    "default": null
+                    "default": 300
                 },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
@@ -3159,7 +3159,7 @@
                         "integer",
                         "null"
                     ],
-                    "default": null
+                    "default": 300
                 }
             }
         },
