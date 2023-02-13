@@ -147,6 +147,21 @@ class TestPodTemplateFile:
             "readOnly": expected_read_only,
         } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        expected_volume = {"name": "test-volume", "emptyDir": {}}
+        expected_volume_mount = {"name": "test-volume", "mountPath": "/opt/test"}
+        docs = render_chart(
+            values={
+                "volumes": [expected_volume],
+                "volumeMounts": [expected_volume_mount],
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert expected_volume in jmespath.search("spec.volumes", docs[0])
+        assert expected_volume_mount in jmespath.search("spec.containers[0].volumeMounts", docs[0])
+
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
             values={
