@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip # noqa E402
 from common_precommit_black_utils import black_format  # isort: skip # noqa E402
 
-PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "providers"
+PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT_PATH / "providers"
 COMMON_SQL_ROOT = PROVIDERS_ROOT / "common" / "sql"
 OUT_DIR = AIRFLOW_SOURCES_ROOT_PATH / "out"
 
