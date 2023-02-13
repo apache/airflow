@@ -806,6 +806,36 @@ logging:
       type: string
       example: path.to.my_func
       default: ~
+    file_task_handler_new_folder_permissions:
+      description: |
+        Permissions in the form or of octal string as understood by chmod. The permissions are important
+        when you use impersonation, when logs are written by a different user than airflow. The most secure
+        way of configuring it in this case is to add both users to the same group and make it the default
+        group of both users. Group-writeable logs are default in airflow, but you might decide that you are
+        OK with having the logs other-writeable, in which case you should set it to `0o777`. You might
+        decide to add more security if you do not use impersonation and change it to `0o755` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to `0o700` if
+        all the access (read/write) for your logs happens from the same user.
+      version_added: 2.6.0
+      type: string
+      example: "0o775"
+      default: "0o775"
+    file_task_handler_new_file_permissions:
+      description: |
+        Permissions in the form or of octal string as understood by chmod. The permissions are important
+        when you use impersonation, when logs are written by a different user than airflow. The most secure
+        way of configuring it in this case is to add both users to the same group and make it the default
+        group of both users. Group-writeable logs are default in airflow, but you might decide that you are
+        OK with having the logs other-writeable, in which case you should set it to `0o666`. You might
+        decide to add more security if you do not use impersonation and change it to `0o644` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to `0o600` if
+        all the access (read/write) for your logs happens from the same user.
+      version_added: 2.6.0
+      type: string
+      example: "0o664"
+      default: "0o664"
+
+
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
