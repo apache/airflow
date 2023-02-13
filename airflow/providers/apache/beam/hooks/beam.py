@@ -35,7 +35,6 @@ from packaging.version import Version
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.go_module_utils import init_module, install_dependencies
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
 
@@ -81,7 +80,12 @@ def beam_options_to_args(options: dict) -> list[str]:
     return args
 
 
-def process_fd(self, proc, fd, process_line_callback: Callable [[str], None] | None = None,):
+def process_fd(
+    self,
+    proc,
+    fd,
+    process_line_callback: Callable[[str], None] | None = None,
+):
     """
     Prints output to logs.
 
@@ -106,12 +110,12 @@ def process_fd(self, proc, fd, process_line_callback: Callable [[str], None] | N
 
 
 def run_beam_command(
-        self,
-        cmd: list[str],
-        process_line_callback: Callable[[str], None] | None = None,
-        working_directory: str | None = None,
-        log: logging.Logger | None = None,
-    ) -> None:
+    self,
+    cmd: list[str],
+    process_line_callback: Callable[[str], None] | None = None,
+    working_directory: str | None = None,
+    log: logging.Logger | None = None,
+) -> None:
     """
     Class responsible for running pipeline command in subprocess
 
@@ -125,12 +129,12 @@ def run_beam_command(
     log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
 
     proc = subprocess.Popen(
-            cmd,
-            cwd=working_directory,
-            shell=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            close_fds=True,
+        cmd,
+        cwd=working_directory,
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        close_fds=True,
     )
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
@@ -187,7 +191,7 @@ class BeamHook(BaseHook):
         ]
         if variables:
             cmd.extend(beam_options_to_args(variables))
-        cmd_runner = run_beam_command(
+        run_beam_command(
             cmd=cmd,
             process_line_callback=process_line_callback,
             working_directory=working_directory,

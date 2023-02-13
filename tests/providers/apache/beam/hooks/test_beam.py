@@ -21,13 +21,12 @@ import os
 import re
 import subprocess
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import ANY
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.beam.hooks.beam import run_beam_command, BeamHook, beam_options_to_args
+from airflow.providers.apache.beam.hooks.beam import BeamHook, beam_options_to_args, run_beam_command
 
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
@@ -80,7 +79,10 @@ class TestBeamHook:
             "--labels=foo=bar",
         ]
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None,log=ANY,
+            cmd=expected_cmd,
+            process_line_callback=process_line_callback,
+            working_directory=None,
+            log=ANY,
         )
 
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
@@ -137,7 +139,10 @@ class TestBeamHook:
             "--labels=foo=bar",
         ]
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None,log=ANY,
+            cmd=expected_cmd,
+            process_line_callback=process_line_callback,
+            working_directory=None,
+            log=ANY,
         )
 
     @pytest.mark.parametrize(
@@ -181,7 +186,10 @@ class TestBeamHook:
             "--labels=foo=bar",
         ]
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None,log=ANY,
+            cmd=expected_cmd,
+            process_line_callback=process_line_callback,
+            working_directory=None,
+            log=ANY,
         )
         mock_virtualenv.assert_called_once_with(
             venv_directory=mock.ANY,
@@ -231,7 +239,7 @@ class TestBeamHook:
             '--labels={"foo":"bar"}',
         ]
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None,log=ANY
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None, log=ANY
         )
 
     @mock.patch(BEAM_STRING.format("run_beam_command"))
@@ -256,7 +264,10 @@ class TestBeamHook:
             '--labels={"foo":"bar"}',
         ]
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None,log=ANY,
+            cmd=expected_cmd,
+            process_line_callback=process_line_callback,
+            working_directory=None,
+            log=ANY,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -283,7 +294,10 @@ class TestBeamHook:
             '--labels={"foo":"bar"}',
         ]
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=go_workspace,log=ANY,
+            cmd=expected_cmd,
+            process_line_callback=process_line_callback,
+            working_directory=go_workspace,
+            log=ANY,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -325,7 +339,10 @@ class TestBeamHook:
         ]
 
         mock_runner.assert_called_once_with(
-            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None, log=ANY,
+            cmd=expected_cmd,
+            process_line_callback=process_line_callback,
+            working_directory=None,
+            log=ANY,
         )
 
 
@@ -353,7 +370,7 @@ class TestBeamRunner:
         mock_proc.poll = mock_proc_poll
         mock_popen.return_value = mock_proc
         with pytest.raises(Exception):
-            beam = run_beam_command(cmd,None,None,mock_logging)
+            run_beam_command(cmd, None, None, mock_logging)
             mock_logging.info.assert_called_once_with("Running command: %s", " ".join(cmd))
             mock_popen.assert_called_once_with(
                 cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
