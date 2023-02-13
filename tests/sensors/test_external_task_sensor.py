@@ -881,10 +881,8 @@ class TestExternalTaskAsyncSensor:
 
         with pytest.raises(AirflowException):
             sensor.execute_complete(
-                context=mock.MagicMock(), event={
-                    "status": "timeout",
-                    "message": "Dag was not started within 1 minute, assuming fail."
-                }
+                context=mock.MagicMock(),
+                event={"status": "timeout", "message": "Dag was not started within 1 minute, assuming fail."},
             )
 
     def test_defer_execute_check_correct_logging(self):
