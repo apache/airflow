@@ -570,6 +570,29 @@ Those are all available flags of ``shell`` command:
   :alt: Breeze shell
 
 
+Running Breeze with a StatsD Metrics Stack
+------------------------------------------
+
+You can launch an instance of Breeze pre-configured to emit StatsD metrics using
+``breeze start-airflow --integration statsd``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running StatsD, Prometheus, and
+Grafana.  The integration configures the "Targets" in Prometheus, the "Datasources" in
+Grafana, and includes a default dashboard in Grafana.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 29102 -> forwarded to StatsD Exporter -> breeze-statsd-exporter:9102
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports/databases using:
+
+* StatsD Metrics: http://127.0.0.1:29102/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
+
 Stopping the environment
 ------------------------
 
