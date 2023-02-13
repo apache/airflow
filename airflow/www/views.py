@@ -596,13 +596,13 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0],
-            airflow_version=version,
+            python_version=sys.version.split(" ")[0] if g.user.is_authenticated else "redact",
+            airflow_version=version if g.user.is_authenticated else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True) and g.user.is_authenticated
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE", fallback=True)
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE", fallback=True) and g.user.is_authenticated
             else "Error! Please contact server admin.",
         ),
         500,
