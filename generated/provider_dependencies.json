@@ -416,7 +416,6 @@
   "http": {
     "deps": [
       "aiohttp",
-      "aioresponses",
       "asgiref",
       "requests>=2.26.0",
       "requests_toolbelt"

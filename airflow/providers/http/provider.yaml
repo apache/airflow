@@ -44,7 +44,6 @@ dependencies:
   - requests_toolbelt
   - aiohttp
   - asgiref
-  - aioresponses
 
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)
