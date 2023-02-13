@@ -62,7 +62,7 @@ class TestRedshiftDataOperator:
             statement_name=statement_name,
             parameters=parameters,
             with_event=False,
-            await_result=await_result,
+            wait_for_completion=await_result,
             poll_interval=poll_interval,
         )
 

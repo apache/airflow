@@ -56,7 +56,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         secret_arn: str | None = None,
         statement_name: str | None = None,
         with_event: bool = False,
-        await_result: bool = True,
+        wait_for_completion: bool = True,
         poll_interval: int = 10,
     ) -> str:
         """
@@ -70,7 +70,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         :param secret_arn: the name or ARN of the secret that enables db access
         :param statement_name: the name of the SQL statement
         :param with_event: indicates whether to send an event to EventBridge
-        :param await_result: indicates whether to wait for a result, if True wait, if False don't wait
+        :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
         :param poll_interval: how often in seconds to check the query status
 
         :returns statement_id: str, the UUID of the statement
@@ -93,7 +93,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         statement_id = resp["Id"]
 
-        if await_result:
+        if wait_for_completion:
             self.wait_for_results(statement_id, poll_interval=poll_interval)
 
         return statement_id
@@ -126,7 +126,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         secret_arn: str | None = None,
         statement_name: str | None = None,
         with_event: bool = False,
-        await_result: bool = True,
+        wait_for_completion: bool = True,
         poll_interval: int = 10,
     ) -> list[str] | None:
         """
@@ -143,7 +143,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         :param secret_arn: the name or ARN of the secret that enables db access
         :param statement_name: the name of the SQL statement
         :param with_event: indicates whether to send an event to EventBridge
-        :param await_result: indicates whether to wait for a result, if True wait, if False don't wait
+        :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
         :param poll_interval: how often in seconds to check the query status
 
         :return: Primary key columns list
@@ -167,7 +167,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             secret_arn=secret_arn,
             statement_name=statement_name,
             with_event=with_event,
-            await_result=await_result,
+            wait_for_completion=wait_for_completion,
             poll_interval=poll_interval,
         )
         pk_columns = []

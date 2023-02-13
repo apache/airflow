@@ -121,7 +121,7 @@ class RedshiftDataOperator(BaseOperator):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            await_result=self.await_result,
+            wait_for_completion=self.await_result,
             poll_interval=self.poll_interval,
         )
         return self.statement_id
@@ -142,7 +142,7 @@ class RedshiftDataOperator(BaseOperator):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            await_result=self.await_result,
+            wait_for_completion=self.await_result,
             poll_interval=self.poll_interval,
         )
         return self.statement_id
@@ -169,7 +169,7 @@ class RedshiftDataOperator(BaseOperator):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            await_result=self.await_result,
+            wait_for_completion=self.await_result,
             poll_interval=self.poll_interval,
         )
 

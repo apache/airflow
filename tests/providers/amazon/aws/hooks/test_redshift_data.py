@@ -44,7 +44,7 @@ class TestRedshiftDataHook:
         hook.execute_query(
             database=DATABASE,
             sql=SQL,
-            await_result=False,
+            wait_for_completion=False,
         )
         mock_conn.execute_statement.assert_called_once_with(
             Database=DATABASE,
