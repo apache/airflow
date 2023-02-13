@@ -77,20 +77,6 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         self.table_name = table_name
         self.escaper = ParamEscaper()
 
-    def _get_hook(self) -> DatabricksSqlHook:
-        return DatabricksSqlHook(
-            self.databricks_conn_id,
-            self._http_path,
-            self._sql_endpoint_name,
-            self.session_config,
-            self.http_headers,
-            self.catalog,
-            self.schema,
-            self.caller,
-            **self.client_parameters,
-            **self.hook_params,
-        )
-
     def _sql_sensor(self, sql):
         hook = self._get_hook()
         sql_result = hook.run(

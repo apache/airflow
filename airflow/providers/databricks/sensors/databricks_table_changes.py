@@ -72,21 +72,6 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
         self.caller = "DatabricksTableChangesSensor"
         self.change_filter_operator = change_filter_operator
         self.table_name = table_name
-
-    def _get_hook(self) -> DatabricksSqlHook:
-        return DatabricksSqlHook(
-            self.databricks_conn_id,
-            self._http_path,
-            self._sql_endpoint_name,
-            self.session_config,
-            self.http_headers,
-            self.catalog,
-            self.schema,
-            self.caller,
-            **self.client_parameters,
-            **self.hook_params,
-        )
-
     def _sql_sensor(self, sql):
         hook = self._get_hook()
         sql_result = hook.run(
