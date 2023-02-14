@@ -59,4 +59,4 @@ class TestDatabricksPartitionSensor(unittest.TestCase):
         mock_check_table_partitions.return_value = []
         with self.assertRaises(AirflowException) as err:
             sql_sensor.poke({})
-        self.assertEquals(str(err.exception), "No results for partition sensor.")
+        self.assertEqual(str(err.exception), "No results for partition sensor.")

@@ -22,8 +22,8 @@ import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
-from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow import AirflowException
+from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 
 TASK_ID = "db-sensor"
 DEFAULT_CONN_ID = "databricks_default"
@@ -55,4 +55,4 @@ class TestDatabricksSqlSensor(unittest.TestCase):
         mock_sql_sensor.return_value = []
         with self.assertRaises(AirflowException) as err:
             sql_sensor.poke({})
-        self.assertEquals(str(err.exception), "No results for SQL sensor.")
+        self.assertEqual(str(err.exception), "No results for SQL sensor.")
