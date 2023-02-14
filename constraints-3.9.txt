@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-13T17:21:43Z
+# This constraints file was automatically generated on 2023-02-14T15:37:11Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -48,6 +48,7 @@ Werkzeug==2.2.2
 adal==1.2.7
 aiofiles==22.1.0
 aiohttp==3.8.4
+aioresponses==0.7.4
 aiosignal==1.3.1
 alabaster==0.7.13
 alembic==1.9.3
@@ -177,9 +178,9 @@ bitarray==2.7.2
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.69
+boto3==1.26.70
 boto==2.49.0
-botocore==1.29.69
+botocore==1.29.70
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -623,7 +624,7 @@ websocket-client==1.5.1
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.29.0
-yandexcloud==0.195.0
+yandexcloud==0.196.0
 yarl==1.8.2
 zeep==4.2.1
 zenpy==2.0.25
