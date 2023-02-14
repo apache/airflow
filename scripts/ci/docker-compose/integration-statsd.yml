@@ -19,15 +19,37 @@ version: "3.7"
 services:
   statsd-exporter:
     image: apache/airflow:airflow-statsd-exporter-2020.09.05-v0.17.0
+    container_name: "breeze-statsd-exporter"
     ports:
       - "9125:9125"
       - "9125:9125/udp"
       - "29102:9102"
 
+  prometheus:
+    image: prom/prometheus
+    container_name: "breeze-prometheus"
+    user: "0"
+    ports:
+      - "29090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/volume:/prometheus
+
   grafana:
     image: grafana/grafana:8.2.4
+    container_name: "breeze-grafana"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_NAME: "Main Org."
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_PATHS_PROVISIONING: /grafana/provisioning
     ports:
       - "23000:3000"
+    volumes:
+      - ./grafana/volume/data:/grafana
+      - ./grafana/volume/datasources:/grafana/datasources
+      - ./grafana/volume/dashboards:/grafana/dashboards
+      - ./grafana/volume/provisioning:/grafana/provisioning
 
   airflow:
     environment:
@@ -37,4 +59,5 @@ services:
       - AIRFLOW__METRICS__STATSD_PORT=9125
     depends_on:
       - statsd-exporter
+      - prometheus
       - grafana

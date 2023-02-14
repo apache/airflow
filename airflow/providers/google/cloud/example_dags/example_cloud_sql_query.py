@@ -205,8 +205,7 @@ os.environ["AIRFLOW_CONN_PROXY_MYSQL_SOCKET"] = (
     "location={location}&"
     "instance={instance}&"
     "use_proxy=True&"
-    "sql_proxy_binary_path={sql_proxy_binary_path}&"
-    "sql_proxy_use_tcp=False".format(sql_proxy_binary_path=quote_plus(sql_proxy_binary_path), **mysql_kwargs)
+    "sql_proxy_use_tcp=False".format(**mysql_kwargs)
 )
 
 # MySQL: connect directly via TCP (non-SSL)
@@ -279,7 +278,10 @@ with models.DAG(
 
     for connection_name in connection_names:
         task = CloudSQLExecuteQueryOperator(
-            gcp_cloudsql_conn_id=connection_name, task_id="example_gcp_sql_task_" + connection_name, sql=SQL
+            gcp_cloudsql_conn_id=connection_name,
+            task_id="example_gcp_sql_task_" + connection_name,
+            sql=SQL,
+            sql_proxy_binary_path=sql_proxy_binary_path,
         )
         tasks.append(task)
         if prev_task:

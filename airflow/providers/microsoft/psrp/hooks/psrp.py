@@ -75,8 +75,7 @@ class PsrpHook(BaseHook):
     or by setting this key as the extra fields of your connection.
     """
 
-    _conn = None
-    _configuration_name = None
+    _conn: RunspacePool | None = None
     _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
 
     def __init__(
