@@ -428,6 +428,7 @@ async def test_do_api_call_async_retryable_error(caplog, aioresponse):
     """Test api call asynchronously with retryable error."""
     caplog.set_level(logging.WARNING, logger="airflow.providers.http.hooks.http")
     hook = HttpAsyncHook(method="GET")
+    aioresponse.get("http://httpbin.org/non_existent_endpoint", status=500, repeat=True)
 
     with pytest.raises(AirflowException) as exc, mock.patch.dict(
         "os.environ",
