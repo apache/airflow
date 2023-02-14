@@ -27,6 +27,7 @@ from daemon.pidfile import TimeoutPIDLockFile
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.debug import print_session_usage
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
@@ -57,6 +58,8 @@ def dag_processor(args):
     """Starts Airflow Dag Processor Job."""
     if not conf.getboolean("scheduler", "standalone_dag_processor"):
         raise SystemExit("The option [scheduler/standalone_dag_processor] must be True.")
+
+    print_session_usage()
 
     sql_conn: str = conf.get("database", "sql_alchemy_conn").lower()
     if sql_conn.startswith("sqlite"):
