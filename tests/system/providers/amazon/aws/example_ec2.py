@@ -80,7 +80,7 @@ def create_instance(instance_name: str, key_pair_id: str):
     )["Instances"][0]["InstanceId"]
 
     # Wait for it to exist
-    waiter = client.get_waiter("instance_exists")
+    waiter = client.get_waiter("instance_status_ok")
     waiter.wait(InstanceIds=[instance_id])
 
     return instance_id
