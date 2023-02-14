@@ -841,6 +841,13 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info("Stopping processor for %s", filepath)
             Stats.decr("dag_processing.processes")
 
+        # TODO: I feel this could be subject to race conditions so wrapped in try/except clause. Test properly
+        while filepath in self._file_path_queue:
+            try:
+                self._file_path_queue.remove(filepath)
+            except ValueError:
+                self.log.debug("Tried removing %s from file_path_queue but item was not found.")
+
         # Remove from file statistics collection
         self._file_stats.pop(filepath, None)
 
@@ -1322,7 +1329,8 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
     """This class is responsible for handling file system events, such as a file creation."""
 
     def __init__(self, dag_file_processor_manager: DagFileProcessorManager):
-        # Events on directories are ignored because dir events also trigger events on the nested files.
+        # Events on directories are ignored because (1) directories never match the patterns and (2) events on
+        # directories (e.g. rename) also trigger events on all included files.
         PatternMatchingEventHandler.__init__(
             self, patterns=["*.py", "*.zip", "*.airflowignore"], ignore_directories=True
         )
