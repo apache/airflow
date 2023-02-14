@@ -850,11 +850,8 @@ LineItem
 lineterminator
 linter
 linux
-ListColumnSpecsPager
-ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
-ListTableSpecsPager
 Liveness
 liveness
 livy
@@ -1352,8 +1349,6 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
-Standarization
-StartManualTransferRunsResponse
 starttls
 StatefulSet
 StatefulSets
@@ -1420,7 +1415,6 @@ symlink
 symlinking
 symlinks
 sync'ed
-SynthesizeSpeechResponse
 sys
 syspath
 Systemd
@@ -1492,8 +1486,6 @@ tooltip
 tooltips
 traceback
 tracebacks
-TransferConfig
-TransferRun
 travis
 triage
 triaging
