@@ -1,0 +1,12 @@
+Listener API, which previously used SqlAlchemy events to be notified about
+TaskInstance state changes, now is being directly called by Airflow.
+The changes do not affect actual Listener API structure, but significantly
+increase developer and user experience while using it.
+
+This assures Listener gets as close as possible Task object to what's 
+actually executed - which set up mapped tasks, rendered Jinja templates
+and all the non-db members set up.
+
+Additionally, it allows listeners to operate outside of the SqlAlchemy
+database transaction. Doing work in context of active transaction previously
+caused a number of bugs and can lead to stuck connection as in #28431.
