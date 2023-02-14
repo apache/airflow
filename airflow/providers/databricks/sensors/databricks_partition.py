@@ -23,9 +23,10 @@ from __future__ import annotations
 import datetime
 from typing import Sequence
 
+from databricks.sql.utils import ParamEscaper
+
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
-from databricks.sql.utils import ParamEscaper
 from airflow.utils.context import Context
 
 
