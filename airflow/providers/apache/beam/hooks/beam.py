@@ -81,10 +81,10 @@ def beam_options_to_args(options: dict) -> list[str]:
 
 
 def process_fd(
-    self,
     proc,
     fd,
-    process_line_callback: Callable[[str], None] | None = None,
+    process_line_callback: Callable[[str], None],
+    log: logging.Logger | None = None,
 ):
     """
     Prints output to logs.
@@ -93,11 +93,12 @@ def process_fd(
     :param fd: File descriptor.
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id.
+    :param log: logger.
     """
     if fd not in (proc.stdout, proc.stderr):
         raise Exception("No data in stderr or in stdout.")
 
-    fd_to_log = {proc.stderr: self.log.warning, proc.stdout: self.log.info}
+    fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]
 
     while True:
@@ -110,7 +111,6 @@ def process_fd(
 
 
 def run_beam_command(
-    self,
     cmd: list[str],
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
@@ -125,7 +125,6 @@ def run_beam_command(
     :param working_directory: Working directory
     :param log: logger.
     """
-    super().__init__()
     log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
 
     proc = subprocess.Popen(
@@ -147,14 +146,14 @@ def run_beam_command(
             continue
 
         for readable_fd in readable_fds:
-            process_fd(readable_fd)
+            process_fd(proc, readable_fd, process_line_callback, log=log)
 
         if proc.poll() is not None:
             break
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(readable_fd)
+        process_fd(proc, readable_fd, process_line_callback, log=log)
 
     log.info("Process exited with return code: %s", proc.returncode)
 
