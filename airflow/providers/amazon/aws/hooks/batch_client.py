@@ -431,9 +431,12 @@ class BatchClientHook(AwsBaseHook):
                     "AWS Batch job (%s) has more than one node group. Only returning logs from first group.",
                     job_id,
                 )
-            log_configuration = (
-                job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
-            )
+            if not job_node_range_properties:
+                raise AirflowException(
+                    "AWS Batch job (%s) has no node group. It was described as such:\n%s", job_id, job_desc
+                )
+
+            log_configuration = job_node_range_properties[0].get("container", {}).get("logConfiguration", {})
             # "logStreamName" value is not available in the "container" object for multinode jobs --
             # it is available in the "attempts" object
             job_attempts = job_desc.get("attempts", [])
@@ -453,7 +456,8 @@ class BatchClientHook(AwsBaseHook):
             awslogs_stream_name = job_container_desc.get("logStreamName")
         else:
             raise AirflowException(
-                "AWS Batch job (%s) is not a supported job type. Supported job types: container, array, multinode."
+                "AWS Batch job (%s) is not a supported job type. "
+                "Supported job types: container, array, multinode."
             )
 
         # In case if user select other "logDriver" rather than "awslogs"
