@@ -823,8 +823,16 @@ class TestDagFileProcessorManager:
         child_pipe.close()
         parent_pipe.close()
 
-        statsd_timing_mock.assert_called_with(
-            "dag_processing.last_duration.temp_dag", timedelta(seconds=last_runtime)
+        statsd_timing_mock.assert_has_calls(
+            [
+                mock.call("dag_processing.last_duration.temp_dag", timedelta(seconds=last_runtime)),
+                mock.call(
+                    "dag_processing.last_duration",
+                    timedelta(seconds=last_runtime),
+                    tags={"file_name": "temp_dag"},
+                ),
+            ],
+            any_order=True,
         )
 
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmpdir):

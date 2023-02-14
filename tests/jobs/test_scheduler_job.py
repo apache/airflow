@@ -3338,8 +3338,18 @@ class TestSchedulerJob:
         # Assert dr state is running
         assert dr.state == State.RUNNING
 
-        stats_timing.assert_called_once_with(
-            "dagrun.schedule_delay.test_start_dag_runs", datetime.timedelta(seconds=9)
+        stats_timing.assert_has_calls(
+            [
+                mock.call(
+                    "dagrun.schedule_delay.test_start_dag_runs",
+                    datetime.timedelta(seconds=9),
+                ),
+                mock.call(
+                    "dagrun.schedule_delay",
+                    datetime.timedelta(seconds=9),
+                    tags={"dag_id": "test_start_dag_runs"},
+                ),
+            ]
         )
 
         assert dag.get_last_dagrun().creating_job_id == self.scheduler_job.id

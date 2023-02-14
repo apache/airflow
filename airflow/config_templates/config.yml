@@ -915,6 +915,13 @@ metrics:
       type: string
       example: ~
       default: ~
+    statsd_influxdb_enabled:
+      description: |
+        To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
