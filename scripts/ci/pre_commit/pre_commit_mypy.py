@@ -73,6 +73,7 @@ if __name__ == "__main__":
     if cmd_result.returncode != 0:
         get_console().print(
             "[warning]If you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.7` and try again."
+            "run `breeze ci-image build --python 3.7` and try again. "
+            "You can also run `breeze stop --cleanup-mypy-cache` to clean up the cache used."
         )
     sys.exit(cmd_result.returncode)

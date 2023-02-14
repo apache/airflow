@@ -33,16 +33,15 @@ __version__ = 1
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
-    if isinstance(o, Decimal):
-        name = qualname(o)
-        _, _, exponent = o.as_tuple()
-        if exponent >= 0:  # No digits after the decimal point.
-            return int(o), name, __version__, True
-            # Technically lossy due to floating point errors, but the best we
-            # can do without implementing a custom encode function.
-        return float(o), name, __version__, True
-
-    return "", "", 0, False
+    if not isinstance(o, Decimal):
+        return "", "", 0, False
+    name = qualname(o)
+    _, _, exponent = o.as_tuple()
+    if isinstance(exponent, int) and exponent >= 0:  # No digits after the decimal point.
+        return int(o), name, __version__, True
+    # Technically lossy due to floating point errors, but the best we
+    # can do without implementing a custom encode function.
+    return float(o), name, __version__, True
 
 
 def deserialize(classname: str, version: int, data: object) -> Decimal:

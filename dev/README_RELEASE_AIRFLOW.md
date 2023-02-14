@@ -22,6 +22,7 @@
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
+  - [Making the cherry picking](#making-the-cherry-picking)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
@@ -92,7 +93,7 @@ and mark those as well. You can accomplish this by running the following command
 
 Often you also want to cherry-pick changes related to CI and development tools, to include the latest
 stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes:
+changes via (this will exclude already merged changes):
 
 ```shell
 git fetch apache
@@ -116,8 +117,25 @@ git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airf
 Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
 land in documentation part of the changelog. The tool to review and assign the labels is described below.
 
+## Making the cherry picking
+
+To see cherry picking candidates (unmerged PR with the appropriate milestone) you can run:
+
+```shell
+./dev/airflow-github compare 2.1.2 --unmerged
+```
+
+Be careful and verify the hash commit specified. This is a 'best effort' to find it, and
+could be inaccurate if the PR was referenced in other commits after it was merged. You can start
+cherry picking from the bottom of the list. (older commits first)
+
 When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch.
-You'll move them over to be on `vX-Y-stable` once the release is cut.
+You'll move them over to be on `vX-Y-stable` once the release is cut. Use the `-x` option
+to keep a reference to the original commit we cherry picked from. ("cherry picked from commit ...")
+
+```shell
+git cherry-pick <hash-commit> -x
+```
 
 ## Reviewing cherry-picked PRs and assigning labels
 
@@ -138,7 +156,7 @@ You can also add `--skip-assigned` flag if you want to automatically skip the qu
 for the PRs that are already correctly assigned to the milestone. You can also avoid the "Are you OK?"
 question with `--assume-yes` flag.
 
-You cn review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
+You can review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
 assumes the `--skip-assigned` flag, so that the summary can be produced without questions:
 
 ```shell
@@ -215,7 +233,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pipx install -e ./dev/breeze
     ```
 
-- For major/minor version release,run the following commands to create the 'test' and 'stable' branches.
+- For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
     breeze release-management create-minor-branch --version-branch ${VERSION_BRANCH}
@@ -307,19 +325,11 @@ tied to an airflow release and therefore out of scope.
 
 If API clients are to be released in this airflow version:
 
-- Set environment variables (useful for the rest of the process)
-
-    ```shell script
-    # Set Version
-    export GO_API_CLIENT_VERSION=2.1.3
-    export PYTHON_API_CLIENT_VERSION=2.1.1
-    ```
-
-- Follow the specific release process of each API client to generate the artifacts and push to PyPI a
+- Follow the specific release process for each API client to generate the artifacts and push to PyPI a
     release candidate client package:
 
-    - [Python client](https://github.com/apache/airflow-client-python#release-process)
-    - [Go client](https://github.com/apache/airflow-client-go#release-process)
+    - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)
 
 
 ## Prepare issue for testing status of rc
@@ -385,11 +395,6 @@ https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
-
-TODO:REMOVE PARAGRAPH IF NOT RELEVANT
-New API clients were generated:
-- Python ${PYTHON_API_CLIENT_VERSION}
-- GO ${GO_API_CLIENT_VERSION}
 
 Please vote accordingly:
 
@@ -750,7 +755,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ./docs/start_doc_server.sh
     ```
 
-- Copy the documentation to the ``airflow-site`` repository, create commit, push changes and open a PR.
+- Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
     ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
@@ -882,7 +887,7 @@ Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in t
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
 
-Also add a note to `UPDATING.rst` that the default version of Airflow has changed.
+Add or adjust significant `chart/newsfragments` to express that the default version of Airflow has changed.
 
 In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
 

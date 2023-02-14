@@ -104,6 +104,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         arguments_dict = dict(bound.arguments)
         if "session" in arguments_dict:
             del arguments_dict["session"]
+        if "cls" in arguments_dict:  # used by @classmethod
+            del arguments_dict["cls"]
+
         args_json = json.dumps(BaseSerialization.serialize(arguments_dict))
         method_name = f"{func.__module__}.{func.__qualname__}"
         result = make_jsonrpc_request(method_name, args_json)

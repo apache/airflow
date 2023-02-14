@@ -59,7 +59,7 @@ PARAMS = [
         ),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-triggerer"),
+        ("StatefulSet", f"{RELEASE_NAME}-triggerer"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
@@ -80,6 +80,7 @@ class TestExtraEnvEnvFrom:
     def setup_class(cls) -> None:
         values_str = textwrap.dedent(
             """
+            airflowVersion: "2.6.0"
             flower:
               enabled: true
             extraEnvFrom: |

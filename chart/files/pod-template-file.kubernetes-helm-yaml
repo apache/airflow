@@ -71,6 +71,9 @@ spec:
 {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
         {{- include "airflow_dags_mount" . | nindent 8 }}
 {{- end }}
+{{- if .Values.volumeMounts }}
+{{- toYaml .Values.volumeMounts | nindent 8 }}
+{{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
 {{- end }}
@@ -115,6 +118,9 @@ spec:
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
+  {{- if .Values.volumes }}
+  {{- toYaml .Values.volumes | nindent 2 }}
+  {{- end }}
   {{- if .Values.workers.extraVolumes }}
   {{ toYaml .Values.workers.extraVolumes | nindent 2 }}
   {{- end }}

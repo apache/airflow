@@ -65,7 +65,7 @@ class GlueJobHook(AwsBaseHook):
         concurrent_run_limit: int = 1,
         script_location: str | None = None,
         retry_limit: int = 0,
-        num_of_dpus: int | None = None,
+        num_of_dpus: int | float | None = None,
         iam_role_name: str | None = None,
         create_job_kwargs: dict | None = None,
         *args,
@@ -92,7 +92,7 @@ class GlueJobHook(AwsBaseHook):
         elif worker_type_exists and not num_workers_exists:
             raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
         elif num_of_dpus is None:
-            self.num_of_dpus = 10
+            self.num_of_dpus: int | float = 10
         else:
             self.num_of_dpus = num_of_dpus
 

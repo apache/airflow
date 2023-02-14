@@ -44,16 +44,19 @@ ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 ALL_INTEGRATIONS = [
     "cassandra",
+    "celery",
     "kerberos",
     "mongo",
     "pinot",
-    "celery",
     "trino",
 ]
-ALLOWED_INTEGRATIONS = [
-    *ALL_INTEGRATIONS,
-    "all",
-]
+ALLOWED_INTEGRATIONS = sorted(
+    [
+        *ALL_INTEGRATIONS,
+        "all",
+        "statsd",
+    ]
+)
 ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
@@ -70,7 +73,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "22.3.1"
+PIP_VERSION = "23.0"
 
 
 @lru_cache(maxsize=None)

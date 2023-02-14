@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from parameterized import parameterized
+import pytest
 
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -40,7 +40,8 @@ TI = TaskInstance(
 
 
 class TestCallbackRequest:
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "input,request_class",
         [
             (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
             (
@@ -70,7 +71,7 @@ class TestCallbackRequest:
                 ),
                 SlaCallbackRequest,
             ),
-        ]
+        ],
     )
     def test_from_json(self, input, request_class):
         json_str = input.to_json()

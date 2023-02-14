@@ -715,7 +715,7 @@ class TestDagFileProcessorManager:
         assert sum(stat.run_count for stat in manager._file_stats.values()) == 3
 
         with create_session() as session:
-            assert session.query(DagModel).get(dag_id) is not None
+            assert session.get(DagModel, dag_id) is not None
 
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.backend("mysql", "postgres")
