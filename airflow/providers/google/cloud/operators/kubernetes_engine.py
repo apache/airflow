@@ -24,6 +24,7 @@ import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Generator, Sequence
 
+from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
@@ -34,11 +35,15 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
 )
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
 class GKEDeleteClusterOperator(BaseOperator):
@@ -78,6 +83,8 @@ class GKEDeleteClusterOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param poll_interval: Interval size which defines how often operation status is checked.
     """
 
     template_fields: Sequence[str] = (
@@ -98,6 +105,8 @@ class GKEDeleteClusterOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
+        poll_interval: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,7 +117,11 @@ class GKEDeleteClusterOperator(BaseOperator):
         self.api_version = api_version
         self.name = name
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
         self._check_input()
+
+        self._hook: GKEHook | None = None
 
     def _check_input(self) -> None:
         if not all([self.project_id, self.name, self.location]):
@@ -116,13 +129,54 @@ class GKEDeleteClusterOperator(BaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context: Context) -> str | None:
-        hook = GKEHook(
-            gcp_conn_id=self.gcp_conn_id,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
+        hook = self._get_hook()
+
+        wait_to_complete = not self.deferrable
+        operation = hook.delete_cluster(
+            name=self.name,
+            project_id=self.project_id,
+            wait_to_complete=wait_to_complete,
         )
-        delete_result = hook.delete_cluster(name=self.name, project_id=self.project_id)
-        return delete_result
+
+        if self.deferrable and operation is not None:
+            self.defer(
+                trigger=GKEOperationTrigger(
+                    operation_name=operation.name,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+        return operation.self_link if operation is not None else None
+
+    def execute_complete(self, context: Context, event: dict) -> str:
+        """Method to be executed after trigger job is done."""
+        status = event["status"]
+        message = event["message"]
+
+        if status == "failed" or status == "error":
+            self.log.exception("Trigger ended with one of the failed statuses.")
+            raise AirflowException(message)
+
+        self.log.info(message)
+        operation = self._get_hook().get_operation(
+            operation_name=event["operation_name"],
+        )
+        return operation.self_link
+
+    def _get_hook(self) -> GKEHook:
+        if self._hook is None:
+            self._hook = GKEHook(
+                gcp_conn_id=self.gcp_conn_id,
+                location=self.location,
+                impersonation_chain=self.impersonation_chain,
+            )
+
+        return self._hook
 
 
 class GKECreateClusterOperator(BaseOperator):
@@ -190,11 +244,13 @@ class GKECreateClusterOperator(BaseOperator):
         self,
         *,
         location: str,
-        body: dict | Cluster | None,
+        body: dict | Cluster,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
+        poll_interval: int = 10,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -205,7 +261,11 @@ class GKECreateClusterOperator(BaseOperator):
         self.api_version = api_version
         self.body = body
         self.impersonation_chain = impersonation_chain
+        self.poll_interval = poll_interval
+        self.deferrable = deferrable
         self._check_input()
+
+        self._hook: GKEHook | None = None
 
     def _check_input(self) -> None:
         if (
@@ -239,17 +299,60 @@ class GKECreateClusterOperator(BaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context: Context) -> str:
-        hook = GKEHook(
-            gcp_conn_id=self.gcp_conn_id,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
+        hook = self._get_hook()
+        try:
+            wait_to_complete = not self.deferrable
+            operation = hook.create_cluster(
+                cluster=self.body,
+                project_id=self.project_id,
+                wait_to_complete=wait_to_complete,
+            )
+
+            KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
+
+            if self.deferrable:
+                self.defer(
+                    trigger=GKEOperationTrigger(
+                        operation_name=operation.name,
+                        project_id=self.project_id,
+                        location=self.location,
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
+                        poll_interval=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+
+            return operation.target_link
+
+        except AlreadyExists as error:
+            self.log.info("Assuming Success: %s", error.message)
+            name = self.body.name if isinstance(self.body, Cluster) else self.body["name"]
+            return hook.get_cluster(name=name, project_id=self.project_id).self_link
+
+    def execute_complete(self, context: Context, event: dict) -> str:
+        status = event["status"]
+        message = event["message"]
+
+        if status == "failed" or status == "error":
+            self.log.exception("Trigger ended with one of the failed statuses.")
+            raise AirflowException(message)
+
+        self.log.info(message)
+        operation = self._get_hook().get_operation(
+            operation_name=event["operation_name"],
         )
-        create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
-        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
-        return create_op
+        return operation.target_link
 
+    def _get_hook(self) -> GKEHook:
+        if self._hook is None:
+            self._hook = GKEHook(
+                gcp_conn_id=self.gcp_conn_id,
+                location=self.location,
+                impersonation_chain=self.impersonation_chain,
+            )
 
-KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
+        return self._hook
 
 
 class GKEStartPodOperator(KubernetesPodOperator):
