@@ -42,6 +42,8 @@ dependencies:
   # release it as a requirement for airflow
   - requests>=2.26.0
   - requests_toolbelt
+  - aiohttp
+  - asgiref
 
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)
