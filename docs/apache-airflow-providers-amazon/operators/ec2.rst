@@ -58,6 +58,7 @@ To stop an Amazon EC2 instance you can use
     :start-after: [START howto_operator_ec2_stop_instance]
     :end-before: [END howto_operator_ec2_stop_instance]
 
+.. _howto/operator:EC2CreateInstanceOperator:
 
 Create and start an Amazon EC2 instance
 =======================================
@@ -71,6 +72,7 @@ To create and start an Amazon EC2 instance you can use
     :start-after: [START howto_operator_ec2_create_instance]
     :end-before: [END howto_operator_ec2_create_instance]
 
+.. _howto/operator:EC2TerminateInstanceOperator:
 
 Terminate an Amazon EC2 instance
 ================================

@@ -83,6 +83,7 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     instance_name = f"{env_id}-instance"
     key_name = create_key_pair(key_name=f"{env_id}_key_pair")
+    image_id = _get_latest_ami_id()
 
     config = {
         "InstanceType": "t2.micro",
@@ -94,24 +95,28 @@ with DAG(
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
         "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
     }
+
+    # EC2CreateInstanceOperator creates and starts the EC2 instances. To test the EC2StartInstanceOperator,
+    # we will stop the instance, then start them again before terminating them.
+
     # [START howto_operator_ec2_create_instance]
     create_instance = EC2CreateInstanceOperator(
         task_id="create_instance",
-        image_id=_get_latest_ami_id(),
+        image_id=image_id,
         max_count=1,
         min_count=1,
         config=config,
-        wait_for_completion=True,
     )
     # [END howto_operator_ec2_create_instance]
+    create_instance.wait_for_completion = True
 
     # [START howto_operator_ec2_stop_instance]
-    stop_instance_1 = EC2StopInstanceOperator(
-        task_id="stop_instance_1",
+    stop_instance = EC2StopInstanceOperator(
+        task_id="stop_instance",
         instance_id=create_instance.output,
     )
     # [END howto_operator_ec2_stop_instance]
-    stop_instance_1.trigger_rule = TriggerRule.ALL_DONE
+    stop_instance.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_ec2_start_instance]
     start_instance = EC2StartInstanceOperator(
@@ -128,11 +133,6 @@ with DAG(
     )
     # [END howto_sensor_ec2_instance_state]
 
-    stop_instance_2 = EC2StopInstanceOperator(
-        task_id="stop_instance_2",
-        instance_id=create_instance.output,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
     # [START howto_operator_ec2_terminate_instance]
     terminate_instance = EC2TerminateInstanceOperator(
         task_id="terminate_instance",
@@ -147,10 +147,9 @@ with DAG(
         key_name,
         # TEST BODY
         create_instance,
-        stop_instance_1,
+        stop_instance,
         start_instance,
         await_instance,
-        stop_instance_2,
         terminate_instance,
         # TEST TEARDOWN
         delete_key_pair(key_name),

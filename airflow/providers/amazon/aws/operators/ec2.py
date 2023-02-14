@@ -122,6 +122,10 @@ class EC2CreateInstanceOperator(BaseOperator):
     """
     Create and start an EC2 Instance using boto3
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EC2CreateInstanceOperator`
+
     :param image_id: ID of the AMI used to create the instance.
     :param max_count: Maximum number of instances to launch. Defaults to 1.
     :param min_count: Minimum number of instances to launch. Defaults to 1.
@@ -136,7 +140,15 @@ class EC2CreateInstanceOperator(BaseOperator):
         in the `running` state before returning.
     """
 
-    template_fields: Sequence[str] = ("image_id", "region_name", "config")
+    template_fields: Sequence[str] = (
+        "image_id",
+        "max_count",
+        "min_count",
+        "aws_conn_id",
+        "region_name",
+        "config",
+        "wait_for_completion",
+    )
 
     def __init__(
         self,
@@ -164,28 +176,36 @@ class EC2CreateInstanceOperator(BaseOperator):
 
     def execute(self, context: Context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
-        instance_id = ec2_hook.conn.run_instances(
+        instances = ec2_hook.conn.run_instances(
             ImageId=self.image_id,
             MinCount=self.min_count,
             MaxCount=self.max_count,
             **self.config,
-        )["Instances"][0]["InstanceId"]
-        self.log.info("Created EC2 instance %s", instance_id)
-        if self.wait_for_completion:
-            ec2_hook.get_waiter("instance_running").wait(
-                InstanceIds=[instance_id],
-                WaiterConfig={
-                    "Delay": self.poll_interval,
-                    "MaxAttempts": self.max_attempts,
-                },
-            )
+        )["Instances"]
+        instance_ids = []
+        for instance in instances:
+            instance_ids.append(instance["InstanceId"])
+            self.log.info("Created EC2 instance %s", instance["InstanceId"])
 
-        return instance_id
+            if self.wait_for_completion:
+                ec2_hook.get_waiter("instance_running").wait(
+                    InstanceIds=[instance["InstanceId"]],
+                    WaiterConfig={
+                        "Delay": self.poll_interval,
+                        "MaxAttempts": self.max_attempts,
+                    },
+                )
+
+        return instance_ids
 
 
 class EC2TerminateInstanceOperator(BaseOperator):
     """
     Terminate an EC2 Instance using boto3
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EC2TerminateInstanceOperator`
 
     :instance_id: ID of the instance to be terminated.
     :param aws_conn_id: AWS connection to use
@@ -194,13 +214,15 @@ class EC2TerminateInstanceOperator(BaseOperator):
         check state of instance. Only used if wait_for_completion is True. Default is 20.
     :param max_attempts: Maximum number of attempts when checking state of instance.
         Only used if wait_for_completion is True. Default is 20.
+    :param wait_for_completion: If True, the operator will wait for the instance to be
+        in the `terminated` state before returning.
     """
 
-    template_fields: Sequence[str] = ("instance_id", "region_name")
+    template_fields: Sequence[str] = ("instance_id", "region_name", "aws_conn_id", "wait_for_completion")
 
     def __init__(
         self,
-        instance_id: str,
+        instance_id: str | list[str],
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 20,
@@ -209,7 +231,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.instance_id = instance_id
+        self.instance_ids = [*instance_id]
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.poll_interval = poll_interval
@@ -218,14 +240,15 @@ class EC2TerminateInstanceOperator(BaseOperator):
 
     def execute(self, context: Context):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
-        ec2_hook.conn.terminate_instances(InstanceIds=[self.instance_id])
+        ec2_hook.conn.terminate_instances(InstanceIds=self.instance_ids)
 
-        self.log.info("Terminating EC2 instance %s", self.instance_id)
-        if self.wait_for_completion:
-            ec2_hook.get_waiter("instance_terminated").wait(
-                InstanceIds=[self.instance_id],
-                WaiterConfig={
-                    "Delay": self.poll_interval,
-                    "MaxAttempts": self.max_attempts,
-                },
-            )
+        for instance_id in self.instance_ids:
+            self.log.info("Terminating EC2 instance %s", instance_id)
+            if self.wait_for_completion:
+                ec2_hook.get_waiter("instance_terminated").wait(
+                    InstanceIds=[instance_id],
+                    WaiterConfig={
+                        "Delay": self.poll_interval,
+                        "MaxAttempts": self.max_attempts,
+                    },
+                )
