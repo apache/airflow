@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import aiohttp
 import requests
 import tenacity
-from aiohttp import ClientResponseError
+from aiohttp import ClientConnectionError, ClientResponseError
 from asgiref.sync import sync_to_async
 from requests.auth import HTTPBasicAuth
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
@@ -371,6 +371,16 @@ class HttpAsyncHook(BaseHook):
                 try:
                     response.raise_for_status()
                     return response
+                except ClientConnectionError as e:
+                    self.log.warning(
+                        "[Try %d of %d] Request to %s failed.",
+                        attempt_num,
+                        self.retry_limit,
+                        url,
+                    )
+                    if attempt_num == self.retry_limit:
+                        self.log.exception(str(e))
+                        raise AirflowException(str(e))
                 except ClientResponseError as e:
                     self.log.warning(
                         "[Try %d of %d] Request to %s failed.",
