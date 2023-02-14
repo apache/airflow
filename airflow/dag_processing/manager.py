@@ -808,6 +808,23 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_path_queue.append(filepath)
             self.start_new_processes()
 
+    def handle_modified_file(self, filepath: str) -> None:
+        """
+        (Re-)process a modified file in the DAGs folder. This could be both an observed and unobserved file.
+
+        :param filepath: Path of the modified file.
+        """
+        if might_contain_dag(file_path=filepath, safe_mode=True):
+            if filepath not in self._file_paths:
+                self.log.info("Found DAG in %s, adding to collection of observed files.", filepath)
+
+            self._file_paths.add(filepath)
+            self._file_path_queue.append(filepath)
+            self.start_new_processes()
+        else:
+            self.log.info("No DAG found in %s, removing from observed files (if present).", filepath)
+            self.handle_deleted_file(filepath=filepath)
+
     def handle_deleted_file(self, filepath: str) -> None:
         """
         Process a deleted file in the DAGs folder.
@@ -1378,6 +1395,7 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
         """
         if event.src_path.endswith((".py", ".zip")):
             self.log.info("Detected modification of %s, checking for changes.", event.src_path)
+            self._dag_file_processor_manager.handle_modified_file(filepath=event.src_path)
         elif event.src_path.endswith(".airflowignore"):
             self.log.info(
                 "Detected modification of %s, checking changes to make in the list of observed DAG files.",
