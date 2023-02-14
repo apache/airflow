@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-14T15:37:00Z
+# This constraints file was automatically generated on 2023-02-14T21:07:10Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -44,7 +44,7 @@ SecretStorage==3.3.3
 Sphinx==5.3.0
 Unidecode==1.3.6
 WTForms==3.0.1
-Werkzeug==2.2.2
+Werkzeug==2.2.3
 adal==1.2.7
 aiofiles==22.1.0
 aiohttp==3.8.4
@@ -178,9 +178,9 @@ bitarray==2.7.2
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.70
+boto3==1.26.71
 boto==2.49.0
-botocore==1.29.70
+botocore==1.29.71
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -319,7 +319,7 @@ httplib2==0.20.4
 httpx==0.23.3
 humanize==4.6.0
 hvac==1.0.2
-identify==2.5.17
+identify==2.5.18
 idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
@@ -537,7 +537,7 @@ snowballstemmer==2.2.0
 snowflake-connector-python==3.0.0
 snowflake-sqlalchemy==1.4.6
 sortedcontainers==2.4.0
-soupsieve==2.3.2.post1
+soupsieve==2.4
 sphinx-airflow-theme==0.0.11
 sphinx-argparse==0.4.0
 sphinx-autoapi==2.0.1
@@ -593,7 +593,7 @@ types-croniter==1.3.2.3
 types-docutils==0.19.1.3
 types-paramiko==3.0.0.2
 types-protobuf==4.21.0.5
-types-pyOpenSSL==23.0.0.2
+types-pyOpenSSL==23.0.0.3
 types-python-dateutil==2.8.19.6
 types-python-slugify==8.0.0.0
 types-pytz==2022.7.1.0
