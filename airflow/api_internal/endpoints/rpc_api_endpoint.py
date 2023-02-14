@@ -25,6 +25,7 @@ from typing import Any, Callable
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
+from airflow.jobs.base_job import BaseJob
 from airflow.models import Variable, XCom
 from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -38,6 +39,8 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.dag import DagModel
 
     functions: list[Callable] = [
+        BaseJob.pre_execute,
+        BaseJob.post_execute,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,

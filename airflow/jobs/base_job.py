@@ -22,8 +22,9 @@ from time import sleep
 from sqlalchemy import Column, Index, Integer, String, case
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
-from sqlalchemy.orm.session import make_transient
+from sqlalchemy.orm.session import Session, make_transient
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -36,7 +37,7 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
@@ -245,32 +246,47 @@ class BaseJob(Base, LoggingMixin):
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def pre_execute(job: BaseJob, *, session: Session = NEW_SESSION) -> None:
+        """Update the database job entry before running the _execute() function."""
+        job.state = State.RUNNING
+        session.add(job)
+        session.commit()
+        make_transient(job)
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def post_execute(job: BaseJob, state: State, *, session: Session = NEW_SESSION) -> None:
+        """Update the database job entry after running the _execute() function."""
+        job.state = state
+        job.end_date = timezone.utcnow()
+        session.merge(job)
+        session.commit()
+
     def run(self):
         """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         # Adding an entry in the DB
         ret = None
-        with create_session() as session:
-            self.state = State.RUNNING
-            session.add(self)
-            session.commit()
-            make_transient(self)
 
-            try:
-                ret = self._execute()
-                # In case of max runs or max duration
-                self.state = State.SUCCESS
-            except SystemExit:
-                # In case of ^C or SIGTERM
-                self.state = State.SUCCESS
-            except Exception:
-                self.state = State.FAILED
-                raise
-            finally:
-                get_listener_manager().hook.before_stopping(component=self)
-                self.end_date = timezone.utcnow()
-                session.merge(self)
-                session.commit()
+        BaseJob.pre_execute(self)
+
+        try:
+            ret = self._execute()
+            # In case of max runs or max duration
+            state = State.SUCCESS
+        except SystemExit:
+            # In case of ^C or SIGTERM
+            state = State.SUCCESS
+        except Exception:
+            state = State.FAILED
+            raise
+        finally:
+            get_listener_manager().hook.before_stopping(component=self)
+            BaseJob.post_execute(self, state)
 
         Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
         return ret
