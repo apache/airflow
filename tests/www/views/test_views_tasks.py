@@ -87,6 +87,14 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
+        app.dag_bag.get_dag("latest_only").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
     yield
     clear_db_runs()
 
@@ -265,6 +273,11 @@ def client_ti_without_dag_edit(app):
             "dags/example_bash_operator/calendar",
             ["example_bash_operator"],
             id="existing-dagbag-calendar",
+        ),
+        pytest.param(
+            "dags/latest_only/calendar",
+            ["latest_only"],
+            id="existing-dagbag-non-cron-schedule-calendar",
         ),
         pytest.param(
             "dag_details?dag_id=example_bash_operator",
