@@ -69,7 +69,7 @@ KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
-    _instance = None
+    _instance: ResourceVersion | None = None
     resource_version: dict[str, str] = {}
 
     def __new__(cls):
