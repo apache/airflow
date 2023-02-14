@@ -17,9 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
-from typing import Iterable
-
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 
@@ -71,65 +68,3 @@ def validate_trigger_event(event: dict):
         RunState.from_json(event["run_state"])
     except Exception:
         raise AirflowException(f'Run state returned by the Trigger is incorrect: {event["run_state"]}')
-
-
-# Taken from PyHive
-class ParamEscaper:
-    """
-    Class to escape different input items.
-
-    :param item: Input value.
-    :return: transformed item.
-    """
-
-    _DATE_FORMAT = "%Y-%m-%d"
-    _TIME_FORMAT = "%H:%M:%S.%f"
-    _DATETIME_FORMAT = f"{_DATE_FORMAT} {_TIME_FORMAT}"
-
-    def escape_args(self, parameters):
-        if isinstance(parameters, dict):
-            return {k: self.escape_item(v) for k, v in parameters.items()}
-        elif isinstance(parameters, (list, tuple)):
-            return tuple(self.escape_item(x) for x in parameters)
-        else:
-            raise Exception(f"Unsupported param format: {parameters}")
-
-    def escape_number(self, item):
-        return item
-
-    def escape_string(self, item):
-        # Need to decode UTF-8 because of old sqlalchemy.
-        # Newer SQLAlchemy checks dialect.supports_unicode_binds before encoding Unicode strings
-        # as byte strings. The old version always encodes Unicode as byte strings, which breaks
-        # string formatting here.
-        if isinstance(item, bytes):
-            item = item.decode("utf-8")
-        # This is good enough when backslashes are literal, newlines are just followed, and the way
-        # to escape a single quote is to put two single quotes.
-        # (i.e. only special character is single quote)
-        return "'{}'".format(item.replace("'", "''"))
-
-    def escape_sequence(self, item):
-        val = map(str, map(self.escape_item, item))
-        return "(" + ",".join(val) + ")"
-
-    def escape_datetime(self, item, format, cutoff=0):
-        dt_str = item.strftime(format)
-        formatted = dt_str[:-cutoff] if cutoff and format.endswith(".%f") else dt_str
-        return f"'{formatted}'"
-
-    def escape_item(self, item):
-        if item is None:
-            return "NULL"
-        elif isinstance(item, (int, float)):
-            return self.escape_number(item)
-        elif isinstance(item, str):
-            return self.escape_string(item)
-        elif isinstance(item, Iterable):
-            return self.escape_sequence(item)
-        elif isinstance(item, datetime.datetime):
-            return self.escape_datetime(item, self._DATETIME_FORMAT)
-        elif isinstance(item, datetime.date):
-            return self.escape_datetime(item, self._DATE_FORMAT)
-        else:
-            raise Exception(f"Unsupported object {item}")

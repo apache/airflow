@@ -103,7 +103,7 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
     def get_current_table_version(self, table_name):
         _prefix = "SELECT MAX(version) AS versions FROM (DESCRIBE HISTORY"
         _data_operations_filter = ") WHERE operation NOT IN ('CONVERT', 'OPTIMIZE', 'CLONE', \
-        'RESTORE', 'FSCK', 'VACUUM START', 'VACUUM END')"
+        'RESTORE', 'FSCK') AND operation NOT LIKE 'VACUUM%'"
         if self.timestamp is not None:
             if self.change_filter_operator not in ("=", ">", "<", ">=", "<=", "!="):
                 raise AirflowException("Invalid comparison operator specified for time range filter.")
