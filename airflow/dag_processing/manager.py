@@ -754,7 +754,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info("Searching for files in %s", self._dag_directory)
             self._file_paths = list_py_file_paths(self._dag_directory)
             self.last_dag_dir_refresh_time = now
-            self.log.info("There are %s files in %s", len(self._file_paths), self._dag_directory)
+            self.log.info("Observing %s files in %s", len(self._file_paths), self._dag_directory)
             self.set_file_paths(self._file_paths)
 
             try:
