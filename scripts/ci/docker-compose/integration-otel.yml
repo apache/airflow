@@ -56,11 +56,8 @@ services:
       - ./grafana/volume/provisioning:/grafana/provisioning
 
   airflow:
-    environment:
-      - INTEGRATION_STATSD=true
-      - AIRFLOW__METRICS__STATSD_ON=True
-      - AIRFLOW__METRICS__STATSD_HOST=statsd-exporter
-      - AIRFLOW__METRICS__STATSD_PORT=9125
+    #  Environment Variables will need to be set in order to configure
+    #  Breeze to emit the metrics.  See: integration-statsd.yml
     depends_on:
       - otel-collector
       - prometheus
