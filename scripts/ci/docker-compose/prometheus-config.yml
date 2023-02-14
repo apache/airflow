@@ -16,7 +16,7 @@
 # under the License.
 ---
 # Configuration for the Prometheus targets.
-# Used by integration-statsd.yml
+# Used by integration-statsd.yml and integration-otel.yml
 global:
     scrape_interval: 30s
     evaluation_interval: 30s
