@@ -142,7 +142,7 @@ spec:
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
@@ -221,7 +221,7 @@ spec:
 {{- include "airflow_dags_mount" . | nindent 12 }}
 {{- end }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
@@ -250,7 +250,7 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}

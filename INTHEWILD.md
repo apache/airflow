@@ -176,6 +176,7 @@ Currently, **officially** using Airflow:
 1. [Elai Data](https://www.elaidata.com/) [[@lgov](https://github.com/lgov)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
 1. [Endesa](https://www.endesa.com) [[@drexpp](https://github.com/drexpp)]
+1. [ENECHANGE Ltd.](https://enechange.co.jp/) [[@enechange](https://github.com/enechange)]
 1. [Energy Solutions](https://www.energy-solution.com) [[@energy-solution](https://github.com/energy-solution/)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
 1. [Estrategia Educacional](https://github.com/estrategiahq) [[@jonasrla](https://github.com/jonasrla)]

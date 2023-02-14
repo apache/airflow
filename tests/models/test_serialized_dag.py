@@ -169,7 +169,7 @@ class TestSerializedDagModel:
         # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
         example_dag_files = list({dag.fileloc for dag in filtered_example_dags_list})
         example_dag_files.remove(dag_removed_by_file.fileloc)
-        SDM.remove_deleted_dags(example_dag_files)
+        SDM.remove_deleted_dags(example_dag_files, processor_subdir="/tmp/test")
         assert not SDM.has_dag(dag_removed_by_file.dag_id)
 
     def test_bulk_sync_to_db(self):
