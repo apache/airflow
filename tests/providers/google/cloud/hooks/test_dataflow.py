@@ -30,7 +30,7 @@ import pytest
 from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.beam.hooks.beam import run_beam_command, BeamHook
+from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     AsyncDataflowHook,
@@ -1851,7 +1851,9 @@ class TestDataflow:
 
         mock_log = MagicMock()
         run_beam_command(
-            cmd=cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback),log=mock_log
+            cmd=cmd,
+            process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback),
+            log=mock_log,
         )
         assert found_job_id == TEST_JOB_ID
 
@@ -1865,7 +1867,9 @@ class TestDataflow:
 
         log = MagicMock()
         run_beam_command(
-            cmd=cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback), log=log
+            cmd=cmd,
+            process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback),
+            log=log,
         )
         assert found_job_id is None
 
@@ -1891,7 +1895,7 @@ class TestDataflow:
         mock_proc.poll = mock_proc_poll
         mock_popen.return_value = mock_proc
         with pytest.raises(Exception):
-            dataflow = run_beam_command(cmd=["test", "cmd"], log=mock_logging)
+            run_beam_command(cmd=["test", "cmd"], log=mock_logging)
             mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
 
 
