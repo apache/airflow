@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
+from airflow import AirflowException
 
 TASK_ID = "db-sensor"
 DEFAULT_CONN_ID = "databricks_default"
@@ -37,7 +38,6 @@ sql_sensor = DatabricksSqlSensor(
     databricks_conn_id=DEFAULT_CONN_ID,
     sql_endpoint_name=DEFAULT_SQL_ENDPOINT,
     task_id=TASK_ID,
-    table_name=DEFAULT_TABLE,
     schema=DEFAULT_SCHEMA,
     catalog=DEFAULT_CATALOG,
     sql="select 1 from catalog1.schema1.table1",
@@ -52,5 +52,7 @@ class TestDatabricksSqlSensor(unittest.TestCase):
 
     @mock.patch.object(DatabricksSqlSensor, "_sql_sensor")
     def test_poke_changes_failure(self, mock_sql_sensor):
-        mock_sql_sensor.return_value = 1
-        assert sql_sensor.poke({}) is False
+        mock_sql_sensor.return_value = []
+        with self.assertRaises(AirflowException) as err:
+            sql_sensor.poke({})
+        self.assertEquals(str(err.exception), "No results for SQL sensor.")

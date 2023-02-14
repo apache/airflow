@@ -43,7 +43,7 @@ sql_sensor = DatabricksPartitionSensor(
     table_name=DEFAULT_TABLE,
     schema=DEFAULT_SCHEMA,
     catalog=DEFAULT_CATALOG,
-    partition_name=DEFAULT_PARTITION,
+    partitions=DEFAULT_PARTITION,
     handler=fetch_all_handler,
 )
 
@@ -57,5 +57,6 @@ class TestDatabricksPartitionSensor(unittest.TestCase):
     @mock.patch.object(DatabricksPartitionSensor, "_check_table_partitions")
     def test_poke_changes_failure(self, mock_check_table_partitions):
         mock_check_table_partitions.return_value = []
-        with self.assertRaises(AirflowException):
+        with self.assertRaises(AirflowException) as err:
             sql_sensor.poke({})
+        self.assertEquals(str(err.exception), "No results for partition sensor.")
