@@ -569,9 +569,11 @@ Those are all available flags of ``shell`` command:
   :width: 100%
   :alt: Breeze shell
 
+Running Breeze with Metrics
+---------------------------
 
 Running Breeze with a StatsD Metrics Stack
-------------------------------------------
+..........................................
 
 You can launch an instance of Breeze pre-configured to emit StatsD metrics using
 ``breeze start-airflow --integration statsd``.  This will launch an Airflow webserver
@@ -589,6 +591,37 @@ When you run Airflow Breeze with this integration, in addition to the standard p
 You can connect to these ports/databases using:
 
 * StatsD Metrics: http://127.0.0.1:29102/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
+Running Breeze with an OpenTelemetry Metrics Stack
+..................................................
+
+----
+
+[Work in Progress]
+NOTE:  This will launch the stack as described below but Airflow integration is
+still a Work in Progress.  This should be considered experimental and likely to
+change by the time Airflow fully supports emitting metrics via OpenTelemetry.
+
+----
+
+You can launch an instance of Breeze pre-configured to emit OTel metrics using
+``breeze start-airflow --integration otel``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running OpenTelemetry-Collector,
+Prometheus, and Grafana.  The integration configures the "Targets" in Prometheus,
+the "Datasources" in Grafana, and includes a default dashboard in Grafana.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 28888 -> forwarded to OpenTelemetry Collector -> breeze-otel_collector:8888
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports/databases using:
+
+* OpenTelemetry Collector: http://127.0.0.1:28888/metrics
 * Prometheus Targets: http://127.0.0.1:29090/targets
 * Grafana Dashboards: http://127.0.0.1:23000/dashboards
 
