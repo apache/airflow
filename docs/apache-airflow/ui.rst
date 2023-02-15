@@ -147,6 +147,8 @@ DAG runs.
 
 ------------
 
+.. _ui:task-duration:
+
 Task Duration
 .............
 The duration of your different tasks over the past N runs. This view lets
@@ -160,15 +162,13 @@ DAG over many runs.
 
 ------------
 
+.. _ui:landing-times:
+
 Landing Times
 .............
 Airflow landing times are calculated from the task's scheduled time to 
 the time the task finishes, either with success or another state (see 
-:ref:`concepts:task-instances`).  When subtracting the task duration 
-(above) from the landing time you will find the adoption time.  If the 
-adoption time exceeds the 
-:ref:`task adoption timeout <config:celery__task_adoption_timeout>` 
-then the task will be terminated and, if applicable, rescheduled.
+:ref:`concepts:task-instances`).  
 
 ------------
 
