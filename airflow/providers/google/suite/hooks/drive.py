@@ -226,7 +226,7 @@ class GoogleDriveHook(GoogleBaseHook):
             or to -1.
         :param resumable: True if this is a resumable upload. False means upload
             in a single request.
-        :param folder_id: The base/root folder id for remote_location (part of the drive url of a folder).
+        :param folder_id: The base/root folder id for remote_location (part of the drive URL of a folder).
         :return: File ID
         """
         service = self.get_conn()
