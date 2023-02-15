@@ -31,7 +31,7 @@ const AutoRefresh = () => {
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
 
   return (
-    <FormControl display="flex" width="auto" mr={2}>
+    <FormControl display="flex" width="auto" mr={2} alignItems="center">
       <Spinner color="blue.500" speed="1s" mr="4px" visibility={isRefreshOn ? 'visible' : 'hidden'} />
       <FormLabel
         htmlFor="auto-refresh"
