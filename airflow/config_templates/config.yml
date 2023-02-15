@@ -1247,7 +1247,7 @@
       version_added: 1.10.8
       type: string
       example: ~
-      default: "True"
+      default: "False"
     - name: expose_stacktrace
       description: |
         Expose stacktrace in the web server
