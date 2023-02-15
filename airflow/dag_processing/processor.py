@@ -246,7 +246,9 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             raise AirflowException("Tried to kill process before starting!")
 
         if self._process.is_alive() and self._process.pid:
-            self.log.warning("Killing DAGFileProcessorProcess (PID=%d)", self._process.pid)
+            self.log.warning(
+                "Killing DAGFileProcessorProcess (PID=%d, filepath=%s)", self._process.pid, self.file_path
+            )
             os.kill(self._process.pid, signal.SIGKILL)
 
             # Reap the spawned zombie. We active wait, because in Python 3.9 `waitpid` might lead to an
