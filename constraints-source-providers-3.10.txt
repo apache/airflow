@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-15T09:38:26Z
+# This constraints file was automatically generated on 2023-02-15T12:31:39Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -526,7 +526,7 @@ types-python-slugify==8.0.0.0
 types-pytz==2022.7.1.0
 types-redis==4.5.1.0
 types-requests==2.28.11.12
-types-setuptools==67.2.0.1
+types-setuptools==67.3.0.0
 types-tabulate==0.9.0.0
 types-termcolor==1.1.6
 types-toml==0.10.8.3
