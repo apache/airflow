@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-14T21:02:10Z
+# This constraints file was automatically generated on 2023-02-15T09:38:26Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -106,9 +106,9 @@ bitarray==2.7.2
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.70
+boto3==1.26.71
 boto==2.49.0
-botocore==1.29.70
+botocore==1.29.71
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -491,7 +491,7 @@ sshtunnel==0.4.0
 stack-data==0.6.2
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-tableauserverclient==0.23.4
+tableauserverclient==0.24
 tabulate==0.9.0
 tblib==1.7.0
 tenacity==8.2.1
