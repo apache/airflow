@@ -113,7 +113,7 @@ class BasicDAGRunSchema(SQLAlchemySchema):
 
 
 class ExternalDatasetChangeSchema(Schema):
-
+    """External Dataset change/update Schema"""
     dataset_uri = fields.String()
     extra = JsonObjectField()
 
