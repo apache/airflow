@@ -240,7 +240,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query. The DbApiHook method must be overridden because Pandas
         doesn't support PEP 249 connections, except for SQLite. See:
 
-        https://github.com/pydata/pandas/blob/master/pandas/io/sql.py#L447
+        https://github.com/pydata/pandas/blob/main/pandas/io/sql.py#L447
         https://github.com/pydata/pandas/issues/6900
 
         :param sql: The BigQuery SQL to execute.

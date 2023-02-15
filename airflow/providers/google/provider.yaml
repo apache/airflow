@@ -434,7 +434,7 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/workflows.rst
     tags: [gcp]
   - integration-name: Google LevelDB
-    external-doc-url: https://github.com/google/leveldb/blob/master/doc/index.md
+    external-doc-url: https://github.com/google/leveldb/blob/main/doc/index.md
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/leveldb/leveldb.rst
     tags: [google]
