@@ -3357,7 +3357,13 @@ class DagModel(Base):
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs found in %s.", deleted_filepath)
-        session.query(cls).filter(cls.fileloc == deleted_filepath).update({"is_active": False})
+
+        if deleted_filepath.endswith(".zip"):
+            fileloc_filter = cls.fileloc.startswith(deleted_filepath)
+        else:
+            fileloc_filter = cls.fileloc == deleted_filepath
+
+        session.query(cls).filter(fileloc_filter).update({"is_active": False}, synchronize_session="fetch")
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
