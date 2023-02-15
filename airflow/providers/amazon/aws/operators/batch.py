@@ -25,6 +25,7 @@ An Airflow operator for AWS Batch services
 """
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.compat.functools import cached_property
@@ -147,10 +148,11 @@ class BatchOperator(BaseOperator):
         self.job_definition = job_definition
         self.job_queue = job_queue
 
+        self.container_overrides = None
         if overrides:
             self.container_overrides = overrides
             warnings.warn(
-                f"Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
+                "Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )

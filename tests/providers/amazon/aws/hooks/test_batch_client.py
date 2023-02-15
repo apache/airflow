@@ -274,16 +274,13 @@ class TestBatchClient:
         assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
         assert awslogs["awslogs_group"] == "/test/batch/job"
         assert awslogs["awslogs_region"] == "ap-southeast-2"
-    
 
     def test_job_no_awslogs_stream(self, caplog):
         self.client_mock.describe_jobs.return_value = {
             "jobs": [
                 {
                     "jobId": JOB_ID,
-                    "container": {
-                        "logConfiguration": {}
-                    },
+                    "container": {"logConfiguration": {}},
                 }
             ]
         }
@@ -294,20 +291,13 @@ class TestBatchClient:
             assert "doesn't create AWS CloudWatch Stream" in caplog.messages[0]
 
     def test_job_not_recognized_job(self):
-        self.client_mock.describe_jobs.return_value = {
-            "jobs": [
-                {
-                    "jobId": JOB_ID
-                }
-            ]
-        }
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID}]}
         with pytest.raises(AirflowException) as ctx:
             self.batch_client.get_job_awslogs_info(JOB_ID)
         # It should not retry when this client error occurs
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
-        msg = f"AWS Batch job (%s) is not a supported job type. Supported job types: container, array, multinode."
+        msg = "is not a supported job type"
         assert msg in str(ctx.value)
-
 
     def test_job_splunk_logs(self, caplog):
         self.client_mock.describe_jobs.return_value = {
