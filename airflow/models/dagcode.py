@@ -150,10 +150,12 @@ class DagCode(Base):
         """
         log.debug("Deleting DagCode where filepath = %s.", filepath)
 
-        filepath_hash = cls.dag_fileloc_hash(filepath)
-        session.query(cls).filter(cls.fileloc_hash == filepath_hash, cls.fileloc == filepath).delete(
-            synchronize_session="fetch"
-        )
+        if filepath.endswith(".zip"):
+            fileloc_filter = cls.fileloc.startswith(filepath)
+        else:
+            fileloc_filter = cls.fileloc == filepath
+
+        session.query(cls).filter(fileloc_filter).delete(synchronize_session="fetch")
 
     @classmethod
     @provide_session
