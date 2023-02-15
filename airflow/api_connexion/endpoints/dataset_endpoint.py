@@ -16,31 +16,29 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy.orm import Session, joinedload, subqueryload
+from marshmallow import ValidationError
 from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow import Dataset
-from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
-from airflow.api_connexion.types import APIResponse
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
     DatasetEventCollection,
+    dataset_change_schema,
     dataset_collection_schema,
     dataset_event_collection_schema,
-    dataset_schema,
-    dataset_change_schema,
     dataset_event_schema,
+    dataset_schema,
 )
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.api_connexion.types import APIResponse
 from airflow.datasets.manager import dataset_manager
-
+from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
-
-from marshmallow import ValidationError
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])

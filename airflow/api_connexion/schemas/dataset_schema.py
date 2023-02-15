@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple, Dict, Any
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -114,6 +114,7 @@ class BasicDAGRunSchema(SQLAlchemySchema):
 
 class ExternalDatasetChangeSchema(Schema):
     """External Dataset change/update Schema"""
+
     dataset_uri = fields.String()
     extra = JsonObjectField()
 

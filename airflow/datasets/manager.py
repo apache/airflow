@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import exc
 from sqlalchemy.orm.session import Session
@@ -47,11 +47,11 @@ class DatasetManager(LoggingMixin):
         self,
         *,
         dataset: Dataset,
-        task_instance: Optional[TaskInstance] = None,
+        task_instance: TaskInstance | None = None,
         extra=None,
         session: Session,
         **kwargs,
-    ) -> Optional[DatasetEvent]:
+    ) -> DatasetEvent | None:
         """
         Register dataset related changes.
 

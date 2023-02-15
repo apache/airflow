@@ -584,6 +584,8 @@ export interface paths {
   "/datasets/events": {
     /** Get dataset events */
     get: operations["get_dataset_events"];
+    /** Post dataset event */
+    post: operations["post_dataset_event"];
     parameters: {
       query: {
         /** The numbers of items to return. */
@@ -1701,6 +1703,17 @@ export interface components {
     DatasetEventCollection: {
       dataset_events?: components["schemas"]["DatasetEvent"][];
     } & components["schemas"]["CollectionInfo"];
+    /**
+     * @description A external dataset change that should create a DatasetEvent
+     *
+     * *New in version 2.6.0*
+     */
+    ExternalDatasetChange: {
+      /** @description The URI of the dataset */
+      dataset_uri?: string;
+      /** @description The dataset event extra */
+      extra?: { [key: string]: unknown } | null;
+    };
     /** @description The option of configuration. */
     ConfigOption: {
       key?: string;
@@ -4117,6 +4130,50 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  /** Post dataset event */
+  post_dataset_event: {
+    parameters: {
+      query: {
+        /** The numbers of items to return. */
+        limit?: components["parameters"]["PageLimit"];
+        /** The number of items to skip before starting to collect the result set. */
+        offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by.
+         * Prefix a field name with `-` to reverse the sort order.
+         *
+         * *New in version 2.1.0*
+         */
+        order_by?: components["parameters"]["OrderBy"];
+        /** The Dataset ID that updated the dataset. */
+        dataset_id?: components["parameters"]["FilterDatasetID"];
+        /** The DAG ID that updated the dataset. */
+        source_dag_id?: components["parameters"]["FilterSourceDAGID"];
+        /** The task ID that updated the dataset. */
+        source_task_id?: components["parameters"]["FilterSourceTaskID"];
+        /** The DAG run ID that updated the dataset. */
+        source_run_id?: components["parameters"]["FilterSourceRunID"];
+        /** The map index that updated the dataset. */
+        source_map_index?: components["parameters"]["FilterSourceMapIndex"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetEvent"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ExternalDatasetChange"];
+      };
     };
   };
   get_config: {
