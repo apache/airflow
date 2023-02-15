@@ -1,7 +1,7 @@
 ---
 name: Airflow Providers Bug report
 description: Problems and issues with code in Apache Airflow Providers
-labels: ["kind:bug", "area:providers"]
+labels: ["kind:bug", "area:providers", "needs-triage"]
 body:
   - type: markdown
     attributes:
