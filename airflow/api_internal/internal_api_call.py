@@ -40,6 +40,16 @@ class InternalApiConfig:
     _internal_api_endpoint = ""
 
     @staticmethod
+    def force_database_direct_access():
+        """Current component will not use Internal API.
+
+        All methods decorated with internal_api_call will always be executed locally.
+        This mode is needed for "trusted" components like Scheduler, Webserver or Internal Api server.
+        """
+        InternalApiConfig._initialized = True
+        InternalApiConfig._use_internal_api = False
+
+    @staticmethod
     def get_use_internal_api():
         if not InternalApiConfig._initialized:
             InternalApiConfig._init_values()
