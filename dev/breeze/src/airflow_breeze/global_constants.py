@@ -54,6 +54,7 @@ ALLOWED_INTEGRATIONS = sorted(
     [
         *ALL_INTEGRATIONS,
         "all",
+        "otel",
         "statsd",
     ]
 )
