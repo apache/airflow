@@ -433,7 +433,7 @@ class DagFileProcessorManager(LoggingMixin):
         # How often to check for DAGs which are no longer in files
         self.parsing_cleanup_interval = conf.getint("scheduler", "parsing_cleanup_interval")
         # How long to wait for a DAG to be reparsed after its file has been parsed before disabling
-        self.stale_dag_threshold = conf.getboolean("scheduler", "stale_dag_threshold")
+        self.stale_dag_threshold = conf.getint("scheduler", "stale_dag_threshold")
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
