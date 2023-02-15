@@ -508,7 +508,7 @@ class DagFileProcessorManager(LoggingMixin):
         cls,
         last_parsed: dict[str, datetime | None],
         dag_directory: str,
-        stale_dag_threshold: timedelta,
+        stale_dag_threshold: int,
         session: Session = NEW_SESSION,
     ):
         """
@@ -524,6 +524,7 @@ class DagFileProcessorManager(LoggingMixin):
             query = query.filter(DagModel.processor_subdir == dag_directory)
         dags_parsed = query.all()
 
+        processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
 
 
         for dag in dags_parsed:
@@ -533,7 +534,7 @@ class DagFileProcessorManager(LoggingMixin):
             # significant delay in deactivation of stale dags when a large timeout is configured
             if (
                 dag.fileloc in last_parsed
-                and (dag.last_parsed_time + stale_dag_threshold) < last_parsed[dag.fileloc]
+                and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold)) < last_parsed[dag.fileloc]
             ):
                 cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
