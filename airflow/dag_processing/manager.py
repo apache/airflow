@@ -803,7 +803,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param filepath: Path of the newly created file.
         """
         if might_contain_dag(file_path=filepath, safe_mode=True):
-            self.log.info("Found DAG in %s, adding to collection of observed files.", filepath)
+            self.log.info("Found DAG(s) in %s, adding to collection of observed files.", filepath)
             self._file_paths.add(filepath)
             self._file_path_queue.append(filepath)
             self.start_new_processes()
@@ -816,13 +816,13 @@ class DagFileProcessorManager(LoggingMixin):
         """
         if might_contain_dag(file_path=filepath, safe_mode=True):
             if filepath not in self._file_paths:
-                self.log.info("Found DAG in %s, adding to collection of observed files.", filepath)
+                self.log.info("Found DAG(s) in %s, adding to collection of observed files.", filepath)
 
             self._file_paths.add(filepath)
             self._file_path_queue.append(filepath)
             self.start_new_processes()
         else:
-            self.log.info("No DAG found in %s, removing from observed files (if present).", filepath)
+            self.log.info("No DAG(s) found in %s, removing from observed files (if present).", filepath)
             self.handle_deleted_file(filepath=filepath)
 
     def handle_moved_file(self, src_filepath: str, dest_filepath: str) -> None:
