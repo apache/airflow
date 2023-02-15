@@ -825,6 +825,26 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info("No DAG found in %s, removing from observed files (if present).", filepath)
             self.handle_deleted_file(filepath=filepath)
 
+    def handle_moved_file(self, src_filepath: str, dest_filepath: str) -> None:
+        """
+        Handle the move of a DAG file. For example, moving from /path_a/dag.py to /path_b/dag.py.
+
+        We could just update the file locations in the DB and not reparse DAGs. However, we do reparse because
+        Python code can e.g. contain relative imports which can break after moving files. Better to consume
+        more resources reparsing DAGs than to display incorrect information.
+
+        :param src_filepath: Original filepath
+        :param dest_filepath: New filepath
+        """
+        if src_filepath not in self._file_paths:
+            self.log.info("%s moved but wasn't an observed filepath.", src_filepath)
+        else:
+            self.log.info("%s moved and was an observed filepath, reparsing %s.", src_filepath, dest_filepath)
+
+            # TODO think about callback from handle_created_file. What if parsing the new file takes 30 mins?
+            self.handle_created_file(filepath=dest_filepath)
+            self.handle_deleted_file(filepath=src_filepath)
+
     def handle_deleted_file(self, filepath: str) -> None:
         """
         Process a deleted file in the DAGs folder.
@@ -1357,7 +1377,14 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
         :return:
         """
         if event.src_path.endswith((".py", ".zip")):
-            self.log.info("Detected move of %s to %s, checking for changes.", event.src_path, event.dest_path)
+            self.log.info(
+                "Detected move of %s to %s, checking for filepaths to update.",
+                event.src_path,
+                event.dest_path,
+            )
+            self._dag_file_processor_manager.handle_moved_file(
+                src_filepath=event.src_path, dest_filepath=event.dest_path
+            )
         elif event.src_path.endswith(".airflowignore"):
             self.log.info(
                 "Detected move of %s to %s, checking changes to make in the list of observed DAG files.",
