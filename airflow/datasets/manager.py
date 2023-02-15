@@ -44,7 +44,13 @@ class DatasetManager(LoggingMixin):
         super().__init__(**kwargs)
 
     def register_dataset_change(
-        self, *, dataset: Dataset, task_instance: TaskInstance=None, extra=None, session: Session, **kwargs
+        self,
+        *,
+        dataset: Dataset,
+        task_instance: Optional[TaskInstance] = None,
+        extra=None,
+        session: Session,
+        **kwargs,
     ) -> Optional[DatasetEvent]:
         """
         Register dataset related changes.
