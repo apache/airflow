@@ -85,7 +85,7 @@ def process_fd(
     proc,
     fd,
     process_line_callback: Callable[[str], None],
-    log: logging.Logger | None = None,
+    log: logging.Logger,
 ):
     """
     Prints output to logs.
@@ -106,16 +106,15 @@ def process_fd(
         line = fd.readline().decode()
         if not line:
             return
-        if process_line_callback:
-            process_line_callback(line)
+        process_line_callback(line)
         func_log(line.rstrip("\n"))
 
 
 def run_beam_command(
     cmd: list[str],
-    process_line_callback: Callable[[str], None] | None = None,
+    log: logging.Logger,
+    process_line_callback: Callable[[str], None],
     working_directory: str | None = None,
-    log: logging.Logger | None = None,
 ) -> None:
     """
     Class responsible for running pipeline command in subprocess
