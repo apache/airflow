@@ -40,8 +40,10 @@
   </table>
   <div>
     {% for attr, value in special_attrs_rendered.items() %}
-      <h5>Attribute: {{ attr }}</h5>
-      {{ value }}
+      {% if value %}
+        <h5>Attribute: {{ attr }}</h5>
+        {{ value }}
+      {% endif %}
     {% endfor %}
     {% if ti_attrs is none %}
       <h5>No Task Instance Available</h5>
