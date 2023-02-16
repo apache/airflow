@@ -84,8 +84,8 @@ def beam_options_to_args(options: dict) -> list[str]:
 def process_fd(
     proc,
     fd,
-    process_line_callback: Callable[[str], None],
     log: logging.Logger,
+    process_line_callback: Callable[[str], None] | None = None,
 ):
     """
     Prints output to logs.
@@ -106,14 +106,15 @@ def process_fd(
         line = fd.readline().decode()
         if not line:
             return
-        process_line_callback(line)
+        if process_line_callback:
+            process_line_callback(line)
         func_log(line.rstrip("\n"))
 
 
 def run_beam_command(
     cmd: list[str],
     log: logging.Logger,
-    process_line_callback: Callable[[str], None],
+    process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
 ) -> None:
     """
