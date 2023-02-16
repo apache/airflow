@@ -252,7 +252,7 @@ $(document).ready(() => {
   });
 
   $.fn.datetimepicker.defaults.sideBySide = true;
-  $('.datetimepicker').datetimepicker({ format: 'YYYY-MM-DD HH:mm:ssZ' });
+  $('.datetimepicker').datetimepicker({ format: 'YYYY-MM-DDTHH:mm:ssZ' });
   $('.datepicker').datetimepicker({ format: 'YYYY-MM-DD' });
   $('.timepicker').datetimepicker({ format: 'HH:mm:ss' });
 
