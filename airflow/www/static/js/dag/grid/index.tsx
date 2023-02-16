@@ -31,8 +31,7 @@ import {
 import { MdDoubleArrow } from 'react-icons/md';
 
 import { useGridData } from 'src/api';
-import { getMetaValue } from 'src/utils';
-import useOffsetHeight from 'src/utils/useOffsetHeight';
+import { getMetaValue, useOffsetTop } from 'src/utils';
 
 import renderTaskRows from './renderTaskRows';
 import DagRuns from './dagRuns';
@@ -52,8 +51,7 @@ const Grid = ({
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const offsetHeight = useOffsetHeight(scrollRef, undefined, 750);
+  const offsetTop = useOffsetTop(scrollRef);
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
@@ -95,9 +93,7 @@ const Grid = ({
     <Box
       p={3}
       pt={0}
-      mt={0}
       height="100%"
-      ref={gridRef}
       position="relative"
     >
       <IconButton
@@ -117,13 +113,11 @@ const Grid = ({
         top="30px"
       />
       <Box
-        height="100%"
-        maxHeight={offsetHeight}
+        maxHeight={`calc(100% - ${offsetTop}px)`}
         ref={scrollRef}
         overflow="auto"
         position="relative"
         pr={4}
-        pb={4}
       >
         <Table pr="10px">
           <Thead>

@@ -18,7 +18,10 @@
  */
 
 import Color from 'color';
+
 import type { DagRun, RunOrdering, Task } from 'src/types';
+
+import useOffsetTop from './useOffsetTop';
 
 // Delay in ms for various hover actions
 const hoverDelay = 200;
@@ -140,4 +143,5 @@ export {
   getTaskSummary,
   getDagRunLabel,
   getStatusBackgroundColor,
+  useOffsetTop,
 };
