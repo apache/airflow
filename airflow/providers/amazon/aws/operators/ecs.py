@@ -278,8 +278,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
-    :param region_name: region name to use in AWS Hook.
-        Override the region_name in connection (if provided)
+    :param region: region name to use in AWS Hook.
+        Override the region in connection (if provided)
     :param launch_type: the launch type on which to run your task ('EC2', 'EXTERNAL', or 'FARGATE')
     :param capacity_provider_strategy: the capacity provider strategy to use for the task.
         When capacity_provider_strategy is specified, the launch_type parameter is omitted.
@@ -297,7 +297,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :param awslogs_region: the region in which your CloudWatch logs are stored.
-        If None, this is the same as the `region_name` parameter. If that is also None,
+        If None, this is the same as the `region` parameter. If that is also None,
         this is the default AWS region based on your connection settings.
     :param awslogs_stream_prefix: the stream prefix that is used for the CloudWatch logs.
         This is usually based on some custom name combined with the name of the container.
