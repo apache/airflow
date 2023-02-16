@@ -50,7 +50,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
                     render_template(
                         "airflow/no_roles_permissions.html",
                         hostname=get_hostname()
-                        if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
+                        if conf.getboolean("webserver", "EXPOSE_HOSTNAME")
                         else "redact",
                         logout_url=appbuilder.get_url_for_logout,
                     ),

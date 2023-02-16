@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +14,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+---
+extensions:
+  memory_ballast:
+    size_mib: 512
+  zpages:
+    endpoint: 0.0.0.0:55679
 
-#
-# Run airflow command in container
-#
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+processors:
+  batch:
+  memory_limiter:
+    limit_mib: 1536
+    spike_limit_mib: 512
+    check_interval: 5s
 
-set -euo pipefail
+exporters:
+  logging:
+    logLevel: debug
+  prometheus:
+    metrics:
+      endpoint: "http://localhost:29090"
 
-# check is there a docker-compose command, if not, use "docker compose" instead.
-if [ -x "$(command -v docker-compose)" ]; then
-    dc=docker-compose
-else
-    dc="docker compose"
-fi
-
-export COMPOSE_FILE="${PROJECT_DIR}/docker-compose.yaml"
-if [ $# -gt 0 ]; then
-    exec $dc run --rm airflow-cli "${@}"
-else
-    exec $dc run --rm airflow-cli
-fi
+service:
+  extensions: [memory_ballast, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [logging]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [logging, prometheus]

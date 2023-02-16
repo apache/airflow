@@ -17,13 +17,17 @@
 ---
 version: "3.7"
 services:
-  statsd-exporter:
-    image: apache/airflow:airflow-statsd-exporter-2020.09.05-v0.17.0
-    container_name: "breeze-statsd-exporter"
+  otel-collector:
+    image: otel/opentelemetry-collector:0.70.0
+    container_name: "breeze-opentelemetry-collector"
     ports:
-      - "9125:9125"
-      - "9125:9125/udp"
-      - "29102:9102"
+      - "1888:1888"     # pprof extension
+      - "28888:8888"    # Prometheus metrics exposed by the collector
+      - "28889:8889"    # Prometheus exporter metrics
+      - "13133:13133"   # health_check extension
+      - "4317:4317"     # OTLP gRPC receiver
+      - "4318:4318"     # OTLP http receiver
+      - "55679:55679"   # zpages extension
 
   prometheus:
     image: prom/prometheus
@@ -52,12 +56,9 @@ services:
       - ./grafana/volume/provisioning:/grafana/provisioning
 
   airflow:
-    environment:
-      - INTEGRATION_STATSD=true
-      - AIRFLOW__METRICS__STATSD_ON=True
-      - AIRFLOW__METRICS__STATSD_HOST=statsd-exporter
-      - AIRFLOW__METRICS__STATSD_PORT=9125
+    #  Environment Variables will need to be set in order to configure
+    #  Breeze to emit the metrics.  See: integration-statsd.yml
     depends_on:
-      - statsd-exporter
+      - otel-collector
       - prometheus
       - grafana
