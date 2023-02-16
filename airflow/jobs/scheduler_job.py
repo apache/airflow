@@ -447,6 +447,9 @@ class SchedulerJob(BaseJob):
                     starved_dags.add(dag_id)
                     continue
 
+                if self.executor.has_task(task_instance):
+                    num_tasks_in_executor += 1
+
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
