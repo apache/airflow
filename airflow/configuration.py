@@ -429,30 +429,47 @@ class AirflowConfigParser(ConfigParser):
                     )
 
     def _validate_config_dependencies(self):
-        """
-        Validate that config based on condition.
+        """Validate that config based on condition.
 
         Values are considered invalid when they conflict with other config values
         or system-level limitations and requirements.
         """
-        executor, _ = ExecutorLoader.import_default_executor_cls()
-        is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
+        self._validate_database_executor_compatibility()
+        self._validate_sqlite3_version()
 
+    def _validate_database_executor_compatibility(self):
+        """Validate database and executor compatibility.
+
+        Most of the databases work universally, but SQLite can only work with
+        single-threaded executors (e.g. Sequential).
+        """
+        executor, _ = ExecutorLoader.import_default_executor_cls()
+
+        is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
         if is_sqlite and not executor.is_single_threaded:
             raise AirflowConfigException(f"error: cannot use sqlite with the {executor.__name__}")
-        if is_sqlite:
-            import sqlite3
 
-            from airflow.utils.docs import get_docs_url
+    def _validate_sqlite3_version(self):
+        """Validate SQLite version.
 
-            # Some features in storing rendered fields require sqlite version >= 3.15.0
-            min_sqlite_version = (3, 15, 0)
-            if _parse_sqlite_version(sqlite3.sqlite_version) < min_sqlite_version:
-                min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
-                raise AirflowConfigException(
-                    f"error: sqlite C library version too old (< {min_sqlite_version_str}). "
-                    f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
-                )
+        Some features in storing rendered fields require SQLite >= 3.15.0.
+        """
+        if "sqlite" not in self.get("database", "sql_alchemy_conn"):
+            return
+
+        import sqlite3
+
+        min_sqlite_version = (3, 15, 0)
+        if _parse_sqlite_version(sqlite3.sqlite_version) >= min_sqlite_version:
+            return
+
+        from airflow.utils.docs import get_docs_url
+
+        min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
+        raise AirflowConfigException(
+            f"error: SQLite C library too old (< {min_sqlite_version_str}). "
+            f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
+        )
 
     def _using_old_value(self, old: Pattern, current_value: str) -> bool:
         return old.search(current_value) is not None
