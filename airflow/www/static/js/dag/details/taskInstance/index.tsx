@@ -130,7 +130,6 @@ const TaskInstance = ({
         size="lg"
         index={selectedTabIndex}
         onChange={handleTabsChange}
-        isLazy
         height="100%"
       >
         <TabList>
