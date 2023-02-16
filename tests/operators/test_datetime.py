@@ -47,7 +47,6 @@ class TestBranchDateTimeOperator:
         (datetime.time(10, 0, 0), datetime.time(11, 0, 0)),
         (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.time(11, 0, 0)),
         (datetime.time(10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
-        (datetime.time(10, 0, 0), datetime.time(11, 0, 0)),
     ]
 
     def setup_method(self):
@@ -110,7 +109,7 @@ class TestBranchDateTimeOperator:
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
-        [(target_lower, target_upper) for (target_lower, target_upper) in targets],
+        targets,
     )
     @time_machine.travel("2020-07-07 10:54:05")
     def test_branch_datetime_operator_falls_within_range(self, target_lower, target_upper):
@@ -129,7 +128,7 @@ class TestBranchDateTimeOperator:
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
-        [(target_lower, target_upper) for (target_lower, target_upper) in targets],
+        targets,
     )
     def test_branch_datetime_operator_falls_outside_range(self, target_lower, target_upper):
         """Check BranchDateTimeOperator branch operation"""
@@ -223,7 +222,7 @@ class TestBranchDateTimeOperator:
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
-        [(target_lower, target_upper) for (target_lower, target_upper) in targets],
+        targets,
     )
     @time_machine.travel("2020-12-01 09:00:00")
     def test_branch_datetime_operator_use_task_logical_date(self, target_lower, target_upper):
