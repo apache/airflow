@@ -41,6 +41,22 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
 
 
+def _validate_database_executor_compatibility(executor: type[BaseExecutor]) -> None:
+    """Validate database and executor compatibility.
+
+    Most of the databases work universally, but SQLite can only work with
+    single-threaded executors (e.g. Sequential).
+
+    This is done when the executor is first loaded, instead of when the
+    configuration is loaded (in ``airflow.configuration``), because loading the
+    executor is heavy work we want to avoid unless needed.
+    """
+    from airflow.configuration import conf
+
+    if executor.is_single_threaded and "sqlite" in conf.get("database", "sql_alchemy_conn"):
+        raise AirflowConfigException(f"error: cannot use sqlite with the {executor.__name__}")
+
+
 @unique
 class ConnectorSource(Enum):
     """Enum of supported executor import sources."""
@@ -147,8 +163,9 @@ class ExecutorLoader:
         :return: executor class and executor import source
         """
         executor_name = cls.get_default_executor_name()
-
-        return cls.import_executor_cls(executor_name)
+        executor, source = cls.import_executor_cls(executor_name)
+        _validate_database_executor_compatibility(executor)
+        return executor, source
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:

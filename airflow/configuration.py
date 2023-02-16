@@ -43,7 +43,6 @@ from typing_extensions import overload
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
@@ -434,20 +433,7 @@ class AirflowConfigParser(ConfigParser):
         Values are considered invalid when they conflict with other config values
         or system-level limitations and requirements.
         """
-        self._validate_database_executor_compatibility()
         self._validate_sqlite3_version()
-
-    def _validate_database_executor_compatibility(self):
-        """Validate database and executor compatibility.
-
-        Most of the databases work universally, but SQLite can only work with
-        single-threaded executors (e.g. Sequential).
-        """
-        executor, _ = ExecutorLoader.import_default_executor_cls()
-
-        is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
-        if is_sqlite and not executor.is_single_threaded:
-            raise AirflowConfigException(f"error: cannot use sqlite with the {executor.__name__}")
 
     def _validate_sqlite3_version(self):
         """Validate SQLite version.
