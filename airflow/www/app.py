@@ -28,6 +28,7 @@ from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
@@ -116,6 +117,8 @@ def create_app(config=None, testing=False):
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_provider_class = AirflowJsonProvider
     flask_app.json = AirflowJsonProvider(flask_app)
+
+    InternalApiConfig.force_database_direct_access()
 
     csrf.init_app(flask_app)
 

@@ -51,8 +51,18 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 from airflow.utils import timezone
 from airflow.version import version
 
+try:
+    # Airflow 2.3 doesn't have this yet
+    from airflow.typing_compat import ParamSpec
+except ImportError:
+    try:
+        from typing import ParamSpec  # type: ignore[no-redef, attr-defined]
+    except ImportError:
+        from typing_extensions import ParamSpec
+
 RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
+FParams = ParamSpec("FParams")
 
 # GCSHook has a method named 'list' (to junior devs: please don't do this), so
 # we need to create an alias to prevent Mypy being confused.
@@ -76,9 +86,9 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     :return: Decorator
     """
 
-    def _wrapper(func: T):
+    def _wrapper(func: Callable[FParams, RT]) -> Callable[FParams, RT]:
         @functools.wraps(func)
-        def _inner_wrapper(self: GCSHook, *args, **kwargs) -> RT:
+        def _inner_wrapper(self, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional"
@@ -119,9 +129,9 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
             return func(self, *args, **kwargs)
 
-        return cast(T, _inner_wrapper)
+        return cast(Callable[FParams, RT], _inner_wrapper)
 
-    return _wrapper
+    return cast(Callable[[T], T], _wrapper)
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.

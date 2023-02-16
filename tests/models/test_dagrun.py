@@ -892,11 +892,23 @@ class TestDagRun:
 
             if expected:
                 true_delay = ti.start_date - dag_run.data_interval_end
-                sched_delay_stat_call = call(metric_name, true_delay)
-                assert sched_delay_stat_call in stats_mock.mock_calls
+                sched_delay_stat_call = call(
+                    metric_name,
+                    true_delay,
+                )
+                sched_delay_stat_call_with_tags = call(
+                    "dagrun.first_task_scheduling_delay", true_delay, tags={"dag_id": f"{dag.dag_id}"}
+                )
+                assert (
+                    sched_delay_stat_call in stats_mock.mock_calls
+                    and sched_delay_stat_call_with_tags in stats_mock.mock_calls
+                )
             else:
                 # Assert that we never passed the metric
-                sched_delay_stat_call = call(metric_name, mock.ANY)
+                sched_delay_stat_call = call(
+                    metric_name,
+                    mock.ANY,
+                )
                 assert sched_delay_stat_call not in stats_mock.mock_calls
         finally:
             # Don't write anything to the DB

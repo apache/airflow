@@ -413,7 +413,7 @@ class FileTaskHandler(logging.Handler):
 
     def _prepare_log_folder(self, directory: Path):
         """
-        Prepare the log folder and ensure its mode is 777.
+        Prepare the log folder and ensure its mode is as configured.
 
         To handle log writing when tasks are impersonated, the log files need to
         be writable by the user that runs the Airflow command and the user
@@ -429,24 +429,31 @@ class FileTaskHandler(logging.Handler):
         via the UI (or vice versa) results in a permission error as the task
         tries to write to a log file created by the other user.
 
-        Create the log file and give it group writable permissions
-        TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
-        operator is not compatible with impersonation (e.g. if a Celery executor is used
-        for a SubDag operator and the SubDag operator has a different owner than the
-        parent DAG)
+        We leave it up to the user to manage their permissions by exposing configuration for both
+        new folders and new log files. Default is to make new log folders and files group-writeable
+        to handle most common impersonation use cases. The requirement in this case will be to make
+        sure that the same group is set as default group for both - impersonated user and main airflow
+        user.
         """
-        mode = 0o777
-        directory.mkdir(mode=mode, parents=True, exist_ok=True)
-        if directory.stat().st_mode != mode:
-            directory.chmod(mode)
+        new_folder_permissions = int(
+            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+        )
+        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
+        if directory.stat().st_mode != new_folder_permissions:
+            print(f"Changing dir permission to {new_folder_permissions}")
+            directory.chmod(new_folder_permissions)
 
     def _init_file(self, ti):
         """
-        Create log directory and give it correct permissions.
+        Create log directory and give it permissions that are configured. See above _prepare_log_folder
+        method for more detailed explanation.
 
         :param ti: task instance object
         :return: relative log path of the given task instance
         """
+        new_file_permissions = int(
+            conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"), 8
+        )
         local_relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, local_relative_path)
         if ti.is_trigger_log_context is True:
@@ -457,11 +464,10 @@ class FileTaskHandler(logging.Handler):
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
-            # TODO: Investigate using 444 instead of 666.
             try:
-                os.chmod(full_path, 0o666)
-            except OSError:
-                logging.warning("OSError while change ownership of the log file")
+                os.chmod(full_path, new_file_permissions)
+            except OSError as e:
+                logging.warning("OSError while changing ownership of the log file. ", e)
 
         return full_path
 

@@ -54,6 +54,16 @@ class TestInternalApiConfig:
         assert InternalApiConfig.get_use_internal_api() is True
         assert InternalApiConfig.get_internal_api_endpoint() == "http://localhost:8888/internal_api/v1/rpcapi"
 
+    @conf_vars(
+        {
+            ("core", "database_access_isolation"): "true",
+            ("core", "internal_api_url"): "http://localhost:8888",
+        }
+    )
+    def test_force_database_direct_access(self):
+        InternalApiConfig.force_database_direct_access()
+        assert InternalApiConfig.get_use_internal_api() is False
+
 
 class TestInternalApiCall:
     @staticmethod
@@ -65,6 +75,11 @@ class TestInternalApiCall:
     @internal_api_call
     def fake_method_with_params(dag_id: str, task_id: int, session) -> str:
         return f"local-call-with-params-{dag_id}-{task_id}"
+
+    @classmethod
+    @internal_api_call
+    def fake_class_method_with_params(cls, dag_id: str, session) -> str:
+        return f"local-classmethod-call-with-params-{dag_id}"
 
     @conf_vars(
         {
@@ -137,6 +152,44 @@ class TestInternalApiCall:
                         {
                             "dag_id": "fake-dag",
                             "task_id": 123,
+                        }
+                    )
+                ),
+            }
+        )
+        mock_requests.post.assert_called_once_with(
+            url="http://localhost:8888/internal_api/v1/rpcapi",
+            data=expected_data,
+            headers={"Content-Type": "application/json"},
+        )
+
+    @conf_vars(
+        {
+            ("core", "database_access_isolation"): "true",
+            ("core", "internal_api_url"): "http://localhost:8888",
+        }
+    )
+    @mock.patch("airflow.api_internal.internal_api_call.requests")
+    def test_remote_classmethod_call_with_params(self, mock_requests):
+        response = requests.Response()
+        response.status_code = 200
+
+        response._content = json.dumps(BaseSerialization.serialize("remote-call"))
+
+        mock_requests.post.return_value = response
+
+        result = TestInternalApiCall.fake_class_method_with_params("fake-dag", session="session")
+
+        assert result == "remote-call"
+        expected_data = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
+                "fake_class_method_with_params",
+                "params": json.dumps(
+                    BaseSerialization.serialize(
+                        {
+                            "dag_id": "fake-dag",
                         }
                     )
                 ),

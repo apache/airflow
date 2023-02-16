@@ -56,7 +56,7 @@ PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
-errors = []
+errors: list[str] = []
 
 console = Console(width=400, color_system="standard")
 
