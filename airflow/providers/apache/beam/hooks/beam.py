@@ -147,14 +147,14 @@ def run_beam_command(
             continue
 
         for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, process_line_callback, log=log)
+            process_fd(proc, readable_fd, log, process_line_callback)
 
         if proc.poll() is not None:
             break
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, process_line_callback, log=log)
+        process_fd(proc, readable_fd, log, process_line_callback)
 
     log.info("Process exited with return code: %s", proc.returncode)
 
