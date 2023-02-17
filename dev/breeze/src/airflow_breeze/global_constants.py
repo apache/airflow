@@ -42,7 +42,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-ALL_INTEGRATIONS = [
+TESTABLE_INTEGRATIONS = [
     "cassandra",
     "celery",
     "kerberos",
@@ -50,14 +50,23 @@ ALL_INTEGRATIONS = [
     "pinot",
     "trino",
 ]
-ALLOWED_INTEGRATIONS = sorted(
+OTHER_INTEGRATIONS = ["statsd"]
+ALL_INTEGRATIONS = sorted(
     [
-        *ALL_INTEGRATIONS,
+        *TESTABLE_INTEGRATIONS,
+        *OTHER_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_INTEGRATIONS = sorted(
+    [
+        "all-testable",
         "all",
         "otel",
         "statsd",
+        *ALL_INTEGRATIONS,
     ]
 )
+
 ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]

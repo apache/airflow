@@ -1058,8 +1058,8 @@ jobs:
           breeze testing integration-tests --integration trino --integration kerberos
           breeze stop
         if: needs.build-info.outputs.runs-on != 'self-hosted'
-      - name: "Integration Tests Postgres: all"
-        run: breeze testing integration-tests --integration all
+      - name: "Integration Tests Postgres: all-testable"
+        run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
@@ -1096,8 +1096,8 @@ jobs:
       - name: "Prepare breeze & CI image: ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
         uses: ./.github/actions/prepare_breeze_and_image
         if: needs.build-info.outputs.runs-on == 'self-hosted'
-      - name: "Integration Tests MySQL: all"
-        run: breeze testing integration-tests --integration all
+      - name: "Integration Tests MySQL: all-testable"
+        run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
