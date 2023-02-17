@@ -37,6 +37,7 @@ from airflow_breeze.global_constants import (
     MOUNT_REMOVE,
     MOUNT_SELECTED,
     MOUNT_SKIP,
+    TESTABLE_INTEGRATIONS,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -237,7 +238,9 @@ class ShellParams:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
-        if "all" in self.integration:
+        if "all-testable" in self.integration:
+            integrations = TESTABLE_INTEGRATIONS
+        elif "all" in self.integration:
             integrations = ALL_INTEGRATIONS
         else:
             integrations = self.integration
