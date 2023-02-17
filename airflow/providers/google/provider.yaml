@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.9.0
   - 8.8.0
   - 8.7.0
   - 8.6.0
@@ -85,6 +86,9 @@ dependencies:
   - google-cloud-build>=3.0.0
   - google-cloud-compute>=0.1.0,<2.0.0
   - google-cloud-container>=2.2.0,<3.0.0
+  # google-cloud-dataflow-client of version 0.5.5 requires higher versions of
+  # protobuf and proto-plus libraries which can break other dependencies in the current package.
+  - google-cloud-dataflow-client>=0.5.2,<0.5.5
   - google-cloud-dataform>=0.2.0
   - google-cloud-datacatalog>=3.0.0
   - google-cloud-dataplex>=0.1.0
@@ -875,12 +879,15 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.postgres_to_gcs
   - source-integration-name: Google BigQuery
     target-integration-name: MySQL
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_mysql.rst
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_mysql
   - source-integration-name: Google BigQuery
     target-integration-name: Microsoft SQL Server (MSSQL)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_mssql.rst
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_mssql
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google BigQuery
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_bigquery.rst
     python-module: airflow.providers.google.cloud.transfers.gcs_to_bigquery
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google Cloud Storage (GCS)
@@ -899,6 +906,7 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.adls_to_gcs
   - source-integration-name: Google BigQuery
     target-integration-name: Google BigQuery
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_bigquery.rst
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_bigquery
   - source-integration-name: MySQL
     target-integration-name: Google Cloud Storage (GCS)
@@ -922,6 +930,7 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.local_to_gcs
   - source-integration-name: Google BigQuery
     target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_gcs
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Local

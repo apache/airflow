@@ -134,7 +134,7 @@ spec:
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
@@ -190,7 +190,7 @@ spec:
               mountPath: {{ template "airflow_logs" . }}
 {{- end }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}

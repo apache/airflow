@@ -370,6 +370,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         *,
         export_task_identifier: str,
         wait_for_completion: bool = True,
+        check_interval: int = 30,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -377,6 +378,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
 
         self.export_task_identifier = export_task_identifier
         self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
 
     def execute(self, context: Context) -> str:
         self.log.info("Canceling export task %s", self.export_task_identifier)
@@ -386,7 +388,9 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self.hook.wait_for_export_task_state(self.export_task_identifier, target_state="canceled")
+            self.hook.wait_for_export_task_state(
+                self.export_task_identifier, target_state="canceled", check_interval=self.check_interval
+            )
         return json.dumps(cancel_export, default=str)
 
 

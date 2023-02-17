@@ -111,7 +111,7 @@ How to reduce DAG scheduling latency / task delay?
 --------------------------------------------------
 
 Airflow 2.0 has low DAG scheduling latency out of the box (particularly when compared with Airflow 1.10.x),
-however if you need more throughput you can :ref:`start multiple schedulers<scheduler:ha>`.
+however, if you need more throughput you can :ref:`start multiple schedulers<scheduler:ha>`.
 
 
 How do I trigger tasks based on another task's failure?

@@ -251,7 +251,7 @@ class SerializedDagModel(Base):
                     cls.fileloc_hash.notin_(alive_fileloc_hashes),
                     cls.fileloc.notin_(alive_dag_filelocs),
                     or_(
-                        cls.processor_subdir is None,
+                        cls.processor_subdir.is_(None),
                         cls.processor_subdir == processor_subdir,
                     ),
                 )

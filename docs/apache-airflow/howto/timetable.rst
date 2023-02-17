@@ -78,9 +78,9 @@ file:
     with DAG(
         dag_id="example_after_workday_timetable_dag",
         start_date=pendulum.datetime(2021, 3, 10, tz="UTC"),
-        timetable=AfterWorkdayTimetable(),
+        schedule=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
-    ) as dag:
+    ):
         ...
 
 
@@ -200,9 +200,9 @@ For reference, here's our plugin and DAG files in their entirety:
     with DAG(
         dag_id="example_workday_timetable",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        timetable=AfterWorkdayTimetable(),
+        schedule=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
-    ) as dag:
+    ):
         EmptyOperator(task_id="run_this")
 
 
@@ -270,9 +270,9 @@ So for a DAG declared like this:
 .. code-block:: python
 
     with DAG(
-        timetable=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
+        schedule=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
         ...,
-    ) as dag:
+    ):
         ...
 
 The *Schedule* column would say ``after each workday, at 08:00:00``.
@@ -312,9 +312,9 @@ So for a DAG declared like this:
 .. code-block:: python
 
     with DAG(
-        timetable=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
+        schedule=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
         ...,
-    ) as dag:
+    ):
         ...
 
 The *i* icon  would show,  ``Schedule: after each workday, at 08:00:00``.

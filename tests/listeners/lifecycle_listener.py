@@ -17,10 +17,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from airflow.listeners import hookimpl
 
-started_component = None
-stopped_component = None
+started_component: Any = None
+stopped_component: Any = None
 
 
 @hookimpl

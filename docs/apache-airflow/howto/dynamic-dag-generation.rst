@@ -39,9 +39,9 @@ Dynamic DAGs with environment variables
 If you want to use variables to configure your code, you should always use
 `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ in your
 top-level code rather than :doc:`Airflow Variables </core-concepts/variables>`. Using Airflow Variables
-at top-level code creates a connection to metadata DB of Airflow to fetch the value, which can slow
-down parsing and place extra load on the DB. See the `Airflow Variables <_best_practices/airflow_variables>`_
-on how to make best use of Airflow Variables in your DAGs using Jinja templates .
+in top-level code creates a connection to the metadata DB of Airflow to fetch the value, which can slow
+down parsing and place extra load on the DB. See the `best practices on Airflow Variables <best_practices/airflow_variables>`_
+to make the best use of Airflow Variables in your DAGs using Jinja templates.
 
 For example you could set ``DEPLOYMENT`` variable differently for your production and development
 environments. The variable ``DEPLOYMENT`` could be set to ``PROD`` in your production environment and to

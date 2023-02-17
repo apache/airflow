@@ -209,7 +209,7 @@ They match, right? Good. Now, add the public key to your values. It'll look some
 Accessing the Airflow UI
 ------------------------
 
-How you access the Airflow UI will depend on your environment, however the chart does support various options:
+How you access the Airflow UI will depend on your environment; however, the chart does support various options:
 
 Ingress
 ^^^^^^^
@@ -301,7 +301,7 @@ exhaustive `Celery documentation on the topic <http://docs.celeryproject.org/en/
 Security Context Constraints
 -----------------------------
 
-A ``Security Context Constraint`` (SCC) is a OpenShift construct that works as a RBAC rule however it targets Pods instead of users.
+A ``Security Context Constraint`` (SCC) is a OpenShift construct that works as a RBAC rule; however, it targets Pods instead of users.
 When defining a SCC, one can control actions and resources a POD can perform or access during startup and runtime.
 
 The SCCs are split into different levels or categories with the ``restricted`` SCC being the default one assigned to Pods.
