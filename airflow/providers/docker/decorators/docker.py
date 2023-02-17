@@ -77,7 +77,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     custom_operator_name = "@task.docker"
 
-    template_fields: Sequence[str] = ("op_args", "op_kwargs")
+    template_fields: Sequence[str] = ("op_args", "op_kwargs") + DockerOperator.template_fields
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
