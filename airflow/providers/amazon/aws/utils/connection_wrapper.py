@@ -443,10 +443,13 @@ def _parse_s3_config(
     import configparser
 
     config = configparser.ConfigParser()
-    if config.read(config_file_name):  # pragma: no cover
-        sections = config.sections()
-    else:
-        raise AirflowException(f"Couldn't read {config_file_name}")
+    try:
+        if config.read(config_file_name):  # pragma: no cover
+            sections = config.sections()
+        else:
+            raise AirflowException(f"Couldn't read {config_file_name}")
+    except Exception as e:
+        raise AirflowException("Exception when parsing %s: %s", config_file_name, e.__class__.__name__)
     # Setting option names depending on file format
     if config_format is None:
         config_format = "boto"
