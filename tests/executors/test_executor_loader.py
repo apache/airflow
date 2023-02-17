@@ -55,7 +55,7 @@ class TestExecutorLoader:
         [
             "CeleryExecutor",
             "CeleryKubernetesExecutor",
-            pytest.param("DebugExecutor", marks=pytest.mark.backend("mssql", "mysql", "postgres")),
+            "DebugExecutor",
             "KubernetesExecutor",
             "LocalExecutor",
         ],
@@ -85,7 +85,7 @@ class TestExecutorLoader:
         [
             "CeleryExecutor",
             "CeleryKubernetesExecutor",
-            pytest.param("DebugExecutor", marks=pytest.mark.backend("mssql", "mysql", "postgres")),
+            "DebugExecutor",
             "KubernetesExecutor",
             "LocalExecutor",
         ],
@@ -112,7 +112,8 @@ class TestExecutorLoader:
 
     @pytest.mark.backend("mssql", "mysql", "postgres")
     @pytest.mark.parametrize("executor", [FakeExecutor, FakeSingleThreadedExecutor])
-    def test_validate_database_executor_compatibility_general(self, executor):
+    def test_validate_database_executor_compatibility_general(self, monkeypatch, executor):
+        monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")
         ExecutorLoader.validate_database_executor_compatibility(executor)
 
     @pytest.mark.backend("sqlite")
@@ -126,6 +127,7 @@ class TestExecutorLoader:
             ),
         ],
     )
-    def test_validate_database_executor_compatibility_sqlite(self, executor, expectation):
+    def test_validate_database_executor_compatibility_sqlite(self, monkeypatch, executor, expectation):
+        monkeypatch.delenv("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK")
         with expectation:
             ExecutorLoader.validate_database_executor_compatibility(executor)

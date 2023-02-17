@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import os
 from contextlib import suppress
 from enum import Enum, unique
 from typing import TYPE_CHECKING
@@ -170,6 +171,10 @@ class ExecutorLoader:
         avoid unless needed.
         """
         if not executor.is_single_threaded:
+            return
+
+        # This is set in tests when we want to be able to use the SequentialExecutor.
+        if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
             return
 
         from airflow.settings import engine

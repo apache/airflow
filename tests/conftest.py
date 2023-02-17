@@ -20,7 +20,6 @@ import json
 import os
 import subprocess
 import sys
-import unittest.mock
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -42,7 +41,6 @@ os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/air
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
-from tests.test_utils.config import conf_vars  # noqa: E402
 from tests.test_utils.db import clear_all  # noqa: E402
 
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa: E402  # isort: skip
@@ -280,6 +278,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
+    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+
+
+def pytest_unconfigure(config):
+    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -854,19 +857,6 @@ def create_log_template(request):
         request.addfinalizer(_delete_log_template)
 
     return _create_log_template
-
-
-FakeExecutor = unittest.mock.Mock(
-    __name__="FakeExecutor",
-    is_single_threaded=False,
-    supports_ad_hoc_ti_run=True,
-)
-
-
-@pytest.fixture()
-def mock_executor():
-    with conf_vars({("core", "executor"): f"{__name__}.FakeExecutor"}):
-        yield
 
 
 @pytest.fixture()

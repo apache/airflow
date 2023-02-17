@@ -439,7 +439,6 @@ def test_code_from_db_all_example_dags(admin_client):
     check_content_in_response("example_bash_operator", resp)
 
 
-@pytest.mark.usefixtures("mock_executor")
 @pytest.mark.parametrize(
     "url, data, content",
     [
