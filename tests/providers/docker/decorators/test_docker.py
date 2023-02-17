@@ -20,6 +20,7 @@ import pytest
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
@@ -59,6 +60,19 @@ class TestDockerDecorator:
         result = ti.xcom_pull()
         assert isinstance(result, list)
         assert len(result) == 50
+
+    def test_basic_docker_operator_with_template_fields(self, dag_maker):
+        @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
+        def f():
+            raise RuntimeError("Should not executed")
+
+        with dag_maker():
+            ret = f()
+
+        dr = dag_maker.create_dagrun()
+        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        rendered = ti.render_templates()
+        assert rendered.container_name == f"python_{dr.dag_id}"
 
     def test_basic_docker_operator_multiple_output(self, dag_maker):
         @task.docker(image="python:3.9-slim", multiple_outputs=True, auto_remove="force")
