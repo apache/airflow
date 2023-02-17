@@ -20,10 +20,10 @@ import pytest
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
-from airflow.models import TaskInstance
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
@@ -64,7 +64,7 @@ class TestDockerDecorator:
     def test_basic_docker_operator_with_template_fields(self, dag_maker):
         @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
         def f():
-            raise RuntimeError("Should not executed") 
+            raise RuntimeError("Should not executed")
 
         with dag_maker():
             ret = f()
