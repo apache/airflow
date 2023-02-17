@@ -279,7 +279,6 @@ class TestLocalTaskJob:
         dag_id = "test_heartbeat_failed_fast"
         task_id = "test_heartbeat_failed_fast_op"
         with create_session() as session:
-
             dag_id = "test_heartbeat_failed_fast"
             task_id = "test_heartbeat_failed_fast_op"
             dag = self.dagbag.get_dag(dag_id)
@@ -341,7 +340,6 @@ class TestLocalTaskJob:
         )
 
     def test_localtaskjob_double_trigger(self):
-
         dag = self.dagbag.dags.get("test_localtaskjob_double_trigger")
         task = dag.get_task("test_localtaskjob_double_trigger_task")
 
@@ -379,7 +377,6 @@ class TestLocalTaskJob:
     @patch.object(StandardTaskRunner, "return_code")
     @mock.patch("airflow.jobs.scheduler_job.Stats.incr", autospec=True)
     def test_local_task_return_code_metric(self, mock_stats_incr, mock_return_code, create_dummy_dag):
-
         _, task = create_dummy_dag("test_localtaskjob_code")
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
@@ -400,7 +397,6 @@ class TestLocalTaskJob:
 
     @patch.object(StandardTaskRunner, "return_code")
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
-
         _, task = create_dummy_dag("test_localtaskjob_double_trigger")
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
@@ -685,7 +681,6 @@ class TestLocalTaskJob:
         get_test_dag,
     ):
         with conf_vars(conf):
-
             dag = get_test_dag(
                 "test_dagrun_fast_follow",
             )

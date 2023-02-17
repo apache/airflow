@@ -333,7 +333,7 @@ class TestTaskInstance:
             assert ti.state == State.QUEUED
             dep_patch.return_value = TIDepStatus("mock_" + class_name, True, "mock")
 
-        for (dep_patch, method_patch) in patch_dict.values():
+        for dep_patch, method_patch in patch_dict.values():
             dep_patch.stop()
 
     def test_mark_non_runnable_task_as_success(self, create_task_instance):
@@ -810,7 +810,6 @@ class TestTaskInstance:
             return done
 
         with dag_maker(dag_id="test_reschedule_handling") as dag:
-
             task = PythonSensor.partial(
                 task_id="test_reschedule_handling_sensor",
                 mode="reschedule",
@@ -1495,10 +1494,16 @@ class TestTaskInstance:
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
         assert ti_from_deserialized_task._try_number == 0
-        assert TI.check_and_change_state_before_execution(ti_from_deserialized_task)
+        ti_before_execution = TI.check_and_change_state_before_execution(
+            ti_from_deserialized_task.dag_id,
+            ti_from_deserialized_task.run_id,
+            ti_from_deserialized_task.task_id,
+            ti_from_deserialized_task.map_index,
+            ti_from_deserialized_task.task,
+        )
         # State should be running, and try_number column should be incremented
-        assert ti_from_deserialized_task.state == State.RUNNING
-        assert ti_from_deserialized_task._try_number == 1
+        assert ti_before_execution.state == State.RUNNING
+        assert ti_before_execution._try_number == 1
 
     def test_check_and_change_state_before_execution_dep_not_met(self, create_task_instance):
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
@@ -1508,10 +1513,16 @@ class TestTaskInstance:
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
-        assert not TI.check_and_change_state_before_execution(ti2)
+        ti_before_execution = TI.check_and_change_state_before_execution(
+            ti2.dag_id,
+            ti2.run_id,
+            ti2.task_id,
+            ti2.map_index,
+            ti2.task,
+        )
+        assert ti_before_execution.state != State.RUNNING
 
     def test_check_and_change_state_before_execution_dep_not_met_already_running(self, create_task_instance):
-        """return False if the task instance state is running"""
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         with create_session() as _:
             ti.state = State.RUNNING
@@ -1521,8 +1532,14 @@ class TestTaskInstance:
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
-        assert not TI.check_and_change_state_before_execution(ti_from_deserialized_task)
-        assert ti_from_deserialized_task.state == State.RUNNING
+        ti_before_execution = TI.check_and_change_state_before_execution(
+            ti_from_deserialized_task.dag_id,
+            ti_from_deserialized_task.run_id,
+            ti_from_deserialized_task.task_id,
+            ti_from_deserialized_task.map_index,
+            ti_from_deserialized_task.task,
+        )
+        assert ti_before_execution.state == State.RUNNING
 
     def test_check_and_change_state_before_execution_dep_not_met_not_runnable_state(
         self, create_task_instance
@@ -1537,8 +1554,14 @@ class TestTaskInstance:
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
 
-        assert not TI.check_and_change_state_before_execution(ti_from_deserialized_task)
-        assert ti_from_deserialized_task.state == State.FAILED
+        ti_before_execution = TI.check_and_change_state_before_execution(
+            ti_from_deserialized_task.dag_id,
+            ti_from_deserialized_task.run_id,
+            ti_from_deserialized_task.task_id,
+            ti_from_deserialized_task.map_index,
+            ti_from_deserialized_task.task,
+        )
+        assert ti_before_execution.state == State.FAILED
 
     def test_try_number(self, create_task_instance):
         """
@@ -2003,7 +2026,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_ti(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2016,7 +2038,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_ti_success(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2030,7 +2051,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_execution_date_success(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2045,7 +2065,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_start_date_success(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2332,7 +2351,6 @@ class TestTaskInstance:
             assert context["dag_run"].dag_id == "test_dagrun_execute_callback"
 
         for i, callback_input in enumerate([[on_execute_callable], on_execute_callable]):
-
             ti = create_task_instance(
                 dag_id=f"test_execute_callback_{i}",
                 on_execute_callback=callback_input,
@@ -2369,7 +2387,6 @@ class TestTaskInstance:
             completed = True
 
         for i, callback_input in enumerate([[on_finish_callable], on_finish_callable]):
-
             ti = create_task_instance(
                 dag_id=f"test_finish_callback_{i}",
                 end_date=timezone.utcnow() + datetime.timedelta(days=10),
@@ -2668,7 +2685,6 @@ class TestTaskInstance:
 
     @provide_session
     def test_get_rendered_template_fields(self, dag_maker, session=None):
-
         with dag_maker("test-dag", session=session) as dag:
             task = BashOperator(task_id="op1", bash_command="{{ task.task_id }}")
         dag.fileloc = TEST_DAGS_FOLDER / "test_get_k8s_pod_yaml.py"
@@ -2842,7 +2858,6 @@ class TestTaskInstance:
             ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
 
     def test_operator_field_with_serialization(self, create_task_instance):
-
         ti = create_task_instance()
         assert ti.task.task_type == "EmptyOperator"
         assert ti.task.operator_name == "EmptyOperator"

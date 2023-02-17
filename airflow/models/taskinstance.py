@@ -59,7 +59,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import reconstructor, relationship
+from sqlalchemy.orm import make_transient, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -788,6 +788,51 @@ class TaskInstance(Base, LoggingMixin):
         session.merge(self)
         session.commit()
 
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def retrieve_from_db(
+        cls,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int,
+        session: Session = NEW_SESSION,
+        lock_for_update: bool = False,
+    ) -> TaskInstance | None:
+        """
+        Retrieve the task instance from the database based on the primary key
+
+        :param dag_id: The Dag ID
+        :param run_id: The Dag run ID
+        :param task_id: The Task ID
+        :param map_index: The map index
+        :param session: SQLAlchemy ORM Session
+        :param lock_for_update: if True, indicates that the database should
+            lock the TaskInstance (issuing a FOR UPDATE clause) until the
+            session is committed.
+        :return: The TaskInstance object retrieved from the database.
+        """
+        logger = cls.logger()
+        logger.debug(
+            f"Retrieving TaskInstance from DB with primary key: ({dag_id}, {task_id}, {run_id}, {map_index})"
+        )
+
+        qry = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.task_id == task_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.map_index == map_index,
+        )
+
+        if lock_for_update:
+            for attempt in run_with_db_retries(logger=logger):
+                with attempt:
+                    ti: TaskInstance | None = qry.with_for_update().one_or_none()
+        else:
+            ti = qry.one_or_none()
+        return ti
+
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
         """
@@ -1121,7 +1166,6 @@ class TaskInstance(Base, LoggingMixin):
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
-
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
                     self,
@@ -1212,7 +1256,11 @@ class TaskInstance(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def check_and_change_state_before_execution(
-        ti: TaskInstance,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int,
+        task: Operator,
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -1225,14 +1273,18 @@ class TaskInstance(Base, LoggingMixin):
         pool: str | None = None,
         external_executor_id: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> bool:
+    ) -> TaskInstance:
         """
-        Checks dependencies and then sets state to RUNNING if they are met. Returns
-        True if and only if state is set to RUNNING, which implies that task should be
-        executed, in preparation for _run_raw_task
+        Retrieve the TI based on its primary keys. Checks dependencies and then sets state to RUNNING if they
+        are met. Returns an updated version of the retrieved TI. If state is set to RUNNING, it implies
+        that task should be executed, in preparation for _run_raw_task.
 
-        :param ti: the task instance
-        :param verbose: whether to turn on more verbose logging
+        :param dag_id: The Dag ID
+        :param run_id: The Dag run ID
+        :param task_id: The Task ID
+        :param map_index: The map index
+        :pram task: The task object
+        :param verbose: Whether to turn on more verbose logging
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
         :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
         :param wait_for_past_depends_before_skipping: Wait for past depends before mark the ti as skipped
@@ -1241,15 +1293,22 @@ class TaskInstance(Base, LoggingMixin):
         :param mark_success: Don't run the task, mark its state as success
         :param test_mode: Doesn't record success or failure in the DB
         :param job_id: Job (BackfillJob / LocalTaskJob / SchedulerJob) ID
-        :param pool: specifies the pool to use to run the task instance
+        :param pool: Specifies the pool to use to run the task instance
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session
         :return: whether the state was changed to running or not
         """
-        task = ti.task
+        ti = TaskInstance.retrieve_from_db(
+            dag_id, run_id, task_id, map_index, session=session, lock_for_update=True
+        )
+        if ti is None:
+            ti = TaskInstance(
+                task=task,
+                run_id=run_id,
+                map_index=map_index,
+            )
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
-        ti.refresh_from_db(session=session, lock_for_update=True)
         ti.job_id = job_id
         ti.hostname = get_hostname()
         ti.pid = None
@@ -1278,7 +1337,8 @@ class TaskInstance(Base, LoggingMixin):
                 dep_context=non_requeueable_dep_context, session=session, verbose=True
             ):
                 session.commit()
-                return False
+                make_transient(ti)
+                return ti
 
             # For reporting purposes, we report based on 1-indexed,
             # not 0-indexed lists (i.e. Attempt 1 instead of
@@ -1316,7 +1376,8 @@ class TaskInstance(Base, LoggingMixin):
                 ti.queued_dttm = timezone.utcnow()
                 session.merge(ti)
                 session.commit()
-                return False
+                make_transient(ti)
+                return ti
 
         if ti.next_kwargs is not None:
             ti.log.info("Resuming after deferral")
@@ -1341,7 +1402,9 @@ class TaskInstance(Base, LoggingMixin):
                 ti.log.info("Marking success for %s on %s", ti.task, ti.execution_date)
             else:
                 ti.log.info("Executing %s on %s", ti.task, ti.execution_date)
-        return True
+
+        make_transient(ti)
+        return ti
 
     def _date_or_empty(self, attr: str) -> str:
         result: datetime | None = getattr(self, attr, None)
@@ -1719,8 +1782,12 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> None:
         """Run TaskInstance"""
-        res = TaskInstance.check_and_change_state_before_execution(
-            self,
+        ti_before_execution = TaskInstance.check_and_change_state_before_execution(
+            self.dag_id,
+            self.run_id,
+            self.task_id,
+            self.map_index,
+            self.task,
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
@@ -1733,7 +1800,8 @@ class TaskInstance(Base, LoggingMixin):
             pool=pool,
             session=session,
         )
-        if not res:
+        self.state = ti_before_execution.state
+        if not self.state == State.RUNNING:
             return
 
         self._run_raw_task(

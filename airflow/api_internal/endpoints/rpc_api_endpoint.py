@@ -48,6 +48,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
         TaskInstance.check_and_change_state_before_execution,
+        TaskInstance.retrieve_from_db,
         XCom.get_value,
         XCom.get_one,
         XCom.get_many,

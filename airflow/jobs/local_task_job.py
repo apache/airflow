@@ -138,8 +138,12 @@ class LocalTaskJob(BaseJob):
             # This is not supported on Windows systems
             signal.signal(signal.SIGUSR2, sigusr2_debug_handler)
 
-        if not TaskInstance.check_and_change_state_before_execution(
-            self.task_instance,
+        self.task_instance = TaskInstance.check_and_change_state_before_execution(
+            self.task_instance.dag_id,
+            self.task_instance.run_id,
+            self.task_instance.task_id,
+            self.task_instance.map_index,
+            self.task_instance.task,
             mark_success=self.mark_success,
             ignore_all_deps=self.ignore_all_deps,
             ignore_depends_on_past=self.ignore_depends_on_past,
@@ -149,7 +153,8 @@ class LocalTaskJob(BaseJob):
             job_id=self.id,
             pool=self.pool,
             external_executor_id=self.external_executor_id,
-        ):
+        )
+        if not self.task_instance.state == State.RUNNING:
             self.log.info("Task is not able to be run")
             return None
 
