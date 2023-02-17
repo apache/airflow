@@ -62,7 +62,7 @@ class TestDockerDecorator:
         assert len(result) == 50
 
     def test_basic_docker_operator_with_template_fields(self, dag_maker):
-        @task.docker(image="python:3.9-slim", container_name='python_{{dag_run.dag_id}}', auto_remove="force")
+        @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
         def f():
             raise RuntimeError("Should not executed") 
 
