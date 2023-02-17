@@ -27,7 +27,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
-    ALLOWED_INTEGRATIONS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
@@ -37,6 +36,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    AUTOCOMPLETE_INTEGRATIONS,
     SINGLE_PLATFORMS,
     get_available_documentation_packages,
 )
@@ -131,7 +131,7 @@ option_backend = click.option(
 option_integration = click.option(
     "--integration",
     help="Integration(s) to enable when running (can be more than one).",
-    type=BetterChoice(ALLOWED_INTEGRATIONS),
+    type=BetterChoice(AUTOCOMPLETE_INTEGRATIONS),
     multiple=True,
 )
 option_postgres_version = click.option(
