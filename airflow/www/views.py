@@ -1523,7 +1523,15 @@ class Airflow(AirflowBaseView):
 
         ti = (
             session.query(models.TaskInstance)
-            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=execution_date, map_index=map_index)
+            .filter(
+                TaskInstance.task_id == task_id,
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date == execution_date,
+                TaskInstance.map_index == map_index,
+            )
+            .join(TaskInstance.dag_run)
+            .options(joinedload("trigger"))
+            .options(joinedload("trigger.triggerer_job"))
             .first()
         )
 
