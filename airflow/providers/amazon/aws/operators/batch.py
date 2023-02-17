@@ -55,13 +55,9 @@ class BatchOperator(BaseOperator):
     :param job_name: the name for the job that will run on AWS Batch (templated)
     :param job_definition: the job definition name on AWS Batch
     :param job_queue: the queue name on AWS Batch
-
     :param overrides: DEPRECATED, use container_overrides instead with the same value.
-
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
-
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
-
     :param array_properties: the `arrayProperties` parameter for boto3
     :param parameters: the `parameters` for boto3 (templated)
     :param job_id: the job ID, usually unknown (None) until the
@@ -169,11 +165,20 @@ class BatchOperator(BaseOperator):
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
-        self.hook = BatchClientHook(
-            max_retries=max_retries,
-            status_retries=status_retries,
-            aws_conn_id=aws_conn_id,
-            region_name=region_name,
+
+        # params for hook
+        self.max_retries = max_retries
+        self.status_retries = status_retries
+        self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
+
+    @cached_property
+    def hook(self) -> BatchClientHook:
+        return BatchClientHook(
+            max_retries=self.max_retries,
+            status_retries=self.status_retries,
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
         )
 
     def execute(self, context: Context):
