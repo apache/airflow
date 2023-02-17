@@ -1616,14 +1616,15 @@ DB_COMMANDS = (
         ),
     ),
     ActionCommand(
-        name="export-cleaned",
-        help="Export cleaned data from the archive tables",
-        func=lazy_load_command("airflow.cli.commands.db_command.export_cleaned"),
+        name="export-archived",
+        help="Export archived data from the archive tables",
+        func=lazy_load_command("airflow.cli.commands.db_command.export_archived"),
         args=(
             ARG_DB_EXPORT_FORMAT,
             ARG_DB_OUTPUT_PATH,
             ARG_DB_DROP_ARCHIVES,
             ARG_DB_TABLES,
+            ARG_YES,
         ),
     ),
     ActionCommand(
@@ -2115,6 +2116,7 @@ airflow_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_CAPACITY,
             ARG_VERBOSE,
+            ARG_SKIP_SERVE_LOGS,
         ),
     ),
     ActionCommand(

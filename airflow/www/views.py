@@ -566,9 +566,7 @@ def not_found(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
-            else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
             status_code=404,
             error_message="Page cannot be found.",
         ),
@@ -581,9 +579,7 @@ def method_not_allowed(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
-            else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
             status_code=405,
             error_message="Received an invalid request.",
         ),
@@ -596,13 +592,13 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0],
-            airflow_version=version,
+            python_version=sys.version.split(" ")[0] if g.user.is_authenticated else "redact",
+            airflow_version=version if g.user.is_authenticated else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and g.user.is_authenticated
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE", fallback=True)
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and g.user.is_authenticated
             else "Error! Please contact server admin.",
         ),
         500,
@@ -1527,7 +1523,15 @@ class Airflow(AirflowBaseView):
 
         ti = (
             session.query(models.TaskInstance)
-            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=execution_date, map_index=map_index)
+            .filter(
+                TaskInstance.task_id == task_id,
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date == execution_date,
+                TaskInstance.map_index == map_index,
+            )
+            .join(TaskInstance.dag_run)
+            .options(joinedload("trigger"))
+            .options(joinedload("trigger.triggerer_job"))
             .first()
         )
 
@@ -2866,7 +2870,7 @@ class Airflow(AirflowBaseView):
                         break
                     dates[dt.date()] += 1
             else:
-                prev_logical_date = datetime.min
+                prev_logical_date = DateTime.min
                 while True:
                     curr_info = dag.timetable.next_dagrun_info(
                         last_automated_data_interval=last_automated_data_interval,

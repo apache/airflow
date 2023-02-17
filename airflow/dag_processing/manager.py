@@ -141,8 +141,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def start(self) -> None:
         """Launch DagFileProcessorManager processor and start DAG parsing loop in manager."""
-        mp_start_method = self._get_multiprocessing_start_method()
-        context = multiprocessing.get_context(mp_start_method)
+        context = self._get_multiprocessing_context()
         self._last_parsing_stat_received_at = time.monotonic()
 
         self._parent_signal_conn, child_signal_conn = context.Pipe()
@@ -1008,6 +1007,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, ".")
         Stats.timing(f"dag_processing.last_duration.{file_name}", last_duration)
+        Stats.timing("dag_processing.last_duration", last_duration, tags={"file_name": file_name})
 
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors."""
