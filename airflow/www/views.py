@@ -1852,7 +1852,9 @@ class Airflow(AirflowBaseView):
         dag_run_id = request.form.get("dag_run_id")
         map_index = request.args.get("map_index", -1, type=int)
         origin = get_safe_url(request.form.get("origin"))
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        if not dag:
+            return redirect_or_json(origin, "DAG not found", "error", 404)
         task = dag.get_task(task_id)
 
         ignore_all_deps = request.form.get("ignore_all_deps") == "true"
@@ -1864,9 +1866,10 @@ class Airflow(AirflowBaseView):
         if not executor.supports_ad_hoc_ti_run:
             msg = f"{executor.__class__.__name__} does not support ad hoc task runs"
             return redirect_or_json(origin, msg, "error", 400)
-
-        dag_run = dag.get_dagrun(run_id=dag_run_id)
-        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
+        dag_run = dag.get_dagrun(run_id=dag_run_id, session=session)
+        if not dag_run:
+            return redirect_or_json(origin, "DAG run not found", "error", 404)
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
         if not ti:
             msg = "Could not queue task instance for execution, task instance is missing"
             return redirect_or_json(origin, msg, "error", 400)
