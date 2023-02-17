@@ -72,6 +72,11 @@ def delete_key_pair(key_pair_id: str):
     boto3.client("ec2").delete_key_pair(KeyName=key_pair_id)
 
 
+@task
+def parse_response(instance_ids: list):
+    return instance_ids[0]
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -109,11 +114,11 @@ with DAG(
     )
     # [END howto_operator_ec2_create_instance]
     create_instance.wait_for_completion = True
-
+    instance_id = parse_response(create_instance.output)
     # [START howto_operator_ec2_stop_instance]
     stop_instance = EC2StopInstanceOperator(
         task_id="stop_instance",
-        instance_id=create_instance.output,
+        instance_id=instance_id,
     )
     # [END howto_operator_ec2_stop_instance]
     stop_instance.trigger_rule = TriggerRule.ALL_DONE
@@ -121,14 +126,14 @@ with DAG(
     # [START howto_operator_ec2_start_instance]
     start_instance = EC2StartInstanceOperator(
         task_id="start_instance",
-        instance_id=create_instance.output,
+        instance_id=instance_id,
     )
     # [END howto_operator_ec2_start_instance]
 
     # [START howto_sensor_ec2_instance_state]
     await_instance = EC2InstanceStateSensor(
         task_id="await_instance",
-        instance_id=create_instance.output,
+        instance_id=instance_id,
         target_state="running",
     )
     # [END howto_sensor_ec2_instance_state]
@@ -136,7 +141,7 @@ with DAG(
     # [START howto_operator_ec2_terminate_instance]
     terminate_instance = EC2TerminateInstanceOperator(
         task_id="terminate_instance",
-        instance_id=create_instance.output,
+        instance_ids=instance_id,
         wait_for_completion=True,
     )
     # [END howto_operator_ec2_terminate_instance]
@@ -147,6 +152,7 @@ with DAG(
         key_name,
         # TEST BODY
         create_instance,
+        instance_id,
         stop_instance,
         start_instance,
         await_instance,

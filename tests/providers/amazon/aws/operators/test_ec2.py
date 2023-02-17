@@ -37,10 +37,11 @@ class BaseEc2TestClass:
             ec2_client = conn.meta.client
         except AttributeError:
             ec2_client = conn
-        
+
         # We need an existing AMI Image ID otherwise `moto` will raise DeprecationWarning.
         images = ec2_client.describe_images()["Images"]
         return images[0]["ImageId"]
+
 
 class TestEC2CreateInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -65,14 +66,14 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
         )
         instance_id = create_instance.execute(None)
 
-        assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
+        assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
 
 class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
     def test_init(self):
         ec2_operator = EC2TerminateInstanceOperator(
             task_id="test_terminate_instance",
-            instance_id="test_image_id",
+            instance_ids="test_image_id",
         )
 
         assert ec2_operator.task_id == "test_terminate_instance"
@@ -89,14 +90,14 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
         )
         instance_id = create_instance.execute(None)
 
-        assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
+        assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
         terminate_instance = EC2TerminateInstanceOperator(
-            task_id="test_terminate_instance", instance_id=instance_id
+            task_id="test_terminate_instance", instance_ids=instance_id
         )
         terminate_instance.execute(None)
 
-        assert ec2_hook.get_instance_state(instance_id=instance_id) == "terminated"
+        assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "terminated"
 
 
 class TestEC2StartInstanceOperator(BaseEc2TestClass):
@@ -127,11 +128,11 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
         # start instance
         start_test = EC2StartInstanceOperator(
             task_id="start_test",
-            instance_id=instance_id,
+            instance_id=instance_id[0],
         )
         start_test.execute(None)
         # assert instance state is running
-        assert ec2_hook.get_instance_state(instance_id=instance_id) == "running"
+        assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
 
 class TestEC2StopInstanceOperator(BaseEc2TestClass):
@@ -162,9 +163,8 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
         # stop instance
         stop_test = EC2StopInstanceOperator(
             task_id="stop_test",
-            instance_id=instance_id,
+            instance_id=instance_id[0],
         )
         stop_test.execute(None)
         # assert instance state is running
-        assert ec2_hook.get_instance_state(instance_id=instance_id) == "stopped"
-
+        assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "stopped"

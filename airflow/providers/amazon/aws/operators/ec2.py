@@ -218,11 +218,11 @@ class EC2TerminateInstanceOperator(BaseOperator):
         in the `terminated` state before returning.
     """
 
-    template_fields: Sequence[str] = ("instance_id", "region_name", "aws_conn_id", "wait_for_completion")
+    template_fields: Sequence[str] = ("instance_ids", "region_name", "aws_conn_id", "wait_for_completion")
 
     def __init__(
         self,
-        instance_id: str | list[str],
+        instance_ids: str | list[str],
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 20,
@@ -231,7 +231,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.instance_ids = [*instance_id]
+        self.instance_ids = instance_ids
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.poll_interval = poll_interval
@@ -239,6 +239,8 @@ class EC2TerminateInstanceOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context):
+        if isinstance(self.instance_ids, str):
+            self.instance_ids = [self.instance_ids]
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
         ec2_hook.conn.terminate_instances(InstanceIds=self.instance_ids)
 
