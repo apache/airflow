@@ -118,7 +118,7 @@ def run_beam_command(
     working_directory: str | None = None,
 ) -> None:
     """
-    Class responsible for running pipeline command in subprocess
+    Function responsible for running pipeline command in subprocess.
 
     :param cmd: Parts of the command to be run in subprocess
     :param process_line_callback: Optional callback which can be used to process
