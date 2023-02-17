@@ -338,7 +338,7 @@ class AirflowConfigParser(ConfigParser):
         self._suppress_future_warnings = False
 
     def validate(self):
-        self._validate_config_dependencies()
+        self._validate_sqlite3_version()
         self._validate_enums()
 
         for section, replacement in self.deprecated_values.items():
@@ -426,14 +426,6 @@ class AirflowConfigParser(ConfigParser):
                         f"`[{section_key}] {option_key}` should not be "
                         f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
-
-    def _validate_config_dependencies(self):
-        """Validate that config based on condition.
-
-        Values are considered invalid when they conflict with other config values
-        or system-level limitations and requirements.
-        """
-        self._validate_sqlite3_version()
 
     def _validate_sqlite3_version(self):
         """Validate SQLite version.
