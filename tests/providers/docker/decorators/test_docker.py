@@ -64,9 +64,7 @@ class TestDockerDecorator:
         , dag_maker):
         @task.docker(image="python:3.9-slim", container_name='python_{{dag_run.dag_id}}', auto_remove="force")
         def f():
-            import random
-
-            return [random.random() for _ in range(100)]
+            raise RuntimeError("Should not executed") 
 
         with dag_maker():
             ret = f()
