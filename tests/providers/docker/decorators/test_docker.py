@@ -60,6 +60,21 @@ class TestDockerDecorator:
         assert isinstance(result, list)
         assert len(result) == 50
 
+    def test_basic_docker_operator_with_template_fields(self, dag_maker):
+        @task.docker(image="python:3.9-slim", container_name='python_{{macros.datetime.now() | ts_nodash}}')
+        def f():
+            import random
+
+            return [random.random() for _ in range(100)]
+
+        with dag_maker():
+            ret = f()
+
+        dr = dag_maker.create_dagrun()
+        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ti = dr.get_task_instances()[0]
+        assert len(ti.xcom_pull()) == 100
+        
     def test_basic_docker_operator_multiple_output(self, dag_maker):
         @task.docker(image="python:3.9-slim", multiple_outputs=True, auto_remove="force")
         def return_dict(number: int):
