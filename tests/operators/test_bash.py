@@ -25,7 +25,6 @@ from time import sleep
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models.dag import DAG
@@ -40,11 +39,12 @@ INTERVAL = timedelta(hours=12)
 
 
 class TestBashOperator:
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "append_env,user_defined_env,expected_airflow_home",
         [
             (False, None, "MY_PATH_TO_AIRFLOW_HOME"),
             (True, {"AIRFLOW_HOME": "OVERRIDDEN_AIRFLOW_HOME"}, "OVERRIDDEN_AIRFLOW_HOME"),
-        ]
+        ],
     )
     def test_echo_env_variables(self, append_env, user_defined_env, expected_airflow_home):
         """
@@ -98,13 +98,14 @@ class TestBashOperator:
                 output = "".join(file.readlines())
                 assert expected == output
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val,expected",
         [
             ("test-val", "test-val"),
             ("test-val\ntest-val\n", ""),
             ("test-val\ntest-val", "test-val"),
             ("", ""),
-        ]
+        ],
     )
     def test_return_value(self, val, expected):
         op = BashOperator(task_id="abc", bash_command=f'set -e; echo "{val}";')
@@ -168,13 +169,14 @@ class TestBashOperator:
             with open(f"{test_cwd_folder}/outputs.txt") as tmp_file:
                 assert tmp_file.read().splitlines()[0] == "xxxx"
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "extra_kwargs,actual_exit_code,expected_exc",
         [
             (None, 99, AirflowSkipException),
             ({"skip_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_exit_code": 100}, 101, AirflowException),
             ({"skip_exit_code": None}, 99, AirflowException),
-        ]
+        ],
     )
     def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
         kwargs = dict(task_id="abc", bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
