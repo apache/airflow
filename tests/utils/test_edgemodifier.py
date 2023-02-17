@@ -74,17 +74,17 @@ def test_complex_taskgroup_dag():
 
     with DAG(dag_id="test_complex_dag", default_args=DEFAULT_ARGS) as dag:
         with TaskGroup("group_1") as group:
-            group_dm1 = EmptyOperator(task_id="group_dummy1")
-            group_dm2 = EmptyOperator(task_id="group_dummy2")
-            group_dm3 = EmptyOperator(task_id="group_dummy3")
-        dm_in1 = EmptyOperator(task_id="dummy_in1")
-        dm_in2 = EmptyOperator(task_id="dummy_in2")
-        dm_in3 = EmptyOperator(task_id="dummy_in3")
-        dm_in4 = EmptyOperator(task_id="dummy_in4")
-        dm_out1 = EmptyOperator(task_id="dummy_out1")
-        dm_out2 = EmptyOperator(task_id="dummy_out2")
-        dm_out3 = EmptyOperator(task_id="dummy_out3")
-        dm_out4 = EmptyOperator(task_id="dummy_out4")
+            group_emp1 = EmptyOperator(task_id="group_empty1")
+            group_emp2 = EmptyOperator(task_id="group_empty2")
+            group_emp3 = EmptyOperator(task_id="group_empty3")
+        emp_in1 = EmptyOperator(task_id="empty_in1")
+        emp_in2 = EmptyOperator(task_id="empty_in2")
+        emp_in3 = EmptyOperator(task_id="empty_in3")
+        emp_in4 = EmptyOperator(task_id="empty_in4")
+        emp_out1 = EmptyOperator(task_id="empty_out1")
+        emp_out2 = EmptyOperator(task_id="empty_out2")
+        emp_out3 = EmptyOperator(task_id="empty_out3")
+        emp_out4 = EmptyOperator(task_id="empty_out4")
         op_in1 = PythonOperator(python_callable=f, task_id="op_in1")
         op_out1 = PythonOperator(python_callable=f, task_id="op_out1")
 
@@ -92,17 +92,17 @@ def test_complex_taskgroup_dag():
             dag,
             group,
             (
-                group_dm1,
-                group_dm2,
-                group_dm3,
-                dm_in1,
-                dm_in2,
-                dm_in3,
-                dm_in4,
-                dm_out1,
-                dm_out2,
-                dm_out3,
-                dm_out4,
+                group_emp1,
+                group_emp2,
+                group_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
                 op_in1,
                 op_out1,
             ),
@@ -118,25 +118,28 @@ def test_multiple_taskgroups_dag():
 
     with DAG(dag_id="test_multiple_task_group_dag", default_args=DEFAULT_ARGS) as dag:
         with TaskGroup("group1") as group1:
-            group1_dm1 = EmptyOperator(task_id="group1_dummy1")
-            group1_dm2 = EmptyOperator(task_id="group1_dummy2")
-            group1_dm3 = EmptyOperator(task_id="group1_dummy3")
+            group1_emp1 = EmptyOperator(task_id="group1_empty1")
+            group1_emp2 = EmptyOperator(task_id="group1_empty2")
+            group1_emp3 = EmptyOperator(task_id="group1_empty3")
         with TaskGroup("group2") as group2:
-            group2_dm1 = EmptyOperator(task_id="group2_dummy1")
-            group2_dm2 = EmptyOperator(task_id="group2_dummy2")
-            group2_dm3 = EmptyOperator(task_id="group2_dummy3")
+            group2_emp1 = EmptyOperator(task_id="group2_empty1")
+            group2_emp2 = EmptyOperator(task_id="group2_empty2")
+            group2_emp3 = EmptyOperator(task_id="group2_empty3")
+            group2_op1 = PythonOperator(python_callable=f, task_id="group2_op1")
+            group2_op2 = PythonOperator(python_callable=f, task_id="group2_op2")
+
             with TaskGroup("group3") as group3:
-                group3_dm1 = EmptyOperator(task_id="group3_dummy1")
-                group3_dm2 = EmptyOperator(task_id="group3_dummy2")
-                group3_dm3 = EmptyOperator(task_id="group3_dummy3")
-        dm_in1 = EmptyOperator(task_id="dummy_in1")
-        dm_in2 = EmptyOperator(task_id="dummy_in2")
-        dm_in3 = EmptyOperator(task_id="dummy_in3")
-        dm_in4 = EmptyOperator(task_id="dummy_in4")
-        dm_out1 = EmptyOperator(task_id="dummy_out1")
-        dm_out2 = EmptyOperator(task_id="dummy_out2")
-        dm_out3 = EmptyOperator(task_id="dummy_out3")
-        dm_out4 = EmptyOperator(task_id="dummy_out4")
+                group3_emp1 = EmptyOperator(task_id="group3_empty1")
+                group3_emp2 = EmptyOperator(task_id="group3_empty2")
+                group3_emp3 = EmptyOperator(task_id="group3_empty3")
+        emp_in1 = EmptyOperator(task_id="empty_in1")
+        emp_in2 = EmptyOperator(task_id="empty_in2")
+        emp_in3 = EmptyOperator(task_id="empty_in3")
+        emp_in4 = EmptyOperator(task_id="empty_in4")
+        emp_out1 = EmptyOperator(task_id="empty_out1")
+        emp_out2 = EmptyOperator(task_id="empty_out2")
+        emp_out3 = EmptyOperator(task_id="empty_out3")
+        emp_out4 = EmptyOperator(task_id="empty_out4")
         op_in1 = PythonOperator(python_callable=f, task_id="op_in1")
         op_out1 = PythonOperator(python_callable=f, task_id="op_out1")
 
@@ -146,23 +149,25 @@ def test_multiple_taskgroups_dag():
             group2,
             group3,
             (
-                group1_dm1,
-                group1_dm2,
-                group1_dm3,
-                group2_dm1,
-                group2_dm2,
-                group2_dm3,
-                group3_dm1,
-                group3_dm2,
-                group3_dm3,
-                dm_in1,
-                dm_in2,
-                dm_in3,
-                dm_in4,
-                dm_out1,
-                dm_out2,
-                dm_out3,
-                dm_out4,
+                group1_emp1,
+                group1_emp2,
+                group1_emp3,
+                group2_emp1,
+                group2_emp2,
+                group2_emp3,
+                group2_op1,
+                group2_op2,
+                group3_emp1,
+                group3_emp2,
+                group3_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
                 op_in1,
                 op_out1,
             ),
@@ -184,48 +189,48 @@ def simple_dag_expected_edges():
 @pytest.fixture
 def complex_dag_expected_edges():
     return [
-        {"source_id": "dummy_in1", "target_id": "group_1.upstream_join_id"},
+        {"source_id": "empty_in1", "target_id": "group_1.upstream_join_id"},
         {
-            "label": "label dm_in2 <=> group",
-            "source_id": "dummy_in2",
+            "label": "label emp_in2 <=> group",
+            "source_id": "empty_in2",
             "target_id": "group_1.upstream_join_id",
         },
         {
-            "label": "label dm_in3/dm_in4 <=> group",
-            "source_id": "dummy_in3",
+            "label": "label emp_in3/emp_in4 <=> group",
+            "source_id": "empty_in3",
             "target_id": "group_1.upstream_join_id",
         },
         {
-            "label": "label dm_in3/dm_in4 <=> group",
-            "source_id": "dummy_in4",
+            "label": "label emp_in3/emp_in4 <=> group",
+            "source_id": "empty_in4",
             "target_id": "group_1.upstream_join_id",
         },
-        {"source_id": "group_1.downstream_join_id", "target_id": "dummy_out1"},
+        {"source_id": "group_1.downstream_join_id", "target_id": "empty_out1"},
         {
-            "label": "label group <=> dm_out2",
+            "label": "label group <=> emp_out2",
             "source_id": "group_1.downstream_join_id",
-            "target_id": "dummy_out2",
+            "target_id": "empty_out2",
         },
         {
-            "label": "label group <=> dm_out3/dm_out4",
+            "label": "label group <=> emp_out3/emp_out4",
             "source_id": "group_1.downstream_join_id",
-            "target_id": "dummy_out3",
+            "target_id": "empty_out3",
         },
         {
-            "label": "label group <=> dm_out3/dm_out4",
+            "label": "label group <=> emp_out3/emp_out4",
             "source_id": "group_1.downstream_join_id",
-            "target_id": "dummy_out4",
+            "target_id": "empty_out4",
         },
         {
             "label": "label group <=> op_out1",
             "source_id": "group_1.downstream_join_id",
             "target_id": "op_out1",
         },
-        {"source_id": "group_1.group_dummy1", "target_id": "group_1.downstream_join_id"},
-        {"source_id": "group_1.group_dummy2", "target_id": "group_1.group_dummy1"},
-        {"source_id": "group_1.group_dummy3", "target_id": "group_1.group_dummy1"},
-        {"source_id": "group_1.upstream_join_id", "target_id": "group_1.group_dummy2"},
-        {"source_id": "group_1.upstream_join_id", "target_id": "group_1.group_dummy3"},
+        {"source_id": "group_1.group_empty1", "target_id": "group_1.downstream_join_id"},
+        {"source_id": "group_1.group_empty2", "target_id": "group_1.group_empty1"},
+        {"source_id": "group_1.group_empty3", "target_id": "group_1.group_empty1"},
+        {"source_id": "group_1.upstream_join_id", "target_id": "group_1.group_empty2"},
+        {"source_id": "group_1.upstream_join_id", "target_id": "group_1.group_empty3"},
         {
             "label": "label op_in1 <=> group",
             "source_id": "op_in1",
@@ -237,20 +242,20 @@ def complex_dag_expected_edges():
 @pytest.fixture
 def multiple_taskgroups_dag_expected_edges():
     return [
-        {"source_id": "dummy_in1", "target_id": "group1.upstream_join_id"},
+        {"source_id": "empty_in1", "target_id": "group1.upstream_join_id"},
         {
-            "label": "label dm_in2 <=> group1",
-            "source_id": "dummy_in2",
+            "label": "label emp_in2 <=> group1",
+            "source_id": "empty_in2",
             "target_id": "group1.upstream_join_id",
         },
         {
-            "label": "label dm_in3/dm_in4 <=> group1",
-            "source_id": "dummy_in3",
+            "label": "label emp_in3/emp_in4 <=> group1",
+            "source_id": "empty_in3",
             "target_id": "group1.upstream_join_id",
         },
         {
-            "label": "label dm_in3/dm_in4 <=> group1",
-            "source_id": "dummy_in4",
+            "label": "label emp_in3/emp_in4 <=> group1",
+            "source_id": "empty_in4",
             "target_id": "group1.upstream_join_id",
         },
         {
@@ -259,62 +264,73 @@ def multiple_taskgroups_dag_expected_edges():
             "target_id": "group2.upstream_join_id",
         },
         {
-            "label": "label group1.group1_dm1 <=> group1.group1_dm2",
-            "source_id": "group1.group1_dummy1",
-            "target_id": "group1.group1_dummy3",
+            "label": "label group1.group1_emp1 <=> group1.group1_emp2",
+            "source_id": "group1.group1_empty1",
+            "target_id": "group1.group1_empty3",
         },
-        {"source_id": "group1.group1_dummy2", "target_id": "group1.downstream_join_id"},
-        {"source_id": "group1.group1_dummy3", "target_id": "group1.downstream_join_id"},
-        {"source_id": "group1.upstream_join_id", "target_id": "group1.group1_dummy1"},
-        {"source_id": "group1.upstream_join_id", "target_id": "group1.group1_dummy2"},
+        {"source_id": "group1.group1_empty2", "target_id": "group1.downstream_join_id"},
+        {"source_id": "group1.group1_empty3", "target_id": "group1.downstream_join_id"},
+        {"source_id": "group1.upstream_join_id", "target_id": "group1.group1_empty1"},
+        {"source_id": "group1.upstream_join_id", "target_id": "group1.group1_empty2"},
         {
-            "label": "label group2.group2_dm1 <=> group2.dm2",
-            "source_id": "group2.group2_dummy1",
-            "target_id": "group2.group2_dummy2",
-        },
-        {
-            "label": "label group2.group2_dm1 <=> group2.dm2",
-            "source_id": "group2.group2_dummy1",
-            "target_id": "group2.group2_dummy3",
+            "label": "label group2.group2_emp1 <=> group2.group2_emp2/group2.group2_emp3",
+            "source_id": "group2.group2_empty1",
+            "target_id": "group2.group2_empty2",
         },
         {
-            "label": "label group2.group2_dm1/group2.group2_dm2 <=> group2.group2_dm3",
-            "source_id": "group2.group2_dummy2",
-            "target_id": "group2.group2_dummy3",
+            "label": "label group2.group2_emp1 <=> group2.group2_emp2/group2.group2_emp3",
+            "source_id": "group2.group2_empty1",
+            "target_id": "group2.group2_empty3",
         },
         {
-            "label": "label group2_dm3 <=> group3",
-            "source_id": "group2.group2_dummy3",
+            "label": "label group2.group2_emp1/group2.group2_emp2 <=> group2.group2_emp3",
+            "source_id": "group2.group2_empty2",
+            "target_id": "group2.group2_empty3",
+        },
+        {
+            "label": "label group2.group2_emp3 <=> group3",
+            "source_id": "group2.group2_empty3",
             "target_id": "group2.group3.upstream_join_id",
         },
-        {"source_id": "group2.group3.downstream_join_id", "target_id": "dummy_out1"},
         {
-            "label": "label group3 <=> dm_out2",
-            "source_id": "group2.group3.downstream_join_id",
-            "target_id": "dummy_out2",
+            "label": "label group2.group2_op1 <=> group2.group2_op2",
+            "source_id": "group2.group2_op1",
+            "target_id": "group2.group2_op2",
         },
         {
-            "label": "label group3 <=> dm_out3/dm_out4",
+            "label": "label group2.group2_op2 <=> group3",
+            "source_id": "group2.group2_op2",
+            "target_id": "group2.group3.upstream_join_id",
+        },
+        {"source_id": "group2.group3.downstream_join_id", "target_id": "empty_out1"},
+        {
+            "label": "label group3 <=> emp_out2",
             "source_id": "group2.group3.downstream_join_id",
-            "target_id": "dummy_out3",
+            "target_id": "empty_out2",
         },
         {
-            "label": "label group3 <=> dm_out3/dm_out4",
+            "label": "label group3 <=> emp_out3/emp_out4",
             "source_id": "group2.group3.downstream_join_id",
-            "target_id": "dummy_out4",
+            "target_id": "empty_out3",
+        },
+        {
+            "label": "label group3 <=> emp_out3/emp_out4",
+            "source_id": "group2.group3.downstream_join_id",
+            "target_id": "empty_out4",
         },
         {
             "label": "label group3 <=> op_out1",
             "source_id": "group2.group3.downstream_join_id",
             "target_id": "op_out1",
         },
-        {"source_id": "group2.group3.group3_dummy1", "target_id": "group2.group3.downstream_join_id"},
-        {"source_id": "group2.group3.group3_dummy2", "target_id": "group2.group3.downstream_join_id"},
-        {"source_id": "group2.group3.group3_dummy3", "target_id": "group2.group3.downstream_join_id"},
-        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_dummy1"},
-        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_dummy2"},
-        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_dummy3"},
-        {"source_id": "group2.upstream_join_id", "target_id": "group2.group2_dummy1"},
+        {"source_id": "group2.group3.group3_empty1", "target_id": "group2.group3.downstream_join_id"},
+        {"source_id": "group2.group3.group3_empty2", "target_id": "group2.group3.downstream_join_id"},
+        {"source_id": "group2.group3.group3_empty3", "target_id": "group2.group3.downstream_join_id"},
+        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_empty1"},
+        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_empty2"},
+        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_empty3"},
+        {"source_id": "group2.upstream_join_id", "target_id": "group2.group2_empty1"},
+        {"source_id": "group2.upstream_join_id", "target_id": "group2.group2_op1"},
         {"label": "label op_in1 <=> group1", "source_id": "op_in1", "target_id": "group1.upstream_join_id"},
     ]
 
@@ -445,32 +461,32 @@ class TestEdgeModifierBuilding:
             dag,
             group,
             (
-                group_dm1,
-                group_dm2,
-                group_dm3,
-                dm_in1,
-                dm_in2,
-                dm_in3,
-                dm_in4,
-                dm_out1,
-                dm_out2,
-                dm_out3,
-                dm_out4,
+                group_emp1,
+                group_emp2,
+                group_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
                 op_in1,
                 op_out1,
             ),
         ) = test_complex_taskgroup_dag
 
-        [group_dm2, group_dm3] >> group_dm1
+        [group_emp2, group_emp3] >> group_emp1
 
-        dm_in1 >> group
-        dm_in2 >> Label("label dm_in2 <=> group") >> group
-        [dm_in3, dm_in4] >> Label("label dm_in3/dm_in4 <=> group") >> group
+        emp_in1 >> group
+        emp_in2 >> Label("label emp_in2 <=> group") >> group
+        [emp_in3, emp_in4] >> Label("label emp_in3/emp_in4 <=> group") >> group
         XComArg(op_in1, "test_key") >> Label("label op_in1 <=> group") >> group
 
-        group >> dm_out1
-        group >> Label("label group <=> dm_out2") >> dm_out2
-        group >> Label("label group <=> dm_out3/dm_out4") >> [dm_out3, dm_out4]
+        group >> emp_out1
+        group >> Label("label group <=> emp_out2") >> emp_out2
+        group >> Label("label group <=> emp_out3/emp_out4") >> [emp_out3, emp_out4]
         group >> Label("label group <=> op_out1") >> XComArg(op_out1, "test_key")
 
         compare_dag_edges(dag_edges(dag), complex_dag_expected_edges)
@@ -481,32 +497,32 @@ class TestEdgeModifierBuilding:
             dag,
             group,
             (
-                group_dm1,
-                group_dm2,
-                group_dm3,
-                dm_in1,
-                dm_in2,
-                dm_in3,
-                dm_in4,
-                dm_out1,
-                dm_out2,
-                dm_out3,
-                dm_out4,
+                group_emp1,
+                group_emp2,
+                group_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
                 op_in1,
                 op_out1,
             ),
         ) = test_complex_taskgroup_dag
 
-        group_dm1 << [group_dm2, group_dm3]
+        group_emp1 << [group_emp2, group_emp3]
 
-        group << dm_in1
-        group << Label("label dm_in2 <=> group") << dm_in2
-        group << Label("label dm_in3/dm_in4 <=> group") << [dm_in3, dm_in4]
+        group << emp_in1
+        group << Label("label emp_in2 <=> group") << emp_in2
+        group << Label("label emp_in3/emp_in4 <=> group") << [emp_in3, emp_in4]
         group << Label("label op_in1 <=> group") << XComArg(op_in1, "test_key")
 
-        dm_out1 << group
-        dm_out2 << Label("label group <=> dm_out2") << group
-        [dm_out3, dm_out4] << Label("label group <=> dm_out3/dm_out4") << group
+        emp_out1 << group
+        emp_out2 << Label("label group <=> emp_out2") << group
+        [emp_out3, emp_out4] << Label("label group <=> emp_out3/emp_out4") << group
         XComArg(op_out1, "test_key") << Label("label group <=> op_out1") << group
 
         compare_dag_edges(dag_edges(dag), complex_dag_expected_edges)
@@ -521,46 +537,59 @@ class TestEdgeModifierBuilding:
             group2,
             group3,
             (
-                group1_dm1,
-                group1_dm2,
-                group1_dm3,
-                group2_dm1,
-                group2_dm2,
-                group2_dm3,
-                group3_dm1,
-                group3_dm2,
-                group3_dm3,
-                dm_in1,
-                dm_in2,
-                dm_in3,
-                dm_in4,
-                dm_out1,
-                dm_out2,
-                dm_out3,
-                dm_out4,
+                group1_emp1,
+                group1_emp2,
+                group1_emp3,
+                group2_emp1,
+                group2_emp2,
+                group2_emp3,
+                group2_op1,
+                group2_op2,
+                group3_emp1,
+                group3_emp2,
+                group3_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
                 op_in1,
                 op_out1,
             ),
         ) = test_multiple_taskgroups_dag
 
-        group1_dm1 >> Label("label group1.group1_dm1 <=> group1.group1_dm2") >> group1_dm3
-        dm_in1 >> group1
-        dm_in2 >> Label("label dm_in2 <=> group1") >> group1
-        [dm_in3, dm_in4] >> Label("label dm_in3/dm_in4 <=> group1") >> group1
+        group1_emp1 >> Label("label group1.group1_emp1 <=> group1.group1_emp2") >> group1_emp3
+
+        emp_in1 >> group1
+        emp_in2 >> Label("label emp_in2 <=> group1") >> group1
+        [emp_in3, emp_in4] >> Label("label emp_in3/emp_in4 <=> group1") >> group1
         XComArg(op_in1, "test_key") >> Label("label op_in1 <=> group1") >> group1
 
         (
-            [group2_dm1, group2_dm2]
-            >> Label("label group2.group2_dm1/group2.group2_dm2 <=> group2.group2_dm3")
-            >> group2_dm3
+            [group2_emp1, group2_emp2]
+            >> Label("label group2.group2_emp1/group2.group2_emp2 <=> group2.group2_emp3")
+            >> group2_emp3
         )
-        group2_dm1 >> Label("label group2.group2_dm1 <=> group2.dm2") >> [group2_dm2, group2_dm3]
+        (
+            group2_emp1
+            >> Label("label group2.group2_emp1 <=> group2.group2_emp2/group2.group2_emp3")
+            >> [group2_emp2, group2_emp3]
+        )
+        group2_emp3 >> Label("label group2.group2_emp3 <=> group3") >> group3
 
-        group2_dm3 >> Label("label group2_dm3 <=> group3") >> group3
+        (
+            XComArg(group2_op1, "test_key")
+            >> Label("label group2.group2_op1 <=> group2.group2_op2")
+            >> XComArg(group2_op2, "test_key")
+        )
+        XComArg(group2_op2, "test_key") >> Label("label group2.group2_op2 <=> group3") >> group3
 
-        group3 >> dm_out1
-        group3 >> Label("label group3 <=> dm_out2") >> dm_out2
-        group3 >> Label("label group3 <=> dm_out3/dm_out4") >> [dm_out3, dm_out4]
+        group3 >> emp_out1
+        group3 >> Label("label group3 <=> emp_out2") >> emp_out2
+        group3 >> Label("label group3 <=> emp_out3/emp_out4") >> [emp_out3, emp_out4]
         group3 >> Label("label group3 <=> op_out1") >> XComArg(op_out1, "test_key")
 
         group1 >> Label("label group1 <=> group2") >> group2
@@ -577,46 +606,59 @@ class TestEdgeModifierBuilding:
             group2,
             group3,
             (
-                group1_dm1,
-                group1_dm2,
-                group1_dm3,
-                group2_dm1,
-                group2_dm2,
-                group2_dm3,
-                group3_dm1,
-                group3_dm2,
-                group3_dm3,
-                dm_in1,
-                dm_in2,
-                dm_in3,
-                dm_in4,
-                dm_out1,
-                dm_out2,
-                dm_out3,
-                dm_out4,
+                group1_emp1,
+                group1_emp2,
+                group1_emp3,
+                group2_emp1,
+                group2_emp2,
+                group2_emp3,
+                group2_op1,
+                group2_op2,
+                group3_emp1,
+                group3_emp2,
+                group3_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
                 op_in1,
                 op_out1,
             ),
         ) = test_multiple_taskgroups_dag
 
-        group1_dm3 << Label("label group1.group1_dm1 <=> group1.group1_dm2") << group1_dm1
-        group1 << dm_in1
-        group1 << Label("label dm_in2 <=> group1") << dm_in2
-        group1 << Label("label dm_in3/dm_in4 <=> group1") << [dm_in3, dm_in4]
+        group1_emp3 << Label("label group1.group1_emp1 <=> group1.group1_emp2") << group1_emp1
+
+        group1 << emp_in1
+        group1 << Label("label emp_in2 <=> group1") << emp_in2
+        group1 << Label("label emp_in3/emp_in4 <=> group1") << [emp_in3, emp_in4]
         group1 << Label("label op_in1 <=> group1") << XComArg(op_in1, "test_key")
 
         (
-            group2_dm3
-            << Label("label group2.group2_dm1/group2.group2_dm2 <=> group2.group2_dm3")
-            << [group2_dm1, group2_dm2]
+            group2_emp3
+            << Label("label group2.group2_emp1/group2.group2_emp2 <=> group2.group2_emp3")
+            << [group2_emp1, group2_emp2]
         )
-        [group2_dm2, group2_dm3] << Label("label group2.group2_dm1 <=> group2.dm2") << group2_dm1
+        (
+            [group2_emp2, group2_emp3]
+            << Label("label group2.group2_emp1 <=> group2.group2_emp2/group2.group2_emp3")
+            << group2_emp1
+        )
+        group3 << Label("label group2.group2_emp3 <=> group3") << group2_emp3
 
-        group3 << Label("label group2_dm3 <=> group3") << group2_dm3
+        (
+            XComArg(group2_op2, "test_key")
+            << Label("label group2.group2_op1 <=> group2.group2_op2")
+            << XComArg(group2_op1, "test_key")
+        )
+        group3 << Label("label group2.group2_op2 <=> group3") << XComArg(group2_op2, "test_key")
 
-        dm_out1 << group3
-        dm_out2 << Label("label group3 <=> dm_out2") << group3
-        [dm_out3, dm_out4] << Label("label group3 <=> dm_out3/dm_out4") << group3
+        emp_out1 << group3
+        emp_out2 << Label("label group3 <=> emp_out2") << group3
+        [emp_out3, emp_out4] << Label("label group3 <=> emp_out3/emp_out4") << group3
         XComArg(op_out1, "test_key") << Label("label group3 <=> op_out1") << group3
 
         group2 << Label("label group1 <=> group2") << group1
