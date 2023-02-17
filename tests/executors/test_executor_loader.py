@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import nullcontext
 from unittest import mock
 
 import pytest
 
 from airflow import plugins_manager
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader
 from tests.test_utils.config import conf_vars
 
@@ -29,7 +31,11 @@ TEST_PLUGIN_NAME = "unique_plugin_name_to_avoid_collision_i_love_kitties"
 
 
 class FakeExecutor:
-    pass
+    is_single_threaded = False
+
+
+class FakeSingleThreadedExecutor:
+    is_single_threaded = True
 
 
 class FakePlugin(plugins_manager.AirflowPlugin):
@@ -49,7 +55,7 @@ class TestExecutorLoader:
         [
             "CeleryExecutor",
             "CeleryKubernetesExecutor",
-            "DebugExecutor",
+            pytest.param("DebugExecutor", marks=pytest.mark.backend("mssql", "mysql", "postgres")),
             "KubernetesExecutor",
             "LocalExecutor",
         ],
@@ -79,7 +85,7 @@ class TestExecutorLoader:
         [
             "CeleryExecutor",
             "CeleryKubernetesExecutor",
-            "DebugExecutor",
+            pytest.param("DebugExecutor", marks=pytest.mark.backend("mssql", "mysql", "postgres")),
             "KubernetesExecutor",
             "LocalExecutor",
         ],
@@ -103,3 +109,23 @@ class TestExecutorLoader:
             executor, import_source = ExecutorLoader.import_default_executor_cls()
             assert "FakeExecutor" == executor.__name__
             assert import_source == ConnectorSource.CUSTOM_PATH
+
+    @pytest.mark.backend("mssql", "mysql", "postgres")
+    @pytest.mark.parametrize("executor", [FakeExecutor, FakeSingleThreadedExecutor])
+    def test_validate_database_executor_compatibility_general(self, executor):
+        ExecutorLoader.validate_database_executor_compatibility(executor)
+
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.parametrize(
+        ["executor", "expectation"],
+        [
+            (FakeExecutor, nullcontext()),
+            (
+                FakeSingleThreadedExecutor,
+                pytest.raises(AirflowConfigException, match=r"^error: cannot use SQLite with the .+"),
+            ),
+        ],
+    )
+    def test_validate_database_executor_compatibility_sqlite(self, executor, expectation):
+        with expectation:
+            ExecutorLoader.validate_database_executor_compatibility(executor)
