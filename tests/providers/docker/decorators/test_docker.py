@@ -73,7 +73,7 @@ class TestDockerDecorator:
         ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
         rendered = ti.render_templates()
         assert rendered.container_name == f"python_{dr.dag_id}"
-        
+
     def test_basic_docker_operator_multiple_output(self, dag_maker):
         @task.docker(image="python:3.9-slim", multiple_outputs=True, auto_remove="force")
         def return_dict(number: int):
