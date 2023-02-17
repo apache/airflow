@@ -449,7 +449,9 @@ class BaseSerialization:
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(cls.serialize(var.__dict__, strict=strict), type_=DAT.SIMPLE_TASK_INSTANCE)
         elif isinstance(var, TaskInstance):
-            return cls._encode(cls.serialize(var.serialize(), strict=strict), type_=DAT.TASK_INSTANCE)
+            # FIXME: We can't use var.serialize() there due to problems in test
+            # test_recursive_serialize_calls_must_forward_kwargs
+            return cls._encode(cls.serialize(var=var.to_dict(), strict=strict), type_=DAT.TASK_INSTANCE)
         else:
             log.debug("Cast type %s to str in serialization.", type(var))
             if strict:

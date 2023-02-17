@@ -604,6 +604,9 @@ class TaskInstance(Base, LoggingMixin):
             ti_dict.pop(field, None)
         return ti_dict
 
+    def to_dict(self) -> dict[str, Any]:
+        return self.serialize()
+
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
         """:meta private:"""
