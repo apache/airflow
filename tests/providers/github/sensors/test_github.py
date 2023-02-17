@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.github.sensors.github import GithubTagSensor
@@ -43,8 +45,11 @@ class TestGithubSensor:
         )
 
     @patch(
-        "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
+        "airflow.providers.github.hooks.github.GithubClient",
+        autospec=True,
+        return_value=github_client_mock,
     )
+    @pytest.mark.usefixtures("mock_executor")
     def test_github_tag_created(self, github_mock):
         class MockTag:
             pass

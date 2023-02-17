@@ -237,6 +237,7 @@ class TestHttpOpSensor:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch("requests.Session", FakeSession)
+    @pytest.mark.usefixtures("mock_executor")
     def test_sensor(self):
         sensor = HttpSensor(
             task_id="http_sensor_check",

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.arangodb.sensors.arangodb import AQLSensor
@@ -49,6 +51,7 @@ class TestAQLSensor:
         autospec=True,
         return_value=arangodb_hook_mock,
     )
+    @pytest.mark.usefixtures("mock_executor")
     def test_arangodb_document_created(self, arangodb_mock):
         query = "FOR doc IN students FILTER doc.name == 'judy' RETURN doc"
 

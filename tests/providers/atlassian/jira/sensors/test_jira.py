@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
@@ -54,6 +56,7 @@ class TestJiraSensor:
         )
 
     @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
+    @pytest.mark.usefixtures("mock_executor")
     def test_issue_label_set(self, jira_mock):
         jira_mock.return_value.issue.return_value = minimal_test_ticket
 

@@ -439,10 +439,7 @@ def test_code_from_db_all_example_dags(admin_client):
     check_content_in_response("example_bash_operator", resp)
 
 
-FakeExecutor = unittest.mock.Mock(is_single_threaded=False, supports_ad_hoc_ti_run=True)
-
-
-@conf_vars({("core", "executor"): f"{__name__}.FakeExecutor"})
+@pytest.mark.usefixtures("mock_executor")
 @pytest.mark.parametrize(
     "url, data, content",
     [
