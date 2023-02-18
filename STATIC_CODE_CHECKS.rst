@@ -127,14 +127,22 @@ require Breeze Docker image to be build locally.
   the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
 
+.. note:: Mypy volume cache
+
+  MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
+  execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
+  will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
+  is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
+  cases you might need to manually remove the cache volume by running ``breeze stop --cleanup-mypy-cache``.
+
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | ID                                                        | Description                                                      | Image   |
 +===========================================================+==================================================================+=========+
-| black                                                     | Run black (python formatter)                                     |         |
+| black                                                     | Run black (Python formatter)                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| blacken-docs                                              | Run black on python code blocks in documentation files           |         |
+| blacken-docs                                              | Run black on Python code blocks in documentation files           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                      | Checks for consistency between config.yml and default_config.cfg |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -233,32 +241,32 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | detect-private-key                                        | Detect if private key is added to the repository                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| doctoc                                                    | Add TOC for md and rst files                                     |         |
+| doctoc                                                    | Add TOC for Markdown and RST files                               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | end-of-file-fixer                                         | Make sure that there is an empty line at the end                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| fix-encoding-pragma                                       | Remove encoding header from python files                         |         |
+| fix-encoding-pragma                                       | Remove encoding header from Python files                         |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | identity                                                  | Print input to the static check hooks for troubleshooting        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | insert-license                                            | * Add license for all SQL files                                  |         |
-|                                                           | * Add license for all rst files                                  |         |
-|                                                           | * Add license for all CSS/JS/PUML/TS/TSX files                   |         |
+|                                                           | * Add license for all RST files                                  |         |
+|                                                           | * Add license for all CSS/JS/JSX/PUML/TS/TSX files               |         |
 |                                                           | * Add license for all JINJA template files                       |         |
-|                                                           | * Add license for all shell files                                |         |
+|                                                           | * Add license for all Shell files                                |         |
 |                                                           | * Add license for all Python files                               |         |
 |                                                           | * Add license for all XML files                                  |         |
 |                                                           | * Add license for all YAML files                                 |         |
-|                                                           | * Add license for all md files                                   |         |
+|                                                           | * Add license for all Markdown files                             |         |
 |                                                           | * Add license for all other files                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-chart-schema                                         | Lint chart/values.schema.json file                               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-css                                                  | stylelint                                                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-dockerfile                                           | Lint dockerfile                                                  |         |
+| lint-dockerfile                                           | Lint Dockerfile                                                  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                           | Lint Helm Chart                                                  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -276,7 +284,7 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| pretty-format-json                                        | Format json files                                                |         |
+| pretty-format-json                                        | Format JSON files                                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn                         |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+

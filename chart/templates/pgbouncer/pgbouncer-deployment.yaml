@@ -136,7 +136,7 @@ spec:
               readOnly: true
 {{- end }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.pgbouncer.extraVolumeMounts }}
 {{ toYaml .Values.pgbouncer.extraVolumeMounts | indent 12 }}

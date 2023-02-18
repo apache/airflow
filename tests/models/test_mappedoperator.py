@@ -34,7 +34,7 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_operators import MockOperator
+from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
 
 
 def test_task_mapping_with_dag():
@@ -388,7 +388,9 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
 def test_mapped_render_nested_template_fields(dag_maker, session):
     with dag_maker(session=session):
-        MockOperator.partial(task_id="t").expand(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
+        MockOperatorWithNestedFields.partial(
+            task_id="t", arg2=NestedFields(field_1="{{ ti.task_id }}", field_2="value_2")
+        ).expand(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
 
     dr = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions()
@@ -398,10 +400,14 @@ def test_mapped_render_nested_template_fields(dag_maker, session):
     ti = tis[("t", 0)]
     ti.run(session=session)
     assert ti.task.arg1 == "t"
+    assert ti.task.arg2.field_1 == "t"
+    assert ti.task.arg2.field_2 == "value_2"
 
     ti = tis[("t", 1)]
     ti.run(session=session)
     assert ti.task.arg1 == ["s", "t"]
+    assert ti.task.arg2.field_1 == "t"
+    assert ti.task.arg2.field_2 == "value_2"
 
 
 @pytest.mark.parametrize(

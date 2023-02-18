@@ -56,7 +56,7 @@ const Grid = ({
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const offsetHeight = useOffsetHeight(scrollRef);
+  const offsetHeight = useOffsetHeight(scrollRef, undefined, 750);
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);

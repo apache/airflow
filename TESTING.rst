@@ -461,7 +461,8 @@ environment with enabled integrations and in the CI. See `CI <CI.rst>`_ for deta
 When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
 switch when starting Breeze. You can specify multiple integrations by repeating the ``--integration`` switch
-or using the ``--integration all`` switch that enables all integrations.
+or using the ``--integration all-testable`` switch that enables all testable integrations and
+``--integration all`` switch that enables all integrations.
 
 NOTE: Every integration requires a separate container with the corresponding integration image.
 These containers take precious resources on your PC, mainly the memory. The started integrations are not stopped
@@ -500,11 +501,17 @@ To start ``mongo`` and ``cassandra`` integrations, enter:
 
     breeze --integration mongo --integration cassandra
 
+To start all testable integrations, enter:
+
+.. code-block:: bash
+
+    breeze --integration all-testable
+
 To start all integrations, enter:
 
 .. code-block:: bash
 
-    breeze --integration all
+    breeze --integration all-testable
 
 Note that Kerberos is a special kind of integration. Some tests run differently when
 Kerberos integration is enabled (they retrieve and use a Kerberos authentication token) and differently when the
@@ -569,7 +576,7 @@ Runs all integration tests:
 
   .. code-block:: bash
 
-       breeze testing integration-tests  --db-reset --integration all
+       breeze testing integration-tests  --db-reset --integration all-testable
 
 Runs all mongo DB tests:
 

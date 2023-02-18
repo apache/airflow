@@ -24,6 +24,13 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Move libjars parameter in Sqoop Hook to Hook parameter (#29500)``
+
 3.1.0
 .....
 
