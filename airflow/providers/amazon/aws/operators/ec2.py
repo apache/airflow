@@ -120,7 +120,7 @@ class EC2StopInstanceOperator(BaseOperator):
 
 class EC2CreateInstanceOperator(BaseOperator):
     """
-    Create and start an EC2 Instance using boto3
+    Create and start a specified number of EC2 Instances using boto3
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -201,7 +201,7 @@ class EC2CreateInstanceOperator(BaseOperator):
 
 class EC2TerminateInstanceOperator(BaseOperator):
     """
-    Terminate an EC2 Instance using boto3
+    Terminate EC2 Instances using boto3
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

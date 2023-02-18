@@ -58,7 +58,7 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.poll_interval == 20
 
     @mock_ec2
-    def test_create_intance(self):
+    def test_create_instance(self):
         ec2_hook = EC2Hook()
         create_instance = EC2CreateInstanceOperator(
             image_id=self._get_image_id(ec2_hook),
@@ -67,6 +67,21 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
         instance_id = create_instance.execute(None)
 
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
+
+    @mock_ec2
+    def test_create_multiple_instances(self):
+        ec2_hook = EC2Hook()
+        create_instances = EC2CreateInstanceOperator(
+            task_id="test_create_multiple_instances",
+            image_id=self._get_image_id(hook=ec2_hook),
+            min_count=5,
+            max_count=5,
+        )
+        instance_ids = create_instances.execute(None)
+        assert len(instance_ids) == 5
+
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "running"
 
 
 class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
@@ -81,7 +96,7 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.poll_interval == 20
 
     @mock_ec2
-    def test_terminate_intance(self):
+    def test_terminate_instance(self):
         ec2_hook = EC2Hook()
 
         create_instance = EC2CreateInstanceOperator(
@@ -98,6 +113,28 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
         terminate_instance.execute(None)
 
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "terminated"
+
+    @mock_ec2
+    def test_terminate_multiple_instances(self):
+        ec2_hook = EC2Hook()
+        create_instances = EC2CreateInstanceOperator(
+            task_id="test_create_multiple_instances",
+            image_id=self._get_image_id(hook=ec2_hook),
+            min_count=5,
+            max_count=5,
+        )
+        instance_ids = create_instances.execute(None)
+        assert len(instance_ids) == 5
+
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "running"
+
+        terminate_instance = EC2TerminateInstanceOperator(
+            task_id="test_terminate_instance", instance_ids=instance_ids
+        )
+        terminate_instance.execute(None)
+        for id in instance_ids:
+            assert ec2_hook.get_instance_state(instance_id=id) == "terminated"
 
 
 class TestEC2StartInstanceOperator(BaseEc2TestClass):
