@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+4.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sftp sensor with pattern (#29467)``
+
 4.2.2
 .....
 

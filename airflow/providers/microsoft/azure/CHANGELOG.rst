@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle deleting more than 256 blobs using 'WasbHook.delete_file()' (#29565)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+
 5.2.0
 .....
 
