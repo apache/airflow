@@ -40,11 +40,11 @@ from google.cloud.dataform_v1beta1.types import (
     WriteFileResponse,
 )
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 
-class DataformCreateCompilationResultOperator(BaseOperator):
+class DataformCreateCompilationResultOperator(GoogleCloudBaseOperator):
     """
     Creates a new CompilationResult in a given project and location.
 
@@ -117,7 +117,7 @@ class DataformCreateCompilationResultOperator(BaseOperator):
         return CompilationResult.to_dict(result)
 
 
-class DataformGetCompilationResultOperator(BaseOperator):
+class DataformGetCompilationResultOperator(GoogleCloudBaseOperator):
     """
     Fetches a single CompilationResult.
 
@@ -192,7 +192,7 @@ class DataformGetCompilationResultOperator(BaseOperator):
         return CompilationResult.to_dict(result)
 
 
-class DataformCreateWorkflowInvocationOperator(BaseOperator):
+class DataformCreateWorkflowInvocationOperator(GoogleCloudBaseOperator):
     """
     Creates a new WorkflowInvocation in a given Repository.
 
@@ -294,7 +294,7 @@ class DataformCreateWorkflowInvocationOperator(BaseOperator):
         return WorkflowInvocation.to_dict(result)
 
 
-class DataformGetWorkflowInvocationOperator(BaseOperator):
+class DataformGetWorkflowInvocationOperator(GoogleCloudBaseOperator):
     """
     Fetches a single WorkflowInvocation.
 
@@ -370,7 +370,7 @@ class DataformGetWorkflowInvocationOperator(BaseOperator):
         return WorkflowInvocation.to_dict(result)
 
 
-class DataformCancelWorkflowInvocationOperator(BaseOperator):
+class DataformCancelWorkflowInvocationOperator(GoogleCloudBaseOperator):
     """
     Requests cancellation of a running WorkflowInvocation.
 
@@ -445,7 +445,7 @@ class DataformCancelWorkflowInvocationOperator(BaseOperator):
         )
 
 
-class DataformCreateRepositoryOperator(BaseOperator):
+class DataformCreateRepositoryOperator(GoogleCloudBaseOperator):
     """
     Creates repository.
 
@@ -535,7 +535,7 @@ class DataformCreateRepositoryOperator(BaseOperator):
         return Repository.to_dict(repository)
 
 
-class DataformDeleteRepositoryOperator(BaseOperator):
+class DataformDeleteRepositoryOperator(GoogleCloudBaseOperator):
     """
     Deletes repository.
 
@@ -617,7 +617,7 @@ class DataformDeleteRepositoryOperator(BaseOperator):
         )
 
 
-class DataformCreateWorkspaceOperator(BaseOperator):
+class DataformCreateWorkspaceOperator(GoogleCloudBaseOperator):
     """
     Creates workspace.
 
@@ -712,7 +712,7 @@ class DataformCreateWorkspaceOperator(BaseOperator):
         return Workspace.to_dict(workspace)
 
 
-class DataformDeleteWorkspaceOperator(BaseOperator):
+class DataformDeleteWorkspaceOperator(GoogleCloudBaseOperator):
     """
     Deletes workspace.
 
@@ -796,7 +796,7 @@ class DataformDeleteWorkspaceOperator(BaseOperator):
         )
 
 
-class DataformWriteFileOperator(BaseOperator):
+class DataformWriteFileOperator(GoogleCloudBaseOperator):
     """
     Writes new file to specified workspace.
 
@@ -888,7 +888,7 @@ class DataformWriteFileOperator(BaseOperator):
         return WriteFileResponse.to_dict(write_file_response)
 
 
-class DataformMakeDirectoryOperator(BaseOperator):
+class DataformMakeDirectoryOperator(GoogleCloudBaseOperator):
     """
     Makes new directory in specified workspace.
 
@@ -978,7 +978,7 @@ class DataformMakeDirectoryOperator(BaseOperator):
         return MakeDirectoryResponse.to_dict(make_directory_response)
 
 
-class DataformRemoveFileOperator(BaseOperator):
+class DataformRemoveFileOperator(GoogleCloudBaseOperator):
     """
     Removes file in specified workspace.
 
@@ -1066,7 +1066,7 @@ class DataformRemoveFileOperator(BaseOperator):
         )
 
 
-class DataformRemoveDirectoryOperator(BaseOperator):
+class DataformRemoveDirectoryOperator(GoogleCloudBaseOperator):
     """
     Removes directory in specified workspace.
 
@@ -1154,7 +1154,7 @@ class DataformRemoveDirectoryOperator(BaseOperator):
         )
 
 
-class DataformInstallNpmPackagesOperator(BaseOperator):
+class DataformInstallNpmPackagesOperator(GoogleCloudBaseOperator):
     """
     Installs npm dependencies in the provided workspace. Requires "package.json" to be created in workspace
 
