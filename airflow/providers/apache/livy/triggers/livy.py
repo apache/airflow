@@ -41,7 +41,7 @@ class LivyTrigger(BaseTrigger):
     :param extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
-    :param livy_hook_async: LivyHookAsync object
+    :param livy_hook_async: LivyAsyncHook object
     """
 
     def __init__(
