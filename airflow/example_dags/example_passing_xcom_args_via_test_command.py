@@ -25,7 +25,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 
 
-@dag(start_date=pendulum.now())
+@dag(start_date=pendulum.datetime(2023, 1, 1, tz="UTC"))
 def example_passing_xcom_args_via_test_command():
     @task
     def get_python_echo_message():
