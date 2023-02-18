@@ -783,9 +783,6 @@ class BigQueryGetDataOperator(BaseOperator):
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled. Deprecated.
     :param location: The location used for the operation.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -796,6 +793,9 @@ class BigQueryGetDataOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled. Deprecated.
     """
 
     template_fields: Sequence[str] = (
@@ -817,10 +817,10 @@ class BigQueryGetDataOperator(BaseOperator):
         max_results: int = 100,
         selected_fields: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1263,10 +1263,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
     :param if_exists: What should Airflow do if the table exists. If set to `log`, the TI will be passed to
         success and an error message will be logged. Set to `ignore` to ignore the error, set to `fail` to
         fail the TI, and set to `skip` to skip it.
+    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
     """
 
     template_fields: Sequence[str] = (
@@ -1295,9 +1295,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         gcs_schema_object: str | None = None,
         time_partitioning: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        bigquery_conn_id: str | None = None,
         google_cloud_storage_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict | None = None,
         view: dict | None = None,
         materialized_view: dict | None = None,
@@ -1305,8 +1303,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         location: str | None = None,
         cluster_fields: list[str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        exists_ok: bool | None = None,
         if_exists: str = "log",
+        delegate_to: str | None = None,
+        bigquery_conn_id: str | None = None,
+        exists_ok: bool | None = None,
         **kwargs,
     ) -> None:
         if bigquery_conn_id:
@@ -1514,14 +1514,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         allow_quoted_newlines: bool = False,
         allow_jagged_rows: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        bigquery_conn_id: str | None = None,
         google_cloud_storage_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         src_fmt_configs: dict | None = None,
         labels: dict | None = None,
         encryption_configuration: dict | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
+        bigquery_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         if bigquery_conn_id:
@@ -1745,8 +1745,8 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         project_id: str | None = None,
         delete_contents: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
@@ -1803,7 +1803,6 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
     :param if_exists: What should Airflow do if the dataset exists. If set to `log`, the TI will be passed to
         success and an error message will be logged. Set to `ignore` to ignore the error, set to `fail` to
         fail the TI, and set to `skip` to skip it.
@@ -1816,6 +1815,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 gcp_conn_id='_my_gcp_conn_',
                 task_id='newDatasetCreator',
                 dag=dag)
+    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
     """
 
     template_fields: Sequence[str] = (
@@ -1836,10 +1836,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         dataset_reference: dict | None = None,
         location: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        exists_ok: bool | None = None,
         if_exists: str = "log",
+        delegate_to: str | None = None,
+        exists_ok: bool | None = None,
         **kwargs,
     ) -> None:
 
@@ -1935,8 +1935,8 @@ class BigQueryGetDatasetOperator(BaseOperator):
         dataset_id: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
@@ -2010,8 +2010,8 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         project_id: str | None = None,
         max_results: int | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
@@ -2083,8 +2083,8 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         dataset_resource: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         warnings.warn(
@@ -2171,8 +2171,8 @@ class BigQueryUpdateTableOperator(BaseOperator):
         table_id: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
@@ -2265,8 +2265,8 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         dataset_id: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
@@ -2346,10 +2346,10 @@ class BigQueryDeleteTableOperator(BaseOperator):
         *,
         deletion_dataset_table: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         ignore_if_missing: bool = False,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2423,9 +2423,9 @@ class BigQueryUpsertTableOperator(BaseOperator):
         table_resource: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2534,8 +2534,8 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         include_policy_tags: bool = False,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.schema_fields_updates = schema_fields_updates
@@ -2654,12 +2654,12 @@ class BigQueryInsertJobOperator(BaseOperator):
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         cancel_on_kill: bool = True,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         deferrable: bool = False,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
