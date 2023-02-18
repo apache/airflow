@@ -51,7 +51,7 @@ Package apache-airflow-providers-apache-sqoop
 `Apache Sqoop <https://sqoop.apache.org/>`__
 
 
-Release: 3.1.0
+Release: 3.1.1
 
 Provider package
 ----------------

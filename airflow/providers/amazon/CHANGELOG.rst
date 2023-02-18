@@ -24,6 +24,24 @@
 Changelog
 ---------
 
+7.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Explicitly handle exceptions raised by config parsing in AWS provider (#29587)``
+
+Misc
+~~~~
+
+* ``Fix docstring for EcsRunTaskOperator region_name -> region (#29562)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+
 7.2.0
 .....
 
