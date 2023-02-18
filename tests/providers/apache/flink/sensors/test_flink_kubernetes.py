@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import patch
 
 import pytest
@@ -863,8 +862,8 @@ TASK_MANAGER_POD_LIST = V1PodList(api_version="v1", items=[TASK_MANAGER_POD], ki
 
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
-class TestFlinkKubernetesSensor(unittest.TestCase):
-    def setUp(self):
+class TestFlinkKubernetesSensor:
+    def setup_method(self):
         db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
         db.merge_conn(
             Connection(
