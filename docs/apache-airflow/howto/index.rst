@@ -32,11 +32,13 @@ configuring an Airflow environment.
     Using the CLI <usage-cli>
     add-dag-tags
     add-owner-links
+    notifications
     set-config
     set-up-database
     operator/index
     timetable
     custom-view-plugin
+    listener-plugin
     customize-ui
     custom-operator
     create-custom-decorator

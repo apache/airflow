@@ -97,6 +97,7 @@ with models.DAG(
         function_name=lambda_function_name,
     )
     # [END howto_sensor_lambda_function_state]
+    wait_lambda_function_state.poke_interval = 1
 
     # [START howto_operator_invoke_lambda_function]
     invoke_lambda_function = AwsLambdaInvokeFunctionOperator(

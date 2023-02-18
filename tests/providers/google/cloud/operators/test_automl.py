@@ -68,9 +68,8 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 class TestAutoMLTrainModelOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.automl.AutoMLTrainModelOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook, mock_xcom):
+    def test_execute(self, mock_hook):
         mock_hook.return_value.create_model.return_value.result.return_value = Model(name=MODEL_PATH)
         mock_hook.return_value.extract_object_id = extract_object_id
         op = AutoMLTrainModelOperator(
@@ -79,7 +78,7 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
             project_id=GCP_PROJECT_ID,
             task_id=TASK_ID,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
             location=GCP_LOCATION,
@@ -88,7 +87,6 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
             timeout=None,
             metadata=(),
         )
-        mock_xcom.assert_called_once_with(None, key="model_id", value=MODEL_ID)
 
 
 class TestAutoMLBatchPredictOperator(unittest.TestCase):
@@ -106,7 +104,7 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
             task_id=TASK_ID,
             prediction_params={},
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.batch_predict.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
@@ -133,7 +131,7 @@ class TestAutoMLPredictOperator(unittest.TestCase):
             task_id=TASK_ID,
             operation_params={"TEST_KEY": "TEST_VALUE"},
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.predict.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),
@@ -147,9 +145,8 @@ class TestAutoMLPredictOperator(unittest.TestCase):
 
 
 class TestAutoMLCreateImportOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.automl.AutoMLCreateDatasetOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook, mock_xcom):
+    def test_execute(self, mock_hook):
         mock_hook.return_value.create_dataset.return_value = Dataset(name=DATASET_PATH)
         mock_hook.return_value.extract_object_id = extract_object_id
 
@@ -159,7 +156,7 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
             project_id=GCP_PROJECT_ID,
             task_id=TASK_ID,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,
             location=GCP_LOCATION,
@@ -168,7 +165,6 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
             retry=DEFAULT,
             timeout=None,
         )
-        mock_xcom.assert_called_once_with(None, key="dataset_id", value=DATASET_ID)
 
 
 class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
@@ -188,7 +184,7 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
             page_size=page_size,
             task_id=TASK_ID,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.list_column_specs.assert_called_once_with(
             dataset_id=DATASET_ID,
             field_mask=MASK,
@@ -217,7 +213,7 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
             location=GCP_LOCATION,
             task_id=TASK_ID,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.update_dataset.assert_called_once_with(
             dataset=dataset,
             metadata=(),
@@ -239,7 +235,7 @@ class TestAutoMLGetModelOperator(unittest.TestCase):
             project_id=GCP_PROJECT_ID,
             task_id=TASK_ID,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.get_model.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),
@@ -303,7 +299,7 @@ class TestAutoMLDatasetImportOperator(unittest.TestCase):
             input_config=INPUT_CONFIG,
             task_id=TASK_ID,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
@@ -329,7 +325,7 @@ class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
             page_size=page_size,
             task_id=TASK_ID,
         )
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.list_table_specs.assert_called_once_with(
             dataset_id=DATASET_ID,
             filter_=filter_,
@@ -343,11 +339,10 @@ class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
 
 
 class TestAutoMLDatasetListOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute(self, mock_hook, mock_xcom):
+    def test_execute(self, mock_hook):
         op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
-        op.execute(context=None)
+        op.execute(context=mock.MagicMock())
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,
             metadata=(),
@@ -355,7 +350,6 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
             retry=DEFAULT,
             timeout=None,
         )
-        mock_xcom.assert_called_once_with(None, key="dataset_id_list", value=[])
 
 
 class TestAutoMLDatasetDeleteOperator(unittest.TestCase):

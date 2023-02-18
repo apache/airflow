@@ -52,6 +52,7 @@ with models.DAG(
     # [START howto_operator_start_template_job]
     start_flex_template = DataflowStartFlexTemplateOperator(
         task_id="start_flex_template_streaming_beam_sql",
+        project_id=GCP_PROJECT_ID,
         body={
             "launchParameter": {
                 "containerSpecGcsPath": GCS_FLEX_TEMPLATE_TEMPLATE_PATH,

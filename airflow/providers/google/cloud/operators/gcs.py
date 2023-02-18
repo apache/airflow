@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Sequence
@@ -133,6 +134,10 @@ class GCSCreateBucketOperator(BaseOperator):
         self.project_id = project_id
         self.labels = labels
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -227,6 +232,10 @@ class GCSListObjectsOperator(BaseOperator):
         self.prefix = prefix
         self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -303,6 +312,10 @@ class GCSDeleteObjectsOperator(BaseOperator):
         self.objects = objects
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -982,6 +995,10 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         self.delete_extra_files = delete_extra_files
         self.allow_overwrite = allow_overwrite
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

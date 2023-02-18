@@ -53,12 +53,14 @@ with models.DAG(
     catchup=False,
     tags=["example", "bigquery"],
 ) as dag:
+    # [START howto_operator_bigquery_to_mssql]
     bigquery_to_mssql = BigQueryToMsSqlOperator(
         task_id="bigquery_to_mssql",
         source_project_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.{TABLE}",
         mssql_table=destination_table,
         replace=False,
     )
+    # [END howto_operator_bigquery_to_mssql]
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 

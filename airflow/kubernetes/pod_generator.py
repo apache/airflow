@@ -110,7 +110,7 @@ class PodGenerator:
     Any configuration that is container specific gets applied to
     the first container in the list of containers.
 
-    :param pod: The fully specified pod. Mutually exclusive with `path_or_string`
+    :param pod: The fully specified pod. Mutually exclusive with `pod_template_file`
     :param pod_template_file: Path to YAML file. Mutually exclusive with `pod`
     :param extract_xcom: Whether to bring up a container for xcom
     """

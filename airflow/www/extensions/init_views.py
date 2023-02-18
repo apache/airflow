@@ -225,9 +225,9 @@ def init_api_connexion(app: Flask) -> None:
     app.extensions["csrf"].exempt(api_bp)
 
 
-def init_api_internal(app: Flask) -> None:
+def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     """Initialize Internal API"""
-    if not conf.getboolean("webserver", "run_internal_api", fallback=False):
+    if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
         return
     base_path = "/internal_api/v1"
 

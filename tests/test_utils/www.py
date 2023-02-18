@@ -104,11 +104,16 @@ def _check_last_log_masked_connection(session, dag_id, event, execution_date):
     )
     assert len(logs) >= 1
     extra = ast.literal_eval(logs[0].extra)
-    for k, v in extra:
-        if k == "password":
-            assert v == "***"
-        if k == "extra":
-            assert v == '{"x_secret": "***", "y_secret": "***"}'
+    assert extra == [
+        ("conn_id", "test_conn"),
+        ("conn_type", "http"),
+        ("description", "description"),
+        ("host", "localhost"),
+        ("port", "8080"),
+        ("username", "root"),
+        ("password", "***"),
+        ("extra", '{"x_secret": "***", "y_secret": "***"}'),
+    ]
 
 
 def _check_last_log_masked_variable(session, dag_id, event, execution_date):

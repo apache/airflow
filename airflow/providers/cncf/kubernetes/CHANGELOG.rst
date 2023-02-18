@@ -24,6 +24,28 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix @task.kubernetes to receive input and send output (#28942)``
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to ''KubernetesPodOperator'' (#29017)``
+* ``Allow setting the name for the base container within K8s Pod Operator (#28808)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Patch only single label when marking KPO checked (#29279)``
+
 5.1.1
 .....
 

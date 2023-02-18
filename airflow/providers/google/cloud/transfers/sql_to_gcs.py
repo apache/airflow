@@ -21,6 +21,7 @@ from __future__ import annotations
 import abc
 import json
 import os
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -82,6 +83,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         this parameter, you must sort your dataset by partition_columns. Do this by
         passing an ORDER BY clause to the sql query. Files are uploaded to GCS as objects
         with a hive style partitioning directory structure (templated).
+    :param write_on_empty: Optional parameter to specify whether to write a file if the
+        export does not return any rows. Default is False so we will not write a file
+        if the export returns no rows.
     """
 
     template_fields: Sequence[str] = (
@@ -119,6 +123,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         upload_metadata: bool = False,
         exclude_columns: set | None = None,
         partition_columns: list | None = None,
+        write_on_empty: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -138,11 +143,16 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.schema = schema
         self.parameters = parameters
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.upload_metadata = upload_metadata
         self.exclude_columns = exclude_columns
         self.partition_columns = partition_columns
+        self.write_on_empty = write_on_empty
 
     def execute(self, context: Context):
         if self.partition_columns:
@@ -316,7 +326,8 @@ class BaseSQLToGCSOperator(BaseOperator):
         if self.export_format == "parquet":
             parquet_writer.close()
         # Last file may have 0 rows, don't yield if empty
-        if file_to_upload["file_row_count"] > 0:
+        # However, if it is the first file and self.write_on_empty is True, then yield to write an empty file
+        if file_to_upload["file_row_count"] > 0 or (file_no == 0 and self.write_on_empty):
             file_to_upload["partition_values"] = curr_partition_values
             yield file_to_upload
 

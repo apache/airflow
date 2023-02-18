@@ -377,7 +377,7 @@ to also wait for all task instances *immediately downstream* of the previous
 task instance to succeed.
 
 The date range in this context is a ``start_date`` and optionally an ``end_date``,
-which are used to populate the run schedule with task instances from this dag.
+which are used to populate the run schedule with task instances from this DAG.
 
 .. code-block:: bash
 

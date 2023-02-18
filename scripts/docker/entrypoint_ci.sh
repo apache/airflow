@@ -72,6 +72,15 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
+    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+        echo
+        echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
+        echo
+        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        echo
+        exit 1
+    fi
 }
 
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
@@ -307,9 +316,10 @@ EXTRA_PYTEST_ARGS=(
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
     echo "Running tests with ${_cpus} CPUs in parallel"
-    # Enable parallelism
+    # Enable parallelism and disable coverage
     EXTRA_PYTEST_ARGS+=(
         "-n" "${_cpus}"
+        "--no-cov"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -319,7 +329,7 @@ fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
-        "--cov=airflow/"
+        "--cov=airflow"
         "--cov-config=.coveragerc"
         "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
@@ -380,6 +390,13 @@ else
         "${SYSTEM_TESTS[@]}"
     )
 
+    NO_PROVIDERS_INTEGRATION_TESTS=(
+        "tests/integration/api"
+        "tests/integration/cli"
+        "tests/integration/executors"
+        "tests/integration/security"
+    )
+
     if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
         SELECTED_TESTS=("${CLI_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "API" ]]; then
@@ -395,7 +412,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
-        SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
+            SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
+        else
+            SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
