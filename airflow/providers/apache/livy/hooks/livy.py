@@ -453,7 +453,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
 class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     """
-    Hook for Apache Livy through the REST API using LivyHookAsync
+    Hook for Apache Livy through the REST API using LivyAsyncHook
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :param extra_options: Additional option can be passed when creating a request.
             For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
