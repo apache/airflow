@@ -38,6 +38,7 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
+    Iterator,
     List,
     Sequence,
     Type,
@@ -96,6 +97,7 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
 
     from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
@@ -1104,6 +1106,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             if hasattr(self, field):
                 arg = getattr(self, field)
                 XComArg.apply_upstream_relationship(self, arg)
+
+    def iter_xcom_arg_dependencies(self) -> Iterator[tuple[Operator, str]]:
+        """Upstream dependencies that provide XComs used by this operator."""
+        from airflow.models.xcom_arg import XComArg
+
+        yield from XComArg.iter_xcom_references(self)
 
     @prepare_lineage
     def pre_execute(self, context: Any):

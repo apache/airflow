@@ -26,7 +26,7 @@ import os
 import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import Generator, Union
+from typing import Any, Generator, Union
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -596,6 +596,10 @@ def task_test(args, dag=None):
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
     )
 
+    xcom_args = args.xcom_args or {}
+    _validate_injected_xcom_args(xcom_args, task)
+    ti.inject_xcom_args(xcom_args)
+
     try:
         with redirect_stdout(RedactedIO()):
             if args.dry_run:
@@ -616,6 +620,23 @@ def task_test(args, dag=None):
         if dr_created:
             with create_session() as session:
                 session.delete(ti.dag_run)
+
+
+def _validate_injected_xcom_args(xcom_args: dict[str, dict[str, Any]], task: BaseOperator):
+    task_id_key_pairs = set()
+    for task_id, keys_dict in xcom_args.items():
+        for key in keys_dict:
+            task_id_key_pairs.add((task_id, key))
+
+    required_xcom_args = set((operator.task_id, key) for operator, key in task.iter_xcom_arg_dependencies())
+    if not required_xcom_args.issubset(task_id_key_pairs):
+        raise AirflowException(
+            f"The task {task.task_id!r} is dependent on XCom args (task_id, key) "
+            f"passed from the upstream tasks: {list(required_xcom_args)}. "
+            "Please, pass them via the --xcom-args argument (see --help for more details). "
+            "The following (task_id, key) pairs are currently missed: "
+            f"{list(required_xcom_args - set(task_id_key_pairs))}."
+        )
 
 
 @cli_utils.action_cli(check_db=False)

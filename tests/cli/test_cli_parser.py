@@ -268,3 +268,78 @@ class TestCli:
             f"--export-format: invalid choice: '{export_format}' "
             "(choose from 'csv'), see help above.\n"
         )
+
+    def test_tasks_test_with_invalid_value_xcom_args_not_json(self):
+        """Test ``airflow tasks test`` command handles correctly invalid a JSON passed to ``--xcom-args``"""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(
+                    [
+                        "tasks",
+                        "test",
+                        "example_passing_xcom_args_via_test_command",
+                        "python_echo",
+                        "--xcom-args",
+                        "foo",
+                    ]
+                )
+            error_msg = stderr.getvalue()
+        assert "Failed to parse JSON from the passed value" in error_msg
+
+    def test_tasks_test_with_invalid_value_xcom_args_json_list(self):
+        """Test ``airflow tasks test`` command handles correctly a JSON list
+        invalidly passed to ``--xcom-args``"""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(
+                    [
+                        "tasks",
+                        "test",
+                        "example_passing_xcom_args_via_test_command",
+                        "python_echo",
+                        "--xcom-args",
+                        '["foo"]',
+                    ]
+                )
+            error_msg = stderr.getvalue()
+        assert "Expected a mapping being passed, but got instead: ['foo']" in error_msg
+
+    def test_tasks_test_with_invalid_value_xcom_args_invalid_task_id(self):
+        """Test ``airflow tasks test`` command handles correctly a JSON
+        with invalid task_id passed to ``--xcom-args``"""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(
+                    [
+                        "tasks",
+                        "test",
+                        "example_passing_xcom_args_via_test_command",
+                        "python_echo",
+                        "--xcom-args",
+                        '{"@invalid_id": {"return_value": "foo"}}',
+                    ]
+                )
+            error_msg = stderr.getvalue()
+        assert "'@invalid_id' is not a valid task_id" in error_msg
+
+    def test_tasks_test_with_invalid_value_xcom_args_invalid_keys_dict(self):
+        """Test ``airflow tasks test`` command handles correctly a JSON
+        with invalid keys dict passed to ``--xcom-args``"""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(
+                    [
+                        "tasks",
+                        "test",
+                        "example_passing_xcom_args_via_test_command",
+                        "python_echo",
+                        "--xcom-args",
+                        '{"foo": "bar"}',
+                    ]
+                )
+            error_msg = stderr.getvalue()
+        assert "Task ids should map to (key -> value) dicts, but task_id 'foo' maps to 'bar'" in error_msg

@@ -107,7 +107,7 @@ class TestCliTasks:
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
-        """Test the `airflow test` command"""
+        """Test the `airflow tasks test` command"""
         args = self.parser.parse_args(
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"]
         )
@@ -121,7 +121,7 @@ class TestCliTasks:
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_test_no_execution_date(self, mock_utcnow):
-        """Test the `airflow test` command"""
+        """Test the `airflow tasks test` command"""
         now = pendulum.now("UTC")
         mock_utcnow.return_value = now
         ds = now.strftime("%Y%m%d")
@@ -135,7 +135,7 @@ class TestCliTasks:
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):
-        """Test the `airflow test` command"""
+        """Test the `airflow tasks test` command"""
         task_id = "print_the_context"
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
         with caplog.at_level("INFO", logger="airflow.task"):
@@ -144,7 +144,7 @@ class TestCliTasks:
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_filters_secrets(self, capsys):
-        """Test ``airflow test`` does not print secrets to stdout.
+        """Test ``airflow tasks test`` does not print secrets to stdout.
 
         Output should be filtered by SecretsMasker.
         """
@@ -334,6 +334,99 @@ class TestCliTasks:
         output = stdout.getvalue()
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
+
+    def test_test_with_xcom_args_python_arg(self):
+        """Test ``airflow tasks test`` command handles correctly ``--xcom-args`` argument"""
+        args = self.parser.parse_args(
+            [
+                "tasks",
+                "test",
+                "example_passing_xcom_args_via_test_command",
+                "python_echo",
+                "--xcom-args",
+                '{"get_python_echo_message": {"return_value": "test xcom arg"}}',
+            ]
+        )
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+        output = stdout.getvalue()
+        assert "python_echo: test xcom arg" in output
+
+    def test_test_with_xcom_args_bash_command(self):
+        """Test ``airflow tasks test`` command handles correctly ``--xcom-args`` argument"""
+        args = self.parser.parse_args(
+            [
+                "tasks",
+                "test",
+                "example_passing_xcom_args_via_test_command",
+                "run_bash",
+                "--xcom-args",
+                '{"get_bash_command": {"return_value": "echo \'test bash\'"}}',
+            ]
+        )
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+        output = stdout.getvalue()
+        assert "test bash" in output
+
+    def test_test_with_xcom_args_manually_pushed_bash_command(self):
+        """Test ``airflow tasks test`` command handles correctly ``--xcom-args`` argument"""
+        args = self.parser.parse_args(
+            [
+                "tasks",
+                "test",
+                "example_passing_xcom_args_via_test_command",
+                "run_bash_with_manually_pushed_command",
+                "--xcom-args",
+                '{"manually_push_bash_command": {"command": "echo \'test bash\'"}}',
+            ]
+        )
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+        output = stdout.getvalue()
+        assert "test bash" in output
+
+    def test_test_without_required_xcom_args_for_python_arg(self):
+        """Test ``airflow tasks test`` command raises a correct exception if an XCom arg
+        isn't passed for the python operator upstream dependency in the ``--xcom-args`` CLI argument."""
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(
+                "The following (task_id, key) pairs are currently missed: "
+                "[('get_python_echo_message', 'return_value')]."
+            ),
+        ):
+            task_command.task_test(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "test",
+                        "example_passing_xcom_args_via_test_command",
+                        "python_echo",
+                    ]
+                )
+            )
+
+    def test_test_without_required_xcom_args_for_bash_command(self):
+        """Test ``airflow tasks test`` command raises a correct exception if an XCom arg
+        isn't passed for the bash operator command upstream dependency in the ``--xcom-args`` CLI argument."""
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(
+                "The following (task_id, key) pairs are currently missed: "
+                "[('manually_push_bash_command', 'command')]."
+            ),
+        ):
+            task_command.task_test(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "test",
+                        "example_passing_xcom_args_via_test_command",
+                        "run_bash_with_manually_pushed_command",
+                    ]
+                )
+            )
 
     @pytest.mark.parametrize(
         "option",

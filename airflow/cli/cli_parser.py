@@ -25,7 +25,7 @@ import os
 import textwrap
 from argparse import Action, ArgumentError
 from functools import lru_cache
-from typing import Callable, Iterable, NamedTuple, Union
+from typing import Any, Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
@@ -37,11 +37,13 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import ColorMode
-from airflow.utils.helpers import partition
+from airflow.utils.helpers import partition, validate_key
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+
+EXAMPLE_XCOM_ARGS_VALUE = {"my_task": {"return_value": "foo"}, "another_task": {"custom_key": 42}}
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -182,6 +184,29 @@ def string_lower_type(val):
     if not val:
         return
     return val.strip().lower()
+
+
+def _xcom_args(val) -> dict[str, dict[str, Any]]:
+    try:
+        parsed_value = json.loads(val)
+    except json.JSONDecodeError as e:
+        raise argparse.ArgumentTypeError(f"Failed to parse JSON from the passed value {val!r}: {e}")
+
+    if not isinstance(parsed_value, dict):
+        raise argparse.ArgumentTypeError(
+            f"Expected a mapping being passed, but got instead: {parsed_value!r}"
+        )
+    for task_id, keys_dict in parsed_value.items():
+        try:
+            validate_key(task_id)
+        except AirflowException as e:
+            raise argparse.ArgumentTypeError(f"{task_id!r} is not a valid task_id: {e}")
+        if not isinstance(keys_dict, dict):
+            raise argparse.ArgumentTypeError(
+                f"Task ids should map to (key -> value) dicts, but task_id {task_id!r} maps to {keys_dict!r}"
+            )
+
+    return parsed_value
 
 
 # Shared
@@ -826,6 +851,16 @@ ARG_FLOWER_BASIC_AUTH = Arg(
     ),
 )
 ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to the task")
+ARG_XCOM_ARGS = Arg(
+    ("--xcom-args",),
+    help=(
+        "Passes a JSON of XCom args, which the task depends on, "
+        "mapping the corresponding task_id to key to value. "
+        f"For example: {json.dumps(EXAMPLE_XCOM_ARGS_VALUE)}). "
+        "'return_value' is the key used by default by Task Flow to pass values returned by operators."
+    ),
+    type=_xcom_args,
+)
 ARG_POST_MORTEM = Arg(
     ("-m", "--post-mortem"), action="store_true", help="Open debugger on uncaught exception"
 )
@@ -1438,6 +1473,7 @@ TASKS_COMMANDS = (
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
+            ARG_XCOM_ARGS,
             ARG_POST_MORTEM,
             ARG_ENV_VARS,
             ARG_MAP_INDEX,
