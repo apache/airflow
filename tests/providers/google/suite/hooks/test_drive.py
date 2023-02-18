@@ -53,10 +53,22 @@ class TestGoogleDriveHook:
             {"id": "ID_4"},
         ]
 
-        result_value = self.gdrive_hook._ensure_folders_exists("AAA/BBB/CCC/DDD")
+        result_value = self.gdrive_hook._ensure_folders_exists(path="AAA/BBB/CCC/DDD", folder_id="root")
 
         mock_get_conn.assert_has_calls(
             [
+                mock.call()
+                .files()
+                .list(
+                    fields="files(id, name)",
+                    includeItemsFromAllDrives=True,
+                    q=(
+                        "trashed=false and mimeType='application/vnd.google-apps.folder' "
+                        "and name='AAA' and 'root' in parents"
+                    ),
+                    spaces="drive",
+                    supportsAllDrives=True,
+                ),
                 mock.call()
                 .files()
                 .create(
@@ -66,6 +78,7 @@ class TestGoogleDriveHook:
                         "parents": ["root"],
                     },
                     fields="id",
+                    supportsAllDrives=True,
                 ),
                 mock.call()
                 .files()
@@ -76,6 +89,7 @@ class TestGoogleDriveHook:
                         "parents": ["ID_1"],
                     },
                     fields="id",
+                    supportsAllDrives=True,
                 ),
                 mock.call()
                 .files()
@@ -86,6 +100,7 @@ class TestGoogleDriveHook:
                         "parents": ["ID_2"],
                     },
                     fields="id",
+                    supportsAllDrives=True,
                 ),
                 mock.call()
                 .files()
@@ -96,6 +111,7 @@ class TestGoogleDriveHook:
                         "parents": ["ID_3"],
                     },
                     fields="id",
+                    supportsAllDrives=True,
                 ),
             ],
             any_order=True,
@@ -115,10 +131,25 @@ class TestGoogleDriveHook:
             {"id": "ID_4"},
         ]
 
-        result_value = self.gdrive_hook._ensure_folders_exists("AAA/BBB/CCC/DDD")
+        result_value = self.gdrive_hook._ensure_folders_exists(path="AAA/BBB/CCC/DDD", folder_id="root")
 
         mock_get_conn.assert_has_calls(
             [
+                *[
+                    mock.call()
+                    .files()
+                    .list(
+                        fields="files(id, name)",
+                        includeItemsFromAllDrives=True,
+                        q=(
+                            "trashed=false and mimeType='application/vnd.google-apps.folder' "
+                            f"and name='{d}' and '{key}' in parents"
+                        ),
+                        spaces="drive",
+                        supportsAllDrives=True,
+                    )
+                    for d, key in [("AAA", "root"), ("BBB", "ID_1"), ("CCC", "ID_2")]
+                ],
                 mock.call()
                 .files()
                 .create(
@@ -128,6 +159,7 @@ class TestGoogleDriveHook:
                         "parents": ["ID_2"],
                     },
                     fields="id",
+                    supportsAllDrives=True,
                 ),
                 mock.call()
                 .files()
@@ -138,6 +170,7 @@ class TestGoogleDriveHook:
                         "parents": ["ID_3"],
                     },
                     fields="id",
+                    supportsAllDrives=True,
                 ),
             ],
             any_order=True,
@@ -154,7 +187,28 @@ class TestGoogleDriveHook:
             {"files": [{"id": "ID_4"}]},
         ]
 
-        result_value = self.gdrive_hook._ensure_folders_exists("AAA/BBB/CCC/DDD")
+        result_value = self.gdrive_hook._ensure_folders_exists(path="AAA/BBB/CCC/DDD", folder_id="root")
+
+        mock_get_conn.assert_has_calls(
+            [
+                *[
+                    mock.call()
+                    .files()
+                    .list(
+                        fields="files(id, name)",
+                        includeItemsFromAllDrives=True,
+                        q=(
+                            "trashed=false and mimeType='application/vnd.google-apps.folder' "
+                            f"and name='{d}' and '{key}' in parents"
+                        ),
+                        spaces="drive",
+                        supportsAllDrives=True,
+                    )
+                    for d, key in [("AAA", "root"), ("BBB", "ID_1"), ("CCC", "ID_2"), ("DDD", "ID_3")]
+                ],
+            ],
+            any_order=True,
+        )
 
         mock_get_conn.return_value.files.return_value.create.assert_not_called()
         assert "ID_4" == result_value
@@ -285,7 +339,7 @@ class TestGoogleDriveHook:
 
         return_value = self.gdrive_hook.upload_file("local_path", "AA/BB/CC/remote_path")
 
-        mock_ensure_folders_exists.assert_called_once_with("AA/BB/CC")
+        mock_ensure_folders_exists.assert_called_once_with(path="AA/BB/CC", folder_id="root")
         mock_get_conn.assert_has_calls(
             [
                 mock.call()

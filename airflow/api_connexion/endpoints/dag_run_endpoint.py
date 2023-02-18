@@ -21,6 +21,7 @@ from http import HTTPStatus
 import pendulum
 from connexion import NoContent
 from flask import g
+from flask_login import current_user
 from marshmallow import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session
@@ -55,9 +56,13 @@ from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from airflow.www.decorators import action_logging
+
+RESOURCE_EVENT_PREFIX = "dag_run"
 
 
 @security.requires_access(
@@ -132,6 +137,8 @@ def _fetch_dag_runs(
     execution_date_lte: str | None,
     start_date_gte: str | None,
     start_date_lte: str | None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     limit: int | None,
     offset: int | None,
     order_by: str,
@@ -150,6 +157,11 @@ def _fetch_dag_runs(
         query = query.filter(DagRun.end_date >= end_date_gte)
     if end_date_lte:
         query = query.filter(DagRun.end_date <= end_date_lte)
+    # filter updated at
+    if updated_at_gte:
+        query = query.filter(DagRun.updated_at >= updated_at_gte)
+    if updated_at_lte:
+        query = query.filter(DagRun.updated_at <= updated_at_lte)
 
     total_entries = query.count()
     to_replace = {"dag_run_id": "run_id"}
@@ -161,6 +173,7 @@ def _fetch_dag_runs(
         "dag_run_id",
         "start_date",
         "end_date",
+        "updated_at",
         "external_trigger",
         "conf",
     ]
@@ -182,6 +195,8 @@ def _fetch_dag_runs(
         "execution_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "updated_at_gte": format_datetime,
+        "updated_at_lte": format_datetime,
         "limit": check_limit,
     }
 )
@@ -195,6 +210,8 @@ def get_dag_runs(
     execution_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     state: list[str] | None = None,
     offset: int | None = None,
     limit: int | None = None,
@@ -222,6 +239,8 @@ def get_dag_runs(
         execution_date_lte=execution_date_lte,
         start_date_gte=start_date_gte,
         start_date_lte=start_date_lte,
+        updated_at_gte=updated_at_gte,
+        updated_at_lte=updated_at_lte,
         limit=limit,
         offset=offset,
         order_by=order_by,
@@ -280,6 +299,12 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     ],
 )
 @provide_session
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
@@ -319,6 +344,10 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
             )
+            dag_run_note = post_body.get("note")
+            if dag_run_note:
+                current_user_id = getattr(current_user, "id", None)
+                dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
             raise BadRequest(detail=str(ve))
@@ -362,7 +391,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
-    dag_run = session.query(DagRun).get(dag_run.id)
+    dag_run = session.get(DagRun, dag_run.id)
     return dagrun_schema.dump(dag_run)
 
 
@@ -437,8 +466,6 @@ def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SES
         new_note = post_body["note"]
     except ValidationError as err:
         raise BadRequest(detail=str(err))
-
-    from flask_login import current_user
 
     current_user_id = getattr(current_user, "id", None)
     if dag_run.dag_run_note is None:

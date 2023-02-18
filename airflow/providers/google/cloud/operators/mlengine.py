@@ -21,8 +21,11 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 import warnings
 from typing import TYPE_CHECKING, Any, Sequence
+
+from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -34,6 +37,7 @@ from airflow.providers.google.cloud.links.mlengine import (
     MLEngineModelsListLink,
     MLEngineModelVersionDetailsLink,
 )
+from airflow.providers.google.cloud.triggers.mlengine import MLEngineStartTrainingJobTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -206,6 +210,10 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         self._runtime_version = runtime_version
         self._signature_name = signature_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._labels = labels
         self._impersonation_chain = impersonation_chain
@@ -351,6 +359,10 @@ class MLEngineManageModelOperator(BaseOperator):
         self._model = model
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -417,6 +429,10 @@ class MLEngineCreateModelOperator(BaseOperator):
         self._project_id = project_id
         self._model = model
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -488,6 +504,10 @@ class MLEngineGetModelOperator(BaseOperator):
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -563,6 +583,10 @@ class MLEngineDeleteModelOperator(BaseOperator):
         self._model_name = model_name
         self._delete_contents = delete_contents
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -670,6 +694,10 @@ class MLEngineManageVersionOperator(BaseOperator):
         self._version = version or {}
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
@@ -765,6 +793,10 @@ class MLEngineCreateVersionOperator(BaseOperator):
         self._model_name = model_name
         self._version = version
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -853,6 +885,10 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         self._model_name = model_name
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -937,6 +973,10 @@ class MLEngineListVersionsOperator(BaseOperator):
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -1022,6 +1062,10 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         self._model_name = model_name
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -1094,8 +1138,6 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         for the specified service account.
         If set to None or missing, the Google-managed Cloud ML Engine service account will be used.
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
-        If set to None or missing, the default project_id from the Google Cloud connection is used.
-        (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -1116,6 +1158,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
@@ -1142,6 +1186,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         *,
         job_id: str,
         region: str,
+        project_id: str,
         package_uris: list[str] | None = None,
         training_python_module: str | None = None,
         training_args: list[str] | None = None,
@@ -1152,13 +1197,14 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         python_version: str | None = None,
         job_dir: str | None = None,
         service_account: str | None = None,
-        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         mode: str = "PRODUCTION",
         labels: dict[str, str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         hyperparameters: dict | None = None,
+        deferrable: bool = False,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1176,11 +1222,17 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._job_dir = job_dir
         self._service_account = service_account
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._mode = mode
         self._labels = labels
         self._hyperparameters = hyperparameters
         self._impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
 
         custom = self._scale_tier is not None and self._scale_tier.upper() == "CUSTOM"
         custom_image = (
@@ -1209,10 +1261,16 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                 "a custom Docker image should be provided but not both."
             )
 
+    def _handle_job_error(self, finished_training_job) -> None:
+        if finished_training_job["state"] != "SUCCEEDED":
+            self.log.error("MLEngine training job failed: %s", str(finished_training_job))
+            raise RuntimeError(finished_training_job["errorMessage"])
+
     def execute(self, context: Context):
         job_id = _normalize_mlengine_job_id(self._job_id)
+        self.job_id = job_id
         training_request: dict[str, Any] = {
-            "jobId": job_id,
+            "jobId": self.job_id,
             "trainingInput": {
                 "scaleTier": self._scale_tier,
                 "region": self._region,
@@ -1261,29 +1319,62 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
+        self.hook = hook
 
-        # Helper method to check if the existing job's training input is the
-        # same as the request we get here.
-        def check_existing_job(existing_job):
-            existing_training_input = existing_job.get("trainingInput")
-            requested_training_input = training_request["trainingInput"]
-            if "scaleTier" not in existing_training_input:
-                existing_training_input["scaleTier"] = None
-
-            existing_training_input["args"] = existing_training_input.get("args")
-            requested_training_input["args"] = (
-                requested_training_input["args"] if requested_training_input["args"] else None
+        try:
+            self.log.info("Executing: %s'", training_request)
+            self.job_id = self.hook.create_job_without_waiting_result(
+                project_id=self._project_id,
+                body=training_request,
             )
+        except HttpError as e:
+            if e.resp.status == 409:
+                # If the job already exists retrieve it
+                self.hook.get_job(project_id=self._project_id, job_id=self.job_id)
+                if self._project_id:
+                    MLEngineJobDetailsLink.persist(
+                        context=context,
+                        task_instance=self,
+                        project_id=self._project_id,
+                        job_id=self.job_id,
+                    )
+                self.log.error(
+                    "Failed to create new job with given name since it already exists. "
+                    "The existing one will be used."
+                )
+            else:
+                raise e
 
-            return existing_training_input == requested_training_input
-
-        finished_training_job = hook.create_job(
-            project_id=self._project_id, job=training_request, use_existing_job_fn=check_existing_job
-        )
-
-        if finished_training_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine training job failed: %s", str(finished_training_job))
-            raise RuntimeError(finished_training_job["errorMessage"])
+        context["ti"].xcom_push(key="job_id", value=self.job_id)
+        if self.deferrable:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=MLEngineStartTrainingJobTrigger(
+                    conn_id=self._gcp_conn_id,
+                    job_id=self.job_id,
+                    project_id=self._project_id,
+                    region=self._region,
+                    runtime_version=self._runtime_version,
+                    python_version=self._python_version,
+                    job_dir=self._job_dir,
+                    package_uris=self._package_uris,
+                    training_python_module=self._training_python_module,
+                    training_args=self._training_args,
+                    labels=self._labels,
+                    gcp_conn_id=self._gcp_conn_id,
+                    impersonation_chain=self._impersonation_chain,
+                    delegate_to=self._delegate_to,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            finished_training_job = self._wait_for_job_done(self._project_id, self.job_id)
+            self._handle_job_error(finished_training_job)
+            gcp_metadata = {
+                "job_id": self.job_id,
+                "project_id": self._project_id,
+            }
+            context["task_instance"].xcom_push("gcp_metadata", gcp_metadata)
 
         project_id = self._project_id or hook.project_id
         if project_id:
@@ -1293,6 +1384,56 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                 project_id=project_id,
                 job_id=job_id,
             )
+
+    def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):
+        """
+        Waits for the Job to reach a terminal state.
+
+        This method will periodically check the job state until the job reach
+        a terminal state.
+
+        :param project_id: The project in which the Job is located. If set to None or missing, the default
+            project_id from the Google Cloud connection is used. (templated)
+        :param job_id: A unique id for the Google MLEngine job. (templated)
+        :param interval: Time expressed in seconds after which the job status is checked again. (templated)
+        :raises: googleapiclient.errors.HttpError
+        """
+        self.log.info("Waiting for job. job_id=%s", job_id)
+
+        if interval <= 0:
+            raise ValueError("Interval must be > 0")
+        while True:
+            job = self.hook.get_job(project_id, job_id)
+            if job["state"] in ["SUCCEEDED", "FAILED", "CANCELLED"]:
+                return job
+            time.sleep(interval)
+
+    def execute_complete(self, context: Context, event: dict[str, Any]):
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(
+            "%s completed with response %s ",
+            self.task_id,
+            event["message"],
+        )
+        if self._project_id:
+            MLEngineJobDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=self._project_id,
+                job_id=self._job_id,
+            )
+
+    def on_kill(self) -> None:
+        if self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(job_id=self.job_id, project_id=self._project_id)  # type: ignore[union-attr]
+        else:
+            self.log.info("Skipping to cancel job: %s:%s.%s", self._project_id, self.job_id)
 
 
 class MLEngineTrainingCancelJobOperator(BaseOperator):
@@ -1339,6 +1480,10 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         self._project_id = project_id
         self._job_id = job_id
         self._gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 

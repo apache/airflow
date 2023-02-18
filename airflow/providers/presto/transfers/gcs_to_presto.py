@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import csv
 import json
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Sequence
 
@@ -86,6 +87,10 @@ class GCSToPrestoOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.schema_fields = schema_fields
         self.schema_object = schema_object
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

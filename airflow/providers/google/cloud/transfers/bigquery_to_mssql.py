@@ -18,6 +18,7 @@
 """This module contains Google BigQuery to MSSQL operator."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -35,6 +36,9 @@ class BigQueryToMsSqlOperator(BaseOperator):
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and insert that data into a MSSQL table.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryToMsSqlOperator`
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
@@ -103,6 +107,10 @@ class BigQueryToMsSqlOperator(BaseOperator):
         self.database = database
         self.mssql_table = mssql_table
         self.replace = replace
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.batch_size = batch_size
         self.location = location

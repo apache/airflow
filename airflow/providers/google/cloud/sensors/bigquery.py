@@ -18,6 +18,7 @@
 """This module contains Google BigQuery sensors."""
 from __future__ import annotations
 
+import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -79,6 +80,10 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -148,6 +153,10 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.table_id = table_id
         self.partition_id = partition_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

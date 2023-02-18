@@ -21,7 +21,7 @@ from traceback import format_exception
 from typing import Any, Iterable
 
 from sqlalchemy import Column, Integer, String, func, or_
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import joinedload, relationship
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base
@@ -66,6 +66,8 @@ class Trigger(Base):
         uselist=False,
     )
 
+    task_instance = relationship("TaskInstance", back_populates="trigger", lazy="joined", uselist=False)
+
     def __init__(self, classpath: str, kwargs: dict[str, Any], created_date: datetime.datetime | None = None):
         super().__init__()
         self.classpath = classpath
@@ -90,7 +92,16 @@ class Trigger(Base):
         Fetches all the Triggers by ID and returns a dict mapping
         ID -> Trigger instance
         """
-        return {obj.id: obj for obj in session.query(cls).filter(cls.id.in_(ids)).all()}
+        query = (
+            session.query(cls)
+            .filter(cls.id.in_(ids))
+            .options(
+                joinedload("task_instance"),
+                joinedload("task_instance.trigger"),
+                joinedload("task_instance.trigger.triggerer_job"),
+            )
+        )
+        return {obj.id: obj for obj in query}
 
     @classmethod
     @internal_api_call

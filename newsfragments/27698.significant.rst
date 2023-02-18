@@ -1,1 +1,0 @@
-Use git-sync 3.6.3.

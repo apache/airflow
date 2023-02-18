@@ -22,6 +22,7 @@ from enum import Enum
 from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
 from sqlalchemy.orm import Session
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
@@ -66,6 +67,7 @@ class DagWarning(Base):
         return hash((self.dag_id, self.warning_type))
 
     @classmethod
+    @internal_api_call
     @provide_session
     def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
         """

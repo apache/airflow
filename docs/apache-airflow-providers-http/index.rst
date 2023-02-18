@@ -65,7 +65,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 4.1.1
+Release: 4.2.0
 
 Provider package
 ----------------
@@ -88,6 +88,8 @@ PIP package            Version required
 =====================  ==================
 ``requests``           ``>=2.26.0``
 ``requests_toolbelt``
+``aiohttp``
+``asgiref``
 =====================  ==================
 
 .. include:: ../../airflow/providers/http/CHANGELOG.rst

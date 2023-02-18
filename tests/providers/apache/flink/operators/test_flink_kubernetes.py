@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest.mock import patch
 
 from airflow import DAG
@@ -183,8 +182,8 @@ TEST_APPLICATION_DICT = {
 
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
-class TestFlinkKubernetesOperator(unittest.TestCase):
-    def setUp(self):
+class TestFlinkKubernetesOperator:
+    def setup_method(self):
         db.merge_conn(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )

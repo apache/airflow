@@ -48,5 +48,5 @@ class DataflowJobLink(BaseGoogleLink):
         operator_instance.xcom_push(
             context,
             key=DataflowJobLink.key,
-            value={"project_id": project_id, "location": region, "job_id": job_id},
+            value={"project_id": project_id, "region": region, "job_id": job_id},
         )
