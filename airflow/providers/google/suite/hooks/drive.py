@@ -72,9 +72,9 @@ class GoogleDriveHook(GoogleBaseHook):
             self._conn = build("drive", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def _ensure_folders_exists(self, path: str) -> str:
+    def _ensure_folders_exists(self, path: str, folder_id: str) -> str:
         service = self.get_conn()
-        current_parent = "root"
+        current_parent = folder_id
         folders = path.split("/")
         depth = 0
         # First tries to enter directories
@@ -88,7 +88,13 @@ class GoogleDriveHook(GoogleBaseHook):
             ]
             result = (
                 service.files()
-                .list(q=" and ".join(conditions), spaces="drive", fields="files(id, name)")
+                .list(
+                    q=" and ".join(conditions),
+                    spaces="drive",
+                    fields="files(id, name)",
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                )
                 .execute(num_retries=self.num_retries)
             )
             files = result.get("files", [])
@@ -110,7 +116,11 @@ class GoogleDriveHook(GoogleBaseHook):
                 }
                 file = (
                     service.files()
-                    .create(body=file_metadata, fields="id")
+                    .create(
+                        body=file_metadata,
+                        fields="id",
+                        supportsAllDrives=True,
+                    )
                     .execute(num_retries=self.num_retries)
                 )
                 self.log.info("Created %s directory", current_folder)
@@ -202,6 +212,7 @@ class GoogleDriveHook(GoogleBaseHook):
         remote_location: str,
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
+        folder_id: str = "root",
     ) -> str:
         """
         Uploads a file that is available locally to a Google Drive service.
@@ -215,14 +226,15 @@ class GoogleDriveHook(GoogleBaseHook):
             or to -1.
         :param resumable: True if this is a resumable upload. False means upload
             in a single request.
+        :param folder_id: The base/root folder id for remote_location (part of the drive URL of a folder).
         :return: File ID
         """
         service = self.get_conn()
         directory_path, _, file_name = remote_location.rpartition("/")
         if directory_path:
-            parent = self._ensure_folders_exists(directory_path)
+            parent = self._ensure_folders_exists(path=directory_path, folder_id=folder_id)
         else:
-            parent = "root"
+            parent = folder_id
 
         file_metadata = {"name": file_name, "parents": [parent]}
         media = MediaFileUpload(local_location, chunksize=chunk_size, resumable=resumable)
