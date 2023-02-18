@@ -451,7 +451,7 @@ class LivyHook(HttpHook, LoggingMixin):
         return True
 
 
-class LivyHookAsync(HttpAsyncHook, LoggingMixin):
+class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     """
     Hook for Apache Livy through the REST API using LivyHookAsync
     :param livy_conn_id: reference to a pre-defined Livy Connection.
@@ -760,31 +760,31 @@ class LivyHookAsync(HttpAsyncHook, LoggingMixin):
             body["proxyUser"] = proxy_user
         if class_name:
             body["className"] = class_name
-        if args and LivyHookAsync._validate_list_of_stringables(args):
+        if args and LivyAsyncHook._validate_list_of_stringables(args):
             body["args"] = [str(val) for val in args]
-        if jars and LivyHookAsync._validate_list_of_stringables(jars):
+        if jars and LivyAsyncHook._validate_list_of_stringables(jars):
             body["jars"] = jars
-        if py_files and LivyHookAsync._validate_list_of_stringables(py_files):
+        if py_files and LivyAsyncHook._validate_list_of_stringables(py_files):
             body["pyFiles"] = py_files
-        if files and LivyHookAsync._validate_list_of_stringables(files):
+        if files and LivyAsyncHook._validate_list_of_stringables(files):
             body["files"] = files
-        if driver_memory and LivyHookAsync._validate_size_format(driver_memory):
+        if driver_memory and LivyAsyncHook._validate_size_format(driver_memory):
             body["driverMemory"] = driver_memory
         if driver_cores:
             body["driverCores"] = driver_cores
-        if executor_memory and LivyHookAsync._validate_size_format(executor_memory):
+        if executor_memory and LivyAsyncHook._validate_size_format(executor_memory):
             body["executorMemory"] = executor_memory
         if executor_cores:
             body["executorCores"] = executor_cores
         if num_executors:
             body["numExecutors"] = num_executors
-        if archives and LivyHookAsync._validate_list_of_stringables(archives):
+        if archives and LivyAsyncHook._validate_list_of_stringables(archives):
             body["archives"] = archives
         if queue:
             body["queue"] = queue
         if name:
             body["name"] = name
-        if conf and LivyHookAsync._validate_extra_conf(conf):
+        if conf and LivyAsyncHook._validate_extra_conf(conf):
             body["conf"] = conf
 
         return body

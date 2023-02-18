@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, AsyncIterator
 
-from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHookAsync
+from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -52,7 +52,7 @@ class LivyTrigger(BaseTrigger):
         polling_interval: int = 0,
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
-        livy_hook_async: LivyHookAsync | None = None,
+        livy_hook_async: LivyAsyncHook | None = None,
     ):
         super().__init__()
         self._batch_id = batch_id
@@ -66,7 +66,7 @@ class LivyTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes LivyTrigger arguments and classpath."""
         return (
-            "astronomer.providers.apache.livy.triggers.livy.LivyTrigger",
+            "airflow.providers.apache.livy.triggers.livy.LivyTrigger",
             {
                 "batch_id": self._batch_id,
                 "spark_params": self.spark_params,
@@ -136,9 +136,9 @@ class LivyTrigger(BaseTrigger):
             "log_lines": log_lines,
         }
 
-    def _get_async_hook(self) -> LivyHookAsync:
-        if self._livy_hook_async is None or not isinstance(self._livy_hook_async, LivyHookAsync):
-            self._livy_hook_async = LivyHookAsync(
+    def _get_async_hook(self) -> LivyAsyncHook:
+        if self._livy_hook_async is None or not isinstance(self._livy_hook_async, LivyAsyncHook):
+            self._livy_hook_async = LivyAsyncHook(
                 livy_conn_id=self._livy_conn_id,
                 extra_headers=self._extra_headers,
                 extra_options=self._extra_options,
