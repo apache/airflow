@@ -81,7 +81,7 @@ class LivyTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator["TriggerEvent"]:
         """
         Checks if the _polling_interval > 0, in that case it pools Livy for
-        batch termination asynchrnonously.
+        batch termination asynchronously.
         else returns the success response
         """
         try:
@@ -108,7 +108,7 @@ class LivyTrigger(BaseTrigger):
 
     async def poll_for_termination(self, batch_id: int | str) -> dict[str, Any]:
         """
-        Pool Livy for batch termination asynchrnonously.
+        Pool Livy for batch termination asynchronously.
 
         :param batch_id: id of the batch session to monitor.
         """

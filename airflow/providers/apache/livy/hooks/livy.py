@@ -453,14 +453,15 @@ class LivyHook(HttpHook, LoggingMixin):
 
 class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     """
-    Hook for Apache Livy through the REST API using LivyAsyncHook
+    Hook for Apache Livy through the REST API asynchronously
+
     :param livy_conn_id: reference to a pre-defined Livy Connection.
-    :param extra_options: Additional option can be passed when creating a request.
-            For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
+    :param extra_options: A dictionary of options passed to Livy.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
+
     .. seealso::
         For more details refer to the Apache Livy API reference:
-        `Apache Livy API reference <https://livy.apache.org/docs/latest/rest-api.html>`_
+        https://livy.apache.org/docs/latest/rest-api.html
     """
 
     TERMINAL_STATES = {
@@ -494,8 +495,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> Any:
-        r"""
+        """
         Performs an asynchronous HTTP request call
+
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
         :param headers: additional headers to be passed through as a dictionary
@@ -588,12 +590,12 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     ) -> Any:
         """
         Wrapper for HttpAsyncHook, allows to change method on the same HttpAsyncHook
+
         :param method: http method
         :param endpoint: endpoint
         :param data: request payload
         :param headers: headers
         :return: http response
-        :rtype: requests.Response
         """
         if method not in ("GET", "POST", "PUT", "DELETE", "HEAD"):
             return {"status": "error", "response": f"Invalid http method {method}"}
@@ -609,9 +611,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     async def get_batch_state(self, session_id: int | str) -> Any:
         """
         Fetch the state of the specified batch asynchronously.
+
         :param session_id: identifier of the batch sessions
         :return: batch state
-        :rtype: BatchState
         """
         self._validate_session_id(session_id)
         self.log.info("Fetching info for batch session %d", session_id)
@@ -642,11 +644,11 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     ) -> Any:
         """
         Gets the session logs for a specified batch asynchronously.
+
         :param session_id: identifier of the batch sessions
         :param log_start_position: Position from where to pull the logs
         :param log_batch_size: Number of lines to pull in one batch
         :return: response body
-        :rtype: dict
         """
         self._validate_session_id(session_id)
         log_params = {"from": log_start_position, "size": log_batch_size}
@@ -659,9 +661,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     async def dump_batch_logs(self, session_id: int | str) -> Any:
         """
         Dumps the session logs for a specified batch asynchronously
+
         :param session_id: identifier of the batch sessions
         :return: response body
-        :rtype: dict
         """
         self.log.info("Fetching the logs for batch session with id: %d", session_id)
         log_start_line = 0
@@ -685,6 +687,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     def _validate_session_id(session_id: int | str) -> None:
         """
         Validate session id is a int
+
         :param session_id: session id
         """
         try:
@@ -696,9 +699,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     def _parse_post_response(response: dict[Any, Any]) -> Any:
         """
         Parse batch response for batch id
+
         :param response: response body
         :return: session id
-        :rtype: Any
         """
         return response.get("id")
 
@@ -706,9 +709,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     def _parse_request_response(response: dict[Any, Any], parameter: Any) -> Any:
         """
         Parse batch response for batch id
+
         :param response: response body
         :return: value of parameter
-        :rtype: Any
         """
         return response.get(parameter)
 
@@ -733,6 +736,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     ) -> dict[str, Any]:
         """
         Build the post batch request body.
+
         :param file: Path of the file containing the application to execute (required).
         :param proxy_user: User to impersonate when running the job.
         :param class_name: Application Java/Spark main class string.
@@ -750,9 +754,6 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         :param name: The name of this session string.
         :param conf: Spark configuration properties.
         :return: request body
-        :rtype: dict
-        For more information about the format refer to
-        .. seealso:: https://livy.apache.org/docs/latest/rest-api.html
         """
         body: dict[str, Any] = {"file": file}
 
@@ -793,9 +794,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     def _validate_size_format(size: str) -> bool:
         """
         Validate size format.
+
         :param size: size value
         :return: true if valid format
-        :rtype: bool
         """
         if size and not (isinstance(size, str) and re.match(r"^\d+[kmgt]b?$", size, re.IGNORECASE)):
             raise ValueError(f"Invalid java size format for string'{size}'")
@@ -805,9 +806,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     def _validate_list_of_stringables(vals: Sequence[str | int | float]) -> bool:
         """
         Check the values in the provided list can be converted to strings.
+
         :param vals: list to validate
         :return: true if valid
-        :rtype: bool
         """
         if (
             vals is None
@@ -821,9 +822,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     def _validate_extra_conf(conf: dict[Any, Any]) -> bool:
         """
         Check configuration values are either strings or ints.
+
         :param conf: configuration variable
         :return: true if valid
-        :rtype: bool
         """
         if conf:
             if not isinstance(conf, dict):
