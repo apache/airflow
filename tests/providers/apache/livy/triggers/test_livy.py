@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 from aiohttp import ClientConnectionError
 
-from airflow.providers.apache.livy.hooks.livy import BatchState
+from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -33,13 +33,15 @@ class TestLivyTrigger:
         Asserts that the TaskStateTrigger correctly serializes its arguments
         and classpath.
         """
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=0)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=0
+        )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.apache.livy.triggers.livy.LivyTrigger"
         assert kwargs == {
             "batch_id": 1,
             "spark_params": {},
-            "livy_conn_id": "livy_default",
+            "livy_conn_id": LivyHook.default_conn_name,
             "polling_interval": 0,
             "extra_options": None,
             "extra_headers": None,
@@ -54,7 +56,9 @@ class TestLivyTrigger:
         In the case when polling_interval=0, it should return the batch_id
         """
         mock_poll_for_termination.return_value = {"status": "success"}
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=0)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=0
+        )
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
@@ -72,7 +76,9 @@ class TestLivyTrigger:
         polling_interval > 0, it should return a success or failure status.
         """
         mock_poll_for_termination.return_value = {"status": "success"}
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=30)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=30
+        )
 
         generator = trigger.run()
         actual = await generator.asend(None)
@@ -83,7 +89,9 @@ class TestLivyTrigger:
     async def test_livy_trigger_run_with_poll_interval_error(self, mock_poll_for_termination):
         """Test if the task in the trigger returned an error when poll_for_termination returned error."""
         mock_poll_for_termination.return_value = {"status": "error"}
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=30)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=30
+        )
 
         task = [i async for i in trigger.run()]
         assert len(task) == 2
@@ -92,7 +100,9 @@ class TestLivyTrigger:
     @pytest.mark.asyncio
     async def test_livy_trigger_run_with_exception(self):
         """Test if the task in the trigger failed with a connection error when no connection is mocked."""
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=30)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=30
+        )
 
         task = [i async for i in trigger.run()]
         assert len(task) == 1
@@ -115,7 +125,9 @@ class TestLivyTrigger:
         Test if the poll_for_termination() in the trigger failed with a ClientConnectionError
         when no connection is mocked.
         """
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=30)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=30
+        )
 
         with pytest.raises(ClientConnectionError):
             await trigger.poll_for_termination(1)
@@ -132,7 +144,9 @@ class TestLivyTrigger:
         """
         mock_get_batch_state.return_value = {"batch_state": BatchState.SUCCESS}
         mock_dump_batch_logs.return_value = ["mock_log"]
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=30)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=30
+        )
 
         task = await trigger.poll_for_termination(1)
 
@@ -153,7 +167,9 @@ class TestLivyTrigger:
         """
         mock_get_batch_state.return_value = {"batch_state": BatchState.ERROR}
         mock_dump_batch_logs.return_value = ["mock_log"]
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=30)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=30
+        )
 
         task = await trigger.poll_for_termination(1)
 
@@ -174,7 +190,9 @@ class TestLivyTrigger:
         """
         mock_get_batch_state.return_value = {"batch_state": BatchState.NOT_STARTED}
         mock_dump_batch_logs.return_value = ["mock_log"]
-        trigger = LivyTrigger(batch_id=1, spark_params={}, livy_conn_id="livy_default", polling_interval=30)
+        trigger = LivyTrigger(
+            batch_id=1, spark_params={}, livy_conn_id=LivyHook.default_conn_name, polling_interval=30
+        )
 
         task = asyncio.create_task(trigger.poll_for_termination(1))
         await asyncio.sleep(0.5)
