@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-17T19:16:44Z
+# This constraints file was automatically generated on 2023-02-18T19:15:02Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -87,7 +87,7 @@ fsspec==2023.1.0
 future==0.18.3
 gcloud-aio-auth==4.1.5
 gevent==22.10.2
-google-auth==2.16.0
+google-auth==2.16.1
 graphviz==0.20.1
 greenlet==2.0.2
 gssapi==1.8.2
@@ -115,7 +115,7 @@ marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
-mdit-py-plugins==0.3.3
+mdit-py-plugins==0.3.4
 mdurl==0.1.2
 msgpack==1.0.4
 multidict==6.0.4
@@ -183,6 +183,6 @@ websocket-client==1.5.1
 wrapt==1.14.1
 yarl==1.8.2
 zict==2.2.0
-zipp==3.13.0
+zipp==3.14.0
 zope.event==4.6
 zope.interface==5.5.2
