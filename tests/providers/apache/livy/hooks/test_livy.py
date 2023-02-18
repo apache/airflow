@@ -31,7 +31,7 @@ from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, 
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
 
-LIVY_CONN_ID = "livy_default"
+LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
 DEFAULT_HOST = "livy"
 DEFAULT_SCHEMA = "http"
@@ -430,7 +430,7 @@ class TestLivyAsyncHook:
         assert state["status"] == "error"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.livy.LivyAsyncHook.run_method")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.run_method")
     async def test_get_batch_state_error_without_state(self, mock_run_method):
         """Asserts the batch state as error without state returned as part of mock."""
         mock_run_method.return_value = {"status": "success", "response": {}}
