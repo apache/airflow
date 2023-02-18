@@ -35,6 +35,7 @@ Bug Fixes
 ~~~~~~~~~
 * ``Move cloud_sql_binary_path from connection to Hook (#29499)``
 * ``Check that cloud sql provider version is valid (#29497)``
+* ``'GoogleDriveHook': Add folder_id param to upload_file (#29477)``
 
 Misc
 ~~~~

@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.10.0
 ......
 
-Latest change: 2023-02-14
+Latest change: 2023-02-18
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`f37772adfd <https://github.com/apache/airflow/commit/f37772adfdfdee8763147e0563897e4d5d5657c8>`_  2023-02-18   ``'GoogleDriveHook': Add folder_id param to upload_file (#29477)``
 `28126c12fb <https://github.com/apache/airflow/commit/28126c12fbdd2cac84e0fbcf2212154085aa5ed9>`_  2023-02-14   ``Add defer mode to GKECreateClusterOperator and GKEDeleteClusterOperator (#28406)``
 `32c571e592 <https://github.com/apache/airflow/commit/32c571e5926983903ac8b9017c36f14137a797a5>`_  2023-02-14   ``Move cloud_sql_binary_path from connection to Hook (#29499)``
 `41fade2d21 <https://github.com/apache/airflow/commit/41fade2d219c1841fafa439cc5dbb036f34ee32a>`_  2023-02-13   ``Upgrade Mypy to 1.0 (#29468)``
