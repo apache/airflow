@@ -42,14 +42,13 @@ class CeleryKubernetesExecutor(LoggingMixin):
     supports_pickling: bool = True
     supports_sentry: bool = False
     change_sensor_mode_to_reschedule: bool = False
+    is_single_threaded: bool = False
+    is_local: bool = False
+    serve_logs: bool = False
 
     callback_sink: BaseCallbackSink | None = None
 
     KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
-
-    is_local: bool = False
-
-    serve_logs: bool = False
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()

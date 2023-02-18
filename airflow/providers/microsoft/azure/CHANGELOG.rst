@@ -24,6 +24,24 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Enable individual trigger logging (#27758)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix params rendering in AzureSynapseHook Python API docs (#29041)``
+
+Misc
+~~~~
+
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 5.1.0
 .....
 

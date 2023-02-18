@@ -81,7 +81,6 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       taskId: 'dummyTaskId',
       taskTryNumber: 2,
     });
@@ -141,7 +140,6 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       mapIndex: 1,
       taskId: 'dummyTaskId',
       taskTryNumber: 2,
@@ -168,7 +166,6 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       taskId: 'dummyTaskId',
       taskTryNumber: 2,
     });
@@ -179,40 +176,8 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       taskId: 'dummyTaskId',
       taskTryNumber: 1,
-    });
-  });
-
-  test('Test Logs Full Content', () => {
-    const tryNumber = 2;
-    const { getByTestId } = render(
-      <Logs
-        dagId="dummyDagId"
-        dagRunId="dummyDagRunId"
-        taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
-        tryNumber={tryNumber}
-      />,
-    );
-    expect(useTaskLogMock).toHaveBeenLastCalledWith({
-      dagId: 'dummyDagId',
-      dagRunId: 'dummyDagRunId',
-      fullContent: false,
-      taskId: 'dummyTaskId',
-      taskTryNumber: 2,
-    });
-    const fullContentCheckbox = getByTestId('full-content-checkbox');
-
-    fireEvent.click(fullContentCheckbox);
-
-    expect(useTaskLogMock).toHaveBeenLastCalledWith({
-      dagId: 'dummyDagId',
-      dagRunId: 'dummyDagRunId',
-      fullContent: true,
-      taskId: 'dummyTaskId',
-      taskTryNumber: 2,
     });
   });
 });

@@ -76,14 +76,32 @@ Extra (optional)
     following the standard syntax of connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).
 
-    Example connection string with ``key_file`` (path to key file provided in connection):
+    For example, to provide a connection string with ``key_file`` (which contains the path to the key file):
 
     .. code-block:: bash
 
         export AIRFLOW_CONN_MAIN_SERVER='ssh://user:pass@localhost:22?conn_timeout=10&compress=false&no_host_key_check=false&allow_host_key_change=true&key_file=%2Fhome%2Fairflow%2F.ssh%2Fid_rsa'
 
-    Example connection string with ``private_key`` (actual private key provided in connection):
+    Private keys can be encoded into a one-liner for usage in an environment variable as follows:
 
     .. code-block:: bash
 
-        export AIRFLOW_CONN_SSH_SERVER='SSH://127.0.0.1?private_key=-----BEGIN+RSA+PRIVATE+KEY-----%0AMIIEpAIBAAKCAQEAvYUM9xouSUtCKMwm%2FkogT4r3Y%2Bh7H0IPnd7DF9sKCHt9FPJ%2B%0ALaQNX%2FRgnOoPf5ySN42A1nmqv4WX5AKdjEYMIJzN2g2whnol8RVjzP4s2Ao%2B%2BWJ9%0AKstey85CQUgjWFO57ye3TyhbfMZI3fBqDX5RjgkgAZmUpKmv6ttSiCfdgGxLweD7%0ADZexlAjuSfr7i0UZWBIbSKJdePMnWGvZZO%2BGerGlOIKs%2Bqx5agMbNJqDhWn0u8OV%0ACMANhc0yaUAbN08Pjac94%2FxmZPHASytrBmTGd6zYcuzOyxwK8KHMeLUagByT3u7l%0AvWcVyRx8FAXkl7nGF2SQZ0z3JLhmdWMSXuc1AQIDAQABAoIBAQC8%2Bp1REVQyVc8k%0A612%2Bl5%2FccU%2F62elb4%2F26iFS1xv8cMjcp2hwj2sBTfFWSYnsN3syWhI2CUFQJImex%0AP0Jmi7qwEmvaEWiCz%2B5hldisoo%2BI5b6h4qm5MI3YYFYEzrAf9W0kos%2FRKQcBRp%2BG%0AX6MAzYL5RPQbZE%2BqWmJGqGiFyGrBEISl%2FMdoaqSJewTRLHwDtbD9lt4WRPUO%2Font%0A%2FUKwOu3i9z5hMQm9HJJLuKr3hl5jmjJbJUg50a7fjVJzr52VfxH73Z%2Fst40fD3x4%0AH1DHGbX4ar9JOYvhzdXkuxyNXvoglJUIOiAk23Od8q9xOMQAITuwkc1QaVRXwiE7%0Aw41lMC8ZAoGBAOB9PEFyzGwYZgiReOQsAJrlwT7zsY053OGSXAeoLC2OzyLNb8v7%0AnKy2qoTMwxe9LHUDDAp6I8btprvLq35Y72iCbGg0ZK5fIYv%2Bt03NjvOOl1zEuUny%0A5xGe1IvP4YgMQuVMVw5dj11Jmna5eW3oFXlyOQrlth9hrexuI%2BG25qwvAoGBANgf%0AOhy%2FofyIgrIGwaRbgg55rlqViLNGFcJ6I3dVlsRqFxND4PvQZZWfCN3LhIGgI8cT%0AN6hFGPR9QrsmXe3eHM7%2FUpMk53oiPD9E0MemPtQh2AFPUb%2BznqxrXNGvtww6xYBM%0AKYLXcQVn%2FKELwwMYw3F0HGKgCFF0XthV34f%2Bt%2FXPAoGBALVLjqEQlBTsM2LSEP68%0AppRx3nn3lrmGNGMbryUj5OG6BoCFxrbG8gXt05JCR4Bhb4jkOBIyB7i87r2VQ19b%0AdaVCR0h0n6bO%2FymvQNwdmUgLLSRnX3hgKcpqKh7reKlFtbS2zUu1tXVSXuNo8K8Z%0AElatL3Ikh8uaODrLzECaVHpTAoGAXcReoC58h2Zq3faUeUzChqlAfki2gKF9u1zm%0AmlXmDd3BmTgwGtD14g6X%2BDLekKb8Htk1oqooA5t9IlmpExT1BtI7719pltHXtdOT%0AiauVQtBUOW1CmJvD0ibapJdKIeI14k4pDH2QqbnOH8lMmMFbupOX5SptsXl91Pqc%0A%2BxIGmn0CgYBOL2o0Sn%2F8d7uzAZKUBG1%2F0eFr4j6wYwWajVDFOfbJ7WdIf5j%2BL3nY%0A3440i%2Fb2NlEE8nLPDl6cwiOtwV0XFkoiF3ctHvutlhGBxAKHetIxIsnQk7vXqgfP%0AnhsgNypNAQXbxe3gjJEb4Fzw3Ufz3mq5PllYtXKhc%2Bmc4%2B3sN5uGow%3D%3D%0A-----END+RSA+PRIVATE+KEY-----%0A'
+       python -c 'from urllib.parse import quote_plus, sys; print(quote_plus(sys.stdin.read()))' < /path/to/your/key
+
+    You can then export this as an environment variable:
+
+    .. code-block:: bash
+
+        export AIRFLOW_CONN_SSH_SERVER='ssh://127.0.0.1?private_key=-----BEGIN+RSA+PRIVATE+KEY-----%0D%0AMII.....jBV50%0D%0A-----END+RSA+PRIVATE+KEY-----'
+
+    To configure a private key in the extras in the Airflow UI, you can replace newlines by literal ``\n``:
+
+    .. code-block:: bash
+
+       python -c 'import re, sys; print(re.sub("\r\n", "\\\\n", sys.stdin.read()))' < /path/to/your/key
+
+    You can then provide the result in the extras JSON as:
+
+    .. code-block:: json
+
+        {"private_key": "-----BEGIN RSA PRIVATE KEY-----\nMII.....jBV50\n-----END RSA PRIVATE KEY-----"}

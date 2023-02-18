@@ -338,7 +338,7 @@ mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==0.971",
+    "mypy==1.0.0",
     "types-boto",
     "types-certifi",
     "types-croniter",
@@ -404,6 +404,7 @@ devel_only = [
     "twine",
     "wheel",
     "yamllint",
+    "aioresponses",
 ]
 
 

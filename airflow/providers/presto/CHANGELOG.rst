@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+4.2.2
+.....
+
+Misc
+~~~~
+
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 4.2.1
 .....
 

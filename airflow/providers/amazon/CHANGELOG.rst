@@ -24,6 +24,42 @@
 Changelog
 ---------
 
+7.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add option to wait for completion on the EmrCreateJobFlowOperator (#28827)``
+* ``Add transfer operator S3 to (generic) SQL (#29085)``
+* ``add retries to stop_pipeline on conflict (#29077)``
+* ``Add log for AWS Glue Job Console URL (#28925)``
+* ``Enable individual trigger logging (#27758)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: 'num_of_dpus' typehints- GlueJobHook/Operator (#29176)``
+* ``Fix typo in DataSyncHook boto3 methods for create location in NFS and EFS (#28948)``
+* ``Decrypt SecureString value obtained by SsmHook (#29142)``
+
+Misc
+~~~~
+
+* ``log the observed status in redshift sensor (#29274)``
+* ``Use thin/passthrough hook instead of one-liner hook method (#29252)``
+* ``Move imports in AWS SqlToS3Operator transfer to callable function (#29045)``
+* ``introduce base class for EKS sensors (#29053)``
+* ``introduce a method to convert dictionaries to boto-style key-value lists (#28816)``
+* ``Update provide_bucket_name() decorator to handle new conn_type (#28706)``
+* ``uniformize getting hook through cached property in aws sensors (#29001)``
+* ``Use boto3 intersphinx inventory in documentation/docstrings. (#28945)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``shorten other wait times in sys tests (#29254)``
+   * ``Fix false-positive spellcheck failure (#29190)``
+
 7.1.0
 .....
 
