@@ -1786,6 +1786,7 @@ class TestBackfillJob:
 
     def test_mapped_dag_unexpandable(self, dag_maker, session):
         with dag_maker(session=session) as dag:
+
             @dag.task
             def get_things():
                 return [1, 2]
