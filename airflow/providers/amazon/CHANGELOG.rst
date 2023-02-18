@@ -30,8 +30,12 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix docstring for EcsRunTaskOperator region_name -> region (#29562)``
 * ``Explicitly handle exceptions raised by config parsing in AWS provider (#29587)``
+
+Misc
+~~~~
+
+* ``Fix docstring for EcsRunTaskOperator region_name -> region (#29562)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
