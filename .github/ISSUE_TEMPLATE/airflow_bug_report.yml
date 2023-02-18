@@ -86,8 +86,9 @@ body:
         - "Other Docker-based deployment"
         - "Virtualenv installation"
         - "Astronomer"
-        - "Composer"
-        - "MWAA"
+        - "Google Cloud Composer"
+        - "Amazon (AWS) MWAA"
+        - "Microsoft ADF Managed Airflow"
         - "Other"
     validations:
       required: true
