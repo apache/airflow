@@ -175,6 +175,8 @@ body:
         as minimally and precisely as possible. Keep in mind we do not have access to your cluster or
         DAGs. Remember that non-reproducible issues will be closed! Opening a discussion is
         recommended as a first step.
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: Anything else
