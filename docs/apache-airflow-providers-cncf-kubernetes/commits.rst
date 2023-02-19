@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.1
+.....
+
+Latest change: 2023-02-18
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`9a5c3e0ac0 <https://github.com/apache/airflow/commit/9a5c3e0ac0b682d7f2c51727a56e06d68bc9f6be>`_  2023-02-18   ``Fix @task.kubernetes to receive input and send output (#28942)``
+=================================================================================================  ===========  ==================================================================
+
 5.2.0
 .....
 
-Latest change: 2023-02-01
+Latest change: 2023-02-08
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `d26dc22391 <https://github.com/apache/airflow/commit/d26dc223915c50ff58252a709bb7b33f5417dfce>`_  2023-02-01   ``Patch only single label when marking KPO checked (#29279)``
 `246d778e6b <https://github.com/apache/airflow/commit/246d778e6b8042850ef8510bd25c52b1198030f1>`_  2023-01-30   ``Add deferrable mode to ''KubernetesPodOperator'' (#29017)``
 `70b84b51a5 <https://github.com/apache/airflow/commit/70b84b51a5802b72dc7a8fb9bf8133699adcc79c>`_  2023-01-23   ``Allow setting the name for the base container within K8s Pod Operator (#28808)``
