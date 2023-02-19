@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from paramiko.client import SSHClient
@@ -48,7 +49,7 @@ class SSHOperator(BaseOperator):
         Nullable. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
-        Negative value means no timeout. Nullable. If provided, it will replace the `cmd_timeout`
+        Nullable, `None` means no timeout. If provided, it will replace the `cmd_timeout`
         which was predefined in the connection of `ssh_conn_id`.
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config. (templated)
@@ -84,7 +85,7 @@ class SSHOperator(BaseOperator):
         remote_host: str | None = None,
         command: str | None = None,
         conn_timeout: int | None = None,
-        cmd_timeout: int | None = None,
+        cmd_timeout: int | ArgNotSet | None = NOTSET,
         environment: dict | None = None,
         get_pty: bool = False,
         banner_timeout: float = 30.0,

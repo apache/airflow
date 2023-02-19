@@ -74,9 +74,8 @@ TEST_TIMEOUT = 20
 TEST_CONN_TIMEOUT = 30
 
 TEST_CMD_TIMEOUT = 5
-TEST_CMD_TIMEOUT_NEGATIVE = -5
+TEST_CMD_TIMEOUT_NOT_SET = "NOT SET"
 TEST_CMD_TIMEOUT_EXTRA = 15
-TEST_CMD_TIMEOUT_EXTRA_NEGATIVE = "-1"
 
 PASSPHRASE = "".join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
@@ -94,7 +93,7 @@ class TestSSHHook:
     CONN_SSH_WITH_TIMEOUT_EXTRA = "ssh_with_timeout_extra"
     CONN_SSH_WITH_CONN_TIMEOUT_EXTRA = "ssh_with_conn_timeout_extra"
     CONN_SSH_WITH_CMD_TIMEOUT_EXTRA = "ssh_with_cmd_timeout_extra"
-    CONN_SSH_WITH_NEGATIVE_CMD_TIMEOUT_EXTRA = "ssh_with_negative_cmd_timeout_extra"
+    CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA = "ssh_with_negative_cmd_timeout_extra"
     CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA = "ssh_with_timeout_and_conn_timeout_extra"
     CONN_SSH_WITH_EXTRA = "ssh_with_extra"
     CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS = "ssh_with_extra_false_look_for_keys"
@@ -127,7 +126,7 @@ class TestSSHHook:
                 cls.CONN_SSH_WITH_TIMEOUT_EXTRA,
                 cls.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
                 cls.CONN_SSH_WITH_CMD_TIMEOUT_EXTRA,
-                cls.CONN_SSH_WITH_NEGATIVE_CMD_TIMEOUT_EXTRA,
+                cls.CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA,
                 cls.CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA,
                 cls.CONN_SSH_WITH_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
@@ -232,10 +231,10 @@ class TestSSHHook:
         )
         db.merge_conn(
             Connection(
-                conn_id=cls.CONN_SSH_WITH_NEGATIVE_CMD_TIMEOUT_EXTRA,
+                conn_id=cls.CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA,
                 host="localhost",
                 conn_type="ssh",
-                extra=json.dumps({"cmd_timeout": TEST_CMD_TIMEOUT_EXTRA_NEGATIVE}),
+                extra=json.dumps({"cmd_timeout": None}),
             )
         )
         db.merge_conn(
@@ -822,38 +821,46 @@ class TestSSHHook:
             )
 
     @pytest.mark.parametrize(
-        "cmd_timeout, cmd_timeoutextra, negative_cmd_timeoutextra, expected_value",
+        "cmd_timeout, cmd_timeoutextra, null_cmd_timeoutextra, expected_value",
         [
             (TEST_CMD_TIMEOUT, True, False, TEST_CMD_TIMEOUT),
             (TEST_CMD_TIMEOUT, True, True, TEST_CMD_TIMEOUT),
             (TEST_CMD_TIMEOUT, False, False, TEST_CMD_TIMEOUT),
-            (TEST_CMD_TIMEOUT_NEGATIVE, True, False, None),
-            (TEST_CMD_TIMEOUT_NEGATIVE, True, True, None),
-            (TEST_CMD_TIMEOUT_NEGATIVE, False, False, None),
-            (None, True, False, TEST_CMD_TIMEOUT_EXTRA),
+            (TEST_CMD_TIMEOUT_NOT_SET, True, False, TEST_CMD_TIMEOUT_EXTRA),
+            (TEST_CMD_TIMEOUT_NOT_SET, True, True, None),
+            (TEST_CMD_TIMEOUT_NOT_SET, False, False, 10),
+            (None, True, False, None),
             (None, True, True, None),
-            (None, False, False, 10),
+            (None, False, False, None),
         ],
     )
     def test_ssh_connection_with_cmd_timeout(
-        self, cmd_timeout, cmd_timeoutextra, negative_cmd_timeoutextra, expected_value
+        self, cmd_timeout, cmd_timeoutextra, null_cmd_timeoutextra, expected_value
     ):
 
         if cmd_timeoutextra:
-            if negative_cmd_timeoutextra:
-                ssh_conn_id = self.CONN_SSH_WITH_NEGATIVE_CMD_TIMEOUT_EXTRA
+            if null_cmd_timeoutextra:
+                ssh_conn_id = self.CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA
             else:
                 ssh_conn_id = self.CONN_SSH_WITH_CMD_TIMEOUT_EXTRA
         else:
             ssh_conn_id = self.CONN_SSH_WITH_NO_EXTRA
 
-        hook = SSHHook(
-            ssh_conn_id=ssh_conn_id,
-            remote_host="remote_host",
-            port="port",
-            username="username",
-            cmd_timeout=cmd_timeout,
-        )
+        if cmd_timeout == TEST_CMD_TIMEOUT_NOT_SET:
+            hook = SSHHook(
+                ssh_conn_id=ssh_conn_id,
+                remote_host="remote_host",
+                port="port",
+                username="username",
+            )
+        else:
+            hook = SSHHook(
+                ssh_conn_id=ssh_conn_id,
+                remote_host="remote_host",
+                port="port",
+                username="username",
+                cmd_timeout=cmd_timeout,
+            )
         assert hook.cmd_timeout == expected_value
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
