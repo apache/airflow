@@ -37,12 +37,10 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
+    AirflowClusterPolicyError,
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
-    AirflowDagInconsistent,
-    AirflowTimetableInvalid,
-    ParamValidationError,
     RemovedInAirflow3Warning,
 )
 from airflow.stats import Stats
@@ -436,19 +434,9 @@ class DagBag(LoggingMixin):
             try:
                 dag.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
-            except AirflowTimetableInvalid as exception:
+            except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = f"Invalid timetable expression: {exception}"
-                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
-            except (
-                AirflowClusterPolicyViolation,
-                AirflowDagCycleException,
-                AirflowDagDuplicatedIdException,
-                AirflowDagInconsistent,
-                ParamValidationError,
-            ) as exception:
-                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = str(exception)
+                self.import_errors[dag.fileloc] = str(e)
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             else:
                 found_dags.append(dag)
@@ -475,11 +463,17 @@ class DagBag(LoggingMixin):
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
-        # Check policies
-        settings.dag_policy(dag)
+        try:
+            # Check policies
+            settings.dag_policy(dag)
 
-        for task in dag.tasks:
-            settings.task_policy(task)
+            for task in dag.tasks:
+                settings.task_policy(task)
+        except AirflowClusterPolicyViolation:
+            raise
+        except Exception as e:
+            self.log.exception(e)
+            raise AirflowClusterPolicyError(e)
 
         subdags = dag.subdags
 
