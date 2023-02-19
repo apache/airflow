@@ -476,7 +476,7 @@ class SSHHook(BaseHook):
         self.log.info("Running command: %s", command)
 
         if timeout is None:
-            timeout = self.cmd_timeout
+            timeout = self.cmd_timeout  # type: ignore[assignment]
 
         # set timeout taken as params
         stdin, stdout, stderr = ssh_client.exec_command(
