@@ -128,6 +128,45 @@ class TestLocalClient:
             )
             mock.reset_mock()
 
+            # test output
+            queued_at = pendulum.now()
+            started_at = pendulum.now()
+            mock.return_value = DagRun(
+                dag_id=test_dag_id,
+                run_id=run_id,
+                queued_at=queued_at,
+                execution_date=EXECDATE,
+                start_date=started_at,
+                external_trigger=True,
+                state=DagRunState.QUEUED,
+                conf={},
+                run_type=DagRunType.MANUAL,
+                data_interval=(EXECDATE, EXECDATE + pendulum.duration(hours=1)),
+            )
+            expected_dag_run = {
+                "conf": {},
+                "dag_id": test_dag_id,
+                "dag_run_id": run_id,
+                "data_interval_end": EXECDATE,
+                "data_interval_start": EXECDATE + pendulum.duration(hours=1),
+                "end_date": None,
+                "external_trigger": True,
+                "last_scheduling_decision": None,
+                "logical_date": EXECDATE,
+                "run_type": DagRunType.MANUAL,
+                "start_date": started_at,
+                "state": DagRunState.QUEUED,
+            }
+            dag_run = self.client.trigger_dag(dag_id=test_dag_id)
+            assert expected_dag_run == dag_run
+            mock.reset_mock()
+
+            # test output when no DagRun is created
+            mock.return_value = None
+            dag_run = self.client.trigger_dag(dag_id=test_dag_id)
+            assert not dag_run
+            mock.reset_mock()
+
     def test_delete_dag(self):
         key = "my_dag_id"
 

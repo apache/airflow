@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
 import tempfile
 from datetime import datetime, timedelta
@@ -607,6 +608,30 @@ class TestCliDags:
                     ]
                 ),
             )
+
+    def test_trigger_dag_output_as_json(self):
+        args = self.parser.parse_args(
+            [
+                "dags",
+                "trigger",
+                "example_bash_operator",
+                "--run-id",
+                "trigger_dag_xxx",
+                "--conf",
+                '{"conf1": "val1", "conf2": "val2"}',
+                "--output=json",
+            ]
+        )
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_trigger(args)
+            # get the last line from the logs ignoring all logging lines
+            out = temp_stdout.getvalue().strip().split("\n")[-1]
+        parsed_out = json.loads(out)
+
+        assert 1 == len(parsed_out)
+        assert "example_bash_operator" == parsed_out[0]["dag_id"]
+        assert "trigger_dag_xxx" == parsed_out[0]["dag_run_id"]
+        assert {"conf1": "val1", "conf2": "val2"} == parsed_out[0]["conf"]
 
     def test_delete_dag(self):
         DM = DagModel
