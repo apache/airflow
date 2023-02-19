@@ -488,7 +488,7 @@ class TestCliDags:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_list_import_errors(args)
             out = temp_stdout.getvalue()
-        assert "Invalid timetable expression" in out
+        assert "[0 100 * * *] is not acceptable, out of range" in out
         assert dag_path in out
 
     def test_cli_list_dag_runs(self):
