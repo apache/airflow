@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import warnings
 from typing import Any, AsyncIterator, Sequence
 
+from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
 
 from airflow import AirflowException
@@ -219,3 +221,92 @@ class DataprocBatchTrigger(BaseTrigger):
             self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
             await asyncio.sleep(self.polling_interval_seconds)
         yield TriggerEvent({"batch_id": self.batch_id, "batch_state": state})
+
+
+class DataprocDeleteClusterTrigger(BaseTrigger):
+    """
+    Asynchronously checks the status of a cluster.
+
+    :param cluster_name: The name of the cluster
+    :param end_time: Time in second left to check the cluster status
+    :param project_id: The ID of the Google Cloud project the cluster belongs to
+    :param region: The Cloud Dataproc region in which to handle the request
+    :param metadata: Additional metadata that is provided to the method
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :param polling_interval: Time in seconds to sleep between checks of cluster status
+    """
+
+    def __init__(
+        self,
+        cluster_name: str,
+        end_time: float,
+        project_id: str | None = None,
+        region: str | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        polling_interval: float = 5.0,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.cluster_name = cluster_name
+        self.end_time = end_time
+        self.project_id = project_id
+        self.region = region
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.polling_interval = polling_interval
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes DataprocDeleteClusterTrigger arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocDeleteClusterTrigger",
+            {
+                "cluster_name": self.cluster_name,
+                "end_time": self.end_time,
+                "project_id": self.project_id,
+                "region": self.region,
+                "metadata": self.metadata,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "polling_interval": self.polling_interval,
+            },
+        )
+
+    async def run(self) -> AsyncIterator["TriggerEvent"]:
+        """Wait until cluster is deleted completely"""
+        hook = self._get_hook()
+        while self.end_time > time.time():
+            try:
+                cluster = await hook.get_cluster(
+                    region=self.region,  # type: ignore[arg-type]
+                    cluster_name=self.cluster_name,
+                    project_id=self.project_id,  # type: ignore[arg-type]
+                    metadata=self.metadata,
+                )
+                self.log.info(
+                    "Cluster status is %s. Sleeping for %s seconds.",
+                    cluster.status.state,
+                    self.polling_interval,
+                )
+                await asyncio.sleep(self.polling_interval)
+            except NotFound:
+                yield TriggerEvent({"status": "success", "message": ""})
+            except Exception as e:
+                yield TriggerEvent({"status": "error", "message": str(e)})
+        yield TriggerEvent({"status": "error", "message": "Timeout"})
+
+    def _get_hook(self) -> DataprocAsyncHook:
+        return DataprocAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
