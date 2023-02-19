@@ -15,21 +15,40 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-# Configuration for the Prometheus targets.
-# Used by integration-statsd.yml
-global:
-    scrape_interval: 30s
-    evaluation_interval: 30s
-    scrape_timeout: 10s
+extensions:
+  memory_ballast:
+    size_mib: 512
+  zpages:
+    endpoint: 0.0.0.0:55679
 
-scrape_configs:
-    - job_name: 'prometheus'
-      static_configs:
-          - targets: ['localhost:9090']
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
 
-    - job_name: 'statsd-exporter'
-      static_configs:
-          - targets: ['breeze-statsd-exporter:9102']
+processors:
+  batch:
+  memory_limiter:
+    limit_mib: 1536
+    spike_limit_mib: 512
+    check_interval: 5s
 
-      tls_config:
-          insecure_skip_verify: true
+exporters:
+  logging:
+    logLevel: debug
+  prometheus:
+    metrics:
+      endpoint: "http://localhost:29090"
+
+service:
+  extensions: [memory_ballast, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [logging]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [logging, prometheus]

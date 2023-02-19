@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.3
+.....
+
+Latest change: 2023-02-15
+
+=================================================================================================  ===========  =============================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================
+`1cb127b9fd <https://github.com/apache/airflow/commit/1cb127b9fd22a7dc8e0b82cab8acb7cd4c317c9c>`_  2023-02-15   ``Validate Hive Beeline parameters (#29502)``
+=================================================================================================  ===========  =============================================
+
 5.1.2
 .....
 
-Latest change: 2023-01-18
+Latest change: 2023-02-08
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `23da4daaa0 <https://github.com/apache/airflow/commit/23da4daaa018e72b39b977afcde85deaf2224f1e>`_  2023-01-18   ``Revert "Remove conn.close() ignores (#29005)" (#29010)``
 `85f8df7b8a <https://github.com/apache/airflow/commit/85f8df7b8a18e1147c7e014a7af7fc4e66aaa8be>`_  2023-01-18   ``Remove conn.close() ignores (#29005)``
 `aa97474020 <https://github.com/apache/airflow/commit/aa97474020712d3f450ab169a5a054580e7b7d28>`_  2023-01-18   ``Fixed MyPy errors introduced by new mysql-connector-python (#28995)``

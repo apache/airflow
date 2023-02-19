@@ -54,6 +54,16 @@ class TestInternalApiConfig:
         assert InternalApiConfig.get_use_internal_api() is True
         assert InternalApiConfig.get_internal_api_endpoint() == "http://localhost:8888/internal_api/v1/rpcapi"
 
+    @conf_vars(
+        {
+            ("core", "database_access_isolation"): "true",
+            ("core", "internal_api_url"): "http://localhost:8888",
+        }
+    )
+    def test_force_database_direct_access(self):
+        InternalApiConfig.force_database_direct_access()
+        assert InternalApiConfig.get_use_internal_api() is False
+
 
 class TestInternalApiCall:
     @staticmethod

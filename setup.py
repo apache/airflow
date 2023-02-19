@@ -404,6 +404,7 @@ devel_only = [
     "twine",
     "wheel",
     "yamllint",
+    "aioresponses",
 ]
 
 
