@@ -48,8 +48,8 @@ class SSHOperator(BaseOperator):
         Nullable. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
-        Nullable. If provided, it will replace the `cmd_timeout` which was
-        predefined in the connection of `ssh_conn_id`.
+        Negative value means no timeout. Nullable. If provided, it will replace the `cmd_timeout`
+        which was predefined in the connection of `ssh_conn_id`.
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config. (templated)
     :param get_pty: request a pseudo-terminal from the server. Set to ``True``

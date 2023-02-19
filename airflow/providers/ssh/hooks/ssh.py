@@ -60,8 +60,8 @@ class SSHHook(BaseHook):
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
-        Nullable. If provided, it will replace the `cmd_timeout` which was
-        predefined in the connection of `ssh_conn_id`.
+        Negative value means no timeout. Nullable. If provided, it will replace the `cmd_timeout`
+        which was predefined in the connection of `ssh_conn_id`.
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :param banner_timeout: timeout to wait for banner from the server in seconds
@@ -156,9 +156,6 @@ class SSHHook(BaseHook):
             if self.port is None:
                 self.port = conn.port
 
-            if conn.extra is None and self.cmd_timeout is None:
-                self.cmd_timeout = CMD_TIMEOUT
-
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
                 if "key_file" in extra_options and self.key_file is None:
@@ -182,13 +179,8 @@ class SSHHook(BaseHook):
                 if "conn_timeout" in extra_options and self.conn_timeout is None:
                     self.conn_timeout = int(extra_options["conn_timeout"])
 
-                if self.cmd_timeout is None:
-                    if "cmd_timeout" in extra_options:
-                        self.cmd_timeout = (
-                            int(extra_options["cmd_timeout"]) if extra_options["cmd_timeout"] else None
-                        )
-                    else:
-                        self.cmd_timeout = CMD_TIMEOUT
+                if "cmd_timeout" in extra_options and self.cmd_timeout is None:
+                    self.cmd_timeout = int(extra_options["cmd_timeout"])
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
                     self.compress = False
@@ -242,6 +234,11 @@ class SSHHook(BaseHook):
 
         if self.conn_timeout is None:
             self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
+
+        if self.cmd_timeout is None:
+            self.cmd_timeout = CMD_TIMEOUT
+        if self.cmd_timeout < 0:
+            self.cmd_timeout = None
 
         if self.pkey and self.key_file:
             raise AirflowException(
