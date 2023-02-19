@@ -1071,7 +1071,7 @@ class TestKubernetesPodOperator:
         )
 
         base_container = MagicMock()
-        base_container.name = k.BASE_CONTAINER_NAME
+        base_container.name = k.base_container_name
         base_container.last_state.terminated.exit_code = actual_exit_code
         sidecar_container = MagicMock()
         sidecar_container.name = "airflow-xcom-sidecar"
@@ -1245,6 +1245,70 @@ class TestKubernetesPodOperatorAsync:
                     "namespace": TEST_NAMESPACE,
                 },
             )
+
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_exc, pod_status, event_status",
+        [
+            (None, 0, None, "Succeeded", "success"),
+            (None, 99, AirflowException, "Failed", "error"),
+            ({"skip_exit_code": 100}, 100, AirflowSkipException, "Failed", "error"),
+            ({"skip_exit_code": 100}, 101, AirflowException, "Failed", "error"),
+            ({"skip_exit_code": None}, 100, AirflowException, "Failed", "error"),
+        ],
+    )
+    @patch(HOOK_CLASS)
+    def test_async_create_pod_with_skip_exit_code_should_skip(
+        self,
+        mocked_hook,
+        extra_kwargs,
+        actual_exit_code,
+        expected_exc,
+        pod_status,
+        event_status,
+    ):
+        """Tests that an AirflowSkipException is raised when the pod exit with the skip_exit_code"""
+
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            cmds=TEST_CMDS,
+            arguments=TEST_ARGS,
+            labels=TEST_LABELS,
+            name=TEST_NAME,
+            is_delete_operator_pod=False,
+            in_cluster=True,
+            get_logs=True,
+            deferrable=True,
+            **(extra_kwargs if extra_kwargs else {}),
+        )
+
+        base_container = MagicMock()
+        base_container.name = k.base_container_name
+        base_container.last_state.terminated.exit_code = actual_exit_code
+        sidecar_container = MagicMock()
+        sidecar_container.name = "airflow-xcom-sidecar"
+        sidecar_container.last_state.terminated.exit_code = 0
+        remote_pod = MagicMock()
+        remote_pod.status.phase = pod_status
+        remote_pod.status.container_statuses = [base_container, sidecar_container]
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        context = {
+            "ti": MagicMock(),
+        }
+        event = {
+            "status": event_status,
+            "message": "Some msg",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+
+        if expected_exc:
+            with pytest.raises(expected_exc):
+                k.execute_complete(context=context, event=event)
+        else:
+            k.execute_complete(context=context, event=event)
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
