@@ -72,6 +72,15 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
+    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+        echo
+        echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
+        echo
+        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        echo
+        exit 1
+    fi
 }
 
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
@@ -307,9 +316,10 @@ EXTRA_PYTEST_ARGS=(
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
     echo "Running tests with ${_cpus} CPUs in parallel"
-    # Enable parallelism
+    # Enable parallelism and disable coverage
     EXTRA_PYTEST_ARGS+=(
         "-n" "${_cpus}"
+        "--no-cov"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -319,7 +329,7 @@ fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
-        "--cov=airflow/"
+        "--cov=airflow"
         "--cov-config=.coveragerc"
         "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )

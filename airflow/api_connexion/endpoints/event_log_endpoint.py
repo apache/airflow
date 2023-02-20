@@ -37,7 +37,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a log entry."""
-    event_log = session.query(Log).get(event_log_id)
+    event_log = session.get(Log, event_log_id)
     if event_log is None:
         raise NotFound("Event Log not found")
     return event_log_schema.dump(event_log)

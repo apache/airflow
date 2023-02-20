@@ -25,6 +25,8 @@ from airflow.configuration import conf
 from airflow.utils.context import Context
 
 if typing.TYPE_CHECKING:
+    import multiprocessing.context
+
     from airflow.models.operator import Operator
 
 
@@ -43,6 +45,10 @@ class MultiprocessingStartMethodMixin:
         if not method:
             raise ValueError("Failed to determine start method")
         return method
+
+    def _get_multiprocessing_context(self) -> multiprocessing.context.DefaultContext:
+        mp_start_method = self._get_multiprocessing_start_method()
+        return multiprocessing.get_context(mp_start_method)  # type: ignore
 
 
 class ResolveMixin:

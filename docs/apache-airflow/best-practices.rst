@@ -404,8 +404,8 @@ your DAG "less complex" - since this is a Python code, it's the DAG writer who c
 their code.
 
 There are no "metrics" for DAG complexity, especially, there are no metrics that can tell you
-whether your DAG is "simple enough". However - as with any Python code you can definitely tell that
-your code is "simpler" or "faster" when you optimize it, the same can be said about DAG code. If you
+whether your DAG is "simple enough". However, as with any Python code, you can definitely tell that
+your DAG code is "simpler" or "faster" when it is optimized. If you
 want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG load faster. This is a single improvement advice that might be implemented in various ways
@@ -712,9 +712,9 @@ and the dependencies basically conflict between those tasks.
 If you are using pre-defined Airflow Operators to talk to external services, there is not much choice, but usually those
 operators will have dependencies that are not conflicting with basic Airflow dependencies. Airflow uses constraints mechanism
 which means that you have a "fixed" set of dependencies that the community guarantees that Airflow can be installed with
-(including all community providers) without triggering conflicts. However you can upgrade the providers
-independently and their constraints do not limit you so the chance of a conflicting dependency is lower (you still have
-to test those dependencies). Therefore when you are using pre-defined operators, chance is that you will have
+(including all community providers) without triggering conflicts. However, you can upgrade the providers
+independently and their constraints do not limit you, so the chance of a conflicting dependency is lower (you still have
+to test those dependencies). Therefore, when you are using pre-defined operators, chance is that you will have
 little, to no problems with conflicting dependencies.
 
 However, when you are approaching Airflow in a more "modern way", where you use TaskFlow Api and most of
@@ -784,7 +784,7 @@ There are certain limitations and overhead introduced by this operator:
   a victim of "supply chain" attack where new version of a dependency might become malicious
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.operators.python.PythonVirtualenvOperator` in
 :ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
@@ -799,7 +799,7 @@ A bit more involved but with significantly less overhead, security, stability pr
 :class:`airflow.operators.python.ExternalPythonOperator``. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.external_python`` decorator (recommended way of using the operator).
-It requires however that you have a pre-existing, immutable Python environment, that is prepared upfront.
+It requires, however, that you have a pre-existing, immutable Python environment, that is prepared upfront.
 Unlike in :class:`airflow.operators.python.PythonVirtualenvOperator` you cannot add new dependencies
 to such pre-existing environment. All dependencies you need should be added upfront in your environment
 and available in all the workers in case your Airflow runs in a distributed environment.
@@ -928,7 +928,7 @@ Using multiple Docker Images and Celery Queues
 
 There is a possibility (though it requires a deep knowledge of Airflow deployment) to run Airflow tasks
 using multiple, independent Docker images. This can be achieved via allocating different tasks to different
-Queues and configuring your Celery workers to use different images for different Queues. This however
+Queues and configuring your Celery workers to use different images for different Queues. This, however,
 (at least currently) requires a lot of manual deployment configuration and intrinsic knowledge of how
 Airflow, Celery and Kubernetes works. Also it introduces quite some overhead for running the tasks - there
 are less chances for resource reuse and it's much more difficult to fine-tune such a deployment for

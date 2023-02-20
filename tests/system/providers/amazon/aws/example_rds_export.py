@@ -86,6 +86,7 @@ with DAG(
             "MasterUserPassword": "rds_password",
             "AllocatedStorage": 20,
             "DBName": rds_db_name,
+            "PubliclyAccessible": False,
         },
     )
 
@@ -126,6 +127,7 @@ with DAG(
         export_task_identifier=rds_export_task_id,
     )
     # [END howto_operator_rds_cancel_export]
+    cancel_export.check_interval = 10
 
     # [START howto_sensor_rds_export_task_existence]
     export_sensor = RdsExportTaskExistenceSensor(

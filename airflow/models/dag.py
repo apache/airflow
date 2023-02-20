@@ -308,8 +308,7 @@ class DAG(LoggingMixin):
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
     :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created. The timeout
-        is only enforced for scheduled DagRuns.
+        timing out / failing, so that new DagRuns can be created.
     :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
@@ -3244,7 +3243,11 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=NEW_SESSION):
-        return session.query(DagModel).options(joinedload(DagModel.parent_dag)).get(dag_id)
+        return session.get(
+            DagModel,
+            dag_id,
+            options=[joinedload(DagModel.parent_dag)],
+        )
 
     @classmethod
     @provide_session
@@ -3326,6 +3329,7 @@ class DagModel(Base):
         session.commit()
 
     @classmethod
+    @internal_api_call
     @provide_session
     def deactivate_deleted_dags(cls, alive_dag_filelocs: list[str], session=NEW_SESSION):
         """
