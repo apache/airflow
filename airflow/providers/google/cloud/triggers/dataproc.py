@@ -61,6 +61,7 @@ class DataprocBaseTrigger(BaseTrigger):
 class DataprocSubmitTrigger(DataprocBaseTrigger):
     """
     DataprocSubmitTrigger run on the trigger worker to perform create Build operation
+
     :param job_id: The ID of a Dataproc job.
     :param project_id: Google Cloud Project where the job is running
     :param region: The Cloud Dataproc region in which to handle the request.
@@ -167,6 +168,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
 class DataprocBatchTrigger(DataprocBaseTrigger):
     """
     DataprocCreateBatchTrigger run on the trigger worker to perform create Build operation
+
     :param batch_id: The ID of the build.
     :param project_id: Google Cloud Project where the job is running
     :param region: The Cloud Dataproc region in which to handle the request.
@@ -218,6 +220,7 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
 class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
     """
     DataprocDeleteClusterTrigger run on the trigger worker to perform delete cluster operation.
+
     :param cluster_name: The name of the cluster
     :param end_time: Time in second left to check the cluster status
     :param project_id: The ID of the Google Cloud project the cluster belongs to
@@ -288,11 +291,11 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
 
 class DataprocWorkflowTrigger(DataprocBaseTrigger):
     """
-        Trigger that periodically polls information from Dataproc API to verify status.
-        Implementation leverages asynchronous transport.
-        """
+    Trigger that periodically polls information from Dataproc API to verify status.
+    Implementation leverages asynchronous transport.
+    """
 
-    def __init__(self, template_name: str, name: str, **kwargs: Any,):
+    def __init__(self, template_name: str, name: str, **kwargs: Any):
         super().__init__(**kwargs)
         self.template_name = template_name
         self.name = name
