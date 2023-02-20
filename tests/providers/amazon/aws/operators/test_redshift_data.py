@@ -29,33 +29,15 @@ STATEMENT_ID = "statement_id"
 
 
 class TestRedshiftDataOperator:
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_execute_without_waiting(self, mock_conn):
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
-        operator = RedshiftDataOperator(
-            aws_conn_id=CONN_ID,
-            task_id=TASK_ID,
-            sql=SQL,
-            database=DATABASE,
-            await_result=False,
-        )
-        operator.execute(None)
-        mock_conn.execute_statement.assert_called_once_with(
-            Database=DATABASE,
-            Sql=SQL,
-            WithEvent=False,
-        )
-        mock_conn.describe_statement.assert_not_called()
-
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_execute_with_all_parameters(self, mock_conn):
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
+    def test_execute(self, mock_exec_query):
         cluster_identifier = "cluster_identifier"
         db_user = "db_user"
         secret_arn = "secret_arn"
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
-        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        poll_interval = 5
+        await_result = True
 
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
@@ -67,20 +49,21 @@ class TestRedshiftDataOperator:
             secret_arn=secret_arn,
             statement_name=statement_name,
             parameters=parameters,
+            await_result=True,
+            poll_interval=poll_interval,
         )
         operator.execute(None)
-        mock_conn.execute_statement.assert_called_once_with(
-            Database=DATABASE,
-            Sql=SQL,
-            ClusterIdentifier=cluster_identifier,
-            DbUser=db_user,
-            SecretArn=secret_arn,
-            StatementName=statement_name,
-            Parameters=parameters,
-            WithEvent=False,
-        )
-        mock_conn.describe_statement.assert_called_once_with(
-            Id=STATEMENT_ID,
+        mock_exec_query.assert_called_once_with(
+            sql=SQL,
+            database=DATABASE,
+            cluster_identifier=cluster_identifier,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            with_event=False,
+            wait_for_completion=await_result,
+            poll_interval=poll_interval,
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
@@ -110,33 +93,4 @@ class TestRedshiftDataOperator:
         operator.on_kill()
         mock_conn.cancel_statement.assert_called_once_with(
             Id=STATEMENT_ID,
-        )
-
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_batch_execute(self, mock_conn):
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
-        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
-        cluster_identifier = "cluster_identifier"
-        db_user = "db_user"
-        secret_arn = "secret_arn"
-        statement_name = "statement_name"
-        operator = RedshiftDataOperator(
-            task_id=TASK_ID,
-            cluster_identifier=cluster_identifier,
-            database=DATABASE,
-            db_user=db_user,
-            sql=[SQL],
-            statement_name=statement_name,
-            secret_arn=secret_arn,
-            aws_conn_id=CONN_ID,
-        )
-        operator.execute(None)
-        mock_conn.batch_execute_statement.assert_called_once_with(
-            Database=DATABASE,
-            Sqls=[SQL],
-            ClusterIdentifier=cluster_identifier,
-            DbUser=db_user,
-            SecretArn=secret_arn,
-            StatementName=statement_name,
-            WithEvent=False,
         )
