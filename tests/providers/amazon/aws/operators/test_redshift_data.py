@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 
 CONN_ID = "aws_conn_test"
@@ -37,7 +39,7 @@ class TestRedshiftDataOperator:
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
         poll_interval = 5
-        await_result = True
+        wait_for_completion = True
 
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
@@ -49,7 +51,7 @@ class TestRedshiftDataOperator:
             secret_arn=secret_arn,
             statement_name=statement_name,
             parameters=parameters,
-            await_result=True,
+            wait_for_completion=True,
             poll_interval=poll_interval,
         )
         operator.execute(None)
@@ -62,7 +64,7 @@ class TestRedshiftDataOperator:
             statement_name=statement_name,
             parameters=parameters,
             with_event=False,
-            wait_for_completion=await_result,
+            wait_for_completion=wait_for_completion,
             poll_interval=poll_interval,
         )
 
@@ -74,7 +76,7 @@ class TestRedshiftDataOperator:
             task_id=TASK_ID,
             sql=SQL,
             database=DATABASE,
-            await_result=False,
+            wait_for_completion=False,
         )
         operator.on_kill()
         mock_conn.cancel_statement.assert_not_called()
@@ -87,10 +89,25 @@ class TestRedshiftDataOperator:
             task_id=TASK_ID,
             sql=SQL,
             database=DATABASE,
-            await_result=False,
+            wait_for_completion=False,
         )
         operator.execute(None)
         operator.on_kill()
         mock_conn.cancel_statement.assert_called_once_with(
             Id=STATEMENT_ID,
         )
+
+    def test_deprecated_await_result_parameter(self):
+        warning_message = (
+            "Parameter `RedshiftDataOperator.await_result` is deprecated and will be removed "
+            "in a future release. Please use method `wait_for_completion` instead."
+        )
+        with pytest.warns(DeprecationWarning, match=warning_message):
+            op = RedshiftDataOperator(
+                task_id=TASK_ID,
+                aws_conn_id=CONN_ID,
+                sql=SQL,
+                database=DATABASE,
+                await_result=True,
+            )
+        assert op.wait_for_completion
