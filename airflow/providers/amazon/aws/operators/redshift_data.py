@@ -17,13 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from time import sleep
-from typing import TYPE_CHECKING, Any
+import warnings
+from typing import TYPE_CHECKING
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
-from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -99,67 +98,80 @@ class RedshiftDataOperator(BaseOperator):
             )
         self.aws_conn_id = aws_conn_id
         self.region = region
-        self.statement_id = None
+        self.statement_id: str | None = None
 
     @cached_property
     def hook(self) -> RedshiftDataHook:
         """Create and return an RedshiftDataHook."""
         return RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
-    def execute_query(self):
-        kwargs: dict[str, Any] = {
-            "ClusterIdentifier": self.cluster_identifier,
-            "Database": self.database,
-            "Sql": self.sql,
-            "DbUser": self.db_user,
-            "Parameters": self.parameters,
-            "WithEvent": self.with_event,
-            "SecretArn": self.secret_arn,
-            "StatementName": self.statement_name,
-        }
+    def execute_query(self) -> str:
+        warnings.warn(
+            "This method is deprecated and has been moved to the hook "
+            "`airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.statement_id = self.hook.execute_query(
+            database=self.database,
+            sql=self.sql,
+            cluster_identifier=self.cluster_identifier,
+            db_user=self.db_user,
+            parameters=self.parameters,
+            secret_arn=self.secret_arn,
+            statement_name=self.statement_name,
+            with_event=self.with_event,
+            wait_for_completion=self.await_result,
+            poll_interval=self.poll_interval,
+        )
+        return self.statement_id
 
-        resp = self.hook.conn.execute_statement(**trim_none_values(kwargs))
-        return resp["Id"]
+    def execute_batch_query(self) -> str:
+        warnings.warn(
+            "This method is deprecated and has been moved to the hook "
+            "`airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.statement_id = self.hook.execute_query(
+            database=self.database,
+            sql=self.sql,
+            cluster_identifier=self.cluster_identifier,
+            db_user=self.db_user,
+            parameters=self.parameters,
+            secret_arn=self.secret_arn,
+            statement_name=self.statement_name,
+            with_event=self.with_event,
+            wait_for_completion=self.await_result,
+            poll_interval=self.poll_interval,
+        )
+        return self.statement_id
 
-    def execute_batch_query(self):
-        kwargs: dict[str, Any] = {
-            "ClusterIdentifier": self.cluster_identifier,
-            "Database": self.database,
-            "Sqls": self.sql,
-            "DbUser": self.db_user,
-            "Parameters": self.parameters,
-            "WithEvent": self.with_event,
-            "SecretArn": self.secret_arn,
-            "StatementName": self.statement_name,
-        }
-        resp = self.hook.conn.batch_execute_statement(**trim_none_values(kwargs))
-        return resp["Id"]
+    def wait_for_results(self, statement_id: str):
+        warnings.warn(
+            "This method is deprecated and has been moved to the hook "
+            "`airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.hook.wait_for_results(statement_id=statement_id, poll_interval=self.poll_interval)
 
-    def wait_for_results(self, statement_id):
-        while True:
-            self.log.info("Polling statement %s", statement_id)
-            resp = self.hook.conn.describe_statement(
-                Id=statement_id,
-            )
-            status = resp["Status"]
-            if status == "FINISHED":
-                return status
-            elif status == "FAILED" or status == "ABORTED":
-                raise ValueError(f"Statement {statement_id!r} terminated with status {status}.")
-            else:
-                self.log.info("Query %s", status)
-            sleep(self.poll_interval)
-
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> str:
         """Execute a statement against Amazon Redshift"""
         self.log.info("Executing statement: %s", self.sql)
-        if isinstance(self.sql, list):
-            self.statement_id = self.execute_batch_query()
-        else:
-            self.statement_id = self.execute_query()
 
-        if self.await_result:
-            self.wait_for_results(self.statement_id)
+        self.statement_id = self.hook.execute_query(
+            database=self.database,
+            sql=self.sql,
+            cluster_identifier=self.cluster_identifier,
+            db_user=self.db_user,
+            parameters=self.parameters,
+            secret_arn=self.secret_arn,
+            statement_name=self.statement_name,
+            with_event=self.with_event,
+            wait_for_completion=self.await_result,
+            poll_interval=self.poll_interval,
+        )
 
         return self.statement_id
 
