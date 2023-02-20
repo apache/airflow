@@ -5945,7 +5945,7 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         },
                         "password": {
                             "description": "Password for the custom user to create.",
@@ -5953,7 +5953,7 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         }
                     }
                 }
