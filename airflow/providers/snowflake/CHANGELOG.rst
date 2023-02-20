@@ -24,6 +24,24 @@
 Changelog
 ---------
 
+4.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing parens for files parameter (#29437)``
+
+4.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``provide missing connection to the parent class operator (#29211)``
+* ``Snowflake Provider - hide host from UI (#29208)``
+
+
 4.0.2
 .....
 

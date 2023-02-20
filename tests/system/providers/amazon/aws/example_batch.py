@@ -207,6 +207,7 @@ with DAG(
         job_id=submit_batch_job.output,
     )
     # [END howto_sensor_batch]
+    wait_for_batch_job.poke_interval = 10
 
     wait_for_compute_environment_disabled = BatchComputeEnvironmentSensor(
         task_id="wait_for_compute_environment_disabled",
@@ -224,6 +225,7 @@ with DAG(
         task_id="wait_for_job_queue_deleted",
         job_queue=batch_job_queue_name,
         treat_non_existing_as_deleted=True,
+        poke_interval=10,
     )
 
     log_cleanup = prune_logs(

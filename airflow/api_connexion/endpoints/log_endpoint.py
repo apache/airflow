@@ -21,6 +21,7 @@ from typing import Any
 from flask import Response, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
 from airflow.api_connexion import security
@@ -73,9 +74,10 @@ def get_log(
         metadata["download_logs"] = False
 
     task_log_reader = TaskLogReader()
+
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
-    ti = (
+    query = (
         session.query(TaskInstance)
         .filter(
             TaskInstance.task_id == task_id,
@@ -84,8 +86,10 @@ def get_log(
             TaskInstance.map_index == map_index,
         )
         .join(TaskInstance.dag_run)
-        .one_or_none()
+        .options(joinedload("trigger"))
+        .options(joinedload("trigger.triggerer_job"))
     )
+    ti = query.one_or_none()
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
