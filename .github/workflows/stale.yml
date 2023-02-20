@@ -47,3 +47,22 @@ jobs:
             activity occurs from the issue author.
           close-issue-message: >
             This issue has been closed because it has not received response from the issue author.
+  recheck-old-bug-report:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/stale@v7
+        with:
+          only-issue-labels: 'kind:bug'
+          stale-issue-label: 'Stale Bug Report'
+          days-before-issue-stale: 365
+          days-before-issue-close: 30
+          remove-stale-when-updated: true
+          labels-to-add-when-unstale: 'needs-triage'
+          stale-issue-message: >
+            This issue has been automatically marked as stale because it has been open for 365 days
+            without any activity. There has been several Airflow releases since last activity on this issue.
+            Kindly asking to recheck the report against latest Airflow version and let us know
+            if the issue is reproducible. The issue will be closed in next 30 days if no further activity
+            occurs from the issue author.
+          close-issue-message: >
+            This issue has been closed because it has not received response from the issue author.

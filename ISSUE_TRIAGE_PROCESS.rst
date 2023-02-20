@@ -251,9 +251,14 @@ the label ``pending-response``.
 Also, during this stage, additional labels may be added to the issue to help
 classification and triage, such as ``affected_version`` and ``area``.
 
-Some issues may need a detailed review by one of the core committers of the project
-and this could be tagged with a ``needs:triage`` label.
-
+New issues are automatically assigned with ``needs-triage`` label. This labels goal
+is to help us detect issues that are waiting for initial triage. The label will be removed by the triager
+once the issue is accepted (and assigned with relevant kind and area labels). This sometimes can take a while as we might
+ask for other members of the community for consultation or ask for further information from the issue author.
+Removing the ``needs-triage`` label means that the issue has been accepted and awaits implementation (no further triage action required),
+as long as the ``needs-triage`` label remains the triage team will keep an eye on the issue and check periodically
+if it needs to be accepted or closed/converted to Github Discussion.
+``needs-triage`` label may also be applied manually by committers if they think a further action from the triage team is required.
 
 **Good First Issue**
 
@@ -307,3 +312,14 @@ we normally convert such issues to discussions in the Ideas category.
 Issues that seems more like support requests are also converted to discussions in the Q&A category.
 We use judgment about which Issues to convert to discussions, it's best to always clarify with a comment why the issue is being converted.
 Note that we can always convert discussions back to issues.
+
+
+**Stale Policy **
+
+As time passes bug reports that have been accepted may be out dated.
+Bot will scan older bug reports and if the report is inactive it will comment
+and ask the author to recheck if the bug is still reproducible on latest version.
+If the issue is reconfirmed triage team will check if labels needs to be updated (for example: ``reported_version`` label)
+If no one respond after some time, we will consider the issue as resolved (may have already been fixed) and bot will resolve the issue.
+The exact timeframes for each one of the actions is subject to change from time to time.
+The updated values can be checked in ``.github/workflow`` where we define the bots policy.
