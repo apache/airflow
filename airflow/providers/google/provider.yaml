@@ -95,7 +95,9 @@ dependencies:
   - google-cloud-dataplex>=0.1.0
   - google-cloud-dataproc>=3.1.0
   - google-cloud-dataproc-metastore>=1.2.0,<2.0.0
-  - google-cloud-dlp>=0.11.0,<2.0.0
+  # google-cloud-dlp of version 3.8.0+ requires higher versions of
+  # protobuf and proto-plus libraries which can break other dependencies in the current package.
+  - google-cloud-dlp>=3.0.0,<3.8.0
   - google-cloud-kms>=2.0.0
   - google-cloud-language>=1.1.1,<2.0.0
   - google-cloud-logging>=2.1.1
