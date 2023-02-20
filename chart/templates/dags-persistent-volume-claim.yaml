@@ -29,7 +29,7 @@ metadata:
     {{- with .Values.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-{{- with .Values.dags.persistence.annotations }}
+  {{- with .Values.dags.persistence.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
