@@ -129,7 +129,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         result = self._sql_sensor(self.sql)
         self.log.debug("SQL result: %s", result)
         if len(result) < 1:
-            raise AirflowException("No results for SQL sensor.")
+            return False
         return True
 
     def poke(self, context: Context) -> bool:

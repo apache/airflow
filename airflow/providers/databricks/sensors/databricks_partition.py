@@ -146,7 +146,7 @@ class DatabricksPartitionSensor(DatabricksSqlSensor):
         result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", result)
         if len(result) < 1:
-            raise AirflowException("No results for partition sensor.")
+            return False
         return True
 
     def poke(self, context: Context) -> bool:

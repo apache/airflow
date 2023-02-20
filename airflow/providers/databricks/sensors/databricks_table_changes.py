@@ -137,11 +137,11 @@ class DatabricksTableChangesSensor(DatabricksSqlSensor):
             version = self.get_current_table_version(table_name=complete_table_name)
             self.log.debug("Current version: %s", version)
             if version is None:
-                raise AirflowException("No current version of the table found for the specified timeframe.")
+                return False
             if prev_version < version:
                 result = True
             else:
-                raise AirflowException("No new version found.")
+                return False
             if prev_version != version:
                 self.set_version(lookup_key=lookup_key, version=version, context=context)
             self.log.debug("Result: %s", result)
