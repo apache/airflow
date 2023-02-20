@@ -28,6 +28,7 @@ from google.api_core.exceptions import ServerError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.operation_async import AsyncOperation
+from google.api_core.operations_v1.operations_client import OperationsClient
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import (
     Batch,
@@ -1047,6 +1048,10 @@ class DataprocAsyncHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
+    def get_operations_client(self, region: str) -> OperationsClient:
+        """Returns OperationsClient"""
+        return self.get_template_client(region=region).transport.operations_client
+
     @GoogleBaseHook.fallback_to_default_project_id
     async def create_cluster(
         self,
@@ -1458,6 +1463,9 @@ class DataprocAsyncHook(GoogleBaseHook):
             metadata=metadata,
         )
         return operation
+
+    async def get_operation(self, region, operation_name):
+        return await self.get_operations_client(region).get_operation(name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def get_job(
