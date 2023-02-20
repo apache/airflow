@@ -23,11 +23,12 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import Action, ArgumentError, RawTextHelpFormatter
+from argparse import Action, ArgumentError
 from functools import lru_cache
 from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
+from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
@@ -1179,7 +1180,16 @@ DAGS_COMMANDS = (
         name="trigger",
         help="Trigger a DAG run",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, ARG_VERBOSE, ARG_REPLACE_MICRO),
+        args=(
+            ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_RUN_ID,
+            ARG_CONF,
+            ARG_EXEC_DATE,
+            ARG_VERBOSE,
+            ARG_REPLACE_MICRO,
+            ARG_OUTPUT,
+        ),
     ),
     ActionCommand(
         name="delete",
@@ -1615,15 +1625,22 @@ DB_COMMANDS = (
         ),
     ),
     ActionCommand(
-        name="export-cleaned",
-        help="Export cleaned data from the archive tables",
-        func=lazy_load_command("airflow.cli.commands.db_command.export_cleaned"),
+        name="export-archived",
+        help="Export archived data from the archive tables",
+        func=lazy_load_command("airflow.cli.commands.db_command.export_archived"),
         args=(
             ARG_DB_EXPORT_FORMAT,
             ARG_DB_OUTPUT_PATH,
             ARG_DB_DROP_ARCHIVES,
             ARG_DB_TABLES,
+            ARG_YES,
         ),
+    ),
+    ActionCommand(
+        name="drop-archived",
+        help="Drop archived tables created through the db clean command",
+        func=lazy_load_command("airflow.cli.commands.db_command.drop_archived"),
+        args=(ARG_DB_TABLES, ARG_YES),
     ),
 )
 CONNECTIONS_COMMANDS = (
@@ -2238,46 +2255,46 @@ dag_cli_commands: list[CLICommand] = [
 DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
 
 
-class AirflowHelpFormatter(argparse.HelpFormatter):
+class AirflowHelpFormatter(RichHelpFormatter):
     """
     Custom help formatter to display help message.
 
     It displays simple commands and groups of commands in separate sections.
     """
 
-    def _format_action(self, action: Action):
+    def _iter_indented_subactions(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
-
-            parts = []
-            action_header = self._format_action_invocation(action)
-            action_header = "%*s%s\n" % (self._current_indent, "", action_header)
-            parts.append(action_header)
 
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
-            parts.append("\n")
-            parts.append("%*s%s:\n" % (self._current_indent, "", "Groups"))
+            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Groups"), nargs=0)
             self._indent()
-            for subaction in group_subcommands:
-                parts.append(self._format_action(subaction))
+            yield from group_subcommands
             self._dedent()
 
-            parts.append("\n")
-            parts.append("%*s%s:\n" % (self._current_indent, "", "Commands"))
+            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Commands"), nargs=0)
             self._indent()
-
-            for subaction in action_subcommands:
-                parts.append(self._format_action(subaction))
+            yield from action_subcommands
             self._dedent()
             self._dedent()
+        else:
+            yield from super()._iter_indented_subactions(action)
 
-            # return a single string
-            return self._join_parts(parts)
 
-        return super()._format_action(action)
+class LazyRichHelpFormatter(RawTextRichHelpFormatter):
+    """
+    Custom help formatter to display help message.
+
+    It resolves lazy help string before printing it using rich.
+    """
+
+    def add_argument(self, action: Action) -> None:
+        if isinstance(action.help, lazy_object_proxy.Proxy):
+            action.help = str(action.help)
+        return super().add_argument(action)
 
 
 @lru_cache(maxsize=None)
@@ -2312,7 +2329,7 @@ def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> Non
     sub_proc = subparsers.add_parser(
         sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
     )
-    sub_proc.formatter_class = RawTextHelpFormatter
+    sub_proc.formatter_class = LazyRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
         _add_group_command(sub, sub_proc)

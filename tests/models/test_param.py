@@ -21,7 +21,7 @@ from contextlib import nullcontext
 import pytest
 
 from airflow.decorators import task
-from airflow.exceptions import ParamValidationError
+from airflow.exceptions import ParamValidationError, RemovedInAirflow3Warning
 from airflow.models.param import Param, ParamsDict
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -67,6 +67,74 @@ class TestParam:
             p.resolve(None)
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             p.resolve()
+
+    @pytest.mark.parametrize(
+        "dt",
+        [
+            pytest.param("2022-01-02T03:04:05.678901Z", id="microseconds-zed-timezone"),
+            pytest.param("2022-01-02T03:04:05.678Z", id="milliseconds-zed-timezone"),
+            pytest.param("2022-01-02T03:04:05+00:00", id="seconds-00-00-timezone"),
+            pytest.param("2022-01-02T03:04:05+04:00", id="seconds-custom-timezone"),
+        ],
+    )
+    def test_string_rfc3339_datetime_format(self, dt):
+        """Test valid rfc3339 datetime."""
+        assert Param(dt, type="string", format="date-time").resolve() == dt
+
+    @pytest.mark.parametrize(
+        "dt",
+        [
+            pytest.param("2022-01-02 03:04:05.678901Z", id="space-sep"),
+            pytest.param("2022-01-02T03:04:05.678901", id="tz-naive"),
+            pytest.param("2022-01-02T03Z", id="datetime-with-day-only"),
+            pytest.param("20161001T143028+0530", id="not-formatted-date-time"),
+        ],
+    )
+    def test_string_iso8601_datetime_invalid_rfc3339_format(self, dt):
+        """Test valid iso8601 datetime but not valid rfc3339 datetime conversion."""
+        with pytest.warns(RemovedInAirflow3Warning):
+            assert Param(dt, type="string", format="date-time").resolve() == dt
+
+    @pytest.mark.parametrize(
+        "dt",
+        [
+            pytest.param("2022-01-02", id="date"),
+            pytest.param("03:04:05", id="time"),
+            pytest.param("Thu, 04 Mar 2021 05:06:07 GMT", id="rfc2822-datetime"),
+        ],
+    )
+    def test_string_datetime_invalid_format(self, dt):
+        """Test invalid iso8601 and rfc3339 datetime format."""
+        with pytest.raises(ParamValidationError, match="is not a 'date-time'"):
+            Param(dt, type="string", format="date-time").resolve()
+
+    def test_string_time_format(self):
+        """Test string time format."""
+        assert Param("03:04:05", type="string", format="time").resolve() == "03:04:05"
+
+        error_pattern = "is not a 'time'"
+        with pytest.raises(ParamValidationError, match=error_pattern):
+            Param("03:04:05.06", type="string", format="time").resolve()
+
+        with pytest.raises(ParamValidationError, match=error_pattern):
+            Param("03:04", type="string", format="time").resolve()
+
+        with pytest.raises(ParamValidationError, match=error_pattern):
+            Param("24:00:00", type="string", format="time").resolve()
+
+    def test_string_date_format(self):
+        """Test string date format."""
+        assert Param("2021-01-01", type="string", format="date").resolve() == "2021-01-01"
+
+        error_pattern = "is not a 'date'"
+        with pytest.raises(ParamValidationError, match=error_pattern):
+            Param("01/01/2021", type="string", format="date").resolve()
+
+        with pytest.raises(ParamValidationError, match=error_pattern):
+            Param("20120503", type="string", format="date").resolve()
+
+        with pytest.raises(ParamValidationError, match=error_pattern):
+            Param("21 May 1975", type="string", format="date").resolve()
 
     def test_int_param(self):
         p = Param(5)

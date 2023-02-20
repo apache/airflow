@@ -202,7 +202,7 @@ with DAG(
             );
         """,
         poll_interval=POLL_INTERVAL,
-        await_result=True,
+        wait_for_completion=True,
     )
     # [END howto_operator_redshift_data]
 
@@ -220,7 +220,7 @@ with DAG(
             INSERT INTO fruit VALUES ( 6, 'Strawberry', 'Red');
         """,
         poll_interval=POLL_INTERVAL,
-        await_result=True,
+        wait_for_completion=True,
     )
 
     # [START howto_operator_redshift_sql]

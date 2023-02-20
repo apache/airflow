@@ -26,6 +26,7 @@ import boto3
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrAddStepsOperator,
     EmrCreateJobFlowOperator,
@@ -91,6 +92,16 @@ JOB_FLOW_OVERRIDES = {
 
 
 @task
+def get_ami_id():
+    """
+    Returns an AL2 AMI compatible with EMR
+    """
+    return SsmHook(aws_conn_id=None).get_parameter_value(
+        "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"
+    )
+
+
+@task
 def configure_security_config(config_name: str):
     boto3.client("emr").create_security_configuration(
         Name=config_name,
@@ -119,6 +130,7 @@ with DAG(
     config_name = f"{CONFIG_NAME}-{env_id}"
     execution_role_arn = test_context[EXECUTION_ROLE_ARN_KEY]
     JOB_FLOW_OVERRIDES["SecurityConfiguration"] = config_name
+    JOB_FLOW_OVERRIDES["Instances"]["InstanceGroups"][0]["CustomAmiId"] = get_ami_id()
 
     create_security_configuration = configure_security_config(config_name)
 

@@ -40,6 +40,16 @@ class InternalApiConfig:
     _internal_api_endpoint = ""
 
     @staticmethod
+    def force_database_direct_access():
+        """Current component will not use Internal API.
+
+        All methods decorated with internal_api_call will always be executed locally.
+        This mode is needed for "trusted" components like Scheduler, Webserver or Internal Api server.
+        """
+        InternalApiConfig._initialized = True
+        InternalApiConfig._use_internal_api = False
+
+    @staticmethod
     def get_use_internal_api():
         if not InternalApiConfig._initialized:
             InternalApiConfig._init_values()
@@ -104,6 +114,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         arguments_dict = dict(bound.arguments)
         if "session" in arguments_dict:
             del arguments_dict["session"]
+        if "cls" in arguments_dict:  # used by @classmethod
+            del arguments_dict["cls"]
+
         args_json = json.dumps(BaseSerialization.serialize(arguments_dict))
         method_name = f"{func.__module__}.{func.__qualname__}"
         result = make_jsonrpc_request(method_name, args_json)
