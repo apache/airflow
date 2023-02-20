@@ -2751,6 +2751,25 @@ class TaskInstance(Base, LoggingMixin):
     def inject_xcom_args(self, xcom_args: dict[str, dict[str, Any]]):
         self._injected_xcom_args.update(xcom_args)
 
+    def clear_db_references(self, session):
+        """
+        Clear DB references to XCom, TaskFail and RenderedTaskInstanceFields.
+
+        :param session: ORM Session
+
+        :meta private:
+        """
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        tables = [TaskFail, XCom, RenderedTaskInstanceFields]
+        for table in tables:
+            session.query(table).filter(
+                table.dag_id == self.dag_id,
+                table.task_id == self.task_id,
+                table.run_id == self.run_id,
+                table.map_index == self.map_index,
+            ).delete()
+
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""

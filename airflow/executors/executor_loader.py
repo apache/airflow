@@ -17,7 +17,9 @@
 """All executors."""
 from __future__ import annotations
 
+import functools
 import logging
+import os
 from contextlib import suppress
 from enum import Enum, unique
 from typing import TYPE_CHECKING
@@ -122,8 +124,14 @@ class ExecutorLoader:
 
         :return: executor class via executor_name and executor import source
         """
+
+        def _import_and_validate(path: str) -> type[BaseExecutor]:
+            executor = import_string(path)
+            cls.validate_database_executor_compatibility(executor)
+            return executor
+
         if executor_name in cls.executors:
-            return import_string(cls.executors[executor_name]), ConnectorSource.CORE
+            return _import_and_validate(cls.executors[executor_name]), ConnectorSource.CORE
         if executor_name.count(".") == 1:
             log.debug(
                 "The executor name looks like the plugin path (executor_name=%s). Trying to import a "
@@ -136,8 +144,8 @@ class ExecutorLoader:
                 from airflow import plugins_manager
 
                 plugins_manager.integrate_executor_plugins()
-                return import_string(f"airflow.executors.{executor_name}"), ConnectorSource.PLUGIN
-        return import_string(executor_name), ConnectorSource.CUSTOM_PATH
+                return _import_and_validate(f"airflow.executors.{executor_name}"), ConnectorSource.PLUGIN
+        return _import_and_validate(executor_name), ConnectorSource.CUSTOM_PATH
 
     @classmethod
     def import_default_executor_cls(cls) -> tuple[type[BaseExecutor], ConnectorSource]:
@@ -147,8 +155,32 @@ class ExecutorLoader:
         :return: executor class and executor import source
         """
         executor_name = cls.get_default_executor_name()
+        executor, source = cls.import_executor_cls(executor_name)
+        return executor, source
 
-        return cls.import_executor_cls(executor_name)
+    @classmethod
+    @functools.lru_cache(maxsize=None)
+    def validate_database_executor_compatibility(cls, executor: type[BaseExecutor]) -> None:
+        """Validate database and executor compatibility.
+
+        Most of the databases work universally, but SQLite can only work with
+        single-threaded executors (e.g. Sequential).
+
+        This is NOT done in ``airflow.configuration`` (when configuration is
+        initialized) because loading the executor class is heavy work we want to
+        avoid unless needed.
+        """
+        if not executor.is_single_threaded:
+            return
+
+        # This is set in tests when we want to be able to use the SequentialExecutor.
+        if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
+            return
+
+        from airflow.settings import engine
+
+        if engine.dialect.name == "sqlite":
+            raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:

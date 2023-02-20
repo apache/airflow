@@ -492,7 +492,7 @@ def test_code_from_db_all_example_dags(admin_client):
                 dag_id="example_bash_operator",
                 ignore_all_deps="false",
                 ignore_ti_state="true",
-                execution_date=DEFAULT_DATE,
+                dag_run_id=DEFAULT_DAGRUN,
             ),
             "",
         ),
