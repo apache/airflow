@@ -1177,6 +1177,60 @@
             "x-docsSection": "Workers",
             "additionalProperties": false,
             "properties": {
+                "kubernetesWorkers": {
+                    "description": "Properties specific to kubernetes workers",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {}
+                },
+                "celeryWorkers": {
+                    "description": "Properties specific to celery workers",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "resources": {
+                            "description": "Resources for celery worker pods",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ],
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "nodeSelector": {
+                            "description": "Select certain nodes for worker pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "affinity": {
+                            "description": "Specify scheduling constraints for worker pods.",
+                            "type": "object",
+                            "default": "See values.yaml",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
+                        "tolerations": {
+                            "description": "Specify Tolerations for worker pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        }
+                    }
+                },
                 "replicas": {
                     "description": "Number of Airflow Celery workers in StatefulSet.",
                     "type": "integer",
@@ -1436,24 +1490,6 @@
                         }
                     }
                 },
-                "resources": {
-                    "description": "Resources on workers",
-                    "type": "object",
-                    "default": {},
-                    "examples": [
-                        {
-                            "limits": {
-                                "cpu": "100m",
-                                "memory": "128Mi"
-                            },
-                            "requests": {
-                                "cpu": "100m",
-                                "memory": "128Mi"
-                            }
-                        }
-                    ],
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
@@ -1496,14 +1532,6 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
                     }
                 },
-                "nodeSelector": {
-                    "description": "Select certain nodes for worker pods.",
-                    "type": "object",
-                    "default": {},
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
                 "priorityClassName": {
                     "description": "Specify priority for worker pods.",
                     "type": [
@@ -1511,21 +1539,6 @@
                         "null"
                     ],
                     "default": null
-                },
-                "affinity": {
-                    "description": "Specify scheduling constraints for worker pods.",
-                    "type": "object",
-                    "default": "See values.yaml",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
-                },
-                "tolerations": {
-                    "description": "Specify Tolerations for worker pods.",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "type": "object",
-                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
-                    }
                 },
                 "topologySpreadConstraints": {
                     "description": "Specify topology spread constraints for worker pods.",

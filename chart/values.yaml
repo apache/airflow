@@ -446,6 +446,28 @@ kerberos:
 
 # Airflow Worker Config
 workers:
+  kubernetesWorkers: {}
+  celeryWorkers:
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # Select certain nodes for airflow worker pods.
+    nodeSelector: {}
+    affinity: {}
+    # default worker affinity is:
+    #  podAntiAffinity:
+    #    preferredDuringSchedulingIgnoredDuringExecution:
+    #    - podAffinityTerm:
+    #        labelSelector:
+    #          matchLabels:
+    #            component: worker
+    #        topologyKey: kubernetes.io/hostname
+    #      weight: 100
+    tolerations: []
   # Number of airflow celery workers in StatefulSet
   replicas: 1
   # Max number of old replicasets to retain
@@ -552,14 +574,6 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-  resources: {}
-  #  limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  #  requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes
   terminationGracePeriodSeconds: 600
 
@@ -578,20 +592,7 @@ workers:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # Select certain nodes for airflow worker pods.
-  nodeSelector: {}
   priorityClassName: ~
-  affinity: {}
-  # default worker affinity is:
-  #  podAntiAffinity:
-  #    preferredDuringSchedulingIgnoredDuringExecution:
-  #    - podAffinityTerm:
-  #        labelSelector:
-  #          matchLabels:
-  #            component: worker
-  #        topologyKey: kubernetes.io/hostname
-  #      weight: 100
-  tolerations: []
   topologySpreadConstraints: []
   # hostAliases to use in worker pods.
   # See:
