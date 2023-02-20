@@ -109,6 +109,15 @@ Extra (optional)
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
 
+    The following extra parameters if ``assume_role_method`` is set to ``assume_role_with_web_identity``:
+
+    * ``assume_role_with_web_identity_federation``: The federation type, which is used to determine which token loader to use to retrieve
+      the access token. Currently ``file`` and ``google`` are supported.
+    * ``assume_role_with_web_identity_token_file``: The path to a file on the filesystem that contains the access token used to
+      authenticate with the AWS STS service, for  the ``file`` federation type. If not specified, then the value of the
+      ``AWS_WEB_IDENTITY_TOKEN_FILE`` environment variable will be used.
+    * ``assume_role_with_web_identity_federation_audience``: The ``aud`` claim of the access token, if using the ``google`` federation type.
+
     The following extra parameters pass to :external:py:meth:`boto3.session.Session.client`
     or :external:py:meth:`boto3.session.Session.resource`.
 
