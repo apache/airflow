@@ -487,7 +487,8 @@ class TestAwsBaseHook:
         )
 
     @mock.patch(
-        "botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__", new=(mock_open(read_data="TOKEN"),)
+        "airflow.providers.amazon.aws.hooks.base_aws.botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__",
+        new=(mock_open(read_data="TOKEN"),),
     )
     @mock.patch.object(
         AwsBaseHook,
@@ -505,16 +506,22 @@ class TestAwsBaseHook:
             ),
         ),
     )
-    @mock.patch("botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher")
-    @mock.patch("botocore.session.Session")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.base_aws.botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher"
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.botocore.session.Session")
     def test_get_credentials_from_token_file(
         self, mock_session, mock_credentials_fetcher, mock_get_connection
     ):
-        hook = AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test")
-        hook.get_session()
+        AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
 
         assert isinstance(
             mock_credentials_fetcher.call_args.kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader
+        )
+
+        assert (
+            mock_credentials_fetcher.call_args.kwargs["web_identity_token_loader"]._web_identity_token_path
+            == "/my-token-path"
         )
 
         assert mock_credentials_fetcher.call_args.kwargs["web_identity_token_loader"]() == "TOKEN"

@@ -311,16 +311,12 @@ class BaseSessionFactory(LoggingMixin):
     ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
-        federation = self.extra_config.get("assume_role_with_web_identity_federation")
+        federation = str(self.extra_config.get("assume_role_with_web_identity_federation"))
 
-        web_identity_token_loader = (
-            {
-                "file": self._get_file_token_loader,
-                "google": self._get_google_identity_token_loader,
-            }.get(federation)()
-            if type(federation) == str
-            else None
-        )
+        web_identity_token_loader = {
+            "file": self._get_file_token_loader,
+            "google": self._get_google_identity_token_loader,
+        }.get(federation, lambda: None)()
 
         if not web_identity_token_loader:
             raise AirflowException(f"Unsupported federation: {federation}.")
