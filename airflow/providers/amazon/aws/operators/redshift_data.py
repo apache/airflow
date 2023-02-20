@@ -44,7 +44,7 @@ class RedshiftDataOperator(BaseOperator):
     :param secret_arn: the name or ARN of the secret that enables db access
     :param statement_name: the name of the SQL statement
     :param with_event: indicates whether to send an event to EventBridge
-    :param await_result: indicates whether to wait for a result, if True wait, if False don't wait
+    :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
@@ -73,10 +73,11 @@ class RedshiftDataOperator(BaseOperator):
         secret_arn: str | None = None,
         statement_name: str | None = None,
         with_event: bool = False,
-        await_result: bool = True,
+        wait_for_completion: bool = True,
         poll_interval: int = 10,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        await_result: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -89,6 +90,15 @@ class RedshiftDataOperator(BaseOperator):
         self.statement_name = statement_name
         self.with_event = with_event
         self.await_result = await_result
+        self.wait_for_completion = wait_for_completion
+        if await_result:
+            warnings.warn(
+                f"Parameter `{self.__class__.__name__}.await_result` is deprecated and will be removed "
+                "in a future release. Please use method `wait_for_completion` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.wait_for_completion = await_result
         if poll_interval > 0:
             self.poll_interval = poll_interval
         else:
@@ -121,7 +131,7 @@ class RedshiftDataOperator(BaseOperator):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            wait_for_completion=self.await_result,
+            wait_for_completion=self.wait_for_completion,
             poll_interval=self.poll_interval,
         )
         return self.statement_id
@@ -142,7 +152,7 @@ class RedshiftDataOperator(BaseOperator):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            wait_for_completion=self.await_result,
+            wait_for_completion=self.wait_for_completion,
             poll_interval=self.poll_interval,
         )
         return self.statement_id
@@ -169,7 +179,7 @@ class RedshiftDataOperator(BaseOperator):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            wait_for_completion=self.await_result,
+            wait_for_completion=self.wait_for_completion,
             poll_interval=self.poll_interval,
         )
 
