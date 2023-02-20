@@ -515,16 +515,18 @@ class TestAwsBaseHook:
     ):
         AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
 
+        mock_credentials_fetcher_args, mock_credentials_fetcher_kwargs = mock_credentials_fetcher.call_args
+
         assert isinstance(
-            mock_credentials_fetcher.call_args.kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader
+            mock_credentials_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader
         )
 
         assert (
-            mock_credentials_fetcher.call_args.kwargs["web_identity_token_loader"]._web_identity_token_path
+            mock_credentials_fetcher_kwargs["web_identity_token_loader"]._web_identity_token_path
             == "/my-token-path"
         )
 
-        assert mock_credentials_fetcher.call_args.kwargs["web_identity_token_loader"]() == "TOKEN"
+        assert mock_credentials_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
 
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
