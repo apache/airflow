@@ -1306,10 +1306,6 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
         name="hello-dry-run",
         image="python:3.8-slim-buster",
         cmds=["printenv"],
-        # env_vars=[
-        #     V1EnvVar(name="password", value="{{ conn.test_connection.password }}"),
-        #     V1EnvVar(name="VAR2", value="{{ var.value.nonexisting }}"),
-        # ],
         env_vars={
             "password": "{{ password }}",
             "VAR2": "{{ var.value.nonexisting}}",
