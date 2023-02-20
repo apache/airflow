@@ -23,6 +23,7 @@ from typing import Any, Iterable
 from sqlalchemy import Column, Integer, String, func, or_
 from sqlalchemy.orm import joinedload, relationship
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTrigger
@@ -74,6 +75,7 @@ class Trigger(Base):
         self.created_date = created_date or timezone.utcnow()
 
     @classmethod
+    @internal_api_call
     def from_object(cls, trigger: BaseTrigger):
         """
         Alternative constructor that creates a trigger row based directly
@@ -83,10 +85,11 @@ class Trigger(Base):
         return cls(classpath=classpath, kwargs=kwargs)
 
     @classmethod
+    @internal_api_call
     @provide_session
     def bulk_fetch(cls, ids: Iterable[int], session=None) -> dict[int, Trigger]:
         """
-        Fetches all of the Triggers by ID and returns a dict mapping
+        Fetches all the Triggers by ID and returns a dict mapping
         ID -> Trigger instance
         """
         query = (
@@ -101,6 +104,7 @@ class Trigger(Base):
         return {obj.id: obj for obj in query}
 
     @classmethod
+    @internal_api_call
     @provide_session
     def clean_unused(cls, session=None):
         """
@@ -127,6 +131,7 @@ class Trigger(Base):
         session.query(Trigger).filter(Trigger.id.in_(ids)).delete(synchronize_session=False)
 
     @classmethod
+    @internal_api_call
     @provide_session
     def submit_event(cls, trigger_id, event, session=None):
         """
@@ -146,6 +151,7 @@ class Trigger(Base):
             task_instance.state = State.SCHEDULED
 
     @classmethod
+    @internal_api_call
     @provide_session
     def submit_failure(cls, trigger_id, exc=None, session=None):
         """
@@ -176,12 +182,14 @@ class Trigger(Base):
             task_instance.state = State.SCHEDULED
 
     @classmethod
+    @internal_api_call
     @provide_session
     def ids_for_triggerer(cls, triggerer_id, session=None):
         """Retrieves a list of triggerer_ids."""
         return [row[0] for row in session.query(cls.id).filter(cls.triggerer_id == triggerer_id)]
 
     @classmethod
+    @internal_api_call
     @provide_session
     def assign_unassigned(cls, triggerer_id, capacity, session=None):
         """
