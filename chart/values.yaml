@@ -1944,6 +1944,8 @@ logs:
     enabled: false
     # Volume size for logs
     size: 100Gi
+    # Annotations for the logs PVC
+    annotations: {}
     # If using a custom storageClass, pass name here
     storageClassName:
     ## the name of an existing PVC to use
