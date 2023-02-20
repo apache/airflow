@@ -778,6 +778,14 @@ class DagRun(Base, LoggingMixin):
             """
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
+
+            from airflow.models.mappedoperator import MappedOperator
+
+            if isinstance(ti.task, MappedOperator):
+                # If we get here, it could be that we are moving from non-mapped to mapped
+                # after task instance clearing or this ti is not yet expanded. Safe to clear
+                # the db references.
+                ti.clear_db_references(session=session)
             try:
                 expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
