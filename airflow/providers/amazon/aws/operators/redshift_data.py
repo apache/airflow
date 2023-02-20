@@ -73,11 +73,11 @@ class RedshiftDataOperator(BaseOperator):
         secret_arn: str | None = None,
         statement_name: str | None = None,
         with_event: bool = False,
-        await_result: bool | None = None,
+        wait_for_completion: bool = True,
         poll_interval: int = 10,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
-        wait_for_completion: bool = True,
+        await_result: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
