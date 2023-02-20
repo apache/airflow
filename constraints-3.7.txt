@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-19T17:05:17Z
+# This constraints file was automatically generated on 2023-02-20T04:49:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -353,7 +353,7 @@ jupyter-client==7.3.4
 jupyter_core==4.12.0
 keyring==23.13.1
 kombu==5.2.4
-krb5==0.4.1
+krb5==0.5.0
 kubernetes-asyncio==24.2.2
 kubernetes==23.6.0
 kylinpy==2.8.4
@@ -377,7 +377,7 @@ mongomock==4.1.2
 monotonic==1.6
 more-itertools==9.0.0
 moreorless==0.4.0
-moto==4.1.2
+moto==4.1.3
 msal-extensions==1.0.0
 msal==1.21.0
 msgpack==1.0.4
@@ -553,7 +553,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==7.7.2
+sphinxcontrib-spelling==8.0.0
 spython==0.3.0
 sqlalchemy-bigquery==1.6.1
 sqlalchemy-drill==1.1.2
@@ -586,7 +586,7 @@ typed-ast==1.5.4
 types-Deprecated==1.2.9
 types-Markdown==3.4.2.4
 types-PyMySQL==1.0.19.3
-types-PyYAML==6.0.12.6
+types-PyYAML==6.0.12.7
 types-boto==2.49.18.5
 types-certifi==2021.10.8.3
 types-croniter==1.3.2.4

@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-19T17:03:33Z
+# This constraints file was automatically generated on 2023-02-20T04:48:04Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -102,7 +102,7 @@ inflection==0.5.1
 itsdangerous==2.1.2
 jsonschema==4.17.3
 kombu==5.2.4
-krb5==0.4.1
+krb5==0.5.0
 kubernetes-asyncio==24.2.2
 kubernetes==23.6.0
 lazy-object-proxy==1.9.0
