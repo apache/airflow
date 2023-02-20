@@ -302,7 +302,7 @@ class TestDataprocWorkflowTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger._get_hook")
+    @async_mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook")
     async def test_async_workflow_triggers_on_success_should_execute_successfully(
         self, mock_hook, workflow_trigger, async_get_operation
     ):
@@ -322,7 +322,7 @@ class TestDataprocWorkflowTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger._get_hook")
+    @async_mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook")
     async def test_async_workflow_triggers_on_error(self, mock_hook, workflow_trigger, async_get_operation):
         mock_hook.return_value.get_operation.return_value = async_get_operation(
             name=TEST_OPERATION_NAME, done=True, response={}, error=Status(message="test_error")
