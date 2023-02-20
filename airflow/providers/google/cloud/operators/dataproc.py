@@ -877,12 +877,10 @@ class DataprocDeleteClusterOperator(BaseOperator):
                     project_id=self.project_id,
                     region=self.region,
                     cluster_name=self.cluster_name,
-                    request_id=self.request_id,
-                    retry=self.retry,
                     end_time=end_time,
                     metadata=self.metadata,
                     impersonation_chain=self.impersonation_chain,
-                    polling_interval=self.polling_interval_seconds,
+                    polling_interval_seconds=self.polling_interval_seconds,
                 ),
                 method_name="execute_complete",
             )
