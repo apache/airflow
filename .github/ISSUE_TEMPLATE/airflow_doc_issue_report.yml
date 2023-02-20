@@ -1,7 +1,7 @@
 ---
 name: Airflow Doc issue report
 description: Problems and issues with Apache Airflow documentation
-labels: ["kind:bug", "kind:documentation"]
+labels: ["kind:bug", "kind:documentation", "needs-triage"]
 body:
   - type: markdown
     attributes:
