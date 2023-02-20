@@ -310,3 +310,93 @@ class DataprocDeleteClusterTrigger(BaseTrigger):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
+
+class DataprocWorkflowTrigger(BaseTrigger):
+    """
+    Trigger that periodically polls information from Dataproc API to verify status.
+    Implementation leverages asynchronous transport.
+    """
+
+    def __init__(
+        self,
+        template_name: str,
+        name: str,
+        region: str,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
+        polling_interval_seconds: int = 10,
+    ):
+        super().__init__()
+        self.gcp_conn_id = gcp_conn_id
+        self.template_name = template_name
+        self.name = name
+        self.impersonation_chain = impersonation_chain
+        self.project_id = project_id
+        self.region = region
+        self.polling_interval_seconds = polling_interval_seconds
+        self.delegate_to = delegate_to
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
+
+    def serialize(self):
+        return (
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger",
+            {
+                "template_name": self.template_name,
+                "name": self.name,
+                "project_id": self.project_id,
+                "region": self.region,
+                "gcp_conn_id": self.gcp_conn_id,
+                "delegate_to": self.delegate_to,
+                "impersonation_chain": self.impersonation_chain,
+                "polling_interval_seconds": self.polling_interval_seconds,
+            },
+        )
+
+    async def run(self) -> AsyncIterator["TriggerEvent"]:
+        hook = self._get_hook()
+        while True:
+            try:
+                operation = await hook.get_operation(region=self.region, operation_name=self.name)
+                if operation.done:
+                    if operation.error.message:
+                        yield TriggerEvent(
+                            {
+                                "operation_name": operation.name,
+                                "operation_done": operation.done,
+                                "status": "error",
+                                "message": operation.error.message,
+                            }
+                        )
+                        return
+                    yield TriggerEvent(
+                        {
+                            "operation_name": operation.name,
+                            "operation_done": operation.done,
+                            "status": "success",
+                            "message": "Operation is successfully ended.",
+                        }
+                    )
+                    return
+                else:
+                    self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+                    await asyncio.sleep(self.polling_interval_seconds)
+            except Exception as e:
+                self.log.exception("Exception occurred while checking operation status.")
+                yield TriggerEvent(
+                    {
+                        "status": "failed",
+                        "message": str(e),
+                    }
+                )
+
+    def _get_hook(self) -> DataprocAsyncHook:  # type: ignore[override]
+        return DataprocAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
