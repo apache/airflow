@@ -2884,6 +2884,14 @@
                     "type": "boolean",
                     "default": true
                 },
+                "ttlSecondsAfterFinished": {
+                    "description": "Limit the lifetime of the job object after it finished execution",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 300
+                },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
@@ -3083,6 +3091,14 @@
                     "description": "Specify if you want additional configured env vars applied to this job",
                     "type": "boolean",
                     "default": true
+                },
+                "ttlSecondsAfterFinished": {
+                    "description": "Limit the lifetime of the job object after it finished execution",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 300
                 }
             }
         },
