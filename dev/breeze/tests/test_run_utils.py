@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 import stat
 from pathlib import Path
-from unittest import TestCase
 
 from airflow_breeze.utils.run_utils import (
     change_directory_permission,
@@ -51,4 +50,4 @@ def test_filter_out_none():
     dict_input_with_none = {"sample": None, "sample1": "One", "sample2": "Two", "samplen": None}
     expected_dict_output = {"sample1": "One", "sample2": "Two"}
     output_dict = filter_out_none(**dict_input_with_none)
-    TestCase().assertDictEqual(output_dict, expected_dict_output)
+    assert output_dict == expected_dict_output
