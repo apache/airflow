@@ -1854,6 +1854,8 @@ podTemplate: ~
 # Git sync
 dags:
   persistence:
+    # Annotations for dags PVC
+    annotations: {}
     # Enable persistent volume for storing dags
     enabled: false
     # Volume size for dags
