@@ -267,6 +267,16 @@ function install_mssql_client() {
     curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
     curl --silent "https://packages.microsoft.com/config/${distro}/${version}/prod.list" > \
         /etc/apt/sources.list.d/mssql-release.list
+
+    # Fix https://github.com/microsoft/linux-package-repositories/issues/36 for pyodbc<=4.0.32
+    # Deny upgrade unixodbc related packages from Microsoft repo
+    pin_packages=("libodbc1" "odbcinst1debian2" "odbcinst" "unixodbc-dev" "unixodbc")
+    for package in "${pin_packages[@]}"
+    do
+        printf "Package: %s\nPin: origin packages.microsoft.com\nPin-Priority: -1\n\n" "${package}" >> \
+            /etc/apt/preferences.d/99-deny-packages-from-ms-repo.pref
+    done
+
     apt-get update -yqq
     apt-get upgrade -yqq
     ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends "${driver}"
