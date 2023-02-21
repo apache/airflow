@@ -275,6 +275,8 @@ class DatasetEvent(Base):
     source_dag_id = Column(StringID(), nullable=True)
     source_run_id = Column(StringID(), nullable=True)
     source_map_index = Column(Integer, nullable=True, server_default=text("-1"))
+    external_service_id = Column(StringID(), nullable=True)
+    external_source = Column(StringID(), nullable=True)
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "dataset_event"

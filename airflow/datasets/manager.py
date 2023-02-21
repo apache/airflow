@@ -17,16 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import exc
 from sqlalchemy.orm.session import Session
 
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, ExternalDatasetChange
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -47,46 +48,78 @@ class DatasetManager(LoggingMixin):
         self,
         *,
         dataset: Dataset,
-        task_instance: TaskInstance | None = None,
+        task_instance: TaskInstance,
         extra=None,
         session: Session,
         **kwargs,
     ) -> DatasetEvent | None:
         """
-        Register dataset related changes.
+        Register dataset related changes from a task instance.
 
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
+        if dataset_model := self._get_dataset_model(dataset=dataset, session=session) is None:
+            return None
+
+        dataset_event = DatasetEvent(
+            dataset_id=dataset_model.id,
+            source_task_id=task_instance.task_id,
+            source_dag_id=task_instance.dag_id,
+            source_run_id=task_instance.run_id,
+            source_map_index=task_instance.map_index,
+            extra=extra,
+        )
+
+        self._save_dataset_event(dataset_event, dataset_model, session)
+
+        return dataset_event
+
+    def register_external_dataset_change(
+        self,
+        dataset: Dataset,
+        external_source: str,
+        external_service_id: str,
+        timestamp: datetime,
+        session: Session,
+        extra=None,
+        **kwargs,
+    ) -> DatasetEvent | None:
+        """
+        Register an dataset change from an external source (rather than task_instance)
+
+        For local datasets, look them up, record the dataset event, and queue dagruns.
+        """
+        if dataset_model := self._get_dataset_model(dataset=dataset, session=session) is None:
+            return None
+
+        # When an external dataset change is made through the API, it isn't triggered by a task instance,
+        # so we create a DatasetEvent without the task and dag data.
+        dataset_event = DatasetEvent(
+            dataset_id=dataset_model.id,
+            external_source=external_source,
+            external_service_id=external_service_id,
+            timestamp=timestamp,
+            extra=extra,
+        )
+
+        self._save_dataset_event(dataset_event, dataset_model, session)
+        return dataset_event
+
+    def _get_dataset_model(self, dataset: Dataset, session: Session) -> Optional[DatasetModel]:
         dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)
             return None
+        return dataset_model
 
-        if task_instance:
-            dataset_event = DatasetEvent(
-                dataset_id=dataset_model.id,
-                source_task_id=task_instance.task_id,
-                source_dag_id=task_instance.dag_id,
-                source_run_id=task_instance.run_id,
-                source_map_index=task_instance.map_index,
-                extra=extra,
-            )
-        else:
-            # When an external dataset change is made through the API, it isn't triggered by a task instance,
-            # so we create a DatasetEvent without the task and dag data.
-            dataset_event = DatasetEvent(
-                dataset_id=dataset_model.id,
-                extra=extra,
-            )
+    def _save_dataset_event(self, dataset_event: DatasetEvent, dataset_model: DatasetModel, session: Session):
         session.add(dataset_event)
         session.flush()
         Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
-
-        return dataset_event
 
     def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually

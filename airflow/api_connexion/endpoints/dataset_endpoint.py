@@ -139,9 +139,17 @@ def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
     uri = json_body["dataset_uri"]
+    external_source = json_body["external_source"]
+    external_service_id = json_body["external_service_id"]
+    timestamp = json_body["timestamp"]
     extra = json_body["extra"]
-    dataset_event = dataset_manager.register_dataset_change(
-        dataset=Dataset(uri), extra=extra, session=session
+    dataset_event = dataset_manager.register_external_dataset_change(
+        dataset=Dataset(uri),
+        external_source=external_source,
+        external_service_id=external_service_id,
+        timestamp=timestamp,
+        extra=extra,
+        session=session,
     )
 
     if dataset_event:
