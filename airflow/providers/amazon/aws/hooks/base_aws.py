@@ -329,10 +329,10 @@ class BaseSessionFactory(LoggingMixin):
         )
 
     def _get_file_token_loader(self):
-        from botocore.credentials import AssumeRoleWithWebIdentityProvider, FileWebIdentityTokenLoader
+        from botocore.credentials import FileWebIdentityTokenLoader
 
         token_file = self.extra_config.get("assume_role_with_web_identity_token_file") or os.getenv(
-            AssumeRoleWithWebIdentityProvider._CONFIG_TO_ENV_VAR["web_identity_token_file"]
+            "AWS_WEB_IDENTITY_TOKEN_FILE"
         )
 
         return FileWebIdentityTokenLoader(token_file)
