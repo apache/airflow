@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
@@ -254,14 +254,15 @@ class TestLivyOperator:
             task_id="livy_example",
             deferrable=True,
         )
-        task.execute(context=self.mock_context)
+        with pytest.raises(TaskDeferred):
+            task.execute(context=self.mock_context)
 
-        call_args = {k: v for k, v in mock_post.call_args[1].items() if v}
-        assert call_args == {"file": "sparkapp"}
-        mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
-        mock_dump_logs.assert_called_once_with(BATCH_ID)
-        mock_get_batch.assert_called_once_with(BATCH_ID)
-        self.mock_context["ti"].xcom_push.assert_called_once_with(key="app_id", value=APP_ID)
+            call_args = {k: v for k, v in mock_post.call_args[1].items() if v}
+            assert call_args == {"file": "sparkapp"}
+            mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
+            mock_dump_logs.assert_called_once_with(BATCH_ID)
+            mock_get_batch.assert_called_once_with(BATCH_ID)
+            self.mock_context["ti"].xcom_push.assert_called_once_with(key="app_id", value=APP_ID)
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
@@ -275,9 +276,10 @@ class TestLivyOperator:
             deferrable=True,
         )
 
-        task.execute(context=self.mock_context)
+        with pytest.raises(TaskDeferred):
+            task.execute(context=self.mock_context)
 
-        assert task.get_hook().extra_options == extra_options
+            assert task.get_hook().extra_options == extra_options
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
@@ -290,10 +292,11 @@ class TestLivyOperator:
             task_id="livy_example",
             deferrable=True,
         )
-        task.execute(context=self.mock_context)
-        task.kill()
+        with pytest.raises(TaskDeferred):
+            task.execute(context=self.mock_context)
+            task.kill()
 
-        mock_delete.assert_called_once_with(BATCH_ID)
+            mock_delete.assert_called_once_with(BATCH_ID)
 
     def test_injected_hook_deferrable(self):
         def_hook = LivyHook(livy_conn_id="livyunittest")
@@ -320,12 +323,14 @@ class TestLivyOperator:
             deferrable=True,
         )
         caplog.clear()
-        with caplog.at_level(level=logging.INFO, logger=task.get_hook().log.name):
-            task.execute(context=self.mock_context)
 
-        assert "first_line" in caplog.messages
-        assert "second_line" in caplog.messages
-        assert "third_line" in caplog.messages
+        with pytest.raises(TaskDeferred):
+            with caplog.at_level(level=logging.INFO, logger=task.get_hook().log.name):
+                task.execute(context=self.mock_context)
 
-        mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
-        mock_get_logs.assert_called_once_with(BATCH_ID, 0, 100)
+                assert "first_line" in caplog.messages
+                assert "second_line" in caplog.messages
+                assert "third_line" in caplog.messages
+
+            mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
+            mock_get_logs.assert_called_once_with(BATCH_ID, 0, 100)
