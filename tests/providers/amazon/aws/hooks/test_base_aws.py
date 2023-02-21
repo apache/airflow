@@ -513,7 +513,7 @@ class TestAwsBaseHook:
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.base_aws.botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__",
             new=(mock_open_,),
-        ) as mock_token_loader_init_defaults:
+        ):
             AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
 
         _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
