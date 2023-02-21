@@ -58,8 +58,8 @@ class TestGoogleDriveHook:
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
-                .files()
-                .list(
+                    .files()
+                    .list(
                     fields="files(id, name)",
                     includeItemsFromAllDrives=True,
                     q=(
@@ -70,8 +70,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                .files()
-                .create(
+                    .files()
+                    .create(
                     body={
                         "name": "AAA",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -81,8 +81,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                .files()
-                .create(
+                    .files()
+                    .create(
                     body={
                         "name": "BBB",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -92,8 +92,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                .files()
-                .create(
+                    .files()
+                    .create(
                     body={
                         "name": "CCC",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -103,8 +103,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                .files()
-                .create(
+                    .files()
+                    .create(
                     body={
                         "name": "DDD",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -137,8 +137,8 @@ class TestGoogleDriveHook:
             [
                 *[
                     mock.call()
-                    .files()
-                    .list(
+                        .files()
+                        .list(
                         fields="files(id, name)",
                         includeItemsFromAllDrives=True,
                         q=(
@@ -151,8 +151,8 @@ class TestGoogleDriveHook:
                     for d, key in [("AAA", "root"), ("BBB", "ID_1"), ("CCC", "ID_2")]
                 ],
                 mock.call()
-                .files()
-                .create(
+                        .files()
+                        .create(
                     body={
                         "name": "CCC",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -162,8 +162,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                .files()
-                .create(
+                        .files()
+                        .create(
                     body={
                         "name": "DDD",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -193,8 +193,8 @@ class TestGoogleDriveHook:
             [
                 *[
                     mock.call()
-                    .files()
-                    .list(
+                        .files()
+                        .list(
                         fields="files(id, name)",
                         includeItemsFromAllDrives=True,
                         q=(
@@ -275,11 +275,15 @@ class TestGoogleDriveHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_path_when_file_in_root_directory(self, mock_get_conn):
-        mock_get_conn.return_value.files.return_value.get.return_value.execute.return_value = {
+        mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = [{
             "id": "ID_1",
             "name": "file.csv",
-            "parents": ["root"]
-        }
+            "parents": ["ID_2"]
+        },
+        {
+            "id": "ID_2",
+            "name": "root"
+        }]
 
         result_value = self.gdrive_hook._get_file_path(file_id="ID_1")
         assert result_value == "/root/file.csv"
@@ -287,12 +291,29 @@ class TestGoogleDriveHook:
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_path_when_file_nested_in_2_directories(self, mock_get_conn):
         mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = [
-            {"id": "ID_1", "name": "file.csv", "parents": ["root"]},
-            {"id": "ID_2", "name": "file.csv", "parents": ["folder_A"]}
+            {"id": "ID_1", "name": "file.csv", "parents": ["ID_2"]},
+            {"id": "ID_2", "name": "folder_A", "parents": ["ID_3"]},
+            {"id": "ID_3", "name": "root"}
         ]
 
         result_value = self.gdrive_hook._get_file_path(file_id="ID_1")
         assert result_value == "/root/folder_A/file.csv"
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_get_file_path_when_file_nested_in_21_directories(self, mock_get_conn):
+        returned_array = []
+        MAX_NESTED_FOLDERS_LEVEL = 20
+        for x in range(0, MAX_NESTED_FOLDERS_LEVEL + 1):
+            returned_array.append({"id": "ID_1", "name": "folder", "parents": ["ID_1"]})
+
+        print(f"Number of objects: {len(returned_array)}")
+
+        mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = returned_array
+
+        try:
+            self.gdrive_hook._get_file_path(file_id="ID_1")
+        except Exception as e:
+            assert str(e) == f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} times"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_multiple_files_exists(self, mock_get_conn):
@@ -323,7 +344,7 @@ class TestGoogleDriveHook:
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._ensure_folders_exists")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._get_file_path")
     def test_upload_file_to_root_directory(
-        self, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload
+        self, mock_get_file_path, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload
     ):
         mock_get_conn.return_value.files.return_value.create.return_value.execute.return_value = {
             "id": "FILE_ID"
@@ -332,11 +353,12 @@ class TestGoogleDriveHook:
         return_value = self.gdrive_hook.upload_file("local_path", "remote_path")
 
         mock_ensure_folders_exists.assert_not_called()
+        mock_get_file_path.assert_not_called()
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
-                .files()
-                .create(
+                    .files()
+                    .create(
                     body={"name": "remote_path", "parents": ["root"]},
                     fields="id",
                     media_body=mock_media_file_upload.return_value,
@@ -365,9 +387,38 @@ class TestGoogleDriveHook:
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
-                .files()
-                .create(
+                    .files()
+                    .create(
                     body={"name": "remote_path", "parents": ["PARENT_ID"]},
+                    fields="id",
+                    media_body=mock_media_file_upload.return_value,
+                    supportsAllDrives=True,
+                )
+            ]
+        )
+        assert return_value == "FILE_ID"
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._ensure_folders_exists")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._get_file_path")
+    def test_upload_file_into_folder_id(
+        self, mock_get_file_path, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload
+    ):
+        mock_get_conn.return_value.files.return_value.create.return_value.execute.return_value = {
+            "id": "FILE_ID"
+        }
+        mock_get_file_path.return_value.files.return_value = "/Shared_Folder_A/file.csv"
+
+        return_value = self.gdrive_hook.upload_file("/tmp/file.csv", "/file.csv", folder_id="FILE_ID")
+
+        mock_ensure_folders_exists.assert_not_called()
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call()
+                    .files()
+                    .create(
+                    body={"name": "file.csv", "parents": ["FILE_ID"]},
                     fields="id",
                     media_body=mock_media_file_upload.return_value,
                     supportsAllDrives=True,

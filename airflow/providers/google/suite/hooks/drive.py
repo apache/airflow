@@ -166,6 +166,8 @@ class GoogleDriveHook(GoogleBaseHook):
         :param file_id: The id of a file in Google Drive
         :return: Google Drive full path for a file
         """
+        MAX_NESTED_FOLDERS_LEVEL = 20
+        iteration = 1
 
         service = self.get_conn()
         has_reached_root = False
@@ -178,8 +180,7 @@ class GoogleDriveHook(GoogleBaseHook):
                         fileId=id,
                         fields="id,name,parents",
                         supportsAllDrives=True,
-                    )
-                    .execute()
+                    ).execute()
             )
             if "parents" in file_info:
                 parent_directories = file_info["parents"]
@@ -192,11 +193,13 @@ class GoogleDriveHook(GoogleBaseHook):
                     self.log.warn("Google returned multiple parents, picking first")
                 id = parent_directories[0]
             else:
+                has_reached_root = True
                 if "name" in file_info:
                     path = f'/{file_info["name"]}/{path}'
-                    return path
-                else:
-                    return ""
+
+            if iteration >= MAX_NESTED_FOLDERS_LEVEL:
+                raise Exception(f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} times")
+            iteration += 1
         return path
 
     def get_file_id(
