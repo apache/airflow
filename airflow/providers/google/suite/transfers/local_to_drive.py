@@ -40,7 +40,8 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         :ref:`howto/operator:LocalFilesystemToGoogleDriveOperator`
 
     :param local_paths: Python list of local file paths
-    :param drive_folder: path of the Drive folder
+    :param drive_folder: path of the Drive folder, if folder_id param is given then drive_folder is a
+        sub path of folder_id.
     :param gcp_conn_id: Airflow Connection ID for GCP
     :param delete: should the local files be deleted after upload?
     :param ignore_if_missing: if True, then don't fail even if all files

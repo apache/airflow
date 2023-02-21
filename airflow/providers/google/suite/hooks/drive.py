@@ -88,14 +88,14 @@ class GoogleDriveHook(GoogleBaseHook):
             ]
             result = (
                 service.files()
-                .list(
+                    .list(
                     q=" and ".join(conditions),
                     spaces="drive",
                     fields="files(id, name)",
                     includeItemsFromAllDrives=True,
                     supportsAllDrives=True,
                 )
-                .execute(num_retries=self.num_retries)
+                    .execute(num_retries=self.num_retries)
             )
             files = result.get("files", [])
             if not files:
@@ -116,12 +116,12 @@ class GoogleDriveHook(GoogleBaseHook):
                 }
                 file = (
                     service.files()
-                    .create(
+                        .create(
                         body=file_metadata,
                         fields="id",
                         supportsAllDrives=True,
                     )
-                    .execute(num_retries=self.num_retries)
+                        .execute(num_retries=self.num_retries)
                 )
                 self.log.info("Created %s directory", current_folder)
 
@@ -159,6 +159,46 @@ class GoogleDriveHook(GoogleBaseHook):
             )
         )
 
+    def _get_file_path(self, file_id: str) -> str:
+        """
+        Returns the full Google Drive path for given file_id
+
+        :param file_id: The id of a file in Google Drive
+        :return: Google Drive full path for a file
+        """
+
+        service = self.get_conn()
+        has_reached_root = False
+        id = file_id
+        path = ""
+        while not has_reached_root:
+            file_info = (
+                service.files()
+                    .get(
+                        fileId=id,
+                        fields="id,name,parents",
+                        supportsAllDrives=True,
+                    )
+                    .execute()
+            )
+            if "parents" in file_info:
+                parent_directories = file_info["parents"]
+                if path == "":
+                    path = f'{file_info["name"]}'
+                else:
+                    path = f'{file_info["name"]}/{path}'
+
+                if len(parent_directories) > 1:
+                    self.log.warn("Google returned multiple parents, picking first")
+                id = parent_directories[0]
+            else:
+                if "name" in file_info:
+                    path = f'/{file_info["name"]}/{path}'
+                    return path
+                else:
+                    return ""
+        return path
+
     def get_file_id(
         self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
     ) -> dict:
@@ -183,7 +223,7 @@ class GoogleDriveHook(GoogleBaseHook):
         if drive_id:
             files = (
                 service.files()
-                .list(
+                    .list(
                     q=query,
                     spaces="drive",
                     fields="files(id, mimeType)",
@@ -193,13 +233,13 @@ class GoogleDriveHook(GoogleBaseHook):
                     supportsAllDrives=True,
                     corpora="drive",
                 )
-                .execute(num_retries=self.num_retries)
+                    .execute(num_retries=self.num_retries)
             )
         else:
             files = (
                 service.files()
-                .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
-                .execute(num_retries=self.num_retries)
+                    .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
+                    .execute(num_retries=self.num_retries)
             )
         file_metadata = {}
         if files["files"]:
@@ -240,11 +280,15 @@ class GoogleDriveHook(GoogleBaseHook):
         media = MediaFileUpload(local_location, chunksize=chunk_size, resumable=resumable)
         file = (
             service.files()
-            .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
-            .execute(num_retries=self.num_retries)
+                .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
+                .execute(num_retries=self.num_retries)
         )
-        self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)
-        return file.get("id")
+        file_id = file.get("id")
+
+        upload_location = remote_location if folder_id == "root" else self._get_file_path(
+            file_id=folder_id) + remote_location
+        self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
+        return file_id
 
     def download_file(self, file_id: str, file_handle: IO, chunk_size: int = 100 * 1024 * 1024):
         """
