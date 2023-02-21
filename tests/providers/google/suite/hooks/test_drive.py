@@ -58,8 +58,8 @@ class TestGoogleDriveHook:
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
-                    .files()
-                    .list(
+                .files()
+                .list(
                     fields="files(id, name)",
                     includeItemsFromAllDrives=True,
                     q=(
@@ -70,8 +70,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={
                         "name": "AAA",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -81,8 +81,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={
                         "name": "BBB",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -92,8 +92,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={
                         "name": "CCC",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -103,8 +103,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={
                         "name": "DDD",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -137,8 +137,8 @@ class TestGoogleDriveHook:
             [
                 *[
                     mock.call()
-                        .files()
-                        .list(
+                    .files()
+                    .list(
                         fields="files(id, name)",
                         includeItemsFromAllDrives=True,
                         q=(
@@ -151,8 +151,8 @@ class TestGoogleDriveHook:
                     for d, key in [("AAA", "root"), ("BBB", "ID_1"), ("CCC", "ID_2")]
                 ],
                 mock.call()
-                        .files()
-                        .create(
+                    .files()
+                    .create(
                     body={
                         "name": "CCC",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -162,8 +162,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                        .files()
-                        .create(
+                    .files()
+                    .create(
                     body={
                         "name": "DDD",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -193,8 +193,8 @@ class TestGoogleDriveHook:
             [
                 *[
                     mock.call()
-                        .files()
-                        .list(
+                    .files()
+                    .list(
                         fields="files(id, name)",
                         includeItemsFromAllDrives=True,
                         q=(
@@ -357,8 +357,8 @@ class TestGoogleDriveHook:
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={"name": "remote_path", "parents": ["root"]},
                     fields="id",
                     media_body=mock_media_file_upload.return_value,
@@ -387,8 +387,8 @@ class TestGoogleDriveHook:
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={"name": "remote_path", "parents": ["PARENT_ID"]},
                     fields="id",
                     media_body=mock_media_file_upload.return_value,
@@ -416,8 +416,8 @@ class TestGoogleDriveHook:
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={"name": "file.csv", "parents": ["FILE_ID"]},
                     fields="id",
                     media_body=mock_media_file_upload.return_value,

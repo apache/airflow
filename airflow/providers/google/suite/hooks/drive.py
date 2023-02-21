@@ -88,14 +88,14 @@ class GoogleDriveHook(GoogleBaseHook):
             ]
             result = (
                 service.files()
-                    .list(
+                .list(
                     q=" and ".join(conditions),
                     spaces="drive",
                     fields="files(id, name)",
                     includeItemsFromAllDrives=True,
                     supportsAllDrives=True,
                 )
-                    .execute(num_retries=self.num_retries)
+                .execute(num_retries=self.num_retries)
             )
             files = result.get("files", [])
             if not files:
@@ -116,12 +116,12 @@ class GoogleDriveHook(GoogleBaseHook):
                 }
                 file = (
                     service.files()
-                        .create(
+                    .create(
                         body=file_metadata,
                         fields="id",
                         supportsAllDrives=True,
                     )
-                        .execute(num_retries=self.num_retries)
+                    .execute(num_retries=self.num_retries)
                 )
                 self.log.info("Created %s directory", current_folder)
 
@@ -176,11 +176,12 @@ class GoogleDriveHook(GoogleBaseHook):
         while not has_reached_root:
             file_info = (
                 service.files()
-                    .get(
+                .get(
                         fileId=id,
                         fields="id,name,parents",
                         supportsAllDrives=True,
-                    ).execute()
+                )
+                .execute()
             )
             if "parents" in file_info:
                 parent_directories = file_info["parents"]
@@ -226,7 +227,7 @@ class GoogleDriveHook(GoogleBaseHook):
         if drive_id:
             files = (
                 service.files()
-                    .list(
+                .list(
                     q=query,
                     spaces="drive",
                     fields="files(id, mimeType)",
@@ -236,13 +237,13 @@ class GoogleDriveHook(GoogleBaseHook):
                     supportsAllDrives=True,
                     corpora="drive",
                 )
-                    .execute(num_retries=self.num_retries)
+                .execute(num_retries=self.num_retries)
             )
         else:
             files = (
                 service.files()
-                    .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
-                    .execute(num_retries=self.num_retries)
+                .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
+                .execute(num_retries=self.num_retries)
             )
         file_metadata = {}
         if files["files"]:
