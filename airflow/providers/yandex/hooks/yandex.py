@@ -81,7 +81,7 @@ class YandexCloudBaseHook(BaseHook):
             "endpoint": StringField(
                 lazy_gettext("API endpoint"),
                 widget=BS3TextFieldWidget(),
-                description="Optional.",
+                description="Optional. Specify an API endpoint. Leave blank to use default.",
             ),
         }
 
