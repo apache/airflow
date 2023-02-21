@@ -138,7 +138,9 @@ class TestGlueJobHook:
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "get_conn")
-    def test_create_or_update_glue_job_create_new_job_without_s3_bucket(self, mock_get_conn, mock_get_iam_execution_role):
+    def test_create_or_update_glue_job_create_new_job_without_s3_bucket(
+        self, mock_get_conn, mock_get_iam_execution_role
+    ):
         """
         Calls 'create_or_update_glue_job' with no existing job.
         Should create a new job.
