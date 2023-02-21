@@ -17,33 +17,37 @@
 #
 ---
 # https://github.com/actions/stale
-name: 'Close stale PRs & Issues'
+name: 'Recheck old bug reports'
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 7 * * *'
 permissions:
   # All other permissions are set to none
   pull-requests: write
   issues: write
 jobs:
-  stale:
+  recheck-old-bug-report:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/stale@v7
         with:
-          stale-pr-message: >
-            This pull request has been automatically marked as stale because it has not had
-            recent activity. It will be closed in 5 days if no further activity occurs. Thank you
-            for your contributions.
-          days-before-pr-stale: 45
-          days-before-pr-close: 5
-          exempt-pr-labels: 'pinned,security'
-          only-issue-labels: 'pending-response'
-          days-before-issue-stale: 30
-          days-before-issue-close: 7
+          only-issue-labels: 'kind:bug'
+          stale-issue-label: 'Stale Bug Report'
+          days-before-issue-stale: 365
+          days-before-issue-close: 30
+          # Stale bot does not support defining to
+          # scan only issues: https://github.com/actions/stale/issues/837
+          # To avoid this job scanning also PRs and setting the defaults of the bot to them,
+          # we set high number of days thus effectively this job will not do any changes on PRs
+          days-before-pr-stale: 7000
+          days-before-pr-close: 7000
+          remove-stale-when-updated: true
+          labels-to-add-when-unstale: 'needs-triage'
           stale-issue-message: >
-            This issue has been automatically marked as stale because it has been open for 30 days
-            with no response from the author. It will be closed in next 7 days if no further
-            activity occurs from the issue author.
+            This issue has been automatically marked as stale because it has been open for 365 days
+            without any activity. There has been several Airflow releases since last activity on this issue.
+            Kindly asking to recheck the report against latest Airflow version and let us know
+            if the issue is reproducible. The issue will be closed in next 30 days if no further activity
+            occurs from the issue author.
           close-issue-message: >
             This issue has been closed because it has not received response from the issue author.
