@@ -420,6 +420,13 @@ repos:
         pass_filenames: true
         files: \.py$
         exclude: ^airflow/_vendor/|^docs/|^tests/
+      - id: check-urlparse-usage-in-code
+        language: pygrep
+        name: Don't use urlparse in code
+        description: urlparse is not recommended, use urlsplit() in code instead
+        entry: "^\\s*from urllib\\.parse import ((\\|, )(urlparse\\|urlunparse))+$"
+        pass_filenames: true
+        files: \.py$
       - id: check-only-new-session-with-provide-session
         name: Check NEW_SESSION is only used with @provide_session
         language: python
