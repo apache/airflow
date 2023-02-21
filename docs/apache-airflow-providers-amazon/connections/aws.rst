@@ -325,7 +325,7 @@ Per service configuration
 S3 Bucket configurations
 """"""""""""""""""""""""
 
-For use S3 Bucket name per connection in :class:`~airflow.providers.amazon.aws.hooks.s3.S3Hook` methods
+To use S3 bucket name per connection in :class:`~airflow.providers.amazon.aws.hooks.s3.S3Hook` methods,
 provide selected options in Connection Extra.
 
 .. note:: ``bucket_name`` provided in hook methods will override this Connection settings.
