@@ -35,6 +35,12 @@ jobs:
           stale-issue-label: 'Stale Bug Report'
           days-before-issue-stale: 365
           days-before-issue-close: 30
+          # Stale bot does not support defining to
+          # scan only issues: https://github.com/actions/stale/issues/837
+          # To avoid this job scanning also PRs and setting the defaults of the bot to them,
+          # we set high number of days thus effectively this job will not do any changes on PRs
+          days-before-pr-stale: 7000
+          days-before-pr-close: 7000
           remove-stale-when-updated: true
           labels-to-add-when-unstale: 'needs-triage'
           stale-issue-message: >
