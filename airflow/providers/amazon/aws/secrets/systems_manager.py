@@ -196,14 +196,11 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in
             Systems Manager
         """
-        if lookup_pattern is not None and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
+        if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
             return None
 
         ssm_path = self.build_path(path_prefix, secret_id)
-
-        # AWS Systems Manager mandate to have a leading "/". Adding it dynamically if not there
-        if not ssm_path.startswith("/"):
-            ssm_path = f"/{ssm_path}"
+        ssm_path = self._ensure_leading_slash(ssm_path)
 
         try:
             response = self.client.get_parameter(Name=ssm_path, WithDecryption=True)
@@ -211,3 +208,14 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         except self.client.exceptions.ParameterNotFound:
             self.log.debug("Parameter %s not found.", ssm_path)
             return None
+
+    def _ensure_leading_slash(self, ssm_path: str):
+        """
+        AWS Systems Manager mandate to have a leading "/". Adding it dynamically if not there to the SSM path
+
+        :param ssm_path: SSM parameter path
+        """
+        if not ssm_path.startswith("/"):
+            ssm_path = f"/{ssm_path}"
+
+        return ssm_path

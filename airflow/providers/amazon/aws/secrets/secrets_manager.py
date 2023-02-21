@@ -47,7 +47,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     accessible.
 
     When ``{"variables_prefix": "airflow/variables"}`` is set, if a secret is defined with
-    the path ``airflow/variables/hello``, the variable with they ``hello`` would be accessible.
+    the path ``airflow/variables/hello``, the variable with the name ``hello`` would be accessible.
 
     When ``{"config_prefix": "airflow/config"}`` set, if a secret is defined with
     the path ``airflow/config/sql_alchemy_conn``, the config with they ``sql_alchemy_conn`` would be
@@ -314,7 +314,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in
             Secrets Manager
         """
-        if lookup_pattern is not None and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
+        if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
             return None
 
         error_msg = "An error occurred when calling the get_secret_value operation"
