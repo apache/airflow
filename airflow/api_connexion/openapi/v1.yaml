@@ -890,7 +890,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRun'
+                anyOf:
+                  - $ref: '#/components/schemas/DAGRun'
+                  - $ref: '#/components/schemas/TaskInstanceCollection'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

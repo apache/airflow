@@ -986,6 +986,68 @@ class DataprocHook(GoogleBaseHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def wait_for_batch(
+        self,
+        batch_id: str,
+        region: str,
+        project_id: str,
+        wait_check_interval: int = 10,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Batch:
+        """
+        Wait for a Batch job to complete.
+
+        After Batch job submission, the operator will wait for the job to complete, however, this is useful
+        in the case where Airflow is restarted or the task pid is killed for any reason. In this case, the
+        Batch create will happen again, AlreadyExists will be raised and caught, then should fall to this
+        function for waiting on completion.
+
+        :param batch_id: Required. The ID to use for the batch, which will become the final component
+            of the batch's resource name.
+            This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
+        :param region: Required. The Cloud Dataproc region in which to handle the request.
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+        :param wait_check_interval: The amount of time to pause between checks for job completion
+        :param retry: A retry object used to retry requests to get_batch.
+            If ``None`` is specified, requests will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the create_batch request to complete.
+            Note that if ``retry`` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        state = None
+        first_loop: bool = True
+        while state not in [
+            Batch.State.CANCELLED,
+            Batch.State.FAILED,
+            Batch.State.SUCCEEDED,
+            Batch.State.STATE_UNSPECIFIED,
+        ]:
+            try:
+                if not first_loop:
+                    time.sleep(wait_check_interval)
+                first_loop = False
+                self.log.debug("Waiting for batch %s", batch_id)
+                result = self.get_batch(
+                    batch_id=batch_id,
+                    region=region,
+                    project_id=project_id,
+                    retry=retry,
+                    timeout=timeout,
+                    metadata=metadata,
+                )
+                state = result.state
+            except ServerError as err:
+                self.log.info(
+                    "Retrying. Dataproc API returned server error when waiting for batch id %s: %s",
+                    batch_id,
+                    err,
+                )
+
+        return result
+
 
 class DataprocAsyncHook(GoogleBaseHook):
     """

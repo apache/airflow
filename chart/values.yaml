@@ -1022,6 +1022,13 @@ webserver:
     #   - name: only_sidecar
     #     port: 80
     #     targetPort: 8888
+    # If you have a public IP, set NodePort to set an external port.
+    # Service type must be 'NodePort':
+    # ports:
+    #   - name: airflow-ui
+    #     port: 8080
+    #     targetPort: 8080
+    #     nodePort: 31151
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
     # loadBalancerSourceRanges:
@@ -1833,7 +1840,7 @@ podTemplate: ~
 #   apiVersion: v1
 #   kind: Pod
 #   metadata:
-#     name: dummy-name
+#     name: placeholder-name
 #     labels:
 #       tier: airflow
 #       component: worker
@@ -1847,6 +1854,8 @@ podTemplate: ~
 # Git sync
 dags:
   persistence:
+    # Annotations for dags PVC
+    annotations: {}
     # Enable persistent volume for storing dags
     enabled: false
     # Volume size for dags
@@ -1937,6 +1946,8 @@ logs:
     enabled: false
     # Volume size for logs
     size: 100Gi
+    # Annotations for the logs PVC
+    annotations: {}
     # If using a custom storageClass, pass name here
     storageClassName:
     ## the name of an existing PVC to use

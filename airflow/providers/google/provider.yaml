@@ -83,7 +83,7 @@ dependencies:
   - google-cloud-aiplatform>=1.7.1,<2.0.0
   - google-cloud-automl>=2.1.0
   - google-cloud-bigquery-datatransfer>=3.0.0
-  - google-cloud-bigtable>=1.0.0,<2.0.0
+  - google-cloud-bigtable>=2.0.0,<3.0.0
   - google-cloud-build>=3.0.0
   - google-cloud-compute>=0.1.0,<2.0.0
   - google-cloud-container>=2.2.0,<3.0.0
@@ -95,7 +95,9 @@ dependencies:
   - google-cloud-dataplex>=0.1.0
   - google-cloud-dataproc>=3.1.0
   - google-cloud-dataproc-metastore>=1.2.0,<2.0.0
-  - google-cloud-dlp>=0.11.0,<2.0.0
+  # google-cloud-dlp of version 3.8.0+ requires higher versions of
+  # protobuf and proto-plus libraries which can break other dependencies in the current package.
+  - google-cloud-dlp>=3.0.0,<3.8.0
   - google-cloud-kms>=2.0.0
   - google-cloud-language>=1.1.1,<2.0.0
   - google-cloud-logging>=2.1.1
@@ -125,9 +127,6 @@ dependencies:
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
-  # Google bigtable client require protobuf <= 3.20.0. We can remove the limitation
-  # when this limitation is removed
-  - protobuf<=3.20.0
 
 integrations:
   - integration-name: Google Analytics360
@@ -432,7 +431,7 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/workflows.rst
     tags: [gcp]
   - integration-name: Google LevelDB
-    external-doc-url: https://github.com/google/leveldb/blob/master/doc/index.md
+    external-doc-url: https://github.com/google/leveldb/blob/main/doc/index.md
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/leveldb/leveldb.rst
     tags: [google]

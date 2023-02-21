@@ -3002,7 +3002,8 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DAGRun"];
+          "application/json": Partial<components["schemas"]["DAGRun"]> &
+            Partial<components["schemas"]["TaskInstanceCollection"]>;
         };
       };
       400: components["responses"]["BadRequest"];

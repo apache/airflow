@@ -87,8 +87,6 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. All parameters are optional.
 
-    * ``service_config``: json used to specify configuration/parameters for different AWS services, such as S3 or STS.
-
     The following extra parameters are used to create an initial :external:py:class:`boto3.session.Session`:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
@@ -125,6 +123,11 @@ Extra (optional)
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
     * ``endpoint_url``: Endpoint URL for the connection.
     * ``verify``: Whether or not to verify SSL certificates.
+
+    The following extra parameters used for specific AWS services:
+
+    * ``service_config``: json used to specify configuration/parameters per AWS service / Amazon provider hook,
+      for more details please refer to :ref:`howto/connection:aws:per-service-configuration`.
 
 .. warning:: The extra parameters below are deprecated and will be removed in a future version of this provider.
 
@@ -310,24 +313,6 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
       "assume_role_kwargs": { "something":"something" }
     }
 
-6. Using **service_config** to specify configuration for services such as S3, STS, and EMR
-
-.. code-block:: json
-
-    {
-      "service_config": {
-        "s3": {
-          "bucket_name": "awesome-bucket"
-        },
-        "sts": {
-          "endpoint_url": "https://example.org"
-        },
-        "emr": {
-          "job_flow_overrides": {"Name": "PiCalc", "ReleaseLabel": "emr-6.7.0"},
-          "endpoint_url": "https://emr.example.org"
-        }
-    }
-
 The following settings may be used within the ``assume_role_with_saml`` container in Extra.
 
     * ``principal_arn``: The ARN of the SAML provider created in IAM that describes the identity provider.
@@ -350,6 +335,29 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
     - https://pypi.org/project/requests-gssapi/
+
+
+.. _howto/connection:aws:per-service-configuration:
+
+Per-service configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+S3 Bucket configurations
+""""""""""""""""""""""""
+
+To use S3 bucket name per connection in :class:`~airflow.providers.amazon.aws.hooks.s3.S3Hook` methods,
+provide selected options in the connection's extra field.
+
+.. note:: The ``bucket_name`` parameter hook methods will override this connection setting.
+
+.. code-block:: json
+
+    {
+      "service_config": {
+        "s3": {
+          "bucket_name": "awesome-bucket"
+        }
+    }
 
 
 Avoid Throttling exceptions
