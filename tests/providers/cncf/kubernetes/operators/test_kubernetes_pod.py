@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import json
-import os
 import re
 from contextlib import nullcontext
 from unittest import mock
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -32,7 +30,7 @@ from urllib3.packages.six import BytesIO
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.kubernetes.secret import Secret
-from airflow.models import DAG, Connection, DagModel, DagRun, TaskInstance
+from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
     KubernetesPodOperator,
@@ -1161,10 +1159,9 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
-    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, mocked_conf_file):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
@@ -1357,52 +1354,3 @@ class TestKubernetesPodOperatorAsync:
             post_complete_action.assert_called_once()
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "create_conn, export_env_var, extra_kwarg, config_file_path, should_be_called",
-        [
-            (True, False, {"kubernetes_conn_id": "kubernetes_test_conf"}, "/path/to/config/file1", True),
-            (False, True, {}, "/path/to/config/file2", True),
-            (False, False, {"config_file": "/path/to/config/file3"}, "/path/to/config/file3", True),
-            (False, False, {}, None, False),
-        ],
-    )
-    def test_load_config_file_from_conn(
-        self, create_conn, export_env_var, extra_kwarg, config_file_path, should_be_called
-    ):
-        k = KubernetesPodOperator(
-            task_id=TEST_TASK_ID,
-            namespace=TEST_NAMESPACE,
-            image=TEST_IMAGE,
-            cmds=TEST_CMDS,
-            arguments=TEST_ARGS,
-            labels=TEST_LABELS,
-            name=TEST_NAME,
-            is_delete_operator_pod=False,
-            in_cluster=True,
-            get_logs=True,
-            deferrable=True,
-            **extra_kwarg,
-        )
-        if create_conn:
-            connection = Connection(
-                conn_id="kubernetes_test_conf",
-                conn_type="kubernetes",
-                extra=json.dumps({"extra__kubernetes__kube_config_path": config_file_path}),
-            )
-            with create_session() as session:
-                session.add(connection)
-        if export_env_var:
-            os.environ["KUBECONFIG"] = config_file_path
-        with patch("builtins.open", mock_open(read_data="{}")) as mock_file:
-            k.convert_config_file_to_dict()
-        if should_be_called:
-            mock_file.assert_called_with(config_file_path)
-        else:
-            mock_file.assert_not_called()
-
-        if create_conn:
-            with create_session() as session:
-                session.query(Connection).filter(Connection.conn_id == "kubernetes_test_conf").delete()
-        if export_env_var:
-            del os.environ["KUBECONFIG"]

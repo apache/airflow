@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import secrets
 import string
@@ -37,7 +36,7 @@ from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
-from airflow.models import BaseOperator, Connection
+from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
     convert_configmap,
@@ -361,8 +360,6 @@ class KubernetesPodOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
 
-        self._config_dict: dict | None = None
-
     @cached_property
     def _incluster_namespace(self):
         from pathlib import Path
@@ -560,26 +557,7 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
-        self.convert_config_file_to_dict()
         self.invoke_defer_method()
-
-    def convert_config_file_to_dict(self):
-        """Converts passed config_file to dict format."""
-        config_file = None
-        if self.config_file:
-            config_file = self.config_file
-        elif self.kubernetes_conn_id:
-            connection = Connection.get_connection_from_secrets(self.kubernetes_conn_id)
-            extra = connection.extra_dejson
-            if "extra__kubernetes__kube_config_path" in extra:
-                config_file = extra["extra__kubernetes__kube_config_path"]
-        if not config_file:
-            config_file = os.environ.get(KUBE_CONFIG_ENV_VAR)
-        if config_file:
-            with open(config_file) as f:
-                self._config_dict = yaml.safe_load(f)
-        else:
-            self._config_dict = None
 
     def invoke_defer_method(self):
         """Method to easily redefine triggers which are being used in child classes."""
@@ -591,7 +569,7 @@ class KubernetesPodOperator(BaseOperator):
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_dict=self._config_dict,
+                config_file=self.config_file,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 should_delete_pod=self.is_delete_operator_pod,
