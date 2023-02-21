@@ -28,9 +28,12 @@ from unittest import mock
 
 import requests
 
+# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
 from docker_tests.docker_tests_utils import docker_image
+
+# isort:on (needed to workaround isort bug)
 
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")

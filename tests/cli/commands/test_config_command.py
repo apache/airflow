@@ -36,7 +36,19 @@ class TestCliConfigList:
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio):
         config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
-        mock_conf.write.assert_called_once_with(mock_stringio.return_value.__enter__.return_value)
+        mock_conf.write.assert_called_once_with(
+            mock_stringio.return_value.__enter__.return_value, section=None
+        )
+
+    @mock.patch("airflow.cli.commands.config_command.io.StringIO")
+    @mock.patch("airflow.cli.commands.config_command.conf")
+    def test_cli_show_config_should_write_data_specific_section(self, mock_conf, mock_stringio):
+        config_command.show_config(
+            self.parser.parse_args(["config", "list", "--section", "core", "--color", "off"])
+        )
+        mock_conf.write.assert_called_once_with(
+            mock_stringio.return_value.__enter__.return_value, section="core"
+        )
 
     @conf_vars({("core", "testkey"): "test_value"})
     def test_cli_show_config_should_display_key(self):
@@ -59,15 +71,15 @@ class TestCliConfigGetValue:
         assert "test_value" == temp_stdout.getvalue().strip()
 
     @mock.patch("airflow.cli.commands.config_command.conf")
-    def test_should_raise_exception_when_section_is_missing(self, mock_conf):
+    def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(
+        self, mock_conf
+    ):
+        # no section in config
         mock_conf.has_section.return_value = False
+        # pretend that the option is defined by other means
         mock_conf.has_option.return_value = True
 
-        with pytest.raises(SystemExit) as ctx:
-            config_command.get_value(
-                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-            )
-        assert "The section [missing-section] is not found in config." == str(ctx.value)
+        config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
 
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_should_raise_exception_when_option_is_missing(self, mock_conf):

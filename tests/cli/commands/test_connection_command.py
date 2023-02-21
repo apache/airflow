@@ -19,6 +19,7 @@ from __future__ import annotations
 import io
 import json
 import re
+import shlex
 import warnings
 from contextlib import redirect_stdout
 from unittest import mock
@@ -353,7 +354,7 @@ class TestCliAddConnections:
     @pytest.mark.parametrize(
         "cmd, expected_output, expected_conn",
         [
-            (
+            pytest.param(
                 [
                     "connections",
                     "add",
@@ -371,8 +372,9 @@ class TestCliAddConnections:
                     "port": 5432,
                     "schema": "airflow",
                 },
+                id="json-connection",
             ),
-            (
+            pytest.param(
                 [
                     "connections",
                     "add",
@@ -391,8 +393,9 @@ class TestCliAddConnections:
                     "port": 5432,
                     "schema": "airflow",
                 },
+                id="uri-connection-with-description",
             ),
-            (
+            pytest.param(
                 [
                     "connections",
                     "add",
@@ -411,8 +414,9 @@ class TestCliAddConnections:
                     "port": 5432,
                     "schema": "airflow",
                 },
+                id="uri-connection-with-description-2",
             ),
-            (
+            pytest.param(
                 [
                     "connections",
                     "add",
@@ -432,8 +436,9 @@ class TestCliAddConnections:
                     "port": 5432,
                     "schema": "airflow",
                 },
+                id="uri-connection-with-extra",
             ),
-            (
+            pytest.param(
                 [
                     "connections",
                     "add",
@@ -455,8 +460,9 @@ class TestCliAddConnections:
                     "port": 5432,
                     "schema": "airflow",
                 },
+                id="uri-connection-with-extra-and-description",
             ),
-            (
+            pytest.param(
                 [
                     "connections",
                     "add",
@@ -480,8 +486,9 @@ class TestCliAddConnections:
                     "port": 9083,
                     "schema": "airflow",
                 },
+                id="individual-parts",
             ),
-            (
+            pytest.param(
                 [
                     "connections",
                     "add",
@@ -504,6 +511,37 @@ class TestCliAddConnections:
                     "port": None,
                     "schema": None,
                 },
+                id="empty-uri-with-conn-type-and-extra",
+            ),
+            pytest.param(
+                ["connections", "add", "new6", "--conn-uri", "aws://?region_name=foo-bar-1"],
+                "Successfully added `conn_id`=new6 : aws://?region_name=foo-bar-1",
+                {
+                    "conn_type": "aws",
+                    "description": None,
+                    "host": "",
+                    "is_encrypted": False,
+                    "is_extra_encrypted": True,
+                    "login": None,
+                    "port": None,
+                    "schema": "",
+                },
+                id="uri-without-authority-and-host-blocks",
+            ),
+            pytest.param(
+                ["connections", "add", "new7", "--conn-uri", "aws://@/?region_name=foo-bar-1"],
+                "Successfully added `conn_id`=new7 : aws://@/?region_name=foo-bar-1",
+                {
+                    "conn_type": "aws",
+                    "description": None,
+                    "host": "",
+                    "is_encrypted": False,
+                    "is_extra_encrypted": True,
+                    "login": "",
+                    "port": None,
+                    "schema": "",
+                },
+                id="uri-with-@-instead-authority-and-host-blocks",
             ),
         ],
     )
@@ -572,11 +610,20 @@ class TestCliAddConnections:
                 )
             )
 
-    def test_cli_connections_add_invalid_uri(self):
+    @pytest.mark.parametrize(
+        "invalid_uri",
+        [
+            pytest.param("nonsense_uri", id="word"),
+            pytest.param("://password:type@host:42/schema", id="missing-conn-type"),
+        ],
+    )
+    def test_cli_connections_add_invalid_uri(self, invalid_uri):
         # Attempt to add with invalid uri
-        with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: nonsense_uri"):
+        with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: .*"):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", "new1", f"--conn-uri={'nonsense_uri'}"])
+                self.parser.parse_args(
+                    ["connections", "add", "new1", f"--conn-uri={shlex.quote(invalid_uri)}"]
+                )
             )
 
     def test_cli_connections_add_invalid_type(self):
@@ -792,3 +839,83 @@ class TestCliImportConnections:
 
         # The existing connection's description should not have changed
         assert current_conns_as_dicts["new3"]["description"] == "original description"
+
+    @provide_session
+    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @mock.patch("os.path.exists")
+    def test_cli_connections_import_should_overwrite_existing_connections(
+        self, mock_exists, mock_parse_secret_file, session=None
+    ):
+        mock_exists.return_value = True
+
+        # Add a pre-existing connection "new3"
+        merge_conn(
+            Connection(
+                conn_id="new3",
+                conn_type="mysql",
+                description="original description",
+                host="mysql",
+                login="root",
+                password="password",
+                schema="airflow",
+            ),
+            session=session,
+        )
+
+        # Sample connections to import, including a collision with "new3"
+        expected_connections = {
+            "new2": {
+                "conn_type": "postgres",
+                "description": "new2 description",
+                "host": "host",
+                "login": "airflow",
+                "password": "password",
+                "port": 5432,
+                "schema": "airflow",
+                "extra": "test",
+            },
+            "new3": {
+                "conn_type": "mysql",
+                "description": "updated description",
+                "host": "host",
+                "login": "airflow",
+                "password": "new password",
+                "port": 3306,
+                "schema": "airflow",
+                "extra": "test",
+            },
+        }
+
+        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        mock_parse_secret_file.return_value = expected_connections
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"])
+            )
+
+            assert "Could not import connection new3: connection already exists." not in stdout.getvalue()
+
+        # Verify that the imported connections match the expected, sample connections
+        current_conns = session.query(Connection).all()
+
+        comparable_attrs = [
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "login",
+            "password",
+            "port",
+            "schema",
+            "extra",
+        ]
+
+        current_conns_as_dicts = {
+            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+            for current_conn in current_conns
+        }
+        assert current_conns_as_dicts["new2"] == expected_connections["new2"]
+
+        # The existing connection should have been overwritten
+        assert current_conns_as_dicts["new3"] == expected_connections["new3"]

@@ -22,12 +22,13 @@ description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 
 versions:
+  - 2.0.0
   - 1.1.0
   - 1.0.0
 
 dependencies:
   - apache-airflow>=2.3.0
-  - JIRA>1.0.7
+  - atlassian-python-api>=1.14.2
 
 integrations:
   - integration-name: Atlassian Jira

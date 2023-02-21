@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DaskExecutor
+DaskExecutor.
 
 .. seealso::
     For more information on how the DaskExecutor works, take a look at the guide:
@@ -42,6 +42,8 @@ _UNDEFINED_QUEUES = {None, "default"}
 
 class DaskExecutor(BaseExecutor):
     """DaskExecutor submits tasks to a Dask Distributed cluster."""
+
+    supports_pickling: bool = False
 
     def __init__(self, cluster_address=None):
         super().__init__(parallelism=0)

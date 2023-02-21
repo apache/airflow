@@ -40,6 +40,7 @@ EXPECTED_JSON = {
         "rx": 5,
         "ry": 5,
         "clusterLabelPos": "top",
+        "isMapped": False,
         "tooltip": "",
     },
     "children": [
@@ -53,6 +54,7 @@ EXPECTED_JSON = {
                 "ry": 5,
                 "clusterLabelPos": "top",
                 "tooltip": "",
+                "isMapped": False,
             },
             "children": [
                 {
@@ -65,6 +67,7 @@ EXPECTED_JSON = {
                         "ry": 5,
                         "clusterLabelPos": "top",
                         "tooltip": "",
+                        "isMapped": False,
                     },
                     "children": [
                         {

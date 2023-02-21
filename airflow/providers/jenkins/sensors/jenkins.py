@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
+from airflow import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -42,21 +43,31 @@ class JenkinsBuildSensor(BaseSensorOperator):
         jenkins_connection_id: str,
         job_name: str,
         build_number: int | None = None,
+        target_states: Iterable[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.build_number = build_number
         self.jenkins_connection_id = jenkins_connection_id
+        self.target_states = target_states or ["SUCCESS", "FAILED"]
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking jenkins job %s", self.job_name)
         hook = JenkinsHook(self.jenkins_connection_id)
-        is_building = hook.get_build_building_state(self.job_name, self.build_number)
+        build_number = self.build_number or hook.get_latest_build_number(self.job_name)
+        is_building = hook.get_build_building_state(self.job_name, build_number)
 
         if is_building:
             self.log.info("Build still ongoing!")
             return False
-        else:
-            self.log.info("Build is finished.")
+
+        build_result = hook.get_build_result(self.job_name, build_number)
+        self.log.info("Build is finished, result is %s", "build_result")
+        if build_result in self.target_states:
             return True
+        else:
+            raise AirflowException(
+                f"Build {build_number} finished with a result {build_result}, "
+                f"which does not meet the target state {self.target_states}."
+            )

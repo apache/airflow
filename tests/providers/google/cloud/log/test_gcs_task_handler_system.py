@@ -41,29 +41,27 @@ from tests.test_utils.gcp_system_helpers import (
 
 @pytest.mark.system("google")
 @pytest.mark.credential_file(GCP_GCS_KEY)
-class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
+class TestGCSTaskHandlerSystem(GoogleSystemTest):
     @classmethod
-    def setUpClass(cls) -> None:
+    def setup_class(cls) -> None:
         unique_suffix = "".join(random.sample(string.ascii_lowercase, 16))
         cls.bucket_name = f"airflow-gcs-task-handler-tests-{unique_suffix}"  # type: ignore
         cls.create_gcs_bucket(cls.bucket_name)  # type: ignore
         clear_db_connections()
 
     @classmethod
-    def tearDownClass(cls) -> None:
+    def teardown_class(cls) -> None:
         cls.delete_gcs_bucket(cls.bucket_name)  # type: ignore
 
-    def setUp(self) -> None:
-        super().setUp()
+    def setup_method(self) -> None:
         clear_db_runs()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         from airflow.config_templates import airflow_local_settings
 
         importlib.reload(airflow_local_settings)
         settings.configure_logging()
         clear_db_runs()
-        super().tearDown()
 
     @provide_session
     def test_should_read_logs(self, session):

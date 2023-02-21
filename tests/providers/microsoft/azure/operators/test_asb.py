@@ -19,7 +19,11 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from azure.servicebus import ServiceBusMessage
+
+try:
+    from azure.servicebus import ServiceBusMessage
+except ImportError:
+    pytest.skip("Azure Service Bus not available", allow_module_level=True)
 
 from airflow.providers.microsoft.azure.operators.asb import (
     ASBReceiveSubscriptionMessageOperator,

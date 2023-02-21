@@ -53,10 +53,17 @@ class EmrAddStepsOperator(BaseOperator):
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
+    :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
 
-    template_fields: Sequence[str] = ("job_flow_id", "job_flow_name", "cluster_states", "steps")
+    template_fields: Sequence[str] = (
+        "job_flow_id",
+        "job_flow_name",
+        "cluster_states",
+        "steps",
+        "execution_role_arn",
+    )
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"steps": "json"}
     ui_color = "#f9c915"
@@ -71,6 +78,9 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
+        execution_role_arn: str | None = None,
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -84,6 +94,9 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.execution_role_arn = execution_role_arn
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -113,8 +126,179 @@ class EmrAddStepsOperator(BaseOperator):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
+        return emr_hook.add_job_flow_steps(
+            job_flow_id=job_flow_id,
+            steps=steps,
+            wait_for_completion=self.wait_for_completion,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
+            execution_role_arn=self.execution_role_arn,
+        )
 
-        return emr_hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=steps, wait_for_completion=True)
+
+class EmrStartNotebookExecutionOperator(BaseOperator):
+    """
+    An operator that starts an EMR notebook execution.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrStartNotebookExecutionOperator`
+
+    :param editor_id: The unique identifier of the EMR notebook to use for notebook execution.
+    :param relative_path: The path and file name of the notebook file for this execution,
+        relative to the path specified for the EMR notebook.
+    :param cluster_id: The unique identifier of the EMR cluster the notebook is attached to.
+    :param service_role: The name or ARN of the IAM role that is used as the service role
+        for Amazon EMR (the EMR role) for the notebook execution.
+    :param notebook_execution_name: Optional name for the notebook execution.
+    :param notebook_params: Input parameters in JSON format passed to the EMR notebook at
+        runtime for execution.
+    :param: notebook_instance_security_group_id: The unique identifier of the Amazon EC2
+        security group to associate with the EMR notebook for this notebook execution.
+    :param: master_instance_security_group_id: Optional unique ID of an EC2 security
+        group to associate with the master instance of the EMR cluster for this notebook execution.
+    :param tags: Optional list of key value pair to associate with the notebook execution.
+    :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
+        Defaults to 25 * 60 seconds.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
+        Defaults to 60 seconds.
+    """
+
+    template_fields: Sequence[str] = (
+        "editor_id",
+        "cluster_id",
+        "relative_path",
+        "service_role",
+        "notebook_execution_name",
+        "notebook_params",
+        "notebook_instance_security_group_id",
+        "master_instance_security_group_id",
+        "tags",
+    )
+
+    def __init__(
+        self,
+        editor_id: str,
+        relative_path: str,
+        cluster_id: str,
+        service_role: str,
+        notebook_execution_name: str | None = None,
+        notebook_params: str | None = None,
+        notebook_instance_security_group_id: str | None = None,
+        master_instance_security_group_id: str | None = None,
+        tags: list | None = None,
+        wait_for_completion: bool = False,
+        aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.editor_id = editor_id
+        self.relative_path = relative_path
+        self.service_role = service_role
+        self.notebook_execution_name = notebook_execution_name or f"emr_notebook_{uuid4()}"
+        self.notebook_params = notebook_params or ""
+        self.notebook_instance_security_group_id = notebook_instance_security_group_id or ""
+        self.tags = tags or []
+        self.wait_for_completion = wait_for_completion
+        self.cluster_id = cluster_id
+        self.aws_conn_id = aws_conn_id
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
+        self.master_instance_security_group_id = master_instance_security_group_id
+
+    def execute(self, context: Context):
+        execution_engine = {
+            "Id": self.cluster_id,
+            "Type": "EMR",
+            "MasterInstanceSecurityGroupId": self.master_instance_security_group_id or "",
+        }
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+
+        response = emr_hook.conn.start_notebook_execution(
+            EditorId=self.editor_id,
+            RelativePath=self.relative_path,
+            NotebookExecutionName=self.notebook_execution_name,
+            NotebookParams=self.notebook_params,
+            ExecutionEngine=execution_engine,
+            ServiceRole=self.service_role,
+            NotebookInstanceSecurityGroupId=self.notebook_instance_security_group_id,
+            Tags=self.tags,
+        )
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Starting notebook execution failed: {response}")
+
+        self.log.info("Notebook execution started: %s", response["NotebookExecutionId"])
+        notebook_execution_id = response["NotebookExecutionId"]
+        if self.wait_for_completion:
+            waiter(
+                get_state_callable=emr_hook.conn.describe_notebook_execution,
+                get_state_args={"NotebookExecutionId": notebook_execution_id},
+                parse_response=["NotebookExecution", "Status"],
+                desired_state={"RUNNING", "FINISHED"},
+                failure_states={"FAILED"},
+                object_type="notebook execution",
+                action="starting",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
+            )
+        return notebook_execution_id
+
+
+class EmrStopNotebookExecutionOperator(BaseOperator):
+    """
+    An operator that stops a running EMR notebook execution.
+
+     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrStopNotebookExecutionOperator`
+
+    :param notebook_execution_id: The unique identifier of the notebook execution.
+    :param wait_for_completion: If True, the operator will wait for the notebook.
+        to be in a STOPPED or FINISHED state. Defaults to False.
+    :param aws_conn_id: aws connection to use.
+    :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
+        Defaults to 25 * 60 seconds.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
+        Defaults to 60 seconds.
+    """
+
+    template_fields: Sequence[str] = ("notebook_execution_id",)
+
+    def __init__(
+        self,
+        notebook_execution_id: str,
+        wait_for_completion: bool = False,
+        aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.notebook_execution_id = notebook_execution_id
+        self.wait_for_completion = wait_for_completion
+        self.aws_conn_id = aws_conn_id
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
+
+    def execute(self, context: Context) -> None:
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        emr_hook.conn.stop_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
+
+        if self.wait_for_completion:
+            waiter(
+                get_state_callable=emr_hook.conn.describe_notebook_execution,
+                get_state_args={"NotebookExecutionId": self.notebook_execution_id},
+                parse_response=["NotebookExecution", "Status"],
+                desired_state={"STOPPED", "FINISHED"},
+                failure_states={"FAILED"},
+                object_type="notebook execution",
+                action="stopped",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
+            )
 
 
 class EmrEksCreateClusterOperator(BaseOperator):
@@ -207,6 +391,7 @@ class EmrContainerOperator(BaseOperator):
         "execution_role_arn",
         "release_label",
         "job_driver",
+        "configuration_overrides",
     )
     ui_color = "#f9c915"
 
@@ -339,6 +524,12 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override specific ``emr_conn_id`` extra parameters. (templated)
     :param region_name: Region named passed to EmrHook
+    :param wait_for_completion: Whether to finish task immediately after creation (False) or wait for jobflow
+        completion (True)
+    :param waiter_countdown: Max. seconds to wait for jobflow completion (only in combination with
+        wait_for_completion=True, None = no limit)
+    :param waiter_check_interval_seconds: Number of seconds between polling the jobflow state. Defaults to 60
+        seconds.
     """
 
     template_fields: Sequence[str] = ("job_flow_overrides",)
@@ -354,6 +545,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
         emr_conn_id: str | None = "emr_default",
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
+        wait_for_completion: bool = False,
+        waiter_countdown: int | None = None,
+        waiter_check_interval_seconds: int = 60,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -361,35 +555,69 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.emr_conn_id = emr_conn_id
         self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
+        self.wait_for_completion = wait_for_completion
+        self.waiter_countdown = waiter_countdown
+        self.waiter_check_interval_seconds = waiter_check_interval_seconds
 
-    def execute(self, context: Context) -> str:
-        emr = EmrHook(
+        self._job_flow_id: str | None = None
+
+    @cached_property
+    def _emr_hook(self) -> EmrHook:
+        """Create and return an EmrHook."""
+        return EmrHook(
             aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
         )
 
+    def execute(self, context: Context) -> str | None:
         self.log.info(
-            "Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s", self.aws_conn_id, self.emr_conn_id
+            "Creating job flow using aws_conn_id: %s, emr_conn_id: %s", self.aws_conn_id, self.emr_conn_id
         )
         if isinstance(self.job_flow_overrides, str):
             job_flow_overrides: dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
             self.job_flow_overrides = job_flow_overrides
         else:
             job_flow_overrides = self.job_flow_overrides
-        response = emr.create_job_flow(job_flow_overrides)
+        response = self._emr_hook.create_job_flow(job_flow_overrides)
 
         if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-            raise AirflowException(f"JobFlow creation failed: {response}")
+            raise AirflowException(f"Job flow creation failed: {response}")
         else:
-            job_flow_id = response["JobFlowId"]
-            self.log.info("JobFlow with id %s created", job_flow_id)
+            self._job_flow_id = response["JobFlowId"]
+            self.log.info("Job flow with id %s created", self._job_flow_id)
             EmrClusterLink.persist(
                 context=context,
                 operator=self,
-                region_name=emr.conn_region_name,
-                aws_partition=emr.conn_partition,
-                job_flow_id=job_flow_id,
+                region_name=self._emr_hook.conn_region_name,
+                aws_partition=self._emr_hook.conn_partition,
+                job_flow_id=self._job_flow_id,
             )
-            return job_flow_id
+
+            if self.wait_for_completion:
+                # Didn't use a boto-supplied waiter because those don't support waiting for WAITING state.
+                # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#waiters
+                waiter(
+                    get_state_callable=self._emr_hook.get_conn().describe_cluster,
+                    get_state_args={"ClusterId": self._job_flow_id},
+                    parse_response=["Cluster", "Status", "State"],
+                    # Cluster will be in WAITING after finishing if KeepJobFlowAliveWhenNoSteps is True
+                    desired_state={"WAITING", "TERMINATED"},
+                    failure_states={"TERMINATED_WITH_ERRORS"},
+                    object_type="job flow",
+                    action="finished",
+                    countdown=self.waiter_countdown,
+                    check_interval_seconds=self.waiter_check_interval_seconds,
+                )
+
+            return self._job_flow_id
+
+    def on_kill(self) -> None:
+        """
+        Terminate the EMR cluster (job flow). If TerminationProtected=True on the cluster,
+        termination will be unsuccessful.
+        """
+        if self._job_flow_id:
+            self.log.info("Terminating job flow %s", self._job_flow_id)
+            self._emr_hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
 
 
 class EmrModifyClusterOperator(BaseOperator):

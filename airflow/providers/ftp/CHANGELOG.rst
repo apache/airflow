@@ -24,6 +24,23 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FTP operator has logic in __init__ (#29073)``
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add FTPSFileTransmitOperator (#28318)``
+* ``Add 'FTPFileTransmitOperator' (#26974)``
+
 3.2.0
 .....
 

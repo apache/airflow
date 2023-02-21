@@ -24,7 +24,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from airflow.compat.functools import cached_property
-from airflow.providers.amazon.aws.utils import get_airflow_version, trim_none_values
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -254,13 +254,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        if get_airflow_version() >= (2, 3):
-            warnings.warn(
-                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-                "in a future release.  Please use method `get_conn_value` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+            "in a future release. Please use method `get_conn_value` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> str | None:

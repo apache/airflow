@@ -27,6 +27,10 @@
 #
 # You can read more in the README_API.md file
 #
+"""
+Definition of the public interface for airflow.providers.common.sql.hooks.sql
+isort:skip_file
+"""
 from _typeshed import Incomplete
 from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
 from typing import Any, Callable, Iterable, Mapping, Sequence

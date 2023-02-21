@@ -28,8 +28,8 @@ workflow. Airflow is essentially a graph (Directed Acyclic Graph) made up of tas
 
 A task defined or implemented by a operator is a unit of work in your data pipeline.
 
-The purpose of Postgres Operator is to define tasks involving interactions with a PostgreSQL database.
- In ``Airflow-2.0``, the ``PostgresOperator`` class resides at ``airflow.providers.postgres.operators.postgres``.
+The purpose of :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator` is to define tasks involving
+interactions with a PostgreSQL database.
 
 Under the hood, the :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator` delegates its heavy lifting to the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook`.
 
@@ -183,8 +183,8 @@ Conclusion
 ----------
 
 In this how-to guide we explored the Apache Airflow PostgreOperator. Let's quickly highlight the key takeaways.
-In Airflow-2.0, PostgresOperator class now resides in the ``providers`` package. It is best practice to create subdirectory
-called ``sql`` in your ``dags`` directory where you can store your sql files. This will make your code more elegant and more
-maintainable. And finally, we looked at the different ways you can dynamically pass parameters into our PostgresOperator
+It is best practice to create subdirectory called ``sql`` in your ``dags`` directory where you can store your sql files.
+This will make your code more elegant and more maintainable.
+And finally, we looked at the different ways you can dynamically pass parameters into our PostgresOperator
 tasks using ``parameters`` or ``params`` attribute and how you can control the server configuration parameters by passing
 the ``runtime_parameters`` attribute.

@@ -29,15 +29,7 @@ from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-
-try:
-    from airflow.utils.operator_helpers import DEFAULT_FORMAT_PREFIX
-except ImportError:
-    # This is from airflow.utils.operator_helpers,
-    # For the sake of provider backward compatibility, this is hardcoded if import fails
-    # https://github.com/apache/airflow/pull/22416#issuecomment-1075531290
-    DEFAULT_FORMAT_PREFIX = "airflow.ctx."
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
 
 
 def generate_trino_client_info() -> str:

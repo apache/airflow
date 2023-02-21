@@ -81,12 +81,13 @@ coverage:
         only_pulls: false
         paths:
           - "airflow"
-parsers:
-  gcov:
-    branch_detection:
-      conditional: true
-      loop: true
-      method: false
-      macro: false
+
+ignore:
+  - "airflow/_vendor"
+  - "airflow/contrib"
+  - "airflow/example_dags"
+  - "airflow/migrations"
+  - "airflow/providers/**/example_dags"
+  - "airflow/www/node_modules"
 
 comment: false

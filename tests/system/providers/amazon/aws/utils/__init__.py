@@ -29,6 +29,9 @@ from botocore.client import BaseClient
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.decorators import task
+from airflow.providers.amazon.aws.hooks.ssm import SsmHook
+from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
 ENV_ID_KEY: str = "ENV_ID"
@@ -92,15 +95,15 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :return: The value of the provided key from SSM
     """
     _test_name: str = test_name if test_name else _get_test_name()
-    ssm_client: BaseClient = boto3.client("ssm")
+    hook = SsmHook(aws_conn_id=None)
     value: str = ""
 
     try:
-        value = json.loads(ssm_client.get_parameter(Name=_test_name)["Parameter"]["Value"])[key]
+        value = json.loads(hook.get_parameter_value(_test_name))[key]
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
         log.info("No boto credentials found: %s", e)
-    except ssm_client.exceptions.ParameterNotFound as e:
+    except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
         log.info("SSM contains one parameter for this test, but not the requested value: %s", e)
@@ -248,7 +251,43 @@ def set_env_id() -> str:
     return env_id
 
 
-def purge_logs(
+def all_tasks_passed(ti) -> bool:
+    task_runs = ti.get_dagrun().get_task_instances()
+    return all([_task.state != State.FAILED for _task in task_runs])
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def prune_logs(
+    logs: list[tuple[str, str | None]],
+    force_delete: bool = False,
+    retry: bool = False,
+    retry_times: int = 3,
+    ti=None,
+):
+    """
+    If all tasks in this dagrun have succeeded, then delete the associated logs.
+    Otherwise, append the logs with a retention policy.  This allows the logs
+    to be used for troubleshooting but assures they won't build up indefinitely.
+
+    :param logs: A list of log_group/stream_prefix tuples to delete.
+    :param force_delete: Whether to check log streams within the log group before
+        removal. If True, removes the log group and all its log streams inside it.
+    :param retry: Whether to retry if the log group/stream was not found. In some
+        cases, the log group/stream is created seconds after the main resource has
+        been created. By default, it retries for 3 times with a 5s waiting period.
+    :param retry_times: Number of retries.
+    :param ti: Used to check the status of the tasks. This gets pulled from the
+        DAG's context and does not need to be passed manually.
+    """
+    if all_tasks_passed(ti):
+        _purge_logs(logs, force_delete, retry, retry_times)
+    else:
+        client: BaseClient = boto3.client("logs")
+        for group, _ in logs:
+            client.put_retention_policy(logGroupName=group, retentionInDays=30)
+
+
+def _purge_logs(
     test_logs: list[tuple[str, str | None]],
     force_delete: bool = False,
     retry: bool = False,
@@ -290,7 +329,7 @@ def purge_logs(
                 raise e
 
             sleep(PURGE_LOGS_INTERVAL_PERIOD)
-            purge_logs(
+            _purge_logs(
                 test_logs=test_logs,
                 force_delete=force_delete,
                 retry=retry,

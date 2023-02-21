@@ -16,15 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 
 
-class TestGlueCrawlerSensor(unittest.TestCase):
-    def setUp(self):
+class TestGlueCrawlerSensor:
+    def setup_method(self):
         self.sensor = GlueCrawlerSensor(
             task_id="test_glue_crawler_sensor",
             crawler_name="aws_test_glue_crawler",
@@ -36,21 +35,17 @@ class TestGlueCrawlerSensor(unittest.TestCase):
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     def test_poke_success(self, mock_get_crawler):
         mock_get_crawler.return_value["LastCrawl"]["Status"] = "SUCCEEDED"
-        self.assertFalse(self.sensor.poke({}))
+        assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")
 
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     def test_poke_failed(self, mock_get_crawler):
         mock_get_crawler.return_value["LastCrawl"]["Status"] = "FAILED"
-        self.assertFalse(self.sensor.poke({}))
+        assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")
 
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     def test_poke_cancelled(self, mock_get_crawler):
         mock_get_crawler.return_value["LastCrawl"]["Status"] = "CANCELLED"
-        self.assertFalse(self.sensor.poke({}))
+        assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")
-
-
-if __name__ == "__main__":
-    unittest.main()

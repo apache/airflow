@@ -529,7 +529,7 @@ class DagRun(Base, LoggingMixin):
         of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
-        :param execute_callbacks: Should dag callbacks (success/failure, SLA etc) be invoked
+        :param execute_callbacks: Should dag callbacks (success/failure, SLA etc.) be invoked
             directly (default: true) or recorded as a pending request in the ``returned_callback`` property
         :return: Tuple containing tis that can be scheduled in the current loop & `returned_callback` that
             needs to be executed
@@ -713,7 +713,7 @@ class DagRun(Base, LoggingMixin):
                 session=session,
             )
 
-            # During expansion we may change some tis into non-schedulable
+            # During expansion, we may change some tis into non-schedulable
             # states, so we need to re-compute.
             if expansion_happened:
                 changed_tis = True
@@ -778,6 +778,14 @@ class DagRun(Base, LoggingMixin):
             """
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
+
+            from airflow.models.mappedoperator import MappedOperator
+
+            if isinstance(ti.task, MappedOperator):
+                # If we get here, it could be that we are moving from non-mapped to mapped
+                # after task instance clearing or this ti is not yet expanded. Safe to clear
+                # the db references.
+                ti.clear_db_references(session=session)
             try:
                 expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
@@ -829,8 +837,8 @@ class DagRun(Base, LoggingMixin):
             ignore_in_reschedule_period=True,
             finished_tis=finished_tis,
         )
-        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
-        # not ready yet so we set the flags to count them in
+        # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are
+        # not ready yet, so we set the flags to count them in
         return (
             any(ut.are_dependencies_met(dep_context=dep_context, session=session) for ut in unfinished_tis),
             dep_context.have_changed_ti_states,
@@ -844,7 +852,7 @@ class DagRun(Base, LoggingMixin):
         is updated to a completed status (either success or failure). The method will find the first
         started task within the DAG and calculate the expected DagRun start time (based on
         dag.execution_date & dag.timetable), and minus these two values to get the delay.
-        The emitted data may contains outlier (e.g. when the first task was cleared, so
+        The emitted data may contain outlier (e.g. when the first task was cleared, so
         the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
@@ -877,6 +885,11 @@ class DagRun(Base, LoggingMixin):
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay)
+                    Stats.timing(
+                        "dagrun.first_task_scheduling_delay",
+                        true_delay,
+                        tags={"dag_id": dag.dag_id},
+                    )
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
@@ -893,8 +906,10 @@ class DagRun(Base, LoggingMixin):
         duration = self.end_date - self.start_date
         if self.state == State.SUCCESS:
             Stats.timing(f"dagrun.duration.success.{self.dag_id}", duration)
+            Stats.timing("dagrun.duration.success", duration, tags={"dag_id": self.dag_id})
         elif self.state == State.FAILED:
             Stats.timing(f"dagrun.duration.failed.{self.dag_id}", duration)
+            Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": self.dag_id})
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
@@ -993,7 +1008,7 @@ class DagRun(Base, LoggingMixin):
                     )
                     ti.state = State.REMOVED
             else:
-                # Check if the number of mapped literals has changed and we need to mark this TI as removed.
+                # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
                     self.log.debug(
                         "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",
@@ -1294,7 +1309,7 @@ class DagRun(Base, LoggingMixin):
         if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
             template = session.query(LogTemplate).order_by(LogTemplate.id).first()
         else:
-            template = session.query(LogTemplate).get(self.log_template_id)
+            template = session.get(LogTemplate, self.log_template_id)
         if template is None:
             raise AirflowException(
                 f"No log_template entry found for ID {self.log_template_id!r}. "

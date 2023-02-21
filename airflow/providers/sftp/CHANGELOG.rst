@@ -24,6 +24,35 @@
 Changelog
 ---------
 
+4.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sftp sensor with pattern (#29467)``
+
+4.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SFTP operator's template fields processing (#29068)``
+* ``FTP operator has logic in __init__ (#29073)``
+
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Update codespell and fix typos (#28568)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.2.0
 .....
 

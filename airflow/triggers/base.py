@@ -32,12 +32,23 @@ class BaseTrigger(abc.ABC, LoggingMixin):
      - Actively running in a trigger worker
 
     We use the same class for both situations, and rely on all Trigger classes
-    to be able to return the (Airflow-JSON-encodable) arguments that will
+    to be able to return the arguments (possible to encode with Airflow-JSON) that will
     let them be re-instantiated elsewhere.
     """
 
     def __init__(self, **kwargs):
-        pass
+
+        # these values are set by triggerer when preparing to run the instance
+        # when run, they are injected into logger record.
+        self.task_instance = None
+        self.trigger_id = None
+
+    def _set_context(self, context):
+        """
+        This method, part of LoggingMixin, is used mainly for configuration of logging
+        for tasks, but is not used for triggers.
+        """
+        raise NotImplementedError
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:

@@ -25,9 +25,13 @@ from unittest import mock
 import pytest
 
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.providers.apache.hive.transfers.mysql_to_hive import MySqlToHiveOperator
-from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
+
+try:
+    from airflow.providers.apache.hive.transfers.mysql_to_hive import MySqlToHiveOperator
+    from airflow.providers.mysql.hooks.mysql import MySqlHook
+except ImportError:
+    pytest.skip("MysQL and/or hive not available", allow_module_level=True)
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

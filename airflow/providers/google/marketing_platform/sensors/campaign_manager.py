@@ -73,7 +73,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         )
         response = hook.get_report(profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id)
         self.log.info("Report status: %s", response["status"])
-        return response["status"] != "PROCESSING"
+        return response["status"] not in ("PROCESSING", "QUEUED")
 
     def __init__(
         self,

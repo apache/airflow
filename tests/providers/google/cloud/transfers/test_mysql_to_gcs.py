@@ -23,10 +23,7 @@ import unittest
 from unittest import mock
 
 import pytest
-from MySQLdb import ProgrammingError
 from parameterized import parameterized
-
-from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
 
 TASK_ID = "test-mysql-to-gcs"
 MYSQL_CONN_ID = "mysql_conn_test"
@@ -69,7 +66,15 @@ CUSTOM_SCHEMA_JSON = [
     b'{"mode": "REQUIRED", "name": "some_num", "type": "TIMESTAMP"}]',
 ]
 
+try:
+    from MySQLdb import ProgrammingError
 
+    from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
+except ImportError:
+    pytest.skip("MySQL not available", allow_module_level=True)
+
+
+@pytest.mark.backend("mysql")
 class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
         """Test MySqlToGoogleCloudStorageOperator instance is properly initialized."""

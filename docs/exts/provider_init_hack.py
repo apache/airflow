@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 """
 Bugs in sphinx-autoapi using metaclasses prevent us from upgrading to 1.3
 which has implicit namespace support. Until that time, we make it look
 like a real package for building docs
 """
+from __future__ import annotations
+
 import os
 
 from sphinx.application import Sphinx
@@ -37,7 +37,7 @@ def _create_init_py(app, config):
     del config
     # This file is deleted by /docs/build_docs.py. If you are not using the script, the file will be
     # deleted by pre-commit.
-    with open(PROVIDER_INIT_FILE, "wt"):
+    with open(PROVIDER_INIT_FILE, "w"):
         pass
 
 

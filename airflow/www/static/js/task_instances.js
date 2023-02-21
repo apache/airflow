@@ -141,5 +141,29 @@ export function taskNoInstanceTooltip(taskId, task) {
   return tt;
 }
 
+export function taskQueuedStateTooltip(ti) {
+  let tt = '';
+  tt += '<strong>Status:</strong> Queued<br><br>';
+  if (ti.task_id) {
+    tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
+  }
+  tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+  if (ti.run_id !== undefined) {
+    tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
+  }
+  if (ti.operator !== undefined) {
+    tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
+  }
+  if (ti.start_date && ti.queued_dttm) {
+    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    const queuedDate = ti.queued_dttm instanceof moment ? ti.queued_dttm : moment(ti.queued_dttm);
+    const duration = startDate.diff(queuedDate, 'second', true); // Set the floating point result flag to true.
+    tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(duration))}<br>`;
+    // dagTZ has been defined in dag.html
+    tt += generateTooltipDateTimes(ti.queued_dttm, ti.start_date, dagTZ || 'UTC');
+  }
+  return tt;
+}
+
 window.tiTooltip = tiTooltip;
 window.taskNoInstanceTooltip = taskNoInstanceTooltip;

@@ -18,6 +18,7 @@
 """This module contains Google Cloud Transfer operators."""
 from __future__ import annotations
 
+import warnings
 from copy import deepcopy
 from datetime import date, time
 from typing import TYPE_CHECKING, Sequence
@@ -868,6 +869,10 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         self.project_id = project_id
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.description = description
         self.schedule = schedule
@@ -1038,6 +1043,10 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         self.destination_path = destination_path
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.description = description
         self.schedule = schedule

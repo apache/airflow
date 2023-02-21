@@ -28,12 +28,15 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 class GlueCrawlerHook(AwsBaseHook):
     """
     Interacts with AWS Glue Crawler.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - `AWS Glue crawlers and classifiers \
+        <https://docs.aws.amazon.com/glue/latest/dg/components-overview.html#crawling-intro>`__
     """
 
     def __init__(self, *args, **kwargs):
@@ -47,7 +50,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def has_crawler(self, crawler_name) -> bool:
         """
-        Checks if the crawler already exists
+        Checks if the crawler already exists.
 
         :param crawler_name: unique crawler name per AWS account
         :return: Returns True if the crawler already exists and False if not.
@@ -62,7 +65,10 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def get_crawler(self, crawler_name: str) -> dict:
         """
-        Gets crawler configurations
+        Gets crawler configurations.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.get_crawler`
 
         :param crawler_name: unique crawler name per AWS account
         :return: Nested dictionary of crawler configurations
@@ -71,7 +77,10 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def update_crawler(self, **crawler_kwargs) -> bool:
         """
-        Updates crawler configurations
+        Updates crawler configurations.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.update_crawler`
 
         :param crawler_kwargs: Keyword args that define the configurations used for the crawler
         :return: True if crawler was updated and false otherwise
@@ -95,7 +104,10 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def update_tags(self, crawler_name: str, crawler_tags: dict) -> bool:
         """
-        Updates crawler tags
+        Updates crawler tags.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.tag_resource`
 
         :param crawler_name: Name of the crawler for which to update tags
         :param crawler_tags: Dictionary of new tags. If empty, all tags will be deleted
@@ -132,7 +144,10 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def create_crawler(self, **crawler_kwargs) -> str:
         """
-        Creates an AWS Glue Crawler
+        Creates an AWS Glue Crawler.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.create_crawler`
 
         :param crawler_kwargs: Keyword args that define the configurations used to create the crawler
         :return: Name of the crawler
@@ -143,7 +158,10 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def start_crawler(self, crawler_name: str) -> dict:
         """
-        Triggers the AWS Glue crawler
+        Triggers the AWS Glue Crawler.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.start_crawler`
 
         :param crawler_name: unique crawler name per AWS account
         :return: Empty dictionary

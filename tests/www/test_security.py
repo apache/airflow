@@ -23,9 +23,9 @@ import logging
 from unittest import mock
 
 import pytest
+import time_machine
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
-from freezegun import freeze_time
 from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
@@ -453,25 +453,26 @@ def test_get_accessible_dag_ids(app, security_manager, session):
     dag_id = "dag_id"
     username = "ElUser"
 
-    with create_user_scope(
-        app,
-        username=username,
-        role_name=role_name,
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        ],
-    ) as user:
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username=username,
+            role_name=role_name,
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            ],
+        ) as user:
 
-        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
-        session.add(dag_model)
-        session.commit()
+            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            session.add(dag_model)
+            session.commit()
 
-        security_manager.sync_perm_for_dag(  # type: ignore
-            dag_id, access_control={role_name: permission_action}
-        )
+            security_manager.sync_perm_for_dag(  # type: ignore
+                dag_id, access_control={role_name: permission_action}
+            )
 
-        assert security_manager.get_accessible_dag_ids(user) == {"dag_id"}
+            assert security_manager.get_accessible_dag_ids(user) == {"dag_id"}
 
 
 def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security_manager, session):
@@ -481,25 +482,25 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_EDIT]
     dag_id = "dag_id"
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username=username,
+            role_name=role_name,
+            permissions=[
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            ],
+        ) as user:
 
-    with create_user_scope(
-        app,
-        username=username,
-        role_name=role_name,
-        permissions=[
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ],
-    ) as user:
+            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            session.add(dag_model)
+            session.commit()
 
-        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
-        session.add(dag_model)
-        session.commit()
+            security_manager.sync_perm_for_dag(  # type: ignore
+                dag_id, access_control={role_name: permission_action}
+            )
 
-        security_manager.sync_perm_for_dag(  # type: ignore
-            dag_id, access_control={role_name: permission_action}
-        )
-
-        assert security_manager.get_readable_dag_ids(user) == set()
+            assert security_manager.get_readable_dag_ids(user) == set()
 
 
 def test_has_access(security_manager):
@@ -903,7 +904,7 @@ def old_user():
     return user
 
 
-@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))  # Get the Delorean, doc!
+@time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
 def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_user):
     mock_security_manager.update_user_auth_stat(new_user, success=True)
 
@@ -913,7 +914,7 @@ def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_
     assert mock_security_manager.update_user.called_once
 
 
-@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+@time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
 def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager, old_user):
     mock_security_manager.update_user_auth_stat(old_user, success=True)
 
@@ -923,7 +924,7 @@ def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager,
     assert mock_security_manager.update_user.called_once
 
 
-@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+@time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
 def test_update_user_auth_stat_first_unsuccessful_auth(mock_security_manager, new_user):
     mock_security_manager.update_user_auth_stat(new_user, success=False)
 
@@ -933,7 +934,7 @@ def test_update_user_auth_stat_first_unsuccessful_auth(mock_security_manager, ne
     assert mock_security_manager.update_user.called_once
 
 
-@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+@time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
 def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manager, old_user):
     mock_security_manager.update_user_auth_stat(old_user, success=False)
 

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -35,8 +34,8 @@ FEATURES = [enums.Feature.LABEL_DETECTION]
 ANNOTATE_VIDEO_RESPONSE = {"test": "test"}
 
 
-class TestCloudVideoIntelligenceHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudVideoIntelligenceHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.__init__",
             new=mock_base_gcp_hook_default_project_id,

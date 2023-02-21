@@ -44,9 +44,7 @@ const mockTaskLog = `
 [2022-06-04 00:00:01,921] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group
 [2022-06-04 00:00:01,921] {dagbag.py:507} INFO - Filling up the DagBag from /files/dags/test_ui_grid.py
 [2022-06-04 00:00:01,964] {task_command.py:377} INFO - Running <TaskInstance: test_ui_grid.section_1.get_entry_group scheduled__2022-06-03T00:00:00+00:00 [running]> on host 5d28cfda3219
-[2022-06-04 00:00:02,010] {taskinstance.py:1548} WARNING - Exporting the following env vars:
-AIRFLOW_CTX_DAG_OWNER=***
-AIRFLOW_CTX_DAG_ID=test_ui_grid
+[2022-06-04 00:00:02,010] {taskinstance.py:1548} WARNING - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=*** AIRFLOW_CTX_DAG_ID=test_ui_grid
 `;
 
 let useTaskLogMock: jest.SpyInstance;
@@ -83,7 +81,6 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       taskId: 'dummyTaskId',
       taskTryNumber: 2,
     });
@@ -143,7 +140,6 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       mapIndex: 1,
       taskId: 'dummyTaskId',
       taskTryNumber: 2,
@@ -170,7 +166,6 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       taskId: 'dummyTaskId',
       taskTryNumber: 2,
     });
@@ -181,40 +176,8 @@ describe('Test Logs Component.', () => {
     expect(useTaskLogMock).toHaveBeenLastCalledWith({
       dagId: 'dummyDagId',
       dagRunId: 'dummyDagRunId',
-      fullContent: false,
       taskId: 'dummyTaskId',
       taskTryNumber: 1,
-    });
-  });
-
-  test('Test Logs Full Content', () => {
-    const tryNumber = 2;
-    const { getByTestId } = render(
-      <Logs
-        dagId="dummyDagId"
-        dagRunId="dummyDagRunId"
-        taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
-        tryNumber={tryNumber}
-      />,
-    );
-    expect(useTaskLogMock).toHaveBeenLastCalledWith({
-      dagId: 'dummyDagId',
-      dagRunId: 'dummyDagRunId',
-      fullContent: false,
-      taskId: 'dummyTaskId',
-      taskTryNumber: 2,
-    });
-    const fullContentCheckbox = getByTestId('full-content-checkbox');
-
-    fireEvent.click(fullContentCheckbox);
-
-    expect(useTaskLogMock).toHaveBeenLastCalledWith({
-      dagId: 'dummyDagId',
-      dagRunId: 'dummyDagRunId',
-      fullContent: true,
-      taskId: 'dummyTaskId',
-      taskTryNumber: 2,
     });
   });
 });

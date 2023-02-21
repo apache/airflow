@@ -132,9 +132,8 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 
 
 def _valid_uri(uri: str) -> bool:
-    """Check if a URI is valid, by checking if both scheme and netloc are available."""
-    uri_parts = urlsplit(uri)
-    return uri_parts.scheme != "" and uri_parts.netloc != ""
+    """Check if a URI is valid, by checking if scheme (conn_type) provided."""
+    return urlsplit(uri).scheme != ""
 
 
 @cache
@@ -210,7 +209,7 @@ def connections_add(args):
     if has_json and has_uri:
         raise SystemExit("Cannot supply both conn-uri and conn-json")
 
-    if has_type and not (args.conn_type in _get_connection_types()):
+    if has_type and args.conn_type not in _get_connection_types():
         warnings.warn(f"The type provided to --conn-type is invalid: {args.conn_type}")
         warnings.warn(
             f"Supported --conn-types are:{_get_connection_types()}."
@@ -301,20 +300,28 @@ def connections_delete(args):
 def connections_import(args):
     """Imports connections from a file."""
     if os.path.exists(args.file):
-        _import_helper(args.file)
+        _import_helper(args.file, args.overwrite)
     else:
         raise SystemExit("Missing connections file.")
 
 
-def _import_helper(file_path):
-    """Load connections from a file and save them to the DB. On collision, skip."""
+def _import_helper(file_path: str, overwrite: bool) -> None:
+    """Load connections from a file and save them to the DB.
+
+    :param overwrite: Whether to skip or overwrite on collision.
+    """
     connections_dict = load_connections_dict(file_path)
     with create_session() as session:
         for conn_id, conn in connections_dict.items():
-            if session.query(Connection).filter(Connection.conn_id == conn_id).first():
-                print(f"Could not import connection {conn_id}: connection already exists.")
-                continue
+            existing_conn_id = session.query(Connection.id).filter(Connection.conn_id == conn_id).scalar()
+            if existing_conn_id is not None:
+                if not overwrite:
+                    print(f"Could not import connection {conn_id}: connection already exists.")
+                    continue
 
-            session.add(conn)
+                # The conn_ids match, but the PK of the new entry must also be the same as the old
+                conn.id = existing_conn_id
+
+            session.merge(conn)
             session.commit()
             print(f"Imported connection {conn_id}")

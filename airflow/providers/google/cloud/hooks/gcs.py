@@ -23,6 +23,7 @@ import gzip as gz
 import os
 import shutil
 import time
+import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
@@ -32,6 +33,8 @@ from tempfile import NamedTemporaryFile
 from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
+from aiohttp import ClientSession
+from gcloud.aio.storage import Storage
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 
@@ -39,16 +42,27 @@ from google.api_core.retry import Retry
 from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.storage.retry import DEFAULT_RETRY
+from requests import Session
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
 
+try:
+    # Airflow 2.3 doesn't have this yet
+    from airflow.typing_compat import ParamSpec
+except ImportError:
+    try:
+        from typing import ParamSpec  # type: ignore[no-redef, attr-defined]
+    except ImportError:
+        from typing_extensions import ParamSpec
+
 RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
+FParams = ParamSpec("FParams")
 
 # GCSHook has a method named 'list' (to junior devs: please don't do this), so
 # we need to create an alias to prevent Mypy being confused.
@@ -72,9 +86,9 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     :return: Decorator
     """
 
-    def _wrapper(func: T):
+    def _wrapper(func: Callable[FParams, RT]) -> Callable[FParams, RT]:
         @functools.wraps(func)
-        def _inner_wrapper(self: GCSHook, *args, **kwargs) -> RT:
+        def _inner_wrapper(self, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional"
@@ -115,9 +129,9 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
             return func(self, *args, **kwargs)
 
-        return cast(T, _inner_wrapper)
+        return cast(Callable[FParams, RT], _inner_wrapper)
 
-    return _wrapper
+    return cast(Callable[[T], T], _wrapper)
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
@@ -141,6 +155,10 @@ class GCSHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -1174,3 +1192,14 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     # Remove leading '/' but NOT trailing one
     blob = parsed_url.path.lstrip("/")
     return bucket, blob
+
+
+class GCSAsyncHook(GoogleBaseAsyncHook):
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync"""
+
+    sync_hook_class = GCSHook
+
+    async def get_storage_client(self, session: ClientSession) -> Storage:
+        """Returns a Google Cloud Storage service object."""
+        with await self.service_file_as_context() as file:
+            return Storage(service_file=file, session=cast(Session, session))

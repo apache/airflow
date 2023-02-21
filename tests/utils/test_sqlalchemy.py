@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import pickle
+from copy import deepcopy
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -32,7 +33,14 @@ from airflow.models import DAG
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
-from airflow.utils.sqlalchemy import ExecutorConfigType, nowait, prohibit_commit, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import (
+    ExecutorConfigType,
+    ensure_pod_is_valid_after_unpickling,
+    nowait,
+    prohibit_commit,
+    skip_locked,
+    with_row_locks,
+)
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
@@ -324,3 +332,46 @@ class TestExecutorConfigType:
         instance = ExecutorConfigType()
         assert instance.compare_values(a, a) is False
         assert instance.compare_values("a", "a") is True
+
+    def test_result_processor_bad_pickled_obj(self):
+        """
+        If unpickled obj is missing attrs that curr lib expects
+        """
+        test_container = k8s.V1Container(name="base")
+        test_pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[test_container]))
+        copy_of_test_pod = deepcopy(test_pod)
+        # curr api expects attr `tty`
+        assert "tty" in test_container.openapi_types
+        # it lives in protected attr _tty
+        assert hasattr(test_container, "_tty")
+        # so, let's remove it before pickling, to simulate what happens in real life
+        del test_container._tty
+        # now let's prove that this blows up when calling to_dict
+        with pytest.raises(AttributeError):
+            test_pod.to_dict()
+        # no such problem with the copy
+        assert copy_of_test_pod.to_dict()
+        # so we need to roundtrip it through json
+        fixed_pod = ensure_pod_is_valid_after_unpickling(test_pod)
+        # and, since the missing attr was None anyway, we actually have the same pod
+        assert fixed_pod.to_dict() == copy_of_test_pod.to_dict()
+
+        # now, let's verify that result processor makes this all work
+        # first, check that bad pod is still bad
+        with pytest.raises(AttributeError):
+            test_pod.to_dict()
+        # define what will be retrieved from db
+        input = pickle.dumps({"pod_override": TEST_POD})
+
+        # get the result processor method
+        config_type = ExecutorConfigType()
+        mock_dialect = MagicMock()
+        mock_dialect.dbapi = None
+        process = config_type.result_processor(mock_dialect, None)
+
+        # apply the result processor
+        result = process(input)
+
+        # show that the pickled (bad) pod is now a good pod, and same as the copy made
+        # before making it bad
+        assert result["pod_override"].to_dict() == copy_of_test_pod.to_dict()

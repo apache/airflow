@@ -32,6 +32,22 @@ import os
 import sys
 from typing import Callable
 
+if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
+    # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
+    # as one of the first thing when Airflow is started. This allows gevent to patch networking and other
+    # system libraries to make them gevent-compatible before anything else patches them (for example boto)
+    from gevent.monkey import patch_all
+
+    patch_all()
+
+# The configuration module initializes and validates the conf object as a side effect the first
+# time it is imported. If it is not imported before importing the settings module, the conf
+# object will then be initted/validated as a side effect of it being imported in settings,
+# however this can cause issues since those modules are very tightly coupled and can
+# very easily cause import cycles in the conf init/validate code (since downstream code from
+# those functions likely import settings).
+# configuration is therefore initted early here, simply by importing it.
+from airflow import configuration
 from airflow import settings
 
 __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
@@ -40,6 +56,7 @@ __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310
 # airflow.providers.* in different locations (i.e. one in site, and one in user
 # lib.)
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+
 
 # Perform side-effects unless someone has explicitly opted out before import
 # WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
@@ -107,3 +124,4 @@ if STATICA_HACK:  # pragma: no cover
     from airflow.models.dag import DAG
     from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
+    from airflow.models.dataset import Dataset

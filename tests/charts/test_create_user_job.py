@@ -181,6 +181,22 @@ class TestCreateUserJob:
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "myvolume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
+        )
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -224,6 +240,30 @@ class TestCreateUserJob:
         envs = jmespath.search("spec.template.spec.containers[0].env", docs[0])
         assert {"name": "foo", "value": "bar"} not in envs
         assert {"name": "extraFoo", "value": "extraBar"} not in envs
+
+    def test_job_ttl_after_finished(self):
+        docs = render_chart(
+            values={"createUserJob": {"ttlSecondsAfterFinished": 1}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
+        assert ttl == 1
+
+    def test_job_ttl_after_finished_zero(self):
+        docs = render_chart(
+            values={"createUserJob": {"ttlSecondsAfterFinished": 0}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        ttl = jmespath.search("spec.ttlSecondsAfterFinished", docs[0])
+        assert ttl == 0
+
+    def test_job_ttl_after_finished_nil(self):
+        docs = render_chart(
+            values={"createUserJob": {"ttlSecondsAfterFinished": None}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        spec = jmespath.search("spec", docs[0])
+        assert "ttlSecondsAfterFinished" not in spec
 
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",

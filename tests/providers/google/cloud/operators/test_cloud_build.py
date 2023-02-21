@@ -52,9 +52,6 @@ from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreate
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-# pylint: disable=R0904, C0111
-
-
 GCP_CONN_ID = "google_cloud_default"
 PROJECT_ID = "cloud-build-project"
 CLOUD_BUILD_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook"

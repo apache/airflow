@@ -22,7 +22,7 @@ from typing import Sequence
 
 from flask import g
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
@@ -322,6 +322,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user.is_anonymous:
             roles = user.roles
         else:
+            if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (
+                permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags(user)
+            ):
+                return {dag.dag_id for dag in session.query(DagModel.dag_id)}
             user_query = (
                 session.query(User)
                 .options(
@@ -437,9 +441,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         return (
             self._has_role(["Admin", "Viewer", "Op", "User"], user)
-            or self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
-            or self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
+            or self.can_read_all_dags(user)
+            or self.can_edit_all_dags(user)
         )
+
+    def can_edit_all_dags(self, user=None):
+        """Has can_edit action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
+
+    def can_read_all_dags(self, user=None):
+        """Has can_read action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
 
     def clean_perms(self):
         """FAB leaves faulty permissions that need to be cleaned up"""
@@ -724,7 +736,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 class ApplessAirflowSecurityManager(AirflowSecurityManager):
     """Security Manager that doesn't need the whole flask app"""
 
-    def __init__(self, session=None):
+    def __init__(self, session: Session | None = None):
         self.session = session
 
     @property

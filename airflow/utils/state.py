@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from enum import Enum
 
-from airflow.settings import STATE_COLORS
-
 
 class TaskInstanceState(str, Enum):
     """
@@ -122,7 +120,6 @@ class State:
         TaskInstanceState.SCHEDULED: "tan",
         TaskInstanceState.DEFERRED: "mediumpurple",
     }
-    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):
@@ -136,11 +133,6 @@ class State:
         if color in ["green", "red"]:
             return "white"
         return "black"
-
-    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
-    """
-    A list of states indicating that a task is being executed.
-    """
 
     finished: frozenset[TaskInstanceState] = frozenset(
         [

@@ -27,6 +27,10 @@
 #
 # You can read more in the README_API.md file
 #
+"""
+Definition of the public interface for airflow.providers.common.sql.sensors.sql
+isort:skip_file
+"""
 from _typeshed import Incomplete
 from airflow.sensors.base import BaseSensorOperator
 from typing import Any, Sequence

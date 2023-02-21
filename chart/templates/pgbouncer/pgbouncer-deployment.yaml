@@ -39,6 +39,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+  {{- if .Values.pgbouncer.annotations }}
+  annotations:
+  {{- toYaml .Values.pgbouncer.annotations | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.pgbouncer.replicas | default "1" }}
   {{- if $revisionHistoryLimit }}
@@ -134,6 +138,9 @@ spec:
               mountPath: /etc/pgbouncer/server.key
               readOnly: true
 {{- end }}
+{{- if .Values.volumeMounts }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.pgbouncer.extraVolumeMounts }}
 {{ toYaml .Values.pgbouncer.extraVolumeMounts | indent 12 }}
 {{- end }}
@@ -179,6 +186,9 @@ spec:
         - name: pgbouncer-certificates
           secret:
             secretName: {{ template "pgbouncer_certificates_secret" . }}
+{{- end }}
+{{- if .Values.volumes }}
+{{- toYaml .Values.volumes | nindent 8 }}
 {{- end }}
 {{- if .Values.pgbouncer.extraVolumes }}
 {{ toYaml .Values.pgbouncer.extraVolumes | indent 8 }}

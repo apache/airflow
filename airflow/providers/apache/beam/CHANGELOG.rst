@@ -24,6 +24,36 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Get rid of state in Apache Beam provider hook (#29503)``
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for running a Beam Go pipeline with an executable binary (#28764)``
+
+Misc
+~~~~
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
+4.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Ensure Beam Go file downloaded from GCS still exists when referenced (#28664)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.1.0
 .....
 

@@ -28,14 +28,80 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.1
+.....
+
+Latest change: 2023-02-16
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`ce28775397 <https://github.com/apache/airflow/commit/ce28775397627a750514c904577703ecaa331d2b>`_  2023-02-16   ``Handle deleting more than 256 blobs using 'WasbHook.delete_file()' (#29565)``
+`f9e9d23457 <https://github.com/apache/airflow/commit/f9e9d23457cba5d3e18b5bdb7b65ecc63735b65b>`_  2023-02-11   ``Restore trigger logging (#29482)``
+`60d4bcd1d1 <https://github.com/apache/airflow/commit/60d4bcd1d101bb56955081d14e3e138a0c960c5f>`_  2023-02-10   ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+=================================================================================================  ===========  ===============================================================================
+
+5.2.0
+.....
+
+Latest change: 2023-02-08
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
+`1b18a501fe <https://github.com/apache/airflow/commit/1b18a501fe818079e535838fa4f232b03365fc75>`_  2023-02-03   ``Enable individual trigger logging (#27758)``
+`3374fdfcbd <https://github.com/apache/airflow/commit/3374fdfcbddb630b4fc70ceedd5aed673e6c0a0d>`_  2023-01-23   ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+`6c50a691a8 <https://github.com/apache/airflow/commit/6c50a691a813a306133228740fedbb4c59a0e56c>`_  2023-01-19   ``Fix params rendering in AzureSynapseHook Python API docs (#29041)``
+=================================================================================================  ===========  ===========================================================================
+
+5.1.0
+.....
+
+Latest change: 2023-01-14
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+`3decb189f7 <https://github.com/apache/airflow/commit/3decb189f786781bb0dfb3420a508a4a2a22bd8b>`_  2023-01-13   ``Hide 'extra' field in WASB connection form (#28914)``
+`ce858a5d71 <https://github.com/apache/airflow/commit/ce858a5d719fb1dff85ad7e4747f0777404d1f56>`_  2023-01-12   ``Switch to ruff for faster static checks (#28893)``
+`ad7f8e09f8 <https://github.com/apache/airflow/commit/ad7f8e09f8e6e87df2665abdedb22b3e8a469b49>`_  2023-01-05   ``Add hook for Azure Data Lake Storage Gen2 (#28262)``
+=================================================================================================  ===========  ==================================================================
+
+5.0.2
+.....
+
+Latest change: 2023-01-02
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`6e3cee1f6e <https://github.com/apache/airflow/commit/6e3cee1f6e407d5f505410863c3f73fe1bfcc7cf>`_  2022-12-19   ``Re-enable azure service bus on ARM as it now builds cleanly (#28442)``
+=================================================================================================  ===========  ========================================================================
+
+5.0.1
+.....
+
+Latest change: 2022-12-13
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`443df3b9c8 <https://github.com/apache/airflow/commit/443df3b9c8ef698e0204490c535f78c6c70276f3>`_  2022-12-13   ``Prepare ad hoc providers release (#28327)``
+`7e776db254 <https://github.com/apache/airflow/commit/7e776db254953076e932ed2183e1ed49a5ca20a6>`_  2022-12-09   ``Make arguments 'offset' and 'length' not required (#28234)``
+=================================================================================================  ===========  ==============================================================
+
 5.0.0
 .....
 
-Latest change: 2022-11-10
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `547e6e80f3 <https://github.com/apache/airflow/commit/547e6e80f342ee6ed454732477700a85cfa4df8b>`_  2022-11-10   ``Fix Azure Batch errors revealed by added typing to azure batch lib (#27601)``
 `a50195d617 <https://github.com/apache/airflow/commit/a50195d617ca7c85d56b1c138f46451bc7599618>`_  2022-11-07   ``Add azure, google, authentication library limits to eaager upgrade (#27535)``
 `5cd78cf425 <https://github.com/apache/airflow/commit/5cd78cf425f6fedc380662ec9a9e37be51403ccb>`_  2022-11-06   ``Upgrade dependencies in order to avoid backtracking (#27531)``

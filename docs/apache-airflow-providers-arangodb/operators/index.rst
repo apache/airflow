@@ -21,14 +21,14 @@
 
 Operators
 =======================
-You can build your own Operator hook in :class:`~airflow.providers.arangodb.hooks.ArangoDBHook`,
+You can build your own Operator hook in :class:`~airflow.providers.arangodb.hooks.arangodb.ArangoDBHook`.
 
-
-Use the :class:`~airflow.providers.arangodb.operators.AQLOperator` to execute
+Use the :class:`~airflow.providers.arangodb.operators.arangodb.AQLOperator` to execute
 AQL query in `ArangoDB <https://www.arangodb.com/>`__.
 
-You can further process your result using :class:`~airflow.providers.arangodb.operators.AQLOperator` and
-further process the result using **result_processor** Callable as you like.
+You can further process your result using :class:`~airflow.providers.arangodb.operators.arangodb.AQLOperator` and
+further process the result using :class:`result_processor <airflow.providers.arangodb.operators.arangodb.AQLOperator>`
+Callable as you like.
 
 An example of Listing all Documents in **students** collection can be implemented as following:
 
@@ -48,7 +48,7 @@ please provide **template_searchpath** while creating **DAG** object,
 Sensors
 =======
 
-Use the :class:`~airflow.providers.arangodb.sensors.AQLSensor` to wait for a document or collection using
+Use the :class:`~airflow.providers.arangodb.sensors.arangodb.AQLSensor` to wait for a document or collection using
 AQL query in `ArangoDB <https://www.arangodb.com/>`__.
 
 An example for waiting a document in **students** collection with student name **judy** can be implemented as following:

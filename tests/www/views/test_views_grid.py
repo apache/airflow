@@ -17,18 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import pendulum
 import pytest
 from dateutil.tz import UTC
 
 from airflow.datasets import Dataset
+from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -65,6 +65,12 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 
         with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
             EmptyOperator(task_id="task1")
+
+            @task_group
+            def mapped_task_group(arg1):
+                return MockOperator(task_id="subtask2", arg1=arg1)
+
+            mapped_task_group.expand(arg1=["a", "b", "c"])
             with TaskGroup(group_id="group"):
                 MockOperator.partial(task_id="mapped").expand(arg1=["a", "b", "c", "d"])
 
@@ -108,6 +114,24 @@ def test_no_runs(admin_client, dag_without_runs):
                         {
                             "extra_links": [],
                             "has_outlet_datasets": False,
+                            "id": "mapped_task_group.subtask2",
+                            "instances": [],
+                            "is_mapped": True,
+                            "label": "subtask2",
+                            "operator": "MockOperator",
+                        }
+                    ],
+                    "is_mapped": True,
+                    "id": "mapped_task_group",
+                    "instances": [],
+                    "label": "mapped_task_group",
+                    "tooltip": "",
+                },
+                {
+                    "children": [
+                        {
+                            "extra_links": [],
+                            "has_outlet_datasets": False,
                             "id": "group.mapped",
                             "instances": [],
                             "is_mapped": True,
@@ -129,6 +153,14 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
+# Create this as a fixture so that it is applied before the `dag_with_runs` fixture is!
+@pytest.fixture
+def freeze_time_for_dagruns(time_machine):
+    time_machine.move_to("2022-01-02T00:00:00+00:00", tick=False)
+    yield
+
+
+@pytest.mark.usefixtures("freeze_time_for_dagruns")
 def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with complex interaction of states:
@@ -159,22 +191,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
 
     assert resp.status_code == 200, resp.json
 
-    # We cannot use freezegun here as it does not play well with Flask 2.2 and SqlAlchemy
-    # Unlike real datetime, when FakeDatetime is used, it coerces to
-    # '2020-08-06 09:00:00+00:00' which is rejected by MySQL for EXPIRY Column
-    current_date_placeholder = "2022-01-02T00:00:00+00:00"
-    actual_date_in_json = datetime.fromisoformat(resp.json["dag_runs"][0]["end_date"])
-    assert datetime.now(tz=UTC) - actual_date_in_json < timedelta(minutes=5)
-    res = resp.json
-    res["dag_runs"][0]["end_date"] = current_date_placeholder
-    assert res == {
+    assert resp.json == {
         "dag_runs": [
             {
                 "conf": None,
                 "conf_is_json": False,
                 "data_interval_end": "2016-01-02T00:00:00+00:00",
                 "data_interval_start": "2016-01-01T00:00:00+00:00",
-                "end_date": current_date_placeholder,
+                "end_date": timezone.utcnow().isoformat(),
                 "execution_date": "2016-01-01T00:00:00+00:00",
                 "external_trigger": False,
                 "last_scheduling_decision": None,
@@ -216,7 +240,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "note": None,
                             "state": "success",
                             "task_id": "task1",
-                            "try_number": 1,
+                            "try_number": 0,
                         },
                         {
                             "run_id": "run_2",
@@ -225,12 +249,64 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "note": None,
                             "state": "success",
                             "task_id": "task1",
-                            "try_number": 1,
+                            "try_number": 0,
                         },
                     ],
                     "is_mapped": False,
                     "label": "task1",
                     "operator": "EmptyOperator",
+                },
+                {
+                    "children": [
+                        {
+                            "extra_links": [],
+                            "has_outlet_datasets": False,
+                            "id": "mapped_task_group.subtask2",
+                            "instances": [
+                                {
+                                    "run_id": "run_1",
+                                    "mapped_states": {"success": 3},
+                                    "start_date": None,
+                                    "end_date": None,
+                                    "state": "success",
+                                    "task_id": "mapped_task_group.subtask2",
+                                },
+                                {
+                                    "run_id": "run_2",
+                                    "mapped_states": {"no_status": 3},
+                                    "start_date": None,
+                                    "end_date": None,
+                                    "state": None,
+                                    "task_id": "mapped_task_group.subtask2",
+                                },
+                            ],
+                            "is_mapped": True,
+                            "label": "subtask2",
+                            "operator": "MockOperator",
+                        }
+                    ],
+                    "is_mapped": True,
+                    "id": "mapped_task_group",
+                    "instances": [
+                        {
+                            "end_date": None,
+                            "run_id": "run_1",
+                            "mapped_states": {"success": 3},
+                            "start_date": None,
+                            "state": "success",
+                            "task_id": "mapped_task_group",
+                        },
+                        {
+                            "run_id": "run_2",
+                            "start_date": None,
+                            "end_date": None,
+                            "state": None,
+                            "mapped_states": {"no_status": 3},
+                            "task_id": "mapped_task_group",
+                        },
+                    ],
+                    "label": "mapped_task_group",
+                    "tooltip": "",
                 },
                 {
                     "children": [
@@ -292,7 +368,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
 
 def test_query_count(dag_with_runs, session):
     run1, run2 = dag_with_runs
-    with assert_queries_count(1):
+    with assert_queries_count(2):
         dag_to_grid(run1.dag, (run1, run2), session)
 
 

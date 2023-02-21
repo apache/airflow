@@ -48,6 +48,14 @@ Example usage:
     :start-after: [START howto_transfer_s3_to_redshift]
     :end-before: [END howto_transfer_s3_to_redshift]
 
+Example of ingesting multiple keys:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_s3_transfers.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_transfer_s3_to_redshift_multiple_keys]
+    :end-before: [END howto_transfer_s3_to_redshift_multiple_keys]
+
 You can find more information to the ``COPY`` command used
 `here <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__.
 

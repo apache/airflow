@@ -73,7 +73,7 @@ class DAGRunSchema(SQLAlchemySchema):
     data_interval_end = auto_field(dump_only=True)
     last_scheduling_decision = auto_field(dump_only=True)
     run_type = auto_field(dump_only=True)
-    note = auto_field(dump_only=True)
+    note = auto_field(dump_only=False)
 
     @pre_load
     def autogenerate(self, data, **kwargs):
@@ -162,6 +162,8 @@ class DagRunsBatchFormSchema(Schema):
     start_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     end_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    updated_at_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    updated_at_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
 
 
 class SetDagRunNoteFormSchema(Schema):

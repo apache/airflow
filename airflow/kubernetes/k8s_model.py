@@ -25,8 +25,9 @@ from kubernetes.client import models as k8s
 
 class K8SModel(ABC):
     """
-    These Airflow Kubernetes models are here for backwards compatibility
-    reasons only. Ideally clients should use the kubernetes api
+    Airflow Kubernetes models are here for backwards compatibility reasons only.
+
+    Ideally clients should use the kubernetes API
     and the process of
 
         client input -> Airflow k8s models -> k8s models
@@ -38,6 +39,8 @@ class K8SModel(ABC):
     @abstractmethod
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
         """
+        Attaches to pod.
+
         :param pod: A pod to attach this Kubernetes object to
         :return: The pod with the object attached
         """
@@ -45,6 +48,8 @@ class K8SModel(ABC):
 
 def append_to_pod(pod: k8s.V1Pod, k8s_objects: list[K8SModel] | None):
     """
+    Attach additional specs to an existing pod object.
+
     :param pod: A pod to attach a list of Kubernetes objects to
     :param k8s_objects: a potential None list of K8SModels
     :return: pod with the objects attached if they exist

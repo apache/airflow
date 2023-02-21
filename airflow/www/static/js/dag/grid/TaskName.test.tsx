@@ -43,6 +43,6 @@ describe('Test TaskName', () => {
     const { getByText, getByTestId } = render(<TaskName level={0} label="test" isGroup onToggle={() => {}} />, { wrapper: ChakraWrapper });
 
     expect(getByText('test')).toBeDefined();
-    expect(getByTestId('closed-group')).toBeDefined();
+    expect(getByTestId('open-group')).toBeDefined();
   });
 });

@@ -19,9 +19,16 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import pytest
+
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
+
+try:
+    from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
+except ImportError:
+    pytest.skip("MySQL not available", allow_module_level=True)
+
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

@@ -21,6 +21,7 @@ import datetime
 import operator
 import os
 import pathlib
+import pickle
 import signal
 import sys
 import urllib
@@ -32,7 +33,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow import models, settings
 from airflow.decorators import task, task_group
@@ -69,6 +70,7 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.settings import TIMEZONE
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -77,6 +79,7 @@ from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
+from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -128,6 +131,7 @@ class TestTaskInstance:
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
         db.clear_db_datasets()
+        db.clear_db_xcom()
 
     def setup_method(self):
         self.clean_db()
@@ -539,11 +543,11 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == state
 
-    @freeze_time("2021-09-19 04:56:35", as_kwarg="frozen_time")
-    def test_retry_delay(self, dag_maker, frozen_time=None):
+    def test_retry_delay(self, dag_maker, time_machine):
         """
         Test that retry delays are respected
         """
+        time_machine.move_to("2021-09-19 04:56:35", tick=False)
         with dag_maker(dag_id="test_retry_handling"):
             task = BashOperator(
                 task_id="test_retry_handling_op",
@@ -568,12 +572,12 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
-        frozen_time.tick(delta=datetime.timedelta(seconds=3))
+        time_machine.coordinates.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        frozen_time.tick(delta=datetime.datetime.resolution)
+        time_machine.coordinates.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
@@ -731,7 +735,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -831,7 +835,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -930,7 +934,7 @@ class TestTaskInstance:
             expected_task_reschedule_count,
         ):
             ti.refresh_from_task(task)
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -998,7 +1002,7 @@ class TestTaskInstance:
             expected_try_number,
             expected_task_reschedule_count,
         ):
-            with freeze_time(run_date):
+            with time_machine.travel(run_date, tick=False):
                 try:
                     ti.run()
                 except AirflowException:
@@ -2305,13 +2309,13 @@ class TestTaskInstance:
         )
         context = ti.get_template_context()
         with pytest.deprecated_call():
-            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=timezone.TIMEZONE)
+            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["next_ds"] == "2021-09-07"
         with pytest.deprecated_call():
             assert context["next_ds_nodash"] == "20210907"
         with pytest.deprecated_call():
-            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=timezone.TIMEZONE)
+            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["prev_ds"] is None, "Does not make sense for custom timetable"
         with pytest.deprecated_call():
@@ -2327,21 +2331,23 @@ class TestTaskInstance:
             called = True
             assert context["dag_run"].dag_id == "test_dagrun_execute_callback"
 
-        ti = create_task_instance(
-            dag_id="test_execute_callback",
-            on_execute_callback=on_execute_callable,
-            state=State.RUNNING,
-        )
+        for i, callback_input in enumerate([[on_execute_callable], on_execute_callable]):
 
-        session = settings.Session()
+            ti = create_task_instance(
+                dag_id=f"test_execute_callback_{i}",
+                on_execute_callback=callback_input,
+                state=State.RUNNING,
+            )
 
-        session.merge(ti)
-        session.commit()
+            session = settings.Session()
 
-        ti._run_raw_task()
-        assert called
-        ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
+            session.merge(ti)
+            session.commit()
+
+            ti._run_raw_task()
+            assert called
+            ti.refresh_from_db()
+            assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
         "finished_state, callback_type",
@@ -2362,20 +2368,25 @@ class TestTaskInstance:
             raise KeyError
             completed = True
 
-        ti = create_task_instance(
-            end_date=timezone.utcnow() + datetime.timedelta(days=10),
-            on_success_callback=on_finish_callable,
-            on_retry_callback=on_finish_callable,
-            on_failure_callback=on_finish_callable,
-            state=finished_state,
-        )
-        ti._log = mock.Mock()
-        ti._run_finished_callback(on_finish_callable, {}, callback_type)
+        for i, callback_input in enumerate([[on_finish_callable], on_finish_callable]):
 
-        assert called
-        assert not completed
-        expected_message = f"Error when executing {callback_type} callback"
-        ti.log.exception.assert_called_once_with(expected_message)
+            ti = create_task_instance(
+                dag_id=f"test_finish_callback_{i}",
+                end_date=timezone.utcnow() + datetime.timedelta(days=10),
+                on_success_callback=callback_input,
+                on_retry_callback=callback_input,
+                on_failure_callback=callback_input,
+                state=finished_state,
+            )
+            ti._log = mock.Mock()
+            ti._run_finished_callback(callback_input, {}, callback_type)
+
+            assert called
+            assert not completed
+            callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
+            callback_name = qualname(callback_name).split(".")[-1]
+            expected_message = f"Error when executing {callback_name} callback"
+            ti.log.exception.assert_called_once_with(expected_message)
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
@@ -2497,7 +2508,9 @@ class TestTaskInstance:
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
-        Stats_incr.assert_any_call("ti_failures")
+        Stats_incr.assert_any_call(
+            "ti_failures", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+        )
         Stats_incr.assert_any_call("operator_failures_EmptyOperator")
 
     def test_handle_failure_task_undefined(self, create_task_instance):
@@ -2560,7 +2573,7 @@ class TestTaskInstance:
         ti.task = task
         with patch.object(TI, "log") as log, pytest.raises(AirflowException):
             ti.run()
-        assert len(log.error.mock_calls) == 1
+        log.error.assert_called_once()
         assert log.error.call_args[0] == ("Task failed with exception",)
         exc_info = log.error.call_args[1]["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
@@ -2844,6 +2857,21 @@ class TestTaskInstance:
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
+
+    def test_clear_db_references(self, session, create_task_instance):
+        tables = [TaskFail, RenderedTaskInstanceFields, XCom]
+        ti = create_task_instance()
+        session.merge(ti)
+        session.commit()
+        for table in [TaskFail, RenderedTaskInstanceFields]:
+            session.add(table(ti))
+        XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
+        session.commit()
+        for table in tables:
+            assert session.query(table).count() == 1
+        ti.clear_db_references(session)
+        for table in tables:
+            assert session.query(table).count() == 0
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
@@ -3589,6 +3617,67 @@ class TestMappedTaskInstanceReceiveValue:
         with out.open() as f:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
+
+
+def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
+    backend = os.environ.get("BACKEND")
+    if backend == "mssql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.[key] = 'xxx'",
+        ]
+    elif backend == "mysql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
+        ]
+    elif backend == "postgres":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
+        ]
+    elif backend == "sqlite":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
+        ]
+    else:
+        raise RuntimeError(f"unknown backend {backend!r}")
+
+
+def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="t")
+
+    run: DagRun = dag_maker.create_dagrun()
+    run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
+
+    query = session.query(XCom.value).filter_by(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        task_id="t",
+        map_index=-1,
+        key="xxx",
+    )
+
+    original = LazyXComAccess.build_from_xcom_query(query)
+    processed = pickle.loads(pickle.dumps(original))
+
+    # After the object went through pickling, the underlying ORM query should be
+    # replaced by one backed by a literal SQL string with all variables binded.
+    sql_lines = [line.strip() for line in str(processed._query.statement.compile(None)).splitlines()]
+    assert sql_lines == _get_lazy_xcom_access_expected_sql_lines()
+
+    assert len(processed) == 1
+    assert list(processed) == [123]
 
 
 @mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)

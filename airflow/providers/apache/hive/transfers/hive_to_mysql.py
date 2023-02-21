@@ -50,9 +50,9 @@ class HiveToMySqlOperator(BaseOperator):
         import, typically used to move data from staging to
         production and issue cleanup commands. (templated)
     :param bulk_load: flag to use bulk_load option.  This loads mysql directly
-        from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.
-        This option requires an extra connection parameter for the
-        destination MySQL connection: {'local_infile': true}.
+        from a tab-delimited text file using the LOAD DATA LOCAL INFILE command. The MySQL
+        server must support loading local files via this command (it is disabled by default).
+
     :param hive_conf:
     """
 
@@ -105,7 +105,7 @@ class HiveToMySqlOperator(BaseOperator):
                     output_header=False,
                     hive_conf=hive_conf,
                 )
-                mysql = self._call_preoperator()
+                mysql = self._call_preoperator(local_infile=self.bulk_load)
                 mysql.bulk_load(table=self.mysql_table, tmp_file=tmp_file.name)
         else:
             hive_results = hive.get_records(self.sql, parameters=hive_conf)
@@ -118,8 +118,8 @@ class HiveToMySqlOperator(BaseOperator):
 
         self.log.info("Done.")
 
-    def _call_preoperator(self):
-        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
+    def _call_preoperator(self, local_infile: bool = False) -> MySqlHook:
+        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id, local_infile=local_infile)
         if self.mysql_preoperator:
             self.log.info("Running MySQL preoperator")
             mysql.run(self.mysql_preoperator)

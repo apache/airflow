@@ -38,7 +38,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSensor
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_sagemaker_endpoint"
 
@@ -86,18 +86,6 @@ def delete_endpoint_config(endpoint_config_job_name):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_endpoint(endpoint_name):
     boto3.client("sagemaker").delete_endpoint(EndpointName=endpoint_name)
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_logs(env_id, endpoint_name):
-    purge_logs(
-        [
-            # Format: ('log group name', 'log stream prefix')
-            ("/aws/sagemaker/TrainingJobs", env_id),
-        ]
-    )
-
-    purge_logs(test_logs=[(f"/aws/sagemaker/Endpoints/{endpoint_name}", None)], force_delete=True)
 
 
 @task
@@ -268,6 +256,21 @@ with DAG(
         force_delete=True,
     )
 
+    log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            ("/aws/sagemaker/TrainingJobs", test_context[ENV_ID_KEY]),
+        ]
+    )
+
+    forced_log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            (f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}", None)
+        ],
+        force_delete=True,
+    )
+
     chain(
         # TEST SETUP
         test_context,
@@ -286,7 +289,8 @@ with DAG(
         delete_endpoint(test_setup["endpoint_name"]),
         delete_model,
         delete_bucket,
-        delete_logs(test_context[ENV_ID_KEY], test_setup["endpoint_name"]),
+        log_cleanup,
+        forced_log_cleanup,
     )
 
     from tests.system.utils.watcher import watcher

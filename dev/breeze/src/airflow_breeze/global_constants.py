@@ -14,17 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import json
-from pathlib import Path
-
 """
 Global constants that are used by all other Breeze components.
 """
+from __future__ import annotations
+
+import json
 import platform
 from enum import Enum
 from functools import lru_cache
+from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -43,22 +42,32 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-ALL_INTEGRATIONS = [
+TESTABLE_INTEGRATIONS = [
     "cassandra",
+    "celery",
     "kerberos",
     "mongo",
-    "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
-    "statsd",
     "trino",
 ]
-ALLOWED_INTEGRATIONS = [
-    *ALL_INTEGRATIONS,
-    "all",
-]
-ALLOWED_KUBERNETES_VERSIONS = ["v1.25.3", "v1.24.7", "v1.23.13", "v1.22.15", "v1.21.14"]
+OTHER_INTEGRATIONS = ["statsd"]
+ALL_INTEGRATIONS = sorted(
+    [
+        *TESTABLE_INTEGRATIONS,
+        *OTHER_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        "otel",
+        "statsd",
+        *ALL_INTEGRATIONS,
+    ]
+)
+
+ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -74,7 +83,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "22.3.1"
+PIP_VERSION = "23.0"
 
 
 @lru_cache(maxsize=None)
@@ -88,7 +97,6 @@ class SelectiveUnitTestTypes(Enum):
     CLI = "CLI"
     CORE = "Core"
     OTHER = "Other"
-    INTEGRATION = "Integration"
     PROVIDERS = "Providers"
     WWW = "WWW"
 
@@ -197,14 +205,11 @@ AVAILABLE_INTEGRATIONS = [
     "cassandra",
     "kerberos",
     "mongo",
-    "openldap",
     "pinot",
-    "rabbitmq",
-    "redis",
+    "celery",
     "statsd",
     "trino",
 ]
-ENABLED_INTEGRATIONS = ""
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [

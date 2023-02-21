@@ -119,22 +119,30 @@ require Breeze Docker image to be build locally.
   In case you have a problem with running particular ``pre-commit`` check you can still continue using the
   benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
   checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example
-  when you want to skip some checks (flake/mypy for example), you should be able to do it by setting
-  ``export SKIP=run-flake8,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+  when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
+  ``export SKIP=ruff,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
 
   In case you do not have breeze image configured locally, you can also disable all checks that require
   the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
 
+.. note:: Mypy volume cache
+
+  MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
+  execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
+  will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
+  is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
+  cases you might need to manually remove the cache volume by running ``breeze stop --cleanup-mypy-cache``.
+
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | ID                                                        | Description                                                      | Image   |
 +===========================================================+==================================================================+=========+
-| black                                                     | Run black (python formatter)                                     |         |
+| black                                                     | Run black (Python formatter)                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| blacken-docs                                              | Run black on python code blocks in documentation files           |         |
+| blacken-docs                                              | Run black on Python code blocks in documentation files           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                      | Checks for consistency between config.yml and default_config.cfg |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -191,13 +199,15 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session             |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-persist-credentials-disabled-in-github-workflows    | Check that workflow files have persist-credentials disabled      |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-pre-commit-information-consistent                   | Update information re pre-commit hooks and verify ids and names  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-provide-create-sessions-imports                     | Check provide_session and create_session imports                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-provider-yaml-valid                                 | Validate providers.yaml files                                    |         |
+| check-provider-yaml-valid                                 | Validate provider.yaml files                                     | *       |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-providers-init-file-missing                         | Provider init file is missing                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -217,6 +227,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-urlparse-usage-in-code                              | Don't use urlparse in code                                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                                 | Run codespell to check for common misspellings in files          |         |
@@ -231,34 +243,32 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | detect-private-key                                        | Detect if private key is added to the repository                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| doctoc                                                    | Add TOC for md and rst files                                     |         |
+| doctoc                                                    | Add TOC for Markdown and RST files                               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | end-of-file-fixer                                         | Make sure that there is an empty line at the end                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| fix-encoding-pragma                                       | Remove encoding header from python files                         |         |
+| fix-encoding-pragma                                       | Remove encoding header from Python files                         |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | identity                                                  | Print input to the static check hooks for troubleshooting        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | insert-license                                            | * Add license for all SQL files                                  |         |
-|                                                           | * Add license for all rst files                                  |         |
-|                                                           | * Add license for all CSS/JS/PUML/TS/TSX files                   |         |
+|                                                           | * Add license for all RST files                                  |         |
+|                                                           | * Add license for all CSS/JS/JSX/PUML/TS/TSX files               |         |
 |                                                           | * Add license for all JINJA template files                       |         |
-|                                                           | * Add license for all shell files                                |         |
+|                                                           | * Add license for all Shell files                                |         |
 |                                                           | * Add license for all Python files                               |         |
 |                                                           | * Add license for all XML files                                  |         |
 |                                                           | * Add license for all YAML files                                 |         |
-|                                                           | * Add license for all md files                                   |         |
+|                                                           | * Add license for all Markdown files                             |         |
 |                                                           | * Add license for all other files                                |         |
-+-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| isort                                                     | Run isort to sort imports in Python files                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-chart-schema                                         | Lint chart/values.schema.json file                               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-css                                                  | stylelint                                                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-dockerfile                                           | Lint dockerfile                                                  |         |
+| lint-dockerfile                                           | Lint Dockerfile                                                  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                           | Lint Helm Chart                                                  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -276,19 +286,15 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| pretty-format-json                                        | Format json files                                                |         |
-+-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| pydocstyle                                                | Run pydocstyle                                                   |         |
+| pretty-format-json                                        | Format JSON files                                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn                         |         |
-+-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| pyupgrade                                                 | Upgrade Python code automatically                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | replace-bad-characters                                    | Replace bad characters                                           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | rst-backticks                                             | Check if RST files use double backticks for code                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| run-flake8                                                | Run flake8                                                       | *       |
+| ruff                                                      | ruff                                                             |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | run-mypy                                                  | * Run mypy for dev                                               | *       |
 |                                                           | * Run mypy for core                                              |         |
@@ -297,11 +303,11 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | run-shellcheck                                            | Check Shell scripts syntax correctness                           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| static-check-autoflake                                    | Remove all unused code                                           |         |
-+-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | ts-compile-and-lint-javascript                            | TS types generation and ESLint against current UI files          |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-black-version                                      | Update black versions everywhere                                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-cmd-output                                  | Update output of breeze commands in BREEZE.rst                   |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -316,6 +322,8 @@ require Breeze Docker image to be build locally.
 | update-in-the-wild-to-be-sorted                           | Sort INTHEWILD.md alphabetically                                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-inlined-dockerfile-scripts                         | Inline Dockerfile and Dockerfile.ci scripts                      |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-installed-providers-to-be-sorted                   | Sort alphabetically and uniquify installed_providers.txt         |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -332,8 +340,6 @@ require Breeze Docker image to be build locally.
 | update-version                                            | Update version to the latest version in the documentation        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                                   |         |
-+-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| yesqa                                                     | Remove unnecessary noqa statements                               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 
   .. END AUTO-GENERATED STATIC CHECK LIST
@@ -388,7 +394,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=run-mypy,run-flake8 pre-commit run --all-files
+    SKIP=run-mypy,ruff pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -418,17 +424,17 @@ Run the ``mypy`` check for all files:
 
      breeze static-checks --type run-mypy --all-files
 
-Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
+Run the ``ruff`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     breeze static-checks --type run-flake8 --file tests/core.py --verbose
+     breeze static-checks --type ruff --file tests/core.py --verbose
 
-Run the ``flake8`` check for the ``tests.core`` package with verbose output:
+Run the ``ruff for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     breeze static-checks --type run-flake8 --file tests/core/* --verbose
+     breeze static-checks --type ruff --file tests/core/* --verbose
 
 Run all checks for the currently staged files:
 
@@ -463,10 +469,10 @@ Printing the commands while executing:
 
 .. code-block:: bash
 
-     VERBOSE="true" pre-commit run --verbose run-flake8
+     VERBOSE="true" pre-commit run --verbose ruff
 
 Just performing dry run:
 
 .. code-block:: bash
 
-     DRY_RUN="true" pre-commit run --verbose run-flake8
+     DRY_RUN="true" pre-commit run --verbose ruff

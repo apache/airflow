@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Publish message to SNS queue"""
 from __future__ import annotations
 
-"""Publish message to SNS queue"""
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator

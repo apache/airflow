@@ -42,6 +42,7 @@ class TestSchedulerCommand:
             ("LocalExecutor", True),
             ("SequentialExecutor", True),
             ("KubernetesExecutor", False),
+            ("LocalKubernetesExecutor", True),
         ],
     )
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")

@@ -64,7 +64,7 @@ Package apache-airflow-providers-telegram
 `Telegram <https://telegram.org/>`__
 
 
-Release: 3.1.0
+Release: 3.1.1
 
 Provider package
 ----------------
@@ -86,7 +86,7 @@ Requirements
 PIP package              Version required
 =======================  ==================
 ``apache-airflow``       ``>=2.3.0``
-``python-telegram-bot``  ``>=13.0``
+``python-telegram-bot``  ``>=13.0,<20.0.0``
 =======================  ==================
 
 .. include:: ../../airflow/providers/telegram/CHANGELOG.rst

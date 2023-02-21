@@ -19,8 +19,12 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusMessageBatch
-from azure.servicebus.management import ServiceBusAdministrationClient
+
+try:
+    from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusMessageBatch
+    from azure.servicebus.management import ServiceBusAdministrationClient
+except ImportError:
+    pytest.skip("Azure Service Bus not available", allow_module_level=True)
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook

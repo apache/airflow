@@ -22,7 +22,6 @@ import io
 import os
 import shutil
 import sys
-import unittest
 from tempfile import mkdtemp
 from unittest import mock
 
@@ -34,8 +33,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.s3 import S3FileTransformOperator
 
 
-class TestS3FileTransformOperator(unittest.TestCase):
-    def setUp(self):
+class TestS3FileTransformOperator:
+    def setup_method(self):
         self.content = b"input"
         self.bucket = "bucket"
         self.input_key = "foo"
@@ -45,7 +44,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
         self.transform_script = os.path.join(self.tmp_dir, "transform.py")
         os.mknod(self.transform_script)
 
-    def tearDown(self):
+    def teardown_method(self):
         try:
             shutil.rmtree(self.tmp_dir)
         except OSError as e:

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import Mock, patch
 
 import pytest
@@ -29,8 +28,8 @@ from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS
 from airflow.utils import db
 
 
-class TestGoogleApiToS3(unittest.TestCase):
-    def setUp(self):
+class TestGoogleApiToS3:
+    def setup_method(self):
         conf.load_test_config()
 
         db.merge_conn(

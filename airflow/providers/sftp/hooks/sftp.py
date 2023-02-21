@@ -305,7 +305,7 @@ class SFTPHook(SSHHook):
     ) -> None:
         """
         Recursively descend, depth first, the directory tree rooted at
-        path, calling discreet callback functions for each regular file,
+        path, calling discrete callback functions for each regular file,
         directory and unknown file type.
 
         :param str path:

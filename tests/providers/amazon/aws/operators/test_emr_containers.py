@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -38,12 +37,10 @@ CREATE_EMR_ON_EKS_CLUSTER_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200},
 GENERATED_UUID = "800647a9-adda-4237-94e6-f542c85fa55b"
 
 
-class TestEmrContainerOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook")
-    def setUp(self, emr_hook_mock):
+class TestEmrContainerOperator:
+    def setup_method(self):
         conf.load_test_config()
 
-        self.emr_hook_mock = emr_hook_mock
         self.emr_container = EmrContainerOperator(
             task_id="start_job",
             name="test_emr_job",
@@ -142,12 +139,10 @@ class TestEmrContainerOperator(unittest.TestCase):
             assert "Max tries of poll status exceeded" in str(ctx.value)
 
 
-class TestEmrEksCreateClusterOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook")
-    def setUp(self, emr_hook_mock):
+class TestEmrEksCreateClusterOperator:
+    def setup_method(self):
         conf.load_test_config()
 
-        self.emr_hook_mock = emr_hook_mock
         self.emr_container = EmrEksCreateClusterOperator(
             task_id="start_cluster",
             virtual_cluster_name="test_virtual_cluster",

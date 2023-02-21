@@ -27,3 +27,11 @@ class EmrClusterLink(BaseAwsLink):
     format_str = (
         BASE_AWS_CONSOLE_LINK + "/elasticmapreduce/home?region={region_name}#cluster-details:{job_flow_id}"
     )
+
+
+class EmrLogsLink(BaseAwsLink):
+    """Helper class for constructing AWS EMR Logs Link"""
+
+    name = "EMR Cluster Logs"
+    key = "emr_logs"
+    format_str = BASE_AWS_CONSOLE_LINK + "/s3/buckets/{log_uri}?region={region_name}&prefix={job_flow_id}/"

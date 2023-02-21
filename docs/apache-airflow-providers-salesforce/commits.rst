@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.3.0
+.....
+
+Latest change: 2022-11-30
+
+=================================================================================================  ===========  ==================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================
+`ed26b86a50 <https://github.com/apache/airflow/commit/ed26b86a506b07ecf66c314e5514bd906e608359>`_  2022-11-30   ``Add test_connection to SalesforceHook (#27921)``
+=================================================================================================  ===========  ==================================================
+
 5.2.0
 .....
 
-Latest change: 2022-10-27
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``

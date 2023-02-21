@@ -49,6 +49,9 @@ metadata:
     {{- $annotations | toYaml | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not (kindIs "invalid" .Values.createUserJob.ttlSecondsAfterFinished) }}
+  ttlSecondsAfterFinished: {{ .Values.createUserJob.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       labels:
@@ -108,6 +111,9 @@ spec:
 {{ toYaml .Values.createUserJob.resources | indent 12 }}
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
+{{- if .Values.volumeMounts }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
+{{- end }}
 {{- if .Values.createUserJob.extraVolumeMounts }}
 {{ toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
 {{- end }}
@@ -118,6 +124,9 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if .Values.volumes }}
+{{- toYaml .Values.volumes | nindent 8 }}
+{{- end }}
 {{- if .Values.createUserJob.extraVolumes }}
 {{ toYaml .Values.createUserJob.extraVolumes | nindent 8 }}
 {{- end }}

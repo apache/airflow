@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import unittest
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -188,8 +188,8 @@ DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN = {
 }
 
 
-class TestEmrJobFlowSensor(unittest.TestCase):
-    def setUp(self):
+class TestEmrJobFlowSensor:
+    def setup_method(self):
         # Mock out the emr_client (moto has incorrect response)
         self.mock_emr_client = MagicMock()
 
@@ -198,6 +198,9 @@ class TestEmrJobFlowSensor(unittest.TestCase):
 
         # Mock out the emr_client creator
         self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
+
+        # Mock context used in execute function
+        self.mock_ctx = MagicMock()
 
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_target_state(self):
         self.mock_emr_client.describe_cluster.side_effect = [
@@ -210,13 +213,13 @@ class TestEmrJobFlowSensor(unittest.TestCase):
                 task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
             )
 
-            operator.execute(None)
+            operator.execute(self.mock_ctx)
 
             # make sure we called twice
             assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
-            calls = [unittest.mock.call(ClusterId="j-8989898989")]
+            calls = [mock.call(ClusterId="j-8989898989")]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)
 
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(self):
@@ -230,7 +233,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             )
 
             with pytest.raises(AirflowException):
-                operator.execute(None)
+                operator.execute(self.mock_ctx)
 
                 # make sure we called twice
                 assert self.mock_emr_client.describe_cluster.call_count == 2
@@ -256,11 +259,11 @@ class TestEmrJobFlowSensor(unittest.TestCase):
                 target_states=["RUNNING", "WAITING"],
             )
 
-            operator.execute(None)
+            operator.execute(self.mock_ctx)
 
             # make sure we called twice
             assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
-            calls = [unittest.mock.call(ClusterId="j-8989898989")]
+            calls = [mock.call(ClusterId="j-8989898989")]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)

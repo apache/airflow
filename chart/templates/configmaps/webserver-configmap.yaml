@@ -18,11 +18,11 @@
 ################################
 ## Airflow ConfigMap
 #################################
-{{- if .Values.webserver.webserverConfig }}
+{{- if and .Values.webserver.webserverConfig (not .Values.webserver.webserverConfigConfigMapName) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-webserver-config
+  name: {{ template "airflow_webserver_config_configmap_name" . }}
   labels:
     tier: airflow
     component: config

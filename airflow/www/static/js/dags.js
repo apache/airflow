@@ -273,14 +273,14 @@ function dagStatsHandler(selector, json) {
   });
 }
 
-function nextRunDatasetsSummaryHandler(json) {
+function nextRunDatasetsSummaryHandler(_, json) {
   [...document.getElementsByClassName('next-dataset-triggered')].forEach((el) => {
     const dagId = $(el).attr('data-dag-id');
     const previousSummary = $(el).attr('data-summary');
     const nextDatasetsInfo = json[dagId];
 
     // Only update dags that depend on multiple datasets
-    if (!nextDatasetsInfo.uri) {
+    if (nextDatasetsInfo && !nextDatasetsInfo.uri) {
       const newSummary = `${nextDatasetsInfo.ready} of ${nextDatasetsInfo.total} datasets updated`;
 
       // Only update the element if the summary has changed
@@ -410,7 +410,7 @@ function handleRefresh({ activeDagsOnly = false } = {}) {
       .post(params, (error, json) => refreshDagStatsHandler(TASK_INSTANCE, json));
     d3.json(nextRunDatasetsSummaryUrl)
       .header('X-CSRFToken', csrfToken)
-      .post(params, (error, json) => nextRunDatasetsSummaryHandler(json));
+      .post(params, nextRunDatasetsSummaryHandler);
   }
   setTimeout(() => {
     $('#loading-dots').css('display', 'none');

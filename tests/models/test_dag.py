@@ -23,6 +23,7 @@ import logging
 import os
 import pickle
 import re
+import sys
 from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
@@ -33,8 +34,8 @@ from unittest.mock import patch
 import jinja2
 import pendulum
 import pytest
+import time_machine
 from dateutil.relativedelta import relativedelta
-from freezegun import freeze_time
 from sqlalchemy import inspect
 
 import airflow
@@ -42,7 +43,12 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamValidationError
+from airflow.exceptions import (
+    AirflowException,
+    DuplicateTaskIdFound,
+    ParamValidationError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
@@ -823,7 +829,7 @@ class TestDag:
         dag.clear()
         DAG.bulk_write_to_db([dag], session=session)
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
 
         assert model.next_dagrun == DEFAULT_DATE
         assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
@@ -837,12 +843,12 @@ class TestDag:
         assert dr is not None
         DAG.bulk_write_to_db([dag])
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         # We signal "at max active runs" by saying this run is never eligible to be created
         assert model.next_dagrun_create_after is None
         # test that bulk_write_to_db again doesn't update next_dagrun_create_after
         DAG.bulk_write_to_db([dag])
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         assert model.next_dagrun_create_after is None
 
     def test_bulk_write_to_db_has_import_error(self):
@@ -857,7 +863,7 @@ class TestDag:
         dag.clear()
         DAG.bulk_write_to_db([dag], session=session)
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
 
         assert not model.has_import_errors
 
@@ -865,13 +871,13 @@ class TestDag:
         model.has_import_errors = True
         session.merge(model)
         session.flush()
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         # assert
         assert model.has_import_errors
         # parse
         DAG.bulk_write_to_db([dag])
 
-        model = session.query(DagModel).get((dag.dag_id,))
+        model = session.get(DagModel, dag.dag_id)
         # assert that has_import_error is now false
         assert not model.has_import_errors
         session.close()
@@ -1318,7 +1324,10 @@ class TestDag:
             dag.handle_callback(dag_run, success=False)
             dag.handle_callback(dag_run, success=True)
 
-        mock_stats.incr.assert_called_with("dag.callback_exceptions")
+        mock_stats.incr.assert_called_with(
+            "dag.callback_exceptions",
+            tags={"dag_id": "test_dag_callback_crash", "run_id": "manual__2015-01-02T00:00:00+00:00"},
+        )
 
         dag.clear()
         self._clean_up(dag_id)
@@ -1341,7 +1350,7 @@ class TestDag:
         )
         dag.sync_to_db()
         with create_session() as session:
-            model = session.query(DagModel).get((dag.dag_id,))
+            model = session.get(DagModel, dag.dag_id)
 
         # Even though there is a run for this date already, it is marked as manual/external, so we should
         # create a scheduled one anyway!
@@ -1368,7 +1377,7 @@ class TestDag:
         # Then sync again after creating the dag run -- this should update next_dagrun
         dag.sync_to_db()
         with create_session() as session:
-            model = session.query(DagModel).get((dag.dag_id,))
+            model = session.get(DagModel, dag.dag_id)
 
         assert model.next_dagrun is None
         assert model.next_dagrun_create_after is None
@@ -1996,7 +2005,7 @@ my_postgres_conn:
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
-    @freeze_time(timezone.datetime(2020, 1, 5))
+    @time_machine.travel(timezone.datetime(2020, 1, 5), tick=False)
     def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self):
         """
         Test that the dag file processor does not create multiple dagruns
@@ -2016,7 +2025,7 @@ my_postgres_conn:
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
 
-    @freeze_time(timezone.datetime(2020, 5, 4))
+    @time_machine.travel(timezone.datetime(2020, 5, 4))
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
         """
         Test that the dag file processor creates multiple dagruns
@@ -2556,7 +2565,7 @@ class TestDagDecorator:
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "noop_pipeline"
+        assert dag.dag_id == "noop_pipeline"
         assert dag.fileloc == __file__
 
     def test_set_dag_id(self):
@@ -2564,50 +2573,41 @@ class TestDagDecorator:
 
         @dag_decorator("test", default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
+            ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "test"
+        assert dag.dag_id == "test"
 
     def test_default_dag_id(self):
         """Test that @dag uses function name as default dag id."""
 
         @dag_decorator(default_args=self.DEFAULT_ARGS)
         def noop_pipeline():
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
+            ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "noop_pipeline"
+        assert dag.dag_id == "noop_pipeline"
 
-    def test_documentation_added(self):
-        """Test that @dag uses function docs as doc_md for DAG object"""
+    @pytest.mark.parametrize(
+        argnames=["dag_doc_md", "expected_doc_md"],
+        argvalues=[
+            pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
+            pytest.param(None, "Regular DAG documentation", id="use_dag_docstring"),
+        ],
+    )
+    def test_documentation_added(self, dag_doc_md, expected_doc_md):
+        """Test that @dag uses function docs as doc_md for DAG object if doc_md is not explicitly set."""
 
-        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        @dag_decorator(default_args=self.DEFAULT_ARGS, doc_md=dag_doc_md)
         def noop_pipeline():
-            """
-            Regular DAG documentation
-            """
-
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
+            """Regular DAG documentation"""
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "test"
-        assert dag.doc_md.strip(), "Regular DAG documentation"
+        assert dag.dag_id == "noop_pipeline"
+        assert dag.doc_md == expected_doc_md
 
     def test_documentation_template_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
@@ -2620,16 +2620,10 @@ class TestDagDecorator:
             {% endif %}
             """
 
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(4)
-
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
-        assert dag.dag_id, "test"
-        assert dag.doc_md.strip(), "Regular DAG documentation"
+        assert dag.dag_id == "noop_pipeline"
+        assert "Regular DAG documentation" in dag.doc_md
 
     def test_resolve_documentation_template_file_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
@@ -2643,16 +2637,19 @@ class TestDagDecorator:
             """
             )
             f.flush()
+            template_dir = os.path.dirname(f.name)
             template_file = os.path.basename(f.name)
 
-            with DAG("test-dag", start_date=DEFAULT_DATE, doc_md=template_file) as dag:
-                task = EmptyOperator(task_id="op1")
+            @dag_decorator(
+                "test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir, doc_md=template_file
+            )
+            def markdown_docs():
+                ...
 
-                task
-
-                assert isinstance(dag, DAG)
-                assert dag.dag_id, "test"
-                assert dag.doc_md.strip(), "External Markdown DAG documentation"
+            dag = markdown_docs()
+            assert isinstance(dag, DAG)
+            assert dag.dag_id == "test-dag"
+            assert dag.doc_md.strip() == "External Markdown DAG documentation"
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
@@ -2722,7 +2719,7 @@ class TestDagDecorator:
 
         self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
         ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(), new_value
+        assert ti.xcom_pull() == new_value
 
     @pytest.mark.parametrize("value", [VALUE, 0])
     def test_set_params_for_dag(self, value):
@@ -2739,6 +2736,20 @@ class TestDagDecorator:
 
         dag = xcom_pass_to_op()
         assert dag.params["value"] == value
+
+    def test_warning_location(self):
+        # NOTE: This only works as long as there is some warning we can emit from `DAG()`
+        @dag_decorator(schedule_interval=None)
+        def mydag():
+            ...
+
+        with pytest.warns(RemovedInAirflow3Warning) as warnings:
+            line = sys._getframe().f_lineno + 1
+            mydag()
+
+        w = warnings.pop(RemovedInAirflow3Warning)
+        assert w.filename == __file__
+        assert w.lineno == line
 
 
 @pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
@@ -3127,3 +3138,23 @@ def test_dag_uses_timetable_for_run_id(session):
     )
 
     assert dag_run.run_id == "abc"
+
+
+@pytest.mark.parametrize(
+    "run_id_type",
+    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.DATASET_TRIGGERED],
+)
+def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
+    dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
+    run_id = run_id_type.generate_run_id(DEFAULT_DATE)
+    with pytest.raises(ValueError) as ctx:
+        dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=DagRunState.QUEUED,
+        )
+    assert str(ctx.value) == (
+        f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
+    )

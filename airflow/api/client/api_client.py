@@ -24,7 +24,7 @@ import httpx
 class Client:
     """Base API client for all API clients."""
 
-    def __init__(self, api_base_url, auth=None, session=None):
+    def __init__(self, api_base_url, auth=None, session: httpx.Client | None = None):
         self._api_base_url = api_base_url
         self._session: httpx.Client = session or httpx.Client()
         if auth:

@@ -71,6 +71,7 @@ Committers
 - Leah Cole (@leahecole)
 - Malthe Borch (@malthe)
 - Maxime "Max" Beauchemin (@mistercrunch)
+- Niko Oliveira (@o-nikolas)
 - Patrick Leo Tardif (@pltardif)
 - Pierre Jeambrun (@pierrejeambrun)
 - Ping Zhang (@pingzh)

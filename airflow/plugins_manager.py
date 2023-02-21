@@ -38,7 +38,7 @@ from types import ModuleType
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
-from airflow.utils.module_loading import as_importable_string
+from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
@@ -373,7 +373,7 @@ def initialize_ti_deps_plugins():
 
     for plugin in plugins:
         registered_ti_dep_classes.update(
-            {as_importable_string(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
+            {qualname(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
         )
 
 
@@ -406,7 +406,7 @@ def initialize_extra_operators_links_plugins():
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
         registered_operator_link_classes.update(
-            {as_importable_string(link.__class__): link.__class__ for link in plugin.operator_extra_links}
+            {qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links}
         )
 
 
@@ -425,7 +425,7 @@ def initialize_timetables_plugins():
     log.debug("Initialize extra timetables plugins")
 
     timetable_classes = {
-        as_importable_string(timetable_class): timetable_class
+        qualname(timetable_class): timetable_class
         for plugin in plugins
         for timetable_class in plugin.timetables
     }
@@ -525,25 +525,20 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             info: dict[str, Any] = {"name": plugin.name}
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):
-                    info[attr] = [
-                        f"<{as_importable_string(d.__class__)} object>" for d in getattr(plugin, attr)
-                    ]
+                    info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
                 elif attr in ("macros", "timetables", "hooks", "executors"):
-                    info[attr] = [as_importable_string(d) for d in getattr(plugin, attr)]
+                    info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
                     # listeners are always modules
                     info[attr] = [d.__name__ for d in getattr(plugin, attr)]
                 elif attr == "appbuilder_views":
                     info[attr] = [
-                        {**d, "view": as_importable_string(d["view"].__class__) if "view" in d else None}
+                        {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
                         for d in getattr(plugin, attr)
                     ]
                 elif attr == "flask_blueprints":
                     info[attr] = [
-                        (
-                            f"<{as_importable_string(d.__class__)}: "
-                            f"name={d.name!r} import_name={d.import_name!r}>"
-                        )
+                        f"<{qualname(d.__class__)}: name={d.name!r} import_name={d.import_name!r}>"
                         for d in getattr(plugin, attr)
                     ]
                 else:

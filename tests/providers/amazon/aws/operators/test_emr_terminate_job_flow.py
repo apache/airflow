@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperator
@@ -25,8 +24,8 @@ from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperat
 TERMINATE_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
 
-class TestEmrTerminateJobFlowOperator(unittest.TestCase):
-    def setUp(self):
+class TestEmrTerminateJobFlowOperator:
+    def setup_method(self):
         # Mock out the emr_client (moto has incorrect response)
         mock_emr_client = MagicMock()
         mock_emr_client.terminate_job_flows.return_value = TERMINATE_SUCCESS_RETURN

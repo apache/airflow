@@ -177,8 +177,8 @@ become active again you can simply email the PMC and ask to be reinstated.
 The PMC also can mark committers as inactive after they have not been involved in the community for
 more than 12 months.
 
-GitHub configuration for committers
------------------------------------
+New Committer Onboarding Steps
+------------------------------
 
 To be able to merge PRs, committers have to integrate their GitHub ID with Apache systems. To do that follow steps:
 
@@ -188,3 +188,4 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 4.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
 5.  After accepting the GitHub Invitation verify that you are a member of the `Airflow committers team on GitHub <https://github.com/orgs/apache/teams/airflow-committers>`__.
 6.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_ by the CI maintainers
+7.  After confirming that step 6 is done, open a PR to include your GitHub ID in `ci.yml <https://github.com/apache/airflow/blob/main/.github/workflows/ci.yml#L72>`__ as well as your name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.

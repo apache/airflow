@@ -30,9 +30,8 @@ BACKEND_IMPORT_PATH = "airflow.providers.google.cloud.secrets.secret_manager.Clo
 
 
 @pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
-class CloudSecretManagerBackendVariableSystemTest(GoogleSystemTest):
-    def setUp(self) -> None:
-        super().setUp()
+class TestCloudSecretManagerBackendVariableSystem(GoogleSystemTest):
+    def setup_method(self) -> None:
         self.unique_suffix = "".join(random.choices(string.ascii_lowercase, k=10))
         self.name = f"airflow-system-test-{self.unique_suffix}"
         self.secret_name = f"airflow-variables-{self.name}"
@@ -47,15 +46,13 @@ class CloudSecretManagerBackendVariableSystemTest(GoogleSystemTest):
         assert "TEST_CONTENT" in result.decode()
 
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False)
-        super().tearDown()
 
 
 @pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
-class CloudSecretManagerBackendConnectionSystemTest(GoogleSystemTest):
-    def setUp(self) -> None:
-        super().setUp()
+class TestCloudSecretManagerBackendConnectionSystem(GoogleSystemTest):
+    def setup_method(self) -> None:
         self.unique_suffix = "".join(random.choices(string.ascii_lowercase, k=10))
         self.name = f"airflow-system-test-{self.unique_suffix}"
         self.secret_name = f"airflow-connections-{self.name}"
@@ -71,6 +68,5 @@ class CloudSecretManagerBackendConnectionSystemTest(GoogleSystemTest):
         assert self.name in result.decode()
 
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False)
-        super().tearDown()

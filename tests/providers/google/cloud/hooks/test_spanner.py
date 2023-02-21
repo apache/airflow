@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -34,8 +33,8 @@ SPANNER_CONFIGURATION = "configuration"
 SPANNER_DATABASE = "database-name"
 
 
-class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
-    def setUp(self):
+class TestGcpSpannerHookDefaultProjectId:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -427,8 +426,8 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         assert res is None
 
 
-class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
-    def setUp(self):
+class TestGcpSpannerHookNoDefaultProjectID:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

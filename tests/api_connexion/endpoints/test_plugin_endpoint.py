@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import pytest
-from parameterized import parameterized
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
@@ -106,7 +105,8 @@ class TestGetPlugins(TestPluginsEndpoint):
 
 
 class TestGetPluginsPagination(TestPluginsEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_plugin_names",
         [
             ("/api/v1/plugins?limit=1", ["TEST_PLUGIN_1"]),
             ("/api/v1/plugins?limit=2", ["TEST_PLUGIN_1", "TEST_PLUGIN_2"]),
@@ -141,7 +141,7 @@ class TestGetPluginsPagination(TestPluginsEndpoint):
                 "/api/v1/plugins?limit=2&offset=2",
                 ["TEST_PLUGIN_3", "TEST_PLUGIN_4"],
             ),
-        ]
+        ],
     )
     def test_handle_limit_offset(self, url, expected_plugin_names):
         plugins = self._create_plugins(10)

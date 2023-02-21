@@ -32,7 +32,7 @@ interface Props {
 }
 
 const MarkSuccessRun = ({ dagId, runId }: Props) => {
-  const [affectedTasks, setAffectedTasks] = useState('');
+  const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { mutateAsync: markSuccess, isLoading } = useMarkSuccessRun(dagId, runId);
 
@@ -44,7 +44,7 @@ const MarkSuccessRun = ({ dagId, runId }: Props) => {
 
   const onConfirm = async () => {
     await markSuccess({ confirmed: true });
-    setAffectedTasks('');
+    setAffectedTasks([]);
     onClose();
   };
 
@@ -57,7 +57,7 @@ const MarkSuccessRun = ({ dagId, runId }: Props) => {
         onConfirm={onConfirm}
         isLoading={isLoading}
         description="Task instances you are about to mark as success:"
-        body={affectedTasks}
+        affectedTasks={affectedTasks}
       />
     </>
   );

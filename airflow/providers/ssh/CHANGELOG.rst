@@ -24,6 +24,24 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add .bash and other extensions to SSHOperator template_ext (#28617)``
+* ``Add test_connection method for SSHHook (#28184)``
+* ``SSH task exit code added to XCOM as 'ssh_exit' key (#27370)``
+
+Misc
+~~~~
+* ``Remove outdated compat imports/code from providers (#28507)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.3.0
 .....
 

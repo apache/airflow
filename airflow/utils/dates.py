@@ -48,7 +48,7 @@ def date_range(
     or a cron expression as a `str`
 
     .. code-block:: pycon
-        >>> from airflow.utils.dates import datterange
+        >>> from airflow.utils.dates import date_range
         >>> from datetime import datetime, timedelta
         >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
         [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')),
