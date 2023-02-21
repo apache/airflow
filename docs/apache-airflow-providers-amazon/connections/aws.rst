@@ -89,7 +89,7 @@ Extra (optional)
 
     * ``service_config``: json used to specify configuration/parameters for different AWS services, such as S3 or STS.
 
-    The following extra parameters used to create an initial :external:py:class:`boto3.session.Session`:
+    The following extra parameters are used to create an initial :external:py:class:`boto3.session.Session`:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
     * ``aws_secret_access_key``: AWS secret access key used for the initial connection
@@ -99,7 +99,7 @@ Extra (optional)
     * ``profile_name``: The name of a profile to use listed in
       `configuration and credential file settings <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`__.
 
-    The following extra parameters used for `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__:
+    The following extra parameters are used for `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__:
 
     * ``role_arn``: If specified, then assume this role, obtaining a set of temporary security credentials using the ``assume_role_method``.
     * ``assume_role_method``: AWS STS client method, one of
@@ -109,7 +109,7 @@ Extra (optional)
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
 
-    The following extra parameters if ``assume_role_method`` is set to ``assume_role_with_web_identity``:
+    The following extra parameters are available if ``assume_role_method`` is set to ``assume_role_with_web_identity``:
 
     * ``assume_role_with_web_identity_federation``: The federation type, which is used to determine which token loader to use to retrieve
       the access token. Currently ``file`` and ``google`` are supported.
@@ -118,7 +118,7 @@ Extra (optional)
       ``AWS_WEB_IDENTITY_TOKEN_FILE`` environment variable will be used.
     * ``assume_role_with_web_identity_federation_audience``: The ``aud`` claim of the access token, if using the ``google`` federation type.
 
-    The following extra parameters pass to :external:py:meth:`boto3.session.Session.client`
+    The following extra parameters are passed to :external:py:meth:`boto3.session.Session.client`
     or :external:py:meth:`boto3.session.Session.resource`.
 
     * ``config_kwargs``: Additional **kwargs** used to construct a
@@ -126,7 +126,7 @@ Extra (optional)
     * ``endpoint_url``: Endpoint URL for the connection.
     * ``verify``: Whether or not to verify SSL certificates.
 
-.. warning:: Extra parameters below are deprecated and will be removed in a future version of this provider.
+.. warning:: The extra parameters below are deprecated and will be removed in a future version of this provider.
 
     * ``aws_account_id``: Used to construct ``role_arn`` if it was not specified.
     * ``aws_iam_role``: Used to construct ``role_arn`` if it was not specified.
@@ -270,7 +270,18 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
       }
     }
 
-4. Using AssumeRoleWithSAML
+4. Using AssumeRoleWithWebIdentity (file-based token)
+
+.. code-block:: json
+
+    {
+      "role_arn": "arn:aws:iam::112223334444:role/my_role",
+      "assume_role_method": "assume_role_with_web_identity",
+      "assume_role_with_web_identity_federation": "file",
+      "assume_role_with_web_identity_token_file": "/path/to/access_token"
+    }
+
+5. Using AssumeRoleWithSAML
 
 .. code-block:: json
 
@@ -299,7 +310,7 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
       "assume_role_kwargs": { "something":"something" }
     }
 
-5. Using **service_config** to specify configuration for services such as S3, STS, and EMR
+6. Using **service_config** to specify configuration for services such as S3, STS, and EMR
 
 .. code-block:: json
 
