@@ -151,7 +151,7 @@ class YandexCloudBaseHook(BaseHook):
         else:
             return {"token": oauth_token}
 
-    def _get_endpoint(self) -> dict[str, Any]:
+    def _get_endpoint(self) -> dict[str, str]:
         sdk_config = {}
         endpoint = self._get_field("endpoint", None)
         if endpoint:
