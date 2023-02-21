@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+4.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing parens for files parameter (#29437)``
+
 4.0.3
 .....
 

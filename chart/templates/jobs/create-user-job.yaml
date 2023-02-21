@@ -48,6 +48,9 @@ metadata:
     {{- $annotations | toYaml | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not (kindIs "invalid" .Values.createUserJob.ttlSecondsAfterFinished) }}
+  ttlSecondsAfterFinished: {{ .Values.createUserJob.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       labels:

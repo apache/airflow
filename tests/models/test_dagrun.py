@@ -49,13 +49,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
-from tests.test_utils.db import (
-    clear_db_dags,
-    clear_db_datasets,
-    clear_db_pools,
-    clear_db_runs,
-    clear_db_variables,
-)
+from tests.test_utils import db
 from tests.test_utils.mock_operators import MockOperator
 
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -64,19 +58,21 @@ DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 class TestDagRun:
     dagbag = DagBag(include_examples=True)
 
+    @staticmethod
+    def clean_db():
+        db.clear_db_runs()
+        db.clear_db_pools()
+        db.clear_db_dags()
+        db.clear_db_variables()
+        db.clear_db_datasets()
+        db.clear_db_xcom()
+        db.clear_db_task_fail()
+
     def setup_class(self) -> None:
-        clear_db_runs()
-        clear_db_pools()
-        clear_db_dags()
-        clear_db_variables()
-        clear_db_datasets()
+        self.clean_db()
 
     def teardown_method(self) -> None:
-        clear_db_runs()
-        clear_db_pools()
-        clear_db_dags()
-        clear_db_variables()
-        clear_db_datasets()
+        self.clean_db()
 
     def create_dag_run(
         self,
@@ -2234,3 +2230,40 @@ def test_mapped_task_depends_on_past(dag_maker, session):
     assert len(decision.unfinished_tis) == 0
     decision = dr2.task_instance_scheduling_decisions(session=session)
     assert len(decision.unfinished_tis) == 0
+
+
+def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
+    """
+    Test that clearing a task and moving from non-mapped to mapped clears existing
+    references in XCom, TaskFail, and RenderedTaskInstanceFields
+    To be able to test this, RenderedTaskInstanceFields was not used in the test
+    since it would require that the task is expanded first.
+    """
+
+    from airflow.models.taskfail import TaskFail
+    from airflow.models.xcom import XCom
+
+    @task
+    def printx(x):
+        print(x)
+
+    with dag_maker() as dag:
+        printx.expand(x=[1])
+
+    dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+    ti = dr1.get_task_instances()[0]
+    # mimicking a case where task moved from non-mapped to mapped
+    # in that case, it would have map_index of -1 even though mapped
+    ti.map_index = -1
+    session.merge(ti)
+    session.flush()
+    # Purposely omitted RenderedTaskInstanceFields because the ti need
+    # to be expanded but here we are mimicking and made it map_index -1
+    session.add(TaskFail(ti))
+    XCom.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
+    session.commit()
+    for table in [TaskFail, XCom]:
+        assert session.query(table).count() == 1
+    dr1.task_instance_scheduling_decisions(session)
+    for table in [TaskFail, XCom]:
+        assert session.query(table).count() == 0

@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
@@ -67,6 +69,9 @@ class RedshiftToS3Operator(BaseOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param table_as_file_name: If set to True, the s3 file will be named as the table.
         Applicable when ``table`` param provided.
+    :param redshift_data_api_kwargs: If using the Redshift Data API instead of the SQL-based connection,
+        dict of arguments for the hook's ``execute_query`` method.
+        Cannot include any of these kwargs: ``{'sql', 'parameters'}``
     """
 
     template_fields: Sequence[str] = (
@@ -98,6 +103,7 @@ class RedshiftToS3Operator(BaseOperator):
         include_header: bool = False,
         parameters: Iterable | Mapping | None = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
+        redshift_data_api_kwargs: dict = {},
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -113,6 +119,7 @@ class RedshiftToS3Operator(BaseOperator):
         self.include_header = include_header
         self.parameters = parameters
         self.table_as_file_name = table_as_file_name
+        self.redshift_data_api_kwargs = redshift_data_api_kwargs
 
         if select_query:
             self.select_query = select_query
@@ -128,6 +135,11 @@ class RedshiftToS3Operator(BaseOperator):
                 "HEADER",
             ]
 
+        if self.redshift_data_api_kwargs:
+            for arg in ["sql", "parameters"]:
+                if arg in self.redshift_data_api_kwargs.keys():
+                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
+
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
@@ -140,7 +152,11 @@ class RedshiftToS3Operator(BaseOperator):
         """
 
     def execute(self, context: Context) -> None:
-        redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+        redshift_hook: RedshiftDataHook | RedshiftSQLHook
+        if self.redshift_data_api_kwargs:
+            redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
+        else:
+            redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
         if conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
@@ -156,5 +172,10 @@ class RedshiftToS3Operator(BaseOperator):
         )
 
         self.log.info("Executing UNLOAD command...")
-        redshift_hook.run(unload_query, self.autocommit, parameters=self.parameters)
+        if isinstance(redshift_hook, RedshiftDataHook):
+            redshift_hook.execute_query(
+                sql=unload_query, parameters=self.parameters, **self.redshift_data_api_kwargs
+            )
+        else:
+            redshift_hook.run(unload_query, self.autocommit, parameters=self.parameters)
         self.log.info("UNLOAD command complete...")
