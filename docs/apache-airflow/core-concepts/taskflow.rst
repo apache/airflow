@@ -91,9 +91,10 @@ need to be able to be serialized. Airflow out of the box supports all built-in t
 supports objects that are decorated with ``@dataclass`` or ``@attr.define``. The following example shows the use of
 a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
 
-::
+.. note::
 
-  Note: An additional benefit of using ``Dataset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``dataset`` or a ``list[Dataset]]``.
+    An additional benefit of using ``Dataset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``dataset`` or a ``list[Dataset]]``.
+
 
 .. code-block:: python
 
