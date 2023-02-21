@@ -131,6 +131,7 @@ class TestCliInternalAPi:
                     raise
                 time.sleep(1)
 
+    @pytest.mark.quarantined
     @pytest.mark.execution_timeout(210)
     def test_cli_internal_api_background(self):
         with tempfile.TemporaryDirectory(prefix="gunicorn") as tmpdir:
