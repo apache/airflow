@@ -5491,6 +5491,14 @@
                             ],
                             "default": null
                         },
+                        "annotations": {
+                            "description": "Annotations to add to logs PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
                             "type": [

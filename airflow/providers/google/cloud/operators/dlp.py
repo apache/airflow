@@ -31,17 +31,23 @@ from google.cloud.dlp_v2.types import (
     ByteContentItem,
     ContentItem,
     DeidentifyConfig,
+    DeidentifyContentResponse,
     DeidentifyTemplate,
-    FieldMask,
+    DlpJob,
     InspectConfig,
+    InspectContentResponse,
     InspectJobConfig,
     InspectTemplate,
     JobTrigger,
+    ListInfoTypesResponse,
     RedactImageRequest,
+    RedactImageResponse,
+    ReidentifyContentResponse,
     RiskAnalysisJobConfig,
+    StoredInfoType,
     StoredInfoTypeConfig,
 )
-from google.protobuf.json_format import MessageToDict
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
@@ -239,7 +245,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        result = MessageToDict(template)
+        result = DeidentifyTemplate.to_dict(template)
 
         project_id = self.project_id or hook.project_id
         template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
@@ -352,7 +358,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(job)
+        result = DlpJob.to_dict(job)
 
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -462,7 +468,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(template)
+        result = InspectTemplate.to_dict(template)
 
         template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
         project_id = self.project_id or hook.project_id
@@ -568,7 +574,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(trigger)
+        result = JobTrigger.to_dict(trigger)
 
         project_id = self.project_id or hook.project_id
         trigger_name = result["name"].split("/")[-1] if result["name"] else None
@@ -680,7 +686,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(info)
+        result = StoredInfoType.to_dict(info)
 
         project_id = self.project_id or hook.project_id
         stored_info_type_id = (
@@ -794,7 +800,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return DeidentifyContentResponse.to_dict(response)
 
 
 class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
@@ -1317,7 +1323,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
                 context=context, task_instance=self, project_id=project_id, template_name=self.template_id
             )
 
-        return MessageToDict(template)
+        return DeidentifyTemplate.to_dict(template)
 
 
 class CloudDLPGetDLPJobOperator(BaseOperator):
@@ -1401,7 +1407,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
                 job_name=self.dlp_job_id,
             )
 
-        return MessageToDict(job)
+        return DlpJob.to_dict(job)
 
 
 class CloudDLPGetInspectTemplateOperator(BaseOperator):
@@ -1491,7 +1497,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
                 template_name=self.template_id,
             )
 
-        return MessageToDict(template)
+        return InspectTemplate.to_dict(template)
 
 
 class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
@@ -1575,7 +1581,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
                 trigger_name=self.job_trigger_id,
             )
 
-        return MessageToDict(trigger)
+        return JobTrigger.to_dict(trigger)
 
 
 class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
@@ -1665,7 +1671,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
                 info_type_name=self.stored_info_type_id,
             )
 
-        return MessageToDict(info)
+        return StoredInfoType.to_dict(info)
 
 
 class CloudDLPInspectContentOperator(BaseOperator):
@@ -1751,7 +1757,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return InspectContentResponse.to_dict(response)
 
 
 class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
@@ -1836,7 +1842,6 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        # the MessageToDict does not have the right type defined as possible to pass in constructor
 
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -1846,7 +1851,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(template) for template in templates]  # type: ignore[arg-type]
+        return [DeidentifyTemplate.to_dict(template) for template in templates]  # type: ignore[arg-type]
 
 
 class CloudDLPListDLPJobsOperator(BaseOperator):
@@ -1942,8 +1947,8 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        # the MessageToDict does not have the right type defined as possible to pass in constructor
-        return [MessageToDict(job) for job in jobs]  # type: ignore[arg-type]
+        # the DlpJob.to_dict does not have the right type defined as possible to pass in constructor
+        return [DlpJob.to_dict(job) for job in jobs]  # type: ignore[arg-type]
 
 
 class CloudDLPListInfoTypesOperator(BaseOperator):
@@ -2027,7 +2032,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return MessageToDict(response)
+        return ListInfoTypesResponse.to_dict(response)
 
 
 class CloudDLPListInspectTemplatesOperator(BaseOperator):
@@ -2121,7 +2126,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(t) for t in templates]
+        return [InspectTemplate.to_dict(t) for t in templates]
 
 
 class CloudDLPListJobTriggersOperator(BaseOperator):
@@ -2213,7 +2218,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(j) for j in jobs]
+        return [JobTrigger.to_dict(j) for j in jobs]
 
 
 class CloudDLPListStoredInfoTypesOperator(BaseOperator):
@@ -2307,7 +2312,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(i) for i in infos]
+        return [StoredInfoType.to_dict(i) for i in infos]
 
 
 class CloudDLPRedactImageOperator(BaseOperator):
@@ -2399,7 +2404,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return RedactImageResponse.to_dict(response)
 
 
 class CloudDLPReidentifyContentOperator(BaseOperator):
@@ -2496,7 +2501,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return ReidentifyContentResponse.to_dict(response)
 
 
 class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
@@ -2596,7 +2601,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
                 template_name=self.template_id,
             )
 
-        return MessageToDict(template)
+        return DeidentifyTemplate.to_dict(template)
 
 
 class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
@@ -2696,7 +2701,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
                 template_name=self.template_id,
             )
 
-        return MessageToDict(template)
+        return InspectTemplate.to_dict(template)
 
 
 class CloudDLPUpdateJobTriggerOperator(BaseOperator):
@@ -2746,7 +2751,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         *,
         job_trigger_id,
         project_id: str | None = None,
-        job_trigger: JobTrigger | None = None,
+        job_trigger: dict | JobTrigger | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -2790,7 +2795,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
                 trigger_name=self.job_trigger_id,
             )
 
-        return MessageToDict(trigger)
+        return JobTrigger.to_dict(trigger)
 
 
 class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
@@ -2891,4 +2896,4 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
                 info_type_name=self.stored_info_type_id,
             )
 
-        return MessageToDict(info)
+        return StoredInfoType.to_dict(info)
