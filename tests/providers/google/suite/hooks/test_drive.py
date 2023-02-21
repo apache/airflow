@@ -151,8 +151,8 @@ class TestGoogleDriveHook:
                     for d, key in [("AAA", "root"), ("BBB", "ID_1"), ("CCC", "ID_2")]
                 ],
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={
                         "name": "CCC",
                         "mimeType": "application/vnd.google-apps.folder",
@@ -162,8 +162,8 @@ class TestGoogleDriveHook:
                     supportsAllDrives=True,
                 ),
                 mock.call()
-                    .files()
-                    .create(
+                .files()
+                .create(
                     body={
                         "name": "DDD",
                         "mimeType": "application/vnd.google-apps.folder",

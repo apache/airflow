@@ -284,8 +284,8 @@ class GoogleDriveHook(GoogleBaseHook):
         media = MediaFileUpload(local_location, chunksize=chunk_size, resumable=resumable)
         file = (
             service.files()
-                .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
-                .execute(num_retries=self.num_retries)
+            .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
+            .execute(num_retries=self.num_retries)
         )
         file_id = file.get("id")
 
