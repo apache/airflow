@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-20T04:44:43Z
+# This constraints file was automatically generated on 2023-02-21T22:23:43Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -102,13 +102,13 @@ backports.zoneinfo==0.2.1
 bcrypt==4.0.1
 beautifulsoup4==4.11.2
 billiard==3.6.4.0
-bitarray==2.7.2
+bitarray==2.7.3
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.74
+boto3==1.26.76
 boto==2.49.0
-botocore==1.29.74
+botocore==1.29.76
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -143,7 +143,7 @@ croniter==1.3.8
 cryptography==38.0.4
 curlify==2.2.1
 dask==2022.2.0
-databricks-sql-connector==2.3.0
+databricks-sql-connector==2.4.0
 datadog==0.44.0
 db-dtypes==1.0.5
 decorator==5.1.1
@@ -162,6 +162,7 @@ elasticsearch==7.13.4
 email-validator==1.3.1
 entrypoints==0.4
 eralchemy2==1.3.6
+et-xmlfile==1.1.0
 eventlet==0.33.3
 exceptiongroup==1.1.0
 execnet==1.9.0
@@ -206,7 +207,7 @@ google-cloud-dataform==0.2.0
 google-cloud-dataplex==1.1.0
 google-cloud-dataproc-metastore==1.6.0
 google-cloud-dataproc==5.0.0
-google-cloud-dlp==1.0.2
+google-cloud-dlp==3.7.1
 google-cloud-kms==2.12.0
 google-cloud-language==1.3.2
 google-cloud-logging==3.2.1
@@ -331,6 +332,7 @@ oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.3
 openapi-spec-validator==0.5.5
+openpyxl==3.1.1
 opsgenie-sdk==2.1.5
 oracledb==1.2.2
 orjson==3.8.6
@@ -365,7 +367,7 @@ pre-commit==2.21.0
 presto-python-client==0.8.3
 prison==0.2.1
 prometheus-client==0.16.0
-prompt-toolkit==3.0.36
+prompt-toolkit==3.0.37
 proto-plus==1.19.6
 protobuf==3.20.0
 psutil==5.9.4
@@ -443,7 +445,7 @@ rich-click==1.6.1
 rich==13.3.1
 rich_argparse==1.0.0
 rsa==4.9
-ruff==0.0.247
+ruff==0.0.250
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
@@ -510,27 +512,27 @@ traitlets==5.9.0
 trino==0.321.0
 twine==4.0.2
 typed-ast==1.5.4
-types-Deprecated==1.2.9
-types-Markdown==3.4.2.4
-types-PyMySQL==1.0.19.3
-types-PyYAML==6.0.12.7
-types-boto==2.49.18.5
+types-Deprecated==1.2.9.1
+types-Markdown==3.4.2.5
+types-PyMySQL==1.0.19.4
+types-PyYAML==6.0.12.8
+types-boto==2.49.18.6
 types-certifi==2021.10.8.3
-types-croniter==1.3.2.4
-types-docutils==0.19.1.4
-types-paramiko==3.0.0.3
-types-protobuf==4.21.0.6
-types-pyOpenSSL==23.0.0.3
-types-python-dateutil==2.8.19.7
-types-python-slugify==8.0.0.0
-types-pytz==2022.7.1.0
-types-redis==4.5.1.1
-types-requests==2.28.11.13
-types-setuptools==67.3.0.1
-types-tabulate==0.9.0.0
-types-termcolor==1.1.6
-types-toml==0.10.8.4
-types-urllib3==1.26.25.6
+types-croniter==1.3.2.5
+types-docutils==0.19.1.5
+types-paramiko==3.0.0.4
+types-protobuf==4.21.0.7
+types-pyOpenSSL==23.0.0.4
+types-python-dateutil==2.8.19.8
+types-python-slugify==8.0.0.1
+types-pytz==2022.7.1.1
+types-redis==4.5.1.2
+types-requests==2.28.11.14
+types-setuptools==67.3.0.2
+types-tabulate==0.9.0.1
+types-termcolor==1.1.6.1
+types-toml==0.10.8.5
+types-urllib3==1.26.25.7
 typing_extensions==4.4.0
 tzdata==2022.7
 tzlocal==4.2
@@ -551,7 +553,7 @@ websocket-client==1.5.1
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.29.0
-yandexcloud==0.198.0
+yandexcloud==0.199.0
 yarl==1.8.2
 zeep==4.2.1
 zenpy==2.0.25
@@ -559,4 +561,4 @@ zict==2.2.0
 zipp==3.14.0
 zope.event==4.6
 zope.interface==5.5.2
-zstandard==0.19.0
+zstandard==0.20.0
