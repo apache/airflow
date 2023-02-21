@@ -524,9 +524,6 @@ class DagFileProcessorManager(LoggingMixin):
             query = query.filter(DagModel.processor_subdir == dag_directory)
         dags_parsed = query.all()
 
-        processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
-
-
         for dag in dags_parsed:
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
