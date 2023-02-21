@@ -138,7 +138,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = False,
         max_attempt: int = 5,
-        poll_interval: int = 65,
+        poll_interval: int = 60,
         **kwargs,
     ):
         super().__init__(**kwargs)
