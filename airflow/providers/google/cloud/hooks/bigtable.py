@@ -27,7 +27,7 @@ from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
-from google.cloud.bigtable_admin_v2 import enums
+from google.cloud.bigtable import enums
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -113,10 +113,10 @@ class BigtableHook(GoogleBaseHook):
         project_id: str,
         replica_clusters: list[dict[str, str]] | None = None,
         instance_display_name: str | None = None,
-        instance_type: enums.Instance.Type = enums.Instance.Type.TYPE_UNSPECIFIED,
+        instance_type: enums.Instance.Type = enums.Instance.Type.UNSPECIFIED,
         instance_labels: dict | None = None,
         cluster_nodes: int | None = None,
-        cluster_storage_type: enums.StorageType = enums.StorageType.STORAGE_TYPE_UNSPECIFIED,
+        cluster_storage_type: enums.StorageType = enums.StorageType.UNSPECIFIED,
         timeout: float | None = None,
     ) -> Instance:
         """

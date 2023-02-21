@@ -23,7 +23,7 @@ import google.api_core.exceptions
 import pytest
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
-from google.cloud.bigtable_admin_v2 import enums
+from google.cloud.bigtable import enums
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.bigtable import (

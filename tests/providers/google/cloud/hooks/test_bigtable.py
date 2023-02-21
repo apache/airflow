@@ -23,7 +23,7 @@ from unittest.mock import PropertyMock
 import google
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
-from google.cloud.bigtable_admin_v2 import enums
+from google.cloud.bigtable import enums
 
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.common.consts import CLIENT_INFO
