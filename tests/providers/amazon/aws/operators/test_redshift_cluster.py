@@ -78,7 +78,7 @@ class TestRedshiftCreateClusterOperator:
         )
 
         mock_get_conn.return_value.get_waiter.return_value.wait.assert_called_once_with(
-            ClusterIdentifier="test-cluster", WaiterConfig={"Delay": 65, "MaxAttempts": 5}
+            ClusterIdentifier="test-cluster", WaiterConfig={"Delay": 60, "MaxAttempts": 5}
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
