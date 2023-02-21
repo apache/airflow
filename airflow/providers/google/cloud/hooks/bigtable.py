@@ -142,8 +142,6 @@ class BigtableHook(GoogleBaseHook):
         :param timeout: (optional) timeout (in seconds) for instance creation.
                         If None is not specified, Operator will wait indefinitely.
         """
-        cluster_storage_type = enums.StorageType(cluster_storage_type)
-        instance_type = enums.Instance.Type(instance_type)
 
         instance = Instance(
             instance_id,
@@ -200,7 +198,6 @@ class BigtableHook(GoogleBaseHook):
         :param timeout: (optional) timeout (in seconds) for instance update.
             If None is not specified, Operator will wait indefinitely.
         """
-        instance_type = enums.Instance.Type(instance_type)
 
         instance = Instance(
             instance_id=instance_id,
