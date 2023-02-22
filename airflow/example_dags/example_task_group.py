@@ -35,12 +35,13 @@ with DAG(
     start = EmptyOperator(task_id="start")
 
     # [START howto_task_group_section_1]
-    with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
-        task_1 = EmptyOperator(task_id="task_1")
-        task_2 = BashOperator(task_id="task_2", bash_command="echo 1")
-        task_3 = EmptyOperator(task_id="task_3")
+    for i in range(10):
+        with TaskGroup(f"section_a_{i}", tooltip=f"Tasks for section_{i}") as section_1:
+            task_1 = EmptyOperator(task_id="task_1")
+            task_2 = BashOperator(task_id="task_2", bash_command="echo 1")
+            task_3 = EmptyOperator(task_id="task_3")
 
-        task_1 >> [task_2, task_3]
+            task_1 >> [task_2, task_3]
     # [END howto_task_group_section_1]
 
     # [START howto_task_group_section_2]
