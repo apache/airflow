@@ -88,13 +88,19 @@ def get_variables(
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
+@provide_session
 @action_logging(
     event=action_event_from_permission(
         prefix=RESOURCE_EVENT_PREFIX,
         permission=permissions.ACTION_CAN_EDIT,
     ),
 )
-def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Response:
+def patch_variable(
+    *,
+    variable_key: str,
+    update_mask: UpdateMask = None,
+    session: Session = NEW_SESSION,
+) -> Response:
     """Update a variable by key."""
     try:
         data = variable_schema.load(get_json_request_dict())
@@ -103,15 +109,22 @@ def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Resp
 
     if data["key"] != variable_key:
         raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
-
+    non_update_fields = ["key"]
+    variable = session.query(Variable).filter_by(key=variable_key).first()
     if update_mask:
-        if "key" in update_mask:
-            raise BadRequest("key is a ready only field")
-        if "value" not in update_mask:
-            raise BadRequest("No field to update")
-
-    Variable.set(data["key"], data["val"])
-    return variable_schema.dump(data)
+        update_mask = [i.strip() for i in update_mask]
+        data_ = {}
+        for field in update_mask:
+            if field in data and field not in non_update_fields:
+                data_[field] = data[field]
+            else:
+                raise BadRequest(detail=f"'{field}' is unknown or cannot be updated.")
+        data = data_
+    for key in data:
+        setattr(variable, key, data[key])
+    session.add(variable)
+    session.commit()
+    return variable_schema.dump(variable)
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
