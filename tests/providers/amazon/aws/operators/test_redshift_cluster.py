@@ -57,6 +57,7 @@ class TestRedshiftCreateClusterOperator:
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
+            wait_for_completion=True,
         )
         redshift_operator.execute(None)
         params = {
@@ -74,6 +75,11 @@ class TestRedshiftCreateClusterOperator:
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
             **params,
+        )
+
+        # wait_for_completion is True so check waiter is called
+        mock_get_conn.return_value.get_waiter.return_value.wait.assert_called_once_with(
+            ClusterIdentifier="test-cluster", WaiterConfig={"Delay": 60, "MaxAttempts": 5}
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
@@ -105,6 +111,9 @@ class TestRedshiftCreateClusterOperator:
             MasterUserPassword="Test123$",
             **params,
         )
+
+        # wait_for_completion is False so check waiter is not called
+        mock_get_conn.return_value.get_waiter.assert_not_called()
 
 
 class TestRedshiftCreateClusterSnapshotOperator:
