@@ -128,10 +128,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         if logs:
             return "".join(f"*** {x}\n" for x in messages) + "\n".join(logs), {"end_of_log": True}
         else:
-            if metadata and "log_pos" in metadata and metadata["log_pos"] > 0:
-                log = ""
+            if metadata and metadata.get("log_pos", 0) > 0:
+                log_prefix = ""
             else:
-                log = "*** Falling back to local log\n"
+                log_prefix = "*** Falling back to local log\n"
             local_log, metadata = super()._read(ti, try_number, metadata)
             return log + local_log, metadata
 
