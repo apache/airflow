@@ -30,7 +30,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
-from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor, DbtCloudJobRunAsyncSensor
+from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, DbtCloudJobRunSensor
 from airflow.utils.edgemodifier import Label
 from tests.system.utils import get_test_env_id
 
@@ -79,8 +79,7 @@ with DAG(
 
     # [START howto_operator_dbt_cloud_run_job_async_sensor]
     job_run_async_sensor = DbtCloudJobRunAsyncSensor(
-        task_id="job_run_sensor", run_id=trigger_job_run2.output,
-        check_interval=10, timeout=20
+        task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=20
     )
     # [END howto_operator_dbt_cloud_run_job_async_sensor]
 
