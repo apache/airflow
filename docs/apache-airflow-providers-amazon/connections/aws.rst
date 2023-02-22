@@ -348,7 +348,7 @@ S3 Bucket configurations
 To use S3 bucket name per connection in :class:`~airflow.providers.amazon.aws.hooks.s3.S3Hook` methods,
 provide selected options in the connection's extra field.
 
-.. note:: The ``bucket_name`` parameter hook methods will override this connection setting.
+.. note:: The ``bucket_name`` parameter in hook methods will override this connection setting.
 
 .. code-block:: json
 
