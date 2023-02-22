@@ -146,6 +146,33 @@ class TestS3TaskHandler:
         assert actual == expected
         assert {"end_of_log": True, "log_pos": 0} == metadata[0]
 
+    def test_read_when_s3_log_missing_and_log_pos_missing_pre_26(self):
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        # mock that super class has no _read_remote_logs method
+        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.hasattr", return_value=False):
+            log, metadata = self.s3_task_handler.read(ti)
+        assert 1 == len(log)
+        assert log[0][0][-1].startswith("*** Falling back to local log")
+
+    def test_read_when_s3_log_missing_and_log_pos_zero_pre_26(self):
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        # mock that super class has no _read_remote_logs method
+        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.hasattr", return_value=False):
+            log, metadata = self.s3_task_handler.read(ti, metadata={"log_pos": 0})
+        assert 1 == len(log)
+        assert log[0][0][-1].startswith("*** Falling back to local log")
+
+    def test_read_when_s3_log_missing_and_log_pos_over_zero_pre_26(self):
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        # mock that super class has no _read_remote_logs method
+        with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.hasattr", return_value=False):
+            log, metadata = self.s3_task_handler.read(ti, metadata={"log_pos": 1})
+        assert 1 == len(log)
+        assert not log[0][0][-1].startswith("*** Falling back to local log")
+
     def test_s3_read_when_log_missing(self):
         handler = self.s3_task_handler
         url = "s3://bucket/foo"

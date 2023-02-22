@@ -128,8 +128,12 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         if logs:
             return "".join(f"*** {x}\n" for x in messages) + "\n".join(logs), {"end_of_log": True}
         else:
+            if metadata and "log_pos" in metadata and metadata["log_pos"] > 0:
+                log = ""
+            else:
+                log = "*** Falling back to local log\n"
             local_log, metadata = super()._read(ti, try_number, metadata)
-            return "*** Falling back to local log\n" + local_log, metadata
+            return log + local_log, metadata
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
         """
