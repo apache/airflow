@@ -38,9 +38,9 @@ You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
 XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a DAG run, while Variables are global and designed for overall configuration and value sharing.
 
-::
+.. note::
 
-  Note: If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
+  If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
 
 Custom XCom Backends
 --------------------
