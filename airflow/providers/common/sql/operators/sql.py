@@ -265,6 +265,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             return_last=self.return_last,
             **extra_kwargs,
         )
+        if not self.do_xcom_push:
+            return None
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
             # For simplicity, we pass always list as input to _process_output, regardless if
             # single query results are going to be returned, and we return the first element
