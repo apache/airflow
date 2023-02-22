@@ -159,7 +159,7 @@ class GoogleDriveHook(GoogleBaseHook):
             )
         )
 
-    def _get_file_path(self, file_id: str) -> str:
+    def _resolve_file_path(self, file_id: str) -> str:
         """
         Returns the full Google Drive path for given file_id
 
@@ -171,13 +171,13 @@ class GoogleDriveHook(GoogleBaseHook):
 
         service = self.get_conn()
         has_reached_root = False
-        id = file_id
-        path = ""
+        _file_id = file_id
+        path = None
         while not has_reached_root:
             file_info = (
                 service.files()
                 .get(
-                        fileId=id,
+                        fileId=_file_id,
                         fields="id,name,parents",
                         supportsAllDrives=True,
                 )
@@ -185,18 +185,14 @@ class GoogleDriveHook(GoogleBaseHook):
             )
             if "parents" in file_info:
                 parent_directories = file_info["parents"]
-                if path == "":
-                    path = f'{file_info["name"]}'
-                else:
-                    path = f'{file_info["name"]}/{path}'
+                path = f'{file_info["name"]}' if not path else f'{file_info["name"]}/{path}'
 
                 if len(parent_directories) > 1:
-                    self.log.warn("Google returned multiple parents, picking first")
-                id = parent_directories[0]
+                    self.log.warning("Google returned multiple parents, picking first")
+                _file_id = parent_directories[0]
             else:
                 has_reached_root = True
-                if "name" in file_info:
-                    path = f'/{file_info["name"]}/{path}'
+                path = f'{file_info["name"]}/{path}'
 
             if iteration >= MAX_NESTED_FOLDERS_LEVEL:
                 raise Exception(f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} times")
@@ -289,8 +285,8 @@ class GoogleDriveHook(GoogleBaseHook):
         )
         file_id = file.get("id")
 
-        upload_location = remote_location if folder_id == "root" else self._get_file_path(
-            file_id=folder_id) + remote_location
+        upload_location = \
+            ("" if folder_id == "root" else self._resolve_file_path(folder_id)) + remote_location
         self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
         return file_id
 
