@@ -36,8 +36,8 @@ in all templates
 =========================================== ===================== ===================================================================
 Variable                                    Type                  Description
 =========================================== ===================== ===================================================================
-``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.3.
-``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.3.
+``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.2.
+``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.2.
 ``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
                                                                   | Same as ``{{ dag_run.logical_date | ds }}``.
 ``{{ ds_nodash }}``                         str                   Same as ``{{ dag_run.logical_date | ds_nodash }}``.
