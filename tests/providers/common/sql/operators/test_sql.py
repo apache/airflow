@@ -95,7 +95,6 @@ class TestSQLExecuteQueryOperator:
         mock_process_output.assert_not_called()
 
 
-
 class TestColumnCheckOperator:
 
     valid_column_mapping = {
