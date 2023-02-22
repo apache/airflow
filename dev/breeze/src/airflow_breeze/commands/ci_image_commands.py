@@ -521,7 +521,7 @@ def run_build_ci_image(
                     )
                 else:
                     get_console().print(
-                        "[warning]Your image build failure. It could be caused by conflicting dependencies."
+                        "[warning]Your image build failed. It could be caused by conflicting dependencies."
                     )
                     get_console().print(
                         "[info]Run "
