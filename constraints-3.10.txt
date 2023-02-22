@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-22T17:23:46Z
+# This constraints file was automatically generated on 2023-02-22T21:52:06Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -178,9 +178,9 @@ bitarray==2.7.3
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.76
+boto3==1.26.77
 boto==2.49.0
-botocore==1.29.76
+botocore==1.29.77
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -238,7 +238,7 @@ exceptiongroup==1.1.0
 execnet==1.9.0
 executing==1.2.0
 facebook-business==16.0.0
-fastavro==1.7.1
+fastavro==1.7.2
 fasteners==0.18
 fastjsonschema==2.16.2
 filelock==3.9.0
@@ -361,7 +361,7 @@ ldap3==2.9.1
 linkify-it-py==2.0.0
 locket==1.0.0
 lockfile==0.12.2
-looker-sdk==22.20.0
+looker-sdk==23.0.0
 lxml==4.9.2
 lz4==4.3.2
 markdown-it-py==2.2.0
@@ -514,7 +514,7 @@ rich-click==1.6.1
 rich==13.3.1
 rich_argparse==1.0.0
 rsa==4.9
-ruff==0.0.251
+ruff==0.0.252
 s3transfer==0.6.0
 sarif-om==1.0.4
 sasl==0.3.1
