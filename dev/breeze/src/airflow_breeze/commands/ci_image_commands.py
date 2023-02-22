@@ -525,7 +525,7 @@ def run_build_ci_image(
                     )
                     get_console().print(
                         "[info]Run "
-                        "`breeze ci-image build --upgrade-to-newer-dependencies` to upgrade them.\n."
+                        "`breeze ci-image build --upgrade-to-newer-dependencies` to upgrade them.\n"
                     )
             if build_command_result.returncode == 0:
                 if ci_image_params.tag_as_latest:
