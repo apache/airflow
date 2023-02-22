@@ -138,6 +138,54 @@ class TestGlueJobHook:
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "get_conn")
+    def test_create_or_update_glue_job_create_new_job_without_s3_bucket(
+        self, mock_get_conn, mock_get_iam_execution_role
+    ):
+        """
+        Calls 'create_or_update_glue_job' with no existing job.
+        Should create a new job.
+        """
+
+        class JobNotFoundException(Exception):
+            pass
+
+        expected_job_name = "aws_test_glue_job"
+        job_description = "This is test case job from Airflow"
+        role_name = "my_test_role"
+        role_name_arn = "test_role"
+
+        mock_get_conn.return_value.exceptions.EntityNotFoundException = JobNotFoundException
+        mock_get_conn.return_value.get_job.side_effect = JobNotFoundException()
+        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": role_name_arn}}
+
+        hook = GlueJobHook(
+            job_name=expected_job_name,
+            desc=job_description,
+            concurrent_run_limit=2,
+            retry_limit=3,
+            num_of_dpus=5,
+            iam_role_name=role_name,
+            create_job_kwargs={"Command": {}},
+            region_name=self.some_aws_region,
+        )
+
+        result = hook.create_or_update_glue_job()
+
+        mock_get_conn.return_value.get_job.assert_called_once_with(JobName=expected_job_name)
+        mock_get_conn.return_value.create_job.assert_called_once_with(
+            Command={},
+            Description=job_description,
+            ExecutionProperty={"MaxConcurrentRuns": 2},
+            MaxCapacity=5,
+            MaxRetries=3,
+            Name=expected_job_name,
+            Role=role_name_arn,
+        )
+        mock_get_conn.return_value.update_job.assert_not_called()
+        assert result == expected_job_name
+
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "get_conn")
     def test_create_or_update_glue_job_update_existing_job(self, mock_get_conn, mock_get_iam_execution_role):
         """
         Calls 'create_or_update_glue_job' with a existing job.
