@@ -172,20 +172,20 @@ class GoogleDriveHook(GoogleBaseHook):
         service = self.get_conn()
         has_reached_root = False
         _file_id = file_id
-        path = None
+        path: str = ""
         while not has_reached_root:
             file_info = (
                 service.files()
                 .get(
-                        fileId=_file_id,
-                        fields="id,name,parents",
-                        supportsAllDrives=True,
+                    fileId=_file_id,
+                    fields="id,name,parents",
+                    supportsAllDrives=True,
                 )
                 .execute()
             )
             if "parents" in file_info:
                 parent_directories = file_info["parents"]
-                path = f'{file_info["name"]}' if not path else f'{file_info["name"]}/{path}'
+                path = f'{file_info["name"]}' if path == "" else f'{file_info["name"]}/{path}'
 
                 if len(parent_directories) > 1:
                     self.log.warning("Google returned multiple parents, picking first")
@@ -285,8 +285,9 @@ class GoogleDriveHook(GoogleBaseHook):
         )
         file_id = file.get("id")
 
-        upload_location = \
-            ("" if folder_id == "root" else self._resolve_file_path(folder_id)) + remote_location
+        upload_location = (
+            "" if folder_id == "root" else self._resolve_file_path(folder_id)
+        ) + remote_location
         self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
         return file_id
 
