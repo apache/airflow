@@ -36,9 +36,11 @@ log = logging.getLogger(__name__)
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.jobs.base_job import BaseJob
     from airflow.models.dag import DagModel
 
     functions: list[Callable] = [
+        BaseJob.heartbeat,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,

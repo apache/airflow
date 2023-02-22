@@ -24,6 +24,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -179,6 +180,7 @@ class BaseJob(Base, LoggingMixin):
     def heartbeat_callback(self, session=None) -> None:
         """Callback that is called during heartbeat. This method should be overwritten."""
 
+    @internal_api_call
     def heartbeat(self, only_if_necessary: bool = False):
         """
         Heartbeats update the job's entry in the database with a timestamp
