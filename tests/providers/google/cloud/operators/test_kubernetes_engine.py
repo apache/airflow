@@ -81,7 +81,9 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
 
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.create_cluster.assert_called_once_with(
-            cluster=body, project_id=TEST_GCP_PROJECT_ID
+            cluster=body,
+            project_id=TEST_GCP_PROJECT_ID,
+            wait_to_complete=True,
         )
 
     @parameterized.expand(
@@ -149,6 +151,21 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
             )
 
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook")
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKECreateClusterOperator.defer")
+    def test_create_execute_call_defer_method(self, mock_defer_method, mock_hook):
+        operator = GKECreateClusterOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            body=PROJECT_BODY_CREATE_DICT,
+            task_id=PROJECT_TASK_ID,
+            deferrable=True,
+        )
+
+        operator.execute(mock.MagicMock())
+
+        mock_defer_method.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook")
     def test_delete_execute(self, mock_hook):
         operator = GKEDeleteClusterOperator(
             project_id=TEST_GCP_PROJECT_ID,
@@ -159,7 +176,9 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.delete_cluster.assert_called_once_with(
-            name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID
+            name=CLUSTER_NAME,
+            project_id=TEST_GCP_PROJECT_ID,
+            wait_to_complete=True,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook")
@@ -180,6 +199,21 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
             GKEDeleteClusterOperator(
                 project_id=TEST_GCP_PROJECT_ID, name=CLUSTER_NAME, task_id=PROJECT_TASK_ID
             )
+
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook")
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator.defer")
+    def test_delete_execute_call_defer_method(self, mock_defer_method, mock_hook):
+        operator = GKEDeleteClusterOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            name=CLUSTER_NAME,
+            location=PROJECT_LOCATION,
+            task_id=PROJECT_TASK_ID,
+            deferrable=True,
+        )
+
+        operator.execute(None)
+
+        mock_defer_method.assert_called_once()
 
 
 class TestGKEPodOperator(unittest.TestCase):

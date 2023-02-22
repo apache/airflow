@@ -67,6 +67,7 @@ PRE_COMMIT_LIST = [
     "check-start-date-not-used-in-defaults",
     "check-system-tests-present",
     "check-system-tests-tocs",
+    "check-urlparse-usage-in-code",
     "check-xml",
     "codespell",
     "compile-www-assets",

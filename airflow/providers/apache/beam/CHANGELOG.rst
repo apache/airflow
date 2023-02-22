@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Get rid of state in Apache Beam provider hook (#29503)``
+
 4.2.0
 .....
 

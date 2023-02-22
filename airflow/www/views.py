@@ -566,9 +566,7 @@ def not_found(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
-            else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
             status_code=404,
             error_message="Page cannot be found.",
         ),
@@ -581,9 +579,7 @@ def method_not_allowed(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
-            else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
             status_code=405,
             error_message="Received an invalid request.",
         ),
@@ -599,10 +595,10 @@ def show_traceback(error):
             python_version=sys.version.split(" ")[0] if g.user.is_authenticated else "redact",
             airflow_version=version if g.user.is_authenticated else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True) and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and g.user.is_authenticated
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE", fallback=True) and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and g.user.is_authenticated
             else "Error! Please contact server admin.",
         ),
         500,
@@ -1527,7 +1523,15 @@ class Airflow(AirflowBaseView):
 
         ti = (
             session.query(models.TaskInstance)
-            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=execution_date, map_index=map_index)
+            .filter(
+                TaskInstance.task_id == task_id,
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date == execution_date,
+                TaskInstance.map_index == map_index,
+            )
+            .join(TaskInstance.dag_run)
+            .options(joinedload("trigger"))
+            .options(joinedload("trigger.triggerer_job"))
             .first()
         )
 
@@ -1848,7 +1852,9 @@ class Airflow(AirflowBaseView):
         dag_run_id = request.form.get("dag_run_id")
         map_index = request.args.get("map_index", -1, type=int)
         origin = get_safe_url(request.form.get("origin"))
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
+        if not dag:
+            return redirect_or_json(origin, "DAG not found", "error", 404)
         task = dag.get_task(task_id)
 
         ignore_all_deps = request.form.get("ignore_all_deps") == "true"
@@ -1860,9 +1866,10 @@ class Airflow(AirflowBaseView):
         if not executor.supports_ad_hoc_ti_run:
             msg = f"{executor.__class__.__name__} does not support ad hoc task runs"
             return redirect_or_json(origin, msg, "error", 400)
-
-        dag_run = dag.get_dagrun(run_id=dag_run_id)
-        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
+        dag_run = dag.get_dagrun(run_id=dag_run_id, session=session)
+        if not dag_run:
+            return redirect_or_json(origin, "DAG run not found", "error", 404)
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
         if not ti:
             msg = "Could not queue task instance for execution, task instance is missing"
             return redirect_or_json(origin, msg, "error", 400)
@@ -2866,7 +2873,7 @@ class Airflow(AirflowBaseView):
                         break
                     dates[dt.date()] += 1
             else:
-                prev_logical_date = datetime.min
+                prev_logical_date = DateTime.min
                 while True:
                     curr_info = dag.timetable.next_dagrun_info(
                         last_automated_data_interval=last_automated_data_interval,
@@ -3699,10 +3706,7 @@ class Airflow(AirflowBaseView):
                 )
                 .join(
                     DatasetEvent,
-                    and_(
-                        DatasetEvent.dataset_id == DatasetModel.id,
-                        DatasetEvent.timestamp > DatasetDagRunQueue.created_at,
-                    ),
+                    DatasetEvent.dataset_id == DatasetModel.id,
                     isouter=True,
                 )
                 .filter(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)

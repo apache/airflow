@@ -70,6 +70,7 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.settings import TIMEZONE
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -130,6 +131,7 @@ class TestTaskInstance:
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
         db.clear_db_datasets()
+        db.clear_db_xcom()
 
     def setup_method(self):
         self.clean_db()
@@ -2307,13 +2309,13 @@ class TestTaskInstance:
         )
         context = ti.get_template_context()
         with pytest.deprecated_call():
-            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=timezone.TIMEZONE)
+            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["next_ds"] == "2021-09-07"
         with pytest.deprecated_call():
             assert context["next_ds_nodash"] == "20210907"
         with pytest.deprecated_call():
-            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=timezone.TIMEZONE)
+            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["prev_ds"] is None, "Does not make sense for custom timetable"
         with pytest.deprecated_call():
@@ -2855,6 +2857,21 @@ class TestTaskInstance:
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
+
+    def test_clear_db_references(self, session, create_task_instance):
+        tables = [TaskFail, RenderedTaskInstanceFields, XCom]
+        ti = create_task_instance()
+        session.merge(ti)
+        session.commit()
+        for table in [TaskFail, RenderedTaskInstanceFields]:
+            session.add(table(ti))
+        XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
+        session.commit()
+        for table in tables:
+            assert session.query(table).count() == 1
+        ti.clear_db_references(session)
+        for table in tables:
+            assert session.query(table).count() == 0
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

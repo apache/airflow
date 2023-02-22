@@ -2884,6 +2884,14 @@
                     "type": "boolean",
                     "default": true
                 },
+                "ttlSecondsAfterFinished": {
+                    "description": "Limit the lifetime of the job object after it finished execution",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 300
+                },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
@@ -3083,6 +3091,14 @@
                     "description": "Specify if you want additional configured env vars applied to this job",
                     "type": "boolean",
                     "default": true
+                },
+                "ttlSecondsAfterFinished": {
+                    "description": "Limit the lifetime of the job object after it finished execution",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 300
                 }
             }
         },
@@ -5180,7 +5196,7 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         },
                         "password": {
                             "description": "Password for the custom user to create.",
@@ -5188,7 +5204,7 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         }
                     }
                 }
@@ -5226,7 +5242,7 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: dummy-name\n  labels:\n    tier: airflow\n    component: worker\n    release: {{ .Release.Name }}\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
+                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: placeholder-name\n  labels:\n    tier: airflow\n    component: worker\n    release: {{ .Release.Name }}\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
             ]
         },
         "dags": {
@@ -5474,6 +5490,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to logs PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",

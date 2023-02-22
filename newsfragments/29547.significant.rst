@@ -1,0 +1,3 @@
+Default for ``[webserver] expose_hostname`` changed to ``False``
+
+The default for ``[webserver] expose_hostname`` has been set to ``False``, instead of ``True``. This means administrators must opt-in to expose webserver hostnames to end users.

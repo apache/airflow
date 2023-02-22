@@ -56,16 +56,22 @@ class DependencyMixin:
         raise NotImplementedError()
 
     @abstractmethod
-    def set_upstream(self, other: DependencyMixin | Sequence[DependencyMixin]):
+    def set_upstream(
+        self, other: DependencyMixin | Sequence[DependencyMixin], edge_modifier: EdgeModifier | None = None
+    ):
         """Set a task or a task list to be directly upstream from the current task."""
         raise NotImplementedError()
 
     @abstractmethod
-    def set_downstream(self, other: DependencyMixin | Sequence[DependencyMixin]):
+    def set_downstream(
+        self, other: DependencyMixin | Sequence[DependencyMixin], edge_modifier: EdgeModifier | None = None
+    ):
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
-    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
+    def update_relative(
+        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+    ) -> None:
         """
         Update relationship information about another TaskMixin. Default is no-op.
         Override if necessary.
@@ -172,7 +178,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
         task_list: list[Operator] = []
         for task_object in task_or_task_list:
-            task_object.update_relative(self, not upstream)
+            task_object.update_relative(self, not upstream, edge_modifier=edge_modifier)
             relatives = task_object.leaves if upstream else task_object.roots
             for task in relatives:
                 if not isinstance(task, (BaseOperator, MappedOperator)):
