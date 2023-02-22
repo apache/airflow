@@ -1541,7 +1541,6 @@ class DAG(LoggingMixin):
                 hour=0, minute=0, second=0, microsecond=0
             )
 
-        print("=S=", start_date)
         query = self._get_task_instances(
             task_ids=None,
             start_date=start_date,
