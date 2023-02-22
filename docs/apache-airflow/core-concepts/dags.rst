@@ -258,7 +258,7 @@ Often, many Operators inside a DAG need the same set of default arguments (such 
         schedule="@daily",
         default_args={"retries": 2},
     ):
-        op = BashOperator(task_id="dummy", bash_command="Hello World!")
+        op = BashOperator(task_id="hello_world", bash_command="Hello World!")
         print(op.retries)  # 2
 
 

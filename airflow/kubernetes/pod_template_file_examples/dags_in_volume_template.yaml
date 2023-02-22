@@ -22,7 +22,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: dummy-name
+  name: placeholder-name
 spec:
   containers:
     - env:

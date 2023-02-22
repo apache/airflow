@@ -73,7 +73,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         super().__init__(
             namespace=namespace,
             name=kwargs.pop("name", f"k8s_airflow_pod_{uuid.uuid4().hex}"),
-            cmds=["dummy-command"],
+            cmds=["placeholder-command"],
             **kwargs,
         )
 

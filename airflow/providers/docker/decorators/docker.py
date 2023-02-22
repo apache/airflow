@@ -90,7 +90,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         expect_airflow: bool = True,
         **kwargs,
     ) -> None:
-        command = "dummy command"
+        command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
         self.pickling_library = dill if use_dill else pickle
