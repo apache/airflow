@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import random
 from unittest import mock
 
 import pytest
@@ -198,18 +197,17 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(
         SageMakerHook, "create_processing_job", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}}
     )
-    def test_execute_with_existing_job_random(self, mock_create_processing_job, _, mock_desc):
-        random.seed(0)  # make sure test is reproducible (used for alt job name generation)
+    def test_execute_with_existing_job_timestamp(self, mock_create_processing_job, _, mock_desc):
         mock_desc.side_effect = [None, ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
         )
-        sagemaker.action_if_job_exists = "random"
+        sagemaker.action_if_job_exists = "timestamp"
         sagemaker.execute(None)
 
         expected_config = CREATE_PROCESSING_PARAMS.copy()
         # Expect to see ProcessingJobName suffixed because we return one existing job
-        expected_config["ProcessingJobName"] = "job_name-906691059"
+        expected_config["ProcessingJobName"].startswith("job_name-")
         mock_create_processing_job.assert_called_once_with(
             expected_config,
             wait_for_completion=False,
