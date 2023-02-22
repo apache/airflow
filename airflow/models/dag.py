@@ -43,7 +43,6 @@ from typing import (
     Iterator,
     List,
     Sequence,
-    TypeVar,
     Union,
     cast,
     overload,
