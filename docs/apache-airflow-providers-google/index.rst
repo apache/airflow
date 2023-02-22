@@ -112,7 +112,7 @@ PIP package                              Version required
 ``google-cloud-aiplatform``              ``>=1.7.1,<2.0.0``
 ``google-cloud-automl``                  ``>=2.1.0``
 ``google-cloud-bigquery-datatransfer``   ``>=3.0.0``
-``google-cloud-bigtable``                ``>=1.0.0,<2.0.0``
+``google-cloud-bigtable``                ``>=2.0.0,<3.0.0``
 ``google-cloud-build``                   ``>=3.0.0``
 ``google-cloud-compute``                 ``>=0.1.0,<2.0.0``
 ``google-cloud-container``               ``>=2.2.0,<3.0.0``

@@ -22,8 +22,8 @@ import enum
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 import google.api_core.exceptions
+from google.cloud.bigtable import enums
 from google.cloud.bigtable.column_family import GarbageCollectionRule
-from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
