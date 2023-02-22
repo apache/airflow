@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
+from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -56,6 +57,7 @@ class LivyOperator(BaseOperator):
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
     :param retry_args: Arguments which define the retry behaviour.
+    :param deferrable: Run operator in the deferrable mode
             See Tenacity documentation at https://github.com/jd/tenacity
     """
 
@@ -87,6 +89,7 @@ class LivyOperator(BaseOperator):
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
+        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
 
@@ -120,6 +123,7 @@ class LivyOperator(BaseOperator):
         self._livy_hook: LivyHook | None = None
         self._batch_id: int | str
         self.retry_args = retry_args
+        self.deferrable = deferrable
 
     def get_hook(self) -> LivyHook:
         """
@@ -138,13 +142,27 @@ class LivyOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         self._batch_id = self.get_hook().post_batch(**self.spark_params)
+        self.log.info("Generated batch-id is %s", self._batch_id)
 
-        if self._polling_interval > 0:
-            self.poll_for_termination(self._batch_id)
+        # Wait for the job to complete
+        if not self.deferrable:
+            if self._polling_interval > 0:
+                self.poll_for_termination(self._batch_id)
+            context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(self._batch_id)["appId"])
+            return self._batch_id
 
-        context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(self._batch_id)["appId"])
-
-        return self._batch_id
+        self.defer(
+            timeout=self.execution_timeout,
+            trigger=LivyTrigger(
+                batch_id=self._batch_id,
+                spark_params=self.spark_params,
+                livy_conn_id=self._livy_conn_id,
+                polling_interval=self._polling_interval,
+                extra_options=self._extra_options,
+                extra_headers=self._extra_headers,
+            ),
+            method_name="execute_complete",
+        )
 
     def poll_for_termination(self, batch_id: int | str) -> None:
         """
@@ -170,3 +188,23 @@ class LivyOperator(BaseOperator):
         """Delete the current batch session."""
         if self._batch_id is not None:
             self.get_hook().delete_batch(self._batch_id)
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        # dump the logs from livy to worker through triggerer.
+        if event.get("log_lines", None) is not None:
+            for log_line in event["log_lines"]:
+                self.log.info(log_line)
+
+        if event["status"] == "error":
+            raise AirflowException(event["response"])
+        self.log.info(
+            "%s completed with response %s",
+            self.task_id,
+            event["response"],
+        )
+        return event["batch_id"]
