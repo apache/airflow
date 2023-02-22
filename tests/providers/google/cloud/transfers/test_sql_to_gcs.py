@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 import pandas as pd
+import pytest
 import unicodecsv as csv
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -44,6 +45,7 @@ CURSOR_DESCRIPTION = [
     ("column_c", "10", 0, 0, 0, 0, False),
 ]
 TMP_FILE_NAME = "temp-file"
+EMPTY_INPUT_DATA = []
 INPUT_DATA = [
     ["101", "school", "2015-01-01"],
     ["102", "business", "2017-05-24"],
@@ -520,3 +522,50 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
 
         concat_df = pd.concat(concat_dfs, ignore_index=True)
         assert concat_df.equals(OUTPUT_DF)
+
+    def test__write_local_data_files_csv_does_not_write_on_empty_rows(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="csv",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id="google_cloud_default",
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = EMPTY_INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        files = op._write_local_data_files(cursor)
+        # Raises StopIteration when next is called because generator returns no files
+        with pytest.raises(StopIteration):
+            next(files)["file_handle"]
+
+        assert len([f for f in files]) == 0
+
+    def test__write_local_data_files_csv_writes_empty_file_with_write_on_empty(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="csv",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id="google_cloud_default",
+            write_on_empty=True,
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = EMPTY_INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        files = op._write_local_data_files(cursor)
+        file = next(files)["file_handle"]
+        file.flush()
+
+        df = pd.read_csv(file.name)
+        assert len(df.index) == 0

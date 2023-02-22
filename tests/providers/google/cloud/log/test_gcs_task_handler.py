@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import logging
 import tempfile
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
+from pytest import param
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
@@ -59,15 +62,25 @@ class TestGCSTaskHandler:
         )
         yield self.gcs_task_handler
 
-    @mock.patch(
-        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
-        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
-    )
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
     @mock.patch("google.cloud.storage.Client")
-    def test_hook(self, mock_client, mock_creds):
-        return_value = self.gcs_task_handler.client
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id")
+    @pytest.mark.parametrize("conn_id", [param("", id="no-conn"), param("my_gcs_conn", id="with-conn")])
+    def test_client_conn_id_behavior(self, mock_get_cred, mock_client, mock_hook, conn_id):
+        """When remote log conn id configured, hook will be used"""
+        mock_hook.return_value.get_credentials_and_project_id.return_value = ("test_cred", "test_proj")
+        mock_get_cred.return_value = ("test_cred", "test_proj")
+        with conf_vars({("logging", "remote_log_conn_id"): conn_id}):
+            return_value = self.gcs_task_handler.client
+        if conn_id:
+            mock_hook.assert_called_once_with(gcp_conn_id="my_gcs_conn")
+            mock_get_cred.assert_not_called()
+        else:
+            mock_hook.assert_not_called()
+            mock_get_cred.assert_called()
+
         mock_client.assert_called_once_with(
-            client_info=mock.ANY, credentials="TEST_CREDENTIALS", project="TEST_PROJECT_ID"
+            client_info=mock.ANY, credentials="test_cred", project="test_proj"
         )
         assert mock_client.return_value == return_value
 
@@ -79,15 +92,18 @@ class TestGCSTaskHandler:
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
     def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
-
-        logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        logs, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-
-        assert "*** Reading remote log from gs://bucket/remote/log/location/1.log.\nCONTENT\n" == logs
-        assert {"end_of_log": True} == metadata
+        assert logs == "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT"
+        assert {"end_of_log": True, "log_pos": 7} == metadata
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -95,17 +111,25 @@ class TestGCSTaskHandler:
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_from_local(self, mock_blob, mock_client, mock_creds):
+    def test_should_read_from_local_on_logs_read_error(self, mock_blob, mock_client, mock_creds):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.side_effect = Exception("Failed to connect")
 
         self.gcs_task_handler.set_context(self.ti)
-        log, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
 
-        assert (
-            log == "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
-            f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
+        assert log == (
+            "*** Found remote logs:\n"
+            "***   * gs://bucket/remote/log/location/1.log\n"
+            "*** Unable to read remote log Failed to connect\n"
+            "*** Found local files:\n"
+            f"***   * {self.local_log_location}/1.log\n"
         )
-        assert metadata == {"end_of_log": False, "log_pos": 31 + len(self.local_log_location)}
+        assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
@@ -216,7 +240,8 @@ class TestGCSTaskHandler:
                 mock.call.from_string().download_as_bytes(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
-                    "*** Previous log discarded: Fail to download\n\nMESSAGE\n", content_type="text/plain"
+                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",  # noqa: E501
+                    content_type="text/plain",
                 ),
             ],
             any_order=False,

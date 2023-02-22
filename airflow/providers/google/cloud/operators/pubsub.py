@@ -24,6 +24,7 @@ This module contains Google PubSub operators.
 """
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -145,6 +146,10 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.topic = topic
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.labels = labels
         self.message_storage_policy = message_storage_policy
@@ -351,6 +356,10 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         self.ack_deadline_secs = ack_deadline_secs
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.push_config = push_config
         self.retain_acked_messages = retain_acked_messages
@@ -482,6 +491,10 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.topic = topic
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.retry = retry
         self.timeout = timeout
@@ -586,6 +599,10 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.subscription = subscription
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.retry = retry
         self.timeout = timeout
@@ -692,6 +709,10 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.topic = topic
         self.messages = messages
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -775,6 +796,10 @@ class PubSubPullOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.project_id = project_id
         self.subscription = subscription

@@ -24,6 +24,15 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix rendering parameters in PapermillOperator (#28979)``
+
 3.1.0
 .....
 

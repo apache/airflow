@@ -84,6 +84,7 @@ Dockerfile.ci @potiuk @ashb
 /docker_tests/ @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
+/dev/README_RELEASE_PROVIDER_PACKAGES  @eladkal
 /dev/README_RELEASE_*.md  @kaxil
 /dev/README.md  @kaxil
 /dev/PROJECT_GUIDELINES.md  @kaxil

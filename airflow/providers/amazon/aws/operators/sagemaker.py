@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
+from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -1090,11 +1091,10 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
 
     def execute(self, context: Context) -> str:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
-        tags_set = [{"Key": kvp[0], "Value": kvp[1]} for kvp in self.tags.items()]
         params = {
             "ExperimentName": self.name,
             "Description": self.description,
-            "Tags": tags_set,
+            "Tags": format_tags(self.tags),
         }
         ans = sagemaker_hook.conn.create_experiment(**trim_none_values(params))
         arn = ans["ExperimentArn"]

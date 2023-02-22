@@ -32,7 +32,7 @@
 
 /* global d3, document, moment, data $ */
 
-import tiTooltip from './task_instances';
+import tiTooltip, { taskQueuedStateTooltip } from './task_instances';
 import callModal from './callModal';
 
 const replacements = {
@@ -92,10 +92,15 @@ moment.fn.strftime = function (format) {
 
 d3.gantt = () => {
   const FIT_TIME_DOMAIN_MODE = 'fit';
-  const tip = d3.tip()
+  const executionTip = d3.tip()
     .attr('class', 'tooltip d3-tip')
     .offset([-10, 0])
     .html((d) => tiTooltip(d, null, { includeTryNumber: true }));
+
+  const queuedStateTip = d3.tip()
+    .attr('class', 'tooltip d3-tip')
+    .offset([-10, 0])
+    .html((d) => taskQueuedStateTooltip(d));
 
   let margin = {
     top: 20,
@@ -115,6 +120,7 @@ d3.gantt = () => {
   let tickFormat = '%H:%M';
 
   const keyFunction = (d) => d.start_date + d.task_id + d.end_date;
+  const filterTaskWithValidQueuedDttm = (tasks) => tasks.filter((d) => !!d.queued_dttm);
 
   let x = d3
     .time
@@ -130,6 +136,7 @@ d3.gantt = () => {
     .rangeRoundBands([0, height - margin.top - margin.bottom], 0.1);
 
   const rectTransform = (d) => `translate(${x(d.start_date.valueOf()) + yAxisLeftOffset},${y(d.task_id)})`;
+  const queuedRectTransform = (d) => `translate(${x(d.queued_dttm.valueOf()) + yAxisLeftOffset},${y(d.task_id)})`;
 
   // We can't use d3.time.format as that uses local time, so instead we use
   // moment as that handles our "global" timezone.
@@ -157,9 +164,17 @@ d3.gantt = () => {
         if (!(a.end_date instanceof moment)) {
           a.end_date = moment(a.end_date);
         }
+        if (a.queued_dttm && !(a.queued_dttm instanceof moment)) {
+          a.queued_dttm = moment(a.queued_dttm);
+        }
       });
       timeDomainEnd = moment.max(tasks.map((a) => a.end_date)).valueOf();
-      timeDomainStart = moment.min(tasks.map((a) => a.start_date)).valueOf();
+      timeDomainStart = moment.min(tasks.map((a) => {
+        if (a.queued_dttm) {
+          return moment.min([a.queued_dttm, a.start_date]);
+        }
+        return a.start_date;
+      })).valueOf();
     }
   };
 
@@ -198,11 +213,12 @@ d3.gantt = () => {
       .attr('height', height + margin.top + margin.bottom)
       .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
+    // Draw all task instances with their corresponding states as boxes in gantt chart.
     svg.selectAll('.chart')
       .data(tasks, keyFunction).enter()
       .append('rect')
-      .on('mouseover', tip.show)
-      .on('mouseout', tip.hide)
+      .on('mouseover', executionTip.show)
+      .on('mouseout', executionTip.hide)
       .on('click', (d) => {
         callModal({
           taskId: d.task_id,
@@ -212,11 +228,23 @@ d3.gantt = () => {
           mapIndex: d.map_index,
         });
       })
-      .attr('class', (d) => d.state || 'null')
+      .attr('class', (d) => `${d.state || 'null'} all-tasks`)
       .attr('y', 0)
       .attr('transform', rectTransform)
       .attr('height', () => y.rangeBand())
       .attr('width', (d) => d3.max([x(d.end_date.valueOf()) - x(d.start_date.valueOf()), 1]));
+
+    // Draw queued states of task instances with valid queued date time as boxes in gantt chart.
+    svg.selectAll('.chart')
+      .data(filterTaskWithValidQueuedDttm(tasks), keyFunction).enter()
+      .append('rect')
+      .on('mouseover', queuedStateTip.show)
+      .on('mouseout', queuedStateTip.hide)
+      .attr('class', 'queued tasks-with-queued-dttm')
+      .attr('y', 0)
+      .attr('transform', queuedRectTransform)
+      .attr('height', () => y.rangeBand())
+      .attr('width', (d) => d3.max([x(d.start_date.valueOf()) - x(d.queued_dttm.valueOf()), 1]));
 
     svg.append('g')
       .attr('class', 'x axis')
@@ -226,7 +254,8 @@ d3.gantt = () => {
 
     svg.append('g').attr('class', 'y axis').transition().attr('transform', `translate(${yAxisLeftOffset}, 0)`)
       .call(yAxis);
-    svg.call(tip);
+    svg.call(executionTip);
+    svg.call(queuedStateTip);
 
     return gantt;
   }
@@ -238,8 +267,8 @@ d3.gantt = () => {
     const svg = d3.select('.chart');
 
     const ganttChartGroup = svg.select('.gantt-chart');
-    const rect = ganttChartGroup.selectAll('rect').data(tasks, keyFunction);
-
+    const rect = ganttChartGroup.selectAll('.all-tasks').data(tasks, keyFunction);
+    // Redraw all task instances with their corresponding states as boxes in gantt chart.
     rect.enter()
       .insert('rect', ':first-child')
       .attr('rx', 5)
@@ -251,7 +280,21 @@ d3.gantt = () => {
       .attr('height', () => y.rangeBand())
       .attr('width', (d) => d3.max([x(d.end_date.valueOf()) - x(d.start_date.valueOf()), 1]));
 
+    const queuedStateRect = ganttChartGroup.selectAll('.tasks-with-queued-dttm').data(filterTaskWithValidQueuedDttm(tasks), keyFunction);
+    // Redraw queued states of task instances with valid queued date time as boxes in gantt chart.
+    queuedStateRect.enter()
+      .insert('rect', ':first-child')
+      .attr('rx', 5)
+      .attr('ry', 5)
+      .attr('class', 'queued')
+      .transition()
+      .attr('y', 0)
+      .attr('transform', queuedRectTransform)
+      .attr('height', () => y.rangeBand())
+      .attr('width', (d) => d3.max([x(d.start_date.valueOf()) - x(d.queued_dttm.valueOf()), 1]));
+
     rect.exit().remove();
+    queuedStateRect.exit().remove();
 
     svg.select('.x').transition().call(xAxis);
     svg.select('.y').transition().call(yAxis);

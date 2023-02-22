@@ -18,6 +18,7 @@
 """This module contains a Google PubSub sensor."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
@@ -107,6 +108,10 @@ class PubSubPullSensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.project_id = project_id
         self.subscription = subscription

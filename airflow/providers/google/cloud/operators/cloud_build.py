@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import unquote, urlsplit
@@ -189,6 +190,10 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.poll_interval = poll_interval
         self.deferrable = deferrable

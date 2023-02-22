@@ -26,22 +26,24 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import (  # isort: skip # noqa: E402
+    AIRFLOW_BREEZE_SOURCES_PATH,
+    AIRFLOW_SOURCES_ROOT_PATH,
+    insert_documentation,
+)
+from common_precommit_black_utils import black_format  # isort: skip # noqa E402
 
 from collections import defaultdict  # noqa: E402
-from functools import lru_cache  # noqa: E402
 from typing import Any  # noqa: E402
 
 import yaml  # noqa: E402
-from common_precommit_utils import insert_documentation  # noqa: E402
 from rich.console import Console  # noqa: E402
 from tabulate import tabulate  # noqa: E402
 
 console = Console(width=400, color_system="standard")
 
-AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
-AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_PATH / "dev" / "breeze"
 PRE_COMMIT_IDS_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "pre_commit_ids.py"
-PRE_COMMIT_YAML_FILE = AIRFLOW_SOURCES_PATH / ".pre-commit-config.yaml"
+PRE_COMMIT_YAML_FILE = AIRFLOW_SOURCES_ROOT_PATH / ".pre-commit-config.yaml"
 
 
 def get_errors_and_hooks(content: Any, max_length: int) -> tuple[list[str], dict[str, list[str]], list[str]]:
@@ -73,6 +75,22 @@ def get_errors_and_hooks(content: Any, max_length: int) -> tuple[list[str], dict
             if needs_image:
                 image_hooks.append(hook_id)
     return errors, hooks, image_hooks
+
+
+def prepare_pre_commit_ids_py_file(pre_commit_ids):
+    PRE_COMMIT_IDS_PATH.write_text(
+        black_format(
+            content=render_template(
+                searchpath=AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze",
+                template_name="pre_commit_ids",
+                context={"PRE_COMMIT_IDS": pre_commit_ids},
+                extension=".py",
+                autoescape=False,
+                keep_trailing_newline=True,
+            ),
+            is_pyi=False,
+        )
+    )
 
 
 def render_template(
@@ -107,46 +125,6 @@ def render_template(
     return content
 
 
-@lru_cache(maxsize=None)
-def black_mode():
-    from black import Mode, parse_pyproject_toml, target_version_option_callback
-
-    config = parse_pyproject_toml(AIRFLOW_BREEZE_SOURCES_PATH / "pyproject.toml")
-
-    target_versions = set(
-        target_version_option_callback(None, None, tuple(config.get("target_version", ()))),
-    )
-
-    return Mode(
-        target_versions=target_versions,
-        line_length=config.get("line_length", Mode.line_length),
-        is_pyi=config.get("is_pyi", False),
-        string_normalization=not config.get("skip_string_normalization", False),
-        preview=config.get("preview", False),
-    )
-
-
-def black_format(content) -> str:
-    from black import format_str
-
-    return format_str(content, mode=black_mode())
-
-
-def prepare_pre_commit_ids_py_file(pre_commit_ids):
-    PRE_COMMIT_IDS_PATH.write_text(
-        black_format(
-            render_template(
-                searchpath=AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze",
-                template_name="pre_commit_ids",
-                context={"PRE_COMMIT_IDS": pre_commit_ids},
-                extension=".py",
-                autoescape=False,
-                keep_trailing_newline=True,
-            )
-        )
-    )
-
-
 def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[str]):
     rows = []
     hook_ids = list(hooks.keys())
@@ -159,7 +137,7 @@ def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[st
         rows.append((hook_id, formatted_hook_description, " * " if hook_id in image_hooks else "  "))
     formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("ID", "Description", "Image")) + "\n\n"
     insert_documentation(
-        file_path=AIRFLOW_SOURCES_PATH / "STATIC_CODE_CHECKS.rst",
+        file_path=AIRFLOW_SOURCES_ROOT_PATH / "STATIC_CODE_CHECKS.rst",
         content=formatted_table.splitlines(keepends=True),
         header="  .. BEGIN AUTO-GENERATED STATIC CHECK LIST",
         footer="  .. END AUTO-GENERATED STATIC CHECK LIST",

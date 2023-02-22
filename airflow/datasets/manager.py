@@ -25,6 +25,7 @@ from sqlalchemy.orm.session import Session
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -66,6 +67,7 @@ class DatasetManager(LoggingMixin):
             )
         )
         session.flush()
+        Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()

@@ -143,12 +143,13 @@ class MySqlToHiveOperator(BaseOperator):
                 encoding="utf-8",
             )
             field_dict = OrderedDict()
-            for field in cursor.description:
-                field_dict[field[0]] = self.type_map(field[1])
+            if cursor.description is not None:
+                for field in cursor.description:
+                    field_dict[field[0]] = self.type_map(field[1])
             csv_writer.writerows(cursor)
             f.flush()
             cursor.close()
-            conn.close()
+            conn.close()  # type: ignore[misc]
             self.log.info("Loading file into Hive")
             hive.load_file(
                 f.name,

@@ -131,8 +131,6 @@ so coding will always be required.
     :caption: Content
 
     Overview <self>
-    project
-    license
     start
     installation/index
     tutorial/index
@@ -148,6 +146,8 @@ so coding will always be required.
     Release Policies <release-process>
     release_notes
     privacy_notice
+    project
+    license
 
 .. toctree::
     :hidden:

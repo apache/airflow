@@ -125,7 +125,7 @@ how this DAG had to be written before Airflow 2.0 below:
     :start-after: [START tutorial]
     :end-before: [END tutorial]
 
-All of the processing shown above is being done in the new Airflow 2.0 dag as well, but
+All of the processing shown above is being done in the new Airflow 2.0 DAG as well, but
 it is all abstracted from the DAG developer.
 
 Let's examine this in detail by looking at the Transform task in isolation since it is
