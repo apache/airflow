@@ -100,14 +100,16 @@ class DagWarning(Base):
         :param filepath: Path of the file for which to remove records
         :param session: SQLAlchemy session
         """
-        log.debug("Removing DagWarnings where filepath = %s.", filepath)
+        log.debug("Removing DagWarning(s) where filepath = %s.", filepath)
 
         from airflow.models.dag import DagModel
 
-        session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.fileloc == filepath).delete(
-            synchronize_session=False
-        )
-        session.commit()
+        if filepath.endswith(".zip"):
+            dagwarning_filter = DagModel.fileloc.startswith(filepath)
+        else:
+            dagwarning_filter = DagModel.fileloc == filepath
+
+        session.query(cls).filter(dagwarning_filter).delete(synchronize_session="fetch")
 
 
 class DagWarningType(str, Enum):
