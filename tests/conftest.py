@@ -43,7 +43,7 @@ from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
 from tests.test_utils.db import clear_all  # noqa: E402
 
-from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
+from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa: E402  # isort: skip
     count_queries,
     trace_queries,
 )
@@ -278,6 +278,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
+    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+
+
+def pytest_unconfigure(config):
+    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):

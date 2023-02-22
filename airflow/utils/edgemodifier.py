@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
-from airflow.models.taskmixin import DependencyMixin
-
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.utils.task_group import TaskGroup
 
 
 class EdgeModifier(DependencyMixin):
@@ -44,8 +42,8 @@ class EdgeModifier(DependencyMixin):
 
     def __init__(self, label: str | None = None):
         self.label = label
-        self._upstream: list[BaseOperator] = []
-        self._downstream: list[BaseOperator] = []
+        self._upstream: list[DependencyMixin] = []
+        self._downstream: list[DependencyMixin] = []
 
     @property
     def roots(self):
@@ -55,8 +53,72 @@ class EdgeModifier(DependencyMixin):
     def leaves(self):
         return self._upstream
 
+    @staticmethod
+    def _make_list(item_or_list: DependencyMixin | Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
+        if not isinstance(item_or_list, Sequence):
+            return [item_or_list]
+        return item_or_list
+
+    def _save_nodes(
+        self,
+        nodes: DependencyMixin | Sequence[DependencyMixin],
+        stream: list[DependencyMixin],
+    ):
+        from airflow.models.xcom_arg import XComArg
+
+        for node in self._make_list(nodes):
+            if isinstance(node, (TaskGroup, XComArg, DAGNode)):
+                stream.append(node)
+            else:
+                raise TypeError(
+                    f"Cannot use edge labels with {type(node).__name__}, "
+                    f"only tasks, XComArg or TaskGroups"
+                )
+
+    def _convert_streams_to_task_groups(self):
+        """
+        Both self._upstream and self._downstream are required to determine if
+        we should convert a node to a TaskGroup or leave it as a DAGNode.
+
+        To do this, we keep a set of group_ids seen among the streams. If we find that
+        the nodes are from the same TaskGroup, we will leave them as DAGNodes and not
+        convert them to TaskGroups
+        """
+        from airflow.models.xcom_arg import XComArg
+
+        group_ids = set()
+        for node in [*self._upstream, *self._downstream]:
+            if isinstance(node, DAGNode) and node.task_group:
+                if node.task_group.is_root:
+                    group_ids.add("root")
+                else:
+                    group_ids.add(node.task_group.group_id)
+            elif isinstance(node, TaskGroup):
+                group_ids.add(node.group_id)
+            elif isinstance(node, XComArg):
+                if isinstance(node.operator, DAGNode) and node.operator.task_group:
+                    if node.operator.task_group.is_root:
+                        group_ids.add("root")
+                    else:
+                        group_ids.add(node.operator.task_group.group_id)
+
+        # If all nodes originate from the same TaskGroup, we will not convert them
+        if len(group_ids) != 1:
+            self._upstream = self._convert_stream_to_task_groups(self._upstream)
+            self._downstream = self._convert_stream_to_task_groups(self._downstream)
+
+    def _convert_stream_to_task_groups(self, stream: Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
+        return [
+            node.task_group
+            if isinstance(node, DAGNode) and node.task_group and not node.task_group.is_root
+            else node
+            for node in stream
+        ]
+
     def set_upstream(
-        self, task_or_task_list: DependencyMixin | Sequence[DependencyMixin], chain: bool = True
+        self,
+        other: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ):
         """
         Sets the given task/list onto the upstream attribute, and then checks if
@@ -64,30 +126,17 @@ class EdgeModifier(DependencyMixin):
 
         Providing this also provides << via DependencyMixin.
         """
-        from airflow.models.baseoperator import BaseOperator
-
-        # Ensure we have a list, even if it's just one item
-        if isinstance(task_or_task_list, DependencyMixin):
-            task_or_task_list = [task_or_task_list]
-        # Unfurl it into actual operators
-        operators: list[BaseOperator] = []
-        for task in task_or_task_list:
-            for root in task.roots:
-                if not isinstance(root, BaseOperator):
-                    raise TypeError(f"Cannot use edge labels with {type(root).__name__}, only operators")
-                operators.append(root)
-        # For each already-declared downstream, pair off with each new upstream
-        # item and store the edge info.
-        for operator in operators:
-            for downstream in self._downstream:
-                self.add_edge_info(operator.dag, operator.task_id, downstream.task_id)
-                if chain:
-                    operator.set_downstream(downstream)
-        # Add the new tasks to our list of ones we've seen
-        self._upstream.extend(operators)
+        self._save_nodes(other, self._upstream)
+        if self._upstream and self._downstream:
+            # Convert _upstream and _downstream to task_groups only after both are set
+            self._convert_streams_to_task_groups()
+        for node in self._downstream:
+            node.set_upstream(other, edge_modifier=self)
 
     def set_downstream(
-        self, task_or_task_list: DependencyMixin | Sequence[DependencyMixin], chain: bool = True
+        self,
+        other: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ):
         """
         Sets the given task/list onto the downstream attribute, and then checks if
@@ -95,36 +144,24 @@ class EdgeModifier(DependencyMixin):
 
         Providing this also provides >> via DependencyMixin.
         """
-        from airflow.models.baseoperator import BaseOperator
+        self._save_nodes(other, self._downstream)
+        if self._upstream and self._downstream:
+            # Convert _upstream and _downstream to task_groups only after both are set
+            self._convert_streams_to_task_groups()
+        for node in self._upstream:
+            node.set_downstream(other, edge_modifier=self)
 
-        # Ensure we have a list, even if it's just one item
-        if isinstance(task_or_task_list, DependencyMixin):
-            task_or_task_list = [task_or_task_list]
-        # Unfurl it into actual operators
-        operators: list[BaseOperator] = []
-        for task in task_or_task_list:
-            for leaf in task.leaves:
-                if not isinstance(leaf, BaseOperator):
-                    raise TypeError(f"Cannot use edge labels with {type(leaf).__name__}, only operators")
-                operators.append(leaf)
-        # Pair them off with existing
-        for operator in operators:
-            for upstream in self._upstream:
-                self.add_edge_info(upstream.dag, upstream.task_id, operator.task_id)
-                if chain:
-                    upstream.set_downstream(operator)
-        # Add the new tasks to our list of ones we've seen
-        self._downstream.extend(operators)
-
-    def update_relative(self, other: DependencyMixin, upstream: bool = True) -> None:
+    def update_relative(
+        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+    ) -> None:
         """
         Called if we're not the "main" side of a relationship; we still run the
         same logic, though.
         """
         if upstream:
-            self.set_upstream(other, chain=False)
+            self.set_upstream(other)
         else:
-            self.set_downstream(other, chain=False)
+            self.set_downstream(other)
 
     def add_edge_info(self, dag, upstream_id: str, downstream_id: str):
         """

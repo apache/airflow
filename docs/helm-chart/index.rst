@@ -122,10 +122,10 @@ The command removes all the Kubernetes components associated with the chart and 
 .. note::
   Some kubernetes resources created by the chart `helm hooks <https://helm.sh/docs/topics/charts_hooks/#hook-resources-are-not-managed-with-corresponding-releases>`__ might be left in the namespace after executing ``helm uninstall``, for example, ``brokerUrlSecret`` or ``fernetKeySecret``.
 
-Installing the Chart with Argo CD, Flux or Terraform
------------------------------------------------------
+Installing the Chart with Argo CD, Flux, Rancher or Terraform
+-------------------------------------------------------------
 
-When installing the chart using Argo CD, Flux, or Terraform, you MUST set the four following values, or your application
+When installing the chart using Argo CD, Flux, Rancher or Terraform, you MUST set the four following values, or your application
 will not start as the migrations will not be run:
 
 .. code-block:: yaml

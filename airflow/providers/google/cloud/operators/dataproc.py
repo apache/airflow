@@ -55,6 +55,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocClusterTrigger,
     DataprocDeleteClusterTrigger,
     DataprocSubmitTrigger,
+    DataprocWorkflowTrigger,
 )
 from airflow.utils import timezone
 
@@ -876,12 +877,10 @@ class DataprocDeleteClusterOperator(BaseOperator):
                     project_id=self.project_id,
                     region=self.region,
                     cluster_name=self.cluster_name,
-                    request_id=self.request_id,
-                    retry=self.retry,
                     end_time=end_time,
                     metadata=self.metadata,
                     impersonation_chain=self.impersonation_chain,
-                    polling_interval=self.polling_interval_seconds,
+                    polling_interval_seconds=self.polling_interval_seconds,
                 ),
                 method_name="execute_complete",
             )
@@ -1688,7 +1687,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
 
     .. seealso::
         Please refer to:
-        https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiate
+        https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.workflowTemplates/instantiate
 
     :param template_id: The id of the template. (templated)
     :param project_id: The ID of the google cloud project in which
@@ -1717,6 +1716,8 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param polling_interval_seconds: Time (seconds) to wait between calls to check the run status.
     """
 
     template_fields: Sequence[str] = ("template_id", "impersonation_chain", "request_id", "parameters")
@@ -1737,10 +1738,13 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
+        polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.template_id = template_id
         self.parameters = parameters
         self.version = version
@@ -1752,6 +1756,8 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.request_id = request_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -1772,8 +1778,34 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
             context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=self.workflow_id
         )
         self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
-        operation.result()
-        self.log.info("Workflow %s completed successfully", self.workflow_id)
+        if not self.deferrable:
+            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
+            self.log.info("Workflow %s completed successfully", self.workflow_id)
+        else:
+            self.defer(
+                trigger=DataprocWorkflowTrigger(
+                    template_name=self.template_id,
+                    name=operation.operation.name,
+                    project_id=self.project_id,
+                    region=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "failed" or event["status"] == "error":
+            self.log.exception("Unexpected error in the operation.")
+            raise AirflowException(event["message"])
+
+        self.log.info("Workflow %s completed successfully", event["operation_name"])
 
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
@@ -2233,7 +2265,15 @@ class DataprocCreateBatchOperator(BaseOperator):
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        self.log.info("Creating batch")
+        # batch_id might not be set and will be generated
+        if self.batch_id:
+            link = DATAPROC_BATCH_LINK.format(
+                region=self.region, project_id=self.project_id, resource=self.batch_id
+            )
+            self.log.info("Creating batch %s", self.batch_id)
+            self.log.info("Once started, the batch job will be available at %s", link)
+        else:
+            self.log.info("Starting batch job. The batch ID will be generated since it was not provided.")
         if self.region is None:
             raise AirflowException("Region should be set here")
         try:
@@ -2275,32 +2315,37 @@ class DataprocCreateBatchOperator(BaseOperator):
 
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
-            if self.batch_id is None:
-                raise AirflowException("Batch Id should be set here")
-            result = hook.get_batch(
-                batch_id=self.batch_id,
-                region=self.region,
-                project_id=self.project_id,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
-            # The existing batch may be a number of states other than 'SUCCEEDED'
-            if result.state != Batch.State.SUCCEEDED:
-                if result.state == Batch.State.FAILED or result.state == Batch.State.CANCELLED:
-                    raise AirflowException(
-                        f"Existing Batch {self.batch_id} failed or cancelled. "
-                        f"Error: {result.state_message}"
-                    )
-                else:
-                    # Batch state is either: RUNNING, PENDING, CANCELLING, or UNSPECIFIED
-                    self.log.info(
-                        f"Batch {self.batch_id} is in state {result.state.name}."
-                        "Waiting for state change..."
-                    )
-                    result = hook.wait_for_operation(timeout=self.timeout, operation=result)
+            # This is only likely to happen if batch_id was provided
+            # Could be running if Airflow was restarted after task started
+            # poll until a final state is reached
+            if self.batch_id:
+                self.log.info("Attaching to the job (%s) if it is still running.", self.batch_id)
+                result = hook.wait_for_batch(
+                    batch_id=self.batch_id,
+                    region=self.region,
+                    project_id=self.project_id,
+                    retry=self.retry,
+                    timeout=self.timeout,
+                    metadata=self.metadata,
+                    wait_check_interval=self.polling_interval_seconds,
+                )
+        # It is possible we don't have a result in the case where batch_id was not provide, one was generated
+        # by chance, AlreadyExists was caught, but we can't reattach because we don't have the generated id
+        if result is None:
+            raise AirflowException("The job could not be reattached because the id was generated.")
 
+        # The existing batch may be a number of states other than 'SUCCEEDED'\
+        # wait_for_operation doesn't fail if the job is cancelled, so we will check for it here which also
+        # finds a cancelling|canceled|unspecified job from wait_for_batch
         batch_id = self.batch_id or result.name.split("/")[-1]
+        link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, resource=batch_id)
+        if result.state == Batch.State.FAILED:
+            raise AirflowException(f"Batch job {batch_id} failed.  Driver Logs: {link}")
+        if result.state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
+            raise AirflowException(f"Batch job {batch_id} was cancelled. Driver logs: {link}")
+        if result.state == Batch.State.STATE_UNSPECIFIED:
+            raise AirflowException(f"Batch job {batch_id} unspecified. Driver logs: {link}")
+        self.log.info("Batch job %s completed. Driver logs: %s", batch_id, link)
         DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id)
         return Batch.to_dict(result)
 

@@ -1,7 +1,7 @@
 ---
 name: Airflow feature request
 description: Suggest an idea for this project
-labels: ["kind:feature"]
+labels: ["kind:feature", "needs-triage"]
 body:
   - type: markdown
     attributes:
