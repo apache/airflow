@@ -232,7 +232,7 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
         return
 
-    with open(path.join(ROOT_APP_DIR, "api_internal", "openapi", "internal_api_v1.yml")) as f:
+    with open(path.join(ROOT_APP_DIR, "api_internal", "openapi", "internal_api_v1.yaml")) as f:
         specification = safe_load(f)
     api_bp = FlaskApi(
         specification=specification,
