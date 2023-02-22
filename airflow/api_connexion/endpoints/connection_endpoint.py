@@ -178,16 +178,16 @@ def test_connection() -> APIResponse:
     """
     Test an API connection.
 
-    This method first creates an in-memory dummy conn_id & exports that to an
+    This method first creates an in-memory transient conn_id & exports that to an
     env var, as some hook classes tries to find out the conn from their __init__ method & errors out
     if not found. It also deletes the conn id env variable after the test.
     """
     body = request.json
-    dummy_conn_id = get_random_string()
-    conn_env_var = f"{CONN_ENV_PREFIX}{dummy_conn_id.upper()}"
+    transient_conn_id = get_random_string()
+    conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
     try:
         data = connection_schema.load(body)
-        data["conn_id"] = dummy_conn_id
+        data["conn_id"] = transient_conn_id
         conn = Connection(**data)
         os.environ[conn_env_var] = conn.get_uri()
         status, message = conn.test_connection()
