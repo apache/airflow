@@ -159,7 +159,8 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-        :param location: The location of the project.
+        :param location: Optional, The location of the project.
+            If set to None or missing, global is used.
         """
         client = self.get_conn()
 
