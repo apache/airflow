@@ -112,8 +112,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-_T = TypeVar("_T")
-
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
 ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
 
