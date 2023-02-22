@@ -73,7 +73,7 @@ class TestSageMakerBaseOperator:
         name = self.sagemaker._get_unique_job_name("test", False, describe_mock)
 
         assert describe_mock.call_count == 3
-        assert re.match("test-[0-9]+", name)
+        assert re.match("test-[0-9]+$", name)
 
     def test_job_not_unique_with_fail(self):
         with pytest.raises(AirflowException):

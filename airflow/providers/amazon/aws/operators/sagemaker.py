@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-import random
+import time
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
@@ -127,7 +127,7 @@ class SageMakerBaseOperator(BaseOperator):
             if fail_if_exists:
                 raise AirflowException(f"A SageMaker job with name {job_name} already exists.")
             else:
-                job_name = f"{proposed_name}-{random.randint(0, 999999999):09}"
+                job_name = f"{proposed_name}-{time.time_ns()//1000000}"
                 self.log.info("Changed job name to '%s' to avoid collision.", job_name)
         return job_name
 
