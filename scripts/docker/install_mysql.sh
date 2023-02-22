@@ -26,7 +26,7 @@ readonly MARIADB_VERSION
 COLOR_BLUE=$'\e[34m'
 readonly COLOR_BLUE
 COLOR_YELLOW=$'\e[1;33m'
-readonly COLOR_BLUE
+readonly COLOR_YELLOW
 COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
