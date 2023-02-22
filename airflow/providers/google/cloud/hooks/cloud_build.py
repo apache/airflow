@@ -145,6 +145,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str | None = None,
     ) -> tuple[Operation, str]:
         """
         Starts a build with the specified configuration without waiting for it to finish.
@@ -158,13 +159,16 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
+        :param location: The location of the project.
         """
         client = self.get_conn()
+
+        parent = f"projects/{project_id}/locations/{location}" if location is not None else None
 
         self.log.info("Start creating build...")
 
         operation = client.create_build(
-            request={"project_id": project_id, "build": build},
+            request={"parent": parent, "project_id": project_id, "build": build},
             retry=retry,
             timeout=timeout,
             metadata=metadata,

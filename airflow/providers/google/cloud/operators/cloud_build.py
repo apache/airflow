@@ -158,6 +158,8 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
     :param deferrable: Run operator in the deferrable mode
+    :param location: Optional, The location of the project.
+        If set to None or missing, global is used.
     """
 
     template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
@@ -177,6 +179,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         delegate_to: str | None = None,
         poll_interval: float = 4.0,
         deferrable: bool = False,
+        location: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -197,6 +200,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         self.delegate_to = delegate_to
         self.poll_interval = poll_interval
         self.deferrable = deferrable
+        self.location = location
 
     def prepare_template(self) -> None:
         # if no file is specified, skip
@@ -222,6 +226,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+            location=self.location,
         )
         self.xcom_push(context, key="id", value=self.id_)
         if not self.wait:
