@@ -77,6 +77,7 @@ class TestRedshiftCreateClusterOperator:
             **params,
         )
 
+        # wait_for_completion is True so check waiter is called
         mock_get_conn.return_value.get_waiter.return_value.wait.assert_called_once_with(
             ClusterIdentifier="test-cluster", WaiterConfig={"Delay": 60, "MaxAttempts": 5}
         )
@@ -110,6 +111,9 @@ class TestRedshiftCreateClusterOperator:
             MasterUserPassword="Test123$",
             **params,
         )
+
+        # wait_for_completion is False so check waiter is not called
+        mock_get_conn.return_value.get_waiter.assert_not_called()
 
 
 class TestRedshiftCreateClusterSnapshotOperator:
