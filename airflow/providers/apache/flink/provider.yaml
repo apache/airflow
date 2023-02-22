@@ -54,3 +54,8 @@ sensors:
   - integration-name: Apache Flink
     python-modules:
       - airflow.providers.apache.flink.sensors.flink_kubernetes
+
+additional-extras:
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=5.1.0
