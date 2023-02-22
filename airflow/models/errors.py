@@ -51,4 +51,10 @@ class ImportError(Base):
         :param session: SQLAlchemy session
         """
         log.debug("Removing ImportErrors where filepath = %s.", filepath)
-        session.query(cls).filter(cls.filename == filepath).delete()
+
+        if filepath.endswith(".zip"):
+            filename_filter = cls.filename.startswith(filepath)
+        else:
+            filename_filter = cls.filename == filepath
+
+        session.query(cls).filter(filename_filter).delete(synchronize_session="fetch")
