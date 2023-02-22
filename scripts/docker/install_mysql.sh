@@ -20,9 +20,13 @@ declare -a packages
 
 MYSQL_VERSION="8.0"
 readonly MYSQL_VERSION
+MARIADB_VERSION="10.5"
+readonly MARIADB_VERSION
 
 COLOR_BLUE=$'\e[34m'
 readonly COLOR_BLUE
+COLOR_YELLOW=$'\e[1;33m'
+readonly COLOR_YELLOW
 COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
@@ -67,13 +71,36 @@ install_mysql_client() {
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
-if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-    # disable MYSQL for ARM64
-    INSTALL_MYSQL_CLIENT="false"
-fi
+install_mariadb_client() {
+    if [[ "${1}" == "dev" ]]; then
+        packages=("libmariadb-dev" "mariadb-client-core-${MARIADB_VERSION}")
+    elif [[ "${1}" == "prod" ]]; then
+        packages=("mariadb-client-core-${MARIADB_VERSION}")
+    else
+        echo
+        echo "Specify either prod or dev"
+        echo
+        exit 1
+    fi
 
-# Install MySQL client from Oracle repositories (Debian installs mariadb)
-# But only if it is not disabled
+    echo
+    echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_VERSION}: ${1}${COLOR_RESET}"
+    echo "${COLOR_YELLOW}MariaDB client binary compatible with MySQL client.${COLOR_RESET}"
+    echo
+    apt-get update
+    apt-get install --no-install-recommends -y "${packages[@]}"
+    apt-get autoremove -yqq --purge
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+}
+
+# Install MySQL client only if it is not disabled.
+# For amd64 (x86_64) install MySQL client from Oracle repositories.
+# For arm64 install MariaDB client from Debian repository, see:
+# https://mariadb.com/kb/en/mariadb-clientserver-tcp-protocol/
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
-    install_mysql_client "${@}"
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        install_mariadb_client "${@}"
+    else
+        install_mysql_client "${@}"
+    fi
 fi

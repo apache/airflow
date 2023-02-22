@@ -554,8 +554,14 @@ def enter_shell(**kwargs) -> RunCommandResult:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            get_console().print("\n[error]MySQL is not supported on ARM architecture.[/]\n")
-            sys.exit(1)
+            if shell_params.mysql_version == "8":
+                get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+            else:
+                get_console().print(
+                    f"\n[error]Only MySQL 8.0 is supported on ARM architecture, "
+                    f"but got {shell_params.mysql_version}[/]\n"
+                )
+                sys.exit(1)
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)

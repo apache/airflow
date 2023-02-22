@@ -515,8 +515,8 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
-      "mysql-connector-python>=8.0.11; platform_machine != \"aarch64\"",
-      "mysqlclient>=1.3.6; platform_machine != \"aarch64\""
+      "mysql-connector-python>=8.0.11",
+      "mysqlclient>=1.3.6"
     ],
     "cross-providers-deps": [
       "amazon",

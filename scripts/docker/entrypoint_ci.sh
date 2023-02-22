@@ -86,7 +86,7 @@ If it does not complete soon, you might want to stop it and remove file lock:
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        if [[ ${BACKEND:=} == "mysql" || ${BACKEND} == "mssql" ]]; then
+        if [[ ${BACKEND:=} == "mssql" ]]; then
             echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
             exit 1
         fi

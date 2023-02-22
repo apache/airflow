@@ -917,6 +917,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+      - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
+        if: env.MYSQL_VERSION != '5.7'
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
