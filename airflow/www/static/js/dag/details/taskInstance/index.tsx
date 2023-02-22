@@ -185,7 +185,6 @@ const TaskInstance = ({
                   isGroup={isGroup}
                 />
               </Box>
-              <Details instance={instance} group={group} dagId={dagId} />
               {!isMapped && (
                 <ExtraLinks
                   taskId={taskId}
@@ -194,6 +193,7 @@ const TaskInstance = ({
                   extraLinks={group?.extraLinks || []}
                 />
               )}
+              <Details instance={instance} group={group} dagId={dagId} />
             </Box>
           </TabPanel>
 
