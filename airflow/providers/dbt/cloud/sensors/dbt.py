@@ -28,7 +28,6 @@ from typing import Any, Dict
 from airflow import AirflowException
 
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-# from astronomer.providers.utils.typing_compat import Context
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -80,8 +79,8 @@ class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
     Checks the status of a dbt Cloud job run asynchronously.
 
     .. seealso::
-        For more information on sync Sensor DbtCloudJobRunSensor, take a look at the guide::
-        :ref:`howto/operator:DbtCloudJobRunSensor`
+        For more information on sync Sensor DbtCloudJobRunAsyncSensor, take a look at the guide::
+        :ref:`howto/operator:DbtCloudJobRunAsyncSensor`
 
     :param dbt_cloud_conn_id: The connection identifier for connecting to dbt Cloud.
     :param run_id: The job run identifier.

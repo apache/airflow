@@ -98,6 +98,8 @@ the ``account_id`` for the task is referenced within the ``default_args`` of the
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor]
     :end-before: [END howto_operator_dbt_cloud_run_job_sensor]
 
+.. _howto/operator:DbtCloudJobRunAsyncSensor:
+
 Use the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor`
 (deferrable version) if you would like to free up the worker slots while the sensor is running.
 
