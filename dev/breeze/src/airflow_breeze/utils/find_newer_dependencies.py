@@ -109,7 +109,10 @@ def get_releases_and_upload_times(package, min_date, current_version, tz) -> lis
     releases: list[tuple[Any, Any]] = []
     for release_version, release_info in package_info["releases"].items():
         if release_info and not release_info[0]["yanked"]:
-            parsed_version = version.parse(release_version)
+            try:
+                parsed_version = version.parse(release_version)
+            except version.InvalidVersion:
+                continue
             if (
                 parsed_version.is_prerelease
                 or parsed_version.is_devrelease
