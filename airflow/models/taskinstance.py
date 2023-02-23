@@ -189,8 +189,10 @@ def stop_all_tasks_in_dag(tis: list[TaskInstance], session: Session, task_id_to_
         ):
             continue
         if ti.state == TaskInstanceState.RUNNING:
+            log.info("Forcing task %s to fail", ti.task_id)
             ti.error(session)
         else:
+            log.info("Setting task %s to SKIPPED", ti.task_id)
             ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
 
 
