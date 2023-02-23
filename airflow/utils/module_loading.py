@@ -17,9 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import pkgutil
 from importlib import import_module
-from types import ModuleType
 from typing import Callable
 
 
@@ -58,7 +56,3 @@ def qualname(o: object | Callable) -> str:
         return f"{module}.{name}"
 
     return name
-
-
-def iter_namespace(ns: ModuleType):
-    return pkgutil.iter_modules(ns.__path__, ns.__name__ + ".")
