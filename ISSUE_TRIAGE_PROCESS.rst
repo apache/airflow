@@ -82,7 +82,7 @@ Being an active and helpful member of the "Issue Triage Team" is actually one of
 becoming a committer. By actively helping the users, triaging the issues, responding to them and
 involving others (when needed) shows that you are not only willing to help our users and the community,
 but are also ready to learn about parts of the projects you are not actively contributing to - all of that
-are super valuable components of being eligible to `become a committer <COMMITTERS.md>`_.
+are super valuable components of being eligible to `become a committer <COMMITTERS.rst>`_.
 
 If you are a member of the triage team and not able to make any commitment, it's best to ask to have yourself
 removed from the triage team.
@@ -314,7 +314,7 @@ We use judgment about which Issues to convert to discussions, it's best to alway
 Note that we can always convert discussions back to issues.
 
 
-**Stale Policy **
+**Stale Policy**
 
 As time passes bug reports that have been accepted may be out dated.
 Bot will scan older bug reports and if the report is inactive it will comment
