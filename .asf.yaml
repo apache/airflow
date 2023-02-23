@@ -76,6 +76,7 @@ github:
     - ferruzzi
     - norm
     - mobuchowski
+    - hussein-awala
 
 notifications:
   jobs: jobs@airflow.apache.org
