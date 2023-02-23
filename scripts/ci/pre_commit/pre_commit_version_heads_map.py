@@ -28,7 +28,7 @@ PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
 
-SETUP_FILE = PROJECT_SOURCE_ROOT_DIR / "setup.py"
+AIRFLOW_INIT_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "__init__.py"
 
 
 def read_revision_heads_map():
@@ -47,12 +47,15 @@ def read_revision_heads_map():
 
 def read_current_airflow_version():
 
-    ast_obj = ast.parse(open(SETUP_FILE).read())
-    assignments = [a for a in ast_obj.body if isinstance(a, ast.Assign)][:10]
+    ast_obj = ast.parse(open(AIRFLOW_INIT_FILE).read())
+    for node in ast_obj.body:
+        if not isinstance(node, ast.Assign):
+            continue
 
-    version = [x for x in assignments if x.targets[0].id == "version"][0]
+        if node.targets[0].id == "__version__":
+            return Version(ast.literal_eval(node.value))
 
-    return Version(ast.literal_eval(version.value))
+    raise RuntimeError("Couldn't find __version__ in AST")
 
 
 if __name__ == "__main__":
