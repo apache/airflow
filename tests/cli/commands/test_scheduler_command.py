@@ -88,8 +88,8 @@ class TestSchedulerCommand:
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("core", "executor"): "SequentialExecutor", ("database", "check_migrations"): "False"}):
             scheduler_command.scheduler(args)
-            assert mock_run_migration.assert_not_called()
-            assert mock_log.assert_called_once()
+            mock_run_migration.assert_not_called()
+            mock_log.assert_called_once()
 
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
