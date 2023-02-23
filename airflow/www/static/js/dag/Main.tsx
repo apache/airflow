@@ -46,11 +46,13 @@ const minPanelWidth = 300;
 const gridWidthKey = 'grid-width';
 const saveWidth = debounce((w) => localStorage.setItem(gridWidthKey, w), hoverDelay);
 
+const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', ''), 10) || 0;
+const headerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingTop.replace('px', ''), 10) || 0;
+
 const Main = () => {
   const { data: { groups }, isLoading } = useGridData();
   const resizeRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const detailsRef = useRef<HTMLDivElement>(null);
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
@@ -106,11 +108,18 @@ const Main = () => {
   }, [resize, isLoading, isOpen]);
 
   return (
-    <Box flex={1}>
+    <Box
+      flex={1}
+      height={`calc(100vh - ${footerHeight + headerHeight}px)`}
+      maxHeight={`calc(100vh - ${footerHeight + headerHeight}px)`}
+      minHeight="750px"
+      overflow="hidden"
+      position="relative"
+    >
       <FilterBar />
       <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex>
+      <Flex height="100%">
         {isLoading || isEmpty(groups)
           ? (<Spinner />)
           : (
@@ -143,7 +152,6 @@ const Main = () => {
                     zIndex={1}
                     bg="white"
                     height="100%"
-                    ref={detailsRef}
                   >
                     <Details />
                   </Box>

@@ -23,8 +23,7 @@ import React, {
 import {
   Code,
 } from '@chakra-ui/react';
-
-import useOffsetHeight from 'src/utils/useOffsetHeight';
+import { useOffsetTop } from 'src/utils';
 
 interface Props {
   parsedLogs: string;
@@ -38,11 +37,10 @@ const LogBlock = ({
   tryNumber,
 }: Props) => {
   const [autoScroll, setAutoScroll] = useState(true);
+
   const logBoxRef = useRef<HTMLPreElement>(null);
-
-  const maxHeight = useOffsetHeight(logBoxRef, parsedLogs, 500);
-
   const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(logBoxRef);
 
   const scrollToBottom = () => {
     codeBlockBottomDiv.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -70,8 +68,7 @@ const LogBlock = ({
     <Code
       ref={logBoxRef}
       onScroll={onScroll}
-      height="100%"
-      maxHeight={maxHeight}
+      maxHeight={`calc(100% - ${offsetTop}px)`}
       overflowY="auto"
       p={3}
       pb={0}

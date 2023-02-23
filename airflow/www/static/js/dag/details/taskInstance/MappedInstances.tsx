@@ -18,11 +18,10 @@
  */
 
 import React, {
-  useState, useMemo,
+  useState, useMemo, useRef,
 } from 'react';
 import {
   Flex,
-  Text,
   Box,
 } from '@chakra-ui/react';
 import { snakeCase } from 'lodash';
@@ -33,6 +32,7 @@ import { useMappedInstances } from 'src/api';
 import { StatusWithNotes } from 'src/dag/StatusBox';
 import { Table } from 'src/components/Table';
 import Time from 'src/components/Time';
+import { useOffsetTop } from 'src/utils';
 
 interface Props {
   dagId: string;
@@ -44,6 +44,8 @@ interface Props {
 const MappedInstances = ({
   dagId, runId, taskId, onRowClicked,
 }: Props) => {
+  const mappedTasksRef = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(mappedTasksRef);
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([]);
@@ -106,9 +108,11 @@ const MappedInstances = ({
   );
 
   return (
-    <Box>
-      <br />
-      <Text as="strong">Mapped Instances</Text>
+    <Box
+      ref={mappedTasksRef}
+      maxHeight={`calc(100% - ${offsetTop}px)`}
+      overflowY="auto"
+    >
       <Table
         data={data}
         columns={columns}

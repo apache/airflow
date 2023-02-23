@@ -36,14 +36,13 @@ import { MdOutlineAccountTree } from 'react-icons/md';
 import ReactJson from 'react-json-view';
 
 import { useGridData } from 'src/api';
-import { appendSearchParams, getMetaValue } from 'src/utils';
+import { appendSearchParams, getMetaValue, useOffsetTop } from 'src/utils';
 import type { DagRun as DagRunType } from 'src/types';
 import { SimpleStatus } from 'src/dag/StatusBox';
 import { ClipboardText } from 'src/components/Clipboard';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import Time from 'src/components/Time';
 import RunTypeIcon from 'src/components/RunTypeIcon';
-
 import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
 import NotesAccordion from 'src/dag/details/NotesAccordion';
 
@@ -63,6 +62,8 @@ interface Props {
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(detailsRef);
+
   const run = dagRuns.find((dr) => dr.runId === runId);
   const { onCopy, hasCopied } = useClipboard(run?.conf || '');
   if (!run) return null;
@@ -105,7 +106,7 @@ const DagRun = ({ runId }: Props) => {
         <Divider my={3} />
       </Box>
       <Box
-        height="100%"
+        maxHeight={`calc(100% - ${offsetTop}px)`}
         ref={detailsRef}
         overflowY="auto"
         pb={4}

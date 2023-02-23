@@ -31,7 +31,7 @@ import {
 } from '@chakra-ui/react';
 
 import { useGridData, useTaskInstance } from 'src/api';
-import { getMetaValue, getTask } from 'src/utils';
+import { getMetaValue, getTask, useOffsetTop } from 'src/utils';
 import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
 import type { SelectionProps } from 'src/dag/useSelection';
 import NotesAccordion from 'src/dag/details/NotesAccordion';
@@ -58,10 +58,11 @@ interface Props {
 const TaskInstance = ({
   taskId, runId, mapIndex, onSelect,
 }: Props) => {
+  const taskInstancesRef = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(taskInstancesRef);
   const isMapIndexDefined = !(mapIndex === undefined);
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
   const { data: { dagRuns, groups } } = useGridData();
-  const detailsRef = useRef<HTMLDivElement>(null);
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
@@ -114,7 +115,7 @@ const TaskInstance = ({
   }
 
   return (
-    <Box py="4px" height="100%">
+    <Box pt={2} height="100%">
       {!isGroup && (
         <TaskNav
           taskId={taskId}
@@ -129,7 +130,6 @@ const TaskInstance = ({
         size="lg"
         index={selectedTabIndex}
         onChange={handleTabsChange}
-        isLazy
         height="100%"
       >
         <TabList>
@@ -153,15 +153,14 @@ const TaskInstance = ({
           onClick={() => onSelect({ runId, taskId })}
         />
 
-        <TabPanels>
+        <TabPanels height="100%">
           {/* Details Tab */}
           <TabPanel
             pt={isMapIndexDefined ? '0px' : undefined}
-            height="100%"
-            ref={detailsRef}
+            ref={taskInstancesRef}
+            maxHeight={`calc(100% - ${offsetTop}px)`}
             overflowY="auto"
-            py="4px"
-            pb={4}
+            pb={0}
           >
             <Box py="4px">
               {!isGroupOrMappedTaskSummary && (
@@ -199,7 +198,7 @@ const TaskInstance = ({
 
           {/* Logs Tab */}
           {!isGroupOrMappedTaskSummary && (
-            <TabPanel pt={isMapIndexDefined ? '0px' : undefined}>
+            <TabPanel pt={isMapIndexDefined ? '0px' : undefined} height="100%">
               <Logs
                 dagId={dagId}
                 dagRunId={runId}
@@ -215,7 +214,7 @@ const TaskInstance = ({
           {/* Mapped Task Instances Tab */}
           {
             isMappedTaskSummary && !isGroup && (
-              <TabPanel>
+              <TabPanel height="100%" pb={0}>
                 <MappedInstances
                   dagId={dagId}
                   runId={runId}
