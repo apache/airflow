@@ -59,7 +59,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
           Default depends on the authentication method used.
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
          this mount_point is not used for authentication if authentication is done via a
-         different engine. For authentication mount_points see, auth_mount_point.
+         different engine. If set to None, the mount secret should be provided as a prefix for each
+         variable/connection_id. For authentication mount_points see, auth_mount_point.
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``, default: ``2``).
     :param token: Authentication token to include in requests sent to Vault.
         (for ``token`` and ``github`` auth_type)
