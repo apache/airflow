@@ -103,7 +103,8 @@ def action_cli(func=None, check_db=True):
                 if check_db:
                     from airflow.utils.db import check_and_run_migrations, synchronize_log_template
                     from airflow.configuration import conf
-                    if conf.get("database", "CHECK_MIGRATIONS"):
+
+                    if conf.getboolean("database", "check_migrations"):
                         check_and_run_migrations()
                     synchronize_log_template()
                 return f(*args, **kwargs)
