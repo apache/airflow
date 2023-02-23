@@ -290,6 +290,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+coroutine
 coverals
 cp
 cpu
