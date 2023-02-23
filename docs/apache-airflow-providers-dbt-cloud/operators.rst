@@ -98,6 +98,22 @@ the ``account_id`` for the task is referenced within the ``default_args`` of the
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor]
     :end-before: [END howto_operator_dbt_cloud_run_job_sensor]
 
+.. _howto/operator:DbtCloudJobRunAsyncSensor:
+
+Poll for status of a dbt Cloud Job run asynchronously
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor`
+(deferrable version) to periodically retrieve the
+status of a dbt Cloud job run asynchronously. This sensor will free up the worker slots since
+polling for job status happens on the Airflow triggerer, leading to efficient utilization
+of resources within Airflow.
+
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dbt_cloud_run_job_async_sensor]
+    :end-before: [END howto_operator_dbt_cloud_run_job_async_sensor]
 
 .. _howto/operator:DbtCloudGetJobRunArtifactOperator:
 
