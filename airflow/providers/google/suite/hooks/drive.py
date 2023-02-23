@@ -23,6 +23,7 @@ from typing import IO, Any, Sequence
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import HttpRequest, MediaFileUpload
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -195,7 +196,7 @@ class GoogleDriveHook(GoogleBaseHook):
                 path = f'{file_info["name"]}/{path}'
 
             if iteration >= MAX_NESTED_FOLDERS_LEVEL:
-                raise Exception(f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} times")
+                raise AirflowException(f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} levels")
             iteration += 1
         return path
 

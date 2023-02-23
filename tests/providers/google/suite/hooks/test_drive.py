@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID
 
@@ -301,14 +304,11 @@ class TestGoogleDriveHook:
         for x in range(0, MAX_NESTED_FOLDERS_LEVEL + 1):
             returned_array.append({"id": "ID_1", "name": "folder", "parents": ["ID_1"]})
 
-        print(f"Number of objects: {len(returned_array)}")
-
         mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = returned_array
 
-        try:
+        with pytest.raises(AirflowException) as ctx:
             self.gdrive_hook._resolve_file_path(file_id="ID_1")
-        except Exception as e:
-            assert str(e) == f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} times"
+        assert str(ctx.value) == f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} levels"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_multiple_files_exists(self, mock_get_conn):
