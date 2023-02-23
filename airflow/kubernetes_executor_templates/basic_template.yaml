@@ -18,14 +18,14 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: dummy-name-dont-delete
-  namespace: dummy-name-dont-delete
+  name: placeholder-name-dont-delete
+  namespace: placeholder-name-dont-delete
   labels:
     mylabel: foo
 spec:
   containers:
     - name: base
-      image: dummy-name-dont-delete
+      image: placeholder-name-dont-delete
       env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: LocalExecutor
