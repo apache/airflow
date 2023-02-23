@@ -277,7 +277,7 @@ class TestGoogleDriveHook:
     def test_resolve_file_path_when_file_in_root_directory(self, mock_get_conn):
         mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = [
             {"id": "ID_1", "name": "file.csv", "parents": ["ID_2"]},
-            {"id": "ID_2", "name": "root"}
+            {"id": "ID_2", "name": "root"},
         ]
 
         result_value = self.gdrive_hook._resolve_file_path(file_id="ID_1")
