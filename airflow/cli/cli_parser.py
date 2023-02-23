@@ -1180,7 +1180,16 @@ DAGS_COMMANDS = (
         name="trigger",
         help="Trigger a DAG run",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, ARG_VERBOSE, ARG_REPLACE_MICRO),
+        args=(
+            ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_RUN_ID,
+            ARG_CONF,
+            ARG_EXEC_DATE,
+            ARG_VERBOSE,
+            ARG_REPLACE_MICRO,
+            ARG_OUTPUT,
+        ),
     ),
     ActionCommand(
         name="delete",
@@ -1616,14 +1625,15 @@ DB_COMMANDS = (
         ),
     ),
     ActionCommand(
-        name="export-cleaned",
-        help="Export cleaned data from the archive tables",
-        func=lazy_load_command("airflow.cli.commands.db_command.export_cleaned"),
+        name="export-archived",
+        help="Export archived data from the archive tables",
+        func=lazy_load_command("airflow.cli.commands.db_command.export_archived"),
         args=(
             ARG_DB_EXPORT_FORMAT,
             ARG_DB_OUTPUT_PATH,
             ARG_DB_DROP_ARCHIVES,
             ARG_DB_TABLES,
+            ARG_YES,
         ),
     ),
     ActionCommand(

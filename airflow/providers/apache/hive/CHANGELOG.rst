@@ -24,6 +24,13 @@
 Changelog
 ---------
 
+5.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Validate Hive Beeline parameters (#29502)``
+
 5.1.2
 .....
 

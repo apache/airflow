@@ -350,6 +350,22 @@ class TestWasbHook:
             "blob_prefix/blob1",
             "blob_prefix/blob2",
         )
+        assert mock_delete_blobs.call_count == 1
+
+    @mock.patch.object(WasbHook, "delete_blobs")
+    @mock.patch.object(WasbHook, "get_blobs_list")
+    @mock.patch.object(WasbHook, "check_for_blob")
+    def test_delete_more_than_256_blobs(self, mock_check, mock_get_blobslist, mock_delete_blobs):
+        mock_check.return_value = False
+        mock_get_blobslist.return_value = [f"blob_prefix/blob{i}" for i in range(300)]
+        hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
+        hook.delete_file("container", "blob_prefix", is_prefix=True)
+        mock_get_blobslist.assert_called_once_with("container", prefix="blob_prefix", delimiter="")
+        # The maximum number of blobs that can be deleted in a single request is 256 using the underlying
+        # `ContainerClient.delete_blobs()` method. Therefore the deletes need to be in batches of <= 256.
+        # Therefore, providing a list of 300 blobs to delete should yield 2 calls of
+        # `ContainerClient.delete_blobs()` in this test.
+        assert mock_delete_blobs.call_count == 2
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     @mock.patch.object(WasbHook, "get_blobs_list")

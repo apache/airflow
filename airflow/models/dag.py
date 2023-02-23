@@ -3329,6 +3329,7 @@ class DagModel(Base):
         session.commit()
 
     @classmethod
+    @internal_api_call
     @provide_session
     def deactivate_deleted_dags(cls, alive_dag_filelocs: list[str], session=NEW_SESSION):
         """
@@ -3546,8 +3547,8 @@ def dag(
                 owner_links=owner_links,
                 auto_register=auto_register,
             ) as dag_obj:
-                # Set DAG documentation from function documentation.
-                if f.__doc__:
+                # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                if f.__doc__ and not dag_obj.doc_md:
                     dag_obj.doc_md = f.__doc__
 
                 # Generate DAGParam for each function arg/kwarg and replace it for calling the function.

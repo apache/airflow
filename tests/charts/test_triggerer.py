@@ -20,6 +20,7 @@ import jmespath
 import pytest
 
 from tests.charts.helm_template_generator import render_chart
+from tests.charts.log_groomer import LogGroomerTestBase
 
 
 class TestTriggerer:
@@ -561,3 +562,8 @@ class TestTriggererServiceAccount:
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+
+class TestTriggererLogGroomer(LogGroomerTestBase):
+    obj_name = "triggerer"
+    folder = "triggerer"

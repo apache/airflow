@@ -77,7 +77,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     custom_operator_name = "@task.docker"
 
-    template_fields: Sequence[str] = ("op_args", "op_kwargs")
+    template_fields: Sequence[str] = (*DockerOperator.template_fields, "op_args", "op_kwargs")
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
@@ -90,7 +90,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         expect_airflow: bool = True,
         **kwargs,
     ) -> None:
-        command = "dummy command"
+        command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
         self.pickling_library = dill if use_dill else pickle
