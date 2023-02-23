@@ -22,22 +22,16 @@ from typing import TYPE_CHECKING
 
 from airflow.utils.module_loading import qualname
 
-serializers = []
-
 try:
     from kubernetes.client import models as k8s
-
-    serializers = [k8s.v1_pod.V1Pod, k8s.V1ResourceRequirements]
 except ImportError:
-    k8s = None
+    k8s = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
 
-
 __version__ = 1
 
-deserializers: list[type[object]] = []
 log = logging.getLogger(__name__)
 
 

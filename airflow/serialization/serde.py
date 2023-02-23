@@ -280,6 +280,12 @@ _AIRFLOW_SERIALIZERS = {
         "datetime": "airflow.serialization.serializers.datetime",
         "timedelta": "airflow.serialization.serializers.datetime",
     },
+    "kubernetes": {
+        "client.models.v1_resource_requirements.V1ResourceRequirements": (
+            "airflow.serialization.serializers.kubernetes"
+        ),
+        "client.models.v1_pod.V1Pod": "airflow.serialization.serializers.kubernetes",
+    },
     "numpy": {
         "bool_": "airflow.serialization.serializers.numpy",
         "complex64": "airflow.serialization.serializers.numpy",
@@ -310,12 +316,6 @@ _AIRFLOW_DESERIALIZERS = {
         "date": "airflow.serialization.serializers.datetime",
         "datetime": "airflow.serialization.serializers.datetime",
         "timedelta": "airflow.serialization.serializers.datetime",
-    },
-    "kubernetes": {
-        "client.models.v1_resource_requirements.V1ResourceRequirements": (
-            "airflow.serialization.serializers.kubernetes"
-        ),
-        "client.models.v1_pod.V1Pod": "airflow.serialization.serializers.kubernetes",
     },
     "numpy": {
         "bool_": "airflow.serialization.serializers.numpy",

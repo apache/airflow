@@ -49,7 +49,7 @@ try:
         )
     }
 except ImportError:
-    np = None  # type: ignore
+    np = None  # type: ignore[assignment]
     _deserializers = {}
 
 
