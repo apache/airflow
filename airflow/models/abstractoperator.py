@@ -29,6 +29,7 @@ from airflow.models.taskmixin import DAGNode
 from airflow.utils.context import Context
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import redact
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
@@ -606,11 +607,12 @@ class AbstractOperator(LoggingMixin, DAGNode):
                     seen_oids,
                 )
             except Exception:
+                value_masked = redact(name=attr_name, value=value)
                 self.log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
                     self.task_id,
                     attr_name,
-                    value,
+                    value_masked,
                 )
                 raise
             else:
