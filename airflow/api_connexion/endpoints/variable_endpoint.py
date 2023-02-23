@@ -112,16 +112,16 @@ def patch_variable(
     non_update_fields = ["key"]
     variable = session.query(Variable).filter_by(key=variable_key).first()
     if update_mask:
-        update_mask = [i.strip() for i in update_mask]
         data_ = {}
         for field in update_mask:
+            field = field.strip()
             if field in data and field not in non_update_fields:
                 data_[field] = data[field]
             else:
                 raise BadRequest(detail=f"'{field}' is unknown or cannot be updated.")
         data = data_
-    for key in data:
-        setattr(variable, key, data[key])
+    for key, val in data.items():
+        setattr(variable, key, val)
     session.add(variable)
     session.commit()
     return variable_schema.dump(variable)
