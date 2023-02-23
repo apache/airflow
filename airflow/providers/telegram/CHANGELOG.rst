@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+In this version, we upgraded the ``python-telegram-bot`` to ``20.0.0`` and above.
+All remains the same except that now the ``get_conn()`` method in ``TelegramHook`` is a coroutine function.
+Refer to `python-telegram-bot transition guide <https://github.com/python-telegram-bot/python-telegram-bot/wiki/Transition-guide-to-Version-20.0#asyncio>`_ for more details.
+
+
+
 3.1.1
 .....
 
