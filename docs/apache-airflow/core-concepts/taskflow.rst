@@ -179,9 +179,9 @@ It is good practice to version the objects that will be used in serialization. T
 so that a version 2 is able to deserialize a version 1. In case you need custom logic
 for deserialization ensure that ``deserialize(data: dict, version: int)`` is specified.
 
-::
+.. note::
 
-  Note: Typing of ``__version__`` is required and needs to be ``ClassVar[int]``
+  Typing of ``__version__`` is required and needs to be ``ClassVar[int]``
 
 
 Sensors and the TaskFlow API

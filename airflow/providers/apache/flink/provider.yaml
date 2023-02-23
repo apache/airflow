@@ -27,15 +27,7 @@ versions:
 dependencies:
   - apache-airflow>=2.3.0
   - cryptography>=2.0.0
-  # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
-  # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
-  # (https://github.com/kubernetes-client/python#compatibility). This is a crucial component of Airflow
-  # So we should limit it to the next MAJOR version and only deliberately bump the version when we
-  # tested it, and we know it can be bumped. Bumping this version should also be connected with
-  # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
-  # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
-  # core is not hard-limited via install-requirements, only by extra).
-  - kubernetes>=21.7.0,<24
+  - apache-airflow-providers-cncf-kubernetes>=5.1.0
 
 integrations:
   - integration-name: Apache Flink
@@ -54,8 +46,3 @@ sensors:
   - integration-name: Apache Flink
     python-modules:
       - airflow.providers.apache.flink.sensors.flink_kubernetes
-
-additional-extras:
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=5.1.0
