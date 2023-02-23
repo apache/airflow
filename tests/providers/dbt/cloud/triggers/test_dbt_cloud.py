@@ -17,7 +17,6 @@
 from __future__ import annotations
 import asyncio
 import time
-from unittest import mock
 import pytest
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
