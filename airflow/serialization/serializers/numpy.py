@@ -17,44 +17,44 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from airflow.utils.module_loading import qualname
 
-serializers = []
-
 try:
     import numpy as np
 
-    serializers = [
-        np.int_,
-        np.intc,
-        np.intp,
-        np.int8,
-        np.int16,
-        np.int32,
-        np.int64,
-        np.uint8,
-        np.uint16,
-        np.uint32,
-        np.uint64,
-        np.bool_,
-        np.float_,
-        np.float16,
-        np.float64,
-        np.complex_,
-        np.complex64,
-        np.complex128,
-    ]
+    _deserializers = {
+        qualname(k): k
+        for k in (
+            np.int_,
+            np.intc,
+            np.intp,
+            np.int8,
+            np.int16,
+            np.int32,
+            np.int64,
+            np.uint8,
+            np.uint16,
+            np.uint32,
+            np.uint64,
+            np.bool_,
+            np.float_,
+            np.float16,
+            np.float64,
+            np.complex_,
+            np.complex64,
+            np.complex128,
+        )
+    }
 except ImportError:
     np = None  # type: ignore
+    _deserializers = {}
 
 
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
-
-deserializers: list = serializers
-_deserializers: dict[str, type[object]] = {qualname(x): x for x in deserializers}
 
 __version__ = 1
 
@@ -97,8 +97,8 @@ def deserialize(classname: str, version: int, data: str) -> Any:
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 
-    f = _deserializers.get(classname, None)
-    if callable(f):
-        return f(data)  # type: ignore [call-arg]
+    with contextlib.suppress(KeyError):
+        f = _deserializers[classname]
+        return f(data)  # type: ignore[abstract]
 
     raise TypeError(f"unsupported {classname} found for numpy deserialization")

@@ -31,9 +31,6 @@ if TYPE_CHECKING:
 
 __version__ = 1
 
-serializers = [date, datetime, timedelta, DateTime]
-deserializers = serializers
-
 TIMESTAMP = "timestamp"
 TIMEZONE = "tz"
 

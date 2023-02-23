@@ -24,14 +24,12 @@ import logging
 import re
 import sys
 from importlib import import_module
-from types import ModuleType
-from typing import Any, TypeVar, Union, cast
+from typing import Any, Callable, TypeVar, Union, cast
 
 import attr
 
-import airflow.serialization.serializers
 from airflow.configuration import conf
-from airflow.utils.module_loading import import_string, iter_namespace, qualname
+from airflow.utils.module_loading import import_string, qualname
 
 log = logging.getLogger(__name__)
 
@@ -52,10 +50,6 @@ DEFAULT_VERSION = 0
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
 U = Union[bool, float, int, dict, list, str, tuple, set]
 S = Union[list, tuple, set]
-
-_serializers: dict[str, ModuleType] = {}
-_deserializers: dict[str, ModuleType] = {}
-_extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
 _builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
@@ -129,8 +123,9 @@ def serialize(o: object, depth: int = 0) -> U | None:
     }
 
     # if there is a builtin serializer available use that
-    if qn in _serializers:
-        data, classname, version, is_serialized = _serializers[qn].serialize(o)
+    serializer = _find_airflow_serializer(o)
+    if serializer is not None:
+        data, classname, version, is_serialized = serializer(o)
         if is_serialized:
             return encode(classname, version, serialize(data, depth + 1))
 
@@ -140,9 +135,10 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
         # if we end up with a structure, ensure its values are serialized
         if isinstance(data, dict):
-            data = serialize(data, depth + 1)
+            dct[DATA] = serialize(data, depth + 1)
+        else:
+            dct[DATA] = data
 
-        dct[DATA] = data
         return dct
 
     # dataclasses
@@ -206,22 +202,23 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     if CLASSNAME in o and VERSION in o:
         classname, version, value = decode(o)
-        if not _match(classname) and classname not in _extra_allowed:
-            raise ImportError(
-                f"{classname} was not found in allow list for deserialization imports. "
-                f"To allow it, add it to allowed_deserialization_classes in the configuration"
-            )
-
-        if full:
-            cls = import_string(classname)
 
     # only return string representation
     if not full:
         return _stringify(classname, version, value)
 
     # registered deserializer
-    if classname in _deserializers:
-        return _deserializers[classname].deserialize(classname, version, deserialize(value))
+    deserializer = _find_airflow_deserializer(classname)
+    if deserializer is not None:
+        return deserializer(classname, version, deserialize(value))
+
+    # not registered; load ad-hoc class if allowed
+    if not _match(classname):
+        raise ImportError(
+            f"{classname} was not found in allow list for deserialization imports. "
+            f"To allow it, add it to allowed_deserialization_classes in the configuration"
+        )
+    cls = import_string(classname)
 
     # class has deserialization function
     if hasattr(cls, "deserialize"):
@@ -276,28 +273,97 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
     return s
 
 
-def _register():
-    """Register builtin serializers and deserializers for types that don't have any themselves"""
-    _serializers.clear()
-    _deserializers.clear()
+_AIRFLOW_SERIALIZERS = {
+    "decimal": {"Decimal": "airflow.serialization.serializers.bignum"},
+    "datetime": {
+        "date": "airflow.serialization.serializers.datetime",
+        "datetime": "airflow.serialization.serializers.datetime",
+        "timedelta": "airflow.serialization.serializers.datetime",
+    },
+    "numpy": {
+        "bool_": "airflow.serialization.serializers.numpy",
+        "complex64": "airflow.serialization.serializers.numpy",
+        "complex128": "airflow.serialization.serializers.numpy",
+        "float16": "airflow.serialization.serializers.numpy",
+        "float64": "airflow.serialization.serializers.numpy",
+        "intc": "airflow.serialization.serializers.numpy",
+        "intp": "airflow.serialization.serializers.numpy",
+        "int8": "airflow.serialization.serializers.numpy",
+        "int16": "airflow.serialization.serializers.numpy",
+        "int32": "airflow.serialization.serializers.numpy",
+        "int64": "airflow.serialization.serializers.numpy",
+        "uint8": "airflow.serialization.serializers.numpy",
+        "uint16": "airflow.serialization.serializers.numpy",
+        "uint32": "airflow.serialization.serializers.numpy",
+        "uint64": "airflow.serialization.serializers.numpy",
+    },
+    "pendulum": {
+        "datetime.DateTime": "airflow.serialization.serializers.datetime",
+        "tz.timezone.FixedTimezone": "airflow.serialization.serializers.timezone",
+        "tz.timezone.Timezone": "airflow.serialization.serializers.timezone",
+    },
+}
 
-    for _, name, _ in iter_namespace(airflow.serialization.serializers):
-        name = import_module(name)
-        for s in getattr(name, "serializers", list()):
-            if not isinstance(s, str):
-                s = qualname(s)
-            if s in _serializers and _serializers[s] != name:
-                raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
-            log.debug("registering %s for serialization")
-            _serializers[s] = name
-        for d in getattr(name, "deserializers", list()):
-            if not isinstance(d, str):
-                d = qualname(d)
-            if d in _deserializers and _deserializers[d] != name:
-                raise AttributeError(f"duplicate {d} for deserialization in {name} and {_serializers[d]}")
-            log.debug("registering %s for deserialization", d)
-            _deserializers[d] = name
-            _extra_allowed.add(d)
+_AIRFLOW_DESERIALIZERS = {
+    "decimal": {"Decimal": "airflow.serialization.serializers.bignum"},
+    "datetime": {
+        "date": "airflow.serialization.serializers.datetime",
+        "datetime": "airflow.serialization.serializers.datetime",
+        "timedelta": "airflow.serialization.serializers.datetime",
+    },
+    "kubernetes": {
+        "client.models.v1_resource_requirements.V1ResourceRequirements": (
+            "airflow.serialization.serializers.kubernetes"
+        ),
+        "client.models.v1_pod.V1Pod": "airflow.serialization.serializers.kubernetes",
+    },
+    "numpy": {
+        "bool_": "airflow.serialization.serializers.numpy",
+        "complex64": "airflow.serialization.serializers.numpy",
+        "complex128": "airflow.serialization.serializers.numpy",
+        "float16": "airflow.serialization.serializers.numpy",
+        "float64": "airflow.serialization.serializers.numpy",
+        "intc": "airflow.serialization.serializers.numpy",
+        "intp": "airflow.serialization.serializers.numpy",
+        "int8": "airflow.serialization.serializers.numpy",
+        "int16": "airflow.serialization.serializers.numpy",
+        "int32": "airflow.serialization.serializers.numpy",
+        "int64": "airflow.serialization.serializers.numpy",
+        "uint8": "airflow.serialization.serializers.numpy",
+        "uint16": "airflow.serialization.serializers.numpy",
+        "uint32": "airflow.serialization.serializers.numpy",
+        "uint64": "airflow.serialization.serializers.numpy",
+    },
+    "pendulum": {
+        "datetime.DateTime": "airflow.serialization.serializers.datetime",
+        "tz.timezone.FixedTimezone": "airflow.serialization.serializers.timezone",
+        "tz.timezone.Timezone": "airflow.serialization.serializers.timezone",
+    },
+}
 
 
-_register()
+def _find_airflow_serializer(value: object) -> None | Callable[[object], tuple[U, str, int, bool]]:
+    for klass in type(value).__mro__:
+        try:
+            top_level = qualname(klass).split(".", 1)[0]
+            serializers = _AIRFLOW_SERIALIZERS[top_level]
+        except (KeyError, ValueError):
+            continue
+        for class_path, serde_path in serializers.items():
+            klass = import_string(f"{top_level}.{class_path}")
+            if not isinstance(value, klass):
+                continue
+            return getattr(import_module(serde_path), "serialize")
+    return None
+
+
+def _find_airflow_deserializer(classname: str) -> None | Callable[[str, int, object], object]:
+    try:
+        top_level = classname.split(".", 1)[0]
+        deserializers = _AIRFLOW_DESERIALIZERS[top_level]
+    except (KeyError, ValueError):
+        return None
+    for class_path, serde_path in deserializers.items():
+        if classname == f"{top_level}.{class_path}":
+            return getattr(import_module(serde_path), "deserialize")
+    return None

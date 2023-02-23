@@ -27,10 +27,6 @@ from airflow.utils.module_loading import qualname
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
 
-
-serializers = [FixedTimezone, Timezone]
-deserializers = serializers
-
 __version__ = 1
 
 
