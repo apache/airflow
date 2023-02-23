@@ -123,7 +123,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
     }
 
     # if there is a builtin serializer available use that
-    serializer = _find_airflow_serializer(o)
+    serializer = _find_airflow_serializer(qn)
     if serializer is not None:
         data, classname, version, is_serialized = serializer(o)
         if is_serialized:
@@ -342,17 +342,14 @@ _AIRFLOW_DESERIALIZERS = {
 }
 
 
-def _find_airflow_serializer(value: object) -> None | Callable[[object], tuple[U, str, int, bool]]:
-    for klass in type(value).__mro__:
-        try:
-            top_level = qualname(klass).split(".", 1)[0]
-            serializers = _AIRFLOW_SERIALIZERS[top_level]
-        except (KeyError, ValueError):
-            continue
-        for class_path, serde_path in serializers.items():
-            klass = import_string(f"{top_level}.{class_path}")
-            if not isinstance(value, klass):
-                continue
+def _find_airflow_serializer(classname: str) -> None | Callable[[object], tuple[U, str, int, bool]]:
+    try:
+        top_level = classname.split(".", 1)[0]
+        serializers = _AIRFLOW_SERIALIZERS[top_level]
+    except (KeyError, ValueError):
+        return None
+    for class_path, serde_path in serializers.items():
+        if classname == f"{top_level}.{class_path}":
             return getattr(import_module(serde_path), "serialize")
     return None
 
