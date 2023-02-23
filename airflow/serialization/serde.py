@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import functools
 import logging
 import re
 import sys
@@ -58,7 +59,6 @@ _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
 _builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
-_patterns: list[re.Pattern] = []
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
@@ -252,8 +252,14 @@ def _convert(old: dict) -> dict:
     return old
 
 
+@functools.lru_cache(maxsize=None)
+def _get_patterns() -> list[re.Pattern]:
+    patterns = conf.get("core", "allowed_deserialization_classes").split()
+    return [re.compile(re.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
+
+
 def _match(classname: str) -> bool:
-    return any(p.match(classname) is not None for p in _patterns)
+    return any(p.match(classname) is not None for p in _get_patterns())
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
@@ -294,14 +300,4 @@ def _register():
             _extra_allowed.add(d)
 
 
-def _compile_patterns():
-    patterns = conf.get("core", "allowed_deserialization_classes").split()
-
-    _patterns.clear()  # ensure to reinit
-    for p in patterns:
-        p = re.sub(r"(\w)\.", r"\1\..", p)
-        _patterns.append(re.compile(p))
-
-
 _register()
-_compile_patterns()
