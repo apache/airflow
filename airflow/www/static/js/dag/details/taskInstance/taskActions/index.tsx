@@ -27,7 +27,6 @@ import {
 } from '@chakra-ui/react';
 
 import type { CommonActionProps } from './types';
-import RunAction from './Run';
 import ClearAction from './Clear';
 import MarkFailedAction from './MarkFailed';
 import MarkSuccessAction from './MarkSuccess';
@@ -54,12 +53,6 @@ const TaskActions = ({
       />
     ) : (
       <VStack justifyContent="center" divider={<StackDivider my={3} />}>
-        <RunAction
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          mapIndexes={mapIndexes}
-        />
         <ClearAction
           runId={runId}
           taskId={taskId}

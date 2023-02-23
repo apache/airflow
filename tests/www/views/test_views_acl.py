@@ -636,19 +636,6 @@ def test_failure(dag_faker_client, url, unexpected_content):
     check_content_not_in_response(unexpected_content, resp)
 
 
-@pytest.mark.parametrize("client", ["dag_test_client", "all_dag_user_client"])
-def test_run_success(request, client):
-    form = dict(
-        task_id="runme_0",
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="true",
-        execution_date=DEFAULT_DATE,
-    )
-    resp = request.getfixturevalue(client).post("run", data=form)
-    assert resp.status_code == 302
-
-
 def test_blocked_success(client_all_dags_dagruns):
     resp = client_all_dags_dagruns.post("blocked", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)

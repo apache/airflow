@@ -24,7 +24,6 @@ import useClearRun from './useClearRun';
 import useQueueRun from './useQueueRun';
 import useMarkFailedRun from './useMarkFailedRun';
 import useMarkSuccessRun from './useMarkSuccessRun';
-import useRunTask from './useRunTask';
 import useClearTask from './useClearTask';
 import useMarkFailedTask from './useMarkFailedTask';
 import useMarkSuccessTask from './useMarkSuccessTask';
@@ -63,7 +62,6 @@ export {
   useMarkSuccessRun,
   useMarkSuccessTask,
   useQueueRun,
-  useRunTask,
   useSetDagRunNote,
   useSetTaskInstanceNote,
   useTaskInstance,
