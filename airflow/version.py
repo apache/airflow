@@ -18,4 +18,6 @@
 from __future__ import annotations
 
 # Compat -- somethings access `airflow.version.version` directly
-from airflow import __version__ as version  # noqa: F401
+from airflow import __version__ as version
+
+__all__ = ["version"]
