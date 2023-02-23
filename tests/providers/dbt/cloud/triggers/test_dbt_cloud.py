@@ -15,13 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+
 import asyncio
+import sys
 import time
+
 import pytest
+
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.triggers.base import TriggerEvent
-import sys
+
 if sys.version_info < (3, 8):
     # For compatibility with Python 3.7
     from asynctest import mock as async_mock
@@ -83,13 +87,11 @@ class TestDbtCloudRunJobTrigger:
         "mock_value, mock_status, mock_message",
         [
             (DbtCloudJobRunStatus.SUCCESS.value, "success", "Job run 1234 has completed successfully."),
-            (DbtCloudJobRunStatus.CANCELLED.value, "cancelled", "Job run 1234 has been cancelled."),
-            (DbtCloudJobRunStatus.ERROR.value, "error", "Job run 1234 has failed."),
         ],
     )
     @async_mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
     @async_mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
-    async def test_dbt_job_run_for_terminal_status(
+    async def test_dbt_job_run_for_terminal_status_success(
         self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
     ):
         """Assert that run trigger success message in case of job success"""
@@ -107,9 +109,74 @@ class TestDbtCloudRunJobTrigger:
             "message": mock_message,
             "run_id": self.RUN_ID,
         }
-        generator = trigger.run()
-        actual = await generator.asend(None)
-        assert TriggerEvent(expected_result) == actual
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert TriggerEvent(expected_result) == task.result()
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_value, mock_status, mock_message",
+        [
+            (DbtCloudJobRunStatus.CANCELLED.value, "cancelled", "Job run 1234 has been cancelled."),
+        ],
+    )
+    @async_mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
+    @async_mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_job_run_for_terminal_status_cancelled(
+        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+    ):
+        """Assert that run trigger success message in case of job success"""
+        mocked_is_still_running.return_value = False
+        mock_get_job_status.return_value = mock_value
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+        expected_result = {
+            "status": mock_status,
+            "message": mock_message,
+            "run_id": self.RUN_ID,
+        }
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert TriggerEvent(expected_result) == task.result()
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_value, mock_status, mock_message",
+        [
+            (DbtCloudJobRunStatus.ERROR.value, "error", "Job run 1234 has failed."),
+        ],
+    )
+    @async_mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
+    @async_mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_job_run_for_terminal_status_error(
+        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+    ):
+        """Assert that run trigger success message in case of job success"""
+        mocked_is_still_running.return_value = False
+        mock_get_job_status.return_value = mock_value
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+        expected_result = {
+            "status": mock_status,
+            "message": mock_message,
+            "run_id": self.RUN_ID,
+        }
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert TriggerEvent(expected_result) == task.result()
+        asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
@@ -168,12 +235,60 @@ class TestDbtCloudRunJobTrigger:
         "mock_response, expected_status",
         [
             (DbtCloudJobRunStatus.SUCCESS.value, False),
+        ],
+    )
+    @async_mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_job_run_is_still_running_success(
+        self, mock_get_job_status, mock_response, expected_status
+    ):
+        """Test is_still_running with mocked response job status and assert
+        the return response with expected value"""
+        hook = AsyncMock(DbtCloudHook)
+        hook.get_job_status.return_value = mock_response
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+        response = await trigger.is_still_running(hook)
+        assert response == expected_status
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_response, expected_status",
+        [
             (DbtCloudJobRunStatus.RUNNING.value, True),
-            (DbtCloudJobRunStatus.QUEUED.value, True),
         ],
     )
     @async_mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
     async def test_dbt_job_run_is_still_running(self, mock_get_job_status, mock_response, expected_status):
+        """Test is_still_running with mocked response job status and assert
+        the return response with expected value"""
+        hook = AsyncMock(DbtCloudHook)
+        hook.get_job_status.return_value = mock_response
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+        response = await trigger.is_still_running(hook)
+        assert response == expected_status
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_response, expected_status",
+        [
+            (DbtCloudJobRunStatus.QUEUED.value, True),
+        ],
+    )
+    @async_mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_job_run_is_still_running_queued(
+        self, mock_get_job_status, mock_response, expected_status
+    ):
         """Test is_still_running with mocked response job status and assert
         the return response with expected value"""
         hook = AsyncMock(DbtCloudHook)

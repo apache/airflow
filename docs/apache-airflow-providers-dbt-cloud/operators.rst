@@ -100,8 +100,14 @@ the ``account_id`` for the task is referenced within the ``default_args`` of the
 
 .. _howto/operator:DbtCloudJobRunAsyncSensor:
 
+Poll for status of a dbt Cloud Job run asynchronously
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Use the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor`
-(deferrable version) if you would like to free up the worker slots while the sensor is running.
+(deferrable version) to periodically retrieve the
+status of a dbt Cloud job run asynchronously. This sensor will free up the worker slots since
+polling for job status happens on the Airflow triggerer, leading to efficient utilization
+of resources within Airflow.
 
 .. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
     :language: python

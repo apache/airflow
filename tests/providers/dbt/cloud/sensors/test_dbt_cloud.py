@@ -90,7 +90,7 @@ class TestDbtCloudJobRunSensorAsync:
     DBT_RUN_ID = 1234
     TIMEOUT = 300
 
-    def test_dbt_job_run_sensor_async(self, context):
+    def test_dbt_job_run_sensor_async(self):
         """Assert execute method defer for Dbt cloud job run status sensors"""
         task = DbtCloudJobRunAsyncSensor(
             dbt_cloud_conn_id=self.CONN_ID,
@@ -99,7 +99,7 @@ class TestDbtCloudJobRunSensorAsync:
             timeout=self.TIMEOUT,
         )
         with pytest.raises(TaskDeferred) as exc:
-            task.execute(context)
+            task.execute({})
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
 
     def test_dbt_job_run_sensor_async_execute_complete_success(self):
