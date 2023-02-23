@@ -80,9 +80,9 @@
   },
   "apache.flink": {
     "deps": [
+      "apache-airflow-providers-cncf-kubernetes>=5.1.0",
       "apache-airflow>=2.3.0",
-      "cryptography>=2.0.0",
-      "kubernetes>=21.7.0,<24"
+      "cryptography>=2.0.0"
     ],
     "cross-providers-deps": [
       "cncf.kubernetes"
