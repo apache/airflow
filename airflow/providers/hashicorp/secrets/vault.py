@@ -94,7 +94,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         url: str | None = None,
         auth_type: str = "token",
         auth_mount_point: str | None = None,
-        mount_point: str = "secret",
+        mount_point: str | None = "secret",
         kv_engine_version: int = 2,
         token: str | None = None,
         token_path: str | None = None,
@@ -156,17 +156,29 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             **kwargs,
         )
 
+    def _parse_path(self, secret_path: str) -> tuple[str | None, str | None]:
+        if not self.mount_point:
+            split_secret_path = secret_path.split("/", 1)
+            if len(split_secret_path) < 2:
+                return None, None
+            return split_secret_path[0], split_secret_path[1]
+        else:
+            return "", secret_path
+
     def get_response(self, conn_id: str) -> dict | None:
         """
         Get data from Vault
 
         :return: The data from the Vault path if exists
         """
-        if self.connections_path is None:
+        mount_point, conn_key = self._parse_path(conn_id)
+        if self.connections_path is None or conn_key is None:
             return None
 
-        secret_path = self.build_path(self.connections_path, conn_id)
-        return self.vault_client.get_secret(secret_path=secret_path)
+        secret_path = self.build_path(self.connections_path, conn_key)
+        return self.vault_client.get_secret(
+            secret_path=(mount_point + "/" if mount_point else "") + secret_path
+        )
 
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
@@ -219,11 +231,14 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value retrieved from the vault
         """
-        if self.variables_path is None:
+        mount_point, variable_key = self._parse_path(key)
+        if self.variables_path is None or variable_key is None:
             return None
         else:
-            secret_path = self.build_path(self.variables_path, key)
-            response = self.vault_client.get_secret(secret_path=secret_path)
+            secret_path = self.build_path(self.variables_path, variable_key)
+            response = self.vault_client.get_secret(
+                secret_path=(mount_point + "/" if mount_point else "") + secret_path
+            )
             return response.get("value") if response else None
 
     def get_config(self, key: str) -> str | None:
@@ -233,9 +248,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param key: Configuration Option Key
         :return: Configuration Option Value retrieved from the vault
         """
-        if self.config_path is None:
+        mount_point, config_key = self._parse_path(key)
+        if self.config_path is None or config_key is None:
             return None
         else:
-            secret_path = self.build_path(self.config_path, key)
-            response = self.vault_client.get_secret(secret_path=secret_path)
+            secret_path = self.build_path(self.config_path, config_key)
+            response = self.vault_client.get_secret(
+                secret_path=(mount_point + "/" if mount_point else "") + secret_path
+            )
             return response.get("value") if response else None
