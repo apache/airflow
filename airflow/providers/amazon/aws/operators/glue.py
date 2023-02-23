@@ -21,10 +21,12 @@ import os.path
 import urllib.parse
 from typing import TYPE_CHECKING, Sequence
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
+from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -93,6 +95,7 @@ class GlueJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         verbose: bool = False,
         update_config: bool = False,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -114,6 +117,7 @@ class GlueJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.verbose = verbose
         self.update_config = update_config
+        self.deferrable = deferrable
 
     def execute(self, context: Context):
         """
@@ -167,7 +171,18 @@ class GlueJobOperator(BaseOperator):
             job_run_id=glue_job_run["JobRunId"],
         )
         self.log.info("You can monitor this Glue Job run at: %s", glue_job_run_url)
-        if self.wait_for_completion:
+
+        if self.deferrable:
+            self.defer(
+                trigger=GlueJobCompleteTrigger(
+                    job_name=self.job_name,
+                    run_id=glue_job_run["JobRunId"],
+                    verbose=self.verbose,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
             glue_job_run = glue_job.job_completion(self.job_name, glue_job_run["JobRunId"], self.verbose)
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
@@ -178,3 +193,8 @@ class GlueJobOperator(BaseOperator):
         else:
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run["JobRunId"])
         return glue_job_run["JobRunId"]
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error in glue job: {event}")
+        return
