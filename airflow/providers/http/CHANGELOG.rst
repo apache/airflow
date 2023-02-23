@@ -24,6 +24,21 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add HttpHookAsync for deferrable implementation (#29038)``
+
+4.1.1
+.....
+
+Misc
+~~~~
+* ``Change logging for HttpHook to debug (#28911)``
+
 4.1.0
 .....
 

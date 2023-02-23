@@ -24,11 +24,13 @@ import shutil
 import sys
 import traceback
 from itertools import repeat
+from tempfile import NamedTemporaryFile
 from typing import Iterator
 
 import requests
 import urllib3.exceptions
 from requests.adapters import DEFAULT_POOLSIZE
+from sphinx.util.inventory import InventoryFileReader
 
 from airflow.utils.helpers import partition
 from docs.exts.docs_build.docs_builder import get_available_providers_packages
@@ -47,25 +49,41 @@ S3_DOC_URL_NON_VERSIONED = S3_DOC_URL + "/docs/{package_name}/objects.inv"
 
 def _fetch_file(session: requests.Session, package_name: str, url: str, path: str) -> tuple[str, bool]:
     """
-    Download a file and returns status information as a tuple with package
+    Download a file, validate Sphinx Inventory headers and returns status information as a tuple with package
     name and success status(bool value).
     """
     try:
         response = session.get(url, allow_redirects=True, stream=True)
     except (requests.RequestException, urllib3.exceptions.HTTPError):
-        print(f"Failed to fetch inventory: {url}")
+        print(f"{package_name}: Failed to fetch inventory: {url}")
         traceback.print_exc(file=sys.stderr)
         return package_name, False
     if not response.ok:
-        print(f"Failed to fetch inventory: {url}")
-        print(f"Failed with status: {response.status_code}", file=sys.stderr)
+        print(f"{package_name}: Failed to fetch inventory: {url}")
+        print(f"{package_name}: Failed with status: {response.status_code}", file=sys.stderr)
         return package_name, False
 
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "wb") as f:
-        response.raw.decode_content = True
-        shutil.copyfileobj(response.raw, f)
-    print(f"Fetched inventory: {url}")
+    if response.url != url:
+        print(f"{package_name}: {url} redirected to {response.url}")
+
+    with NamedTemporaryFile(suffix=package_name, mode="wb+") as tf:
+        for chunk in response.iter_content(chunk_size=4096):
+            tf.write(chunk)
+
+        tf.flush()
+        tf.seek(0, 0)
+
+        line = InventoryFileReader(tf).readline()
+        if not line.startswith("# Sphinx inventory version"):
+            print(f"{package_name}: Response contain unexpected Sphinx Inventory header: {line!r}.")
+            return package_name, False
+
+        tf.seek(0, 0)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            shutil.copyfileobj(tf, f)
+
+    print(f"{package_name}: Fetched inventory: {response.url}")
     return package_name, True
 
 
@@ -136,5 +154,7 @@ def fetch_inventories():
         print("Failed packages:")
         for pkg_no, (pkg_name, _) in enumerate(failed, start=1):
             print(f"{pkg_no}. {pkg_name}")
+        print("Terminate execution.")
+        raise SystemExit(1)
 
     return [pkg_name for pkg_name, status in failed]

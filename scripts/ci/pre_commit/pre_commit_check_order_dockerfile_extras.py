@@ -28,7 +28,7 @@ from pathlib import Path
 
 from rich import print
 
-errors = []
+errors: list[str] = []
 
 MY_DIR_PATH = Path(__file__).parent.resolve()
 

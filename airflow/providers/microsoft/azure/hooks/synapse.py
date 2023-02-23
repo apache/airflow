@@ -50,6 +50,7 @@ class AzureSynapseSparkBatchRunStatus:
 class AzureSynapseHook(BaseHook):
     """
     A hook to interact with Azure Synapse.
+
     :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
     :param spark_pool: The Apache Spark pool used to submit the job
     """

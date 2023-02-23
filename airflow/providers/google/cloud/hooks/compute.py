@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from typing import Any, Sequence
 
 from google.api_core.retry import Retry
@@ -58,6 +59,10 @@ class ComputeEngineHook(GoogleBaseHook):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -80,15 +85,15 @@ class ComputeEngineHook(GoogleBaseHook):
 
     def get_compute_instance_template_client(self):
         """Returns Compute Engine Instance Template Client."""
-        return InstanceTemplatesClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return InstanceTemplatesClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     def get_compute_instance_client(self):
         """Returns Compute Engine Instance Client."""
-        return InstancesClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return InstancesClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     def get_compute_instance_group_managers_client(self):
         """Returns Compute Engine Instance Group Managers Client."""
-        return InstanceGroupManagersClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return InstanceGroupManagersClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance_template(

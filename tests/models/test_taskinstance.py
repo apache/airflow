@@ -70,6 +70,7 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.settings import TIMEZONE
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -130,6 +131,7 @@ class TestTaskInstance:
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
         db.clear_db_datasets()
+        db.clear_db_xcom()
 
     def setup_method(self):
         self.clean_db()
@@ -2307,13 +2309,13 @@ class TestTaskInstance:
         )
         context = ti.get_template_context()
         with pytest.deprecated_call():
-            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=timezone.TIMEZONE)
+            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["next_ds"] == "2021-09-07"
         with pytest.deprecated_call():
             assert context["next_ds_nodash"] == "20210907"
         with pytest.deprecated_call():
-            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=timezone.TIMEZONE)
+            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["prev_ds"] is None, "Does not make sense for custom timetable"
         with pytest.deprecated_call():
@@ -2506,7 +2508,9 @@ class TestTaskInstance:
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
-        Stats_incr.assert_any_call("ti_failures")
+        Stats_incr.assert_any_call(
+            "ti_failures", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+        )
         Stats_incr.assert_any_call("operator_failures_EmptyOperator")
 
     def test_handle_failure_task_undefined(self, create_task_instance):
@@ -2853,6 +2857,21 @@ class TestTaskInstance:
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
+
+    def test_clear_db_references(self, session, create_task_instance):
+        tables = [TaskFail, RenderedTaskInstanceFields, XCom]
+        ti = create_task_instance()
+        session.merge(ti)
+        session.commit()
+        for table in [TaskFail, RenderedTaskInstanceFields]:
+            session.add(table(ti))
+        XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
+        session.commit()
+        for table in tables:
+            assert session.query(table).count() == 1
+        ti.clear_db_references(session)
+        for table in tables:
+            assert session.query(table).count() == 0
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
@@ -3600,6 +3619,40 @@ class TestMappedTaskInstanceReceiveValue:
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
 
 
+def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
+    backend = os.environ.get("BACKEND")
+    if backend == "mssql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.[key] = 'xxx'",
+        ]
+    elif backend == "mysql":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
+        ]
+    elif backend == "postgres":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
+        ]
+    elif backend == "sqlite":
+        return [
+            "SELECT xcom.value",
+            "FROM xcom",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
+        ]
+    else:
+        raise RuntimeError(f"unknown backend {backend!r}")
+
+
 def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
     with dag_maker(session=session):
         EmptyOperator(task_id="t")
@@ -3607,8 +3660,21 @@ def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
     run: DagRun = dag_maker.create_dagrun()
     run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
 
-    original = LazyXComAccess.build_from_xcom_query(session.query(XCom))
+    query = session.query(XCom.value).filter_by(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        task_id="t",
+        map_index=-1,
+        key="xxx",
+    )
+
+    original = LazyXComAccess.build_from_xcom_query(query)
     processed = pickle.loads(pickle.dumps(original))
+
+    # After the object went through pickling, the underlying ORM query should be
+    # replaced by one backed by a literal SQL string with all variables binded.
+    sql_lines = [line.strip() for line in str(processed._query.statement.compile(None)).splitlines()]
+    assert sql_lines == _get_lazy_xcom_access_expected_sql_lines()
 
     assert len(processed) == 1
     assert list(processed) == [123]

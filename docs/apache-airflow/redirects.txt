@@ -46,7 +46,7 @@ start/index.rst start.rst
 
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
-_api/index.rst python-api-ref.rst
+_api/index.rst public-airflow-interface.rst
 rest-api-ref.rst deprecated-rest-api-ref.rst
 macros-ref.rst templates-ref.rst
 
@@ -130,3 +130,9 @@ executor/celery.rst core-concepts/executor/celery.rst
 executor/local.rst core-concepts/executor/local.rst
 executor/sequential.rst core-concepts/executor/sequential.rst
 upgrading-from-1-10/upgrade-check.rst howto/upgrading-from-1-10/upgrade-check.rst
+
+# Python API
+python-api-ref.rst public-airflow-interface.rst
+
+# Typos
+howto/define_extra_link.rst howto/define-extra-link.rst

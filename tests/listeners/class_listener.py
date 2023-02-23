@@ -47,3 +47,7 @@ class ClassBasedListener:
     @hookimpl
     def on_task_instance_failed(self, previous_state, task_instance, session):
         self.state.append(State.FAILED)
+
+
+def clear():
+    pass

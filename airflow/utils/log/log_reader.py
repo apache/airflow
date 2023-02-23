@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Iterator
 
 from sqlalchemy.orm.session import Session
@@ -32,6 +33,9 @@ from airflow.utils.state import State
 
 class TaskLogReader:
     """Task log reader"""
+
+    STREAM_LOOP_SLEEP_SECONDS = 0.5
+    """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: int | None, metadata
@@ -77,12 +81,19 @@ class TaskLogReader:
             metadata.pop("max_offset", None)
             metadata.pop("offset", None)
             metadata.pop("log_pos", None)
-            while "end_of_log" not in metadata or (
-                not metadata["end_of_log"] and ti.state not in [State.RUNNING, State.DEFERRED]
-            ):
+            while True:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
                     yield "\n".join([host or "", log]) + "\n"
+                if "end_of_log" not in metadata or (
+                    not metadata["end_of_log"] and ti.state not in [State.RUNNING, State.DEFERRED]
+                ):
+                    if not logs[0]:
+                        # we did not receive any logs in this loop
+                        # sleeping to conserve resources / limit requests on external services
+                        time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
+                else:
+                    break
 
     @cached_property
     def log_handler(self):

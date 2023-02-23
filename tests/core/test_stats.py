@@ -159,10 +159,10 @@ class TestDogStats:
             metric="empty_key", sample_rate=1, tags=[], value=1
         )
 
-    def test_does_send_stats_using_dogstatsd_with_tags(self):
-        self.dogstatsd.incr("empty_key", 1, 1, ["key1:value1", "key2:value2"])
+    def test_does_send_stats_using_dogstatsd_with_tags_without_enabled_metrics_tags(self):
+        self.dogstatsd.incr("empty_key", 1, 1, tags={"key1": "value1", "key2": "value2"})
         self.dogstatsd_client.increment.assert_called_once_with(
-            metric="empty_key", sample_rate=1, tags=["key1:value1", "key2:value2"], value=1
+            metric="empty_key", sample_rate=1, tags=[], value=1
         )
 
     def test_does_send_stats_using_dogstatsd_when_statsd_and_dogstatsd_both_on(self):
@@ -263,6 +263,55 @@ class TestDogStatsWithAllowList:
     def test_not_increment_counter_if_not_allowed(self):
         self.dogstats.incr("stats_three")
         self.dogstatsd_client.assert_not_called()
+
+
+class TestDogStatsWithMetricsTags:
+    def setup_method(self):
+        pytest.importorskip("datadog")
+        from datadog import DogStatsd
+
+        self.dogstatsd_client = Mock(speck=DogStatsd)
+        self.dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
+
+    def test_does_send_stats_using_dogstatsd_with_tags(self):
+        self.dogstatsd.incr("empty_key", 1, 1, tags={"key1": "value1", "key2": "value2"})
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric="empty_key", sample_rate=1, tags=["key1:value1", "key2:value2"], value=1
+        )
+
+
+class TestStatsWithInfluxDBEnabled:
+    def setup_method(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_influxdb_enabled"): "True",
+            }
+        ):
+            self.statsd_client = Mock(spec=statsd.StatsClient)
+            self.stats = SafeStatsdLogger(self.statsd_client, influxdb_tags_enabled=True)
+
+    def test_increment_counter(self):
+        self.stats.incr(
+            "test_stats_run.delay",
+        )
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay", 1, 1)
+
+    def test_increment_counter_with_tags(self):
+        self.stats.incr(
+            "test_stats_run.delay",
+            tags={"key0": "val0", "key1": "val1", "key2": "val2"},
+        )
+        self.statsd_client.incr.assert_called_once_with(
+            "test_stats_run.delay,key0=val0,key1=val1,key2=val2", 1, 1
+        )
+
+    def test_does_not_increment_counter_drops_invalid_tags(self):
+        self.stats.incr(
+            "test_stats_run.delay",
+            tags={"key0,": "val0", "key1": "val1", "key2": "val2"},
+        )
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1,key2=val2", 1, 1)
 
 
 def always_invalid(stat_name):

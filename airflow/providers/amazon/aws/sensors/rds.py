@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
@@ -34,10 +35,14 @@ class RdsBaseSensor(BaseSensorOperator):
     ui_fgcolor = "#ffffff"
 
     def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: dict | None = None, **kwargs):
-        hook_params = hook_params or {}
-        self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
+        self.hook_params = hook_params or {}
+        self.aws_conn_id = aws_conn_id
         self.target_statuses: list[str] = []
         super().__init__(*args, **kwargs)
+
+    @cached_property
+    def hook(self):
+        return RdsHook(aws_conn_id=self.aws_conn_id, **self.hook_params)
 
 
 class RdsSnapshotExistenceSensor(RdsBaseSensor):

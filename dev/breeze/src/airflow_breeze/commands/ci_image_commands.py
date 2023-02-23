@@ -255,12 +255,11 @@ def build(
 @option_verify
 @option_wait_for_image
 @option_image_tag_for_pulling
-@option_include_success_outputs
 @option_tag_as_latest
 @option_github_repository
 @option_verbose
 @option_dry_run
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra-pytest-args", nargs=-1, type=click.UNPROCESSED)
 def pull(
     python: str,
     run_in_parallel: bool,
@@ -505,24 +504,29 @@ def run_build_ci_image(
                 check=False,
                 output=output,
             )
-            if (
-                build_command_result.returncode != 0
-                and ci_image_params.upgrade_on_failure
-                and not ci_image_params.upgrade_to_newer_dependencies
-            ):
-                ci_image_params.upgrade_to_newer_dependencies = True
-                get_console().print(
-                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
-                )
-                build_command_result = run_command(
-                    prepare_docker_build_command(
-                        image_params=ci_image_params,
-                    ),
-                    cwd=AIRFLOW_SOURCES_ROOT,
-                    text=True,
-                    check=False,
-                    output=output,
-                )
+            if build_command_result.returncode != 0 and not ci_image_params.upgrade_to_newer_dependencies:
+                if ci_image_params.upgrade_on_failure:
+                    ci_image_params.upgrade_to_newer_dependencies = True
+                    get_console().print(
+                        "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
+                    )
+                    build_command_result = run_command(
+                        prepare_docker_build_command(
+                            image_params=ci_image_params,
+                        ),
+                        cwd=AIRFLOW_SOURCES_ROOT,
+                        text=True,
+                        check=False,
+                        output=output,
+                    )
+                else:
+                    get_console().print(
+                        "[warning]Your image build failed. It could be caused by conflicting dependencies."
+                    )
+                    get_console().print(
+                        "[info]Run "
+                        "`breeze ci-image build --upgrade-to-newer-dependencies` to upgrade them.\n"
+                    )
             if build_command_result.returncode == 0:
                 if ci_image_params.tag_as_latest:
                     build_command_result = tag_image_as_latest(image_params=ci_image_params, output=output)

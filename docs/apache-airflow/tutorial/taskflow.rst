@@ -125,7 +125,7 @@ how this DAG had to be written before Airflow 2.0 below:
     :start-after: [START tutorial]
     :end-before: [END tutorial]
 
-All of the processing shown above is being done in the new Airflow 2.0 dag as well, but
+All of the processing shown above is being done in the new Airflow 2.0 DAG as well, but
 it is all abstracted from the DAG developer.
 
 Let's examine this in detail by looking at the Transform task in isolation since it is
@@ -234,8 +234,7 @@ Using the TaskFlow API with complex/conflicting Python dependencies
 -------------------------------------------------------------------
 
 If you have tasks that require complex or conflicting requirements then you will have the ability to use the
-TaskFlow API with either Python virtual environment (since 2.0.2), Docker container (since version 2.2.0) or
-or ExternalPythonOperator or KubernetesPodOperator (since 2.4.0).
+TaskFlow API with either Python virtual environment (since 2.0.2), Docker container (since 2.2.0), ExternalPythonOperator (since 2.4.0) or KubernetesPodOperator (since 2.4.0).
 
 This functionality allows a much more comprehensive range of use-cases for the TaskFlow API,
 as you are not limited to the packages and system libraries of the Airflow worker. For all cases of

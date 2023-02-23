@@ -31,6 +31,7 @@ from airflow.serialization.serde import (
     SCHEMA_ID,
     VERSION,
     _compile_patterns,
+    _match,
     deserialize,
     serialize,
 )
@@ -180,6 +181,16 @@ class TestSerDe:
             deserialize(e)
 
         assert f"{qualname(Z)} was not found in allow list" in str(ex.value)
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "tests.*",
+        }
+    )
+    def test_allow_list_replace(self):
+        _compile_patterns()
+        assert _match("tests.airflow.deep")
+        assert _match("testsfault") is False
 
     def test_incompatible_version(self):
         data = dict(

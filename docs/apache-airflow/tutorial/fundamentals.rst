@@ -377,7 +377,7 @@ to also wait for all task instances *immediately downstream* of the previous
 task instance to succeed.
 
 The date range in this context is a ``start_date`` and optionally an ``end_date``,
-which are used to populate the run schedule with task instances from this dag.
+which are used to populate the run schedule with task instances from this DAG.
 
 .. code-block:: bash
 
@@ -393,7 +393,7 @@ which are used to populate the run schedule with task instances from this dag.
 What's Next?
 -------------
 That's it! You have written, tested and backfilled your very first Airflow
-pipeline. Merging your code into a repository that has a master scheduler
+pipeline. Merging your code into a repository that has a Scheduler
 running against it should result in being triggered and run every day.
 
 Here are a few things you might want to do next:

@@ -24,6 +24,13 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Misc
+~~~~
+* ``MongoHook optimization (#28675)``
+
 3.1.0
 .....
 

@@ -97,6 +97,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
     ) -> None:
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -236,8 +240,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query. The DbApiHook method must be overridden because Pandas
         doesn't support PEP 249 connections, except for SQLite. See:
 
-        https://github.com/pydata/pandas/blob/master/pandas/io/sql.py#L447
-        https://github.com/pydata/pandas/issues/6900
+        https://github.com/pandas-dev/pandas/blob/055d008615272a1ceca9720dc365a2abd316f353/pandas/io/sql.py#L415
+        https://github.com/pandas-dev/pandas/issues/6900
 
         :param sql: The BigQuery SQL to execute.
         :param parameters: The parameters to render the SQL query with (not
@@ -425,7 +429,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
         """
-        dataset_reference = dataset_reference or {"datasetReference": {}}
+        dataset_reference = dataset_reference or {}
+
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
 
         for param, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
             specified_param = dataset_reference["datasetReference"].get(param)

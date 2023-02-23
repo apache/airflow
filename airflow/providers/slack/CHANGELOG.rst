@@ -24,12 +24,21 @@
 Changelog
 ---------
 
+7.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add general-purpose "notifier" concept to DAGs (#28569)``
+
 7.1.1
 .....
 
 Misc
 ~~~~
-   * ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+
+* ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -41,7 +50,6 @@ Features
 ~~~~~~~~
 
 * ``Implements SqlToSlackApiFileOperator (#26374)``
-* ``Added SlackNotifier (#28569)``
 
 Bug Fixes
 ~~~~~~~~~

@@ -72,7 +72,7 @@ in favor of ``data_interval_start``.
 Breadcrumbs
 ------------
 
-When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current dag run.
+When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current DAG run.
 
 ======================================= ==============================================================
 Name                                    Description
@@ -95,9 +95,9 @@ environment variables are passed but also all existing environment variables are
 ``SUBPROCESS_`` prefix added. This happens also for all other subprocesses.
 
 This behaviour can be disabled by setting ``default_integrations`` sentry configuration parameter to
-``False`` which disables ``StdlibIntegration``. This however also disables other default integrations
-and you need to enable them manually if you want to get them enabled,
-see `Sentry Default Integrations <https://docs.sentry.io/platforms/python/guides/wsgi/configuration/integrations/default-integrations/>`_
+``False`` which disables ``StdlibIntegration``. However, this also disables other default integrations,
+so you need to enable them manually if you want them to remain enabled
+(see `Sentry Default Integrations <https://docs.sentry.io/platforms/python/guides/wsgi/configuration/integrations/default-integrations/>`_).
 
 .. code-block:: ini
 

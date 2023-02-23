@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import subprocess
@@ -29,6 +28,7 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.operators.python import get_current_context
+from airflow.providers.amazon.aws.hooks.ecr import EcrHook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerAutoMLOperator,
+    SageMakerCreateExperimentOperator,
     SageMakerDeleteModelOperator,
     SageMakerModelOperator,
     SageMakerProcessingOperator,
@@ -54,7 +55,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerTuningSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_sagemaker"
 
@@ -135,11 +136,8 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
       - Has our data preprocessing script mounted and set as the entry point
     """
     ecr_region = repository_uri.split(".")[3]
-
-    # Fetch and parse ECR Token to be used for the docker push
-    token = boto3.client("ecr", region_name=ecr_region).get_authorization_token()
-    credentials = (base64.b64decode(token["authorizationData"][0]["authorizationToken"])).decode("utf-8")
-    username, password = credentials.split(":")
+    # Fetch ECR Token to be used for docker
+    creds = EcrHook(region_name=ecr_region).get_temporary_credentials()[0]
 
     with NamedTemporaryFile(mode="w+t") as preprocessing_script, NamedTemporaryFile(mode="w+t") as dockerfile:
         preprocessing_script.write(preprocess_script)
@@ -147,7 +145,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         dockerfile.write(
             f"""
-            FROM amazonlinux
+            FROM public.ecr.aws/amazonlinux/amazonlinux
             COPY {preprocessing_script.name.split('/')[2]} /preprocessing.py
             ADD credentials /credentials
             ENV AWS_SHARED_CREDENTIALS_FILE=/credentials
@@ -160,10 +158,14 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
 
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
+            # login to public ecr repo containing amazonlinux image
+            docker login --username {creds.username} --password {creds.password} public.ecr.aws
             docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
+
+            # login again, this time to the private repo we created to hold that specific image
             aws ecr get-login-password --region {ecr_region} |
-            docker login --username {username} --password {password} {repository_uri} &&
+            docker login --username {creds.username} --password {creds.password} {repository_uri} &&
             docker push {repository_uri}
             """
         docker_build = subprocess.Popen(
@@ -175,8 +177,8 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         _, stderr = docker_build.communicate()
         if docker_build.returncode != 0:
             raise RuntimeError(
-                "Failed to push docker image to the repository.  The following error "
-                f"message may be useful, but can occasionally be misleading: {stderr}"
+                "Failed to prepare docker image for the preprocessing job.\n"
+                f"The following error happened while executing the sequence of bash commands:\n{stderr}"
             )
 
 
@@ -200,6 +202,7 @@ def set_up(env_id, role_arn):
     model_package_group_name = f"{env_id}-group"
     pipeline_name = f"{env_id}-pipe"
     auto_ml_job_name = f"{env_id}-automl"
+    experiment_name = f"{env_id}-experiment"
 
     input_data_S3_key = f"{env_id}/processed-input-data"
     prediction_output_s3_key = f"{env_id}/transform"
@@ -303,6 +306,7 @@ def set_up(env_id, role_arn):
             }
         ],
         "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
+        "ExperimentConfig": {"ExperimentName": experiment_name},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
         "StoppingCondition": {"MaxRuntimeInSeconds": 60},
@@ -409,6 +413,7 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="model_package_group_name", value=model_package_group_name)
     ti.xcom_push(key="pipeline_name", value=pipeline_name)
     ti.xcom_push(key="auto_ml_job_name", value=auto_ml_job_name)
+    ti.xcom_push(key="experiment_name", value=experiment_name)
     ti.xcom_push(key="model_config", value=model_config)
     ti.xcom_push(key="model_name", value=model_name)
     ti.xcom_push(key="inference_code_image", value=knn_image_uri)
@@ -433,17 +438,6 @@ def delete_ecr_repository(repository_name):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_logs(env_id):
-    generated_logs = [
-        # Format: ('log group name', 'log stream prefix')
-        ("/aws/sagemaker/ProcessingJobs", env_id),
-        ("/aws/sagemaker/TrainingJobs", env_id),
-        ("/aws/sagemaker/TransformJobs", env_id),
-    ]
-    purge_logs(generated_logs)
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_model_group(group_name, model_version_arn):
     sgmk_client = boto3.client("sagemaker")
     # need to destroy model registered in group first
@@ -455,6 +449,21 @@ def delete_model_group(group_name, model_version_arn):
 def delete_pipeline(pipeline_name):
     sgmk_client = boto3.client("sagemaker")
     sgmk_client.delete_pipeline(PipelineName=pipeline_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_experiment(name):
+    sgmk_client = boto3.client("sagemaker")
+    trials = sgmk_client.list_trials(ExperimentName=name)
+    trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
+    for trial in trials_names:
+        components = sgmk_client.list_trial_components(TrialName=trial)
+        components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
+        for component in components_names:
+            sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
+            sgmk_client.delete_trial_component(TrialComponentName=component)
+        sgmk_client.delete_trial(TrialName=trial)
+    sgmk_client.delete_experiment(ExperimentName=name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -482,9 +491,10 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
+    env_id = test_context[ENV_ID_KEY]
 
     test_setup = set_up(
-        env_id=test_context[ENV_ID_KEY],
+        env_id=env_id,
         role_arn=test_context[ROLE_ARN_KEY],
     )
 
@@ -517,6 +527,7 @@ with DAG(
     # [START howto_sensor_sagemaker_auto_ml]
     await_automl = SageMakerAutoMLSensor(job_name=test_setup["auto_ml_job_name"], task_id="await_auto_ML")
     # [END howto_sensor_sagemaker_auto_ml]
+    await_automl.poke_interval = 10
 
     # [START howto_operator_sagemaker_start_pipeline]
     start_pipeline1 = SageMakerStartPipelineOperator(
@@ -543,6 +554,13 @@ with DAG(
         pipeline_exec_arn=start_pipeline2.output,
     )
     # [END howto_sensor_sagemaker_pipeline]
+    await_pipeline2.poke_interval = 10
+
+    # [START howto_operator_sagemaker_experiment]
+    create_experiment = SageMakerCreateExperimentOperator(
+        task_id="create_experiment", name=test_setup["experiment_name"]
+    )
+    # [END howto_operator_sagemaker_experiment]
 
     # [START howto_operator_sagemaker_processing]
     preprocess_raw_data = SageMakerProcessingOperator(
@@ -633,6 +651,15 @@ with DAG(
         force_delete=True,
     )
 
+    log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            ("/aws/sagemaker/ProcessingJobs", env_id),
+            ("/aws/sagemaker/TrainingJobs", env_id),
+            ("/aws/sagemaker/TransformJobs", env_id),
+        ]
+    )
+
     chain(
         # TEST SETUP
         test_context,
@@ -646,6 +673,7 @@ with DAG(
         start_pipeline2,
         stop_pipeline1,
         await_pipeline2,
+        create_experiment,
         preprocess_raw_data,
         train_model,
         await_training,
@@ -660,9 +688,10 @@ with DAG(
         delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
-        delete_logs(test_context[ENV_ID_KEY]),
+        delete_experiment(test_setup["experiment_name"]),
         delete_pipeline(test_setup["pipeline_name"]),
         delete_docker_image(test_setup["docker_image"]),
+        log_cleanup,
     )
 
     from tests.system.utils.watcher import watcher

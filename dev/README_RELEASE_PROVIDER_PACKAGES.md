@@ -333,6 +333,14 @@ cd airflow-site
 export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```
 
+Note if this is not the first time you clone the repo make sure main branch is rebased:
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+git checkout main
+git rebase --pull
+```
+
 - Then you can go to the directory and build the necessary documentation packages
 
 ```shell script
@@ -406,6 +414,12 @@ cd "${AIRFLOW_REPO_ROOT}"
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
 
+If you see `ModuleNotFoundError: No module named 'docs'`, set:
+
+```
+export PYTHONPATH=.:${PYTHONPATH}
+```
+
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
@@ -437,7 +451,7 @@ set as your environment variable.
 You can also pass the token as `--github-token` option in the script.
 
 ```shell script
-breeze release-management generate-issue-content --only-available-in-dist
+breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
 You can also generate the token by following
@@ -446,7 +460,7 @@ You can also generate the token by following
 If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
 
 ```shell script
-breeze release-management generate-issue-content --only-available-in-dist --suffix rc2
+breeze release-management generate-issue-content-providers --only-available-in-dist --suffix rc2
 ```
 
 
@@ -803,7 +817,7 @@ svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
 SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/providers"
 
 # If some packages have been excluded, remove them now
-# Check the packages are there (replace <provider> with the name of the provider that you remove
+# Check the packages are there (replace <provider> with the name of the provider that you remove)
 ls ${SOURCE_DIR}/*<provider>*
 # Remove them
 svn rm ${SOURCE_DIR}/*<provider>*
@@ -842,6 +856,24 @@ Verify that the packages appear in
 You are expected to see all latest versions of providers.
 The ones you are about to release (with new version) and the ones that are not part of the current release.
 
+Troubleshoot:
+In case that while viewing the packages in dist/release you see that a provider has files from current version and release version it probably means that you wanted to exclude the new version of provider from release but didn't remove all providers files as expected in previous step.
+Since you already commit to SVN you need to recover files from previous version with svn copy (svn merge will not work since you don't have copy of the file locally)
+for example:
+
+```
+svn copy https://dist.apache.org/repos/dist/release/airflow/providers/apache_airflow_providers_docker-3.4.0-py3-none-any.whl@59404
+https://dist.apache.org/repos/dist/release/airflow/providers/apache_airflow_providers_docker-3.4.0-py3-none-any.whl
+```
+
+Where `59404` is the revision we want to copy the file from. Then you can commit again.
+You can also add  `-m "undeleted file"` to the `svn copy` to commit in 1 step.
+
+Then remove from svn the files of the new provider version that you wanted to exclude from release.
+If you had this issue you will need also to make adjustments in the next step to remove the provider from listed in twine check.
+This is simply by removing the relevant files locally.
+
+
 ## Publish the packages to PyPI
 
 By that time the packages should be in your dist folder.
@@ -877,7 +909,7 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-Copy links to updated packages.
+Copy links to updated packages, sort it aphabeticly and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -913,11 +945,7 @@ the artifacts have been published.
 
 Subject:
 
-```shell script
-cat <<EOF
-Airflow Providers released on $(date "+%B %d, %Y") are ready
-EOF
-```
+[ANNOUNCE] Apache Airflow Providers prepared on <DATE OF CUT RC> are released
 
 Body:
 
@@ -956,3 +984,9 @@ Add the release data (version and date) at: https://reporter.apache.org/addrelea
 ## Close the testing status issue
 
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
+```shell script
+Thank you everyone.
+Providers are released
+I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
+```

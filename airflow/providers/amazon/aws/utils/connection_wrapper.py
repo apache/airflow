@@ -125,6 +125,9 @@ class AwsConnectionWrapper(LoggingMixin):
     def conn_repr(self):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
 
+    def get_service_config(self, service_name):
+        return self.extra_dejson.get("service_config", {}).get(service_name, {})
+
     def __post_init__(self, conn: Connection):
         if isinstance(conn, type(self)):
             # For every field with init=False we copy reference value from original wrapper
@@ -440,10 +443,13 @@ def _parse_s3_config(
     import configparser
 
     config = configparser.ConfigParser()
-    if config.read(config_file_name):  # pragma: no cover
-        sections = config.sections()
-    else:
-        raise AirflowException(f"Couldn't read {config_file_name}")
+    try:
+        if config.read(config_file_name):  # pragma: no cover
+            sections = config.sections()
+        else:
+            raise AirflowException(f"Couldn't read {config_file_name}")
+    except Exception as e:
+        raise AirflowException("Exception when parsing %s: %s", config_file_name, e.__class__.__name__)
     # Setting option names depending on file format
     if config_format is None:
         config_format = "boto"

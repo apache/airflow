@@ -64,6 +64,7 @@ def restore_env():
     "os.environ",
     {
         "AIRFLOW__TESTSECTION__TESTKEY": "testvalue",
+        "AIRFLOW__CORE__FERNET_KEY": "testvalue",
         "AIRFLOW__TESTSECTION__TESTPERCENT": "with%percent",
         "AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD": 'echo -n "OK"',
         "AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD": 'echo -n "NOT OK"',
@@ -135,15 +136,16 @@ class TestConf:
         assert cfg_dict["core"]["percent"] == "with%inside"
 
         # test env vars
-        assert cfg_dict["testsection"]["testkey"] == "< hidden >"
-        assert cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"] == "< hidden >"
+        assert cfg_dict["testsection"]["testkey"] == "testvalue"
+        assert cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"] == "nested"
 
     def test_conf_as_dict_source(self):
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         assert cfg_dict["core"]["load_examples"][1] == "airflow.cfg"
         assert cfg_dict["database"]["load_default_connections"][1] == "airflow.cfg"
-        assert cfg_dict["testsection"]["testkey"] == ("< hidden >", "env var")
+        assert cfg_dict["testsection"]["testkey"] == ("testvalue", "env var")
+        assert cfg_dict["core"]["fernet_key"] == ("< hidden >", "env var")
 
     def test_conf_as_dict_sensitive(self):
         # test display_sensitive

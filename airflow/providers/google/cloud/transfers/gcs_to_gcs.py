@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Storage operator."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
@@ -207,6 +208,10 @@ class GCSToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.replace = replace
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.last_modified_time = last_modified_time
         self.maximum_modified_time = maximum_modified_time

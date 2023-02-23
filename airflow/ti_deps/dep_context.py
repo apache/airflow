@@ -77,6 +77,7 @@ class DepContext:
     ignore_ti_state: bool = False
     ignore_unmapped_tasks: bool = False
     finished_tis: list[TaskInstance] | None = None
+    description: str | None = None
 
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""

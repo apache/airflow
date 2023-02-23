@@ -251,7 +251,7 @@ or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 Breeze starts with downloading the Airflow CI image from
 the Docker Hub and installing all required dependencies.
 
-This will enter the Docker Docker environment and mount your local sources
+This will enter the Docker environment and mount your local sources
 to make them immediately visible in the environment.
 
 4. Create a local virtualenv, for example:
@@ -893,7 +893,7 @@ as described in the static code checks documentation.
 Coding style and best practices
 ===============================
 
-Most of our coding style rules are enforced programmatically by flake8 and mypy (which are run automatically
+Most of our coding style rules are enforced programmatically by ruff and mypy (which are run automatically
 on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
 semantic than style
 

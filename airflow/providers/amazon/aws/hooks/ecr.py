@@ -50,13 +50,14 @@ class EcrCredentials:
 
 class EcrHook(AwsBaseHook):
     """
-    Interact with Amazon Elastic Container Registry (ECR)
+    Interact with Amazon Elastic Container Registry (ECR).
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("ecr") <ECR.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, **kwargs):
@@ -66,16 +67,14 @@ class EcrHook(AwsBaseHook):
     def get_temporary_credentials(self, registry_ids: list[str] | str | None = None) -> list[EcrCredentials]:
         """Get temporary credentials for Amazon ECR.
 
-        Return list of :class:`~airflow.providers.amazon.aws.hooks.ecr.EcrCredentials`,
-        obtained credentials valid for 12 hours.
+        .. seealso::
+            - :external+boto3:py:meth:`ECR.Client.get_authorization_token`
 
         :param registry_ids: Either AWS Account ID or list of AWS Account IDs that are associated
             with the registries from which credentials are obtained. If you do not specify a registry,
             the default registry is assumed.
-
-        .. seealso::
-            - `boto3 ECR client get_authorization_token method <https://boto3.amazonaws.com/v1/documentation/\
-               api/latest/reference/services/ecr.html#ECR.Client.get_authorization_token>`_.
+        :return: list of :class:`airflow.providers.amazon.aws.hooks.ecr.EcrCredentials`,
+            obtained credentials valid for 12 hours.
         """
         registry_ids = registry_ids or None
         if isinstance(registry_ids, str):

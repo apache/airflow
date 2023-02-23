@@ -123,6 +123,7 @@ backfill
 backfillable
 backfilled
 backfilling
+backfilljob
 BackfillJobTest
 Backfills
 backfills
@@ -290,6 +291,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+coroutine
 coverals
 cp
 cpu
@@ -348,6 +350,9 @@ DataFrame
 Dataframe
 dataframe
 dataframes
+DataFusion
+Datafusion
+datafusion
 Datalake
 Datanodes
 datapipe
@@ -641,6 +646,7 @@ Grpc
 gRPC
 grpc
 GSoD
+gsuite
 Gunicorn
 gz
 Gzip
@@ -755,6 +761,7 @@ IRSA
 isfile
 ish
 isn
+isort
 iterable
 iterables
 iteratively
@@ -1266,6 +1273,7 @@ schedulable
 schedulername
 schemas
 sdk
+sdks
 searchpath
 SearchResultGenerator
 SecretManagerClient

@@ -396,16 +396,22 @@ class TestSFTPOperator:
                 task_id="test_sftp_unequal_paths",
                 local_filepath="/tmp/test",
                 remote_filepath=["/tmp/test1", "/tmp/test2"],
-            )
+            ).execute(None)
 
-    def test_str_filepaths_converted_to_lists(self):
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
+    def test_str_filepaths_get(self, mock_get):
         local_filepath = "/tmp/test"
         remote_filepath = "/tmp/remotetest"
-        sftp_op = SFTPOperator(
-            task_id="test_str_to_list", local_filepath=local_filepath, remote_filepath=remote_filepath
-        )
-        assert sftp_op.local_filepath == [local_filepath]
-        assert sftp_op.remote_filepath == [remote_filepath]
+        SFTPOperator(
+            task_id="test_str_to_list",
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.GET,
+        ).execute(None)
+        assert mock_get.call_count == 1
+        args, _ = mock_get.call_args_list[0]
+        assert args == (remote_filepath, local_filepath)
 
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
     def test_multiple_paths_get(self, mock_get):
@@ -424,6 +430,21 @@ class TestSFTPOperator:
         args1, _ = mock_get.call_args_list[1]
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_file")
+    def test_str_filepaths_put(self, mock_get):
+        local_filepath = "/tmp/test"
+        remote_filepath = "/tmp/remotetest"
+        SFTPOperator(
+            task_id="test_str_to_list",
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            operation=SFTPOperation.PUT,
+        ).execute(None)
+        assert mock_get.call_count == 1
+        args, _ = mock_get.call_args_list[0]
+        assert args == (remote_filepath, local_filepath)
 
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_file")
     def test_multiple_paths_put(self, mock_put):

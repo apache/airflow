@@ -72,6 +72,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     MAX_LINE_PER_PAGE = 1000
     LOG_NAME = "Elasticsearch"
 
+    trigger_should_wrap = True
+
     def __init__(
         self,
         base_log_folder: str,
@@ -179,7 +181,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _group_logs_by_host(self, logs):
         grouped_logs = defaultdict(list)
         for log in logs:
-            key = getattr(log, self.host_field, "default_host")
+            key = getattr_nested(log, self.host_field, None) or "default_host"
             grouped_logs[key].append(log)
 
         return grouped_logs
@@ -324,7 +326,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         :param ti: task instance object
         """
-        self.mark_end_on_close = not ti.raw
+        is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
+        is_ti_raw = getattr(ti, "raw", None)
+        self.mark_end_on_close = not is_ti_raw and not is_trigger_log_context
 
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
@@ -360,7 +364,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.closed:
             return
 
-        if not self.mark_end_on_close:
+        # todo: remove `getattr` when min airflow version >= 2.6
+        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
+            # when we're closing due to task deferral, don't mark end of log
             self.closed = True
             return
 
@@ -407,3 +413,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def supports_external_link(self) -> bool:
         """Whether we can support external links"""
         return bool(self.frontend)
+
+
+def getattr_nested(obj, item, default):
+    """
+    Get item from obj but return default if not found
+
+    E.g. calling ``getattr_nested(a, 'b.c', "NA")`` will return
+    ``a.b.c`` if such a value exists, and "NA" otherwise.
+
+    :meta private:
+    """
+    try:
+        return attrgetter(item)(obj)
+    except AttributeError:
+        return default
