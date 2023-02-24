@@ -28,10 +28,12 @@ import {
 } from '@chakra-ui/react';
 import React from 'react';
 import type { DagRun, RunState, TaskState } from 'src/types';
+import AutoRefresh from 'src/components/AutoRefresh';
 
 import { useTimezone } from 'src/context/timezone';
 import { isoFormatWithoutTZ } from 'src/datetime_utils';
 import useFilters from '../useFilters';
+import ResetRoot from '../grid/ResetRoot';
 
 declare const filtersOptions: {
   dagStates: RunState[],
@@ -57,64 +59,70 @@ const FilterBar = () => {
   const inputStyles = { backgroundColor: 'white', size: 'lg' };
 
   return (
-    <Flex backgroundColor="#f0f0f0" mt={4} p={4}>
-      <Box px={2}>
-        <Input
-          {...inputStyles}
-          type="datetime-local"
-          value={formattedTime || ''}
-          onChange={(e) => onBaseDateChange(e.target.value)}
-        />
-      </Box>
-      <Box px={2}>
-        <Select
-          {...inputStyles}
-          placeholder="Runs"
-          value={filters.numRuns || ''}
-          onChange={(e) => onNumRunsChange(e.target.value)}
-        >
-          {filtersOptions.numRuns.map((value) => (
-            <option value={value} key={value}>{value}</option>
-          ))}
-        </Select>
-      </Box>
-      <Box px={2}>
-        <Select
-          {...inputStyles}
-          value={filters.runType || ''}
-          onChange={(e) => onRunTypeChange(e.target.value)}
-        >
-          <option value="" key="all">All Run Types</option>
-          {filtersOptions.runTypes.map((value) => (
-            <option value={value.toString()} key={value}>{value}</option>
-          ))}
-        </Select>
-      </Box>
-      <Box />
-      <Box px={2}>
-        <Select
-          {...inputStyles}
-          value={filters.runState || ''}
-          onChange={(e) => onRunStateChange(e.target.value)}
-        >
-          <option value="" key="all">All Run States</option>
-          {filtersOptions.dagStates.map((value) => (
-            <option value={value} key={value}>{value}</option>
-          ))}
-        </Select>
-      </Box>
-      <Box px={2}>
-        <Button
-          colorScheme="cyan"
-          aria-label="Reset filters"
-          background="white"
-          variant="outline"
-          onClick={clearFilters}
-          size="lg"
-        >
-          Clear Filters
-        </Button>
-      </Box>
+    <Flex backgroundColor="#f0f0f0" mt={4} p={4} justifyContent="space-between">
+      <Flex>
+        <Box px={2}>
+          <Input
+            {...inputStyles}
+            type="datetime-local"
+            value={formattedTime || ''}
+            onChange={(e) => onBaseDateChange(e.target.value)}
+          />
+        </Box>
+        <Box px={2}>
+          <Select
+            {...inputStyles}
+            placeholder="Runs"
+            value={filters.numRuns || ''}
+            onChange={(e) => onNumRunsChange(e.target.value)}
+          >
+            {filtersOptions.numRuns.map((value) => (
+              <option value={value} key={value}>{value}</option>
+            ))}
+          </Select>
+        </Box>
+        <Box px={2}>
+          <Select
+            {...inputStyles}
+            value={filters.runType || ''}
+            onChange={(e) => onRunTypeChange(e.target.value)}
+          >
+            <option value="" key="all">All Run Types</option>
+            {filtersOptions.runTypes.map((value) => (
+              <option value={value.toString()} key={value}>{value}</option>
+            ))}
+          </Select>
+        </Box>
+        <Box />
+        <Box px={2}>
+          <Select
+            {...inputStyles}
+            value={filters.runState || ''}
+            onChange={(e) => onRunStateChange(e.target.value)}
+          >
+            <option value="" key="all">All Run States</option>
+            {filtersOptions.dagStates.map((value) => (
+              <option value={value} key={value}>{value}</option>
+            ))}
+          </Select>
+        </Box>
+        <Box px={2}>
+          <Button
+            colorScheme="cyan"
+            aria-label="Reset filters"
+            background="white"
+            variant="outline"
+            onClick={clearFilters}
+            size="lg"
+          >
+            Clear Filters
+          </Button>
+        </Box>
+      </Flex>
+      <Flex>
+        <AutoRefresh />
+        <ResetRoot />
+      </Flex>
     </Flex>
   );
 };
