@@ -403,6 +403,10 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
     }
 
+    DEPRECATED_CLASSES = {
+        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
+    }
+
 
 class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
