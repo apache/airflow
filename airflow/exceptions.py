@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
 
 
-class AirflowKillSignal(Exception):
-    """Raise when there's kill signal"""
+class AirflowTermSignal(Exception):
+    """Raise when we receive a TERM signal"""
 
     status_code = HTTPStatus.INTERNAL_SERVER_ERROR
 
