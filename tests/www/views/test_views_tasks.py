@@ -30,12 +30,10 @@ import time_machine
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.executors.local_executor import LocalExecutor
 from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
-from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
@@ -485,24 +483,12 @@ def test_code_from_db_all_example_dags(admin_client):
             ),
             "example_bash_operator",
         ),
-        (
-            "run",
-            dict(
-                task_id="runme_0",
-                dag_id="example_bash_operator",
-                ignore_all_deps="false",
-                ignore_ti_state="true",
-                dag_run_id=DEFAULT_DAGRUN,
-            ),
-            "",
-        ),
     ],
     ids=[
         "paused",
         "failed-flash-hint",
         "success-flash-hint",
         "clear",
-        "run",
     ],
 )
 def test_views_post(admin_client, url, data, content):
@@ -531,120 +517,6 @@ def test_dag_never_run(admin_client, url):
 class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
     def heartbeat(self):
         return True
-
-
-@pytest.mark.parametrize("state", RUNNABLE_STATES)
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=_ForceHeartbeatCeleryExecutor(),
-)
-def test_run_with_runnable_states(_, admin_client, session, state):
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": state, "end_date": timezone.utcnow()}
-    )
-    session.commit()
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="false",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-    check_content_in_response("", resp)
-
-    msg = f"Task is in the &#39;{state}&#39 state."
-    assert not re.search(msg, resp.get_data(as_text=True))
-
-
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=_ForceHeartbeatCeleryExecutor(),
-)
-def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session, time_machine):
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": State.SCHEDULED, "queued_dttm": None}
-    )
-    session.commit()
-
-    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [(None,)]
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="true",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    now = timezone.utcnow()
-
-    time_machine.move_to(now, tick=False)
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-
-    assert resp.status_code == 200
-    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).scalar() == now
-
-
-@pytest.mark.parametrize("state", QUEUEABLE_STATES)
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=CeleryExecutor(),
-)
-def test_run_with_not_runnable_states(_, admin_client, session, state):
-    assert state not in RUNNABLE_STATES
-
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": state, "end_date": timezone.utcnow()}
-    )
-    session.commit()
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="false",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-    check_content_in_response("", resp)
-
-    msg = f"Task is in the &#39;{state}&#39; state."
-    assert re.search(msg, resp.get_data(as_text=True))
-
-
-@pytest.mark.parametrize("state", QUEUEABLE_STATES)
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=LocalExecutor(),
-)
-def test_run_with_the_unsupported_executor(_, admin_client, session, state):
-    assert state not in RUNNABLE_STATES
-
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": state, "end_date": timezone.utcnow()}
-    )
-    session.commit()
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="false",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-    check_content_in_response("", resp)
-
-    msg = "LocalExecutor does not support ad hoc task runs"
-    assert re.search(msg, resp.get_data(as_text=True))
 
 
 @pytest.fixture()

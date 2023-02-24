@@ -30,7 +30,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
-from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
+from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, DbtCloudJobRunSensor
 from airflow.utils.edgemodifier import Label
 from tests.system.utils import get_test_env_id
 
@@ -77,6 +77,12 @@ with DAG(
     )
     # [END howto_operator_dbt_cloud_run_job_sensor]
 
+    # [START howto_operator_dbt_cloud_run_job_async_sensor]
+    job_run_async_sensor = DbtCloudJobRunAsyncSensor(
+        task_id="job_run_async_sensor", run_id=trigger_job_run2.output, timeout=20
+    )
+    # [END howto_operator_dbt_cloud_run_job_async_sensor]
+
     # [START howto_operator_dbt_cloud_list_jobs]
     list_dbt_jobs = DbtCloudListJobsOperator(task_id="list_dbt_jobs", account_id=106277, project_id=160645)
     # [END howto_operator_dbt_cloud_list_jobs]
@@ -94,7 +100,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 
