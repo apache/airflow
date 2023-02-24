@@ -41,7 +41,6 @@ from airflow.utils.context import Context, context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.version import version as airflow_version
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
@@ -690,9 +689,11 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return False
 
     def _get_airflow_version_from_target_env(self) -> str | None:
+        from airflow import __version__ as airflow_version
+
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import version; print(version.version)"], text=True
+                [self.python, "-c", "from airflow import __version__; print(__version__)"], text=True
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:

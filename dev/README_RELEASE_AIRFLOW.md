@@ -246,7 +246,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `setup.py` and `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
+- Set your version in `airflow/__init__.py` and `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Build the release notes:

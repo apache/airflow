@@ -28,7 +28,9 @@ PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
 
-SETUP_FILE = PROJECT_SOURCE_ROOT_DIR / "setup.py"
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
+
+from common_precommit_utils import read_airflow_version  # noqa: E402
 
 
 def read_revision_heads_map():
@@ -45,18 +47,8 @@ def read_revision_heads_map():
     return revision_heads_map.keys()
 
 
-def read_current_airflow_version():
-
-    ast_obj = ast.parse(open(SETUP_FILE).read())
-    assignments = [a for a in ast_obj.body if isinstance(a, ast.Assign)][:10]
-
-    version = [x for x in assignments if x.targets[0].id == "version"][0]
-
-    return Version(ast.literal_eval(version.value))
-
-
 if __name__ == "__main__":
-    airflow_version = read_current_airflow_version()
+    airflow_version = Version(read_airflow_version())
     if airflow_version.is_devrelease or "b" in (airflow_version.pre or ()):
         exit(0)
     versions = read_revision_heads_map()
