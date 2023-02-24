@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.compat.functools import cached_property
@@ -118,7 +119,7 @@ class LambdaCreateFunctionOperator(BaseOperator):
         return response.get("FunctionArn")
 
 
-class AwsLambdaInvokeFunctionOperator(BaseOperator):
+class LambdaInvokeFunctionOperator(BaseOperator):
     """
     Invokes an AWS Lambda function. You can invoke a function synchronously (and wait for the response),
     or asynchronously.
@@ -127,7 +128,7 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AwsLambdaInvokeFunctionOperator`
+        :ref:`howto/operator:LambdaInvokeFunctionOperator`
 
     :param function_name: The name of the AWS Lambda function, version, or alias.
     :param log_type: Set to Tail to include the execution log in the response. Otherwise, set to "None".
@@ -194,3 +195,21 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
             )
         self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
         return payload
+
+
+class AwsLambdaInvokeFunctionOperator(LambdaInvokeFunctionOperator):
+    """
+    This class is deprecated.
+    Please use
+    :class:`airflow.providers.amazon.aws.operators.lambda_function.LambdaInvokeFunctionOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated."
+            "Please use"
+            "`airflow.providers.amazon.aws.operators.lambda_function.LambdaInvokeFunctionOperator`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
