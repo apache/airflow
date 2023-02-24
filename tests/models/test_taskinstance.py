@@ -472,6 +472,28 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
 
+    def test_task_sigterm_calls_on_failure_callack(self, dag_maker, caplog):
+        """
+        Test that ensures that tasks call on_failure_callback when they receive sigterm
+        """
+
+        def task_function(ti):
+            os.kill(ti.pid, signal.SIGTERM)
+
+        with dag_maker():
+            task_ = PythonOperator(
+                task_id="test_on_failure",
+                python_callable=task_function,
+                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task_
+        with pytest.raises(AirflowException):
+            ti.run()
+        assert "on_failure_callback called" in caplog.text
+
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
     def test_task_sigterm_doesnt_change_state_of_finished_tasks(self, state, dag_maker):
         session = settings.Session()
@@ -2332,7 +2354,6 @@ class TestTaskInstance:
             assert context["dag_run"].dag_id == "test_dagrun_execute_callback"
 
         for i, callback_input in enumerate([[on_execute_callable], on_execute_callable]):
-
             ti = create_task_instance(
                 dag_id=f"test_execute_callback_{i}",
                 on_execute_callback=callback_input,
@@ -2369,7 +2390,6 @@ class TestTaskInstance:
             completed = True
 
         for i, callback_input in enumerate([[on_finish_callable], on_finish_callable]):
-
             ti = create_task_instance(
                 dag_id=f"test_finish_callback_{i}",
                 end_date=timezone.utcnow() + datetime.timedelta(days=10),
