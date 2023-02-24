@@ -96,7 +96,7 @@ words if you have a default time zone setting of ``Europe/Amsterdam`` and create
         start_date=pendulum.datetime(2017, 1, 1, tz="UTC"),
         default_args={"retries": 3},
     )
-    op = BashOperator(task_id="dummy", bash_command="Hello World!", dag=dag)
+    op = BashOperator(task_id="hello_world", bash_command="Hello World!", dag=dag)
     print(op.retries)  # 3
 
 Unfortunately, during DST transitions, some datetimes don't exist or are ambiguous.

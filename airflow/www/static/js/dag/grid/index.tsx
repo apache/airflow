@@ -25,21 +25,16 @@ import {
   Tbody,
   Box,
   Thead,
-  Flex,
   IconButton,
 } from '@chakra-ui/react';
 
-import { MdReadMore } from 'react-icons/md';
+import { MdDoubleArrow } from 'react-icons/md';
 
 import { useGridData } from 'src/api';
-import { getMetaValue } from 'src/utils';
-import AutoRefresh from 'src/components/AutoRefresh';
-import useOffsetHeight from 'src/utils/useOffsetHeight';
+import { getMetaValue, useOffsetTop } from 'src/utils';
 
 import renderTaskRows from './renderTaskRows';
-import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
-import ToggleGroups from './ToggleGroups';
 
 const dagId = getMetaValue('dag_id');
 
@@ -56,7 +51,7 @@ const Grid = ({
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const offsetHeight = useOffsetHeight(scrollRef, undefined, 750);
+  const offsetTop = useOffsetTop(scrollRef);
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
@@ -96,48 +91,41 @@ const Grid = ({
 
   return (
     <Box
-      m={3}
-      mt={0}
+      p={3}
+      pt={0}
       height="100%"
+      position="relative"
     >
-      <Flex
-        alignItems="center"
-        justifyContent="space-between"
-        p={1}
-        pb={2}
-        backgroundColor="white"
-      >
-        <Flex alignItems="center">
-          <AutoRefresh />
-          <ToggleGroups
-            groups={groups}
-            openGroupIds={openGroupIds}
-            onToggleGroups={onToggleGroups}
-          />
-          <ResetRoot />
-        </Flex>
-        <IconButton
-          fontSize="2xl"
-          onClick={onPanelToggle}
-          title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
-          aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
-          icon={<MdReadMore />}
-          transform={!isPanelOpen ? 'rotateZ(180deg)' : undefined}
-          transitionProperty="none"
-        />
-      </Flex>
+      <IconButton
+        fontSize="2xl"
+        variant="ghost"
+        color="gray.400"
+        size="sm"
+        onClick={onPanelToggle}
+        title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
+        aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
+        icon={<MdDoubleArrow />}
+        transform={!isPanelOpen ? 'rotateZ(180deg)' : undefined}
+        transitionProperty="none"
+        position="absolute"
+        right={0}
+        zIndex={2}
+        top="30px"
+      />
       <Box
-        height="100%"
-        maxHeight={offsetHeight}
+        maxHeight={`calc(100% - ${offsetTop}px)`}
         ref={scrollRef}
         overflow="auto"
         position="relative"
         pr={4}
-        pb={4}
       >
         <Table pr="10px">
           <Thead>
-            <DagRuns />
+            <DagRuns
+              groups={groups}
+              openGroupIds={openGroupIds}
+              onToggleGroups={onToggleGroups}
+            />
           </Thead>
           <Tbody ref={tableRef}>
             {renderTaskRows({

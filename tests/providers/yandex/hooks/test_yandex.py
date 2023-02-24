@@ -99,6 +99,48 @@ class TestYandexHook:
 
         assert hook._get_field("one") == "value_one"
 
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials")
+    def test_get_endpoint_specified(self, get_credentials_mock, get_connection_mock):
+        # Inputs to constructor
+        default_folder_id = "test_id"
+        default_public_ssh_key = "test_key"
+
+        extra_dejson = {"endpoint": "my_endpoint", "something_else": "some_value"}
+        get_connection_mock.return_value = mock.Mock(
+            connection_id="yandexcloud_default", extra_dejson=extra_dejson
+        )
+        get_credentials_mock.return_value = {"token": 122323}
+
+        hook = YandexCloudBaseHook(
+            yandex_conn_id=None,
+            default_folder_id=default_folder_id,
+            default_public_ssh_key=default_public_ssh_key,
+        )
+
+        assert hook._get_endpoint() == {"endpoint": "my_endpoint"}
+
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials")
+    def test_get_endpoint_unspecified(self, get_credentials_mock, get_connection_mock):
+        # Inputs to constructor
+        default_folder_id = "test_id"
+        default_public_ssh_key = "test_key"
+
+        extra_dejson = {"something_else": "some_value"}
+        get_connection_mock.return_value = mock.Mock(
+            connection_id="yandexcloud_default", extra_dejson=extra_dejson
+        )
+        get_credentials_mock.return_value = {"token": 122323}
+
+        hook = YandexCloudBaseHook(
+            yandex_conn_id=None,
+            default_folder_id=default_folder_id,
+            default_public_ssh_key=default_public_ssh_key,
+        )
+
+        assert hook._get_endpoint() == {}
+
     @pytest.mark.parametrize(
         "uri",
         [

@@ -438,7 +438,7 @@ repos:
         name: Check for language that we do not accept as community
         description: Please use more appropriate words for community documentation.
         entry: >
-          (?i)
+          (?ix)
           (black|white)[_-]?list|
           \bshe\b|
           \bhe\b|
@@ -451,25 +451,53 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^airflow/api_connexion/openapi/v1\.yaml$|
-          ^airflow/cli/commands/webserver_command\.py$|
-          ^airflow/config_templates/config\.yml$|
-          ^airflow/config_templates/default_airflow\.cfg$|
-          ^airflow/providers/|
-          ^airflow/www/fab_security/manager\.py$|
-          ^airflow/www/static/|
-          ^docs/.*$|
-          ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra\.rst$|
-          ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
-          ^tests/cli/commands/test_internal_api_command\.py$|
-          ^tests/cli/commands/test_webserver_command\.py$|
-          ^tests/integration/providers/apache/cassandra/hooks/test_cassandra\.py$|
-          ^tests/providers/|
-          ^tests/providers/apache/cassandra/hooks/test_cassandra\.py$|
-          ^tests/system/providers/apache/spark/example_spark_dag\.py$|
+          ^airflow/api_connexion/openapi/v1.yaml$|
+          ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/config_templates/|
+          ^airflow/models/baseoperator.py$|
+          ^airflow/operators/__init__.py$|
+          ^airflow/providers/amazon/aws/hooks/emr.py$|
+          ^airflow/providers/amazon/aws/operators/emr.py$|
+          ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
+          ^airflow/providers/apache/hive/operators/hive_stats.py$|
+          ^airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
+          ^airflow/providers/apache/spark/hooks/|
+          ^airflow/providers/apache/spark/operators/|
+          ^airflow/providers/exasol/hooks/exasol.py$|
+          ^airflow/providers/google/cloud/hooks/bigquery.py$|
+          ^airflow/providers/google/cloud/operators/cloud_build.py$|
+          ^airflow/providers/google/cloud/operators/dataproc.py$|
+          ^airflow/providers/google/cloud/operators/mlengine.py$|
+          ^airflow/providers/microsoft/azure/hooks/cosmos.py$|
+          ^airflow/providers/microsoft/winrm/hooks/winrm.py$|
+          ^airflow/www/fab_security/manager.py$|
+          ^docs/.*commits.rst$|
+          ^docs/apache-airflow/administration-and-deployment/security/webserver.rst$|
+          ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
+          ^airflow/providers/microsoft/winrm/operators/winrm.py$|
+          ^airflow/providers/opsgenie/hooks/opsgenie.py$|
+          ^airflow/providers/redis/provider.yaml$|
+          ^airflow/serialization/serialized_objects.py$|
+          ^airflow/utils/db.py$|
+          ^airflow/utils/trigger_rule.py$|
+          ^airflow/www/static/css/bootstrap-theme.css$|
+          ^airflow/www/static/js/types/api-generated.ts$|
+          ^airflow/www/templates/appbuilder/flash.html$|
+          ^dev/|
+          ^docs/README.rst$|
+          ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
+          ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
+          ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
+          ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
+          ^docs/conf.py$|
+          ^docs/exts/removemarktransform.py$|
+          ^scripts/ci/pre_commit/pre_commit_vendor_k8s_json_schema.py$|
+          ^tests/|
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
+          ^CONTRIBUTORS_QUICK_START.rst$|
+          ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments

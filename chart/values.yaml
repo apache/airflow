@@ -1840,7 +1840,7 @@ podTemplate: ~
 #   apiVersion: v1
 #   kind: Pod
 #   metadata:
-#     name: dummy-name
+#     name: placeholder-name
 #     labels:
 #       tier: airflow
 #       component: worker
