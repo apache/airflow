@@ -62,7 +62,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.file import find_path_from_directory, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
@@ -808,6 +808,32 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_path_queue.append(filepath)
             self.start_new_processes()
 
+    def handle_created_airflowignore_file(self, filepath: str) -> None:
+        """
+        Process a newly created .airflowignore file.
+
+        :param filepath: Path to the .airflowignore file.
+        """
+        airflowignore_dir_path = str(Path(filepath).parent)
+        matching_filepaths = find_path_from_directory(
+            base_dir_path=airflowignore_dir_path, ignore_file_name=".airflowignore"
+        )
+
+        # Only intersection is required since adding an .airflowignore file results in removal of filepaths,
+        # but never addition of filepaths.
+        new_filepaths = self._file_paths.intersection(matching_filepaths)
+        filepaths_to_remove = self._file_paths - new_filepaths
+        for fp_to_remove in filepaths_to_remove:
+            self.log.info("Removing metadata for %s since it's ignored by %s.", fp_to_remove, filepath)
+            self.handle_deleted_file(filepath=fp_to_remove)
+
+        self.log.info(
+            "Processed %s. Removed %s filepath(s) from observed filepaths (now observing %s filepaths).",
+            filepath,
+            len(filepaths_to_remove),
+            len(new_filepaths),
+        )
+
     def handle_modified_file(self, filepath: str) -> None:
         """
         (Re-)process a modified file in the DAGs folder. This could be both an observed and unobserved file.
@@ -1403,8 +1429,10 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
         if event.src_path.endswith((".py", ".zip")):
             self.log.info("Detected creation of %s, checking for DAGs", event.src_path)
             self._dag_file_processor_manager.handle_created_file(filepath=event.src_path)
+
         elif event.src_path.endswith(".airflowignore"):
             self.log.info("Detected creation of %s, checking for files to ignore.", event.src_path)
+            self._dag_file_processor_manager.handle_created_airflowignore_file(filepath=event.src_path)
 
     def on_deleted(self, event: FileDeletedEvent):
         """
