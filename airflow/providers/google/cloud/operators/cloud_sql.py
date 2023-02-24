@@ -576,7 +576,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
             gcp_conn_id=gcp_conn_id,
             api_version=api_version,
             impersonation_chain=impersonation_chain,
-            **kwargs
+            **kwargs,
         )
 
     def _validate_inputs(self) -> None:
@@ -600,7 +600,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
                 "cloneContext": {
                     "kind": "sql#cloneContext",
                     "destinationInstanceName": self.destination_instance_name,
-                    **self.clone_context
+                    **self.clone_context,
                 }
             }
             return hook.clone_instance(

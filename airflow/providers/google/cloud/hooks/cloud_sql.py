@@ -359,7 +359,7 @@ class CloudSQLHook(GoogleBaseHook):
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
         # :return: None
-        # """
+        """
         try:
             response = (
                 self.get_conn()

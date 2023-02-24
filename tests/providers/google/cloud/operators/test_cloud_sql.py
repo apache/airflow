@@ -27,6 +27,7 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.operators.cloud_sql import (
+    CloudSQLCloneInstanceOperator,
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator,
@@ -36,7 +37,6 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLImportInstanceOperator,
     CloudSQLInstancePatchOperator,
     CloudSQLPatchInstanceDatabaseOperator,
-    CloudSQLCloneInstanceOperator,
 )
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "project-id")
@@ -371,8 +371,10 @@ class TestCloudSql(unittest.TestCase):
         destination_instance_name = "clone-test-name"
         _check_if_instance_exists.return_value = True
         op = CloudSQLCloneInstanceOperator(
-            project_id=PROJECT_ID, instance=INSTANCE_NAME, destination_instance_name=destination_instance_name,
-            task_id="id"
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            destination_instance_name=destination_instance_name,
+            task_id="id",
         )
         result = op.execute(None)
         assert result
