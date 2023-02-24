@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
+from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
@@ -112,14 +113,7 @@ def patch_variable(
     non_update_fields = ["key"]
     variable = session.query(Variable).filter_by(key=variable_key).first()
     if update_mask:
-        data_ = {}
-        for field in update_mask:
-            field = field.strip()
-            if field in data and field not in non_update_fields:
-                data_[field] = data[field]
-            else:
-                raise BadRequest(detail=f"'{field}' is unknown or cannot be updated.")
-        data = data_
+        data = extract_update_mask_data(update_mask, non_update_fields, data)
     for key, val in data.items():
         setattr(variable, key, val)
     session.add(variable)
