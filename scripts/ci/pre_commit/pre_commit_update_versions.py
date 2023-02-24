@@ -17,23 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import glob
-import os
 import re
 import sys
-from os.path import abspath, dirname, join
+from pathlib import Path
 
-AIRFLOW_SOURCES_DIR = abspath(join(dirname(__file__), os.pardir, os.pardir, os.pardir))
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
 
-sys.path.insert(0, AIRFLOW_SOURCES_DIR)
-# flake8: noqa: F401
-
-from setup import version  # isort:skip
+from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, read_airflow_version  # noqa: E402
 
 
-def update_version(pattern: re.Pattern, v: str, file_path: str):
+def update_version(pattern: re.Pattern, v: str, file_path: Path):
     print(f"Checking {pattern} in {file_path}")
-    with open(file_path, "r+") as f:
+    with file_path.open("r+") as f:
         file_content = f.read()
         if not pattern.search(file_content):
             raise Exception(f"Pattern {pattern!r} doesn't found in {file_path!r} file")
@@ -53,13 +48,14 @@ REPLACEMENTS = {
     r"(\(Assuming Airflow version `).*(`\))": "docs/docker-stack/README.md",
 }
 
-print(f"Current version: {version}")
 
 if __name__ == "__main__":
+    version = read_airflow_version()
+    print(f"Current version: {version}")
     for regexp, p in REPLACEMENTS.items():
         text_pattern = re.compile(regexp, flags=re.MULTILINE)
-        files = glob.glob(join(AIRFLOW_SOURCES_DIR, p), recursive=True)
+        files = list(AIRFLOW_SOURCES_ROOT_PATH.glob(p))
         if not files:
             print(f"ERROR! No files matched on {p}")
-        for file in glob.glob(join(AIRFLOW_SOURCES_DIR, p), recursive=True):
+        for file in files:
             update_version(text_pattern, version, file)

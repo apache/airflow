@@ -88,6 +88,11 @@ def delete_endpoint(endpoint_name):
     boto3.client("sagemaker").delete_endpoint(EndpointName=endpoint_name)
 
 
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def archive_logs(log_group_name):
+    boto3.client("logs").put_retention_policy(logGroupName=log_group_name, retentionInDays=1)
+
+
 @task
 def set_up(env_id, role_arn, ti=None):
     bucket_name = f"{env_id}-sagemaker"
@@ -263,14 +268,6 @@ with DAG(
         ]
     )
 
-    forced_log_cleanup = prune_logs(
-        [
-            # Format: ('log group name', 'log stream prefix')
-            (f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}", None)
-        ],
-        force_delete=True,
-    )
-
     chain(
         # TEST SETUP
         test_context,
@@ -290,7 +287,7 @@ with DAG(
         delete_model,
         delete_bucket,
         log_cleanup,
-        forced_log_cleanup,
+        archive_logs(f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}"),
     )
 
     from tests.system.utils.watcher import watcher
