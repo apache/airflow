@@ -167,7 +167,7 @@ class GoogleDriveHook(GoogleBaseHook):
         :param file_id: The id of a file in Google Drive
         :return: Google Drive full path for a file
         """
-        MAX_NESTED_FOLDERS_LEVEL = 20
+        MAX_NESTED_FOLDERS_LEVEL = 20  # Link to docs https://support.google.com/a/users/answer/7338880?hl=en
         iteration = 1
 
         service = self.get_conn()
@@ -254,6 +254,7 @@ class GoogleDriveHook(GoogleBaseHook):
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
         folder_id: str = "root",
+        show_full_target_path: bool = True
     ) -> str:
         """
         Uploads a file that is available locally to a Google Drive service.
@@ -268,6 +269,7 @@ class GoogleDriveHook(GoogleBaseHook):
         :param resumable: True if this is a resumable upload. False means upload
             in a single request.
         :param folder_id: The base/root folder id for remote_location (part of the drive URL of a folder).
+        :param show_full_target_path: If true then it reveals full available file path in the logs.
         :return: File ID
         """
         service = self.get_conn()
@@ -289,7 +291,11 @@ class GoogleDriveHook(GoogleBaseHook):
         upload_location = (
             "" if folder_id == "root" else self._resolve_file_path(folder_id)
         ) + remote_location
-        self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
+
+        if show_full_target_path:
+            self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
+        else:
+            self.log.info("File %s has been uploaded successfully to gdrive", local_location)
         return file_id
 
     def download_file(self, file_id: str, file_handle: IO, chunk_size: int = 100 * 1024 * 1024):
