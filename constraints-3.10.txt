@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-23T06:13:49Z
+# This constraints file was automatically generated on 2023-02-24T05:53:51Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -150,7 +150,7 @@ aws-xray-sdk==2.11.0
 azure-batch==13.0.0
 azure-common==1.1.28
 azure-core==1.26.3
-azure-cosmos==4.3.0
+azure-cosmos==4.3.1
 azure-datalake-store==0.0.52
 azure-identity==1.12.0
 azure-keyvault-secrets==4.6.0
@@ -178,9 +178,9 @@ bitarray==2.7.3
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.77
+boto3==1.26.78
 boto==2.49.0
-botocore==1.29.77
+botocore==1.29.78
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==4.2.2
@@ -330,7 +330,7 @@ importlib-metadata==6.0.0
 impyla==0.18.0
 incremental==22.10.0
 inflection==0.5.1
-influxdb-client==1.36.0
+influxdb-client==1.36.1
 iniconfig==2.0.0
 ipdb==0.13.11
 ipython==8.10.0
@@ -387,7 +387,7 @@ msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
-mypy-boto3-appflow==1.26.53
+mypy-boto3-appflow==1.26.78
 mypy-boto3-rds==1.26.72
 mypy-boto3-redshift-data==1.26.30
 mypy-extensions==1.0.0
