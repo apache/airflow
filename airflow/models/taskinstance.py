@@ -78,6 +78,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    AirflowTermSignal,
     DagRunNotFound,
     RemovedInAirflow3Warning,
     TaskDeferralError,
@@ -1528,7 +1529,7 @@ class TaskInstance(Base, LoggingMixin):
                 os._exit(1)
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
-            raise AirflowKillSignal("Task received SIGTERM signal")
+            raise AirflowTermSignal("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 

@@ -478,7 +478,7 @@ class TestTaskInstance:
         """
 
         def task_function(ti):
-            os.kill(0, signal.SIGTERM)
+            os.kill(ti.pid, signal.SIGTERM)
 
         with dag_maker():
             task_ = PythonOperator(
