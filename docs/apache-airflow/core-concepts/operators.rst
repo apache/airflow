@@ -109,7 +109,8 @@ You can also use Jinja templating with nested fields, as long as these nested fi
     )
 
 
-.. note:: The ``template_fields`` property can equally be a class variable or an instance variable.
+.. note:: The ``template_fields`` property is a class variable and guaranteed to be of a ``Sequence[str]``
+    type (i.e. a list or tuple of strings).
 
 Deep nested fields can also be substituted, as long as all intermediate fields are marked as template fields:
 
