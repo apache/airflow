@@ -73,7 +73,6 @@ from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowKillSignal,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -1572,7 +1571,7 @@ class TaskInstance(Base, LoggingMixin):
                     result = self._execute_task(context, task_orig)
                     # Run post_execute callback
                     self.task.post_execute(context=context, result=result)
-                except AirflowKillSignal:
+                except AirflowTermSignal:
                     self.task.on_kill()
                     if self.task.on_failure_callback:
                         self._run_finished_callback(self.task.on_failure_callback, context, "on_failure")
