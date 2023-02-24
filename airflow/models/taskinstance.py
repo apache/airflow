@@ -77,6 +77,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    AirflowTermSignal,
     DagRunNotFound,
     RemovedInAirflow3Warning,
     TaskDeferralError,
@@ -1527,8 +1528,7 @@ class TaskInstance(Base, LoggingMixin):
                 os._exit(1)
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
-            self.task.on_kill()
-            raise AirflowException("Task received SIGTERM signal")
+            raise AirflowTermSignal("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -1567,10 +1567,15 @@ class TaskInstance(Base, LoggingMixin):
 
             # Execute the task
             with set_current_context(context):
-                result = self._execute_task(context, task_orig)
-
-            # Run post_execute callback
-            self.task.post_execute(context=context, result=result)
+                try:
+                    result = self._execute_task(context, task_orig)
+                    # Run post_execute callback
+                    self.task.post_execute(context=context, result=result)
+                except AirflowTermSignal:
+                    self.task.on_kill()
+                    if self.task.on_failure_callback:
+                        self._run_finished_callback(self.task.on_failure_callback, context, "on_failure")
+                    raise AirflowException("Task received SIGTERM signal")
 
         Stats.incr(f"operator_successes_{self.task.task_type}", 1, 1)
         Stats.incr(
