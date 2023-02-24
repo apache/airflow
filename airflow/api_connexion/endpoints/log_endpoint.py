@@ -45,6 +45,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_log(
     *,
+    limit: int,
+    offset: int = 0,
     dag_id: str,
     dag_run_id: str,
     task_id: str,
