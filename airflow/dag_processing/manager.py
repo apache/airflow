@@ -828,7 +828,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_deleted_file(filepath=fp_to_remove)
 
         self.log.info(
-            "Processed %s. Removed %s filepath(s) from observed filepaths (now observing %s filepaths).",
+            "Processed %s. Removed %s filepath(s) from observed filepaths, currently observing %s filepaths.",
             filepath,
             len(filepaths_to_remove),
             len(new_filepaths),
