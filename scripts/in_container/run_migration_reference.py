@@ -30,13 +30,13 @@ from typing import TYPE_CHECKING, Iterable
 from alembic.script import ScriptDirectory
 from tabulate import tabulate
 
+from airflow import __version__ as airflow_version
 from airflow.utils.db import _get_alembic_config
-from setup import version as _airflow_version
 
 if TYPE_CHECKING:
     from alembic.script import Script
 
-airflow_version = re.match(r"(\d+\.\d+\.\d+).*", _airflow_version).group(1)  # type: ignore
+airflow_version = re.match(r"(\d+\.\d+\.\d+).*", airflow_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
 
 
