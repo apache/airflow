@@ -25,6 +25,7 @@ import os
 import pathlib
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import warnings
@@ -1484,6 +1485,7 @@ def initialize_config() -> AirflowConfigParser:
             with open(TEST_CONFIG_FILE, "w") as file:
                 cfg = _parameterized_config_from_template("default_test.cfg")
                 file.write(cfg)
+            make_group_other_inaccessible(TEST_CONFIG_FILE)
 
         local_conf.load_test_config()
     else:
@@ -1498,6 +1500,7 @@ def initialize_config() -> AirflowConfigParser:
 
             with open(AIRFLOW_CONFIG, "w") as file:
                 file.write(default_config)
+            make_group_other_inaccessible(AIRFLOW_CONFIG)
 
         log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
@@ -1538,6 +1541,18 @@ def initialize_config() -> AirflowConfigParser:
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
+
+
+def make_group_other_inaccessible(file_path: str):
+    try:
+        permissions = os.stat(file_path)
+        os.chmod(file_path, permissions.st_mode & (stat.S_IRUSR | stat.S_IWUSR))
+    except Exception as e:
+        log.warning(
+            "Could not change permissions of config file to be group/other inaccessible. "
+            "Continuing with original permissions:",
+            e,
+        )
 
 
 # Historical convenience functions to access config entries
