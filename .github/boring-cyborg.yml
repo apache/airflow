@@ -88,6 +88,16 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-jdbc/**/*
     - tests/providers/jdbc/**/*
 
+  provider:Celery:
+    - airflow/providers/celery/**/*
+    - docs/apache-airflow-providers-celery/**/*
+    - tests/providers/celery/**/*
+
+  provider:Redis:
+    - airflow/providers/redis/**/*
+    - docs/apache-airflow-providers-redis/**/*
+    - tests/providers/redis/**/*
+
   provider:Docker:
     - airflow/providers/docker/**/*
     - docs/apache-airflow-providers-docker/**/*
