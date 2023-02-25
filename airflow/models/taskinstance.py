@@ -531,8 +531,9 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = False
         # can be changed when calling 'run'
         self.test_mode = False
-        # to provide upstream dependencies' output when testing a task individually
-        self._injected_xcom_args: dict[str, dict[str, Any]] = {}
+        # To inject upstream dependencies' output instead of trying
+        # to read from DB when testing a task individually.
+        self._injected_xcoms: dict[tuple[str, str], Any] = {}
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
@@ -561,7 +562,7 @@ class TaskInstance(Base, LoggingMixin):
         # correctly config the ti log
         self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
-        self._injected_xcom_args = {}
+        self._injected_xcoms = {}
 
     @property
     def try_number(self):
@@ -2419,9 +2420,9 @@ class TaskInstance(Base, LoggingMixin):
         a non-str iterable), a list of matching XComs is returned. Elements in
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
-        if isinstance(task_ids, str) and key in self._injected_xcom_args.get(task_ids, {}):
+        if isinstance(task_ids, str) and (task_ids, key) in self._injected_xcoms:
             # Upstream dependencies' output may be injected when testing a task individually
-            return self._injected_xcom_args[task_ids][key]
+            return self._injected_xcoms[(task_ids, key)]
 
         if dag_id is None:
             dag_id = self.dag_id
@@ -2748,8 +2749,13 @@ class TaskInstance(Base, LoggingMixin):
         map_index_start = ancestor_map_index * further_count
         return range(map_index_start, map_index_start + further_count)
 
-    def inject_xcom_args(self, xcom_args: dict[str, dict[str, Any]]):
-        self._injected_xcom_args.update(xcom_args)
+    def inject_xcoms(self, xcoms: list[dict[str, Any]]):
+        """
+        To inject upstream dependencies' output instead of trying
+        to read from DB when testing a task individually.
+        """
+        xcoms_dict = {(xcom["task_id"], xcom.get("key", XCOM_RETURN_KEY)): xcom["value"] for xcom in xcoms}
+        self._injected_xcoms.update(xcoms_dict)
 
     def clear_db_references(self, session):
         """

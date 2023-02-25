@@ -335,16 +335,16 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    def test_test_with_xcom_args_python_arg(self):
-        """Test ``airflow tasks test`` command handles correctly ``--xcom-args`` argument"""
+    def test_test_with_xcoms_python_arg(self):
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument"""
         args = self.parser.parse_args(
             [
                 "tasks",
                 "test",
-                "example_passing_xcom_args_via_test_command",
+                "example_passing_xcoms_via_test_command",
                 "python_echo",
-                "--xcom-args",
-                '{"get_python_echo_message": {"return_value": "test xcom arg"}}',
+                "--xcoms",
+                '[{"task_id": "get_python_echo_message", "value": "test xcom arg"}]',
             ]
         )
         with redirect_stdout(io.StringIO()) as stdout:
@@ -352,16 +352,16 @@ class TestCliTasks:
         output = stdout.getvalue()
         assert "python_echo: test xcom arg" in output
 
-    def test_test_with_xcom_args_bash_command(self):
-        """Test ``airflow tasks test`` command handles correctly ``--xcom-args`` argument"""
+    def test_test_with_xcoms_bash_command(self):
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument"""
         args = self.parser.parse_args(
             [
                 "tasks",
                 "test",
-                "example_passing_xcom_args_via_test_command",
+                "example_passing_xcoms_via_test_command",
                 "run_bash",
-                "--xcom-args",
-                '{"get_bash_command": {"return_value": "echo \'test bash\'"}}',
+                "--xcoms",
+                '[{"task_id": "get_bash_command", "key": "return_value", "value": "echo \'test bash\'"}]',
             ]
         )
         with redirect_stdout(io.StringIO()) as stdout:
@@ -369,16 +369,17 @@ class TestCliTasks:
         output = stdout.getvalue()
         assert "test bash" in output
 
-    def test_test_with_xcom_args_manually_pushed_bash_command(self):
-        """Test ``airflow tasks test`` command handles correctly ``--xcom-args`` argument"""
+    def test_test_with_xcoms_manually_pushed_bash_command(self):
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument"""
         args = self.parser.parse_args(
             [
                 "tasks",
                 "test",
-                "example_passing_xcom_args_via_test_command",
+                "example_passing_xcoms_via_test_command",
                 "run_bash_with_manually_pushed_command",
-                "--xcom-args",
-                '{"manually_push_bash_command": {"command": "echo \'test bash\'"}}',
+                "--xcoms",
+                '[{"task_id": "manually_push_bash_command", "key": "command", '
+                '"value": "echo \'test bash\'"}]',
             ]
         )
         with redirect_stdout(io.StringIO()) as stdout:
@@ -386,14 +387,14 @@ class TestCliTasks:
         output = stdout.getvalue()
         assert "test bash" in output
 
-    def test_test_without_required_xcom_args_for_python_arg(self):
-        """Test ``airflow tasks test`` command raises a correct exception if an XCom arg
-        isn't passed for the python operator upstream dependency in the ``--xcom-args`` CLI argument."""
+    def test_test_without_required_xcoms_for_python_arg(self):
+        """Test ``airflow tasks test`` command raises a correct exception if an XCom object
+        isn't passed for the python operator upstream dependency in the ``--xcoms`` CLI argument."""
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                "The following (task_id, key) pairs are currently missed: "
-                "[('get_python_echo_message', 'return_value')]."
+                "The following XComs are currently missed: "
+                '[{"task_id": "get_python_echo_message", "key": "return_value"}].'
             ),
         ):
             task_command.task_test(
@@ -401,20 +402,20 @@ class TestCliTasks:
                     [
                         "tasks",
                         "test",
-                        "example_passing_xcom_args_via_test_command",
+                        "example_passing_xcoms_via_test_command",
                         "python_echo",
                     ]
                 )
             )
 
-    def test_test_without_required_xcom_args_for_bash_command(self):
-        """Test ``airflow tasks test`` command raises a correct exception if an XCom arg
-        isn't passed for the bash operator command upstream dependency in the ``--xcom-args`` CLI argument."""
+    def test_test_without_required_xcoms_for_bash_command(self):
+        """Test ``airflow tasks test`` command raises a correct exception if an XCom object
+        isn't passed for the bash operator command upstream dependency in the ``--xcoms`` CLI argument."""
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                "The following (task_id, key) pairs are currently missed: "
-                "[('manually_push_bash_command', 'command')]."
+                "The following XComs are currently missed: "
+                '[{"task_id": "manually_push_bash_command", "key": "command"}].'
             ),
         ):
             task_command.task_test(
@@ -422,7 +423,7 @@ class TestCliTasks:
                     [
                         "tasks",
                         "test",
-                        "example_passing_xcom_args_via_test_command",
+                        "example_passing_xcoms_via_test_command",
                         "run_bash_with_manually_pushed_command",
                     ]
                 )

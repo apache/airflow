@@ -45,6 +45,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
 from airflow.models.taskinstance import TaskReturnCode
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -596,9 +597,9 @@ def task_test(args, dag=None):
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
     )
 
-    xcom_args = args.xcom_args or {}
-    _validate_injected_xcom_args(xcom_args, task)
-    ti.inject_xcom_args(xcom_args)
+    xcoms = args.xcoms or []
+    _validate_injected_xcoms(xcoms, task)
+    ti.inject_xcoms(xcoms)
 
     try:
         with redirect_stdout(RedactedIO()):
@@ -622,20 +623,18 @@ def task_test(args, dag=None):
                 session.delete(ti.dag_run)
 
 
-def _validate_injected_xcom_args(xcom_args: dict[str, dict[str, Any]], task: BaseOperator):
-    task_id_key_pairs = set()
-    for task_id, keys_dict in xcom_args.items():
-        for key in keys_dict:
-            task_id_key_pairs.add((task_id, key))
+def _validate_injected_xcoms(xcoms: list[dict[str, Any]], task: BaseOperator):
+    passed_task_and_keys = set((xcom["task_id"], xcom.get("key", XCOM_RETURN_KEY)) for xcom in xcoms)
+    required_task_and_keys = set((operator.task_id, key) for operator, key in task.iter_xcom_dependencies())
 
-    required_xcom_args = set((operator.task_id, key) for operator, key in task.iter_xcom_arg_dependencies())
-    if not required_xcom_args.issubset(task_id_key_pairs):
+    if not required_task_and_keys.issubset(passed_task_and_keys):
+        missed_task_and_keys = required_task_and_keys - passed_task_and_keys
+        missed_xcoms = [{"task_id": task, "key": key} for task, key in missed_task_and_keys]
         raise AirflowException(
-            f"The task {task.task_id!r} is dependent on XCom args (task_id, key) "
-            f"passed from the upstream tasks: {list(required_xcom_args)}. "
-            "Please, pass them via the --xcom-args argument (see --help for more details). "
-            "The following (task_id, key) pairs are currently missed: "
-            f"{list(required_xcom_args - set(task_id_key_pairs))}."
+            f"The task {task.task_id!r} is dependent on XComs passed from the upstream tasks. "
+            "The following XComs are currently missed: "
+            f"{json.dumps(missed_xcoms)}."
+            "Please, pass them via the --xcoms argument (see --help for more details). "
         )
 
 

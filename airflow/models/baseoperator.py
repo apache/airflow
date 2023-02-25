@@ -1107,7 +1107,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 arg = getattr(self, field)
                 XComArg.apply_upstream_relationship(self, arg)
 
-    def iter_xcom_arg_dependencies(self) -> Iterator[tuple[Operator, str]]:
+    def iter_xcom_dependencies(self) -> Iterator[tuple[Operator, str]]:
         """Upstream dependencies that provide XComs used by this operator."""
         from airflow.models.xcom_arg import XComArg
 
