@@ -19,11 +19,9 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_sftp import GCSToSFTPOperator
@@ -37,19 +35,20 @@ TEST_BUCKET = "test-bucket"
 DESTINATION_SFTP = "destination_path"
 
 
-class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
-    @parameterized.expand(
+class TestGoogleCloudStorageToSFTPOperator:
+    @pytest.mark.parametrize(
+        "source_object, target_object, keep_directory_structure",
         [
             ("folder/test_object.txt", "folder/test_object.txt", True),
             ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True),
             ("folder/test_object.txt", "test_object.txt", False),
             ("folder/subfolder/test_object.txt", "test_object.txt", False),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
     def test_execute_copy_single_file(
-        self, source_object, target_object, keep_directory_structure, sftp_hook_mock, gcs_hook_mock
+        self, sftp_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
     ):
         task = GCSToSFTPOperator(
             task_id=TASK_ID,
@@ -81,18 +80,19 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
 
         gcs_hook_mock.return_value.delete.assert_not_called()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "source_object, target_object, keep_directory_structure",
         [
             ("folder/test_object.txt", "folder/test_object.txt", True),
             ("folder/subfolder/test_object.txt", "folder/subfolder/test_object.txt", True),
             ("folder/test_object.txt", "test_object.txt", False),
             ("folder/subfolder/test_object.txt", "test_object.txt", False),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
     def test_execute_move_single_file(
-        self, source_object, target_object, keep_directory_structure, sftp_hook_mock, gcs_hook_mock
+        self, sftp_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
     ):
         task = GCSToSFTPOperator(
             task_id=TASK_ID,
@@ -124,7 +124,8 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
 
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "source_object, prefix, delimiter, gcs_files_list, target_objects, keep_directory_structure",
         [
             (
                 "folder/test_object*.txt",
@@ -170,20 +171,20 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
                 ["folder/test_object/file1.txt", "folder/test_object/file2.txt"],
                 True,
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
     def test_execute_copy_with_wildcard(
         self,
+        sftp_hook_mock,
+        gcs_hook_mock,
         source_object,
         prefix,
         delimiter,
         gcs_files_list,
         target_objects,
         keep_directory_structure,
-        sftp_hook_mock,
-        gcs_hook_mock,
     ):
         gcs_hook_mock.return_value.list.return_value = gcs_files_list
         operator = GCSToSFTPOperator(
@@ -216,7 +217,8 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
 
         gcs_hook_mock.return_value.delete.assert_not_called()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "source_object, prefix, delimiter, gcs_files_list, target_objects, keep_directory_structure",
         [
             (
                 "folder/test_object*.txt",
@@ -262,20 +264,20 @@ class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
                 ["folder/test_object/file1.txt", "folder/test_object/file2.txt"],
                 True,
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
     def test_execute_move_with_wildcard(
         self,
+        sftp_hook_mock,
+        gcs_hook_mock,
         source_object,
         prefix,
         delimiter,
         gcs_files_list,
         target_objects,
         keep_directory_structure,
-        sftp_hook_mock,
-        gcs_hook_mock,
     ):
         gcs_hook_mock.return_value.list.return_value = gcs_files_list
         operator = GCSToSFTPOperator(

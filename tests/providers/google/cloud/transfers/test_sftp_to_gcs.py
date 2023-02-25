@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 import pytest
@@ -53,7 +52,7 @@ DESTINATION_PATH_DIR = "destination_dir"
 DESTINATION_PATH_FILE = "destination_dir/copy.txt"
 
 
-class TestSFTPToGCSOperator(unittest.TestCase):
+class TestSFTPToGCSOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
     def test_execute_copy_single_file(self, sftp_hook, gcs_hook):

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import oracledb
@@ -48,7 +47,7 @@ SCHEMA_JSON = [
 ]
 
 
-class TestOracleToGoogleCloudStorageOperator(unittest.TestCase):
+class TestOracleToGoogleCloudStorageOperator:
     def test_init(self):
         """Test OracleToGoogleCloudStorageOperator instance is properly initialized."""
         op = OracleToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME)

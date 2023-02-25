@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
@@ -33,7 +32,7 @@ GCS_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
+class TestS3ToGoogleCloudStorageOperator:
     def test_init(self):
         """Test S3ToGCSOperator instance is properly initialized."""
 

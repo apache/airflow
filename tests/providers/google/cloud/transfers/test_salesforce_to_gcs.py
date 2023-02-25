@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from collections import OrderedDict
 from unittest import mock
 
@@ -53,7 +52,7 @@ INCLUDE_DELETED = True
 QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 
 
-class TestSalesforceToGcsOperator(unittest.TestCase):
+class TestSalesforceToGcsOperator:
     @mock.patch.object(GCSHook, "upload")
     @mock.patch.object(SalesforceHook, "write_object_to_file")
     @mock.patch.object(SalesforceHook, "make_query")
