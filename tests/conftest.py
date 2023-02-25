@@ -889,3 +889,10 @@ def _clear_db(request):
             exc_name_parts.insert(0, exc_module)
         extra_msg = "" if request.config.option.db_init else ", try to run with flag --with-db-init"
         pytest.exit(f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}")
+
+
+@pytest.fixture(autouse=True)
+def _clear_entry_point_cache():
+    from airflow.utils.entry_points import _get_grouped_entry_points
+
+    _get_grouped_entry_points.cache_clear()

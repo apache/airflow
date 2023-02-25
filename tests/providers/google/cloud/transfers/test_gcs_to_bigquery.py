@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -67,7 +66,7 @@ pytest.real_job_id = f"{job_id}_{hash_}"
 GCS_TO_BQ_PATH = "airflow.providers.google.cloud.transfers.gcs_to_bigquery.{}"
 
 
-class TestGCSToBigQueryOperator(unittest.TestCase):
+class TestGCSToBigQueryOperator:
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_max_value_external_table_should_execute_successfully(self, hook):
         hook.return_value.insert_job.side_effect = [
@@ -1187,7 +1186,7 @@ class TestGCSToBigQueryOperator(unittest.TestCase):
         )
 
 
-class TestAsyncGCSToBigQueryOperator(unittest.TestCase):
+class TestAsyncGCSToBigQueryOperator:
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_async_should_execute_successfully(self, hook):
         """
