@@ -33,6 +33,7 @@ from airflow import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
@@ -143,7 +144,7 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
         )
 
 
-class DataprocMetastoreCreateBackupOperator(BaseOperator):
+class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
     """
     Creates a new backup in a given project and location.
 
@@ -258,7 +259,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         return Backup.to_dict(backup)
 
 
-class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
+class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
     """
     Creates a new MetadataImport in a given project and location.
 
@@ -359,7 +360,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         return MetadataImport.to_dict(metadata_import)
 
 
-class DataprocMetastoreCreateServiceOperator(BaseOperator):
+class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
     """
     Creates a metastore service in a project and location.
 
@@ -461,7 +462,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
         return Service.to_dict(service)
 
 
-class DataprocMetastoreDeleteBackupOperator(BaseOperator):
+class DataprocMetastoreDeleteBackupOperator(GoogleCloudBaseOperator):
     """
     Deletes a single backup.
 
@@ -546,7 +547,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
         self.log.info("Backup %s deleted successfully", self.project_id)
 
 
-class DataprocMetastoreDeleteServiceOperator(BaseOperator):
+class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
     """
     Deletes a single service.
 
@@ -604,7 +605,7 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
         self.log.info("Service %s deleted successfully", self.project_id)
 
 
-class DataprocMetastoreExportMetadataOperator(BaseOperator):
+class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
     """
     Exports metadata from a service.
 
@@ -722,7 +723,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
                 )
 
 
-class DataprocMetastoreGetServiceOperator(BaseOperator):
+class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
     """
     Gets the details of a single service.
 
@@ -795,7 +796,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
         return Service.to_dict(result)
 
 
-class DataprocMetastoreListBackupsOperator(BaseOperator):
+class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
     """
     Lists backups in a service.
 
@@ -880,7 +881,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
         return [Backup.to_dict(backup) for backup in backups]
 
 
-class DataprocMetastoreRestoreServiceOperator(BaseOperator):
+class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
     """
     Restores a service from a backup.
 
@@ -1008,7 +1009,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
                 raise AirflowException("Restoring service FAILED")
 
 
-class DataprocMetastoreUpdateServiceOperator(BaseOperator):
+class DataprocMetastoreUpdateServiceOperator(GoogleCloudBaseOperator):
     """
     Updates the parameters of a single service.
 

@@ -24,9 +24,10 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, Connection
+from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
@@ -213,7 +214,7 @@ CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
 ]
 
 
-class CloudSQLBaseOperator(BaseOperator):
+class CloudSQLBaseOperator(GoogleCloudBaseOperator):
     """
     Abstract base operator for Google Cloud SQL operators to inherit from.
 
@@ -1022,7 +1023,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
-class CloudSQLExecuteQueryOperator(BaseOperator):
+class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
     """
     Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
     cloud-sql-proxy to establish secure connection with the database.

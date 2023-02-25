@@ -24,18 +24,18 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
 from airflow.providers.google.cloud.links.stackdriver import (
     StackdriverNotificationsLink,
     StackdriverPoliciesLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class StackdriverListAlertPoliciesOperator(BaseOperator):
+class StackdriverListAlertPoliciesOperator(GoogleCloudBaseOperator):
     """
     Fetches all the Alert Policies identified by the filter passed as
     filter parameter. The desired return type can be specified by the
@@ -159,7 +159,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         return [AlertPolicy.to_dict(policy) for policy in result]
 
 
-class StackdriverEnableAlertPoliciesOperator(BaseOperator):
+class StackdriverEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
     """
     Enables one or more disabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already enabled.
@@ -251,7 +251,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
 
 
 # Disable Alert Operator
-class StackdriverDisableAlertPoliciesOperator(BaseOperator):
+class StackdriverDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
     """
     Disables one or more enabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already disabled.
@@ -342,7 +342,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         )
 
 
-class StackdriverUpsertAlertOperator(BaseOperator):
+class StackdriverUpsertAlertOperator(GoogleCloudBaseOperator):
     """
     Creates a new alert or updates an existing policy identified
     the name field in the alerts parameter.
@@ -436,7 +436,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         )
 
 
-class StackdriverDeleteAlertOperator(BaseOperator):
+class StackdriverDeleteAlertOperator(GoogleCloudBaseOperator):
     """
     Deletes an alerting policy.
 
@@ -519,7 +519,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         )
 
 
-class StackdriverListNotificationChannelsOperator(BaseOperator):
+class StackdriverListNotificationChannelsOperator(GoogleCloudBaseOperator):
     """
     Fetches all the Notification Channels identified by the filter passed as
     filter parameter. The desired return type can be specified by the
@@ -643,7 +643,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         return [NotificationChannel.to_dict(channel) for channel in channels]
 
 
-class StackdriverEnableNotificationChannelsOperator(BaseOperator):
+class StackdriverEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
     """
     Enables one or more disabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already enabled.
@@ -737,7 +737,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         )
 
 
-class StackdriverDisableNotificationChannelsOperator(BaseOperator):
+class StackdriverDisableNotificationChannelsOperator(GoogleCloudBaseOperator):
     """
     Disables one or more enabled notification channels identified by filter
     parameter. Inoperative in case the policy is already disabled.
@@ -831,7 +831,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         )
 
 
-class StackdriverUpsertNotificationChannelOperator(BaseOperator):
+class StackdriverUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
     """
     Creates a new notification or updates an existing notification channel
     identified the name field in the alerts parameter.
@@ -927,7 +927,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         )
 
 
-class StackdriverDeleteNotificationChannelOperator(BaseOperator):
+class StackdriverDeleteNotificationChannelOperator(GoogleCloudBaseOperator):
     """
     Deletes a notification channel.
 

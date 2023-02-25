@@ -39,15 +39,15 @@ from google.cloud.pubsub_v1.types import (
     RetryPolicy,
 )
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class PubSubCreateTopicOperator(BaseOperator):
+class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
     """Create a PubSub topic.
 
     .. seealso::
@@ -187,7 +187,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         )
 
 
-class PubSubCreateSubscriptionOperator(BaseOperator):
+class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
     """Create a PubSub subscription.
 
     .. seealso::
@@ -414,7 +414,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         return result
 
 
-class PubSubDeleteTopicOperator(BaseOperator):
+class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
     """Delete a PubSub topic.
 
     .. seealso::
@@ -520,7 +520,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.log.info("Deleted topic %s", self.topic)
 
 
-class PubSubDeleteSubscriptionOperator(BaseOperator):
+class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
     """Delete a PubSub subscription.
 
     .. seealso::
@@ -628,7 +628,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.log.info("Deleted subscription %s", self.subscription)
 
 
-class PubSubPublishMessageOperator(BaseOperator):
+class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
     """Publish messages to a PubSub topic.
 
     .. seealso::
@@ -728,7 +728,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.log.info("Published to topic %s", self.topic)
 
 
-class PubSubPullOperator(BaseOperator):
+class PubSubPullOperator(GoogleCloudBaseOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
     If the queue is empty, returns empty list - never waits for messages.
     If you do need to wait, please use :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`

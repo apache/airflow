@@ -30,16 +30,16 @@ from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataplex_v1.types import Lake, Task
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
 from airflow.providers.google.cloud.links.dataplex import (
     DataplexLakeLink,
     DataplexTaskLink,
     DataplexTasksLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 
-class DataplexCreateTaskOperator(BaseOperator):
+class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
     """
     Creates a task resource within a lake.
 
@@ -174,7 +174,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         return Task.to_dict(task)
 
 
-class DataplexDeleteTaskOperator(BaseOperator):
+class DataplexDeleteTaskOperator(GoogleCloudBaseOperator):
     """
     Delete the task resource.
 
@@ -258,7 +258,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
         self.log.info("Dataplex task %s deleted successfully!", self.dataplex_task_id)
 
 
-class DataplexListTasksOperator(BaseOperator):
+class DataplexListTasksOperator(GoogleCloudBaseOperator):
     """
     Lists tasks under the given lake.
 
@@ -367,7 +367,7 @@ class DataplexListTasksOperator(BaseOperator):
         return [Task.to_dict(task) for task in tasks]
 
 
-class DataplexGetTaskOperator(BaseOperator):
+class DataplexGetTaskOperator(GoogleCloudBaseOperator):
     """
     Get task resource.
 
@@ -453,7 +453,7 @@ class DataplexGetTaskOperator(BaseOperator):
         return Task.to_dict(task)
 
 
-class DataplexCreateLakeOperator(BaseOperator):
+class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
     """
     Creates a lake resource within a lake.
 
@@ -585,7 +585,7 @@ class DataplexCreateLakeOperator(BaseOperator):
         return Lake.to_dict(lake)
 
 
-class DataplexDeleteLakeOperator(BaseOperator):
+class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
     """
     Delete the lake resource.
 

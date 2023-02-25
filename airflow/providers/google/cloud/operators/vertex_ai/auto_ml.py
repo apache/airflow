@@ -28,19 +28,19 @@ from google.cloud.aiplatform import datasets
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
     VertexAITrainingLink,
     VertexAITrainingPipelinesLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AutoMLTrainingJobBaseOperator(BaseOperator):
+class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
     """The base class for operators that launch AutoML jobs on VertexAI."""
 
     def __init__(
@@ -543,7 +543,7 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         return result
 
 
-class DeleteAutoMLTrainingJobOperator(BaseOperator):
+class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
     """Deletes an AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
     AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
     """
@@ -601,7 +601,7 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
             self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
 
 
-class ListAutoMLTrainingJobOperator(BaseOperator):
+class ListAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
     """Lists AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
     AutoMLTextTrainingJob, or AutoMLVideoTrainingJob in a Location.
     """

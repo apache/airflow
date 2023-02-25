@@ -36,7 +36,6 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform import gapic, hyperparameter_tuning
 from google.cloud.aiplatform_v1.types import HyperparameterTuningJob
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobHook,
 )
@@ -44,12 +43,13 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIHyperparameterTuningJobListLink,
     VertexAITrainingLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CreateHyperparameterTuningJobOperator(BaseOperator):
+class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Create Hyperparameter Tuning job
 
@@ -283,7 +283,7 @@ class CreateHyperparameterTuningJobOperator(BaseOperator):
             self.hook.cancel_hyperparameter_tuning_job()
 
 
-class GetHyperparameterTuningJobOperator(BaseOperator):
+class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Gets a HyperparameterTuningJob
 
@@ -367,7 +367,7 @@ class GetHyperparameterTuningJobOperator(BaseOperator):
             )
 
 
-class DeleteHyperparameterTuningJobOperator(BaseOperator):
+class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Deletes a HyperparameterTuningJob.
 
@@ -435,7 +435,7 @@ class DeleteHyperparameterTuningJobOperator(BaseOperator):
             )
 
 
-class ListHyperparameterTuningJobOperator(BaseOperator):
+class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Lists HyperparameterTuningJobs in a Location.
 

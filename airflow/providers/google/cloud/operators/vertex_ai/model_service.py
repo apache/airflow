@@ -32,19 +32,19 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import Model, model_service
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.model_service import ModelServiceHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelExportLink,
     VertexAIModelLink,
     VertexAIModelListLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DeleteModelOperator(BaseOperator):
+class DeleteModelOperator(GoogleCloudBaseOperator):
     """
     Deletes a Model.
 
@@ -122,7 +122,7 @@ class DeleteModelOperator(BaseOperator):
             self.log.info("The Model ID %s does not exist.", self.model_id)
 
 
-class ExportModelOperator(BaseOperator):
+class ExportModelOperator(GoogleCloudBaseOperator):
     """
     Exports a trained, exportable Model to a location specified by the user.
 
@@ -206,7 +206,7 @@ class ExportModelOperator(BaseOperator):
             self.log.info("The Model ID %s does not exist.", self.model_id)
 
 
-class ListModelsOperator(BaseOperator):
+class ListModelsOperator(GoogleCloudBaseOperator):
     r"""
     Lists Models in a Location.
 
@@ -309,7 +309,7 @@ class ListModelsOperator(BaseOperator):
         return [Model.to_dict(result) for result in results]
 
 
-class UploadModelOperator(BaseOperator):
+class UploadModelOperator(GoogleCloudBaseOperator):
     """
     Uploads a Model artifact into Vertex AI.
 

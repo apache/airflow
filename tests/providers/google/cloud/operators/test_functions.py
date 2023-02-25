@@ -679,7 +679,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
 
 
 class TestGcfFunctionInvokeOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.functions.BaseOperator.xcom_push")
+    @mock.patch("airflow.providers.google.cloud.operators.functions.GoogleCloudBaseOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_execute(self, mock_gcf_hook, mock_xcom):
         exec_id = "exec_id"

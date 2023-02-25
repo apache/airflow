@@ -33,7 +33,6 @@ from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, Instance, OutputConfig
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,
     CloudMemorystoreMemcachedHook,
@@ -44,12 +43,13 @@ from airflow.providers.google.cloud.links.cloud_memorystore import (
     RedisInstanceDetailsLink,
     RedisInstanceListLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudMemorystoreCreateInstanceOperator(BaseOperator):
+class CloudMemorystoreCreateInstanceOperator(GoogleCloudBaseOperator):
     """
     Creates a Redis instance based on the specified tier and memory size.
 
@@ -152,7 +152,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         return Instance.to_dict(result)
 
 
-class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
+class CloudMemorystoreDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
     Deletes a specific Redis instance. Instance stops serving and data is deleted.
 
@@ -228,7 +228,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreExportInstanceOperator(BaseOperator):
+class CloudMemorystoreExportInstanceOperator(GoogleCloudBaseOperator):
     """
     Export Redis instance data into a Redis RDB format file in Cloud Storage.
 
@@ -323,7 +323,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
+class CloudMemorystoreFailoverInstanceOperator(GoogleCloudBaseOperator):
     """
     Initiates a failover of the primary node to current replica node for a specific STANDARD tier Cloud
     Memorystore for Redis instance.
@@ -414,7 +414,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreGetInstanceOperator(BaseOperator):
+class CloudMemorystoreGetInstanceOperator(GoogleCloudBaseOperator):
     """
     Gets the details of a specific Redis instance.
 
@@ -499,7 +499,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         return Instance.to_dict(result)
 
 
-class CloudMemorystoreImportOperator(BaseOperator):
+class CloudMemorystoreImportOperator(GoogleCloudBaseOperator):
     """
     Import a Redis RDB snapshot file from Cloud Storage into a Redis instance.
 
@@ -594,7 +594,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreListInstancesOperator(BaseOperator):
+class CloudMemorystoreListInstancesOperator(GoogleCloudBaseOperator):
     """
     Lists all Redis instances owned by a project in either the specified location (region) or all locations.
 
@@ -682,7 +682,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         return instances
 
 
-class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
+class CloudMemorystoreUpdateInstanceOperator(GoogleCloudBaseOperator):
     """
     Updates the metadata and configuration of a specific Redis instance.
 
@@ -791,7 +791,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreScaleInstanceOperator(BaseOperator):
+class CloudMemorystoreScaleInstanceOperator(GoogleCloudBaseOperator):
     """
     Updates the metadata and configuration of a specific Redis instance.
 
@@ -884,7 +884,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
+class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
     """
     Creates a Redis instance based on the specified tier and memory size and import a Redis RDB snapshot file
     from Cloud Storage into a this instance.
@@ -1005,7 +1005,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
+class CloudMemorystoreExportAndDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
     Export Redis instance data into a Redis RDB format file in Cloud Storage. In next step, deletes a this
     instance.
@@ -1102,7 +1102,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
+class CloudMemorystoreMemcachedApplyParametersOperator(GoogleCloudBaseOperator):
     """
     Will update current set of Parameters to the set of specified nodes of the Memcached Instance.
 
@@ -1189,7 +1189,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
+class CloudMemorystoreMemcachedCreateInstanceOperator(GoogleCloudBaseOperator):
     """
     Creates a Memcached instance based on the specified tier and memory size.
 
@@ -1279,7 +1279,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         return cloud_memcache.Instance.to_dict(result)
 
 
-class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
+class CloudMemorystoreMemcachedDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
     Deletes a specific Memcached instance. Instance stops serving and data is deleted.
 
@@ -1342,7 +1342,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
+class CloudMemorystoreMemcachedGetInstanceOperator(GoogleCloudBaseOperator):
     """
     Gets the details of a specific Memcached instance.
 
@@ -1427,7 +1427,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
         return cloud_memcache.Instance.to_dict(result)
 
 
-class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
+class CloudMemorystoreMemcachedListInstancesOperator(GoogleCloudBaseOperator):
     """
     Lists all Memcached instances owned by a project in either the specified location (region) or all
         locations.
@@ -1509,7 +1509,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
         return instances
 
 
-class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
+class CloudMemorystoreMemcachedUpdateInstanceOperator(GoogleCloudBaseOperator):
     """
     Updates the metadata and configuration of a specific Memcached instance.
 
@@ -1615,7 +1615,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         )
 
 
-class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
+class CloudMemorystoreMemcachedUpdateParametersOperator(GoogleCloudBaseOperator):
     """
     Updates the defined Memcached Parameters for an existing Instance. This method only stages the
         parameters, it must be followed by apply_parameters to apply the parameters to nodes of

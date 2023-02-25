@@ -28,9 +28,9 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
@@ -89,7 +89,7 @@ class CloudComposerEnvironmentsLink(BaseGoogleLink):
         )
 
 
-class CloudComposerCreateEnvironmentOperator(BaseOperator):
+class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
     """
     Create a new environment.
 
@@ -235,7 +235,7 @@ class CloudComposerCreateEnvironmentOperator(BaseOperator):
             raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
 
 
-class CloudComposerDeleteEnvironmentOperator(BaseOperator):
+class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
     """
     Delete an environment.
 
@@ -336,7 +336,7 @@ class CloudComposerDeleteEnvironmentOperator(BaseOperator):
         pass
 
 
-class CloudComposerGetEnvironmentOperator(BaseOperator):
+class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
     """
     Get an existing environment.
 
@@ -418,7 +418,7 @@ class CloudComposerGetEnvironmentOperator(BaseOperator):
         return Environment.to_dict(result)
 
 
-class CloudComposerListEnvironmentsOperator(BaseOperator):
+class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
     """
     List environments.
 
@@ -502,7 +502,7 @@ class CloudComposerListEnvironmentsOperator(BaseOperator):
         return [Environment.to_dict(env) for env in result]
 
 
-class CloudComposerUpdateEnvironmentOperator(BaseOperator):
+class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
     r"""
     Update an environment.
 
@@ -637,7 +637,7 @@ class CloudComposerUpdateEnvironmentOperator(BaseOperator):
             raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
 
 
-class CloudComposerListImageVersionsOperator(BaseOperator):
+class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
     """
     List ImageVersions for provided location.
 

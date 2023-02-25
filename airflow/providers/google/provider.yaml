@@ -171,6 +171,10 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_build.rst
     logo: /integration-logos/gcp/Cloud-Build.png
     tags: [gcp]
+  - integration-name: Google Cloud Common
+    external-doc-url: https://cloud.google.com/
+    tags: [gcp]
+    logo: /integration-logos/gcp/Google.png
   - integration-name: Google Cloud Composer
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
@@ -451,6 +455,9 @@ operators:
   - integration-name: Google Ads
     python-modules:
       - airflow.providers.google.ads.operators.ads
+  - integration-name: Google Cloud Common
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_base
   - integration-name: Google AutoML
     python-modules:
       - airflow.providers.google.cloud.operators.automl

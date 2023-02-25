@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
 from airflow.compat.functools import cached_property
-from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -37,6 +36,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
 from airflow.version import version
 
@@ -170,7 +170,7 @@ class DataflowConfiguration:
         self.service_account = service_account
 
 
-class DataflowCreateJavaJobOperator(BaseOperator):
+class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     """
     Start a Java Cloud Dataflow batch job. The parameters of the operation
     will be passed to the job.
@@ -464,7 +464,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             )
 
 
-class DataflowTemplatedJobStartOperator(BaseOperator):
+class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     """
     Start a Templated Cloud Dataflow job. The parameters of the operation
     will be passed to the job.
@@ -749,7 +749,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             )
 
 
-class DataflowStartFlexTemplateOperator(BaseOperator):
+class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     """
     Starts flex templates with the Dataflow pipeline.
 
@@ -940,7 +940,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             )
 
 
-class DataflowStartSqlJobOperator(BaseOperator):
+class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
     """
     Starts Dataflow SQL query.
 
@@ -1055,7 +1055,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
             )
 
 
-class DataflowCreatePythonJobOperator(BaseOperator):
+class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     """
     Launching Cloud Dataflow jobs written in python. Note that both
     dataflow_default_options and options will be merged to specify pipeline
@@ -1281,7 +1281,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             )
 
 
-class DataflowStopJobOperator(BaseOperator):
+class DataflowStopJobOperator(GoogleCloudBaseOperator):
     """
     Stops the job with the specified name prefix or Job ID.
     All jobs with provided name prefix will be stopped.

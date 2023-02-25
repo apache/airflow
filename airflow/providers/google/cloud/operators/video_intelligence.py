@@ -26,14 +26,14 @@ from google.cloud.videointelligence_v1 import enums
 from google.cloud.videointelligence_v1.types import VideoContext
 from google.protobuf.json_format import MessageToDict
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
+class CloudVideoIntelligenceDetectVideoLabelsOperator(GoogleCloudBaseOperator):
     """
     Performs video annotation, annotating video labels.
 
@@ -123,7 +123,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         return result
 
 
-class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
+class CloudVideoIntelligenceDetectVideoExplicitContentOperator(GoogleCloudBaseOperator):
     """
     Performs video annotation, annotating explicit content.
 
@@ -213,7 +213,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         return result
 
 
-class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
+class CloudVideoIntelligenceDetectVideoShotsOperator(GoogleCloudBaseOperator):
     """
     Performs video annotation, annotating video shots.
 

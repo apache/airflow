@@ -26,13 +26,13 @@ from google.cloud.bigtable import enums
 from google.cloud.bigtable.column_family import GarbageCollectionRule
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import (
     BigtableClusterLink,
     BigtableInstanceLink,
     BigtableTablesLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -49,7 +49,7 @@ class BigtableValidationMixin:
                 raise AirflowException(f"Empty parameter: {attr_name}")
 
 
-class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
+class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
     Creates a new Cloud Bigtable instance.
     If the Cloud Bigtable instance with the given ID exists, the operator does not
@@ -171,7 +171,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
+class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
     Updates an existing Cloud Bigtable instance.
 
@@ -258,7 +258,7 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
+class BigtableDeleteInstanceOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
     Deletes the Cloud Bigtable instance, including its clusters and all related tables.
 
@@ -324,7 +324,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
+class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
     Creates the table in the Cloud Bigtable instance.
 
@@ -434,7 +434,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
             self.log.info("The table '%s' already exists. Consider it as created", self.table_id)
 
 
-class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
+class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
     Deletes the Cloud Bigtable table.
 
@@ -512,7 +512,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
+class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
     Updates a Cloud Bigtable cluster.
 

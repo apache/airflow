@@ -30,7 +30,6 @@ from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.cloud.links.cloud_build import (
     CloudBuildLink,
@@ -38,6 +37,7 @@ from airflow.providers.google.cloud.links.cloud_build import (
     CloudBuildTriggerDetailsLink,
     CloudBuildTriggersListLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.utils import yaml
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 REGEX_REPO_PATH = re.compile(r"^/(?P<project_id>[^/]+)/(?P<repo_name>[^/]+)[\+/]*(?P<branch_name>[^:]+)?")
 
 
-class CloudBuildCancelBuildOperator(BaseOperator):
+class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
     """
     Cancels a build in progress.
 
@@ -124,7 +124,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         return Build.to_dict(result)
 
 
-class CloudBuildCreateBuildOperator(BaseOperator):
+class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
     """
     Starts a build with the specified configuration.
 
@@ -274,7 +274,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
             raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
 
-class CloudBuildCreateBuildTriggerOperator(BaseOperator):
+class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
     """
     Creates a new BuildTrigger.
 
@@ -356,7 +356,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         return BuildTrigger.to_dict(result)
 
 
-class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
+class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
     """
     Deletes a BuildTrigger by its project ID and trigger ID.
 
@@ -425,7 +425,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
             )
 
 
-class CloudBuildGetBuildOperator(BaseOperator):
+class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
     """
     Returns information about a previously requested build.
 
@@ -497,7 +497,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
         return Build.to_dict(result)
 
 
-class CloudBuildGetBuildTriggerOperator(BaseOperator):
+class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
     """
     Returns information about a BuildTrigger.
 
@@ -569,7 +569,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         return BuildTrigger.to_dict(result)
 
 
-class CloudBuildListBuildTriggersOperator(BaseOperator):
+class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
     """
     Lists existing BuildTriggers.
 
@@ -648,7 +648,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         return [BuildTrigger.to_dict(result) for result in results]
 
 
-class CloudBuildListBuildsOperator(BaseOperator):
+class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
     """
     Lists previously requested builds.
 
@@ -723,7 +723,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         return [Build.to_dict(result) for result in results]
 
 
-class CloudBuildRetryBuildOperator(BaseOperator):
+class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
     """
     Creates a new build based on the specified build. This method creates a new build
     using the original build request, which may or may not result in an identical build.
@@ -802,7 +802,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         return Build.to_dict(result)
 
 
-class CloudBuildRunBuildTriggerOperator(BaseOperator):
+class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
     """
     Runs a BuildTrigger at a particular source revision.
 
@@ -884,7 +884,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         return Build.to_dict(result)
 
 
-class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
+class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
     """
     Updates a BuildTrigger by its project ID and trigger ID.
 

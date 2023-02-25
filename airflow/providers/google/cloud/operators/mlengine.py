@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.providers.google.cloud.links.mlengine import (
     MLEngineJobDetailsLink,
@@ -37,6 +36,7 @@ from airflow.providers.google.cloud.links.mlengine import (
     MLEngineModelsListLink,
     MLEngineModelVersionDetailsLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.mlengine import MLEngineStartTrainingJobTrigger
 
 if TYPE_CHECKING:
@@ -77,7 +77,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
-class MLEngineStartBatchPredictionJobOperator(BaseOperator):
+class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
 
@@ -294,7 +294,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         return finished_prediction_job["predictionOutput"]
 
 
-class MLEngineManageModelOperator(BaseOperator):
+class MLEngineManageModelOperator(GoogleCloudBaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
 
@@ -380,7 +380,7 @@ class MLEngineManageModelOperator(BaseOperator):
             raise ValueError(f"Unknown operation: {self._operation}")
 
 
-class MLEngineCreateModelOperator(BaseOperator):
+class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
     """
     Creates a new model.
 
@@ -455,7 +455,7 @@ class MLEngineCreateModelOperator(BaseOperator):
         return hook.create_model(project_id=self._project_id, model=self._model)
 
 
-class MLEngineGetModelOperator(BaseOperator):
+class MLEngineGetModelOperator(GoogleCloudBaseOperator):
     """
     Gets a particular model
 
@@ -529,7 +529,7 @@ class MLEngineGetModelOperator(BaseOperator):
         return hook.get_model(project_id=self._project_id, model_name=self._model_name)
 
 
-class MLEngineDeleteModelOperator(BaseOperator):
+class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
     """
     Deletes a model.
 
@@ -610,7 +610,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
         )
 
 
-class MLEngineManageVersionOperator(BaseOperator):
+class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
     """
     Operator for managing a Google Cloud ML Engine version.
 
@@ -738,7 +738,7 @@ class MLEngineManageVersionOperator(BaseOperator):
             raise ValueError(f"Unknown operation: {self._operation}")
 
 
-class MLEngineCreateVersionOperator(BaseOperator):
+class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
     """
     Creates a new version in the model
 
@@ -830,7 +830,7 @@ class MLEngineCreateVersionOperator(BaseOperator):
         )
 
 
-class MLEngineSetDefaultVersionOperator(BaseOperator):
+class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
     """
     Sets a version in the model.
 
@@ -922,7 +922,7 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         )
 
 
-class MLEngineListVersionsOperator(BaseOperator):
+class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
     """
     Lists all available versions of the model
 
@@ -1007,7 +1007,7 @@ class MLEngineListVersionsOperator(BaseOperator):
         )
 
 
-class MLEngineDeleteVersionOperator(BaseOperator):
+class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
     """
     Deletes the version from the model.
 
@@ -1098,7 +1098,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         )
 
 
-class MLEngineStartTrainingJobOperator(BaseOperator):
+class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
     """
     Operator for launching a MLEngine training job.
 
@@ -1436,7 +1436,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             self.log.info("Skipping to cancel job: %s:%s.%s", self._project_id, self.job_id)
 
 
-class MLEngineTrainingCancelJobOperator(BaseOperator):
+class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
     """
     Operator for cleaning up failed MLEngine training job.
 
