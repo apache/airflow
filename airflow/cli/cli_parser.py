@@ -29,7 +29,6 @@ from functools import lru_cache
 from typing import Any, Callable, Iterable, NamedTuple, Union
 
 import jsonschema
-import jsonschema.validators
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
@@ -876,10 +875,10 @@ ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to
 ARG_XCOMS = Arg(
     ("--xcoms",),
     help=(
-        "Passes a JSON list of XCom objects, which the task depends on."
+        "Passes a JSON list of XCom objects, which the task depends on. "
         f"For example: {json.dumps(XCOMS_ARG_EXAMPLE)}). "
-        'If "key" isn\'t provided, "return_value" is used by default. '
-        '"return_value" is the XCom key used by default by Task Flow to pass values returned by operators.'
+        f'If "key" isn\'t provided, "{XCOM_RETURN_KEY}" is used by default, which '
+        f"is the XCom key used by default by Task Flow to pass values returned by operators."
     ),
     type=_xcoms,
 )

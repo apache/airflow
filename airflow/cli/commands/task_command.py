@@ -632,9 +632,8 @@ def _validate_injected_xcoms(xcoms: list[dict[str, Any]], task: BaseOperator):
         missed_xcoms = [{"task_id": task, "key": key} for task, key in missed_task_and_keys]
         raise AirflowException(
             f"The task {task.task_id!r} is dependent on XComs passed from the upstream tasks. "
-            "The following XComs are currently missed: "
-            f"{json.dumps(missed_xcoms)}."
-            "Please, pass them via the --xcoms argument (see --help for more details). "
+            f"The following XComs are currently missed: {json.dumps(missed_xcoms)}. "
+            "Please, pass them via the --xcoms argument (see --help for more details)."
         )
 
 

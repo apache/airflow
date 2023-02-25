@@ -533,6 +533,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False
         # To inject upstream dependencies' output instead of trying
         # to read from DB when testing a task individually.
+        # Maps (task_id, key) -> value.
         self._injected_xcoms: dict[tuple[str, str], Any] = {}
 
     @staticmethod
@@ -2421,7 +2422,6 @@ class TaskInstance(Base, LoggingMixin):
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
         if isinstance(task_ids, str) and (task_ids, key) in self._injected_xcoms:
-            # Upstream dependencies' output may be injected when testing a task individually
             return self._injected_xcoms[(task_ids, key)]
 
         if dag_id is None:

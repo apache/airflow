@@ -336,7 +336,8 @@ class TestCliTasks:
         assert "AIRFLOW_TEST_MODE=True" in output
 
     def test_test_with_xcoms_python_arg(self):
-        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument"""
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument
+        passing an XCom argument with a default key to a python operator."""
         args = self.parser.parse_args(
             [
                 "tasks",
@@ -353,7 +354,8 @@ class TestCliTasks:
         assert "python_echo: test xcom arg" in output
 
     def test_test_with_xcoms_bash_command(self):
-        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument"""
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument
+        passing an XCom argument to a bash operator."""
         args = self.parser.parse_args(
             [
                 "tasks",
@@ -370,7 +372,8 @@ class TestCliTasks:
         assert "test bash" in output
 
     def test_test_with_xcoms_manually_pushed_bash_command(self):
-        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument"""
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument.
+        passing an XCom argument with a custom key to a bash operator."""
         args = self.parser.parse_args(
             [
                 "tasks",

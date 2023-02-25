@@ -390,7 +390,7 @@ class TestCli:
             ]
         )
 
-    def test_tasks_test_example_xcoms_parsed_correctly(self):
+    def test_tasks_test_parse_xcoms_arg_example(self):
         """Test ``airflow tasks test`` command parses successfully an example XComs JSON
         used in the help for the ``--xcoms`` argument."""
         parser = cli_parser.get_parser()
