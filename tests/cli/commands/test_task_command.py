@@ -372,7 +372,7 @@ class TestCliTasks:
         assert "test bash" in output
 
     def test_test_with_xcoms_manually_pushed_bash_command(self):
-        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument.
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument
         passing an XCom argument with a custom key to a bash operator."""
         args = self.parser.parse_args(
             [
@@ -380,6 +380,25 @@ class TestCliTasks:
                 "test",
                 "example_passing_xcoms_via_test_command",
                 "run_bash_with_manually_pushed_command",
+                "--xcoms",
+                '[{"task_id": "manually_push_bash_command", "key": "command", '
+                '"value": "echo \'test bash\'"}]',
+            ]
+        )
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+        output = stdout.getvalue()
+        assert "test bash" in output
+
+    def test_test_with_xcoms_manually_pulled_bash_command(self):
+        """Test ``airflow tasks test`` command handles correctly ``--xcoms`` argument
+        pulling an XCom manually in task_instance.xcom_pull in a bash operator."""
+        args = self.parser.parse_args(
+            [
+                "tasks",
+                "test",
+                "example_passing_xcoms_via_test_command",
+                "run_bash_with_manually_pulled_command",
                 "--xcoms",
                 '[{"task_id": "manually_push_bash_command", "key": "command", '
                 '"value": "echo \'test bash\'"}]',
