@@ -352,9 +352,10 @@ class TestPodManager:
             )
 
     @pytest.mark.parametrize(
-        "container_state, is_terminated", [("waiting", False), ("running", False), ("terminated", True)]
+        "container_state, expected_is_terminated",
+        [("waiting", False), ("running", False), ("terminated", True)],
     )
-    def test_container_is_terminated_with_waiting_state(self, container_state, is_terminated):
+    def test_container_is_terminated_with_waiting_state(self, container_state, expected_is_terminated):
         container_status = MagicMock()
         container_status.configure_mock(
             **{
@@ -366,8 +367,7 @@ class TestPodManager:
         )
         pod_info = MagicMock()
         pod_info.status.container_statuses = [container_status]
-        is_terminated = container_is_terminated(pod_info, "base")
-        assert is_terminated == is_terminated
+        assert container_is_terminated(pod_info, "base") == expected_is_terminated
 
 
 def params_for_test_container_is_running():
