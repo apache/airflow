@@ -895,6 +895,8 @@ class Airflow(AirflowBaseView):
                 search=escape(arg_search_query) if arg_search_query else None,
                 status=arg_status_filter if arg_status_filter else None,
                 tags=arg_tags_filter if arg_tags_filter else None,
+                sorting_key=arg_sorting_key,
+                sorting_direction=arg_sorting_direction,
             ),
             num_runs=num_runs,
             tags=tags,
@@ -3861,10 +3863,7 @@ class Airflow(AirflowBaseView):
             num_log_to=min(end, audit_logs_count),
             audit_logs_count=audit_logs_count,
             page_size=PAGE_SIZE,
-            paging=wwwutils.generate_pages(
-                current_page,
-                num_of_pages,
-            ),
+            paging=wwwutils.generate_pages(current_page, num_of_pages),
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
         )
