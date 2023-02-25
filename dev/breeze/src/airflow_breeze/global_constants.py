@@ -83,7 +83,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.0"
+PIP_VERSION = "23.0.1"
 
 
 @lru_cache(maxsize=None)

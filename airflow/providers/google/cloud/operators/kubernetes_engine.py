@@ -28,13 +28,13 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
-class GKEDeleteClusterOperator(BaseOperator):
+class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
     """
     Deletes the cluster, including the Kubernetes endpoint and all worker nodes.
 
@@ -179,7 +179,7 @@ class GKEDeleteClusterOperator(BaseOperator):
         return self._hook
 
 
-class GKECreateClusterOperator(BaseOperator):
+class GKECreateClusterOperator(GoogleCloudBaseOperator):
     """
     Create a Google Kubernetes Engine Cluster of specified dimensions
     The operator will wait until the cluster is created.
