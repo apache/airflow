@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -34,7 +33,7 @@ TEST_TABLE_ID = "test-table-id"
 PROJECT_ID = "test-project-id"
 
 
-class TestBigQueryToGCSOperator(unittest.TestCase):
+class TestBigQueryToGCSOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
     def test_execute(self, mock_hook):
         source_project_dataset_table = f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}"
