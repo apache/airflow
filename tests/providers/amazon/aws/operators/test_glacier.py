@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.operators.glacier import (
     GlacierCreateJobOperator,
@@ -34,7 +34,7 @@ TASK_ID = "glacier_job"
 VAULT_NAME = "airflow"
 
 
-class TestGlacierCreateJobOperator(TestCase):
+class TestGlacierCreateJobOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.glacier.GlacierHook")
     def test_execute(self, hook_mock):
         op = GlacierCreateJobOperator(aws_conn_id=AWS_CONN_ID, vault_name=VAULT_NAME, task_id=TASK_ID)
@@ -43,7 +43,7 @@ class TestGlacierCreateJobOperator(TestCase):
         hook_mock.return_value.retrieve_inventory.assert_called_once_with(vault_name=VAULT_NAME)
 
 
-class TestGlacierUploadArchiveOperator(TestCase):
+class TestGlacierUploadArchiveOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.glacier.GlacierHook.get_conn")
     def test_execute(self, hook_mock):
         op = GlacierUploadArchiveOperator(
