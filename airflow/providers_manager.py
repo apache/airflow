@@ -31,6 +31,8 @@ from functools import wraps
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
 
+from packaging.utils import canonicalize_name
+
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
@@ -467,8 +469,8 @@ class ProvidersManager(LoggingMixin):
         and verifies only the subset of fields that are needed at runtime.
         """
         for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
-            package_name = dist.metadata["name"]
-            if self._provider_dict.get(package_name) is not None:
+            package_name = canonicalize_name(dist.metadata["name"])
+            if package_name in self._provider_dict:
                 continue
             log.debug("Loading %s from package %s", entry_point, package_name)
             version = dist.version
