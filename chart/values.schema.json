@@ -4596,19 +4596,16 @@
                             "properties": {
                                 "initialDelaySeconds": {
                                     "description": "Metrics Exporter liveness probe initial delay",
-                                    "format": "int32",
                                     "type": "integer",
                                     "default": 10
                                 },
                                 "periodSeconds": {
                                     "description": "Metrics Exporter liveness probe frequency",
-                                    "format": "int32",
                                     "type": "integer",
                                     "default": 10
                                 },
                                 "timeoutSeconds": {
                                     "description": "Metrics Exporter liveness probe command timeout",
-                                    "format": "int32",
                                     "type": "integer",
                                     "default": 1
                                 }
@@ -4621,19 +4618,16 @@
                             "properties": {
                                 "initialDelaySeconds": {
                                     "description": "Metrics Exporter readiness probe initial delay",
-                                    "format": "int32",
                                     "type": "integer",
                                     "default": 10
                                 },
                                 "periodSeconds": {
                                     "description": "Metrics Exporter readiness probe frequency",
-                                    "format": "int32",
                                     "type": "integer",
                                     "default": 10
                                 },
                                 "timeoutSeconds": {
                                     "description": "Metrics Exporter readiness probe command timeout",
-                                    "format": "int32",
                                     "type": "integer",
                                     "default": 1
                                 }
