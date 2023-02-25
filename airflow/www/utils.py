@@ -247,6 +247,8 @@ def generate_pages(
     :param status: 'all', 'active', or 'paused'
     :param tags: array of strings of the current filtered tags
     :param window: the number of pages to be shown in the paging component (7 default)
+    :param sorting_key: the sorting key selected for the dags
+    :param sorting_direction: direction of sorting, 'asc' or 'desc'
     :return: the HTML string of the paging component
     """
     void_link = "javascript:void(0)"
@@ -285,7 +287,7 @@ def generate_pages(
     is_disabled = "disabled" if current_page <= 0 else ""
 
     first_node_link = (
-        void_link if is_disabled else f"?{get_params(page=0, search=search, status=status, tags=tags)}"
+        void_link if is_disabled else f"?{get_params(page=0, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
     )
     output.append(
         first_node.format(
@@ -296,7 +298,7 @@ def generate_pages(
 
     page_link = void_link
     if current_page > 0:
-        page_link = f"?{get_params(page=current_page - 1, search=search, status=status, tags=tags)}"
+        page_link = f"?{get_params(page=current_page - 1, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
 
     output.append(previous_node.format(href_link=page_link, disabled=is_disabled))
 
@@ -318,7 +320,7 @@ def generate_pages(
             "is_active": "active" if is_current(current_page, page) else "",
             "href_link": void_link
             if is_current(current_page, page)
-            else f"?{get_params(page=page, search=search, status=status, tags=tags)}",
+            else f"?{get_params(page=page, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}",
             "page_num": page + 1,
         }
         output.append(page_node.format(**vals))
@@ -328,7 +330,7 @@ def generate_pages(
     page_link = (
         void_link
         if current_page >= num_of_pages - 1
-        else f"?{get_params(page=current_page + 1, search=search, status=status, tags=tags)}"
+        else f"?{get_params(page=current_page + 1, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
     )
 
     output.append(next_node.format(href_link=page_link, disabled=is_disabled))
@@ -336,7 +338,7 @@ def generate_pages(
     last_node_link = (
         void_link
         if is_disabled
-        else f"?{get_params(page=last_page, search=search, status=status, tags=tags)}"
+        else f"?{get_params(page=last_page, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
     )
     output.append(
         last_node.format(
