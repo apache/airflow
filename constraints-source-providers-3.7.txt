@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-02-24T22:27:49Z
+# This constraints file was automatically generated on 2023-02-25T06:23:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -62,7 +62,7 @@ apispec==3.3.2
 appdirs==1.4.4
 argcomplete==2.0.0
 arrow==1.2.3
-asana==3.1.0
+asana==3.1.1
 asgiref==3.6.0
 asn1crypto==1.5.1
 astroid==2.11.7
@@ -560,7 +560,7 @@ yarl==1.8.2
 zeep==4.2.1
 zenpy==2.0.25
 zict==2.2.0
-zipp==3.14.0
+zipp==3.15.0
 zope.event==4.6
 zope.interface==5.5.2
 zstandard==0.20.0
