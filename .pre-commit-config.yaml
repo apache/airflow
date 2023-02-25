@@ -641,7 +641,7 @@ repos:
         language: node
         files: ^airflow/www/.*\.(css|sass|scss)$
         # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-www-assets
         name: Compile www assets
         language: node
