@@ -173,7 +173,7 @@ class AzureDataFactoryHook(BaseHook):
         }
 
     def __init__(self, azure_data_factory_conn_id: str = default_conn_name):
-        self._conn: DataFactoryManagementClient = None
+        self._conn: DataFactoryManagementClient | None = None
         self.conn_id = azure_data_factory_conn_id
         super().__init__()
 
@@ -205,9 +205,7 @@ class AzureDataFactoryHook(BaseHook):
         return self._conn
 
     @provide_targeted_factory
-    def get_factory(
-        self, resource_group_name: str | None = None, factory_name: str | None = None, **config: Any
-    ) -> Factory:
+    def get_factory(self, resource_group_name: str, factory_name: str, **config: Any) -> Factory:
         """
         Get the factory.
 
@@ -237,8 +235,8 @@ class AzureDataFactoryHook(BaseHook):
     def update_factory(
         self,
         factory: Factory,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> Factory:
         """
@@ -262,8 +260,8 @@ class AzureDataFactoryHook(BaseHook):
     def create_factory(
         self,
         factory: Factory,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> Factory:
         """
@@ -284,9 +282,7 @@ class AzureDataFactoryHook(BaseHook):
         )
 
     @provide_targeted_factory
-    def delete_factory(
-        self, resource_group_name: str | None = None, factory_name: str | None = None, **config: Any
-    ) -> None:
+    def delete_factory(self, resource_group_name: str, factory_name: str, **config: Any) -> None:
         """
         Delete the factory.
 
@@ -300,8 +296,8 @@ class AzureDataFactoryHook(BaseHook):
     def get_linked_service(
         self,
         linked_service_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> LinkedServiceResource:
         """
@@ -333,8 +329,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         linked_service_name: str,
         linked_service: LinkedServiceResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> LinkedServiceResource:
         """
@@ -360,8 +356,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         linked_service_name: str,
         linked_service: LinkedServiceResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> LinkedServiceResource:
         """
@@ -386,8 +382,8 @@ class AzureDataFactoryHook(BaseHook):
     def delete_linked_service(
         self,
         linked_service_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
@@ -406,8 +402,8 @@ class AzureDataFactoryHook(BaseHook):
     def get_dataset(
         self,
         dataset_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> DatasetResource:
         """
@@ -435,8 +431,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         dataset_name: str,
         dataset: DatasetResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> DatasetResource:
         """
@@ -462,8 +458,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         dataset_name: str,
         dataset: DatasetResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> DatasetResource:
         """
@@ -488,8 +484,8 @@ class AzureDataFactoryHook(BaseHook):
     def delete_dataset(
         self,
         dataset_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
@@ -506,8 +502,8 @@ class AzureDataFactoryHook(BaseHook):
     def get_dataflow(
         self,
         dataflow_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> DataFlow:
         """
@@ -524,8 +520,8 @@ class AzureDataFactoryHook(BaseHook):
     def _dataflow_exists(
         self,
         dataflow_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
     ) -> bool:
         """Return whether the dataflow already exists."""
         dataflows = {
@@ -540,8 +536,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         dataflow_name: str,
         dataflow: DataFlow,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> DataFlow:
         """
@@ -571,8 +567,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         dataflow_name: str,
         dataflow: DataFlow,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> DataFlow:
         """
@@ -597,8 +593,8 @@ class AzureDataFactoryHook(BaseHook):
     def delete_dataflow(
         self,
         dataflow_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
@@ -615,8 +611,8 @@ class AzureDataFactoryHook(BaseHook):
     def get_pipeline(
         self,
         pipeline_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> PipelineResource:
         """
@@ -644,8 +640,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         pipeline_name: str,
         pipeline: PipelineResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> PipelineResource:
         """
@@ -671,8 +667,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         pipeline_name: str,
         pipeline: PipelineResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> PipelineResource:
         """
@@ -697,8 +693,8 @@ class AzureDataFactoryHook(BaseHook):
     def delete_pipeline(
         self,
         pipeline_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
@@ -715,8 +711,8 @@ class AzureDataFactoryHook(BaseHook):
     def run_pipeline(
         self,
         pipeline_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> CreateRunResponse:
         """
@@ -736,8 +732,8 @@ class AzureDataFactoryHook(BaseHook):
     def get_pipeline_run(
         self,
         run_id: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> PipelineRun:
         """
@@ -779,8 +775,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         run_id: str,
         expected_statuses: str | set[str],
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         check_interval: int = 60,
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
@@ -826,8 +822,8 @@ class AzureDataFactoryHook(BaseHook):
     def cancel_pipeline_run(
         self,
         run_id: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
@@ -844,8 +840,8 @@ class AzureDataFactoryHook(BaseHook):
     def get_trigger(
         self,
         trigger_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> TriggerResource:
         """
@@ -873,8 +869,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         trigger_name: str,
         trigger: TriggerResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> TriggerResource:
         """
@@ -900,8 +896,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         trigger_name: str,
         trigger: TriggerResource,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> TriggerResource:
         """
@@ -926,8 +922,8 @@ class AzureDataFactoryHook(BaseHook):
     def delete_trigger(
         self,
         trigger_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
@@ -944,8 +940,8 @@ class AzureDataFactoryHook(BaseHook):
     def start_trigger(
         self,
         trigger_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> LROPoller:
         """
@@ -963,8 +959,8 @@ class AzureDataFactoryHook(BaseHook):
     def stop_trigger(
         self,
         trigger_name: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> LROPoller:
         """
@@ -983,8 +979,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         trigger_name: str,
         run_id: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
@@ -1005,8 +1001,8 @@ class AzureDataFactoryHook(BaseHook):
         self,
         trigger_name: str,
         run_id: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         **config: Any,
     ) -> None:
         """
