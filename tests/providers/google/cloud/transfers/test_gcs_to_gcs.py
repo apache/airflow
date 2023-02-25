@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest import mock
 
@@ -55,7 +54,7 @@ MOD_TIME_1 = datetime(2016, 1, 1)
 MOD_TIME_2 = datetime(2019, 1, 1)
 
 
-class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
+class TestGoogleCloudStorageToCloudStorageOperator:
     """
     Tests the three use-cases for the wildcard operator. These are
     no_prefix: *test_object
