@@ -105,6 +105,8 @@ def apply_sorting(
 ) -> Query:
     """Apply sorting to query."""
     lstriped_orderby = order_by.lstrip("-")
+    if lstriped_orderby == "logical_date":
+        lstriped_orderby = "execution_date"
     if allowed_attrs and lstriped_orderby not in allowed_attrs:
         raise BadRequest(
             detail=f"Ordering with '{lstriped_orderby}' is disallowed or "
@@ -117,3 +119,16 @@ def apply_sorting(
     else:
         order_by = f"{lstriped_orderby} asc"
     return query.order_by(text(order_by))
+
+
+def get_logical_date(logical_date, execution_date, default_value=None):
+    if not logical_date and not execution_date:  # Both missing.
+        return default_value
+    elif not logical_date:  # Only logical_date missing.
+        return execution_date
+    elif logical_date != execution_date:  # Both provided but don't match.
+        raise BadRequest(
+            "logical_date conflicts with execution_date",
+            detail=f"{logical_date!r} != {execution_date!r}",
+        )
+    return logical_date

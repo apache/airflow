@@ -1876,14 +1876,35 @@ export interface components {
        * Format: date-time
        * @description Returns objects greater or equal to the specified date.
        *
+       * This can be combined with logical_date_lte key to receive only the selected period.
+       */
+      logical_date_gte?: string;
+      /**
+       * Format: date-time
+       * @deprecated
+       * @description Returns objects less than or equal to the specified date.
+       *
+       * This can be combined with logical_date_gte key to receive only the selected period.
+       */
+      logical_date_lte?: string;
+      /**
+       * Format: date-time
+       * @deprecated
+       * @description Returns objects greater or equal to the specified date.
+       *
        * This can be combined with execution_date_lte key to receive only the selected period.
+       *
+       * *Deprecated since version 2.6.0*&#58; Use 'logical_date_gte' instead.
        */
       execution_date_gte?: string;
       /**
        * Format: date-time
+       * @deprecated
        * @description Returns objects less than or equal to the specified date.
        *
        * This can be combined with execution_date_gte key to receive only the selected period.
+       *
+       * *Deprecated since version 2.6.0*&#58; Use 'logical_date_lte' instead.
        */
       execution_date_lte?: string;
       /**

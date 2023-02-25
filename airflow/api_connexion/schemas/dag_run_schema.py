@@ -142,7 +142,7 @@ class DAGRunCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-class DagRunsBatchFormSchema(Schema):
+class DagRunsBatchFormSchema(SQLAlchemySchema):
     """Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint."""
 
     class Meta:
@@ -156,14 +156,53 @@ class DagRunsBatchFormSchema(Schema):
     page_limit = fields.Int(load_default=100, validate=Range(min=1))
     dag_ids = fields.List(fields.Str(), load_default=None)
     states = fields.List(fields.Str(), load_default=None)
-    execution_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
-    execution_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    logical_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    logical_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     start_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
     start_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     end_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     updated_at_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
     updated_at_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    execution_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    execution_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+
+    @pre_load
+    def autogenerate(self, data, **kwargs):
+        """Auto generate logical_date if it is not provided.
+
+        For compatibility, if `execution_date` is submitted, it is converted
+        to `logical_date`.
+        """
+        logical_date_gte = data.get("logical_date_gte")
+        execution_date_gte = data.pop("execution_date_gte", None)
+        if not logical_date_gte and not execution_date_gte:  # Both missing.
+            pass
+        elif not logical_date_gte:  # Only logical_date_gte missing.
+            data["logical_date_gte"] = execution_date_gte
+        elif not execution_date_gte:  # Only execution_date_gte missing.
+            pass
+        elif logical_date_gte != execution_date_gte:  # Both provided but don't match.
+            raise BadRequest(
+                "logical_date_gte conflicts with execution_date_gte",
+                detail=f"{logical_date_gte!r} != {execution_date_gte!r}",
+            )
+
+        logical_date_lte = data.get("logical_date_lte")
+        execution_date_lte = data.pop("execution_date_lte", None)
+        if not logical_date_lte and not execution_date_lte:  # Both missing.
+            pass
+        elif not logical_date_lte:  # Only logical_date_lte missing.
+            data["logical_date_lte"] = execution_date_lte
+        elif not execution_date_lte:  # Only execution_date_lte missing.
+            pass
+        elif logical_date_lte != execution_date_lte:  # Both provided but don't match.
+            raise BadRequest(
+                "logical_date_lte conflicts with execution_date_lte",
+                detail=f"{logical_date_lte!r} != {execution_date_lte!r}",
+            )
+
+        return data
 
 
 class SetDagRunNoteFormSchema(Schema):

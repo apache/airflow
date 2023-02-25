@@ -4228,21 +4228,44 @@ components:
 
             The value can be repeated to retrieve multiple matching values (OR condition).
 
-        execution_date_gte:
+        logical_date_gte:
           type: string
           format: date-time
           description: |
             Returns objects greater or equal to the specified date.
 
+            This can be combined with logical_date_lte key to receive only the selected period.
+
+        logical_date_lte:
+          type: string
+          format: date-time
+          deprecated: true
+          description: |
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with logical_date_gte key to receive only the selected period.
+
+        execution_date_gte:
+          type: string
+          format: date-time
+          deprecated: true
+          description: |
+            Returns objects greater or equal to the specified date.
+
             This can be combined with execution_date_lte key to receive only the selected period.
+
+            *Deprecated since version 2.6.0*&#58; Use 'logical_date_gte' instead.
 
         execution_date_lte:
           type: string
           format: date-time
+          deprecated: true
           description: |
             Returns objects less than or equal to the specified date.
 
             This can be combined with execution_date_gte key to receive only the selected period.
+
+            *Deprecated since version 2.6.0*&#58; Use 'logical_date_lte' instead.
 
         start_date_gte:
           type: string

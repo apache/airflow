@@ -349,7 +349,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
         result = session.query(DagRun).all()
         assert len(result) == 2
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=-execution_date",
+            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=-logical_date",
             environ_overrides={"REMOTE_USER": "test"},
         )
 

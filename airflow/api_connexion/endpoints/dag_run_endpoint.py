@@ -34,7 +34,13 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    apply_sorting,
+    check_limit,
+    format_datetime,
+    format_parameters,
+    get_logical_date,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     clear_dagrun_form_schema,
@@ -133,8 +139,8 @@ def _fetch_dag_runs(
     *,
     end_date_gte: str | None,
     end_date_lte: str | None,
-    execution_date_gte: str | None,
-    execution_date_lte: str | None,
+    logical_date_gte: str | None,
+    logical_date_lte: str | None,
     start_date_gte: str | None,
     start_date_lte: str | None,
     updated_at_gte: str | None = None,
@@ -147,11 +153,11 @@ def _fetch_dag_runs(
         query = query.filter(DagRun.start_date >= start_date_gte)
     if start_date_lte:
         query = query.filter(DagRun.start_date <= start_date_lte)
-    # filter execution date
-    if execution_date_gte:
-        query = query.filter(DagRun.execution_date >= execution_date_gte)
-    if execution_date_lte:
-        query = query.filter(DagRun.execution_date <= execution_date_lte)
+    # filter logical date
+    if logical_date_gte:
+        query = query.filter(DagRun.execution_date >= logical_date_gte)
+    if logical_date_lte:
+        query = query.filter(DagRun.execution_date <= logical_date_lte)
     # filter end date
     if end_date_gte:
         query = query.filter(DagRun.end_date >= end_date_gte)
@@ -191,13 +197,15 @@ def _fetch_dag_runs(
     {
         "start_date_gte": format_datetime,
         "start_date_lte": format_datetime,
-        "execution_date_gte": format_datetime,
-        "execution_date_lte": format_datetime,
+        "logical_date_gte": format_datetime,
+        "logical_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
         "updated_at_gte": format_datetime,
         "updated_at_lte": format_datetime,
         "limit": check_limit,
+        "execution_date_gte": format_datetime,
+        "execution_date_lte": format_datetime,
     }
 )
 @provide_session
@@ -206,8 +214,8 @@ def get_dag_runs(
     dag_id: str,
     start_date_gte: str | None = None,
     start_date_lte: str | None = None,
-    execution_date_gte: str | None = None,
-    execution_date_lte: str | None = None,
+    logical_date_gte: str | None = None,
+    logical_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
     updated_at_gte: str | None = None,
@@ -217,6 +225,8 @@ def get_dag_runs(
     limit: int | None = None,
     order_by: str = "id",
     session: Session = NEW_SESSION,
+    execution_date_gte: str | None = None,
+    execution_date_lte: str | None = None,
 ):
     """Get all DAG Runs."""
     query = session.query(DagRun)
@@ -230,13 +240,14 @@ def get_dag_runs(
 
     if state:
         query = query.filter(DagRun.state.in_(state))
-
+    logical_date_gte = get_logical_date(logical_date_gte, execution_date_gte)
+    logical_date_lte = get_logical_date(logical_date_lte, execution_date_lte)
     dag_run, total_entries = _fetch_dag_runs(
         query,
         end_date_gte=end_date_gte,
         end_date_lte=end_date_lte,
-        execution_date_gte=execution_date_gte,
-        execution_date_lte=execution_date_lte,
+        logical_date_gte=logical_date_gte,
+        logical_date_lte=logical_date_lte,
         start_date_gte=start_date_gte,
         start_date_lte=start_date_lte,
         updated_at_gte=updated_at_gte,
@@ -280,8 +291,8 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
         query,
         end_date_gte=data["end_date_gte"],
         end_date_lte=data["end_date_lte"],
-        execution_date_gte=data["execution_date_gte"],
-        execution_date_lte=data["execution_date_lte"],
+        logical_date_gte=data["logical_date_gte"],
+        logical_date_lte=data["logical_date_lte"],
         start_date_gte=data["start_date_gte"],
         start_date_lte=data["start_date_lte"],
         limit=data["page_limit"],
