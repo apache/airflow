@@ -470,6 +470,126 @@ class TestDag:
         )
         session.close()
 
+    def test_get_task_instances_before(self):
+
+        BASE_DATE = timezone.datetime(2022, 7, 20, 20)
+
+        test_dag_id = "test_get_task_instances_before"
+        test_task_id = "the_task"
+
+        test_dag = DAG(dag_id=test_dag_id, start_date=BASE_DATE)
+        EmptyOperator(task_id=test_task_id, dag=test_dag)
+
+        session = settings.Session()
+
+        def dag_run_before(delta_h=0, type=DagRunType.SCHEDULED):
+            dagrun = test_dag.create_dagrun(
+                state=State.SUCCESS, run_type=type, run_id=f"test_{delta_h}", session=session
+            )
+            dagrun.start_date = BASE_DATE + timedelta(hours=delta_h)
+            dagrun.execution_date = BASE_DATE + timedelta(hours=delta_h)
+            return dagrun
+
+        dr1 = dag_run_before(delta_h=-1, type=DagRunType.MANUAL)  # H19
+        dr2 = dag_run_before(delta_h=-2, type=DagRunType.MANUAL)  # H18
+        dr3 = dag_run_before(delta_h=-3, type=DagRunType.MANUAL)  # H17
+        dr4 = dag_run_before(delta_h=-4, type=DagRunType.MANUAL)  # H16
+        dr5 = dag_run_before(delta_h=-5)  # H15
+        dr6 = dag_run_before(delta_h=-6)  # H14
+        dr7 = dag_run_before(delta_h=-7)  # H13
+        dr8 = dag_run_before(delta_h=-8)  # H12
+
+        session.commit()
+
+        REF_DATE = BASE_DATE
+
+        assert set([dr.run_id for dr in [dr1]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr1, dr2, dr3]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=7, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=9, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
+            ]
+        )  # stays constrained to available ones
+
+        REF_DATE = BASE_DATE + timedelta(hours=-3.5)
+
+        assert set([dr.run_id for dr in [dr4]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr4, dr5, dr6]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=6, session=session)
+            ]
+        )  # stays constrained to available ones
+
+        REF_DATE = BASE_DATE + timedelta(hours=-8)
+
+        assert set([dr.run_id for dr in [dr8]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=0, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr8]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+            ]
+        )
+        assert set([dr.run_id for dr in [dr8]]) == set(
+            [
+                ti.run_id
+                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
+            ]
+        )
+
+        session.close()
+
     def test_user_defined_filters_macros(self):
         def jinja_udf(name):
             return f"Hello {name}"
