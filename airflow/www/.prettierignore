@@ -1,0 +1,3 @@
+.mypy_cache/
+templates/**/*.html
+dist/

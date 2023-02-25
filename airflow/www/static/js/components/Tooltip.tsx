@@ -19,7 +19,7 @@
 
 /* Simplified version of chakra's Tooltip component for faster rendering but less customization */
 
-import React from 'react';
+import React from "react";
 import {
   chakra,
   forwardRef,
@@ -31,22 +31,22 @@ import {
   UseTooltipProps,
   Portal,
   PortalProps,
-} from '@chakra-ui/react';
-import { motion, AnimatePresence } from 'framer-motion';
+} from "@chakra-ui/react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface TooltipProps
-  extends HTMLChakraProps<'div'>,
-  ThemingProps<'Tooltip'>,
-  UseTooltipProps {
+  extends HTMLChakraProps<"div">,
+    ThemingProps<"Tooltip">,
+    UseTooltipProps {
   /**
    * The React component to use as the
    * trigger for the tooltip
    */
-  children: React.ReactElement
+  children: React.ReactElement;
   /**
    * The label of the tooltip
    */
-  label?: React.ReactNode
+  label?: React.ReactNode;
   /**
    * The accessible, human friendly label to use for
    * screen readers.
@@ -54,20 +54,20 @@ export interface TooltipProps
    * If passed, tooltip will show the content `label`
    * but expose only `aria-label` to assistive technologies
    */
-  'aria-label'?: string
+  "aria-label"?: string;
   /**
    * If `true`, the tooltip will wrap its children
    * in a `<span/>` with `tabIndex=0`
    */
-  shouldWrapChildren?: boolean
+  shouldWrapChildren?: boolean;
   /**
    * If `true`, the tooltip will show an arrow tip
    */
-  hasArrow?: boolean
+  hasArrow?: boolean;
   /**
    * Props to be forwarded to the portal component
    */
-  portalProps?: Pick<PortalProps, 'appendToParentPortal' | 'containerRef'>
+  portalProps?: Pick<PortalProps, "appendToParentPortal" | "containerRef">;
 }
 
 const scale = {
@@ -75,15 +75,15 @@ const scale = {
     scale: 0.85,
     opacity: 0,
     transition: {
-      opacity: { duration: 0.15, easings: 'easeInOut' },
-      scale: { duration: 0.2, easings: 'easeInOut' },
+      opacity: { duration: 0.15, easings: "easeInOut" },
+      scale: { duration: 0.2, easings: "easeInOut" },
     },
   },
   enter: {
     scale: 1,
     opacity: 1,
     transition: {
-      opacity: { easings: 'easeOut', duration: 0.2 },
+      opacity: { easings: "easeOut", duration: 0.2 },
       scale: { duration: 0.2, ease: [0.175, 0.885, 0.4, 1.1] },
     },
   },
@@ -92,18 +92,18 @@ const scale = {
 const StyledTooltip = chakra(motion.div);
 
 const styles = {
-  '--popper-arrow-bg': ['var(--tooltip-bg)'],
-  '--tooltip-bg': 'colors.gray.700',
-  bg: ['var(--tooltip-bg)'],
-  borderRadius: 'sm',
-  boxShadow: 'md',
-  color: 'whiteAlpha.900',
-  fontSize: 'md',
-  fontWeight: 'medium',
-  maxW: '320px',
-  px: '8px',
-  py: '2px',
-  zIndex: 'tooltip',
+  "--popper-arrow-bg": ["var(--tooltip-bg)"],
+  "--tooltip-bg": "colors.gray.700",
+  bg: ["var(--tooltip-bg)"],
+  borderRadius: "sm",
+  boxShadow: "md",
+  color: "whiteAlpha.900",
+  fontSize: "md",
+  fontWeight: "medium",
+  maxW: "320px",
+  px: "8px",
+  py: "2px",
+  zIndex: "tooltip",
 };
 
 /**
@@ -112,7 +112,7 @@ const styles = {
  * @see Docs     https://chakra-ui.com/docs/overlay/tooltip
  * @see WAI-ARIA https://www.w3.org/TR/wai-aria-practices/#tooltip
  */
-const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
+const Tooltip = forwardRef<TooltipProps, "div">((props, ref) => {
   const ownProps = omitThemingProps(props);
   const theme = useTheme();
 
@@ -120,7 +120,7 @@ const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
     children,
     label,
     shouldWrapChildren,
-    'aria-label': ariaLabel,
+    "aria-label": ariaLabel,
     hasArrow,
     bg,
     portalProps,
@@ -133,14 +133,14 @@ const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
   const tooltip = useTooltip({ ...rest, direction: theme.direction });
 
   /*
-     * Ensure tooltip has only one child node
-     */
+   * Ensure tooltip has only one child node
+   */
   const child = React.Children.only(children) as React.ReactElement & {
-    ref?: React.Ref<any>
+    ref?: React.Ref<any>;
   };
   const trigger: React.ReactElement = React.cloneElement(
     child,
-    tooltip.getTriggerProps(child.props, child.ref),
+    tooltip.getTriggerProps(child.props, child.ref)
   );
 
   const tooltipProps = tooltip.getTooltipProps({}, ref);
@@ -158,38 +158,38 @@ const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
       {trigger}
       <AnimatePresence>
         {tooltip.isOpen && (
-        <Portal {...portalProps}>
-          <chakra.div
-            {...tooltip.getTooltipPositionerProps()}
-            __css={{
-              zIndex: styles.zIndex,
-              pointerEvents: 'none',
-            }}
-          >
-            <StyledTooltip
-              variants={scale}
-              {...(tooltipProps as any)}
-              initial="exit"
-              animate="enter"
-              exit="exit"
-              __css={styles}
+          <Portal {...portalProps}>
+            <chakra.div
+              {...tooltip.getTooltipPositionerProps()}
+              __css={{
+                zIndex: styles.zIndex,
+                pointerEvents: "none",
+              }}
             >
-              {label}
-              {hasArrow && (
-              <chakra.div
-                data-popper-arrow
-                className="chakra-tooltip__arrow-wrapper"
+              <StyledTooltip
+                variants={scale}
+                {...(tooltipProps as any)}
+                initial="exit"
+                animate="enter"
+                exit="exit"
+                __css={styles}
               >
-                <chakra.div
-                  data-popper-arrow-inner
-                  className="chakra-tooltip__arrow"
-                  __css={{ bg: styles.bg }}
-                />
-              </chakra.div>
-              )}
-            </StyledTooltip>
-          </chakra.div>
-        </Portal>
+                {label}
+                {hasArrow && (
+                  <chakra.div
+                    data-popper-arrow
+                    className="chakra-tooltip__arrow-wrapper"
+                  >
+                    <chakra.div
+                      data-popper-arrow-inner
+                      className="chakra-tooltip__arrow"
+                      __css={{ bg: styles.bg }}
+                    />
+                  </chakra.div>
+                )}
+              </StyledTooltip>
+            </chakra.div>
+          </Portal>
         )}
       </AnimatePresence>
     </>

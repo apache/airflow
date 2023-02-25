@@ -17,15 +17,10 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Button,
-  Flex,
-  Link,
-  Divider,
-} from '@chakra-ui/react';
+import React from "react";
+import { Button, Flex, Link, Divider } from "@chakra-ui/react";
 
-import { useExtraLinks } from 'src/api';
+import { useExtraLinks } from "src/api";
 
 interface Props {
   dagId: string;
@@ -41,11 +36,15 @@ const ExtraLinks = ({
   extraLinks = [],
 }: Props) => {
   const { data: links = [] } = useExtraLinks({
-    dagId, taskId, executionDate, extraLinks,
+    dagId,
+    taskId,
+    executionDate,
+    extraLinks,
   });
 
   if (!links.length) return null;
-  const isExternal = (url: string | null) => url && /^(?:[a-z]+:)?\/\//.test(url);
+  const isExternal = (url: string | null) =>
+    url && /^(?:[a-z]+:)?\/\//.test(url);
 
   return (
     <>
@@ -58,7 +57,7 @@ const ExtraLinks = ({
             colorScheme="blue"
             href={url}
             isDisabled={!url}
-            target={isExternal(url) ? '_blank' : undefined}
+            target={isExternal(url) ? "_blank" : undefined}
           >
             {name}
           </Button>
