@@ -53,6 +53,4 @@ class TestDatabricksSqlSensor(unittest.TestCase):
     @mock.patch.object(DatabricksSqlSensor, "_sql_sensor")
     def test_poke_changes_failure(self, mock_sql_sensor):
         mock_sql_sensor.return_value = []
-        with self.assertRaises(AirflowException) as err:
-            sql_sensor.poke({})
-        self.assertEqual(str(err.exception), "No results for SQL sensor.")
+        assert sql_sensor.poke({}) is False
