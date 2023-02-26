@@ -62,7 +62,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.file import find_path_from_directory, list_py_file_paths, might_contain_dag
+from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
@@ -816,9 +816,10 @@ class DagFileProcessorManager(LoggingMixin):
         filepaths can be ignored, but non-observed files will NOT be un-ignored. The logic is:
         - We have currently observed filepaths A
         - Find non-ignored filepaths B
-        - The new filepaths to observe is the intersection of A and B (A ∩ B)
-        - Filepaths only in A but not in B are ignored by a pattern in the .airflowignore file and removed
-          from the list of observed filepaths
+        - A - B --> Observed filepaths to delete.
+        - A ∩ B --> Observed filepaths to keep.
+        - B - A --> New filepaths to check for DAGs. Should be empty (B ⊆ A) since adding ignore-patterns can
+                    only result in more filepaths to ignore.
 
         :param filepath: Path to the .airflowignore file.
         """
@@ -829,6 +830,8 @@ class DagFileProcessorManager(LoggingMixin):
         # but never addition of filepaths.
         new_filepaths = self._file_paths.intersection(matching_filepaths)
         filepaths_to_remove = self._file_paths - new_filepaths
+
+        # TODO filter filepaths FROM THIS FOLDER ONLY!
         for fp_to_remove in filepaths_to_remove:
             self.log.info("Removing metadata for %s since it's ignored by %s.", fp_to_remove, filepath)
             self.handle_deleted_file(filepath=fp_to_remove)
@@ -838,6 +841,42 @@ class DagFileProcessorManager(LoggingMixin):
             filepath,
             len(filepaths_to_remove),
             len(new_filepaths),
+        )
+
+    def handle_deleted_airflowignore_file(self, filepath: str) -> None:
+        """
+        Process a deleted .airflowignore file.
+
+        Deleting an .airflowignore file means ignored files can be "unignored", but observed filepaths cannot
+        be ignored. The logic is:
+        - We have currently observed filepaths A
+        - Find non-ignored filepaths B
+        - A - B --> Observed filepaths to delete. Should be empty (A ⊆ B) since removing ignore-patterns can
+                    only result in more filepaths to observe.
+        - A ∩ B --> Observed filepaths to keep.
+        - B - A --> New filepaths to check for DAGs.
+
+        :param filepath: Path of the deleted .airflowignore file.
+        """
+        airflowignore_dir_path = str(Path(filepath).parent)
+        matching_filepaths = list_py_file_paths(directory=airflowignore_dir_path)
+
+        # Only intersection is required since removing an .airflowignore file can only result in addition of
+        # filepaths, but never removal of filepaths.
+        # TODO filter filepaths FROM THIS FOLDER ONLY!
+        filepaths_to_check = matching_filepaths - self._file_paths
+        for fp_to_check in filepaths_to_check:
+            self.log.info(
+                "Checking %s for DAGs since it was unignored by removal of %s.", fp_to_check, filepath
+            )
+            self.handle_created_file(filepath=fp_to_check)
+
+        self.log.info(
+            "Processed deleted %s. "
+            "Added %s filepath(s) to observed filepaths, currently observing %s filepaths.",
+            filepath,
+            len(filepaths_to_check),
+            len(self._file_paths),
         )
 
     def handle_modified_file(self, filepath: str) -> None:
@@ -1453,6 +1492,7 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
             self._dag_file_processor_manager.handle_deleted_file(filepath=event.src_path)
         elif event.src_path.endswith(".airflowignore"):
             self.log.info("Detected deletion of %s, checking for files to un-ignore.", event.src_path)
+            self._dag_file_processor_manager.handle_deleted_airflowignore_file(filepath=event.src_path)
 
     def on_modified(self, event: FileModifiedEvent):
         """
