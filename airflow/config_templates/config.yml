@@ -1004,17 +1004,18 @@ api:
       default: "airflow.api.auth.backend.session"
     maximum_page_limit:
       description: |
-        Used to set the maximum page limit for API requests
+        Used to set the maximum page limit for API requests. If limit passed as param
+        is greater than maximum page limit, it will be ignored and maximum page limit value
+        will be set as the limit
       version_added: 2.0.0
       type: integer
       example: ~
       default: "100"
     fallback_page_limit:
       description: |
-        Used to set the default page limit when limit is zero. A default limit
-        of 100 is set on OpenApi spec. However, this particular default limit
-        only work when limit is set equal to zero(0) from API requests.
-        If no limit is supplied, the OpenApi spec default is used.
+        Used to set the default page limit when limit param is zero or not provided in API
+        requests. Otherwise if positive integer is passed in the API requests as limit, the
+        smallest number of user given limit or maximum page limit is taken as limit.
       type: integer
       example: ~
       version_added: 2.0.0
