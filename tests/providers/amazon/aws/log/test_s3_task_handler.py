@@ -236,3 +236,18 @@ class TestS3TaskHandler:
 
         with pytest.raises(ClientError):
             boto3.resource("s3").Object("bucket", self.remote_log_key).get()
+
+    @pytest.mark.parametrize(
+        "delete_local_copy, expected_existence_of_local_copy", [(True, False), (False, True)]
+    )
+    def test_close_with_delete_local_copy_conf(self, delete_local_copy, expected_existence_of_local_copy):
+        handler = S3TaskHandler(
+            self.local_log_location, self.remote_log_base, delete_local_copy=delete_local_copy
+        )
+
+        handler.log.info("test")
+        handler.set_context(self.ti)
+        assert handler.upload_on_close
+
+        handler.close()
+        assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
