@@ -56,7 +56,7 @@ PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
-errors = []
+errors: list[str] = []
 
 console = Console(width=400, color_system="standard")
 
@@ -164,13 +164,6 @@ def check_if_object_exist(object_name: str, resource_type: str, yaml_file_path: 
         else:
             raise RuntimeError(f"Wrong enum {object_type}???")
     except Exception as e:
-        if architecture == Architecture.ARM:
-            if "MySQLdb" in str(e):
-                console.print(
-                    f"[yellow]The imports fail on ARM: {object_name} in {resource_type} {e}, "
-                    f"but it is expected.[/]"
-                )
-                return
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "
             f"or is not a class: {e}"

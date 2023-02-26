@@ -152,7 +152,7 @@ spec:
           volumeMounts:
 {{- include "airflow_config_mount" . | nindent 12 }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
@@ -209,7 +209,7 @@ spec:
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
@@ -271,7 +271,7 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
@@ -303,7 +303,7 @@ spec:
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: false
 {{- if .Values.volumeMounts }}
-{{ toYaml .Values.volumeMounts | nindent 12 }}
+{{- toYaml .Values.volumeMounts | nindent 12 }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}

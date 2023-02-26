@@ -152,6 +152,7 @@ Currently, **officially** using Airflow:
 1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)]
 1. [DANA](https://www.dana.id/) [[@imamdigmi](https://github.com/imamdigmi)]
 1. [Danamica](https://www.danamica.dk) [[@testvinder](https://github.com/testvinder)]
+1. [Data Minded](https://www.dataminded.com) [[@datamindedbe](https://github.com/datamindedbe)]
 1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Datamaran](https://www.datamaran.com) [[@valexharo](https://github.com/valexharo)]
@@ -272,6 +273,7 @@ Currently, **officially** using Airflow:
 1. [Korbit](https://www.korbit.co.kr/) [[@jensenity](https://github.com/jensenity)]
 1. [KPN B.V.](https://www.kpn.com/) [[@biyanisuraj](https://github.com/biyanisuraj) & [@gmic](https://github.com/gmic)]
 1. [Kroton Educacional](http://www.kroton.com.br/)
+1. [Leboncoin](https://www.leboncoin.fr/) [[@hussein-awala](https://github.com/hussein-awala) & [@V0lantis](https://github.com/V0lantis)]
 1. [Lemann Foundation](http://fundacaolemann.org.br) [[@fernandosjp](https://github.com/fernandosjp)]
 1. [LeMans Corporation](https://www.parts-unlimited.com/) [[@alloydwhitlock](https://github.com/alloydwhitlock)] & [[@tinyrye](https://github.com/tinyrye)]
 1. [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]

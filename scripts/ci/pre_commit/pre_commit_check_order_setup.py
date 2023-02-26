@@ -30,7 +30,7 @@ from os.path import abspath, dirname
 
 from rich import print
 
-errors = []
+errors: list[str] = []
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir, os.pardir))

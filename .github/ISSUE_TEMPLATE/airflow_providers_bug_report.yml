@@ -1,7 +1,7 @@
 ---
 name: Airflow Providers Bug report
 description: Problems and issues with code in Apache Airflow Providers
-labels: ["kind:bug", "area:providers"]
+labels: ["kind:bug", "area:providers", "needs-triage"]
 body:
   - type: markdown
     attributes:
@@ -137,8 +137,9 @@ body:
         - "Other Docker-based deployment"
         - "Virtualenv installation"
         - "Astronomer"
-        - "Composer"
-        - "MWAA"
+        - "Google Cloud Composer"
+        - "Amazon (AWS) MWAA"
+        - "Microsoft ADF Managed Airflow"
         - "Other"
     validations:
       required: true
@@ -175,6 +176,8 @@ body:
         as minimally and precisely as possible. Keep in mind we do not have access to your cluster or
         DAGs. Remember that non-reproducible issues will be closed! Opening a discussion is
         recommended as a first step.
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: Anything else

@@ -59,6 +59,8 @@ UNIX_PATH_MAX = 108
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 20
 
+CLOUD_SQL_PROXY_VERSION_REGEX = re.compile(r"^v?(\d+\.\d+\.\d+)(-\w*.?\d?)?$")
+
 
 class CloudSqlOperationStatus:
     """Helper class with operation statuses."""
@@ -449,16 +451,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         if os.path.isfile(self.sql_proxy_path):
             self.log.info("cloud-sql-proxy is already present")
             return
-        system = platform.system().lower()
-        processor = os.uname().machine
-        if processor == "x86_64":
-            processor = "amd64"
-        if not self.sql_proxy_version:
-            download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
-        else:
-            download_url = CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL.format(
-                self.sql_proxy_version, system, processor
-            )
+        download_url = self._get_sql_proxy_download_url()
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
         # httpx has a breaking API change (follow_redirects vs allow_redirects)
@@ -481,6 +474,24 @@ class CloudSqlProxyRunner(LoggingMixin):
         shutil.move(proxy_path_tmp, self.sql_proxy_path)
         os.chmod(self.sql_proxy_path, 0o744)  # Set executable bit
         self.sql_proxy_was_downloaded = True
+
+    def _get_sql_proxy_download_url(self):
+        system = platform.system().lower()
+        processor = os.uname().machine
+        if processor == "x86_64":
+            processor = "amd64"
+        if not self.sql_proxy_version:
+            download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
+        else:
+            if not CLOUD_SQL_PROXY_VERSION_REGEX.match(self.sql_proxy_version):
+                raise ValueError(
+                    "The sql_proxy_version should match the regular expression "
+                    f"{CLOUD_SQL_PROXY_VERSION_REGEX.pattern}"
+                )
+            download_url = CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL.format(
+                self.sql_proxy_version, system, processor
+            )
+        return download_url
 
     def _get_credential_parameters(self) -> list[str]:
         extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
@@ -657,6 +668,8 @@ class CloudSQLDatabaseHook(BaseHook):
     * **public_ip** - IP to connect to for public connection (from host of the URI).
     * **public_port** - Port to connect to for public connection (from port of the URI).
     * **database** - Database to connect to (from schema of the URI).
+    * **sql_proxy_binary_path** - Optional path to Cloud SQL Proxy binary. If the binary
+      is not specified or the binary is not present, it is automatically downloaded.
 
     Remaining parameters are retrieved from the extras (URI query parameters):
 
@@ -671,8 +684,6 @@ class CloudSQLDatabaseHook(BaseHook):
       You cannot use proxy and SSL together.
     * **sql_proxy_use_tcp** - (default False) If set to true, TCP is used to connect via
       proxy, otherwise UNIX sockets are used.
-    * **sql_proxy_binary_path** - Optional path to Cloud SQL Proxy binary. If the binary
-      is not specified or the binary is not present, it is automatically downloaded.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
       v1.13). If not specified, the latest version is downloaded.
     * **sslcert** - Path to client certificate to authenticate when SSL is used.
@@ -691,13 +702,12 @@ class CloudSQLDatabaseHook(BaseHook):
     conn_type = "gcpcloudsqldb"
     hook_name = "Google Cloud SQL Database"
 
-    _conn = None
-
     def __init__(
         self,
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
         gcp_conn_id: str = "google_cloud_default",
         default_gcp_project_id: str | None = None,
+        sql_proxy_binary_path: str | None = None,
     ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
@@ -713,7 +723,7 @@ class CloudSQLDatabaseHook(BaseHook):
         self.use_ssl = self._get_bool(self.extras.get("use_ssl", "False"))
         self.sql_proxy_use_tcp = self._get_bool(self.extras.get("sql_proxy_use_tcp", "False"))
         self.sql_proxy_version = self.extras.get("sql_proxy_version")
-        self.sql_proxy_binary_path = self.extras.get("sql_proxy_binary_path")
+        self.sql_proxy_binary_path = sql_proxy_binary_path
         self.user = self.cloudsql_connection.login
         self.password = self.cloudsql_connection.password
         self.public_ip = self.cloudsql_connection.host

@@ -219,7 +219,7 @@ By default, ``db clean`` will archive purged rows in tables of the form ``_airfl
 
 Export the purged records from the archive tables
 -------------------------------------------------
-The ``db export-cleaned`` command exports the contents of the archived tables, created by the ``db clean`` command,
+The ``db export-archived`` command exports the contents of the archived tables, created by the ``db clean`` command,
 to a specified format, by default to a CSV file. The exported file will contain the records that were purged from the
 primary tables during the ``db clean`` process.
 
@@ -237,7 +237,7 @@ Dropping the archived tables
 
 If during the ``db clean`` process, you did not use the ``--skip-archive`` option which drops the archived table, you can
 still drop the archive tables using the ``db drop-archived`` command. This operation is irreversible and you are encouraged
-to use the ``db export-cleaned`` command to backup the tables to disk before dropping them.
+to use the ``db export-archived`` command to backup the tables to disk before dropping them.
 
 You can specify the tables to drop using the ``--tables`` option. If no tables are specified, all archive tables will be
 dropped.

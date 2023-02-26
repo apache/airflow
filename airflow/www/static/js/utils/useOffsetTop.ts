@@ -17,40 +17,27 @@
  * under the License.
  */
 
-/* global document, window */
-
 import { debounce } from 'lodash';
 import React, { useEffect, useState } from 'react';
 
-const footerHeight = parseInt(getComputedStyle(document.getElementsByTagName('body')[0]).paddingBottom.replace('px', ''), 10) || 0;
-
 // For an html element, keep it within view height by calculating the top offset and footer height
-const useOffsetHeight = (
-  contentRef: React.RefObject<HTMLDivElement | HTMLPreElement>,
-  dataToWatch?: any, // recalculate height if this changes
-  minHeight: number = 300,
-) => {
-  const [height, setHeight] = useState(0);
+const useOffsetTop = (contentRef: React.RefObject<HTMLElement>) => {
+  const [top, setTop] = useState(0);
 
   useEffect(() => {
     const calculateHeight = debounce(() => {
-      if (contentRef.current) {
-        const topOffset = contentRef.current.offsetTop;
-        const newHeight = (window.innerHeight - (topOffset + footerHeight)) * 2;
-        setHeight(newHeight > minHeight ? newHeight : minHeight);
-      }
+      const offset = contentRef.current?.getBoundingClientRect().top || 0;
+
+      // Note: offsetParent() will get the highest level parent with position: static;
+      const parentOffset = contentRef.current?.offsetParent?.getBoundingClientRect().top || 0;
+      const childOffset = offset - parentOffset;
+      if (childOffset) setTop(childOffset);
     }, 25);
     // set height on load
     calculateHeight();
+  }, [contentRef]);
 
-    // set height on window resize
-    window.addEventListener('resize', calculateHeight);
-    return () => {
-      window.removeEventListener('resize', calculateHeight);
-    };
-  }, [contentRef, minHeight, dataToWatch]);
-
-  return height;
+  return top;
 };
 
-export default useOffsetHeight;
+export default useOffsetTop;
