@@ -22,7 +22,6 @@ import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
-from airflow import AirflowException
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 
 TASK_ID = "db-sensor"

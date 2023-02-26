@@ -22,7 +22,6 @@ import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
 
