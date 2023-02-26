@@ -19,7 +19,6 @@ from __future__ import annotations
 import copy
 import logging
 import os
-import tempfile
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -49,10 +48,8 @@ class TestGCSTaskHandler:
         clear_db_dags()
 
     @pytest.fixture(autouse=True)
-    def local_log_location(self):
-        with tempfile.TemporaryDirectory() as td:
-            self.local_log_location = td
-            yield td
+    def local_log_location(self, tmp_path_factory):
+        return str(tmp_path_factory.mktemp("local-gcs-log-location"))
 
     @pytest.fixture(autouse=True)
     def gcs_task_handler(self, create_log_template, local_log_location):
@@ -128,7 +125,7 @@ class TestGCSTaskHandler:
             "***   * gs://bucket/remote/log/location/1.log\n"
             "*** Unable to read remote log Failed to connect\n"
             "*** Found local files:\n"
-            f"***   * {self.local_log_location}/1.log\n"
+            f"***   * {self.gcs_task_handler.local_base}/1.log\n"
         )
         assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
