@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import os
 import tempfile
 from unittest import mock
 from unittest.mock import MagicMock
@@ -246,3 +247,36 @@ class TestGCSTaskHandler:
             ],
             any_order=False,
         )
+
+    @pytest.mark.parametrize(
+        "delete_local_copy, expected_existence_of_local_copy", [(True, False), (False, True)]
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_close_with_delete_local_copy_conf(
+        self,
+        mock_blob,
+        mock_client,
+        mock_creds,
+        local_log_location,
+        delete_local_copy,
+        expected_existence_of_local_copy,
+    ):
+        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+
+        handler = GCSTaskHandler(
+            base_log_folder=local_log_location,
+            gcs_log_folder="gs://bucket/remote/log/location",
+            delete_local_copy=delete_local_copy,
+        )
+
+        handler.log.info("test")
+        handler.set_context(self.ti)
+        assert handler.upload_on_close
+
+        handler.close()
+        assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
