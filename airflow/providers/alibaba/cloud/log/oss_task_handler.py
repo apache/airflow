@@ -29,12 +29,17 @@ from airflow.configuration import conf
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version
 
-if Version(version) < Version("2.6"):
-    DEFAULT_DELETE_LOCAL_COPY = False
-else:
-    DEFAULT_DELETE_LOCAL_COPY = conf.getboolean("logging", "delete_local_logs")
+
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    TODO: delete this function when min airflow version >= 2.6
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
 
 
 class OSSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -44,21 +49,17 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from OSS remote storage.
     """
 
-    def __init__(
-        self,
-        base_log_folder,
-        oss_log_folder,
-        filename_template=None,
-        delete_local_copy: bool = DEFAULT_DELETE_LOCAL_COPY,
-    ):
+    def __init__(self, base_log_folder, oss_log_folder, filename_template=None, **kwargs):
         self.log.info("Using oss_task_handler for remote logging...")
         super().__init__(base_log_folder, filename_template)
         (self.bucket_name, self.base_folder) = OSSHook.parse_oss_url(oss_log_folder)
-        self.delete_local_copy = delete_local_copy
         self.log_relative_path = ""
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self):

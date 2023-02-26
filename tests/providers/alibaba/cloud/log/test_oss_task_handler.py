@@ -26,6 +26,7 @@ import pytest
 from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 OSS_TASK_HANDLER_STRING = "airflow.providers.alibaba.cloud.log.oss_task_handler.{}"
@@ -152,14 +153,23 @@ class TestOSSTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy", [(True, False), (False, True)]
+        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
+        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
     )
     @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.hook"), new_callable=PropertyMock)
     def test_close_with_delete_local_copy_conf(
-        self, mock_service, tmp_path_factory, delete_local_copy, expected_existence_of_local_copy
+        self,
+        mock_service,
+        tmp_path_factory,
+        delete_local_copy,
+        expected_existence_of_local_copy,
+        airflow_version,
     ):
         local_log_path = str(tmp_path_factory.mktemp("local-oss-log-location"))
-        handler = OSSTaskHandler(local_log_path, self.oss_log_folder, delete_local_copy=delete_local_copy)
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
+            "airflow.version.version", airflow_version
+        ):
+            handler = OSSTaskHandler(local_log_path, self.oss_log_folder)
 
         handler.log.info("test")
         handler.set_context(self.ti)
