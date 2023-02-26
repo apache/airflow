@@ -35,7 +35,6 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version
 
 _DEFAULT_SCOPESS = frozenset(
     [
@@ -46,10 +45,15 @@ _DEFAULT_SCOPESS = frozenset(
 logger = logging.getLogger(__name__)
 
 
-if Version(version) < Version("2.6"):
-    DEFAULT_DELETE_LOCAL_COPY = False
-else:
-    DEFAULT_DELETE_LOCAL_COPY = conf.getboolean("logging", "delete_local_logs")
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    TODO: delete this function when min airflow version >= 2.6
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -88,7 +92,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: Collection[str] | None = _DEFAULT_SCOPESS,
         project_id: str | None = None,
-        delete_local_copy: bool = DEFAULT_DELETE_LOCAL_COPY,
+        **kwargs,
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
@@ -99,7 +103,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.gcp_keyfile_dict = gcp_keyfile_dict
         self.scopes = gcp_scopes
         self.project_id = project_id
-        self.delete_local_copy = delete_local_copy
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self) -> GCSHook | None:
