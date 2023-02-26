@@ -632,7 +632,7 @@ logging:
       description: |
         The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
         task handler and it overrides the values provided by Airflow config. For example if you set
-        `remote_base_log_folder=False` and you provide ``{{"delete_local_copy": true}}``, then the local
+        `delete_local_logs=False` and you provide ``{{"delete_local_copy": true}}``, then the local
         log files will be deleted after they are uploaded to remote location.
       version_added: 2.6.0
       type: string
