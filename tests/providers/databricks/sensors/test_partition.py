@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
+from airflow.providers.databricks.sensors.partition import DatabricksPartitionSensor
 
 TASK_ID = "db-sensor"
 DEFAULT_CONN_ID = "databricks_default"

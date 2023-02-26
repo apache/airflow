@@ -95,9 +95,9 @@ hooks:
 sensors:
   - integration-name: Databricks SQL
     python-modules:
-      - airflow.providers.databricks.sensors.databricks_sql
-      - airflow.providers.databricks.sensors.databricks_partition
-      - airflow.providers.databricks.sensors.databricks_table_changes
+      - airflow.providers.databricks.sensors.sql
+      - airflow.providers.databricks.sensors.partition
+      - airflow.providers.databricks.sensors.table_changes
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook

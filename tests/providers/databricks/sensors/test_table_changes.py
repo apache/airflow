@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.sensors.databricks_table_changes import DatabricksTableChangesSensor
+from airflow.providers.databricks.sensors.table_changes import DatabricksTableChangesSensor
 
 TASK_ID = "db-sensor"
 DEFAULT_CONN_ID = "databricks_default"

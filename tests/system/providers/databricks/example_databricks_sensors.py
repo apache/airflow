@@ -33,9 +33,9 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
-from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
-from airflow.providers.databricks.sensors.databricks_table_changes import DatabricksTableChangesSensor
+from airflow.providers.databricks.sensors.partition import DatabricksPartitionSensor
+from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
+from airflow.providers.databricks.sensors.table_changes import DatabricksTableChangesSensor
 
 # [docs]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

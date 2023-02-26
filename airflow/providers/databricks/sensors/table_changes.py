@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
+from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
 from airflow.utils.context import Context
 
 
