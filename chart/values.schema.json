@@ -1583,64 +1583,8 @@
                     }
                 },
                 "logGroomerSidecar": {
-                    "description": "Configuration for worker log groomer sidecar",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Whether to deploy the Airflow worker log groomer sidecar.",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "command": {
-                            "description": "Command to use when running the Airflow workers log groomer sidecar (templated).",
-                            "type": [
-                                "array",
-                                "null"
-                            ],
-                            "items": {
-                                "type": "string"
-                            },
-                            "default": null
-                        },
-                        "args": {
-                            "description": "Args to use when running the Airflow workers log groomer sidecar (templated).",
-                            "type": [
-                                "array",
-                                "null"
-                            ],
-                            "items": {
-                                "type": "string"
-                            },
-                            "default": [
-                                "bash",
-                                "/clean-logs"
-                            ]
-                        },
-                        "retentionDays": {
-                            "description": "Number of days to retain the logs when running the Airflow workers log groomer sidecar.",
-                            "type": "integer",
-                            "default": 15
-                        },
-                        "resources": {
-                            "description": "Resources for Airflow workers log groomer sidecar.",
-                            "type": "object",
-                            "default": {},
-                            "examples": [
-                                {
-                                    "limits": {
-                                        "cpu": "100m",
-                                        "memory": "128Mi"
-                                    },
-                                    "requests": {
-                                        "cpu": "100m",
-                                        "memory": "128Mi"
-                                    }
-                                }
-                            ],
-                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                        }
-                    }
+                    "$ref": "#/definitions/logGroomerConfigType",
+                    "description": "Configuration for log groomer sidecar"
                 },
                 "securityContext": {
                     "description": "Security context for the worker pod. If not set, the values from `securityContext` will be used.",
@@ -1982,63 +1926,8 @@
                     }
                 },
                 "logGroomerSidecar": {
-                    "description": "Configuration for the schedulers log groomer sidecar.",
-                    "type": "object",
-                    "properties": {
-                        "enabled": {
-                            "description": "Whether to deploy the Airflow scheduler log groomer sidecar.",
-                            "type": "boolean",
-                            "default": true
-                        },
-                        "command": {
-                            "description": "Command to use when running the Airflow scheduler log groomer sidecar (templated).",
-                            "type": [
-                                "array",
-                                "null"
-                            ],
-                            "items": {
-                                "type": "string"
-                            },
-                            "default": null
-                        },
-                        "args": {
-                            "description": "Args to use when running the Airflow scheduler log groomer sidecar (templated).",
-                            "type": [
-                                "array",
-                                "null"
-                            ],
-                            "items": {
-                                "type": "string"
-                            },
-                            "default": [
-                                "bash",
-                                "/clean-logs"
-                            ]
-                        },
-                        "retentionDays": {
-                            "description": "Number of days to retain the logs when running the Airflow scheduler log groomer sidecar.",
-                            "type": "integer",
-                            "default": 15
-                        },
-                        "resources": {
-                            "description": "Resources for log groomer sidecar.",
-                            "type": "object",
-                            "default": {},
-                            "examples": [
-                                {
-                                    "limits": {
-                                        "cpu": "100m",
-                                        "memory": "128Mi"
-                                    },
-                                    "requests": {
-                                        "cpu": "100m",
-                                        "memory": "128Mi"
-                                    }
-                                }
-                            ],
-                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                        }
-                    }
+                    "$ref": "#/definitions/logGroomerConfigType",
+                    "description": "Configuration for log groomer sidecar"
                 },
                 "securityContext": {
                     "description": "Security context for the scheduler pod. If not set, the values from `securityContext` will be used.",
@@ -2423,6 +2312,10 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "logGroomerSidecar": {
+                    "$ref": "#/definitions/logGroomerConfigType",
+                    "description": "Configuration for log groomer sidecar"
                 },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
@@ -2991,6 +2884,14 @@
                     "type": "boolean",
                     "default": true
                 },
+                "ttlSecondsAfterFinished": {
+                    "description": "Limit the lifetime of the job object after it finished execution",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 300
+                },
                 "env": {
                     "description": "Add additional env vars to the create user job pod.",
                     "type": "array",
@@ -3190,6 +3091,14 @@
                     "description": "Specify if you want additional configured env vars applied to this job",
                     "type": "boolean",
                     "default": true
+                },
+                "ttlSecondsAfterFinished": {
+                    "description": "Limit the lifetime of the job object after it finished execution",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 300
                 }
             }
         },
@@ -5287,7 +5196,7 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         },
                         "password": {
                             "description": "Password for the custom user to create.",
@@ -5295,7 +5204,7 @@
                                 "string",
                                 "null"
                             ],
-                            "default": null
+                            "default": ""
                         }
                     }
                 }
@@ -5333,7 +5242,7 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: dummy-name\n  labels:\n    tier: airflow\n    component: worker\n    release: {{ .Release.Name }}\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
+                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: placeholder-name\n  labels:\n    tier: airflow\n    component: worker\n    release: {{ .Release.Name }}\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
             ]
         },
         "dags": {
@@ -5581,6 +5490,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to logs PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
@@ -8319,6 +8236,66 @@
                     "type": "integer"
                 }
             ]
+        },
+        "logGroomerConfigType": {
+            "description": "Configuration for log groomer sidecar",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Whether to deploy the Airflow log groomer sidecar.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow log groomer sidecar (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow log groomer sidecar (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "/clean-logs"
+                    ]
+                },
+                "retentionDays": {
+                    "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
+                    "type": "integer",
+                    "default": 15
+                },
+                "resources": {
+                    "description": "Resources for Airflow log groomer sidecar.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                }
+            }
         }
     }
 }

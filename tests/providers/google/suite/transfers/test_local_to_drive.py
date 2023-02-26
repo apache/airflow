@@ -33,7 +33,11 @@ class TestLocalFilesystemToGoogleDriveOperator:
         context = {}
         mock_hook.return_value.upload_file.return_value = REMOTE_FILE_IDS
         op = LocalFilesystemToGoogleDriveOperator(
-            task_id="test_task", local_paths=LOCAL_PATHS, drive_folder=DRIVE_FOLDER, gcp_conn_id=GCP_CONN_ID
+            task_id="test_task",
+            local_paths=LOCAL_PATHS,
+            drive_folder=DRIVE_FOLDER,
+            gcp_conn_id=GCP_CONN_ID,
+            folder_id="some_folder_id",
         )
         op.execute(context)
 
@@ -43,12 +47,14 @@ class TestLocalFilesystemToGoogleDriveOperator:
                 remote_location="test_folder/test1",
                 chunk_size=100 * 1024 * 1024,
                 resumable=False,
+                folder_id="some_folder_id",
             ),
             mock.call(
                 local_location="test2",
                 remote_location="test_folder/test2",
                 chunk_size=100 * 1024 * 1024,
                 resumable=False,
+                folder_id="some_folder_id",
             ),
         ]
         mock_hook.return_value.upload_file.assert_has_calls(calls)

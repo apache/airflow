@@ -472,12 +472,18 @@ def compile_www_assets(dev: bool):
 @click.option(
     "-p",
     "--preserve-volumes",
-    help="Skip removing volumes when stopping Breeze.",
+    help="Skip removing database volumes when stopping Breeze.",
+    is_flag=True,
+)
+@click.option(
+    "-c",
+    "--cleanup-mypy-cache",
+    help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
 @option_verbose
 @option_dry_run
-def stop(preserve_volumes: bool):
+def stop(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
     command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
     if not preserve_volumes:
@@ -485,7 +491,7 @@ def stop(preserve_volumes: bool):
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, env=env_variables)
-    if not preserve_volumes:
+    if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute, env=env_variables)
 
@@ -548,8 +554,14 @@ def enter_shell(**kwargs) -> RunCommandResult:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            get_console().print("\n[error]MySQL is not supported on ARM architecture.[/]\n")
-            sys.exit(1)
+            if shell_params.mysql_version == "8":
+                get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+            else:
+                get_console().print(
+                    f"\n[error]Only MySQL 8.0 is supported on ARM architecture, "
+                    f"but got {shell_params.mysql_version}[/]\n"
+                )
+                sys.exit(1)
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)

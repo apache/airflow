@@ -1,7 +1,7 @@
 ---
 name: Airflow Bug report
 description: Problems and issues with code in Apache Airflow core
-labels: ["kind:bug", "area:core"]
+labels: ["kind:bug", "area:core", "needs-triage"]
 body:
   - type: markdown
     attributes:
@@ -58,6 +58,8 @@ body:
         as minimally and precisely as possible. Keep in mind we do not have access to your cluster or DAGs.
         Remember that non-reproducible issues will be closed! Opening a discussion is recommended as a
         first step.
+    validations:
+      required: true
   - type: input
     attributes:
       label: Operating System
@@ -84,8 +86,9 @@ body:
         - "Other Docker-based deployment"
         - "Virtualenv installation"
         - "Astronomer"
-        - "Composer"
-        - "MWAA"
+        - "Google Cloud Composer"
+        - "Amazon (AWS) MWAA"
+        - "Microsoft ADF Managed Airflow"
         - "Other"
     validations:
       required: true

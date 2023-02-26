@@ -24,12 +24,12 @@ from typing import TYPE_CHECKING, Any, Sequence
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 from airflow.providers.google.cloud.links.cloud_functions import (
     CloudFunctionsDetailsLink,
     CloudFunctionsListLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
@@ -102,7 +102,7 @@ CLOUD_FUNCTION_VALIDATION: list[dict[str, Any]] = [
 ]
 
 
-class CloudFunctionDeployFunctionOperator(BaseOperator):
+class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
     """
     Creates a function in Google Cloud Functions.
     If a function with this name already exists, it will be updated.
@@ -327,7 +327,7 @@ FUNCTION_NAME_PATTERN = "^projects/[^/]+/locations/[^/]+/functions/[^/]+$"
 FUNCTION_NAME_COMPILED_PATTERN = re.compile(FUNCTION_NAME_PATTERN)
 
 
-class CloudFunctionDeleteFunctionOperator(BaseOperator):
+class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
     """
     Deletes the specified function from Google Cloud Functions.
 
@@ -410,7 +410,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
                 raise e
 
 
-class CloudFunctionInvokeFunctionOperator(BaseOperator):
+class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
     """
     Invokes a deployed Cloud Function. To be used for testing
     purposes as very limited traffic is allowed.
