@@ -52,6 +52,8 @@ from airflow import settings
 
 __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
 
+__version__ = "2.6.0.dev0"
+
 # Make `airflow` an namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
 # lib.)
@@ -78,7 +80,6 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "XComArg": (".models.xcom_arg", "XComArg"),
     "AirflowException": (".exceptions", "AirflowException"),
     "version": (".version", ""),
-    "__version__": (".version", "version"),
 }
 
 

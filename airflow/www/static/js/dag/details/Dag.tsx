@@ -33,7 +33,9 @@ import {
 import { mean } from 'lodash';
 
 import { getDuration, formatDuration } from 'src/datetime_utils';
-import { finalStatesMap, getMetaValue, getTaskSummary } from 'src/utils';
+import {
+  finalStatesMap, getMetaValue, getTaskSummary, useOffsetTop,
+} from 'src/utils';
 import { useGridData } from 'src/api';
 import Time from 'src/components/Time';
 import type { TaskState } from 'src/types';
@@ -45,6 +47,7 @@ const dagDetailsUrl = getMetaValue('dag_details_url');
 const Dag = () => {
   const { data: { dagRuns, groups } } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(detailsRef);
 
   const taskSummary = getTaskSummary({ task: groups });
   const numMap = finalStatesMap();
@@ -93,6 +96,7 @@ const Dag = () => {
       </Button>
       <Box
         height="100%"
+        maxHeight={`calc(100% - ${offsetTop}px)`}
         ref={detailsRef}
         overflowY="auto"
       >

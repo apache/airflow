@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from copy import deepcopy
 from unittest import mock
 
 import pytest
@@ -348,3 +349,101 @@ class TestS3ToRedshiftTransfer:
                 task_id="task_id",
                 dag=None,
             )
+
+    @pytest.mark.parametrize("param", ["sql", "parameters"])
+    def test_invalid_param_in_redshift_data_api_kwargs(self, param):
+        """
+        Test passing invalid param in RS Data API kwargs raises an error
+        """
+        with pytest.raises(AirflowException):
+            S3ToRedshiftOperator(
+                schema="schema",
+                table="table",
+                s3_bucket="bucket",
+                s3_key="key",
+                task_id="task_id",
+                dag=None,
+                redshift_data_api_kwargs={param: "param"},
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_using_redshift_data_api(self, mock_rs, mock_run, mock_session, mock_connection, mock_hook):
+        """
+        Using the Redshift Data API instead of the SQL-based connection
+        """
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
+        mock_rs.execute_statement.return_value = {"Id": "STATEMENT_ID"}
+        mock_rs.describe_statement.return_value = {"Status": "FINISHED"}
+
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        copy_options = ""
+
+        # RS Data API params
+        database = "database"
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+
+        op = S3ToRedshiftOperator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            copy_options=copy_options,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+            redshift_data_api_kwargs=dict(
+                database=database,
+                cluster_identifier=cluster_identifier,
+                db_user=db_user,
+                secret_arn=secret_arn,
+                statement_name=statement_name,
+            ),
+        )
+        op.execute(None)
+        copy_query = """
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     """
+        mock_run.assert_not_called()
+        assert access_key in copy_query
+        assert secret_key in copy_query
+
+        mock_rs.execute_statement.assert_called_once()
+        # test with all args besides sql
+        _call = deepcopy(mock_rs.execute_statement.call_args[1])
+        _call.pop("Sql")
+        assert _call == dict(
+            Database=database,
+            ClusterIdentifier=cluster_identifier,
+            DbUser=db_user,
+            SecretArn=secret_arn,
+            StatementName=statement_name,
+            WithEvent=False,
+        )
+        mock_rs.describe_statement.assert_called_once_with(
+            Id="STATEMENT_ID",
+        )
+        # test sql arg
+        assert_equal_ignore_multiple_spaces(self, mock_rs.execute_statement.call_args[1]["Sql"], copy_query)

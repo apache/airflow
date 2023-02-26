@@ -32,9 +32,10 @@ import {
 import { useGridData } from 'src/api';
 import { getDuration, formatDuration } from 'src/datetime_utils';
 import useSelection from 'src/dag/useSelection';
-import type { DagRun } from 'src/types';
+import type { DagRun, Task } from 'src/types';
 
 import DagRunBar from './Bar';
+import ToggleGroups from '../ToggleGroups';
 
 const DurationAxis = (props: BoxProps) => (
   <Box position="absolute" borderBottomWidth={1} zIndex={0} opacity={0.7} width="100%" {...props} />
@@ -54,7 +55,15 @@ export interface RunWithDuration extends DagRun {
   duration: number;
 }
 
-const DagRuns = () => {
+interface Props {
+  groups?: Task;
+  openGroupIds?: string[];
+  onToggleGroups?: (groupIds: string[]) => void;
+}
+
+const DagRuns = ({
+  groups, openGroupIds, onToggleGroups,
+}: Props) => {
   const { data: { dagRuns } } = useGridData();
   const { selected, onSelect } = useSelection();
   const durations: number[] = [];
@@ -73,9 +82,16 @@ const DagRuns = () => {
   return (
     <Tr>
       <Th left={0} zIndex={2}>
-        <Box borderBottomWidth={3} position="relative" height="100%" width="100%">
+        <Flex borderBottomWidth={3} position="relative" height="100%" width="100%" flexDirection="column-reverse" pb={2}>
           {!!runs.length && (
           <>
+            {!!(groups && openGroupIds && onToggleGroups) && (
+              <ToggleGroups
+                groups={groups}
+                openGroupIds={openGroupIds}
+                onToggleGroups={onToggleGroups}
+              />
+            )}
             <DurationTick bottom="120px">Duration</DurationTick>
             <DurationTick bottom="96px">
               {formatDuration(max)}
@@ -88,7 +104,7 @@ const DagRuns = () => {
             </DurationTick>
           </>
           )}
-        </Box>
+        </Flex>
       </Th>
       <Th align="right" verticalAlign="bottom">
         <Flex justifyContent="flex-end" borderBottomWidth={3} position="relative">

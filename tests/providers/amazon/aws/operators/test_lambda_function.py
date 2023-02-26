@@ -25,8 +25,8 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.lambda_function import (
-    AwsLambdaInvokeFunctionOperator,
     LambdaCreateFunctionOperator,
+    LambdaInvokeFunctionOperator,
 )
 
 FUNCTION_NAME = "function_name"
@@ -69,9 +69,9 @@ class TestLambdaCreateFunctionOperator:
         mock_hook_conn.get_waiter.assert_called_once_with("function_active_v2")
 
 
-class TestAwsLambdaInvokeFunctionOperator:
+class TestLambdaInvokeFunctionOperator:
     def test_init(self):
-        lambda_operator = AwsLambdaInvokeFunctionOperator(
+        lambda_operator = LambdaInvokeFunctionOperator(
             task_id="test",
             function_name="test",
             payload=json.dumps({"TestInput": "Testdata"}),
@@ -84,9 +84,9 @@ class TestAwsLambdaInvokeFunctionOperator:
         assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
 
-    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
+    @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     def test_invoke_lambda(self, hook_mock):
-        operator = AwsLambdaInvokeFunctionOperator(
+        operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
             invocation_type="b",
@@ -115,9 +115,9 @@ class TestAwsLambdaInvokeFunctionOperator:
             qualifier="f",
         )
 
-    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
+    @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     def test_invoke_lambda_bad_http_code(self, hook_mock):
-        operator = AwsLambdaInvokeFunctionOperator(
+        operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
         )
@@ -126,9 +126,9 @@ class TestAwsLambdaInvokeFunctionOperator:
         with pytest.raises(ValueError):
             operator.execute(None)
 
-    @patch.object(AwsLambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
+    @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     def test_invoke_lambda_function_error(self, hook_mock):
-        operator = AwsLambdaInvokeFunctionOperator(
+        operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
         )

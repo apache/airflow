@@ -42,6 +42,7 @@ from airflow.providers.common.sql.operators.sql import (
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
     BigQueryGetDataTrigger,
@@ -741,7 +742,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         self.log.info("All tests have passed")
 
 
-class BigQueryGetDataOperator(BaseOperator):
+class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     """
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and returns data in a python list. The number of elements in the returned list will
@@ -931,7 +932,7 @@ class BigQueryGetDataOperator(BaseOperator):
         return event["records"]
 
 
-class BigQueryExecuteQueryOperator(BaseOperator):
+class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database.
     This operator does not assert idempotency.
@@ -1151,7 +1152,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             self.hook.cancel_job(self.hook.running_job_id)
 
 
-class BigQueryCreateEmptyTableOperator(BaseOperator):
+class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
     """
     Creates a new, empty table in the specified BigQuery dataset,
     optionally with schema.
@@ -1402,7 +1403,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 raise AirflowSkipException(error_msg)
 
 
-class BigQueryCreateExternalTableOperator(BaseOperator):
+class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     """
     Creates a new external table in the dataset with the data from Google Cloud
     Storage.
@@ -1692,7 +1693,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         )
 
 
-class BigQueryDeleteDatasetOperator(BaseOperator):
+class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator deletes an existing dataset from your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
@@ -1776,7 +1777,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         )
 
 
-class BigQueryCreateEmptyDatasetOperator(BaseOperator):
+class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
@@ -1895,7 +1896,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 raise AirflowSkipException(error_msg)
 
 
-class BigQueryGetDatasetOperator(BaseOperator):
+class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to return the dataset specified by dataset_id.
 
@@ -1970,7 +1971,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
         return dataset
 
 
-class BigQueryGetDatasetTablesOperator(BaseOperator):
+class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
     """
     This operator retrieves the list of tables in the specified dataset.
 
@@ -2040,7 +2041,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         )
 
 
-class BigQueryPatchDatasetOperator(BaseOperator):
+class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to patch dataset for your Project in BigQuery.
     It only replaces fields that are provided in the submitted dataset resource.
@@ -2118,7 +2119,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         )
 
 
-class BigQueryUpdateTableOperator(BaseOperator):
+class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
     """
     This operator is used to update table for your Project in BigQuery.
     Use ``fields`` to specify which fields of table to update. If a field
@@ -2215,7 +2216,7 @@ class BigQueryUpdateTableOperator(BaseOperator):
         return table
 
 
-class BigQueryUpdateDatasetOperator(BaseOperator):
+class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to update dataset for your Project in BigQuery.
     Use ``fields`` to specify which fields of dataset to update. If a field
@@ -2307,7 +2308,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         return dataset
 
 
-class BigQueryDeleteTableOperator(BaseOperator):
+class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
     """
     Deletes BigQuery tables
 
@@ -2376,7 +2377,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         hook.delete_table(table_id=self.deletion_dataset_table, not_found_ok=self.ignore_if_missing)
 
 
-class BigQueryUpsertTableOperator(BaseOperator):
+class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
     """
     Upsert BigQuery table
 
@@ -2464,7 +2465,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         )
 
 
-class BigQueryUpdateTableSchemaOperator(BaseOperator):
+class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
     """
     Update BigQuery Table Schema
     Updates fields on a table schema based on contents of the supplied schema_fields_updates
@@ -2577,7 +2578,7 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         return table
 
 
-class BigQueryInsertJobOperator(BaseOperator):
+class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
     This operator work in the following way:
