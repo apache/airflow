@@ -812,6 +812,14 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Process a newly created .airflowignore file.
 
+        Since an .airflowignore file can only result in filepaths being ignored, that means currently observed
+        filepaths can be ignored, but non-observed files will NOT be un-ignored. The logic is:
+        - We have currently observed filepaths A
+        - Find non-ignored filepaths B
+        - The new filepaths to observe is the intersection of A and B (A ∩ B)
+        - Filepaths only in A but not in B are ignored by a pattern in the .airflowignore file and removed
+          from the list of observed filepaths
+
         :param filepath: Path to the .airflowignore file.
         """
         airflowignore_dir_path = str(Path(filepath).parent)
