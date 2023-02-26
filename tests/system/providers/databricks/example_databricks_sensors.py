@@ -22,7 +22,7 @@ The first task checks for a generic SQL statement against a Delta table,
 and if a result is returned, the task succeeds, else it times out.
 The second task checks for the specified partitions' presence in a
 Delta table. If it exists, the task succeeds, else it times out.
-The third rask checks for data related changes in a Delta
+The third task checks for data related changes in a Delta
 table via versions. If the version retrieved from hive metastore
 is different from the version stored in Airflow metadata, the DAG
 succeeds, else it times out.
