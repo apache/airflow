@@ -28,12 +28,17 @@ from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version
 
-if Version(version) < Version("2.6"):
-    DEFAULT_DELETE_LOCAL_COPY = False
-else:
-    DEFAULT_DELETE_LOCAL_COPY = conf.getboolean("logging", "delete_local_logs")
+
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    TODO: delete this function when min airflow version >= 2.6
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
@@ -46,19 +51,17 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     trigger_should_wrap = True
 
     def __init__(
-        self,
-        base_log_folder: str,
-        s3_log_folder: str,
-        filename_template: str | None = None,
-        delete_local_copy: bool = DEFAULT_DELETE_LOCAL_COPY,
+        self, base_log_folder: str, s3_log_folder: str, filename_template: str | None = None, **kwargs
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
-        self.delete_local_copy = delete_local_copy
         self.log_relative_path = ""
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self):
