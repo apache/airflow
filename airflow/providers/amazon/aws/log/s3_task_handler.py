@@ -21,11 +21,19 @@ import os
 import pathlib
 import shutil
 
+from packaging.version import Version
+
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version
+
+if Version(version) < Version("2.6"):
+    DEFAULT_DELETE_LOCAL_COPY = False
+else:
+    DEFAULT_DELETE_LOCAL_COPY = conf.getboolean("logging", "delete_local_logs")
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
@@ -42,7 +50,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         base_log_folder: str,
         s3_log_folder: str,
         filename_template: str | None = None,
-        delete_local_copy: bool = False,
+        delete_local_copy: bool = DEFAULT_DELETE_LOCAL_COPY,
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder

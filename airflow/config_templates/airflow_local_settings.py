@@ -252,7 +252,6 @@ if REMOTE_LOGGING:
                 "wasb_log_folder": REMOTE_BASE_LOG_FOLDER,
                 "wasb_container": "airflow-logs",
                 "filename_template": FILENAME_TEMPLATE,
-                "delete_local_copy": False,
             },
         }
 

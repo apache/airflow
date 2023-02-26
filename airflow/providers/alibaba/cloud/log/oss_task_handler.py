@@ -22,11 +22,19 @@ import os
 import pathlib
 import shutil
 
+from packaging.version import Version
+
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version
+
+if Version(version) < Version("2.6"):
+    DEFAULT_DELETE_LOCAL_COPY = False
+else:
+    DEFAULT_DELETE_LOCAL_COPY = conf.getboolean("logging", "delete_local_logs")
 
 
 class OSSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -41,7 +49,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         base_log_folder,
         oss_log_folder,
         filename_template=None,
-        delete_local_copy: bool = False,
+        delete_local_copy: bool = DEFAULT_DELETE_LOCAL_COPY,
     ):
         self.log.info("Using oss_task_handler for remote logging...")
         super().__init__(base_log_folder, filename_template)

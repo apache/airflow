@@ -25,6 +25,7 @@ from typing import Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
+from packaging.version import Version
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -34,6 +35,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version
 
 _DEFAULT_SCOPESS = frozenset(
     [
@@ -42,6 +44,12 @@ _DEFAULT_SCOPESS = frozenset(
 )
 
 logger = logging.getLogger(__name__)
+
+
+if Version(version) < Version("2.6"):
+    DEFAULT_DELETE_LOCAL_COPY = False
+else:
+    DEFAULT_DELETE_LOCAL_COPY = conf.getboolean("logging", "delete_local_logs")
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -80,7 +88,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: Collection[str] | None = _DEFAULT_SCOPESS,
         project_id: str | None = None,
-        delete_local_copy: bool = False,
+        delete_local_copy: bool = DEFAULT_DELETE_LOCAL_COPY,
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder

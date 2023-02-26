@@ -23,11 +23,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import HttpResponseError
+from packaging.version import Version
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version
+
+if Version(version) < Version("2.6"):
+    DEFAULT_DELETE_LOCAL_COPY = False
+else:
+    DEFAULT_DELETE_LOCAL_COPY = conf.getboolean("logging", "delete_local_logs")
 
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
@@ -44,8 +51,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         base_log_folder: str,
         wasb_log_folder: str,
         wasb_container: str,
-        delete_local_copy: str,
         *,
+        delete_local_copy: bool = DEFAULT_DELETE_LOCAL_COPY,
         filename_template: str | None = None,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
