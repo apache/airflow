@@ -861,8 +861,6 @@ class DagFileProcessorManager(LoggingMixin):
         airflowignore_dir_path = str(Path(filepath).parent)
         matching_filepaths = list_py_file_paths(directory=airflowignore_dir_path)
 
-        # Only intersection is required since removing an .airflowignore file can only result in addition of
-        # filepaths, but never removal of filepaths.
         # TODO filter filepaths FROM THIS FOLDER ONLY!
         filepaths_to_check = matching_filepaths - self._file_paths
         for fp_to_check in filepaths_to_check:
