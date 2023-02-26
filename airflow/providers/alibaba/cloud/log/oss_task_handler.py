@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import os
 import pathlib
+import shutil
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -35,10 +36,17 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from OSS remote storage.
     """
 
-    def __init__(self, base_log_folder, oss_log_folder, filename_template=None):
+    def __init__(
+        self,
+        base_log_folder,
+        oss_log_folder,
+        filename_template=None,
+        delete_local_copy: bool = False,
+    ):
         self.log.info("Using oss_task_handler for remote logging...")
         super().__init__(base_log_folder, filename_template)
         (self.bucket_name, self.base_folder) = OSSHook.parse_oss_url(oss_log_folder)
+        self.delete_local_copy = delete_local_copy
         self.log_relative_path = ""
         self._hook = None
         self.closed = False
@@ -92,7 +100,9 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
             log = pathlib.Path(local_loc).read_text()
-            self.oss_write(log, remote_loc)
+            oss_write = self.oss_write(log, remote_loc)
+            if oss_write and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -154,15 +164,16 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
             if return_error:
                 return msg
 
-    def oss_write(self, log, remote_log_location, append=True):
+    def oss_write(self, log, remote_log_location, append=True) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no hook
-        was created.
+        Writes the log to the remote_log_location and return `True` when done. Fails silently
+         and return `False` if no log was created.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
+        :return: whether the log is successfully written to remote location or not.
         """
         oss_remote_log_location = f"{self.base_folder}/{remote_log_location}"
         pos = 0
@@ -180,3 +191,5 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
                 str(pos),
                 str(append),
             )
+            return False
+        return True
