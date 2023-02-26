@@ -823,9 +823,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param filepath: Path to the .airflowignore file.
         """
         airflowignore_dir_path = str(Path(filepath).parent)
-        matching_filepaths = find_path_from_directory(
-            base_dir_path=airflowignore_dir_path, ignore_file_name=".airflowignore"
-        )
+        matching_filepaths = list_py_file_paths(directory=airflowignore_dir_path)
 
         # Only intersection is required since adding an .airflowignore file results in removal of filepaths,
         # but never addition of filepaths.
