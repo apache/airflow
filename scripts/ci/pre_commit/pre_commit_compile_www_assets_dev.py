@@ -35,6 +35,7 @@ WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"
 
 if __name__ == "__main__":
     www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
+    WWW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     if WWW_HASH_FILE.exists():
         # cleanup hash of www so that next compile-assets recompiles them
         WWW_HASH_FILE.unlink()
