@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import copy
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -101,8 +100,8 @@ IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
 
 
-class TestDataflowPythonOperator(unittest.TestCase):
-    def setUp(self):
+class TestDataflowPythonOperator:
+    def setup_method(self):
         self.dataflow = DataflowCreatePythonJobOperator(
             task_id=TASK_ID,
             py_file=PY_FILE,
@@ -182,8 +181,8 @@ class TestDataflowPythonOperator(unittest.TestCase):
         provide_gcloud_mock.assert_called_once_with()
 
 
-class TestDataflowJavaOperator(unittest.TestCase):
-    def setUp(self):
+class TestDataflowJavaOperator:
+    def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
             jar=JAR_FILE,
@@ -389,8 +388,8 @@ class TestDataflowJavaOperator(unittest.TestCase):
         )
 
 
-class TestDataflowJavaOperatorWithLocal(unittest.TestCase):
-    def setUp(self):
+class TestDataflowJavaOperatorWithLocal:
+    def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
             jar=LOCAL_JAR_FILE,
@@ -615,7 +614,7 @@ class TestDataflowStartFlexTemplateOperator:
         mock_defer_method.assert_called_once()
 
 
-class TestDataflowSqlOperator(unittest.TestCase):
+class TestDataflowSqlOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_execute(self, mock_hook):
         start_sql = DataflowStartSqlJobOperator(
@@ -649,7 +648,7 @@ class TestDataflowSqlOperator(unittest.TestCase):
         )
 
 
-class TestDataflowStopJobOperator(unittest.TestCase):
+class TestDataflowStopJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_exec_job_id(self, dataflow_mock):
         self.dataflow = DataflowStopJobOperator(

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import itertools
-import unittest
 from copy import deepcopy
 from datetime import date, time
 from unittest import mock
@@ -150,7 +149,7 @@ VALID_TRANSFER_JOB_AWS_RAW[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = 
 VALID_OPERATION = {NAME: "operation-name"}
 
 
-class TestTransferJobPreprocessor(unittest.TestCase):
+class TestTransferJobPreprocessor:
     def test_should_do_nothing_on_empty(self):
         body = {}
         TransferJobPreprocessor(body=body).process_body()
@@ -201,7 +200,7 @@ class TestTransferJobPreprocessor(unittest.TestCase):
         }
 
 
-class TestTransferJobValidator(unittest.TestCase):
+class TestTransferJobValidator:
     def test_should_raise_exception_when_encounters_aws_credentials(self):
         body = {"transferSpec": {"awsS3DataSource": {"awsAccessKey": TEST_AWS_ACCESS_KEY}}}
         with pytest.raises(AirflowException) as ctx:

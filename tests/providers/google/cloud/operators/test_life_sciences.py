@@ -18,7 +18,6 @@
 """Tests for Google Life Sciences Run Pipeline operator """
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
@@ -35,7 +34,7 @@ TEST_PROJECT_ID = "life-science-project-id"
 TEST_LOCATION = "test-location"
 
 
-class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
+class TestLifeSciencesRunPipelineOperator:
     @mock.patch("airflow.providers.google.cloud.operators.life_sciences.LifeSciencesHook")
     def test_executes(self, mock_hook):
         mock_instance = mock_hook.return_value
