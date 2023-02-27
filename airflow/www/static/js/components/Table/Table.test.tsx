@@ -19,53 +19,53 @@
 
 /* global describe, test, expect */
 
-import React, { useState } from 'react';
-import '@testing-library/jest-dom';
-import { render, fireEvent, within } from '@testing-library/react';
-import { sortBy } from 'lodash';
-import type { SortingRule } from 'react-table';
+import React, { useState } from "react";
+import "@testing-library/jest-dom";
+import { render, fireEvent, within } from "@testing-library/react";
+import { sortBy } from "lodash";
+import type { SortingRule } from "react-table";
 
-import { ChakraWrapper } from 'src/utils/testUtils';
-import { Table } from '.';
+import { ChakraWrapper } from "src/utils/testUtils";
+import { Table } from ".";
 
 const data: Record<string, any>[] = [
-  { firstName: 'Lamont', lastName: 'Grimes', country: 'United States' },
-  { firstName: 'Alysa', lastName: 'Armstrong', country: 'Spain' },
-  { firstName: 'Petra', lastName: 'Blick', country: 'France' },
-  { firstName: 'Jeromy', lastName: 'Herman', country: 'Mexico' },
-  { firstName: 'Eleonore', lastName: 'Rohan', country: 'Nigeria' },
+  { firstName: "Lamont", lastName: "Grimes", country: "United States" },
+  { firstName: "Alysa", lastName: "Armstrong", country: "Spain" },
+  { firstName: "Petra", lastName: "Blick", country: "France" },
+  { firstName: "Jeromy", lastName: "Herman", country: "Mexico" },
+  { firstName: "Eleonore", lastName: "Rohan", country: "Nigeria" },
 ];
 
 const columns = [
   {
-    Header: 'First Name',
-    accessor: 'firstName',
+    Header: "First Name",
+    accessor: "firstName",
   },
   {
-    Header: 'Last Name',
-    accessor: 'lastName',
+    Header: "Last Name",
+    accessor: "lastName",
   },
   {
-    Header: 'Country',
-    accessor: 'country',
+    Header: "Country",
+    accessor: "country",
   },
 ];
 
-describe('Test Table', () => {
-  test('Displays correct data', async () => {
+describe("Test Table", () => {
+  test("Displays correct data", async () => {
     const { getAllByRole, getByText, queryByTitle } = render(
       <Table data={data} columns={columns} />,
-      { wrapper: ChakraWrapper },
+      { wrapper: ChakraWrapper }
     );
 
-    const rows = getAllByRole('row');
+    const rows = getAllByRole("row");
     const name1 = getByText(data[0].firstName);
     const name2 = getByText(data[1].firstName);
     const name3 = getByText(data[2].firstName);
     const name4 = getByText(data[3].firstName);
     const name5 = getByText(data[4].firstName);
-    const previous = queryByTitle('Previous Page');
-    const next = queryByTitle('Next Page');
+    const previous = queryByTitle("Previous Page");
+    const next = queryByTitle("Next Page");
 
     // table header is a row so add 1 to expected amount
     expect(rows).toHaveLength(6);
@@ -81,17 +81,17 @@ describe('Test Table', () => {
     expect(next).toBeNull();
   });
 
-  test('Shows empty state', async () => {
+  test("Shows empty state", async () => {
     const { getAllByRole, getByText } = render(
       <Table data={[]} columns={columns} />,
-      { wrapper: ChakraWrapper },
+      { wrapper: ChakraWrapper }
     );
 
-    const rows = getAllByRole('row');
+    const rows = getAllByRole("row");
 
     // table header is a row so add 1 to expected amount
     expect(rows).toHaveLength(2);
-    expect(getByText('No Data found.')).toBeInTheDocument();
+    expect(getByText("No Data found.")).toBeInTheDocument();
   });
 
   // Simulated pagination that would be done serverside
@@ -113,10 +113,10 @@ describe('Test Table', () => {
     );
   };
 
-  test('With manual pagination', async () => {
+  test("With manual pagination", async () => {
     const { getAllByRole, queryByText, getByTitle } = render(
       <PaginatedTable />,
-      { wrapper: ChakraWrapper },
+      { wrapper: ChakraWrapper }
     );
 
     const name1 = data[0].firstName;
@@ -124,12 +124,12 @@ describe('Test Table', () => {
     const name3 = data[2].firstName;
     const name4 = data[3].firstName;
     const name5 = data[4].firstName;
-    const previous = getByTitle('Previous Page');
-    const next = getByTitle('Next Page');
+    const previous = getByTitle("Previous Page");
+    const next = getByTitle("Next Page");
 
     /// // PAGE ONE // ///
     // table header is a row so add 1 to expected amount
-    expect(getAllByRole('row')).toHaveLength(3);
+    expect(getAllByRole("row")).toHaveLength(3);
 
     expect(queryByText(name1)).toBeInTheDocument();
     expect(queryByText(name2)).toBeInTheDocument();
@@ -144,7 +144,7 @@ describe('Test Table', () => {
     fireEvent.click(next);
 
     /// // PAGE TWO // ///
-    expect(getAllByRole('row')).toHaveLength(3);
+    expect(getAllByRole("row")).toHaveLength(3);
 
     expect(queryByText(name1)).toBeNull();
     expect(queryByText(name2)).toBeNull();
@@ -159,7 +159,7 @@ describe('Test Table', () => {
     fireEvent.click(next);
 
     /// // PAGE THREE // ///
-    expect(getAllByRole('row')).toHaveLength(2);
+    expect(getAllByRole("row")).toHaveLength(2);
 
     expect(queryByText(name1)).toBeNull();
     expect(queryByText(name2)).toBeNull();
@@ -194,15 +194,14 @@ describe('Test Table', () => {
     );
   };
 
-  test('With manual sorting', async () => {
-    const { getAllByRole } = render(
-      <SortedTable />,
-      { wrapper: ChakraWrapper },
-    );
+  test("With manual sorting", async () => {
+    const { getAllByRole } = render(<SortedTable />, {
+      wrapper: ChakraWrapper,
+    });
 
     // Default order matches original data order //
-    const firstNameHeader = getAllByRole('columnheader')[0];
-    const rows = getAllByRole('row');
+    const firstNameHeader = getAllByRole("columnheader")[0];
+    const rows = getAllByRole("row");
 
     const firstRowName = within(rows[1]).queryByText(data[0].firstName);
     const lastRowName = within(rows[5]).queryByText(data[4].firstName);
@@ -212,43 +211,47 @@ describe('Test Table', () => {
     fireEvent.click(firstNameHeader);
 
     /// // ASCENDING SORT // ///
-    const ascendingRows = getAllByRole('row');
+    const ascendingRows = getAllByRole("row");
     const ascendingData = sortBy(data, [(o) => o.firstName]);
 
-    const ascendingFirstRowName = within(ascendingRows[1]).queryByText(ascendingData[0].firstName);
-    const ascendingLastRowName = within(ascendingRows[5]).queryByText(ascendingData[4].firstName);
+    const ascendingFirstRowName = within(ascendingRows[1]).queryByText(
+      ascendingData[0].firstName
+    );
+    const ascendingLastRowName = within(ascendingRows[5]).queryByText(
+      ascendingData[4].firstName
+    );
     expect(ascendingFirstRowName).toBeInTheDocument();
     expect(ascendingLastRowName).toBeInTheDocument();
 
     fireEvent.click(firstNameHeader);
 
     /// // DESCENDING SORT // ///
-    const descendingRows = getAllByRole('row');
+    const descendingRows = getAllByRole("row");
     const descendingData = sortBy(data, [(o) => o.firstName]).reverse();
 
     const descendingFirstRowName = within(descendingRows[1]).queryByText(
-      descendingData[0].firstName,
+      descendingData[0].firstName
     );
     const descendingLastRowName = within(descendingRows[5]).queryByText(
-      descendingData[4].firstName,
+      descendingData[4].firstName
     );
     expect(descendingFirstRowName).toBeInTheDocument();
     expect(descendingLastRowName).toBeInTheDocument();
   });
 
-  test('Shows checkboxes', async () => {
+  test("Shows checkboxes", async () => {
     const { getAllByTitle } = render(
       <Table data={data} columns={columns} selectRows={() => {}} />,
-      { wrapper: ChakraWrapper },
+      { wrapper: ChakraWrapper }
     );
 
-    const checkboxes = getAllByTitle('Toggle Row Selected');
+    const checkboxes = getAllByTitle("Toggle Row Selected");
     expect(checkboxes).toHaveLength(data.length);
 
     const checkbox1 = checkboxes[1];
 
     fireEvent.click(checkbox1);
 
-    expect(checkbox1).toHaveAttribute('data-checked');
+    expect(checkbox1).toHaveAttribute("data-checked");
   });
 });

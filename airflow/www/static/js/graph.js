@@ -24,18 +24,18 @@
   autoRefreshInterval, moment, convertSecsToHumanReadable, priority
 */
 
-import { getMetaValue, finalStatesMap } from './utils';
-import { escapeHtml } from './main';
-import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
-import callModal from './callModal';
+import { getMetaValue, finalStatesMap } from "./utils";
+import { escapeHtml } from "./main";
+import tiTooltip, { taskNoInstanceTooltip } from "./task_instances";
+import callModal from "./callModal";
 
 // dagId comes from dag.html
-const dagId = getMetaValue('dag_id');
-const executionDate = getMetaValue('execution_date');
-const dagRunId = getMetaValue('dag_run_id');
-const arrange = getMetaValue('arrange');
-const taskInstancesUrl = getMetaValue('task_instances_url');
-const isSchedulerRunning = getMetaValue('is_scheduler_running');
+const dagId = getMetaValue("dag_id");
+const executionDate = getMetaValue("execution_date");
+const dagRunId = getMetaValue("dag_run_id");
+const arrange = getMetaValue("arrange");
+const taskInstancesUrl = getMetaValue("task_instances_url");
+const isSchedulerRunning = getMetaValue("is_scheduler_running");
 
 // This maps the actual taskId to the current graph node id that contains the task
 // (because tasks may be grouped into a group node)
@@ -43,8 +43,9 @@ const mapTaskToNode = new Map();
 
 // Below variables are being used in dag.js
 
-const getTaskInstanceURL = `${taskInstancesUrl}?dag_id=${encodeURIComponent(dagId)}&execution_date=${
-  encodeURIComponent(executionDate)}`;
+const getTaskInstanceURL = `${taskInstancesUrl}?dag_id=${encodeURIComponent(
+  dagId
+)}&execution_date=${encodeURIComponent(executionDate)}`;
 
 const duration = 500;
 const stateFocusMap = {
@@ -62,26 +63,32 @@ const stateFocusMap = {
 
 const checkRunState = () => {
   const states = Object.values(taskInstances).map((ti) => ti.state);
-  return !states.some((state) => (
-    ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1));
+  return !states.some(
+    (state) =>
+      ["success", "failed", "upstream_failed", "skipped", "removed"].indexOf(
+        state
+      ) === -1
+  );
 };
 
-const taskTip = d3.tip()
-  .attr('class', 'tooltip d3-tip')
+const taskTip = d3
+  .tip()
+  .attr("class", "tooltip d3-tip")
   .html((toolTipHtml) => toolTipHtml);
 
 // Preparation of DagreD3 data structures
 // "compound" is set to true to make use of clusters to display TaskGroup.
-const g = new dagreD3.graphlib.Graph({ compound: true }).setGraph({
-  nodesep: 30,
-  ranksep: 15,
-  rankdir: arrange,
-})
-  .setDefaultEdgeLabel(() => ({ lineInterpolate: 'basis' }));
+const g = new dagreD3.graphlib.Graph({ compound: true })
+  .setGraph({
+    nodesep: 30,
+    ranksep: 15,
+    rankdir: arrange,
+  })
+  .setDefaultEdgeLabel(() => ({ lineInterpolate: "basis" }));
 
 const render = dagreD3.render();
-const svg = d3.select('#graph-svg');
-let innerSvg = d3.select('#graph-svg g');
+const svg = d3.select("#graph-svg");
+let innerSvg = d3.select("#graph-svg g");
 
 // We modify the label of task map nodes to include the brackets and a count of mapped tasks
 // returns true if at least one node is changed
@@ -96,7 +103,7 @@ const updateNodeLabels = (node, instances) => {
     // get count from mapped_states or the first child's mapped_states
     const id = isGroupMapped ? node.children[0].id : node.id;
     const instance = instances[id];
-    let count = ' ';
+    let count = " ";
 
     // TODO: update this count for when we can nest mapped tasks inside of mapped task groups
     if (instance && instance.mapped_states) {
@@ -114,7 +121,9 @@ const updateNodeLabels = (node, instances) => {
 
   if (node.children) {
     // Iterate through children and return true if at least one has been changed
-    const updatedNodes = node.children.map((n) => updateNodeLabels(n, instances));
+    const updatedNodes = node.children.map((n) =>
+      updateNodeLabels(n, instances)
+    );
     return updatedNodes.some((changed) => changed);
   }
 
@@ -154,7 +163,7 @@ function collapseGroup(nodeId, node) {
     if (sourceId !== targetId && !g.hasEdge(sourceId, targetId)) {
       g.setEdge(sourceId, targetId, {
         curve: d3.curveBasis,
-        arrowheadClass: 'arrowhead',
+        arrowheadClass: "arrowhead",
       });
     }
   });
@@ -168,19 +177,19 @@ function collapseGroup(nodeId, node) {
 // Update the page to show the latest DAG.
 function draw() {
   innerSvg.remove();
-  innerSvg = svg.append('g');
+  innerSvg = svg.append("g");
   // Run the renderer. This is what draws the final graph.
   innerSvg.call(render, g);
   innerSvg.call(taskTip);
 
   // When an expanded group is clicked, collapse it.
-  d3.selectAll('g.cluster').on('click', (nodeId) => {
+  d3.selectAll("g.cluster").on("click", (nodeId) => {
     if (d3.event.defaultPrevented) return;
     const node = g.node(nodeId);
     collapseGroup(nodeId, node);
   });
   // When a node is clicked, action depends on the node type.
-  d3.selectAll('g.node').on('click', (nodeId) => {
+  d3.selectAll("g.node").on("click", (nodeId) => {
     const node = g.node(nodeId);
     if (node.children !== undefined && Object.keys(node.children).length > 0) {
       // A group node
@@ -200,7 +209,7 @@ function draw() {
         executionDate,
         extraLinks: task.extra_links,
         tryNumber,
-        isSubDag: task.task_type === 'SubDagOperator',
+        isSubDag: task.task_type === "SubDagOperator",
         dagRunId,
         mapIndex: task.map_index,
         isMapped: task.is_mapped || !!taskInstances[nodeId].mapped_states,
@@ -209,33 +218,35 @@ function draw() {
     }
   });
 
-  d3.selectAll('g.node').on('mouseover', function mousover(d) {
-    d3.select(this).selectAll('rect').attr('data-highlight', 'highlight');
+  d3.selectAll("g.node").on("mouseover", function mousover(d) {
+    d3.select(this).selectAll("rect").attr("data-highlight", "highlight");
     highlightNodes(g.predecessors(d));
     highlightNodes(g.successors(d));
     const adjacentNodeNames = [d, ...g.predecessors(d), ...g.successors(d)];
 
-    d3.selectAll('g.nodes g.node')
+    d3.selectAll("g.nodes g.node")
       .filter((x) => !adjacentNodeNames.includes(x))
-      .attr('data-highlight', 'fade');
+      .attr("data-highlight", "fade");
 
-    d3.selectAll('g.edgePath')[0].forEach((x) => {
-      const val = g.nodeEdges(d).includes(x.__data__) ? 'highlight' : 'fade';
-      d3.select(x).attr('data-highlight', val);
+    d3.selectAll("g.edgePath")[0].forEach((x) => {
+      const val = g.nodeEdges(d).includes(x.__data__) ? "highlight" : "fade";
+      d3.select(x).attr("data-highlight", val);
     });
-    d3.selectAll('g.edgeLabel')[0].forEach((x) => {
+    d3.selectAll("g.edgeLabel")[0].forEach((x) => {
       if (!g.nodeEdges(d).includes(x.__data__)) {
-        d3.select(x).attr('data-highlight', 'fade');
+        d3.select(x).attr("data-highlight", "fade");
       }
     });
   });
 
-  d3.selectAll('g.node').on('mouseout', function mouseout(d) {
-    d3.select(this).selectAll('rect, circle').attr('data-highlight', null);
+  d3.selectAll("g.node").on("mouseout", function mouseout(d) {
+    d3.select(this).selectAll("rect, circle").attr("data-highlight", null);
     unHighlightNodes(g.predecessors(d));
     unHighlightNodes(g.successors(d));
-    d3.selectAll('g.node, g.edgePath, g.edgeLabel')
-      .attr('data-highlight', null);
+    d3.selectAll("g.node, g.edgePath, g.edgeLabel").attr(
+      "data-highlight",
+      null
+    );
     localStorage.removeItem(focusedGroupKey(dagId));
   });
   updateNodesStates(taskInstances);
@@ -246,8 +257,11 @@ let zoom = null;
 
 function setUpZoomSupport() {
   // Set up zoom support for Graph
-  zoom = d3.behavior.zoom().on('zoom', () => {
-    innerSvg.attr('transform', `translate(${d3.event.translate})scale(${d3.event.scale})`);
+  zoom = d3.behavior.zoom().on("zoom", () => {
+    innerSvg.attr(
+      "transform",
+      `translate(${d3.event.translate})scale(${d3.event.scale})`
+    );
   });
   svg.call(zoom);
 
@@ -264,10 +278,10 @@ function setUpZoomSupport() {
   // Calculate applicable scale for zoom
   const zoomScale = Math.min(
     Math.min(width / graphWidth, height / graphHeight),
-    1.5, // cap zoom level to 1.5 so nodes are not too large
+    1.5 // cap zoom level to 1.5 so nodes are not too large
   );
 
-  zoom.translate([(width / 2) - ((graphWidth * zoomScale) / 2) + padding, padding]);
+  zoom.translate([width / 2 - (graphWidth * zoomScale) / 2 + padding, padding]);
   zoom.scale(zoomScale);
   zoom.event(innerSvg);
 }
@@ -276,45 +290,42 @@ function highlightNodes(nodes) {
   nodes.forEach((nodeid) => {
     const myNode = g.node(nodeid).elem;
     d3.select(myNode)
-      .selectAll('rect, circle')
-      .attr('data-highlight', 'highlight');
+      .selectAll("rect, circle")
+      .attr("data-highlight", "highlight");
   });
 }
 
 function unHighlightNodes(nodes) {
   nodes.forEach((nodeid) => {
     const myNode = g.node(nodeid).elem;
-    d3.select(myNode)
-      .selectAll('rect, circle')
-      .attr('data-highlight', null);
+    d3.select(myNode).selectAll("rect, circle").attr("data-highlight", null);
   });
 }
 
-d3.selectAll('.js-state-legend-item')
-  .on('mouseover', function mouseover() {
+d3.selectAll(".js-state-legend-item")
+  .on("mouseover", function mouseover() {
     if (!stateIsSet()) {
-      const state = $(this).data('state');
+      const state = $(this).data("state");
       focusState(state);
     }
   })
-  .on('mouseout', () => {
+  .on("mouseout", () => {
     if (!stateIsSet()) {
       clearFocus();
     }
   });
 
-d3.selectAll('.js-state-legend-item').on('click', function click() {
-  const state = $(this).data('state');
+d3.selectAll(".js-state-legend-item").on("click", function click() {
+  const state = $(this).data("state");
 
   clearFocus();
   if (!stateFocusMap[state]) {
-    const color = d3.select(this).style('border-color');
+    const color = d3.select(this).style("border-color");
     focusState(state, this, color);
     setFocusMap(state);
   } else {
     setFocusMap();
-    d3.selectAll('.js-state-legend-item')
-      .style('background-color', null);
+    d3.selectAll(".js-state-legend-item").style("background-color", null);
   }
 });
 
@@ -331,10 +342,10 @@ function nodeMatches(nodeId, searchText) {
   return false;
 }
 
-d3.select('#searchbox').on('keyup', () => {
-  const s = document.getElementById('searchbox').value;
+d3.select("#searchbox").on("keyup", () => {
+  const s = document.getElementById("searchbox").value;
 
-  if (s === '') return;
+  if (s === "") return;
 
   let match = null;
 
@@ -343,17 +354,17 @@ d3.select('#searchbox').on('keyup', () => {
     setFocusMap();
   }
 
-  d3.selectAll('g.nodes g.node').filter(function highlight(d) {
-    if (s === '') {
-      d3.selectAll('g.edgePaths, g.edgeLabel').attr('data-highlight', null);
-      d3.select(this).attr('data-highlight', null);
+  d3.selectAll("g.nodes g.node").filter(function highlight(d) {
+    if (s === "") {
+      d3.selectAll("g.edgePaths, g.edgeLabel").attr("data-highlight", null);
+      d3.select(this).attr("data-highlight", null);
     } else {
-      d3.selectAll('g.edgePaths, g.edgeLabel').attr('data-highlight', 'fade');
+      d3.selectAll("g.edgePaths, g.edgeLabel").attr("data-highlight", "fade");
       if (nodeMatches(d, s)) {
         if (!match) match = this;
-        d3.select(this).attr('data-highlight', null);
+        d3.select(this).attr("data-highlight", null);
       } else {
-        d3.select(this).attr('data-highlight', 'fade');
+        d3.select(this).attr("data-highlight", "fade");
       }
     }
     // We don't actually use the returned results from filter
@@ -362,7 +373,7 @@ d3.select('#searchbox').on('keyup', () => {
 
   // This moves the matched node to the center of the graph area
   if (match) {
-    const transform = d3.transform(d3.select(match).attr('transform'));
+    const transform = d3.transform(d3.select(match).attr("transform"));
 
     const svgBb = svg.node().getBoundingClientRect();
     transform.translate = [
@@ -380,20 +391,18 @@ d3.select('#searchbox').on('keyup', () => {
 });
 
 function clearFocus() {
-  d3.selectAll('g.node, g.edgePaths, g.edgeLabel')
-    .attr('data-highlight', null);
+  d3.selectAll("g.node, g.edgePaths, g.edgeLabel").attr("data-highlight", null);
   localStorage.removeItem(focusedGroupKey(dagId));
 }
 
 function focusState(state, node, color) {
-  d3.selectAll('g.node, g.edgePaths, g.edgeLabel')
-    .attr('data-highlight', 'fade');
-  d3.selectAll(`g.node.${state}`)
-    .attr('data-highlight', null);
-  d3.selectAll(`g.node.${state} rect`)
-    .attr('data-highlight', null);
-  d3.select(node)
-    .style('background-color', color);
+  d3.selectAll("g.node, g.edgePaths, g.edgeLabel").attr(
+    "data-highlight",
+    "fade"
+  );
+  d3.selectAll(`g.node.${state}`).attr("data-highlight", null);
+  d3.selectAll(`g.node.${state} rect`).attr("data-highlight", null);
+  d3.select(node).style("background-color", color);
 }
 
 function setFocusMap(state) {
@@ -407,12 +416,13 @@ function setFocusMap(state) {
   }
 }
 
-const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
+const stateIsSet = () =>
+  !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
 let refreshInterval;
 
 function startOrStopRefresh() {
-  if ($('#auto_refresh').is(':checked')) {
+  if ($("#auto_refresh").is(":checked")) {
     refreshInterval = setInterval(() => {
       handleRefresh();
     }, autoRefreshInterval * 1000);
@@ -430,62 +440,70 @@ const handleVisibilityChange = () => {
   }
 };
 
-document.addEventListener('visibilitychange', handleVisibilityChange);
+document.addEventListener("visibilitychange", handleVisibilityChange);
 
 let prevTis;
 
 function handleRefresh() {
-  $('#loading-dots').css('display', 'inline-block');
+  $("#loading-dots").css("display", "inline-block");
   $.get(getTaskInstanceURL)
-    .done(
-      (tis) => {
-        // only refresh if the data has changed
-        if (prevTis !== tis) {
+    .done((tis) => {
+      // only refresh if the data has changed
+      if (prevTis !== tis) {
         // eslint-disable-next-line no-global-assign
-          updateNodesStates(tis);
+        updateNodesStates(tis);
 
-          // Only redraw the graph if labels have changed
-          const haveLabelsChanged = updateNodeLabels(nodes, tis);
-          if (haveLabelsChanged) draw();
+        // Only redraw the graph if labels have changed
+        const haveLabelsChanged = updateNodeLabels(nodes, tis);
+        if (haveLabelsChanged) draw();
 
-          // end refresh if all states are final
-          const isFinal = checkRunState();
-          if (isFinal) {
-            $('#auto_refresh').prop('checked', false);
-            clearInterval(refreshInterval);
-          }
+        // end refresh if all states are final
+        const isFinal = checkRunState();
+        if (isFinal) {
+          $("#auto_refresh").prop("checked", false);
+          clearInterval(refreshInterval);
         }
-        prevTis = tis;
-        setTimeout(() => { $('#loading-dots').hide(); }, 500);
-        $('#error').hide();
-      },
-    ).fail((response, textStatus, err) => {
-      const description = (response.responseJSON && response.responseJSON.error) || 'Something went wrong.';
-      $('#error_msg').text(`${textStatus}: ${err} ${description}`);
-      $('#error').show();
-      setTimeout(() => { $('#loading-dots').hide(); }, 500);
-      $('#chart_section').hide(1000);
-      $('#datatable_section').hide(1000);
+      }
+      prevTis = tis;
+      setTimeout(() => {
+        $("#loading-dots").hide();
+      }, 500);
+      $("#error").hide();
+    })
+    .fail((response, textStatus, err) => {
+      const description =
+        (response.responseJSON && response.responseJSON.error) ||
+        "Something went wrong.";
+      $("#error_msg").text(`${textStatus}: ${err} ${description}`);
+      $("#error").show();
+      setTimeout(() => {
+        $("#loading-dots").hide();
+      }, 500);
+      $("#chart_section").hide(1000);
+      $("#datatable_section").hide(1000);
     });
 }
 
-$('#auto_refresh').change(() => {
-  if ($('#auto_refresh').is(':checked')) {
+$("#auto_refresh").change(() => {
+  if ($("#auto_refresh").is(":checked")) {
     // Run an initial refresh before starting interval if manually turned on
     handleRefresh();
-    localStorage.removeItem('disableAutoRefresh');
+    localStorage.removeItem("disableAutoRefresh");
   } else {
-    localStorage.setItem('disableAutoRefresh', 'true');
+    localStorage.setItem("disableAutoRefresh", "true");
   }
   startOrStopRefresh();
 });
 
 function initRefresh() {
-  const isDisabled = localStorage.getItem('disableAutoRefresh');
+  const isDisabled = localStorage.getItem("disableAutoRefresh");
   const isFinal = checkRunState();
-  $('#auto_refresh').prop('checked', !(isDisabled || isFinal) && isSchedulerRunning === 'True');
+  $("#auto_refresh").prop(
+    "checked",
+    !(isDisabled || isFinal) && isSchedulerRunning === "True"
+  );
   startOrStopRefresh();
-  d3.select('#refresh_button').on('click', () => handleRefresh());
+  d3.select("#refresh_button").on("click", () => handleRefresh());
 }
 
 // Generate tooltip for a group node
@@ -499,9 +517,13 @@ function groupTooltip(node, tis) {
     const firstChildId = node.children[0].id;
     const mappedLength = tis[firstChildId].mapped_states.length;
     [...Array(mappedLength).keys()].forEach((mapIndex) => {
-      const groupStates = getChildrenIds(node).map((child) => tis[child].mapped_states[mapIndex]);
-      const overallState = priority.find((state) => groupStates.includes(state)) || 'no_status';
-      if (numMap.has(overallState)) numMap.set(overallState, numMap.get(overallState) + 1);
+      const groupStates = getChildrenIds(node).map(
+        (child) => tis[child].mapped_states[mapIndex]
+      );
+      const overallState =
+        priority.find((state) => groupStates.includes(state)) || "no_status";
+      if (numMap.has(overallState))
+        numMap.set(overallState, numMap.get(overallState) + 1);
     });
   } else {
     getChildrenIds(node).forEach((child) => {
@@ -513,14 +535,17 @@ function groupTooltip(node, tis) {
         if (!maxEnd || moment(ti.end_date).isAfter(maxEnd)) {
           maxEnd = moment(ti.end_date);
         }
-        const stateKey = ti.state == null ? 'no_status' : ti.state;
-        if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+        const stateKey = ti.state == null ? "no_status" : ti.state;
+        if (numMap.has(stateKey))
+          numMap.set(stateKey, numMap.get(stateKey) + 1);
       }
     });
   }
 
-  const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
-  const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : '';
+  const groupDuration = convertSecsToHumanReadable(
+    moment(maxEnd).diff(minStart, "second")
+  );
+  const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : "";
 
   let tt = `
     ${tooltipText}
@@ -545,8 +570,8 @@ function updateNodesStates(tis) {
 
     if (elem) {
       const classes = `node enter ${getNodeState(nodeId, tis)}`;
-      elem.setAttribute('class', classes);
-      elem.setAttribute('data-toggle', 'tooltip');
+      elem.setAttribute("class", classes);
+      elem.setAttribute("data-toggle", "tooltip");
 
       elem.onmouseover = (evt) => {
         let tt;
@@ -556,7 +581,7 @@ function updateNodesStates(tis) {
           tt = groupTooltip(node, tis);
         } else if (taskId in tasks) {
           tt = taskNoInstanceTooltip(taskId, tasks[taskId]);
-          elem.setAttribute('class', `${classes} not-allowed`);
+          elem.setAttribute("class", `${classes} not-allowed`);
         }
         if (tt) taskTip.show(tt, evt.target); // taskTip is defined in graph.html
       };
@@ -603,9 +628,9 @@ function getNodeState(nodeId, tis) {
 
   if (node.children === undefined) {
     if (nodeId in tis) {
-      return tis[nodeId].state || 'no_status';
+      return tis[nodeId].state || "no_status";
     }
-    return 'no_status';
+    return "no_status";
   }
   const children = getChildrenIds(node);
 
@@ -613,11 +638,11 @@ function getNodeState(nodeId, tis) {
   children.forEach((taskId) => {
     if (taskId in tis) {
       const { state } = tis[taskId];
-      childrenStates.add(state == null ? 'no_status' : state);
+      childrenStates.add(state == null ? "no_status" : state);
     }
   });
 
-  return priority.find((state) => childrenStates.has(state)) || 'no_status';
+  return priority.find((state) => childrenStates.has(state)) || "no_status";
 }
 
 // Returns the key used to store expanded task group ids in localStorage
@@ -638,19 +663,28 @@ function focusGroup(nodeId) {
     const { width, height } = svg.node().getBoundingClientRect();
 
     // This is the size of the node or the cluster (i.e. group)
-    let rect = d3.selectAll('g.node').filter((n) => n === nodeId).select('rect');
-    if (rect.empty()) rect = d3.selectAll('g.cluster').filter((n) => n === nodeId).select('rect');
+    let rect = d3
+      .selectAll("g.node")
+      .filter((n) => n === nodeId)
+      .select("rect");
+    if (rect.empty())
+      rect = d3
+        .selectAll("g.cluster")
+        .filter((n) => n === nodeId)
+        .select("rect");
 
     // Is there a better way to get nodeWidth and nodeHeight ?
     const [nodeWidth, nodeHeight] = [
-      rect[0][0].attributes.width.value, rect[0][0].attributes.height.value,
+      rect[0][0].attributes.width.value,
+      rect[0][0].attributes.height.value,
     ];
 
     // Calculate zoom scale to fill most of the canvas with the node/cluster in focus.
-    const scale = Math.min(
-      Math.min(width / nodeWidth, height / nodeHeight),
-      1.5, // cap zoom level to 1.5 so nodes are not too large
-    ) * 0.9;
+    const scale =
+      Math.min(
+        Math.min(width / nodeWidth, height / nodeHeight),
+        1.5 // cap zoom level to 1.5 so nodes are not too large
+      ) * 0.9;
 
     // deltaY of 5 keeps the zoom at the top of the view but with a slight margin
     const [deltaX, deltaY] = [width / 2 - x * scale, 5];
@@ -660,13 +694,11 @@ function focusGroup(nodeId) {
 
     const children = new Set(g.children(nodeId));
     // Set data attr to highlight the focused group (via CSS).
-    d3.selectAll('g.nodes g.node').forEach(function cssHighlight(d) {
+    d3.selectAll("g.nodes g.node").forEach(function cssHighlight(d) {
       if (d === nodeId || children.has(d)) {
-        d3.select(this)
-          .attr('data-highlight', null);
+        d3.select(this).attr("data-highlight", null);
       } else {
-        d3.select(this)
-          .attr('data-highlight', 'fade');
+        d3.select(this).attr("data-highlight", "fade");
       }
     });
 
@@ -686,7 +718,9 @@ function expandGroup(nodeId, node) {
       const groupNode = g.node(val.id);
       groupNode.children = val.children;
       // Map task that are under this node to this node's id
-      getChildrenIds(val).forEach((childId) => mapTaskToNode.set(childId, val.id));
+      getChildrenIds(val).forEach((childId) =>
+        mapTaskToNode.set(childId, val.id)
+      );
     }
     // Only call setParent if node is not the root node.
     if (nodeId != null) g.setParent(val.id, nodeId);
@@ -696,10 +730,15 @@ function expandGroup(nodeId, node) {
   edges.forEach((edge) => {
     const sourceId = mapTaskToNode.get(edge.source_id);
     const targetId = mapTaskToNode.get(edge.target_id);
-    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId) && sourceId && targetId) {
+    if (
+      sourceId !== targetId &&
+      !g.hasEdge(sourceId, targetId) &&
+      sourceId &&
+      targetId
+    ) {
       g.setEdge(sourceId, targetId, {
         curve: d3.curveBasis,
-        arrowheadClass: 'arrowhead',
+        arrowheadClass: "arrowhead",
         label: edge.label,
       });
     }
@@ -718,7 +757,9 @@ function expandGroup(nodeId, node) {
 function getSavedGroups() {
   let expandedGroups;
   try {
-    expandedGroups = new Set(JSON.parse(localStorage.getItem(expandedGroupsKey(dagId))));
+    expandedGroups = new Set(
+      JSON.parse(localStorage.getItem(expandedGroupsKey(dagId)))
+    );
   } catch {
     expandedGroups = new Set();
   }
@@ -731,8 +772,13 @@ function pruneInvalidSavedGroupIds() {
   // All the groupIds in the whole DAG
   const allGroupIds = new Set(getAllGroupIds(nodes));
   let expandedGroups = getSavedGroups(dagId);
-  expandedGroups = Array.from(expandedGroups).filter((groupId) => allGroupIds.has(groupId));
-  localStorage.setItem(expandedGroupsKey(dagId), JSON.stringify(expandedGroups));
+  expandedGroups = Array.from(expandedGroups).filter((groupId) =>
+    allGroupIds.has(groupId)
+  );
+  localStorage.setItem(
+    expandedGroupsKey(dagId),
+    JSON.stringify(expandedGroups)
+  );
 }
 
 // Remember the expanded groups in local storage so that it can be used
@@ -741,7 +787,10 @@ function saveExpandedGroup(nodeId) {
   // expandedGroups is a Set
   const expandedGroups = getSavedGroups(dagId);
   expandedGroups.add(nodeId);
-  localStorage.setItem(expandedGroupsKey(dagId), JSON.stringify(Array.from(expandedGroups)));
+  localStorage.setItem(
+    expandedGroupsKey(dagId),
+    JSON.stringify(Array.from(expandedGroups))
+  );
 }
 
 // Remove the nodeId from the expanded state
@@ -749,7 +798,10 @@ function removeExpandedGroup(nodeId, node) {
   const expandedGroups = getSavedGroups(dagId);
   const childGroupIds = getAllGroupIds(node);
   childGroupIds.forEach((childId) => expandedGroups.delete(childId));
-  localStorage.setItem(expandedGroupsKey(dagId), JSON.stringify(Array.from(expandedGroups)));
+  localStorage.setItem(
+    expandedGroupsKey(dagId),
+    JSON.stringify(Array.from(expandedGroups))
+  );
 }
 
 // Restore previously expanded task groups

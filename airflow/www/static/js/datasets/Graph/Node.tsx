@@ -17,23 +17,19 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Flex,
-  Text,
-  useTheme,
-} from '@chakra-ui/react';
-import { Group } from '@visx/group';
-import { MdPlayArrow, MdSensors } from 'react-icons/md';
-import { HiDatabase } from 'react-icons/hi';
+import React from "react";
+import { Flex, Text, useTheme } from "@chakra-ui/react";
+import { Group } from "@visx/group";
+import { MdPlayArrow, MdSensors } from "react-icons/md";
+import { HiDatabase } from "react-icons/hi";
 
-import type { ElkShape } from 'elkjs';
-import type { DepNode } from 'src/types';
+import type { ElkShape } from "elkjs";
+import type { DepNode } from "src/types";
 
-import DagNode from './DagNode';
+import DagNode from "./DagNode";
 
 export interface NodeType extends ElkShape {
-  value: DepNode['value'];
+  value: DepNode["value"];
 }
 
 interface Props {
@@ -44,9 +40,7 @@ interface Props {
 }
 
 const Node = ({
-  node: {
-    height, width, x, y, value,
-  },
+  node: { height, width, x, y, value },
   onSelect,
   isSelected,
   isHighlighted,
@@ -55,37 +49,33 @@ const Node = ({
   return (
     <Group top={y} left={x} height={height} width={width}>
       <foreignObject width={width} height={height}>
-        {value.class === 'dag' && (
+        {value.class === "dag" && (
           <DagNode dagId={value.label} isHighlighted={isHighlighted} />
         )}
-        {value.class !== 'dag' && (
+        {value.class !== "dag" && (
           <Flex
             borderWidth={isSelected ? 4 : 2}
-            borderColor={isHighlighted || isSelected ? colors.blue[400] : undefined}
+            borderColor={
+              isHighlighted || isSelected ? colors.blue[400] : undefined
+            }
             borderRadius={5}
             p={2}
             height="100%"
             width="100%"
-            fontWeight={isSelected ? 'bold' : 'normal'}
+            fontWeight={isSelected ? "bold" : "normal"}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (value.class === 'dataset') onSelect(value.label);
+              if (value.class === "dataset") onSelect(value.label);
             }}
             cursor="pointer"
             fontSize={16}
             justifyContent="space-between"
             alignItems="center"
           >
-            {value.class === 'dataset' && (
-              <HiDatabase size="16px" />
-            )}
-            {value.class === 'sensor' && (
-              <MdSensors size="16px" />
-            )}
-            {value.class === 'trigger' && (
-              <MdPlayArrow size="16px" />
-            )}
+            {value.class === "dataset" && <HiDatabase size="16px" />}
+            {value.class === "sensor" && <MdSensors size="16px" />}
+            {value.class === "trigger" && <MdPlayArrow size="16px" />}
             <Text>{value.label}</Text>
           </Flex>
         )}

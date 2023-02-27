@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import React from 'react';
-import { Select } from 'chakra-react-select';
-import type { SelectComponent } from 'chakra-react-select';
+import React from "react";
+import { Select } from "chakra-react-select";
+import type { SelectComponent } from "chakra-react-select";
 
 const MultiSelect: SelectComponent = ({ chakraStyles, ...props }) => (
   <Select
@@ -29,13 +29,13 @@ const MultiSelect: SelectComponent = ({ chakraStyles, ...props }) => (
     chakraStyles={{
       dropdownIndicator: (provided) => ({
         ...provided,
-        bg: 'transparent',
+        bg: "transparent",
         px: 2,
-        cursor: 'inherit',
+        cursor: "inherit",
       }),
       indicatorSeparator: (provided) => ({
         ...provided,
-        display: 'none',
+        display: "none",
       }),
       menuList: (provided) => ({
         ...provided,
@@ -43,7 +43,7 @@ const MultiSelect: SelectComponent = ({ chakraStyles, ...props }) => (
       }),
       placeholder: (provided) => ({
         ...provided,
-        color: 'inherit',
+        color: "inherit",
       }),
       ...chakraStyles,
     }}

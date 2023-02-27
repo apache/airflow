@@ -17,29 +17,26 @@
  * under the License.
  */
 
-import React from 'react';
-import { Button, Link } from '@chakra-ui/react';
+import React from "react";
+import { Button, Link } from "@chakra-ui/react";
 
-import { getMetaValue } from 'src/utils';
+import { getMetaValue } from "src/utils";
 
-const root = getMetaValue('root');
-const url = getMetaValue('grid_url_no_root');
+const root = getMetaValue("root");
+const url = getMetaValue("grid_url_no_root");
 
-const ResetRoot = () => (
-  root
-    ? (
-      <Button
-        as={Link}
-        variant="outline"
-        href={url}
-        colorScheme="blue"
-        mx={2}
-        title="Reset root to show the whole DAG"
-      >
-        Reset Root
-      </Button>
-    )
-    : null
-);
+const ResetRoot = () =>
+  root ? (
+    <Button
+      as={Link}
+      variant="outline"
+      href={url}
+      colorScheme="blue"
+      mx={2}
+      title="Reset root to show the whole DAG"
+    >
+      Reset Root
+    </Button>
+  ) : null;
 
 export default ResetRoot;

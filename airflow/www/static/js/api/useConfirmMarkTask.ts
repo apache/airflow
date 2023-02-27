@@ -17,29 +17,41 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useMutation } from 'react-query';
-import type { TaskState } from 'src/types';
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import { getMetaValue } from '../utils';
-import useErrorToast from '../utils/useErrorToast';
+import axios, { AxiosResponse } from "axios";
+import { useMutation } from "react-query";
+import type { TaskState } from "src/types";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { getMetaValue } from "../utils";
+import useErrorToast from "../utils/useErrorToast";
 
-const confirmUrl = getMetaValue('confirm_url');
+const confirmUrl = getMetaValue("confirm_url");
 
 export default function useConfirmMarkTask({
-  dagId, runId, taskId, state,
-}: { dagId: string, runId: string, taskId: string, state: TaskState }) {
+  dagId,
+  runId,
+  taskId,
+  state,
+}: {
+  dagId: string;
+  runId: string;
+  taskId: string;
+  state: TaskState;
+}) {
   const errorToast = useErrorToast();
   return useMutation(
-    ['confirmStateChange', dagId, runId, taskId, state],
+    ["confirmStateChange", dagId, runId, taskId, state],
     ({
-      past, future, upstream, downstream, mapIndexes = [],
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes = [],
     }: {
-      past: boolean,
-      future: boolean,
-      upstream: boolean,
-      downstream: boolean,
-      mapIndexes: number[],
+      past: boolean;
+      future: boolean;
+      upstream: boolean;
+      downstream: boolean;
+      mapIndexes: number[];
     }) => {
       const params = new URLSearchParamsWrapper({
         dag_id: dagId,
@@ -53,12 +65,12 @@ export default function useConfirmMarkTask({
       });
 
       mapIndexes.forEach((mi: number) => {
-        params.append('map_index', mi.toString());
+        params.append("map_index", mi.toString());
       });
       return axios.get<AxiosResponse, string[]>(confirmUrl, { params });
     },
     {
       onError: (error: Error) => errorToast({ error }),
-    },
+    }
   );
 }

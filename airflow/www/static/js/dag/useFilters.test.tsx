@@ -18,9 +18,9 @@
  */
 
 /* global describe, expect, jest, test, moment */
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook } from "@testing-library/react";
 
-import { RouterWrapper } from 'src/utils/testUtils';
+import { RouterWrapper } from "src/utils/testUtils";
 
 declare global {
   namespace NodeJS {
@@ -35,21 +35,20 @@ date.setMilliseconds(0);
 jest.useFakeTimers().setSystemTime(date);
 
 // eslint-disable-next-line import/first
-import useFilters, { FilterHookReturn, Filters, UtilFunctions } from './useFilters';
+import useFilters, {
+  FilterHookReturn,
+  Filters,
+  UtilFunctions,
+} from "./useFilters";
 
-describe('Test useFilters hook', () => {
-  test('Initial values when url does not have query params', async () => {
+describe("Test useFilters hook", () => {
+  test("Initial values when url does not have query params", async () => {
     const { result } = renderHook<FilterHookReturn, undefined>(
       () => useFilters(),
-      { wrapper: RouterWrapper },
+      { wrapper: RouterWrapper }
     );
     const {
-      filters: {
-        baseDate,
-        numRuns,
-        runType,
-        runState,
-      },
+      filters: { baseDate, numRuns, runType, runState },
     } = result.current;
 
     expect(baseDate).toBe(date.toISOString());
@@ -59,14 +58,30 @@ describe('Test useFilters hook', () => {
   });
 
   test.each([
-    { fnName: 'onBaseDateChange' as keyof UtilFunctions, paramName: 'baseDate' as keyof Filters, paramValue: moment.utc().format() },
-    { fnName: 'onNumRunsChange' as keyof UtilFunctions, paramName: 'numRuns' as keyof Filters, paramValue: '10' },
-    { fnName: 'onRunTypeChange' as keyof UtilFunctions, paramName: 'runType' as keyof Filters, paramValue: 'manual' },
-    { fnName: 'onRunStateChange' as keyof UtilFunctions, paramName: 'runState' as keyof Filters, paramValue: 'success' },
-  ])('Test $fnName functions', async ({ fnName, paramName, paramValue }) => {
+    {
+      fnName: "onBaseDateChange" as keyof UtilFunctions,
+      paramName: "baseDate" as keyof Filters,
+      paramValue: moment.utc().format(),
+    },
+    {
+      fnName: "onNumRunsChange" as keyof UtilFunctions,
+      paramName: "numRuns" as keyof Filters,
+      paramValue: "10",
+    },
+    {
+      fnName: "onRunTypeChange" as keyof UtilFunctions,
+      paramName: "runType" as keyof Filters,
+      paramValue: "manual",
+    },
+    {
+      fnName: "onRunStateChange" as keyof UtilFunctions,
+      paramName: "runState" as keyof Filters,
+      paramValue: "success",
+    },
+  ])("Test $fnName functions", async ({ fnName, paramName, paramValue }) => {
     const { result } = renderHook<FilterHookReturn, undefined>(
       () => useFilters(),
-      { wrapper: RouterWrapper },
+      { wrapper: RouterWrapper }
     );
 
     await act(async () => {
@@ -80,10 +95,12 @@ describe('Test useFilters hook', () => {
       result.current.clearFilters();
     });
 
-    if (paramName === 'baseDate') {
+    if (paramName === "baseDate") {
       expect(result.current.filters[paramName]).toBe(date.toISOString());
-    } else if (paramName === 'numRuns') {
-      expect(result.current.filters[paramName]).toBe(global.defaultDagRunDisplayNumber.toString());
+    } else if (paramName === "numRuns") {
+      expect(result.current.filters[paramName]).toBe(
+        global.defaultDagRunDisplayNumber.toString()
+      );
     } else {
       expect(result.current.filters[paramName]).toBeNull();
     }

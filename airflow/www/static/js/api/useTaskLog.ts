@@ -17,59 +17,67 @@
  * under the License.
  */
 
-import { useState } from 'react';
-import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
-import { useAutoRefresh } from 'src/context/autorefresh';
-import type { API, TaskInstance } from 'src/types';
+import { useState } from "react";
+import axios, { AxiosResponse } from "axios";
+import { useQuery } from "react-query";
+import { useAutoRefresh } from "src/context/autorefresh";
+import type { API, TaskInstance } from "src/types";
 
-import { getMetaValue } from 'src/utils';
+import { getMetaValue } from "src/utils";
 
-const taskLogApi = getMetaValue('task_log_api');
+const taskLogApi = getMetaValue("task_log_api");
 
 interface Props extends API.GetLogVariables {
-  state?: TaskInstance['state'];
+  state?: TaskInstance["state"];
 }
 
 const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, mapIndex, fullContent = false, state,
+  dagId,
+  dagRunId,
+  taskId,
+  taskTryNumber,
+  mapIndex,
+  fullContent = false,
+  state,
 }: Props) => {
-  let url: string = '';
+  let url: string = "";
   const [isPreviousStatePending, setPrevState] = useState(true);
   if (taskLogApi) {
-    url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber.toString());
+    url = taskLogApi
+      .replace("_DAG_RUN_ID_", dagRunId)
+      .replace("_TASK_ID_", taskId)
+      .replace(/-1$/, taskTryNumber.toString());
   }
 
   const { isRefreshOn } = useAutoRefresh();
 
   // Only refresh is the state is pending
-  const isStatePending = state === 'deferred'
-    || state === 'scheduled'
-    || state === 'running'
-    || state === 'up_for_reschedule'
-    || state === 'up_for_retry'
-    || state === 'queued'
-    || state === 'restarting';
+  const isStatePending =
+    state === "deferred" ||
+    state === "scheduled" ||
+    state === "running" ||
+    state === "up_for_reschedule" ||
+    state === "up_for_retry" ||
+    state === "queued" ||
+    state === "restarting";
 
   // We also want to get the last log when the task was finished
   const expectingLogs = isStatePending || isPreviousStatePending;
 
   return useQuery(
-    ['taskLogs', dagId, dagRunId, taskId, mapIndex, taskTryNumber, fullContent],
+    ["taskLogs", dagId, dagRunId, taskId, mapIndex, taskTryNumber, fullContent],
     () => {
       setPrevState(isStatePending);
-      return axios.get<AxiosResponse, string>(
-        url,
-        {
-          headers: { Accept: 'text/plain' },
-          params: { map_index: mapIndex, full_content: fullContent },
-        },
-      );
+      return axios.get<AxiosResponse, string>(url, {
+        headers: { Accept: "text/plain" },
+        params: { map_index: mapIndex, full_content: fullContent },
+      });
     },
     {
-      placeholderData: '',
-      refetchInterval: expectingLogs && isRefreshOn && (autoRefreshInterval || 1) * 1000,
-    },
+      placeholderData: "",
+      refetchInterval:
+        expectingLogs && isRefreshOn && (autoRefreshInterval || 1) * 1000,
+    }
   );
 };
 

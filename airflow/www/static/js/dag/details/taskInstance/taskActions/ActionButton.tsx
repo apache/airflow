@@ -17,23 +17,25 @@
  * under the License.
  */
 
-import React from 'react';
-import { Button, ButtonProps } from '@chakra-ui/react';
+import React from "react";
+import { Button, ButtonProps } from "@chakra-ui/react";
 
 const titleMap = {
-  past: 'Also include past task instances when clearing this one',
-  future: 'Also include future task instances when clearing this one',
-  upstream: 'Also include upstream dependencies',
-  downstream: 'Also include downstream dependencies',
-  recursive: '',
-  failed: 'Only consider failed task instances when clearing this one',
+  past: "Also include past task instances when clearing this one",
+  future: "Also include future task instances when clearing this one",
+  upstream: "Also include upstream dependencies",
+  downstream: "Also include downstream dependencies",
+  recursive: "",
+  failed: "Only consider failed task instances when clearing this one",
 };
 
-type KeysOfTitleMap = keyof (typeof titleMap);
+type KeysOfTitleMap = keyof typeof titleMap;
 
-type Props = ButtonProps & { name: Capitalize<KeysOfTitleMap> } ;
+type Props = ButtonProps & { name: Capitalize<KeysOfTitleMap> };
 const ActionButton = ({ name, ...rest }: Props) => (
-  <Button title={titleMap[name.toLowerCase() as KeysOfTitleMap]} {...rest}>{name}</Button>
+  <Button title={titleMap[name.toLowerCase() as KeysOfTitleMap]} {...rest}>
+    {name}
+  </Button>
 );
 
 export default ActionButton;

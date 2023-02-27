@@ -17,15 +17,13 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Box, Heading, Flex, Spinner, Button,
-} from '@chakra-ui/react';
+import React from "react";
+import { Box, Heading, Flex, Spinner, Button } from "@chakra-ui/react";
 
-import { useDataset } from 'src/api';
-import { ClipboardButton } from 'src/components/Clipboard';
-import InfoTooltip from 'src/components/InfoTooltip';
-import Events from './DatasetEvents';
+import { useDataset } from "src/api";
+import { ClipboardButton } from "src/components/Clipboard";
+import InfoTooltip from "src/components/InfoTooltip";
+import Events from "./DatasetEvents";
 
 interface Props {
   uri: string;
@@ -40,19 +38,20 @@ const DatasetDetails = ({ uri, onBack }: Props) => {
       {isLoading && <Spinner display="block" />}
       <Box>
         <Heading my={2} fontWeight="normal" size="lg">
-          Dataset:
-          {' '}
-          {uri}
+          Dataset: {uri}
           <ClipboardButton value={uri} iconOnly ml={2} />
         </Heading>
       </Box>
       <Flex alignItems="center">
-        <Heading size="md" mt={3} mb={2} fontWeight="normal">History</Heading>
-        <InfoTooltip label="Whenever a DAG has updated this dataset." size={18} />
+        <Heading size="md" mt={3} mb={2} fontWeight="normal">
+          History
+        </Heading>
+        <InfoTooltip
+          label="Whenever a DAG has updated this dataset."
+          size={18}
+        />
       </Flex>
-      {dataset && dataset.id && (
-        <Events datasetId={dataset.id} />
-      )}
+      {dataset && dataset.id && <Events datasetId={dataset.id} />}
     </Box>
   );
 };

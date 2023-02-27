@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from "react";
 import {
   Box,
   Text,
@@ -28,42 +28,45 @@ import {
   Tab,
   TabPanels,
   TabPanel,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 
-import { useGridData, useTaskInstance } from 'src/api';
-import { getMetaValue, getTask, useOffsetTop } from 'src/utils';
-import type { DagRun, TaskInstance as TaskInstanceType } from 'src/types';
-import type { SelectionProps } from 'src/dag/useSelection';
-import NotesAccordion from 'src/dag/details/NotesAccordion';
+import { useGridData, useTaskInstance } from "src/api";
+import { getMetaValue, getTask, useOffsetTop } from "src/utils";
+import type { DagRun, TaskInstance as TaskInstanceType } from "src/types";
+import type { SelectionProps } from "src/dag/useSelection";
+import NotesAccordion from "src/dag/details/NotesAccordion";
 
-import ExtraLinks from './ExtraLinks';
-import Logs from './Logs';
-import TaskNav from './Nav';
-import Details from './Details';
-import MappedInstances from './MappedInstances';
-import TaskActions from './taskActions';
-import BackToTaskSummary from './BackToTaskSummary';
+import ExtraLinks from "./ExtraLinks";
+import Logs from "./Logs";
+import TaskNav from "./Nav";
+import Details from "./Details";
+import MappedInstances from "./MappedInstances";
+import TaskActions from "./taskActions";
+import BackToTaskSummary from "./BackToTaskSummary";
 
-const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
+const detailsPanelActiveTabIndex = "detailsPanelActiveTabIndex";
 
-const dagId = getMetaValue('dag_id')!;
+const dagId = getMetaValue("dag_id")!;
 
 interface Props {
   taskId: string;
-  runId: DagRun['runId'];
-  mapIndex: TaskInstanceType['mapIndex'];
+  runId: DagRun["runId"];
+  mapIndex: TaskInstanceType["mapIndex"];
   onSelect: (selectionProps: SelectionProps) => void;
 }
 
-const TaskInstance = ({
-  taskId, runId, mapIndex, onSelect,
-}: Props) => {
+const TaskInstance = ({ taskId, runId, mapIndex, onSelect }: Props) => {
   const taskInstancesRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(taskInstancesRef);
   const isMapIndexDefined = !(mapIndex === undefined);
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
-  const { data: { dagRuns, groups } } = useGridData();
-  const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
+  const {
+    data: { dagRuns, groups },
+  } = useGridData();
+  const storageTabIndex = parseInt(
+    localStorage.getItem(detailsPanelActiveTabIndex) || "0",
+    10
+  );
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
   const group = getTask({ taskId, task: groups });
@@ -75,10 +78,14 @@ const TaskInstance = ({
 
   const isMappedTaskSummary = !!isMapped && !isMapIndexDefined && taskId;
   const isGroup = !!children;
-  const isGroupOrMappedTaskSummary = (isGroup || isMappedTaskSummary);
+  const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
 
   const { data: mappedTaskInstance } = useTaskInstance({
-    dagId, dagRunId: runId, taskId, mapIndex, enabled: isMapIndexDefined,
+    dagId,
+    dagRunId: runId,
+    taskId,
+    mapIndex,
+    enabled: isMapIndexDefined,
   });
 
   const instance = isMapIndexDefined
@@ -109,9 +116,11 @@ const TaskInstance = ({
 
   const { executionDate } = run;
 
-  let taskActionsTitle = `${isGroup ? 'Task Group' : 'Task'} Actions`;
+  let taskActionsTitle = `${isGroup ? "Task Group" : "Task"} Actions`;
   if (isMapped) {
-    taskActionsTitle += ` for ${actionsMapIndexes.length || 'all'} mapped task${actionsMapIndexes.length !== 1 ? 's' : ''}`;
+    taskActionsTitle += ` for ${actionsMapIndexes.length || "all"} mapped task${
+      actionsMapIndexes.length !== 1 ? "s" : ""
+    }`;
   }
 
   return (
@@ -156,7 +165,7 @@ const TaskInstance = ({
         <TabPanels height="100%">
           {/* Details Tab */}
           <TabPanel
-            pt={isMapIndexDefined ? '0px' : undefined}
+            pt={isMapIndexDefined ? "0px" : undefined}
             ref={taskInstancesRef}
             maxHeight={`calc(100% - ${offsetTop}px)`}
             overflowY="auto"
@@ -198,7 +207,7 @@ const TaskInstance = ({
 
           {/* Logs Tab */}
           {!isGroupOrMappedTaskSummary && (
-            <TabPanel pt={isMapIndexDefined ? '0px' : undefined} height="100%">
+            <TabPanel pt={isMapIndexDefined ? "0px" : undefined} height="100%">
               <Logs
                 dagId={dagId}
                 dagRunId={runId}
@@ -212,18 +221,18 @@ const TaskInstance = ({
           )}
 
           {/* Mapped Task Instances Tab */}
-          {
-            isMappedTaskSummary && !isGroup && (
-              <TabPanel height="100%" pb={0}>
-                <MappedInstances
-                  dagId={dagId}
-                  runId={runId}
-                  taskId={taskId}
-                  onRowClicked={(row) => onSelect({ runId, taskId, mapIndex: row.values.mapIndex })}
-                />
-              </TabPanel>
-            )
-          }
+          {isMappedTaskSummary && !isGroup && (
+            <TabPanel height="100%" pb={0}>
+              <MappedInstances
+                dagId={dagId}
+                runId={runId}
+                taskId={taskId}
+                onRowClicked={(row) =>
+                  onSelect({ runId, taskId, mapIndex: row.values.mapIndex })
+                }
+              />
+            </TabPanel>
+          )}
         </TabPanels>
       </Tabs>
     </Box>

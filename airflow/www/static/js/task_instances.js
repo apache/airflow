@@ -20,45 +20,53 @@
 /* global window, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
-import { escapeHtml } from './main';
-import { defaultFormat, formatDateTime } from './datetime_utils';
-import { dagTZ } from './dag';
-import { finalStatesMap } from './utils';
+import { escapeHtml } from "./main";
+import { defaultFormat, formatDateTime } from "./datetime_utils";
+import { dagTZ } from "./dag";
+import { finalStatesMap } from "./utils";
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
   const isEnded = end && end instanceof moment && end.isValid();
-  return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
+  return `Started: ${start.format(defaultFormat)}<br>Ended: ${
+    isEnded ? end.format(defaultFormat) : "Not ended yet"
+  }<br>`;
 }
 
 function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
   if (!startTime) {
-    return '<br><em>Not yet started</em>';
+    return "<br><em>Not yet started</em>";
   }
 
-  const tzFormat = 'z (Z)';
+  const tzFormat = "z (Z)";
   const localTZ = moment.defaultZone.name.toUpperCase();
   const startDate = moment.utc(startTime);
   const endDate = moment.utc(endTime);
   const dagTz = dagTimezone.toUpperCase();
 
   // Generate UTC Start and End Date
-  let tooltipHTML = '<br><strong>UTC:</strong><br>';
+  let tooltipHTML = "<br><strong>UTC:</strong><br>";
   tooltipHTML += makeDateTimeHTML(startDate, endDate);
 
   // Generate User's Local Start and End Date, unless it's UTC
-  if (localTZ !== 'UTC') {
+  if (localTZ !== "UTC") {
     startDate.tz(localTZ);
-    tooltipHTML += `<br><strong>Local: ${startDate.format(tzFormat)}</strong><br>`;
-    const localEndDate = endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
+    tooltipHTML += `<br><strong>Local: ${startDate.format(
+      tzFormat
+    )}</strong><br>`;
+    const localEndDate =
+      endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
     tooltipHTML += makeDateTimeHTML(startDate, localEndDate);
   }
 
   // Generate DAG's Start and End Date
-  if (dagTz !== 'UTC' && dagTz !== localTZ) {
+  if (dagTz !== "UTC" && dagTz !== localTZ) {
     startDate.tz(dagTz);
-    tooltipHTML += `<br><strong>DAG's TZ: ${startDate.format(tzFormat)}</strong><br>`;
-    const dagTZEndDate = endDate && endDate instanceof moment ? endDate.tz(dagTz) : endDate;
+    tooltipHTML += `<br><strong>DAG's TZ: ${startDate.format(
+      tzFormat
+    )}</strong><br>`;
+    const dagTZEndDate =
+      endDate && endDate instanceof moment ? endDate.tz(dagTz) : endDate;
     tooltipHTML += makeDateTimeHTML(startDate, dagTZEndDate);
   }
 
@@ -66,23 +74,27 @@ function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
 }
 
 export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
-  let tt = '';
+  let tt = "";
   if (ti.state !== undefined) {
     tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
   }
   if (ti.mapped_states) {
     const numMap = finalStatesMap();
     ti.mapped_states.forEach((s) => {
-      const stateKey = s || 'no_status';
+      const stateKey = s || "no_status";
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     });
-    tt += `<strong>${escapeHtml(ti.mapped_states.length)} ${ti.mapped_states.length === 1 ? 'Task' : 'Tasks'} Mapped</strong><br />`;
+    tt += `<strong>${escapeHtml(ti.mapped_states.length)} ${
+      ti.mapped_states.length === 1 ? "Task" : "Tasks"
+    } Mapped</strong><br />`;
     numMap.forEach((key, val) => {
       if (key > 0) {
-        tt += `<span style="margin-left: 15px">${escapeHtml(val)}: ${escapeHtml(key)}</span><br />`;
+        tt += `<span style="margin-left: 15px">${escapeHtml(val)}: ${escapeHtml(
+          key
+        )}</span><br />`;
       }
     });
-    tt += '<br />';
+    tt += "<br />";
   }
   if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
@@ -102,13 +114,16 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
     tt += `Trigger Rule: ${task.trigger_rule}<br>`;
   }
   // Calculate duration on the fly if task instance is still running
-  if (ti.state === 'running') {
-    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
-    ti.duration = moment().diff(startDate, 'second');
+  if (ti.state === "running") {
+    const startDate =
+      ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    ti.duration = moment().diff(startDate, "second");
   } else if (!ti.duration && ti.end_date) {
-    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
-    const endDate = ti.end_date instanceof moment ? ti.end_date : moment(ti.end_date);
-    ti.duration = moment(endDate).diff(startDate, 'second');
+    const startDate =
+      ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    const endDate =
+      ti.end_date instanceof moment ? ti.end_date : moment(ti.end_date);
+    ti.duration = moment(endDate).diff(startDate, "second");
   }
 
   tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(ti.duration))}<br>`;
@@ -116,7 +131,7 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   const intervalStart = ti.data_interval_start;
   const intervalEnd = ti.data_interval_end;
   if (intervalStart && intervalEnd) {
-    tt += '<br><strong>Data Interval:</strong><br>';
+    tt += "<br><strong>Data Interval:</strong><br>";
     tt += `Start: ${formatDateTime(intervalStart)}<br>`;
     tt += `End: ${formatDateTime(intervalEnd)}<br>`;
   }
@@ -125,25 +140,25 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
     tt += `Try Number: ${escapeHtml(ti.try_number)}<br>`;
   }
   // dagTZ has been defined in dag.html
-  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ || 'UTC');
+  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ || "UTC");
   return tt;
 }
 
 export function taskNoInstanceTooltip(taskId, task) {
-  let tt = '';
+  let tt = "";
   if (taskId) {
     tt += `Task_id: ${escapeHtml(taskId)}<br>`;
   }
   if (task.task_type !== undefined) {
     tt += `Operator: ${escapeHtml(task.task_type)}<br>`;
   }
-  tt += '<br><em>DAG has yet to run.</em>';
+  tt += "<br><em>DAG has yet to run.</em>";
   return tt;
 }
 
 export function taskQueuedStateTooltip(ti) {
-  let tt = '';
-  tt += '<strong>Status:</strong> Queued<br><br>';
+  let tt = "";
+  tt += "<strong>Status:</strong> Queued<br><br>";
   if (ti.task_id) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
@@ -155,12 +170,20 @@ export function taskQueuedStateTooltip(ti) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
   if (ti.start_date && ti.queued_dttm) {
-    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
-    const queuedDate = ti.queued_dttm instanceof moment ? ti.queued_dttm : moment(ti.queued_dttm);
-    const duration = startDate.diff(queuedDate, 'second', true); // Set the floating point result flag to true.
+    const startDate =
+      ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    const queuedDate =
+      ti.queued_dttm instanceof moment
+        ? ti.queued_dttm
+        : moment(ti.queued_dttm);
+    const duration = startDate.diff(queuedDate, "second", true); // Set the floating point result flag to true.
     tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(duration))}<br>`;
     // dagTZ has been defined in dag.html
-    tt += generateTooltipDateTimes(ti.queued_dttm, ti.start_date, dagTZ || 'UTC');
+    tt += generateTooltipDateTimes(
+      ti.queued_dttm,
+      ti.start_date,
+      dagTZ || "UTC"
+    );
   }
   return tt;
 }

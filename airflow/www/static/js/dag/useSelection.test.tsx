@@ -19,27 +19,21 @@
 
 /* global describe, test, expect */
 
-import React, { PropsWithChildren } from 'react';
-import { act, renderHook } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import React, { PropsWithChildren } from "react";
+import { act, renderHook } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 
-import useSelection from './useSelection';
+import useSelection from "./useSelection";
 
 const Wrapper = ({ children }: PropsWithChildren) => (
-  <MemoryRouter>
-    {children}
-  </MemoryRouter>
+  <MemoryRouter>{children}</MemoryRouter>
 );
 
-describe('Test useSelection hook', () => {
-  test('Initial values', async () => {
+describe("Test useSelection hook", () => {
+  test("Initial values", async () => {
     const { result } = renderHook(() => useSelection(), { wrapper: Wrapper });
     const {
-      selected: {
-        runId,
-        taskId,
-        mapIndex,
-      },
+      selected: { runId, taskId, mapIndex },
     } = result.current;
 
     expect(runId).toBeNull();
@@ -48,12 +42,12 @@ describe('Test useSelection hook', () => {
   });
 
   test.each([
-    { taskId: 'task_1', runId: 'run_1', mapIndex: 2 },
-    { taskId: null, runId: 'run_1', mapIndex: null },
-    { taskId: 'task_2', runId: null, mapIndex: 1 },
-    { taskId: 'task_3', runId: null, mapIndex: -1 },
-    { taskId: 'task_4', runId: null, mapIndex: 0 },
-  ])('Test onSelect() and clearSelection()', async (selected) => {
+    { taskId: "task_1", runId: "run_1", mapIndex: 2 },
+    { taskId: null, runId: "run_1", mapIndex: null },
+    { taskId: "task_2", runId: null, mapIndex: 1 },
+    { taskId: "task_3", runId: null, mapIndex: -1 },
+    { taskId: "task_4", runId: null, mapIndex: 0 },
+  ])("Test onSelect() and clearSelection()", async (selected) => {
     const { result } = renderHook(() => useSelection(), { wrapper: Wrapper });
 
     await act(async () => {

@@ -17,13 +17,13 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import React from "react";
+import { Box, Text } from "@chakra-ui/react";
 
-import { finalStatesMap } from 'src/utils';
-import { formatDuration, getDuration } from 'src/datetime_utils';
-import type { TaskInstance, Task } from 'src/types';
-import Time from 'src/components/Time';
+import { finalStatesMap } from "src/utils";
+import { formatDuration, getDuration } from "src/datetime_utils";
+import type { TaskInstance, Task } from "src/types";
+import Time from "src/components/Time";
 
 interface Props {
   group: Task;
@@ -32,9 +32,7 @@ interface Props {
 
 const InstanceTooltip = ({
   group,
-  instance: {
-    startDate, endDate, state, runId, mappedStates, note,
-  },
+  instance: { startDate, endDate, state, runId, mappedStates, note },
 }: Props) => {
   if (!group) return null;
   const isGroup = !!group.children;
@@ -48,8 +46,10 @@ const InstanceTooltip = ({
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
-        const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
-        if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
+        const stateKey =
+          taskInstance.state == null ? "no_status" : taskInstance.state;
+        if (numMap.has(stateKey))
+          numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
       }
     });
   }
@@ -58,7 +58,7 @@ const InstanceTooltip = ({
     Object.keys(mappedStates).forEach((stateKey) => {
       const num = mappedStates[stateKey];
       numMapped += num;
-      numMap.set(stateKey || 'no_status', num);
+      numMap.set(stateKey || "no_status", num);
     });
   }
 
@@ -68,51 +68,39 @@ const InstanceTooltip = ({
         // eslint-disable-next-line react/no-array-index-key
         <Text key={val} ml="10px">
           {val}
-          {': '}
+          {": "}
           {key}
-        </Text>,
+        </Text>
       );
     }
   });
 
   return (
     <Box py="2px">
-      {group.tooltip && (
-        <Text>{group.tooltip}</Text>
-      )}
+      {group.tooltip && <Text>{group.tooltip}</Text>}
       {isMapped && numMapped > 0 && (
         <Text>
-          {numMapped}
-          {' '}
-          mapped task
-          {isGroup && ' group'}
-          {numMapped > 1 && 's'}
+          {numMapped} mapped task
+          {isGroup && " group"}
+          {numMapped > 1 && "s"}
         </Text>
       )}
       <Text>
-        {(isGroup || isMapped) ? 'Overall ' : ''}
-        Status:
-        {' '}
-        {state || 'no status'}
+        {isGroup || isMapped ? "Overall " : ""}
+        Status: {state || "no status"}
       </Text>
       {(isGroup || isMapped) && summary}
       {startDate && (
         <>
           <Text>
-            Started:
-            {' '}
-            <Time dateTime={startDate} />
+            Started: <Time dateTime={startDate} />
           </Text>
           <Text>
-            Duration:
-            {' '}
-            {formatDuration(getDuration(startDate, endDate))}
+            Duration: {formatDuration(getDuration(startDate, endDate))}
           </Text>
         </>
       )}
-      {note && (
-        <Text>Contains a note</Text>
-      )}
+      {note && <Text>Contains a note</Text>}
     </Box>
   );
 };

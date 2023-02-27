@@ -24,7 +24,7 @@ import {
   isoDateToTimeEl,
   setDisplayedTimezone,
   TimezoneEvent,
-} from './datetime_utils';
+} from "./datetime_utils";
 
 window.isoDateToTimeEl = isoDateToTimeEl;
 
@@ -37,13 +37,13 @@ window.moment = Airflow.moment;
 
 function displayTime() {
   const now = moment();
-  $('#clock')
-    .attr('datetime', now.format(dateTimeAttrFormat))
-    .html(`${now.format('HH:mm')} <strong>${formatTimezone(now)}</strong>`);
+  $("#clock")
+    .attr("datetime", now.format(dateTimeAttrFormat))
+    .html(`${now.format("HH:mm")} <strong>${formatTimezone(now)}</strong>`);
 }
 
 function changeDisplayedTimezone(tz) {
-  localStorage.setItem('selected-timezone', tz);
+  localStorage.setItem("selected-timezone", tz);
 
   // dispatch an event that React can listen for
   const event = new CustomEvent(TimezoneEvent, {
@@ -53,13 +53,13 @@ function changeDisplayedTimezone(tz) {
 
   setDisplayedTimezone(tz);
   displayTime();
-  $('body').trigger({
-    type: 'airflow.timezone-change',
+  $("body").trigger({
+    type: "airflow.timezone-change",
     timezone: tz,
   });
 }
 
-const el = document.createElement('span');
+const el = document.createElement("span");
 
 export function escapeHtml(text) {
   el.textContent = text;
@@ -83,7 +83,7 @@ export function convertSecsToHumanReadable(seconds) {
   const minutes = Math.floor(seconds / secondsPerMinute);
   seconds -= minutes * secondsPerMinute;
 
-  let readableFormat = '';
+  let readableFormat = "";
   if (hours > 0) {
     readableFormat += `${hours}Hours `;
   }
@@ -103,26 +103,26 @@ export function convertSecsToHumanReadable(seconds) {
 window.convertSecsToHumanReadable = convertSecsToHumanReadable;
 
 function postAsForm(url, parameters) {
-  const form = $('<form></form>');
+  const form = $("<form></form>");
 
-  form.attr('method', 'POST');
-  form.attr('action', url);
+  form.attr("method", "POST");
+  form.attr("action", url);
 
   $.each(parameters || {}, (key, value) => {
-    const field = $('<input></input>');
+    const field = $("<input></input>");
 
-    field.attr('type', 'hidden');
-    field.attr('name', key);
-    field.attr('value', value);
+    field.attr("type", "hidden");
+    field.attr("name", key);
+    field.attr("value", value);
 
     form.append(field);
   });
 
-  const field = $('<input></input>');
+  const field = $("<input></input>");
 
-  field.attr('type', 'hidden');
-  field.attr('name', 'csrf_token');
-  field.attr('value', csrfToken);
+  field.attr("type", "hidden");
+  field.attr("name", "csrf_token");
+  field.attr("value", csrfToken);
 
   form.append(field);
 
@@ -137,18 +137,18 @@ window.postAsForm = postAsForm;
 function initializeUITimezone() {
   const local = moment.tz.guess();
 
-  const selectedTz = localStorage.getItem('selected-timezone');
-  const manualTz = localStorage.getItem('chosen-timezone');
+  const selectedTz = localStorage.getItem("selected-timezone");
+  const manualTz = localStorage.getItem("chosen-timezone");
 
   function setManualTimezone(tz) {
-    localStorage.setItem('chosen-timezone', tz);
+    localStorage.setItem("chosen-timezone", tz);
     if (tz === local && tz === Airflow.serverTimezone) {
-      $('#timezone-manual').hide();
+      $("#timezone-manual").hide();
       return;
     }
 
-    $('#timezone-manual a').data('timezone', tz).text(formatTimezone(tz));
-    $('#timezone-manual').show();
+    $("#timezone-manual a").data("timezone", tz).text(formatTimezone(tz));
+    $("#timezone-manual").show();
   }
 
   if (manualTz) {
@@ -157,34 +157,42 @@ function initializeUITimezone() {
 
   changeDisplayedTimezone(selectedTz || Airflow.defaultUITimezone);
 
-  if (Airflow.serverTimezone !== 'UTC') {
-    $('#timezone-server a').html(`${formatTimezone(Airflow.serverTimezone)} <span class="label label-primary">Server</span>`);
-    $('#timezone-server').show();
+  if (Airflow.serverTimezone !== "UTC") {
+    $("#timezone-server a").html(
+      `${formatTimezone(
+        Airflow.serverTimezone
+      )} <span class="label label-primary">Server</span>`
+    );
+    $("#timezone-server").show();
   }
 
   if (Airflow.serverTimezone !== local) {
-    $('#timezone-local a')
-      .attr('data-timezone', local)
-      .html(`${formatTimezone(local)} <span class="label label-info">Local</span>`);
+    $("#timezone-local a")
+      .attr("data-timezone", local)
+      .html(
+        `${formatTimezone(local)} <span class="label label-info">Local</span>`
+      );
   } else {
-    $('#timezone-local').hide();
+    $("#timezone-local").hide();
   }
 
-  $('a[data-timezone]').click((evt) => {
-    changeDisplayedTimezone($(evt.currentTarget).data('timezone'));
+  $("a[data-timezone]").click((evt) => {
+    changeDisplayedTimezone($(evt.currentTarget).data("timezone"));
   });
 
-  $('#timezone-other').typeahead({
-    source: $(moment.tz.names().map((tzName) => {
-      const category = tzName.split('/', 1)[0];
-      return { category, name: tzName.replace('_', ' '), tzName };
-    })),
-    showHintOnFocus: 'all',
+  $("#timezone-other").typeahead({
+    source: $(
+      moment.tz.names().map((tzName) => {
+        const category = tzName.split("/", 1)[0];
+        return { category, name: tzName.replace("_", " "), tzName };
+      })
+    ),
+    showHintOnFocus: "all",
     showCategoryHeader: true,
-    items: 'all',
+    items: "all",
     afterSelect(data) {
       // Clear it for next time we open the pop-up
-      this.$element.val('');
+      this.$element.val("");
 
       setManualTimezone(data.tzName);
       changeDisplayedTimezone(data.tzName);
@@ -204,27 +212,27 @@ function initializeUITimezone() {
 
 function filterOpSelected(ele) {
   const op = $(ele);
-  const filterVal = $('.filter_val.form-control', op.parents('tr'));
+  const filterVal = $(".filter_val.form-control", op.parents("tr"));
 
-  if (op.text() === 'Is Null' || op.text() === 'Is not Null') {
-    if (filterVal.attr('required') !== undefined) {
-      filterVal.removeAttr('required');
-      filterVal.attr('airflow-required', true);
+  if (op.text() === "Is Null" || op.text() === "Is not Null") {
+    if (filterVal.attr("required") !== undefined) {
+      filterVal.removeAttr("required");
+      filterVal.attr("airflow-required", true);
     }
 
-    if (filterVal.parent('.datetime').length === 1) {
-      filterVal.parent('.datetime').hide();
+    if (filterVal.parent(".datetime").length === 1) {
+      filterVal.parent(".datetime").hide();
     } else {
       filterVal.hide();
     }
   } else {
-    if (filterVal.attr('airflow-required') === 'true') {
-      filterVal.attr('required', true);
-      filterVal.removeAttr('airflow-required');
+    if (filterVal.attr("airflow-required") === "true") {
+      filterVal.attr("required", true);
+      filterVal.removeAttr("airflow-required");
     }
 
-    if (filterVal.parent('.datetime').length === 1) {
-      filterVal.parent('.datetime').show();
+    if (filterVal.parent(".datetime").length === 1) {
+      filterVal.parent(".datetime").show();
     } else {
       filterVal.show();
     }
@@ -234,9 +242,9 @@ function filterOpSelected(ele) {
 $(document).ready(() => {
   initializeUITimezone();
 
-  $('#clock')
-    .attr('data-original-title', hostName)
-    .attr('data-placement', 'bottom')
+  $("#clock")
+    .attr("data-original-title", hostName)
+    .attr("data-placement", "bottom")
     .parent()
     .show();
 
@@ -245,27 +253,36 @@ $(document).ready(() => {
 
   $.ajaxSetup({
     beforeSend(xhr, settings) {
-      if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-        xhr.setRequestHeader('X-CSRFToken', csrfToken);
+      if (
+        !/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) &&
+        !this.crossDomain
+      ) {
+        xhr.setRequestHeader("X-CSRFToken", csrfToken);
       }
     },
   });
 
   $.fn.datetimepicker.defaults.sideBySide = true;
-  $('.datetimepicker').datetimepicker({ format: 'YYYY-MM-DDTHH:mm:ssZ' });
-  $('.datepicker').datetimepicker({ format: 'YYYY-MM-DD' });
-  $('.timepicker').datetimepicker({ format: 'HH:mm:ss' });
+  $(".datetimepicker").datetimepicker({ format: "YYYY-MM-DDTHH:mm:ssZ" });
+  $(".datepicker").datetimepicker({ format: "YYYY-MM-DD" });
+  $(".timepicker").datetimepicker({ format: "HH:mm:ss" });
 
-  $('.filters .select2-chosen').each((idx, elem) => { filterOpSelected(elem); });
-  $('.filters .select2-chosen').on('DOMNodeInserted', (e) => { filterOpSelected(e.target); });
+  $(".filters .select2-chosen").each((idx, elem) => {
+    filterOpSelected(elem);
+  });
+  $(".filters .select2-chosen").on("DOMNodeInserted", (e) => {
+    filterOpSelected(e.target);
+  });
 
   // Fix up filter fields from FAB adds to the page. This event is fired after
   // the FAB registered one which adds the new control
-  $('#filter_form a.filter').click(() => {
-    $('.datetimepicker').datetimepicker();
-    $('.filters .select2-chosen').on('DOMNodeInserted', (e) => { filterOpSelected(e.target); });
+  $("#filter_form a.filter").click(() => {
+    $(".datetimepicker").datetimepicker();
+    $(".filters .select2-chosen").on("DOMNodeInserted", (e) => {
+      filterOpSelected(e.target);
+    });
   });
 
   // Global Tooltip selector
-  $('.js-tooltip').tooltip();
+  $(".js-tooltip").tooltip();
 });

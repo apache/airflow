@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Button,
   Flex,
@@ -25,16 +25,16 @@ import {
   useDisclosure,
   Alert,
   AlertIcon,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 
-import ConfirmDialog from 'src/components/ConfirmDialog';
-import { useClearTask } from 'src/api';
-import { getMetaValue } from 'src/utils';
+import ConfirmDialog from "src/components/ConfirmDialog";
+import { useClearTask } from "src/api";
+import { getMetaValue } from "src/utils";
 
-import ActionButton from './ActionButton';
-import type { CommonActionProps } from './types';
+import ActionButton from "./ActionButton";
+import type { CommonActionProps } from "./types";
 
-const canEdit = getMetaValue('can_edit') === 'True';
+const canEdit = getMetaValue("can_edit") === "True";
 
 const Run = ({
   dagId,
@@ -69,7 +69,11 @@ const Run = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const { mutateAsync: clearTask, isLoading } = useClearTask({
-    dagId, runId, taskId, executionDate, isGroup: !!isGroup,
+    dagId,
+    runId,
+    taskId,
+    executionDate,
+    isGroup: !!isGroup,
   });
 
   const onClick = async () => {
@@ -105,12 +109,36 @@ const Run = ({
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
-        <ActionButton bg={past ? 'gray.100' : undefined} onClick={onTogglePast} name="Past" />
-        <ActionButton bg={future ? 'gray.100' : undefined} onClick={onToggleFuture} name="Future" />
-        <ActionButton bg={upstream ? 'gray.100' : undefined} onClick={onToggleUpstream} name="Upstream" />
-        <ActionButton bg={downstream ? 'gray.100' : undefined} onClick={onToggleDownstream} name="Downstream" />
-        <ActionButton bg={recursive ? 'gray.100' : undefined} onClick={onToggleRecursive} name="Recursive" />
-        <ActionButton bg={failed ? 'gray.100' : undefined} onClick={onToggleFailed} name="Failed" />
+        <ActionButton
+          bg={past ? "gray.100" : undefined}
+          onClick={onTogglePast}
+          name="Past"
+        />
+        <ActionButton
+          bg={future ? "gray.100" : undefined}
+          onClick={onToggleFuture}
+          name="Future"
+        />
+        <ActionButton
+          bg={upstream ? "gray.100" : undefined}
+          onClick={onToggleUpstream}
+          name="Upstream"
+        />
+        <ActionButton
+          bg={downstream ? "gray.100" : undefined}
+          onClick={onToggleDownstream}
+          name="Downstream"
+        />
+        <ActionButton
+          bg={recursive ? "gray.100" : undefined}
+          onClick={onToggleRecursive}
+          name="Recursive"
+        />
+        <ActionButton
+          bg={failed ? "gray.100" : undefined}
+          onClick={onToggleFailed}
+          name="Failed"
+        />
       </ButtonGroup>
       <Button
         colorScheme="blue"
@@ -129,11 +157,11 @@ const Run = ({
         description={`Task instances you are about to clear (${affectedTasks.length}):`}
         affectedTasks={affectedTasks}
       >
-        { isGroup && (past || future) && (
+        {isGroup && (past || future) && (
           <Alert status="warning" mb={3}>
             <AlertIcon />
-            Clearing a TaskGroup in the future and/or past will affect all the tasks of this group
-            across multiple dag runs.
+            Clearing a TaskGroup in the future and/or past will affect all the
+            tasks of this group across multiple dag runs.
             <br />
             This can take a while to complete.
           </Alert>

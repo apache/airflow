@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { debounce } from 'lodash';
-import React, { useEffect, useState } from 'react';
+import { debounce } from "lodash";
+import React, { useEffect, useState } from "react";
 
 // For an html element, keep it within view height by calculating the top offset and footer height
 const useOffsetTop = (contentRef: React.RefObject<HTMLElement>) => {
@@ -29,7 +29,8 @@ const useOffsetTop = (contentRef: React.RefObject<HTMLElement>) => {
       const offset = contentRef.current?.getBoundingClientRect().top || 0;
 
       // Note: offsetParent() will get the highest level parent with position: static;
-      const parentOffset = contentRef.current?.offsetParent?.getBoundingClientRect().top || 0;
+      const parentOffset =
+        contentRef.current?.offsetParent?.getBoundingClientRect().top || 0;
       const childOffset = offset - parentOffset;
       if (childOffset) setTop(childOffset);
     }, 25);

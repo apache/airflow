@@ -17,12 +17,10 @@
  * under the License.
  */
 
-import React from 'react';
-import { LinePath } from '@visx/shape';
-import { MarkerArrow } from '@visx/marker';
-import {
-  useTheme,
-} from '@chakra-ui/react';
+import React from "react";
+import { LinePath } from "@visx/shape";
+import { MarkerArrow } from "@visx/marker";
+import { useTheme } from "@chakra-ui/react";
 
 interface Props {
   edge: {
@@ -38,7 +36,12 @@ const Edge = ({ edge, isSelected }: Props) => {
   const { colors } = useTheme();
   return (
     <>
-      <MarkerArrow id="marker-arrow" fill={isSelected ? colors.blue[400] : colors.gray[400]} refX={6} size={6} />
+      <MarkerArrow
+        id="marker-arrow"
+        fill={isSelected ? colors.blue[400] : colors.gray[400]}
+        refX={6}
+        size={6}
+      />
       {edge.sections.map((s) => (
         <LinePath
           key={s.id}

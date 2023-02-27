@@ -19,24 +19,18 @@
 
 /* global localStorage, ResizeObserver */
 
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  Table,
-  Tbody,
-  Box,
-  Thead,
-  IconButton,
-} from '@chakra-ui/react';
+import React, { useState, useRef, useEffect } from "react";
+import { Table, Tbody, Box, Thead, IconButton } from "@chakra-ui/react";
 
-import { MdDoubleArrow } from 'react-icons/md';
+import { MdDoubleArrow } from "react-icons/md";
 
-import { useGridData } from 'src/api';
-import { getMetaValue, useOffsetTop } from 'src/utils';
+import { useGridData } from "src/api";
+import { getMetaValue, useOffsetTop } from "src/utils";
 
-import renderTaskRows from './renderTaskRows';
-import DagRuns from './dagRuns';
+import renderTaskRows from "./renderTaskRows";
+import DagRuns from "./dagRuns";
 
-const dagId = getMetaValue('dag_id');
+const dagId = getMetaValue("dag_id");
 
 interface Props {
   isPanelOpen?: boolean;
@@ -53,11 +47,13 @@ const Grid = ({
   const tableRef = useRef<HTMLTableSectionElement>(null);
   const offsetTop = useOffsetTop(scrollRef);
 
-  const { data: { groups, dagRuns } } = useGridData();
+  const {
+    data: { groups, dagRuns },
+  } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const openGroupsKey = `${dagId}/open-groups`;
-  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey) || '[]');
+  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey) || "[]");
   const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
   const onToggleGroups = (groupIds: string[]) => {
@@ -70,9 +66,9 @@ const Grid = ({
       const runsContainer = scrollRef.current;
       // Set scroll to top right if it is scrollable
       if (
-        tableRef?.current
-        && runsContainer
-        && runsContainer.scrollWidth > runsContainer.clientWidth
+        tableRef?.current &&
+        runsContainer &&
+        runsContainer.scrollWidth > runsContainer.clientWidth
       ) {
         runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
       }
@@ -90,22 +86,17 @@ const Grid = ({
   }, [tableRef, isPanelOpen]);
 
   return (
-    <Box
-      p={3}
-      pt={0}
-      height="100%"
-      position="relative"
-    >
+    <Box p={3} pt={0} height="100%" position="relative">
       <IconButton
         fontSize="2xl"
         variant="ghost"
         color="gray.400"
         size="sm"
         onClick={onPanelToggle}
-        title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
-        aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
+        title={`${isPanelOpen ? "Hide " : "Show "} Details Panel`}
+        aria-label={isPanelOpen ? "Show Details" : "Hide Details"}
         icon={<MdDoubleArrow />}
-        transform={!isPanelOpen ? 'rotateZ(180deg)' : undefined}
+        transform={!isPanelOpen ? "rotateZ(180deg)" : undefined}
         transitionProperty="none"
         position="absolute"
         right={0}
@@ -129,7 +120,11 @@ const Grid = ({
           </Thead>
           <Tbody ref={tableRef}>
             {renderTaskRows({
-              task: groups, dagRunIds, openGroupIds, onToggleGroups, hoveredTaskState,
+              task: groups,
+              dagRunIds,
+              openGroupIds,
+              onToggleGroups,
+              hoveredTaskState,
             })}
           </Tbody>
         </Table>

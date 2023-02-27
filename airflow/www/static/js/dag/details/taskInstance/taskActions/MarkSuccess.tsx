@@ -17,21 +17,16 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
-import {
-  Button,
-  Flex,
-  ButtonGroup,
-  useDisclosure,
-} from '@chakra-ui/react';
+import React, { useState } from "react";
+import { Button, Flex, ButtonGroup, useDisclosure } from "@chakra-ui/react";
 
-import ConfirmDialog from 'src/components/ConfirmDialog';
-import { useMarkSuccessTask, useConfirmMarkTask } from 'src/api';
-import { getMetaValue } from 'src/utils';
+import ConfirmDialog from "src/components/ConfirmDialog";
+import { useMarkSuccessTask, useConfirmMarkTask } from "src/api";
+import { getMetaValue } from "src/utils";
 
-import ActionButton from './ActionButton';
+import ActionButton from "./ActionButton";
 
-const canEdit = getMetaValue('can_edit') === 'True';
+const canEdit = getMetaValue("can_edit") === "True";
 
 interface Props {
   dagId: string;
@@ -40,9 +35,7 @@ interface Props {
   mapIndexes: number[];
 }
 
-const MarkSuccess = ({
-  dagId, runId, taskId, mapIndexes,
-}: Props) => {
+const MarkSuccess = ({ dagId, runId, taskId, mapIndexes }: Props) => {
   const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
 
   // Options check/unchecked
@@ -61,12 +54,19 @@ const MarkSuccess = ({
   // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const { mutateAsync: markSuccessMutation, isLoading: isMarkLoading } = useMarkSuccessTask({
-    dagId, runId, taskId,
-  });
-  const { mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading } = useConfirmMarkTask({
-    dagId, runId, taskId, state: 'success',
-  });
+  const { mutateAsync: markSuccessMutation, isLoading: isMarkLoading } =
+    useMarkSuccessTask({
+      dagId,
+      runId,
+      taskId,
+    });
+  const { mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading } =
+    useConfirmMarkTask({
+      dagId,
+      runId,
+      taskId,
+      state: "success",
+    });
 
   const onClick = async () => {
     const data = await confirmChangeMutation({
@@ -97,12 +97,33 @@ const MarkSuccess = ({
   return (
     <Flex justifyContent="space-between" width="100%">
       <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
-        <ActionButton bg={past ? 'gray.100' : undefined} onClick={onTogglePast} name="Past" />
-        <ActionButton bg={future ? 'gray.100' : undefined} onClick={onToggleFuture} name="Future" />
-        <ActionButton bg={upstream ? 'gray.100' : undefined} onClick={onToggleUpstream} name="Upstream" />
-        <ActionButton bg={downstream ? 'gray.100' : undefined} onClick={onToggleDownstream} name="Downstream" />
+        <ActionButton
+          bg={past ? "gray.100" : undefined}
+          onClick={onTogglePast}
+          name="Past"
+        />
+        <ActionButton
+          bg={future ? "gray.100" : undefined}
+          onClick={onToggleFuture}
+          name="Future"
+        />
+        <ActionButton
+          bg={upstream ? "gray.100" : undefined}
+          onClick={onToggleUpstream}
+          name="Upstream"
+        />
+        <ActionButton
+          bg={downstream ? "gray.100" : undefined}
+          onClick={onToggleDownstream}
+          name="Downstream"
+        />
       </ButtonGroup>
-      <Button colorScheme="green" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
+      <Button
+        colorScheme="green"
+        onClick={onClick}
+        isLoading={isLoading}
+        isDisabled={!canEdit}
+      >
         Mark Success
       </Button>
       <ConfirmDialog

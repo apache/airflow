@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -30,13 +30,13 @@ import {
   Text,
   Textarea,
   Divider,
-} from '@chakra-ui/react';
-import ResizeTextarea from 'react-textarea-autosize';
+} from "@chakra-ui/react";
+import ResizeTextarea from "react-textarea-autosize";
 
-import { getMetaValue } from 'src/utils';
-import { useSetDagRunNote, useSetTaskInstanceNote } from 'src/api';
-import { MdEdit } from 'react-icons/md';
-import ReactMarkdown from 'src/components/ReactMarkdown';
+import { getMetaValue } from "src/utils";
+import { useSetDagRunNote, useSetTaskInstanceNote } from "src/api";
+import { MdEdit } from "react-icons/md";
+import ReactMarkdown from "src/components/ReactMarkdown";
 
 interface Props {
   dagId: string;
@@ -47,26 +47,28 @@ interface Props {
 }
 
 const NotesAccordion = ({
-  dagId, runId, taskId, mapIndex, initialValue,
+  dagId,
+  runId,
+  taskId,
+  mapIndex,
+  initialValue,
 }: Props) => {
-  const canEdit = getMetaValue('can_edit') === 'True';
-  const [note, setNote] = useState(initialValue ?? '');
+  const canEdit = getMetaValue("can_edit") === "True";
+  const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
 
-  const {
-    mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading,
-  } = useSetDagRunNote({ dagId, runId });
-  const {
-    mutateAsync: apiCallToSetTINote, isLoading: tiIsLoading,
-  } = useSetTaskInstanceNote({
-    dagId,
-    runId,
-    taskId: taskId ?? '',
-    mapIndex,
-  });
+  const { mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading } =
+    useSetDagRunNote({ dagId, runId });
+  const { mutateAsync: apiCallToSetTINote, isLoading: tiIsLoading } =
+    useSetTaskInstanceNote({
+      dagId,
+      runId,
+      taskId: taskId ?? "",
+      mapIndex,
+    });
   const isLoading = dagRunIsLoading || tiIsLoading;
 
-  const objectIdentifier = (taskId == null) ? 'DAG Run' : 'Task Instance';
+  const objectIdentifier = taskId == null ? "DAG Run" : "Task Instance";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,9 +87,7 @@ const NotesAccordion = ({
           <AccordionButton p={0} pb={2} fontSize="inherit">
             <Box flex="1" textAlign="left">
               <Text as="strong" size="lg">
-                {objectIdentifier}
-                {' '}
-                Notes:
+                {objectIdentifier} Notes:
               </Text>
             </Box>
             <AccordionIcon />
@@ -96,7 +96,6 @@ const NotesAccordion = ({
             {editMode ? (
               <form onSubmit={handleSubmit}>
                 <Box>
-
                   <Textarea
                     autoFocus
                     minH="unset"
@@ -112,11 +111,18 @@ const NotesAccordion = ({
                   />
                 </Box>
                 <Flex mt={3} justify="right">
-                  <Button type="submit" isLoading={isLoading} colorScheme="blue">
+                  <Button
+                    type="submit"
+                    isLoading={isLoading}
+                    colorScheme="blue"
+                  >
                     Save Note
                   </Button>
                   <Button
-                    onClick={() => { setNote(initialValue ?? ''); setEditMode(false); }}
+                    onClick={() => {
+                      setNote(initialValue ?? "");
+                      setEditMode(false);
+                    }}
                     isLoading={isLoading}
                     ml={3}
                   >
@@ -126,7 +132,7 @@ const NotesAccordion = ({
               </form>
             ) : (
               <Flex direction="column">
-                <Flex direction="column" style={{ fontSize: '12px' }}>
+                <Flex direction="column" style={{ fontSize: "12px" }}>
                   <ReactMarkdown>{note}</ReactMarkdown>
                 </Flex>
                 <Flex justify="right">
@@ -134,12 +140,16 @@ const NotesAccordion = ({
                     onClick={() => setEditMode(true)}
                     isDisabled={!canEdit}
                     isLoading={isLoading}
-                    title={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
-                    aria-label={`${!note ? 'Add' : 'Edit'} a note to this ${objectIdentifier}`}
+                    title={`${
+                      !note ? "Add" : "Edit"
+                    } a note to this ${objectIdentifier}`}
+                    aria-label={`${
+                      !note ? "Add" : "Edit"
+                    } a note to this ${objectIdentifier}`}
                     mt={2}
                     leftIcon={<MdEdit />}
                   >
-                    {!note ? 'Add Note' : 'Edit Note'}
+                    {!note ? "Add Note" : "Edit Note"}
                   </Button>
                 </Flex>
               </Flex>

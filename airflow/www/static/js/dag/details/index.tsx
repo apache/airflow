@@ -17,44 +17,36 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Flex,
-  Box,
-  Divider,
-} from '@chakra-ui/react';
+import React from "react";
+import { Flex, Box, Divider } from "@chakra-ui/react";
 
-import useSelection from 'src/dag/useSelection';
+import useSelection from "src/dag/useSelection";
 
-import Header from './Header';
-import TaskInstanceContent from './taskInstance';
-import DagRunContent from './dagRun';
-import DagContent from './Dag';
+import Header from "./Header";
+import TaskInstanceContent from "./taskInstance";
+import DagRunContent from "./dagRun";
+import DagContent from "./Dag";
 
 const Details = () => {
-  const { selected: { runId, taskId, mapIndex }, onSelect } = useSelection();
+  const {
+    selected: { runId, taskId, mapIndex },
+    onSelect,
+  } = useSelection();
 
   return (
-    <Flex
-      flexDirection="column"
-      pl={3}
-      mr={3}
-      height="100%"
-    >
+    <Flex flexDirection="column" pl={3} mr={3} height="100%">
       <Header />
       <Divider my={2} />
       <Box height="100%">
         {!runId && !taskId && <DagContent />}
-        {runId && !taskId && (
-          <DagRunContent runId={runId} />
-        )}
+        {runId && !taskId && <DagRunContent runId={runId} />}
         {taskId && runId && (
-        <TaskInstanceContent
-          runId={runId}
-          taskId={taskId}
-          mapIndex={mapIndex === null ? undefined : mapIndex}
-          onSelect={onSelect}
-        />
+          <TaskInstanceContent
+            runId={runId}
+            taskId={taskId}
+            mapIndex={mapIndex === null ? undefined : mapIndex}
+            onSelect={onSelect}
+          />
         )}
       </Box>
     </Flex>

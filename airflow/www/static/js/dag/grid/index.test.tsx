@@ -20,13 +20,13 @@
 
 /* global describe, test, expect, beforeEach, beforeAll, jest, window */
 
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import React from "react";
+import { render, fireEvent, waitFor } from "@testing-library/react";
 
-import { Wrapper } from 'src/utils/testUtils';
-import * as useGridDataModule from 'src/api/useGridData';
+import { Wrapper } from "src/utils/testUtils";
+import * as useGridDataModule from "src/api/useGridData";
 
-import Grid from '.';
+import Grid from ".";
 
 const mockGridData = {
   groups: {
@@ -34,50 +34,50 @@ const mockGridData = {
     label: null,
     children: [
       {
-        id: 'group_1',
-        label: 'group_1',
+        id: "group_1",
+        label: "group_1",
         instances: [
           {
-            endDate: '2021-10-26T15:42:03.391939+00:00',
-            runId: 'run1',
-            startDate: '2021-10-26T15:42:03.391917+00:00',
-            state: 'success',
-            taskId: 'group_1',
+            endDate: "2021-10-26T15:42:03.391939+00:00",
+            runId: "run1",
+            startDate: "2021-10-26T15:42:03.391917+00:00",
+            state: "success",
+            taskId: "group_1",
             tryNumber: 1,
-            note: 'abc',
+            note: "abc",
           },
         ],
         children: [
           {
-            id: 'group_1.task_1',
-            operator: 'DummyOperator',
-            label: 'task_1',
+            id: "group_1.task_1",
+            operator: "DummyOperator",
+            label: "task_1",
             instances: [
               {
-                endDate: '2021-10-26T15:42:03.391939+00:00',
-                runId: 'run1',
-                startDate: '2021-10-26T15:42:03.391917+00:00',
-                state: 'success',
-                taskId: 'group_1.task_1',
+                endDate: "2021-10-26T15:42:03.391939+00:00",
+                runId: "run1",
+                startDate: "2021-10-26T15:42:03.391917+00:00",
+                state: "success",
+                taskId: "group_1.task_1",
                 tryNumber: 1,
-                note: 'abc',
+                note: "abc",
               },
             ],
             children: [
               {
-                id: 'group_1.task_1.sub_task_1',
-                label: 'sub_task_1',
+                id: "group_1.task_1.sub_task_1",
+                label: "sub_task_1",
                 extraLinks: [],
-                operator: 'DummyOperator',
+                operator: "DummyOperator",
                 instances: [
                   {
-                    endDate: '2021-10-26T15:42:03.391939+00:00',
-                    runId: 'run1',
-                    startDate: '2021-10-26T15:42:03.391917+00:00',
-                    state: 'success',
-                    taskId: 'group_1.task_1.sub_task_1',
+                    endDate: "2021-10-26T15:42:03.391939+00:00",
+                    runId: "run1",
+                    startDate: "2021-10-26T15:42:03.391917+00:00",
+                    state: "success",
+                    taskId: "group_1.task_1.sub_task_1",
                     tryNumber: 1,
-                    note: 'abc',
+                    note: "abc",
                   },
                 ],
               },
@@ -90,29 +90,29 @@ const mockGridData = {
   },
   dagRuns: [
     {
-      runId: 'run1',
-      dataIntervalStart: '2021-11-08T21:14:19.704433+00:00',
-      dataIntervalEnd: '2021-11-08T21:17:13.206426+00:00',
-      queuedAt: '2021-11-08T21:14:19.604433+00:00',
-      startDate: '2021-11-08T21:14:19.704433+00:00',
-      endDate: '2021-11-08T21:17:13.206426+00:00',
-      state: 'failed',
-      runType: 'scheduled',
-      executionDate: '2021-11-08T21:14:19.704433+00:00',
-      lastSchedulingDecision: '2021-11-08T21:14:19.704433+00:00',
-      note: 'myCoolDagRun',
+      runId: "run1",
+      dataIntervalStart: "2021-11-08T21:14:19.704433+00:00",
+      dataIntervalEnd: "2021-11-08T21:17:13.206426+00:00",
+      queuedAt: "2021-11-08T21:14:19.604433+00:00",
+      startDate: "2021-11-08T21:14:19.704433+00:00",
+      endDate: "2021-11-08T21:17:13.206426+00:00",
+      state: "failed",
+      runType: "scheduled",
+      executionDate: "2021-11-08T21:14:19.704433+00:00",
+      lastSchedulingDecision: "2021-11-08T21:14:19.704433+00:00",
+      note: "myCoolDagRun",
       externalTrigger: false,
       conf: null,
       confIsJson: false,
     },
   ],
-  ordering: ['dataIntervalStart'],
+  ordering: ["dataIntervalStart"],
 } as useGridDataModule.GridData;
 
-const EXPAND = 'Expand all task groups';
-const COLLAPSE = 'Collapse all task groups';
+const EXPAND = "Expand all task groups";
+const COLLAPSE = "Collapse all task groups";
 
-describe('Test ToggleGroups', () => {
+describe("Test ToggleGroups", () => {
   beforeAll(() => {
     class ResizeObserver {
       observe() {}
@@ -131,27 +131,25 @@ describe('Test ToggleGroups', () => {
       isSuccess: true,
     } as any;
 
-    jest.spyOn(useGridDataModule, 'default').mockImplementation(() => returnValue);
+    jest
+      .spyOn(useGridDataModule, "default")
+      .mockImplementation(() => returnValue);
   });
 
-  test('Group defaults to closed', () => {
-    const { getByTestId, getByText, getAllByTestId } = render(
-      <Grid />,
-      { wrapper: Wrapper },
-    );
+  test("Group defaults to closed", () => {
+    const { getByTestId, getByText, getAllByTestId } = render(<Grid />, {
+      wrapper: Wrapper,
+    });
 
-    const groupName = getByText('group_1');
+    const groupName = getByText("group_1");
 
-    expect(getAllByTestId('task-instance')).toHaveLength(1);
+    expect(getAllByTestId("task-instance")).toHaveLength(1);
     expect(groupName).toBeInTheDocument();
-    expect(getByTestId('open-group')).toBeInTheDocument();
+    expect(getByTestId("open-group")).toBeInTheDocument();
   });
 
-  test('Buttons are disabled if all groups are expanded or collapsed', () => {
-    const { getByTitle } = render(
-      <Grid />,
-      { wrapper: Wrapper },
-    );
+  test("Buttons are disabled if all groups are expanded or collapsed", () => {
+    const { getByTitle } = render(<Grid />, { wrapper: Wrapper });
 
     const expandButton = getByTitle(EXPAND);
     const collapseButton = getByTitle(COLLAPSE);
@@ -165,60 +163,62 @@ describe('Test ToggleGroups', () => {
     expect(expandButton).toBeDisabled();
   });
 
-  test('Expand/collapse buttons toggle nested groups', async () => {
-    const { getByText, queryAllByTestId, getByTitle } = render(
-      <Grid />,
-      { wrapper: Wrapper },
-    );
+  test("Expand/collapse buttons toggle nested groups", async () => {
+    const { getByText, queryAllByTestId, getByTitle } = render(<Grid />, {
+      wrapper: Wrapper,
+    });
 
     const expandButton = getByTitle(EXPAND);
     const collapseButton = getByTitle(COLLAPSE);
 
-    const groupName = getByText('group_1');
+    const groupName = getByText("group_1");
 
-    expect(queryAllByTestId('task-instance')).toHaveLength(3);
+    expect(queryAllByTestId("task-instance")).toHaveLength(3);
     expect(groupName).toBeInTheDocument();
 
-    expect(queryAllByTestId('close-group')).toHaveLength(2);
-    expect(queryAllByTestId('open-group')).toHaveLength(0);
+    expect(queryAllByTestId("close-group")).toHaveLength(2);
+    expect(queryAllByTestId("open-group")).toHaveLength(0);
 
     fireEvent.click(collapseButton);
 
-    await waitFor(() => expect(queryAllByTestId('task-instance')).toHaveLength(1));
-    expect(queryAllByTestId('close-group')).toHaveLength(0);
+    await waitFor(() =>
+      expect(queryAllByTestId("task-instance")).toHaveLength(1)
+    );
+    expect(queryAllByTestId("close-group")).toHaveLength(0);
     // Since the groups are nested, only the parent row is rendered
-    expect(queryAllByTestId('open-group')).toHaveLength(1);
+    expect(queryAllByTestId("open-group")).toHaveLength(1);
 
     fireEvent.click(expandButton);
 
-    await waitFor(() => expect(queryAllByTestId('task-instance')).toHaveLength(3));
-    expect(queryAllByTestId('close-group')).toHaveLength(2);
-    expect(queryAllByTestId('open-group')).toHaveLength(0);
+    await waitFor(() =>
+      expect(queryAllByTestId("task-instance")).toHaveLength(3)
+    );
+    expect(queryAllByTestId("close-group")).toHaveLength(2);
+    expect(queryAllByTestId("open-group")).toHaveLength(0);
   });
 
-  test('Hovered effect on task state', async () => {
-    const { rerender, queryAllByTestId } = render(
-      <Grid />,
-      { wrapper: Wrapper },
-    );
+  test("Hovered effect on task state", async () => {
+    const { rerender, queryAllByTestId } = render(<Grid />, {
+      wrapper: Wrapper,
+    });
 
-    const taskElements = queryAllByTestId('task-instance');
+    const taskElements = queryAllByTestId("task-instance");
     expect(taskElements).toHaveLength(3);
 
     taskElements.forEach((taskElement) => {
-      expect(taskElement).toHaveStyle('opacity: 1');
+      expect(taskElement).toHaveStyle("opacity: 1");
     });
 
     rerender(<Grid hoveredTaskState="success" />);
 
     taskElements.forEach((taskElement) => {
-      expect(taskElement).toHaveStyle('opacity: 1');
+      expect(taskElement).toHaveStyle("opacity: 1");
     });
 
     rerender(<Grid hoveredTaskState="failed" />);
 
     taskElements.forEach((taskElement) => {
-      expect(taskElement).toHaveStyle('opacity: 0.3');
+      expect(taskElement).toHaveStyle("opacity: 0.3");
     });
   });
 });

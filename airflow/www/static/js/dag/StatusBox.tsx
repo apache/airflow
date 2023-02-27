@@ -17,21 +17,17 @@
  * under the License.
  */
 
-import React from 'react';
-import { isEqual } from 'lodash';
-import {
-  Box,
-  useTheme,
-  BoxProps,
-} from '@chakra-ui/react';
+import React from "react";
+import { isEqual } from "lodash";
+import { Box, useTheme, BoxProps } from "@chakra-ui/react";
 
-import { useContainerRef } from 'src/context/containerRef';
-import type { Task, TaskInstance, TaskState } from 'src/types';
-import type { SelectionProps } from 'src/dag/useSelection';
-import { getStatusBackgroundColor, hoverDelay } from 'src/utils';
-import Tooltip from 'src/components/Tooltip';
+import { useContainerRef } from "src/context/containerRef";
+import type { Task, TaskInstance, TaskState } from "src/types";
+import type { SelectionProps } from "src/dag/useSelection";
+import { getStatusBackgroundColor, hoverDelay } from "src/utils";
+import Tooltip from "src/components/Tooltip";
 
-import InstanceTooltip from './InstanceTooltip';
+import InstanceTooltip from "./InstanceTooltip";
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
@@ -41,8 +37,12 @@ interface StatusWithNotesProps extends BoxProps {
   containsNotes?: boolean;
 }
 
-export const StatusWithNotes = ({ state, containsNotes, ...rest }: StatusWithNotesProps) => {
-  const color = state && stateColors[state] ? stateColors[state] : 'white';
+export const StatusWithNotes = ({
+  state,
+  containsNotes,
+  ...rest
+}: StatusWithNotesProps) => {
+  const color = state && stateColors[state] ? stateColors[state] : "white";
   return (
     <Box
       width={boxSizePx}
@@ -62,7 +62,7 @@ export const SimpleStatus = ({ state, ...rest }: SimpleStatusProps) => (
   <Box
     width={boxSizePx}
     height={boxSizePx}
-    background={state && stateColors[state] ? stateColors[state] : 'white'}
+    background={state && stateColors[state] ? stateColors[state] : "white"}
     borderRadius="2px"
     borderWidth={state ? 0 : 1}
     {...rest}
@@ -78,7 +78,11 @@ interface Props {
 }
 
 const StatusBox = ({
-  group, instance, onSelect, isActive, containsNotes = false,
+  group,
+  instance,
+  onSelect,
+  isActive,
+  containsNotes = false,
 }: Props) => {
   const containerRef = useContainerRef();
   const { runId, taskId } = instance;
@@ -88,17 +92,26 @@ const StatusBox = ({
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
     if (containerRef && containerRef.current) {
-      ([...containerRef.current.getElementsByClassName(`js-${runId}`)] as HTMLElement[])
-        .forEach((e) => {
-          // Don't apply hover if it is already selected
-          if (e.getAttribute('data-selected') === 'false') e.style.backgroundColor = hoverBlue;
-        });
+      (
+        [
+          ...containerRef.current.getElementsByClassName(`js-${runId}`),
+        ] as HTMLElement[]
+      ).forEach((e) => {
+        // Don't apply hover if it is already selected
+        if (e.getAttribute("data-selected") === "false")
+          e.style.backgroundColor = hoverBlue;
+      });
     }
   };
   const onMouseLeave = () => {
     if (containerRef && containerRef.current) {
-      ([...containerRef.current.getElementsByClassName(`js-${runId}`)] as HTMLElement[])
-        .forEach((e) => { e.style.backgroundColor = ''; });
+      (
+        [
+          ...containerRef.current.getElementsByClassName(`js-${runId}`),
+        ] as HTMLElement[]
+      ).forEach((e) => {
+        e.style.backgroundColor = "";
+      });
     }
   };
 
@@ -134,13 +147,9 @@ const StatusBox = ({
 
 // The default equality function is a shallow comparison and json objects will return false
 // This custom compare function allows us to do a deeper comparison
-const compareProps = (
-  prevProps: Props,
-  nextProps: Props,
-) => (
-  isEqual(prevProps.group, nextProps.group)
-  && isEqual(prevProps.instance, nextProps.instance)
-  && isEqual(prevProps.isActive, nextProps.isActive)
-);
+const compareProps = (prevProps: Props, nextProps: Props) =>
+  isEqual(prevProps.group, nextProps.group) &&
+  isEqual(prevProps.instance, nextProps.instance) &&
+  isEqual(prevProps.isActive, nextProps.isActive);
 
 export default React.memo(StatusBox, compareProps);

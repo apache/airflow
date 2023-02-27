@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useRef } from 'react';
+import React, { ReactNode, useRef } from "react";
 import {
   Table,
   Tbody,
@@ -29,23 +29,28 @@ import {
   Heading,
   Text,
   Box,
-} from '@chakra-ui/react';
-import { mean } from 'lodash';
+} from "@chakra-ui/react";
+import { mean } from "lodash";
 
-import { getDuration, formatDuration } from 'src/datetime_utils';
+import { getDuration, formatDuration } from "src/datetime_utils";
 import {
-  finalStatesMap, getMetaValue, getTaskSummary, useOffsetTop,
-} from 'src/utils';
-import { useGridData } from 'src/api';
-import Time from 'src/components/Time';
-import type { TaskState } from 'src/types';
+  finalStatesMap,
+  getMetaValue,
+  getTaskSummary,
+  useOffsetTop,
+} from "src/utils";
+import { useGridData } from "src/api";
+import Time from "src/components/Time";
+import type { TaskState } from "src/types";
 
-import { SimpleStatus } from '../StatusBox';
+import { SimpleStatus } from "../StatusBox";
 
-const dagDetailsUrl = getMetaValue('dag_details_url');
+const dagDetailsUrl = getMetaValue("dag_details_url");
 
 const Dag = () => {
-  const { data: { dagRuns, groups } } = useGridData();
+  const {
+    data: { dagRuns, groups },
+  } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(detailsRef);
 
@@ -54,8 +59,9 @@ const Dag = () => {
   const durations: number[] = [];
   dagRuns.forEach((dagRun) => {
     durations.push(getDuration(dagRun.startDate, dagRun.endDate));
-    const stateKey = dagRun.state == null ? 'no_status' : dagRun.state;
-    if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
+    const stateKey = dagRun.state == null ? "no_status" : dagRun.state;
+    if (numMap.has(stateKey))
+      numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
   });
 
   const stateSummary: ReactNode[] = [];
@@ -67,17 +73,11 @@ const Dag = () => {
           <Td>
             <Flex alignItems="center">
               <SimpleStatus state={val as TaskState} mr={2} />
-              <Text>
-                Total
-                {' '}
-                {val}
-              </Text>
+              <Text>Total {val}</Text>
             </Flex>
           </Td>
-          <Td>
-            {key}
-          </Td>
-        </Tr>,
+          <Td>{key}</Td>
+        </Tr>
       );
     }
   });
@@ -103,53 +103,47 @@ const Dag = () => {
         <Table variant="striped">
           <Tbody>
             {durations.length > 0 && (
-            <>
-              <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-                <Td><Heading size="sm">DAG Runs Summary</Heading></Td>
-                <Td />
-              </Tr>
-              <Tr>
-                <Td>Total Runs Displayed</Td>
-                <Td>
-                  {durations.length}
-                </Td>
-              </Tr>
-              {stateSummary}
-              {firstStart && (
-                <Tr>
-                  <Td>First Run Start</Td>
+              <>
+                <Tr borderBottomWidth={2} borderBottomColor="gray.300">
                   <Td>
-                    <Time dateTime={firstStart} />
+                    <Heading size="sm">DAG Runs Summary</Heading>
                   </Td>
+                  <Td />
                 </Tr>
-              )}
-              {lastStart && (
                 <Tr>
-                  <Td>Last Run Start</Td>
-                  <Td>
-                    <Time dateTime={lastStart} />
-                  </Td>
+                  <Td>Total Runs Displayed</Td>
+                  <Td>{durations.length}</Td>
                 </Tr>
-              )}
-              <Tr>
-                <Td>Max Run Duration</Td>
-                <Td>
-                  {formatDuration(max)}
-                </Td>
-              </Tr>
-              <Tr>
-                <Td>Mean Run Duration</Td>
-                <Td>
-                  {formatDuration(avg)}
-                </Td>
-              </Tr>
-              <Tr>
-                <Td>Min Run Duration</Td>
-                <Td>
-                  {formatDuration(min)}
-                </Td>
-              </Tr>
-            </>
+                {stateSummary}
+                {firstStart && (
+                  <Tr>
+                    <Td>First Run Start</Td>
+                    <Td>
+                      <Time dateTime={firstStart} />
+                    </Td>
+                  </Tr>
+                )}
+                {lastStart && (
+                  <Tr>
+                    <Td>Last Run Start</Td>
+                    <Td>
+                      <Time dateTime={lastStart} />
+                    </Td>
+                  </Tr>
+                )}
+                <Tr>
+                  <Td>Max Run Duration</Td>
+                  <Td>{formatDuration(max)}</Td>
+                </Tr>
+                <Tr>
+                  <Td>Mean Run Duration</Td>
+                  <Td>{formatDuration(avg)}</Td>
+                </Tr>
+                <Tr>
+                  <Td>Min Run Duration</Td>
+                  <Td>{formatDuration(min)}</Td>
+                </Tr>
+              </>
             )}
             <Tr borderBottomWidth={2} borderBottomColor="gray.300">
               <Td>
@@ -162,16 +156,16 @@ const Dag = () => {
               <Td>{taskSummary.taskCount}</Td>
             </Tr>
             {!!taskSummary.groupCount && (
-            <Tr>
-              <Td>Total Task Groups</Td>
-              <Td>{taskSummary.groupCount}</Td>
-            </Tr>
+              <Tr>
+                <Td>Total Task Groups</Td>
+                <Td>{taskSummary.groupCount}</Td>
+              </Tr>
             )}
             {Object.entries(taskSummary.operators).map(([key, value]) => (
               <Tr key={key}>
                 <Td>
                   {key}
-                  {value > 1 && 's'}
+                  {value > 1 && "s"}
                 </Td>
                 <Td>{value}</Td>
               </Tr>

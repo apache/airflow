@@ -17,14 +17,14 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
-import { Button, useDisclosure } from '@chakra-ui/react';
+import React, { useState } from "react";
+import { Button, useDisclosure } from "@chakra-ui/react";
 
-import { useMarkSuccessRun } from 'src/api';
-import ConfirmDialog from 'src/components/ConfirmDialog';
-import { getMetaValue } from 'src/utils';
+import { useMarkSuccessRun } from "src/api";
+import ConfirmDialog from "src/components/ConfirmDialog";
+import { getMetaValue } from "src/utils";
 
-const canEdit = getMetaValue('can_edit') === 'True';
+const canEdit = getMetaValue("can_edit") === "True";
 
 interface Props {
   dagId: string;
@@ -34,7 +34,10 @@ interface Props {
 const MarkSuccessRun = ({ dagId, runId }: Props) => {
   const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { mutateAsync: markSuccess, isLoading } = useMarkSuccessRun(dagId, runId);
+  const { mutateAsync: markSuccess, isLoading } = useMarkSuccessRun(
+    dagId,
+    runId
+  );
 
   const onClick = async () => {
     const data = await markSuccess({ confirmed: false });
@@ -50,7 +53,14 @@ const MarkSuccessRun = ({ dagId, runId }: Props) => {
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="green" isLoading={isLoading} isDisabled={!canEdit}>Mark Success</Button>
+      <Button
+        onClick={onClick}
+        colorScheme="green"
+        isLoading={isLoading}
+        isDisabled={!canEdit}
+      >
+        Mark Success
+      </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}

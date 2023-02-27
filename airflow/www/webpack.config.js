@@ -17,25 +17,25 @@
  * under the License.
  */
 
-const webpack = require('webpack');
-const path = require('path');
-const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
-const cwplg = require('clean-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
-const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
-const LicensePlugin = require('webpack-license-plugin');
-const TerserPlugin = require('terser-webpack-plugin');
+const webpack = require("webpack");
+const path = require("path");
+const { WebpackManifestPlugin } = require("webpack-manifest-plugin");
+const cwplg = require("clean-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const MomentLocalesPlugin = require("moment-locales-webpack-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const LicensePlugin = require("webpack-license-plugin");
+const TerserPlugin = require("terser-webpack-plugin");
 
 // Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
-const CSS_DIR = path.resolve(__dirname, './static/css');
-const JS_DIR = path.resolve(__dirname, './static/js');
+const CSS_DIR = path.resolve(__dirname, "./static/css");
+const JS_DIR = path.resolve(__dirname, "./static/js");
 
 // Output Directory (airflow/www/static/dist)
 // noinspection JSUnresolvedVariable
-const BUILD_DIR = path.resolve(__dirname, './static/dist');
+const BUILD_DIR = path.resolve(__dirname, "./static/dist");
 
 // Convert licenses json into a standard format for LICENSES.txt
 const formatLicenses = (packages) => {
@@ -48,7 +48,9 @@ Foundation (http://www.apache.org/).
 =======================================================================
 `;
   packages.forEach((p) => {
-    text += `${p.name}|${p.version}:\n-----\n${p.license}\n${p.licenseText || p.author}\n${p.repository || ''}\n\n\n`;
+    text += `${p.name}|${p.version}:\n-----\n${p.license}\n${
+      p.licenseText || p.author
+    }\n${p.repository || ""}\n\n\n`;
   });
   return text;
 };
@@ -68,7 +70,7 @@ const config = {
     loadingDots: `${CSS_DIR}/loading-dots.css`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
     materialIcons: `${CSS_DIR}/material-icons.css`,
-    moment: 'moment-timezone',
+    moment: "moment-timezone",
     switch: `${CSS_DIR}/switch.css`,
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
@@ -82,23 +84,18 @@ const config = {
   },
   output: {
     path: BUILD_DIR,
-    filename: '[name].[chunkhash].js',
-    chunkFilename: '[name].[chunkhash].js',
-    library: ['Airflow', '[name]'],
-    libraryTarget: 'umd',
-    publicPath: '',
+    filename: "[name].[chunkhash].js",
+    chunkFilename: "[name].[chunkhash].js",
+    library: ["Airflow", "[name]"],
+    libraryTarget: "umd",
+    publicPath: "",
   },
   resolve: {
-    alias: { // Be sure to update aliases in jest.config.js and tsconfig.json
-      src: path.resolve(__dirname, 'static/js'),
+    alias: {
+      // Be sure to update aliases in jest.config.js and tsconfig.json
+      src: path.resolve(__dirname, "static/js"),
     },
-    extensions: [
-      '.js',
-      '.jsx',
-      '.ts',
-      '.tsx',
-      '.css',
-    ],
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".css"],
   },
   module: {
     rules: [
@@ -106,7 +103,7 @@ const config = {
         test: /datatables\.net.*/,
         use: [
           {
-            loader: 'imports-loader?define=>false',
+            loader: "imports-loader?define=>false",
           },
         ],
       },
@@ -115,9 +112,9 @@ const config = {
         exclude: /node_modules/,
         use: [
           {
-            loader: 'babel-loader',
+            loader: "babel-loader",
             options: {
-              presets: ['@babel/preset-react', '@babel/preset-typescript'],
+              presets: ["@babel/preset-react", "@babel/preset-typescript"],
             },
           },
         ],
@@ -133,7 +130,7 @@ const config = {
               esModule: true,
             },
           },
-          'css-loader',
+          "css-loader",
         ],
       },
       /* for css linking images */
@@ -141,7 +138,7 @@ const config = {
         test: /\.(png|jpg|gif)$/i,
         use: [
           {
-            loader: 'url-loader',
+            loader: "url-loader",
             options: {
               limit: 100000,
             },
@@ -153,10 +150,10 @@ const config = {
         test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         use: [
           {
-            loader: 'url-loader',
+            loader: "url-loader",
             options: {
               limit: 100000,
-              mimetype: 'application/font-woff',
+              mimetype: "application/font-woff",
             },
           },
         ],
@@ -165,7 +162,7 @@ const config = {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         use: [
           {
-            loader: 'file-loader',
+            loader: "file-loader",
           },
         ],
       },
@@ -174,13 +171,14 @@ const config = {
   plugins: [
     new WebpackManifestPlugin({
       // d3-tip is named index.js in its dist folder which was confusing the manifest
-      map: (file) => (file.path === 'd3-tip.js' ? { ...file, name: 'd3-tip.js' } : file),
+      map: (file) =>
+        file.path === "d3-tip.js" ? { ...file, name: "d3-tip.js" } : file,
     }),
     new cwplg.CleanWebpackPlugin({
       verbose: true,
     }),
     new MiniCssExtractPlugin({
-      filename: '[name].[chunkhash].css',
+      filename: "[name].[chunkhash].css",
     }),
 
     // MomentJS loads all the locale, making it a huge JS file.
@@ -188,7 +186,7 @@ const config = {
     new MomentLocalesPlugin(),
 
     new webpack.DefinePlugin({
-      'process.env': {
+      "process.env": {
         NODE_ENV: JSON.stringify(process.env.NODE_ENV),
       },
     }),
@@ -198,92 +196,100 @@ const config = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: 'node_modules/nvd3/build/*.min.*',
+          from: "node_modules/nvd3/build/*.min.*",
           flatten: true,
         },
         // Update this when upgrade d3 package, as the path in new D3 is different
         {
-          from: 'node_modules/d3/d3.min.*',
+          from: "node_modules/d3/d3.min.*",
           flatten: true,
         },
         {
-          from: 'node_modules/dagre-d3/dist/*.min.*',
+          from: "node_modules/dagre-d3/dist/*.min.*",
           flatten: true,
         },
         {
-          from: 'node_modules/d3-shape/dist/*.min.*',
+          from: "node_modules/d3-shape/dist/*.min.*",
           flatten: true,
         },
         {
-          from: 'node_modules/d3-tip/dist/index.js',
-          to: 'd3-tip.js',
+          from: "node_modules/d3-tip/dist/index.js",
+          to: "d3-tip.js",
           flatten: true,
         },
         {
-          from: 'node_modules/bootstrap-3-typeahead/*min.*',
+          from: "node_modules/bootstrap-3-typeahead/*min.*",
           flatten: true,
         },
         {
-          from: 'node_modules/datatables.net/**/**.min.*',
+          from: "node_modules/datatables.net/**/**.min.*",
           flatten: true,
         },
         {
-          from: 'node_modules/datatables.net-bs/**/**.min.*',
+          from: "node_modules/datatables.net-bs/**/**.min.*",
           flatten: true,
         },
         {
-          from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css',
+          from: "node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css",
           flatten: true,
         },
         {
-          from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js',
+          from: "node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js",
           flatten: true,
         },
         {
-          from: 'node_modules/redoc/bundles/redoc.standalone.*',
+          from: "node_modules/redoc/bundles/redoc.standalone.*",
           flatten: true,
         },
         {
-          from: 'node_modules/codemirror/lib/codemirror.*',
+          from: "node_modules/codemirror/lib/codemirror.*",
           flatten: true,
         },
         {
-          from: 'node_modules/codemirror/addon/lint/**.*',
+          from: "node_modules/codemirror/addon/lint/**.*",
           flatten: true,
         },
         {
-          from: 'node_modules/codemirror/mode/javascript/javascript.js',
+          from: "node_modules/codemirror/mode/javascript/javascript.js",
           flatten: true,
         },
         {
-          from: 'node_modules/jshint/dist/jshint.js',
+          from: "node_modules/jshint/dist/jshint.js",
           flatten: true,
         },
         {
-          from: 'templates/swagger-ui',
+          from: "templates/swagger-ui",
           to: `${BUILD_DIR}/swagger-ui`,
         },
         {
-          from: 'node_modules/swagger-ui-dist',
+          from: "node_modules/swagger-ui-dist",
           to: `${BUILD_DIR}/swagger-ui`,
         },
       ],
     }),
     new LicensePlugin({
       additionalFiles: {
-        '../../../../licenses/LICENSES-ui.txt': formatLicenses,
+        "../../../../licenses/LICENSES-ui.txt": formatLicenses,
       },
-      unacceptableLicenseTest: (licenseIdentifier) => (
-        ['BCL', 'JSR', 'ASL', 'RSAL', 'SSPL', 'CPOL', 'NPL', 'BSD-4', 'QPL', 'GPL', 'LGPL'].includes(licenseIdentifier)
-      ),
+      unacceptableLicenseTest: (licenseIdentifier) =>
+        [
+          "BCL",
+          "JSR",
+          "ASL",
+          "RSAL",
+          "SSPL",
+          "CPOL",
+          "NPL",
+          "BSD-4",
+          "QPL",
+          "GPL",
+          "LGPL",
+        ].includes(licenseIdentifier),
     }),
   ],
   optimization: {
-    minimize: process.env.NODE_ENV === 'production',
-    minimizer: [
-      new CssMinimizerPlugin({}),
-      new TerserPlugin(),
-    ],
+    minimize: process.env.NODE_ENV === "production",
+    minimizer: [new CssMinimizerPlugin({}), new TerserPlugin()],
   },
 };
 

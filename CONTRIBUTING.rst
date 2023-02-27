@@ -1179,29 +1179,32 @@ commands:
     yarn run dev
 
 
-Follow JavaScript Style Guide
------------------------------
+Follow Style Guide
+------------------
 
-We try to enforce a more consistent style and follow the JS community
+We try to enforce a more consistent style and follow the Javascript/Typescript community
 guidelines.
 
-Once you add or modify any JavaScript code in the project, please make sure it
+Once you add or modify any JS/TS code in the project, please make sure it
 follows the guidelines defined in `Airbnb
 JavaScript Style Guide <https://github.com/airbnb/javascript>`__.
 
 Apache Airflow uses `ESLint <https://eslint.org/>`__ as a tool for identifying and
-reporting on patterns in JavaScript. To use it, run any of the following
-commands:
+reporting issues in JS/TS, and `Prettier <https://prettier.io/>`__ for code formatting.
+Most IDE directly integrate with these tools, you can also manually run them with any of the following commands:
 
 .. code-block:: bash
 
-    # Check JS code in .js, .jsx, and .html files, and report any errors/warnings
+    # Format code in .js, .jsx, .ts, .tsx, .json, .css, .html files
+    yarn format
+
+    # Check JS/TS code in .js, .jsx, .ts, .tsx, .html files and report any errors/warnings
     yarn run lint
 
-    # Check JS code in .js, .jsx, and .html files, report any errors/warnings and fix them if possible
+    # Check JS/TS code in .js, .jsx, .ts, .tsx, .html files and report any errors/warnings and fix them if possible
     yarn run lint:fix
 
-    # Runs tests for all .test.js and .test.jsx files
+    # Run tests for all .test.js, .test.jsx, .test.ts, test.tsx files
     yarn test
 
 React, JSX and Chakra

@@ -17,34 +17,42 @@
  * under the License.
  */
 
-import axios from 'axios';
-import { useMutation, useQueryClient } from 'react-query';
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import { getMetaValue } from '../utils';
-import { useAutoRefresh } from '../context/autorefresh';
-import useErrorToast from '../utils/useErrorToast';
+import axios from "axios";
+import { useMutation, useQueryClient } from "react-query";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { getMetaValue } from "../utils";
+import { useAutoRefresh } from "../context/autorefresh";
+import useErrorToast from "../utils/useErrorToast";
 
-const csrfToken = getMetaValue('csrf_token');
-const successUrl = getMetaValue('success_url');
+const csrfToken = getMetaValue("csrf_token");
+const successUrl = getMetaValue("success_url");
 
 export default function useMarkSuccessTask({
-  dagId, runId, taskId,
+  dagId,
+  runId,
+  taskId,
 }: {
-  dagId: string, runId: string, taskId: string,
+  dagId: string;
+  runId: string;
+  taskId: string;
 }) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['markSuccess', dagId, runId, taskId],
+    ["markSuccess", dagId, runId, taskId],
     ({
-      past, future, upstream, downstream, mapIndexes = [],
+      past,
+      future,
+      upstream,
+      downstream,
+      mapIndexes = [],
     }: {
-      past: boolean,
-      future: boolean,
-      upstream: boolean,
-      downstream: boolean,
-      mapIndexes: number[]
+      past: boolean;
+      future: boolean;
+      upstream: boolean;
+      downstream: boolean;
+      mapIndexes: number[];
     }) => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
@@ -59,22 +67,27 @@ export default function useMarkSuccessTask({
       });
 
       mapIndexes.forEach((mi: number) => {
-        params.append('map_index', mi.toString());
+        params.append("map_index", mi.toString());
       });
 
       return axios.post(successUrl, params.toString(), {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          "Content-Type": "application/x-www-form-urlencoded",
         },
       });
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
+        queryClient.invalidateQueries("gridData");
+        queryClient.invalidateQueries([
+          "mappedInstances",
+          dagId,
+          runId,
+          taskId,
+        ]);
         startRefresh();
       },
       onError: (error: Error) => errorToast({ error }),
-    },
+    }
   );
 }
