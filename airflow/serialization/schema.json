@@ -284,6 +284,8 @@
         "is_mapped": { "type": "boolean" },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
+        "setup_children":  { "$ref": "#/definitions/dict" },
+        "teardown_children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },
         "ui_color": { "type": "string" },
         "ui_fgcolor": { "type": "string" },
