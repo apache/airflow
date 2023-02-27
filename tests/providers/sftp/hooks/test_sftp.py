@@ -423,6 +423,22 @@ class TestSFTPHook:
         output = self.hook.get_file_by_pattern(TMP_PATH, "*_file_*.txt")
         assert output == ANOTHER_FILE_FOR_TESTS
 
+    def test_get_none_matched_files(self):
+        output = self.hook.get_files_by_pattern(TMP_PATH, "*.text")
+        assert output == []
+
+    def test_get_matched_files_several_pattern(self):
+        output = self.hook.get_files_by_pattern(TMP_PATH, "*.log")
+        assert output == [LOG_FILE_FOR_TESTS]
+
+    def test_get_all_matched_files(self):
+        output = self.hook.get_files_by_pattern(TMP_PATH, "test_*.txt")
+        assert output == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
+
+    def test_get_matched_files_with_different_pattern(self):
+        output = self.hook.get_files_by_pattern(TMP_PATH, "*_file_*.txt")
+        assert output == [ANOTHER_FILE_FOR_TESTS]
+
     def teardown_method(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
