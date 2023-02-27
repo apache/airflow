@@ -39,6 +39,8 @@ RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
+CREATE_ENDPOINT = ("POST", "api/2.1/jobs/create")
+RESET_ENDPOINT = ("POST", "api/2.1/jobs/reset")
 RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
 GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
@@ -132,9 +134,27 @@ class DatabricksHook(BaseDatabricksHook):
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
+    def create(self, json: dict) -> int:
+        """
+        Utility function to call the ``api/2.1/jobs/create`` endpoint.
+
+        :param json: The data used in the body of the request to the ``create`` endpoint.
+        :return: the job_id as an int
+        """
+        response = self._do_api_call(CREATE_ENDPOINT, json)
+        return response["job_id"]
+
+    def reset(self, job_id: str, json: dict):
+        """
+        Utility function to call the ``api/2.1/jobs/reset`` endpoint.
+
+        :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
+        """
+        self._do_api_call(RESET_ENDPOINT, {"job_id": job_id,  "new_settings": json})
+
     def run_now(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+        Utility function to call the ``api/2.1/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
@@ -144,7 +164,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
+        Utility function to call the ``api/2.1/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
