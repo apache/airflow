@@ -1665,6 +1665,16 @@ pgbouncer:
     #   memory: 128Mi
     sslmode: "disable"
 
+    livenessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 1
+
+    readinessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 1
+
     # Detailed default security context for metricsExporterSidecar for container level
     securityContexts:
       container: {}
