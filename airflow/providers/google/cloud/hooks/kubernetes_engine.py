@@ -33,7 +33,7 @@ from typing import Sequence
 
 import google.auth.credentials
 from gcloud.aio.auth import Token
-from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.auth.transport import requests as google_requests

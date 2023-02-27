@@ -28,8 +28,8 @@ try:
 except ImportError:
     # preserve backward compatibility for older versions of cncf.kubernetes provider
     from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
+from airflow.providers.google.cloud.hooks.kubernetes_engine import AsyncGKEHook, AsyncGKEPodHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.providers.google.cloud.hooks.kubernetes_engine import AsyncGKEPodHook, AsyncGKEHook
 
 
 class GKEPodTrigger(KubernetesPodTrigger):
@@ -213,4 +213,3 @@ class GKEOperationTrigger(BaseTrigger):
                 impersonation_chain=self.impersonation_chain,
             )
         return self._hook
-

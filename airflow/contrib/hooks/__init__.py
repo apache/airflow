@@ -154,6 +154,7 @@ __deprecated_classes = {
     },
     'gcp_container_hook': {
         'GKEHook': 'airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook',
+        'GKEClusterHook': 'airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook',
     },
     'gcp_dataflow_hook': {
         'DataflowHook': 'airflow.providers.google.cloud.hooks.dataflow.DataflowHook',

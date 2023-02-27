@@ -25,11 +25,11 @@ from datetime import datetime
 
 import pytest
 import pytz
-from kubernetes.client import models as k8s
 from google.cloud.container_v1.types import Operation
+from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEPodTrigger, GKEOperationTrigger
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEPodTrigger
 from airflow.triggers.base import TriggerEvent
 
 if sys.version_info < (3, 8):
@@ -296,7 +296,7 @@ class TestGKEPodTrigger:
 
 
 @pytest.fixture
-def trigger():
+def operation_trigger():
     return GKEOperationTrigger(
         operation_name=OPERATION_NAME,
         project_id=PROJECT_ID,
@@ -321,8 +321,8 @@ def async_get_operation_result():
 
 
 class TestGKEOperationTrigger:
-    def test_serialize(self, trigger):
-        classpath, trigger_init_kwargs = trigger.serialize()
+    def test_serialize(self, operation_trigger):
+        classpath, trigger_init_kwargs = operation_trigger.serialize()
         assert classpath == TRIGGER_PATH
         assert trigger_init_kwargs == {
             "operation_name": OPERATION_NAME,
@@ -336,7 +336,9 @@ class TestGKEOperationTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._get_hook")
-    async def test_run_loop_return_success_event(self, mock_hook, trigger, async_get_operation_result):
+    async def test_run_loop_return_success_event(
+        self, mock_hook, operation_trigger, async_get_operation_result
+    ):
         mock_hook.return_value.get_operation.return_value = async_get_operation_result(
             name=OPERATION_NAME,
             status=Operation.Status.DONE,
@@ -349,7 +351,7 @@ class TestGKEOperationTrigger:
                 "operation_name": OPERATION_NAME,
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await (operation_trigger.run()).asend(None)
 
         assert actual_event == expected_event
 
@@ -358,7 +360,7 @@ class TestGKEOperationTrigger:
     async def test_run_loop_return_failed_event_status_unspecified(
         self,
         mock_hook,
-        trigger,
+        operation_trigger,
         async_get_operation_result,
     ):
         mock_hook.return_value.get_operation.return_value = async_get_operation_result(
@@ -372,7 +374,7 @@ class TestGKEOperationTrigger:
                 "message": f"Operation has failed with status: {Operation.Status.STATUS_UNSPECIFIED}",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await (operation_trigger.run()).asend(None)
 
         assert actual_event == expected_event
 
@@ -381,7 +383,7 @@ class TestGKEOperationTrigger:
     async def test_run_loop_return_failed_event_status_aborting(
         self,
         mock_hook,
-        trigger,
+        operation_trigger,
         async_get_operation_result,
     ):
         mock_hook.return_value.get_operation.return_value = async_get_operation_result(
@@ -395,13 +397,15 @@ class TestGKEOperationTrigger:
                 "message": f"Operation has failed with status: {Operation.Status.ABORTING}",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await (operation_trigger.run()).asend(None)
 
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._get_hook")
-    async def test_run_loop_return_error_event(self, mock_hook, trigger, async_get_operation_result):
+    async def test_run_loop_return_error_event(
+        self, mock_hook, operation_trigger, async_get_operation_result
+    ):
         mock_hook.return_value.get_operation.side_effect = Exception(EXC_MSG)
 
         expected_event = TriggerEvent(
@@ -410,7 +414,7 @@ class TestGKEOperationTrigger:
                 "message": EXC_MSG,
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await (operation_trigger.run()).asend(None)
 
         assert actual_event == expected_event
 
@@ -419,7 +423,7 @@ class TestGKEOperationTrigger:
     async def test_run_loop_return_waiting_event_pending_status(
         self,
         mock_hook,
-        trigger,
+        operation_trigger,
         async_get_operation_result,
         caplog,
     ):
@@ -430,7 +434,7 @@ class TestGKEOperationTrigger:
 
         caplog.set_level(logging.INFO)
 
-        task = asyncio.create_task(trigger.run().__anext__())
+        task = asyncio.create_task(operation_trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
@@ -442,7 +446,7 @@ class TestGKEOperationTrigger:
     async def test_run_loop_return_waiting_event_running_status(
         self,
         mock_hook,
-        trigger,
+        operation_trigger,
         async_get_operation_result,
         caplog,
     ):
@@ -453,7 +457,7 @@ class TestGKEOperationTrigger:
 
         caplog.set_level(logging.INFO)
 
-        task = asyncio.create_task(trigger.run().__anext__())
+        task = asyncio.create_task(operation_trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()

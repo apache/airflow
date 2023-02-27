@@ -4765,7 +4765,7 @@ The following table shows changes in import paths.
      - ``airflow.providers.google.cloud.hooks.bigtable.BigtableHook``
    * - ``airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook``
      - ``airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook``
-   * - ``airflow.contrib.hooks.gcp_container_hook.GKEHook``
+   * - ``airflow.contrib.hooks.gcp_container_hook.GKEClusterHook``
      - ``airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook``
    * - ``airflow.contrib.hooks.gcp_compute_hook.GceHook``
      - ``airflow.providers.google.cloud.hooks.compute.ComputeEngineHook``
@@ -7841,7 +7841,7 @@ Bug fixes
 - [AIRFLOW-4524] Fix bug with "Ignore \*" toggles in RBAC mode (#5378)
 - [AIRFLOW-4765] Fix DataProcPigOperator execute method (#5426)
 - [AIRFLOW-4798] Obviate interdependencies for dagbag and TI tests (#5422)
-- [AIRFLOW-4800] Fix GKEHook ctor calls (#5424)
+- [AIRFLOW-4800] Fix GKEClusterHook ctor calls (#5424)
 - [AIRFLOW-4799] Don't mutate self.env in BashOperator execute method (#5421)
 - [AIRFLOW-4393] Add retry logic when fetching pod status and/or logs in KubernetesPodOperator (#5284)
 - [AIRFLOW-4174] Fix HttpHook run with backoff (#5213)
@@ -8788,7 +8788,7 @@ Bug fixes
 - [AIRFLOW-2645][AIRFLOW-2617] Add worker_container_image_pull_policy
 - [AIRFLOW-2661] fix config dags_volume_subpath and logs_volume_subpath
 - [AIRFLOW-3550] Standardize GKE hook (#4364)
-- [AIRFLOW-2863] Fix GKEHook catching wrong exception (#3711)
+- [AIRFLOW-2863] Fix GKEClusterHook catching wrong exception (#3711)
 - [AIRFLOW-2939][AIRFLOW-3568] Fix TypeError in GCSToS3Op & S3ToGCSOp (#4371)
 - [AIRFLOW-3327] Add support for location in BigQueryHook (#4324)
 - [AIRFLOW-3438] Fix default values in BigQuery Hook & BigQueryOperator (…
