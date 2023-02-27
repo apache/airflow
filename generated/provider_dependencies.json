@@ -316,8 +316,8 @@
   },
   "github": {
     "deps": [
-      "apache-airflow>=2.3.0",
-      "pygithub"
+      "PyGithub!=1.58",
+      "apache-airflow>=2.3.0"
     ],
     "cross-providers-deps": []
   },

@@ -24,7 +24,9 @@ description: |
 
 dependencies:
   - apache-airflow>=2.3.0
-  - pygithub
+  # There was a change introduced in version 1.58 which breaks `pickle` serialization out of the box.
+  # See https://github.com/PyGithub/PyGithub/issues/2436.
+  - PyGithub!=1.58
 
 versions:
   - 2.2.0
