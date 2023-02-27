@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock as MM
 
@@ -35,7 +34,7 @@ LOCATION = "europe"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
+class TestBigQueryDataTransferServiceTransferRunSensor:
     @mock.patch(
         "airflow.providers.google.cloud.sensors.bigquery_dts.BiqQueryDataTransferServiceHook",
         return_value=MM(get_transfer_run=MM(return_value=MM(state=TransferState.FAILED))),

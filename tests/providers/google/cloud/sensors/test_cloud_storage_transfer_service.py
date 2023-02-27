@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from parameterized import parameterized
@@ -35,7 +34,7 @@ TEST_COUNTERS = {
 JOB_NAME = "job-name/123"
 
 
-class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
+class TestGcpStorageTransferOperationWaitForJobStatusSensor:
     @mock.patch(
         "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )

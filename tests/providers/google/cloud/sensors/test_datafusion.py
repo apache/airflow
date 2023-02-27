@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -39,7 +38,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 FAILURE_STATUSES = {"FAILED"}
 
 
-class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
+class TestCloudDataFusionPipelineStateSensor:
     @parameterized.expand(
         [
             (PipelineStates.COMPLETED, PipelineStates.COMPLETED, True),

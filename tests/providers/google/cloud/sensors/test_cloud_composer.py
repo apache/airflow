@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 
@@ -30,7 +30,7 @@ TEST_OPERATION_NAME = "test_operation_name"
 TEST_REGION = "region"
 
 
-class TestCloudComposerEnvironmentSensor(TestCase):
+class TestCloudComposerEnvironmentSensor:
     def test_cloud_composer_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a CloudComposerExecutionTrigger will be fired

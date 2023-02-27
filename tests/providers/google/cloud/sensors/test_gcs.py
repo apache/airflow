@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from unittest import TestCase, mock
+from unittest import mock
 
 import pendulum
 import pytest
@@ -75,7 +75,7 @@ def next_time_side_effect():
 mock_time = mock.Mock(side_effect=next_time_side_effect)
 
 
-class TestGoogleCloudStorageObjectSensor(TestCase):
+class TestGoogleCloudStorageObjectSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
         task = GCSObjectExistenceSensor(
@@ -99,7 +99,7 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY)
 
 
-class TestGoogleCloudStorageObjectSensorAsync(TestCase):
+class TestGoogleCloudStorageObjectSensorAsync:
     def test_gcs_object_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
@@ -139,7 +139,7 @@ class TestGoogleCloudStorageObjectSensorAsync(TestCase):
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
 
 
-class TestTsFunction(TestCase):
+class TestTsFunction:
     def test_should_support_datetime(self):
         context = {
             "dag": DAG(dag_id=TEST_DAG_ID, schedule=timedelta(days=5)),
@@ -159,7 +159,7 @@ class TestTsFunction(TestCase):
         assert pendulum.instance(datetime(2019, 2, 24)).isoformat() == result.isoformat()
 
 
-class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
+class TestGoogleCloudStorageObjectUpdatedSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
         task = GCSObjectUpdateSensor(
@@ -182,7 +182,7 @@ class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
         assert result is True
 
 
-class TestGoogleCloudStoragePrefixSensor(TestCase):
+class TestGoogleCloudStoragePrefixSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     def test_should_pass_arguments_to_hook(self, mock_hook):
         task = GCSObjectsWithPrefixExistenceSensor(
@@ -253,8 +253,8 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
             mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
 
 
-class TestGCSUploadSessionCompleteSensor(TestCase):
-    def setUp(self):
+class TestGCSUploadSessionCompleteSensor:
+    def setup_method(self):
         self.dag = DAG(
             TEST_DAG_ID + "test_schedule_dag_once",
             schedule="@once",
