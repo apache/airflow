@@ -160,6 +160,24 @@ class GoogleDriveHook(GoogleBaseHook):
             )
         )
 
+    def _get_file_info(self, file_id: str):
+        """
+        Returns Google API file_info object containing id, name, parents in the response
+        https://developers.google.com/drive/api/v3/reference/files/get
+
+        :param file_id: id as string representation of interested file
+        :return: file
+        """
+        file_info = (
+            self.get_conn().files()
+                .get(
+                fileId=file_id,
+                fields="id,name,parents",
+                supportsAllDrives=True,
+            ).execute()
+        )
+        return file_info
+
     def _resolve_file_path(self, file_id: str) -> str:
         """
         Returns the full Google Drive path for given file_id
@@ -170,30 +188,22 @@ class GoogleDriveHook(GoogleBaseHook):
         MAX_NESTED_FOLDERS_LEVEL = 20  # Link to docs https://support.google.com/a/users/answer/7338880?hl=en
         iteration = 1
 
-        service = self.get_conn()
         has_reached_root = False
-        _file_id = file_id
+        current_file_id = file_id
         path: str = ""
         while not has_reached_root:
-            file_info = (
-                service.files()
-                .get(
-                    fileId=_file_id,
-                    fields="id,name,parents",
-                    supportsAllDrives=True,
-                )
-                .execute()
-            )
-            if "parents" in file_info:
-                parent_directories = file_info["parents"]
-                path = f'{file_info["name"]}' if path == "" else f'{file_info["name"]}/{path}'
+            # current_file_id can be file or directory id, Google API treats them the same way.
+            file_info = self._get_file_info(current_file_id)
+            if current_file_id == file_id:
+                path = f'{file_info["name"]}'
+            path = f'{file_info["name"]}/{path}'
 
-                if len(parent_directories) > 1:
-                    self.log.warning("Google returned multiple parents, picking first")
-                _file_id = parent_directories[0]
+            # Google API returns parents array if there is at least one object inside
+            if "parents" in file_info:
+                # https://developers.google.com/drive/api/guides/ref-single-parent
+                current_file_id = file_info["parents"][0]
             else:
                 has_reached_root = True
-                path = f'{file_info["name"]}/{path}'
 
             if iteration >= MAX_NESTED_FOLDERS_LEVEL:
                 raise AirflowException(f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} levels")
