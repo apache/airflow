@@ -61,6 +61,12 @@
                     "matcher": "path",
                     "state": "success",
                     "argument": "taskDefinition.status"
+                },
+                {
+                    "expected": "DELETE_IN_PROGRESS",
+                    "matcher": "path",
+                    "state": "failure",
+                    "argument": "taskDefinition.status"
                 }
             ]
         },

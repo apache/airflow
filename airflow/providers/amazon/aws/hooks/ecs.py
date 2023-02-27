@@ -70,6 +70,7 @@ class EcsTaskDefinitionStates(str, Enum):
 
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
+    DELETE_IN_PROGRESS = "DELETE_IN_PROGRESS"
 
 
 class EcsTaskStates(str, Enum):

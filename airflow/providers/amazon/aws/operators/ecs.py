@@ -96,7 +96,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         *,
         cluster_name: str,
         create_cluster_kwargs: dict | None = None,
-        wait_for_completion: bool = False,
+        wait_for_completion: bool = True,
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
         **kwargs,
