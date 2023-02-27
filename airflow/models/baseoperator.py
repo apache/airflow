@@ -915,6 +915,20 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
+    @classmethod
+    def as_setup(cls, *args, **kwargs):
+        from airflow.utils.setup_teardown import SetupTeardownContext
+
+        with SetupTeardownContext.setup():
+            return cls(*args, **kwargs)
+
+    @classmethod
+    def as_teardown(cls, *args, **kwargs):
+        from airflow.utils.setup_teardown import SetupTeardownContext
+
+        with SetupTeardownContext.teardown():
+            return cls(*args, **kwargs)
+
     def __eq__(self, other):
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
