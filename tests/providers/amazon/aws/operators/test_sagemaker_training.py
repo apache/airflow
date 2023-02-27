@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -65,43 +66,24 @@ class TestSageMakerTrainingOperator:
             check_interval=5,
         )
 
-    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_integer_fields(self, serialize, mock_training, mock_client):
+    def test_integer_fields(self, _, mock_training, mock_desc):
+        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
-        self.sagemaker._check_if_job_exists = mock.MagicMock()
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for (key1, key2) in EXPECTED_INTEGER_FIELDS:
             assert self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
 
-    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute_with_check_if_job_exists(self, serialize, mock_training, mock_client):
-        mock_training.return_value = {
-            "TrainingJobArn": "test_arn",
-            "ResponseMetadata": {"HTTPStatusCode": 200},
-        }
-        self.sagemaker._check_if_job_exists = mock.MagicMock()
-        self.sagemaker.execute(None)
-        self.sagemaker._check_if_job_exists.assert_called_once()
-        mock_training.assert_called_once_with(
-            CREATE_TRAINING_PARAMS,
-            wait_for_completion=False,
-            print_log=True,
-            check_interval=5,
-            max_ingestion_time=None,
-        )
-
-    @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "create_training_job")
-    @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute_without_check_if_job_exists(self, serialize, mock_training, mock_client):
+    def test_execute_without_check_if_job_exists(self, _, mock_training, mock_desc):
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -118,34 +100,16 @@ class TestSageMakerTrainingOperator:
             max_ingestion_time=None,
         )
 
-    @mock.patch.object(SageMakerHook, "get_conn")
+        a = []
+        a.sort()
+
+    @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
-    def test_execute_with_failure(self, mock_training, mock_client):
+    def test_execute_with_failure(self, mock_training, mock_desc):
+        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op")]
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 404},
         }
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
-
-    @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "list_training_jobs")
-    def test_check_if_job_exists_increment(self, mock_list_training_jobs, mock_client):
-        self.sagemaker.check_if_job_exists = True
-        self.sagemaker.action_if_job_exists = "increment"
-        mock_list_training_jobs.return_value = [{"TrainingJobName": "job_name"}]
-        self.sagemaker._check_if_job_exists()
-
-        expected_config = CREATE_TRAINING_PARAMS.copy()
-        # Expect to see TrainingJobName suffixed with "-2" because we return one existing job
-        expected_config["TrainingJobName"] = "job_name-2"
-        assert self.sagemaker.config == expected_config
-
-    @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "list_training_jobs")
-    def test_check_if_job_exists_fail(self, mock_list_training_jobs, mock_client):
-        self.sagemaker.check_if_job_exists = True
-        self.sagemaker.action_if_job_exists = "fail"
-        mock_list_training_jobs.return_value = [{"TrainingJobName": "job_name"}]
-        with pytest.raises(AirflowException):
-            self.sagemaker._check_if_job_exists()
