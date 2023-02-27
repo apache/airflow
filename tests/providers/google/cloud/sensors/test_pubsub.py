@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from typing import Any
 from unittest import mock
 
@@ -32,7 +31,7 @@ TEST_PROJECT = "test-project"
 TEST_SUBSCRIPTION = "test-subscription"
 
 
-class TestPubSubPullSensor(unittest.TestCase):
+class TestPubSubPullSensor:
     def _generate_messages(self, count):
         return [
             ReceivedMessage(

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 
@@ -37,7 +37,7 @@ TEST_PARTITION_ID = "20200101"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestBigqueryTableExistenceSensor(TestCase):
+class TestBigqueryTableExistenceSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_passing_arguments_to_hook(self, mock_hook):
         task = BigQueryTableExistenceSensor(
@@ -64,7 +64,7 @@ class TestBigqueryTableExistenceSensor(TestCase):
         )
 
 
-class TestBigqueryTablePartitionExistenceSensor(TestCase):
+class TestBigqueryTablePartitionExistenceSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_passing_arguments_to_hook(self, mock_hook):
         task = BigQueryTablePartitionExistenceSensor(
@@ -104,7 +104,7 @@ def context():
     yield context
 
 
-class TestBigQueryTableExistenceAsyncSensor(TestCase):
+class TestBigQueryTableExistenceAsyncSensor:
     def test_big_query_table_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a BigQueryTableExistenceTrigger will be fired

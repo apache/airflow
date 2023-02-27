@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -40,7 +39,7 @@ API_VERSION = "v1"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestDataplexTaskStateSensor(unittest.TestCase):
+class TestDataplexTaskStateSensor:
     def create_task(self, state: int):
         task = mock.Mock()
         task.state = state
