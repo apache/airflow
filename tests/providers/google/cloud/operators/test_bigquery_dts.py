@@ -50,7 +50,7 @@ transfer_config = TransferConfig(
 )
 
 
-class BigQueryCreateDataTransferOperatorTestCase:
+class TestBigQueryCreateDataTransferOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
         **{"return_value.create_transfer_config.return_value": transfer_config},
@@ -77,7 +77,7 @@ class BigQueryCreateDataTransferOperatorTestCase:
         assert "access_key_id" not in return_value.get("params", {})
 
 
-class BigQueryDeleteDataTransferConfigOperatorTestCase:
+class TestBigQueryDeleteDataTransferConfigOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
     def test_execute(self, mock_hook):
         op = BigQueryDeleteDataTransferConfigOperator(
@@ -93,7 +93,7 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase:
         )
 
 
-class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase:
+class TestBigQueryDataTransferServiceStartTransferRunsOperator:
     OPERATOR_MODULE_PATH = "airflow.providers.google.cloud.operators.bigquery_dts"
 
     @mock.patch(

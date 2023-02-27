@@ -264,7 +264,7 @@ def assert_warning(msg: str, warnings):
 
 class DataprocTestBase:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
         cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
 
@@ -288,8 +288,7 @@ class DataprocTestBase:
 
 class DataprocJobTestBase(DataprocTestBase):
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def setup_class(cls):
         cls.extra_links_expected_calls = [
             call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
             call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
@@ -298,8 +297,8 @@ class DataprocJobTestBase(DataprocTestBase):
 
 class DataprocClusterTestBase(DataprocTestBase):
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def setup_class(cls):
+        super().setup_class()
         cls.extra_links_expected_calls_base = [
             call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
         ]
@@ -949,11 +948,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
 
         # Test whether xcom push occurs before polling for job
-        self.assertLess(
-            self.extra_links_manager_mock.mock_calls.index(xcom_push_call),
-            self.extra_links_manager_mock.mock_calls.index(wait_for_job_call),
-            msg="Xcom push for Job Link has to be done before polling for job status",
-        )
+        assert self.extra_links_manager_mock.mock_calls.index(xcom_push_call) < \
+               self.extra_links_manager_mock.mock_calls.index(wait_for_job_call), \
+               "Xcom push for Job Link has to be done before polling for job status"
 
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,

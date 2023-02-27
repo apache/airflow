@@ -142,7 +142,7 @@ class TestDataflowPythonOperator:
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         self.dataflow.execute(None)
         beam_hook_mock.assert_called_once_with(runner="DataflowRunner")
-        self.assertTrue(self.dataflow.py_file.startswith("/tmp/dataflow"))
+        assert self.dataflow.py_file.startswith("/tmp/dataflow")
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
         mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         dataflow_hook_mock.assert_called_once_with(
@@ -267,7 +267,7 @@ class TestDataflowJavaOperator:
 
         self.dataflow.execute(None)
 
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         start_java_hook.assert_not_called()
         gcs_provide_file.assert_called_once()
         variables = {
@@ -317,7 +317,7 @@ class TestDataflowJavaOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -371,7 +371,7 @@ class TestDataflowJavaOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -433,7 +433,7 @@ class TestDataflowJavaOperatorWithLocal:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(

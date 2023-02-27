@@ -97,7 +97,6 @@ class TestMLEngineBatchPredictionOperator:
     }
 
     def setup_method(self):
-        super().setUp()
         self.dag = DAG(
             "test_dag",
             default_args={
