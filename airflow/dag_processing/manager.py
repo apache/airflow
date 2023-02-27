@@ -893,6 +893,48 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info("No DAG(s) found in %s, removing from observed files (if present).", filepath)
             self.handle_deleted_file(filepath=filepath)
 
+    def handle_modified_airflowignore_file(self, filepath: str) -> None:
+        """
+        Process a modified .airflowignore file.
+
+        A modified .airflowignore file can result in both new filepaths getting observed (as a result of
+        removing an ignore-pattern) and filepaths getting unobserved (result of adding an ignore-pattern). The
+        processing logic is:
+        - We have currently observed filepaths A
+        - Find non-ignored filepaths B after modification
+        - A - B --> Observed filepaths to delete.
+        - A ∩ B --> Observed filepaths to keep.
+        - B - A --> New filepaths to check for DAGs.
+
+        :param filepath: Path of the modified .airflowignore file.
+        """
+        airflowignore_dir_path = str(Path(filepath).parent)
+        matching_filepaths = list_py_file_paths(directory=airflowignore_dir_path)
+
+        filepaths_to_remove = self._file_paths - matching_filepaths
+        filepaths_to_check = matching_filepaths - self._file_paths
+
+        for fp_to_remove in filepaths_to_remove:
+            self.log.info(
+                "Removing metadata for %s since it's ignored by modification of %s.", fp_to_remove, filepath
+            )
+            self.handle_deleted_file(filepath=fp_to_remove)
+
+        for fp_to_check in filepaths_to_check:
+            self.log.info(
+                "Checking %s for DAGs since it's unignored by modification of %s.", fp_to_check, filepath
+            )
+            self.handle_created_file(filepath=fp_to_check)
+
+        self.log.info(
+            "Processed modification of %s. Removed %s filepath(s) and added %s from/to observed filepaths, "
+            "currently observing %s filepaths.",
+            filepath,
+            len(filepaths_to_remove),
+            len(filepaths_to_check),
+            len(self._file_paths),
+        )
+
     def handle_moved_file(self, src_filepath: str, dest_filepath: str) -> None:
         """
         Handle the move of a DAG file. For example, moving from /path_a/dag.py to /path_b/dag.py.
@@ -1508,3 +1550,4 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
                 "Detected modification of %s, checking changes to make in the list of observed DAG files.",
                 event.src_path,
             )
+            self._dag_file_processor_manager.handle_modified_airflowignore_file(filepath=event.src_path)
