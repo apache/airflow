@@ -526,6 +526,25 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
     """
     Clones an instance to a target instance
+
+    :param instance: Database instance ID to be cloned. This does not include the
+            project ID.
+    :param destination_instance_name: Database instance ID to be created. This does not include the
+        project ID.
+    :param clone_context: additional clone_context parameters as described in
+        https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param api_version: API version used (e.g. v1beta4).
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     template_fields: Sequence[str] = (
@@ -548,26 +567,6 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        """
-        :param instance: Database instance ID to be cloned. This does not include the
-            project ID.
-        :param destination_instance_name: Database instance ID to be created. This does not include the
-            project ID.
-        :param clone_context: additional clone_context parameters as described in
-            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
-        :param project_id: Project ID of the project that contains the instance. If set
-            to None or missing, the default project_id from the Google Cloud connection is used.
-        :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-        :param api_version: API version used (e.g. v1beta4).
-        :param impersonation_chain: Optional service account to impersonate using short-term
-            credentials, or chained list of accounts required to get the access_token
-            of the last account in the list, which will be impersonated in the request.
-            If set as a string, the account must grant the originating account
-            the Service Account Token Creator IAM role.
-            If set as a sequence, the identities from the list must grant
-            Service Account Token Creator IAM role to the directly preceding identity, with first
-            account from the list granting this role to the originating account (templated).
-        """
         self.destination_instance_name = destination_instance_name
         self.clone_context = clone_context or {}
         super().__init__(

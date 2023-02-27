@@ -288,8 +288,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job."
-        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCloneInstanceOperator",
         "GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCloneInstanceOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
