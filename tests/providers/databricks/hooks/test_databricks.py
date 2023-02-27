@@ -107,6 +107,20 @@ LIST_SPARK_VERSIONS_RESPONSE = {
 }
 
 
+def create_endpoint(host):
+    """
+    Utility function to generate the create endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/create"
+
+
+def reset_endpoint(host):
+    """
+    Utility function to generate the reset endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/reset"
+
+
 def run_now_endpoint(host):
     """
     Utility function to generate the run now endpoint given the host.
@@ -381,6 +395,43 @@ class TestDatabricksHook:
         mock_requests.patch.assert_called_once_with(
             submit_run_endpoint(HOST),
             json={"cluster_name": "new_name"},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_create(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {"job_id": JOB_ID}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {"name": "test"}
+        job_id = self.hook.create(json)
+
+        assert job_id == JOB_ID
+
+        mock_requests.post.assert_called_once_with(
+            create_endpoint(HOST),
+            json={"name": "test"},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_reset(self, mock_requests):
+        mock_requests.codes.ok = 200
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {"name": "test"}
+        self.hook.reset(JOB_ID, json)
+
+        mock_requests.post.assert_called_once_with(
+            reset_endpoint(HOST),
+            json={"job_id": JOB_ID, "new_settings": {"name": "test"}},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
