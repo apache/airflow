@@ -1007,6 +1007,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, ".")
         Stats.timing(f"dag_processing.last_duration.{file_name}", last_duration)
+        Stats.timing("dag_processing.last_duration", last_duration, tags={"file_name": file_name})
 
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors."""

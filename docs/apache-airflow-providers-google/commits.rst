@@ -35,14 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.10.0
+......
+
+Latest change: 2023-02-18
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`f37772adfd <https://github.com/apache/airflow/commit/f37772adfdfdee8763147e0563897e4d5d5657c8>`_  2023-02-18   ``'GoogleDriveHook': Add folder_id param to upload_file (#29477)``
+`28126c12fb <https://github.com/apache/airflow/commit/28126c12fbdd2cac84e0fbcf2212154085aa5ed9>`_  2023-02-14   ``Add defer mode to GKECreateClusterOperator and GKEDeleteClusterOperator (#28406)``
+`32c571e592 <https://github.com/apache/airflow/commit/32c571e5926983903ac8b9017c36f14137a797a5>`_  2023-02-14   ``Move cloud_sql_binary_path from connection to Hook (#29499)``
+`41fade2d21 <https://github.com/apache/airflow/commit/41fade2d219c1841fafa439cc5dbb036f34ee32a>`_  2023-02-13   ``Upgrade Mypy to 1.0 (#29468)``
+`5e6f8eb4d5 <https://github.com/apache/airflow/commit/5e6f8eb4d5fdcaa713022ee46b1ca9bd2e3ab44e>`_  2023-02-13   ``Check that cloud sql provider version is valid (#29497)``
+`f9e9d23457 <https://github.com/apache/airflow/commit/f9e9d23457cba5d3e18b5bdb7b65ecc63735b65b>`_  2023-02-11   ``Restore trigger logging (#29482)``
+`7ee1a56244 <https://github.com/apache/airflow/commit/7ee1a5624497fc457af239e93e4c1af94972bbe6>`_  2023-02-11   ``Add documentation for BigQuery transfer operators (#29466)``
+`60d4bcd1d1 <https://github.com/apache/airflow/commit/60d4bcd1d101bb56955081d14e3e138a0c960c5f>`_  2023-02-10   ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+`6c1eeb5839 <https://github.com/apache/airflow/commit/6c1eeb58393173895944d5414793b38abdc7510d>`_  2023-02-11   ``Revert "Upgrade mypy to 0.991 (#28926)" (#29470)``
+`6ae0a80cba <https://github.com/apache/airflow/commit/6ae0a80cbaf1d33343b763c7f82612b4522afc40>`_  2023-02-11   ``Upgrade mypy to 0.991 (#28926)``
+=================================================================================================  ===========  ====================================================================================
+
 8.9.0
 .....
 
-Latest change: 2023-02-03
+Latest change: 2023-02-08
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `1b18a501fe <https://github.com/apache/airflow/commit/1b18a501fe818079e535838fa4f232b03365fc75>`_  2023-02-03   ``Enable individual trigger logging (#27758)``
 `872df121e2 <https://github.com/apache/airflow/commit/872df121e2ae24520eeb29fe606183a566e35dd8>`_  2023-02-03   ``Add deferrable capability to existing ''DataprocDeleteClusterOperator'' (#29349)``
 `094d6bf01b <https://github.com/apache/airflow/commit/094d6bf01b9d8b1a5d358dc10fd561cf3a04c51b>`_  2023-01-30   ``Add deferrable mode to dataflow operators (#27776)``

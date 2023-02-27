@@ -214,7 +214,7 @@ for description on how to add custom providers.
 
 The custom connection types are defined via Hooks delivered by the providers. The Hooks can implement
 methods defined in the protocol class :class:`~airflow.hooks.base_hook.DiscoverableHook`. Note that your
-custom Hook should not derive from this class, this class is a dummy example to document expectations
+custom Hook should not derive from this class, this class is an example to document expectations
 regarding about class fields and methods that your Hook might define. Another good example is
 :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`.
 

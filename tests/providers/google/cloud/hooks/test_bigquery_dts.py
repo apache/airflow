@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from asyncio import Future
 from copy import deepcopy
 
@@ -30,13 +29,7 @@ from airflow.providers.google.cloud.hooks.bigquery_dts import (
     BiqQueryDataTransferServiceHook,
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-    from asynctest.mock import CoroutineMock as AsyncMock
-else:
-    from unittest import mock
-    from unittest.mock import AsyncMock
+from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 CREDENTIALS = "test-creds"
 PROJECT_ID = "id"
@@ -63,19 +56,19 @@ RUN_ID = "id1234"
 
 class TestBigQueryDataTransferHook:
     def setup_method(self):
-        with mock.patch(
+        with async_mock.patch(
             "airflow.providers.google.cloud.hooks.bigquery_dts.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BiqQueryDataTransferServiceHook()
-            self.hook.get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
+            self.hook.get_credentials = async_mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
 
     def test_disable_auto_scheduling(self):
         expected = deepcopy(TRANSFER_CONFIG)
         expected.schedule_options.disable_auto_scheduling = True
         assert expected == self.hook._disable_auto_scheduling(TRANSFER_CONFIG)
 
-    @mock.patch(
+    @async_mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery_dts."
         "DataTransferServiceClient.create_transfer_config"
     )
@@ -91,7 +84,7 @@ class TestBigQueryDataTransferHook:
             timeout=None,
         )
 
-    @mock.patch(
+    @async_mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery_dts."
         "DataTransferServiceClient.delete_transfer_config"
     )
@@ -103,7 +96,7 @@ class TestBigQueryDataTransferHook:
             request=dict(name=name), metadata=(), retry=DEFAULT, timeout=None
         )
 
-    @mock.patch(
+    @async_mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery_dts."
         "DataTransferServiceClient.start_manual_transfer_runs"
     )
@@ -118,7 +111,7 @@ class TestBigQueryDataTransferHook:
             timeout=None,
         )
 
-    @mock.patch(
+    @async_mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery_dts.DataTransferServiceClient.get_transfer_run"
     )
     def test_get_transfer_run(self, service_mock):
@@ -137,14 +130,14 @@ class TestAsyncBiqQueryDataTransferServiceHook:
 
     @pytest.fixture()
     def mock_client(self):
-        with mock.patch(
+        with async_mock.patch(
             f"{self.HOOK_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook._get_conn",
             new_callable=AsyncMock,
         ) as mock_client:
             transfer_result = Future()
-            transfer_result.set_result(mock.MagicMock())
+            transfer_result.set_result(async_mock.MagicMock())
 
-            mock_client.return_value.get_transfer_run = mock.MagicMock(return_value=transfer_result)
+            mock_client.return_value.get_transfer_run = async_mock.MagicMock(return_value=transfer_result)
             yield mock_client
 
     @pytest.fixture

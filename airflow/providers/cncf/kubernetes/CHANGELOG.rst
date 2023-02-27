@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix @task.kubernetes to receive input and send output (#28942)``
+
 5.2.0
 .....
 

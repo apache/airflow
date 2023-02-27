@@ -32,7 +32,7 @@ services:
     ports:
       - "29090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-config.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/volume:/prometheus
 
   grafana:

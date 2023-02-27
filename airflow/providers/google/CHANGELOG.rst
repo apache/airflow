@@ -23,6 +23,32 @@
 Changelog
 ---------
 
+8.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add defer mode to GKECreateClusterOperator and GKEDeleteClusterOperator (#28406)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Move cloud_sql_binary_path from connection to Hook (#29499)``
+* ``Check that cloud sql provider version is valid (#29497)``
+* ``'GoogleDriveHook': Add folder_id param to upload_file (#29477)``
+
+Misc
+~~~~
+* ``Add documentation for BigQuery transfer operators (#29466)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade Mypy to 1.0 (#29468)``
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+   * ``Revert "Upgrade mypy to 0.991 (#28926)" (#29470)``
+   * ``Upgrade mypy to 0.991 (#28926)``
+
 8.9.0
 .....
 

@@ -48,6 +48,9 @@ metadata:
     {{- $annotations | toYaml | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not (kindIs "invalid" .Values.migrateDatabaseJob.ttlSecondsAfterFinished) }}
+  ttlSecondsAfterFinished: {{ .Values.migrateDatabaseJob.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       labels:

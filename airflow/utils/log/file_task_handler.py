@@ -340,7 +340,8 @@ class FileTaskHandler(logging.Handler):
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
-        return messages + logs, {"end_of_log": end_of_log, "log_pos": log_pos}
+        out_message = logs if "log_pos" in (metadata or {}) else messages + logs
+        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):

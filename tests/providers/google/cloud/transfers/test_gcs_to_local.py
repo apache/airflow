@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -42,7 +41,7 @@ FILE_CONTENT_BYTES_UTF16 = (
 )
 
 
-class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
+class TestGoogleCloudStorageDownloadOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
     def test_execute(self, mock_hook):
         operator = GCSToLocalFilesystemOperator(

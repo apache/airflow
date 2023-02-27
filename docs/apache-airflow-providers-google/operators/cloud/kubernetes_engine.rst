@@ -59,6 +59,15 @@ definition, is required when creating a cluster with
     :start-after: [START howto_operator_gke_create_cluster]
     :end-before: [END howto_operator_gke_create_cluster]
 
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_create_cluster_async]
+    :end-before: [END howto_operator_gke_create_cluster_async]
+
+
 .. _howto/operator:GKEDeleteClusterOperator:
 
 Delete GKE cluster
@@ -73,6 +82,14 @@ This would also delete all the nodes allocated to the cluster.
     :dedent: 4
     :start-after: [START howto_operator_gke_delete_cluster]
     :end-before: [END howto_operator_gke_delete_cluster]
+
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_delete_cluster_async]
+    :end-before: [END howto_operator_gke_delete_cluster_async]
 
 Manage workloads on a GKE cluster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

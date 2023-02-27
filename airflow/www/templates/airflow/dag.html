@@ -56,7 +56,6 @@
   <meta name="confirm_url" content="{{ url_for('Airflow.confirm') }}">
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
   <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
-  <meta name="run_url" content="{{ url_for('Airflow.run') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
@@ -332,39 +331,6 @@
             </div>
           {% endif %}
           <h4 id="task_actions">Task Actions</h4>
-          <form method="POST" data-action="{{ url_for('Airflow.run') }}" id="run_action">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-            <input type="hidden" name="task_id">
-            <input type="hidden" name="dag_run_id">
-            <input type="hidden" name="map_index">
-            <input type="hidden" name="origin" value="{{ request.base_url }}">
-            <div class="row">
-              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
-                <label
-                  class="btn btn-default"
-                  title="Ignores all non-critical dependencies, including task state and task_deps">
-                  <input type="checkbox" value="true" name="ignore_all_deps" autocomplete="off">
-                  Ignore All Deps</label>
-                <label class="btn btn-default"
-                  title="Ignore previous success/failure">
-                  <input type="checkbox" value="true" name="ignore_ti_state" autocomplete="off">
-                  Ignore Task State
-                </label>
-                <label class="btn btn-default"
-                  title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past">
-                  <input type="checkbox" value="true" name="ignore_task_deps" autocomplete="off">
-                  Ignore Task Deps
-                </label>
-              </span>
-              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
-                <button type="submit" id="btn_run" class="btn btn-primary btn-block" title="Runs a single task instance">
-                  Run
-                </button>
-              </span>
-            </div>
-            <hr style="margin-bottom: 8px;">
-          </form>
           <form method="POST" data-action="{{ url_for('Airflow.clear') }}" id="clear_action">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
