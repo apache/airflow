@@ -75,18 +75,27 @@ class DatabricksSqlSensor(BaseSensorOperator):
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        """_summary_
+        """Sensor to execute SQL statements on a Delta table via Databricks.
 
-        :param databricks_conn_id: _description_, defaults to DatabricksSqlHook.default_conn_name
-        :param http_path: _description_, defaults to None
-        :param sql_endpoint_name: _description_, defaults to None
-        :param session_configuration: _description_, defaults to None
-        :param http_headers: _description_, defaults to None
-        :param catalog: _description_, defaults to "hive_metastore"
-        :param schema: _description_, defaults to "default"
-        :param sql: _description_, defaults to None
-        :param handler: _description_, defaults to fetch_all_handler
-        :param client_parameters: _description_, defaults to None
+        :param databricks_conn_id: Reference to :ref:`Databricks
+            connection id<howto/connection:databricks>` (templated), defaults to
+            DatabricksSqlHook.default_conn_name
+        :param http_path: Optional string specifying HTTP path of Databricks SQL Endpoint or cluster.
+            If not specified, it should be either specified in the Databricks connection's
+            extra parameters, or ``sql_endpoint_name`` must be specified.
+        :param sql_endpoint_name: Optional name of Databricks SQL Endpoint. If not specified, ``http_path`` must
+            be provided as described above, defaults to None
+        :param session_configuration: An optional dictionary of Spark session parameters. If not specified,
+            it could be specified in the Databricks connection's extra parameters., defaults to None
+        :param http_headers: An optional list of (k, v) pairs
+            that will be set as HTTP headers on every request. (templated).
+        :param catalog: An optional initial catalog to use.
+            Requires DBR version 9.0+ (templated), defaults to ""
+        :param schema: An optional initial schema to use.
+            Requires DBR version 9.0+ (templated), defaults to "default"
+        :param sql: SQL statement to be executed.
+        :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
+        :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
         """
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
