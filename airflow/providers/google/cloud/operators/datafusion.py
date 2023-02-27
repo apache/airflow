@@ -25,13 +25,13 @@ from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
     DataFusionPipelineLink,
     DataFusionPipelinesLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ class DataFusionPipelineLinkHelper:
         return project_id
 
 
-class CloudDataFusionRestartInstanceOperator(BaseOperator):
+class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
     """
     Restart a single Data Fusion instance.
     At the end of an operation instance is fully restarted.
@@ -132,7 +132,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         )
 
 
-class CloudDataFusionDeleteInstanceOperator(BaseOperator):
+class CloudDataFusionDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
     Deletes a single Date Fusion instance.
 
@@ -205,7 +205,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.log.info("Instance %s deleted successfully", self.instance_name)
 
 
-class CloudDataFusionCreateInstanceOperator(BaseOperator):
+class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
     """
     Creates a new Data Fusion instance in the specified project and location.
 
@@ -311,7 +311,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         return instance
 
 
-class CloudDataFusionUpdateInstanceOperator(BaseOperator):
+class CloudDataFusionUpdateInstanceOperator(GoogleCloudBaseOperator):
     """
     Updates a single Data Fusion instance.
 
@@ -409,7 +409,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         )
 
 
-class CloudDataFusionGetInstanceOperator(BaseOperator):
+class CloudDataFusionGetInstanceOperator(GoogleCloudBaseOperator):
     """
     Gets details of a single Data Fusion instance.
 
@@ -491,7 +491,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         return instance
 
 
-class CloudDataFusionCreatePipelineOperator(BaseOperator):
+class CloudDataFusionCreatePipelineOperator(GoogleCloudBaseOperator):
     """
     Creates a Cloud Data Fusion pipeline.
 
@@ -590,7 +590,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.log.info("Pipeline %s created", self.pipeline_name)
 
 
-class CloudDataFusionDeletePipelineOperator(BaseOperator):
+class CloudDataFusionDeletePipelineOperator(GoogleCloudBaseOperator):
     """
     Deletes a Cloud Data Fusion pipeline.
 
@@ -681,7 +681,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.log.info("Pipeline deleted")
 
 
-class CloudDataFusionListPipelinesOperator(BaseOperator):
+class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
     """
     Lists Cloud Data Fusion pipelines.
 
@@ -778,7 +778,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         return pipelines
 
 
-class CloudDataFusionStartPipelineOperator(BaseOperator):
+class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
     """
     Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
@@ -953,7 +953,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         return event["pipeline_id"]
 
 
-class CloudDataFusionStopPipelineOperator(BaseOperator):
+class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
     """
     Stops a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 

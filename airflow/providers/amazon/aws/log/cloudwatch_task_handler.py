@@ -40,6 +40,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :param filename_template: template for file name (local storage) or log stream name (remote)
     """
 
+    trigger_should_wrap = True
+
     def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str | None = None):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(":")
@@ -65,6 +67,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self.handler = watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=self._render_filename(ti, ti.try_number),
+            use_queues=not getattr(ti, "is_trigger_log_context", False),
             boto3_client=self.hook.get_conn(),
         )
 

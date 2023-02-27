@@ -566,7 +566,15 @@ database:
       type: integer
       example: ~
       default: "3"
-
+    check_migrations:
+      description: |
+        Whether to run alembic migrations during Airflow start up. Sometimes this operation can be expensive,
+        and the users can assert the correct version through other means (e.g. through a Helm chart).
+        Accepts "True" or "False".
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "True"
 logging:
   description: ~
   options:
@@ -788,6 +796,54 @@ logging:
       type: string
       example: ~
       default: "8793"
+    trigger_log_server_port:
+      description: |
+        Port to serve logs from for triggerer.  See worker_log_server_port description
+        for more info.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "8794"
+    interleave_timestamp_parser:
+      description: |
+        We must parse timestamps to interleave logs between trigger and task.  To do so,
+        we need to parse timestamps in log files. In case your log format is non-standard,
+        you may provide import path to callable which takes a string log line and returns
+        the timestamp (datetime.datetime compatible).
+      version_added: 2.6.0
+      type: string
+      example: path.to.my_func
+      default: ~
+    file_task_handler_new_folder_permissions:
+      description: |
+        Permissions in the form or of octal string as understood by chmod. The permissions are important
+        when you use impersonation, when logs are written by a different user than airflow. The most secure
+        way of configuring it in this case is to add both users to the same group and make it the default
+        group of both users. Group-writeable logs are default in airflow, but you might decide that you are
+        OK with having the logs other-writeable, in which case you should set it to `0o777`. You might
+        decide to add more security if you do not use impersonation and change it to `0o755` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to `0o700` if
+        all the access (read/write) for your logs happens from the same user.
+      version_added: 2.6.0
+      type: string
+      example: "0o775"
+      default: "0o775"
+    file_task_handler_new_file_permissions:
+      description: |
+        Permissions in the form or of octal string as understood by chmod. The permissions are important
+        when you use impersonation, when logs are written by a different user than airflow. The most secure
+        way of configuring it in this case is to add both users to the same group and make it the default
+        group of both users. Group-writeable logs are default in airflow, but you might decide that you are
+        OK with having the logs other-writeable, in which case you should set it to `0o666`. You might
+        decide to add more security if you do not use impersonation and change it to `0o644` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to `0o600` if
+        all the access (read/write) for your logs happens from the same user.
+      version_added: 2.6.0
+      type: string
+      example: "0o664"
+      default: "0o664"
+
+
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -867,6 +923,13 @@ metrics:
       type: string
       example: ~
       default: ~
+    statsd_influxdb_enabled:
+      description: |
+        To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
@@ -949,17 +1012,18 @@ api:
       default: "airflow.api.auth.backend.session"
     maximum_page_limit:
       description: |
-        Used to set the maximum page limit for API requests
+        Used to set the maximum page limit for API requests. If limit passed as param
+        is greater than maximum page limit, it will be ignored and maximum page limit value
+        will be set as the limit
       version_added: 2.0.0
       type: integer
       example: ~
       default: "100"
     fallback_page_limit:
       description: |
-        Used to set the default page limit when limit is zero. A default limit
-        of 100 is set on OpenApi spec. However, this particular default limit
-        only work when limit is set equal to zero(0) from API requests.
-        If no limit is supplied, the OpenApi spec default is used.
+        Used to set the default page limit when limit param is zero or not provided in API
+        requests. Otherwise if positive integer is passed in the API requests as limit, the
+        smallest number of user given limit or maximum page limit is taken as limit.
       type: integer
       example: ~
       version_added: 2.0.0
@@ -1285,7 +1349,7 @@ webserver:
       version_added: 1.10.8
       type: string
       example: ~
-      default: "True"
+      default: "False"
     expose_stacktrace:
       description: |
         Expose stacktrace in the web server

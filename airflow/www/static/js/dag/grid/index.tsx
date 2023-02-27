@@ -19,29 +19,18 @@
 
 /* global localStorage, ResizeObserver */
 
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  Table,
-  Tbody,
-  Box,
-  Thead,
-  Flex,
-  IconButton,
-} from '@chakra-ui/react';
+import React, { useState, useRef, useEffect } from "react";
+import { Table, Tbody, Box, Thead, IconButton } from "@chakra-ui/react";
 
-import { MdReadMore } from 'react-icons/md';
+import { MdDoubleArrow } from "react-icons/md";
 
-import { useGridData } from 'src/api';
-import { getMetaValue } from 'src/utils';
-import AutoRefresh from 'src/components/AutoRefresh';
-import useOffsetHeight from 'src/utils/useOffsetHeight';
+import { useGridData } from "src/api";
+import { getMetaValue, useOffsetTop } from "src/utils";
 
-import renderTaskRows from './renderTaskRows';
-import ResetRoot from './ResetRoot';
-import DagRuns from './dagRuns';
-import ToggleGroups from './ToggleGroups';
+import renderTaskRows from "./renderTaskRows";
+import DagRuns from "./dagRuns";
 
-const dagId = getMetaValue('dag_id');
+const dagId = getMetaValue("dag_id");
 
 interface Props {
   isPanelOpen?: boolean;
@@ -56,13 +45,15 @@ const Grid = ({
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const offsetHeight = useOffsetHeight(scrollRef);
+  const offsetTop = useOffsetTop(scrollRef);
 
-  const { data: { groups, dagRuns } } = useGridData();
+  const {
+    data: { groups, dagRuns },
+  } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const openGroupsKey = `${dagId}/open-groups`;
-  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey) || '[]');
+  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey) || "[]");
   const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
   const onToggleGroups = (groupIds: string[]) => {
@@ -75,9 +66,9 @@ const Grid = ({
       const runsContainer = scrollRef.current;
       // Set scroll to top right if it is scrollable
       if (
-        tableRef?.current
-        && runsContainer
-        && runsContainer.scrollWidth > runsContainer.clientWidth
+        tableRef?.current &&
+        runsContainer &&
+        runsContainer.scrollWidth > runsContainer.clientWidth
       ) {
         runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
       }
@@ -95,53 +86,45 @@ const Grid = ({
   }, [tableRef, isPanelOpen]);
 
   return (
-    <Box
-      m={3}
-      mt={0}
-      height="100%"
-    >
-      <Flex
-        alignItems="center"
-        justifyContent="space-between"
-        p={1}
-        pb={2}
-        backgroundColor="white"
-      >
-        <Flex alignItems="center">
-          <AutoRefresh />
-          <ToggleGroups
-            groups={groups}
-            openGroupIds={openGroupIds}
-            onToggleGroups={onToggleGroups}
-          />
-          <ResetRoot />
-        </Flex>
-        <IconButton
-          fontSize="2xl"
-          onClick={onPanelToggle}
-          title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
-          aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
-          icon={<MdReadMore />}
-          transform={!isPanelOpen ? 'rotateZ(180deg)' : undefined}
-          transitionProperty="none"
-        />
-      </Flex>
+    <Box p={3} pt={0} height="100%" position="relative">
+      <IconButton
+        fontSize="2xl"
+        variant="ghost"
+        color="gray.400"
+        size="sm"
+        onClick={onPanelToggle}
+        title={`${isPanelOpen ? "Hide " : "Show "} Details Panel`}
+        aria-label={isPanelOpen ? "Show Details" : "Hide Details"}
+        icon={<MdDoubleArrow />}
+        transform={!isPanelOpen ? "rotateZ(180deg)" : undefined}
+        transitionProperty="none"
+        position="absolute"
+        right={0}
+        zIndex={2}
+        top="30px"
+      />
       <Box
-        height="100%"
-        maxHeight={offsetHeight}
+        maxHeight={`calc(100% - ${offsetTop}px)`}
         ref={scrollRef}
         overflow="auto"
         position="relative"
         pr={4}
-        pb={4}
       >
         <Table pr="10px">
           <Thead>
-            <DagRuns />
+            <DagRuns
+              groups={groups}
+              openGroupIds={openGroupIds}
+              onToggleGroups={onToggleGroups}
+            />
           </Thead>
           <Tbody ref={tableRef}>
             {renderTaskRows({
-              task: groups, dagRunIds, openGroupIds, onToggleGroups, hoveredTaskState,
+              task: groups,
+              dagRunIds,
+              openGroupIds,
+              onToggleGroups,
+              hoveredTaskState,
             })}
           </Tbody>
         </Table>

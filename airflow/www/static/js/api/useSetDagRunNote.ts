@@ -17,51 +17,50 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useMutation, useQueryClient } from 'react-query';
+import axios, { AxiosResponse } from "axios";
+import { useMutation, useQueryClient } from "react-query";
 
-import { getMetaValue } from 'src/utils';
-import type { API } from 'src/types';
-import useErrorToast from 'src/utils/useErrorToast';
+import { getMetaValue } from "src/utils";
+import type { API } from "src/types";
+import useErrorToast from "src/utils/useErrorToast";
 
-import { emptyGridData } from './useGridData';
-import type { GridData } from './useGridData';
+import { emptyGridData } from "./useGridData";
+import type { GridData } from "./useGridData";
 
-const setDagRunNoteURI = getMetaValue('set_dag_run_note');
+const setDagRunNoteURI = getMetaValue("set_dag_run_note");
 
 interface Props {
   dagId: string;
   runId: string;
 }
 
-export default function useSetDagRunNote({
-  dagId, runId,
-}: Props) {
+export default function useSetDagRunNote({ dagId, runId }: Props) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
-  const setDagRunNote = setDagRunNoteURI.replace('_DAG_RUN_ID_', runId);
+  const setDagRunNote = setDagRunNoteURI.replace("_DAG_RUN_ID_", runId);
 
   return useMutation(
-    ['setDagRunNote', dagId, runId],
-    (note: string | null) => axios.patch<AxiosResponse, API.DAGRun>(setDagRunNote, { note }),
+    ["setDagRunNote", dagId, runId],
+    (note: string | null) =>
+      axios.patch<AxiosResponse, API.DAGRun>(setDagRunNote, { note }),
     {
       onSuccess: async (data) => {
         const note = data.note ?? null;
 
-        const updateGridData = (oldGridData: GridData | undefined) => (
+        const updateGridData = (oldGridData: GridData | undefined) =>
           !oldGridData
             ? emptyGridData
             : {
-              ...oldGridData,
-              dagRuns: oldGridData.dagRuns.map((dr) => (
-                dr.runId === runId ? { ...dr, note } : dr)),
-            }
-        );
+                ...oldGridData,
+                dagRuns: oldGridData.dagRuns.map((dr) =>
+                  dr.runId === runId ? { ...dr, note } : dr
+                ),
+              };
 
-        await queryClient.cancelQueries('gridData');
-        queryClient.setQueriesData('gridData', updateGridData);
+        await queryClient.cancelQueries("gridData");
+        queryClient.setQueriesData("gridData", updateGridData);
       },
       onError: (error: Error) => errorToast({ error }),
-    },
+    }
   );
 }

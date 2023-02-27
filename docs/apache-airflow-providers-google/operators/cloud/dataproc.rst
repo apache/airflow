@@ -140,6 +140,14 @@ To delete a cluster you can use:
     :start-after: [START how_to_cloud_dataproc_delete_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_delete_cluster_operator]
 
+You can use deferrable mode for this action in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_delete_cluster_operator_async]
+    :end-before: [END how_to_cloud_dataproc_delete_cluster_operator_async]
+
 Submit a job to a cluster
 -------------------------
 
@@ -253,6 +261,14 @@ Once a workflow is created users can trigger it using
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
+
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_trigger_workflow_template_async]
+    :end-before: [END how_to_cloud_dataproc_trigger_workflow_template_async]
 
 The inline operator is an alternative. It creates a workflow, run it, and delete it afterwards:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`:

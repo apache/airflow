@@ -89,7 +89,7 @@ class _VaultClient(LoggingMixin):
         url: str | None = None,
         auth_type: str = "token",
         auth_mount_point: str | None = None,
-        mount_point: str = "secret",
+        mount_point: str | None = "secret",
         kv_engine_version: int | None = None,
         token: str | None = None,
         token_path: str | None = None,
@@ -324,6 +324,15 @@ class _VaultClient(LoggingMixin):
         else:
             _client.token = self.token
 
+    def _parse_secret_path(self, secret_path: str) -> tuple[str, str]:
+        if not self.mount_point:
+            split_secret_path = secret_path.split("/", 1)
+            if len(split_secret_path) < 2:
+                raise InvalidPath
+            return split_secret_path[0], split_secret_path[1]
+        else:
+            return self.mount_point, secret_path
+
     def get_secret(self, secret_path: str, secret_version: int | None = None) -> dict | None:
         """
         Get secret value from the KV engine.
@@ -337,19 +346,19 @@ class _VaultClient(LoggingMixin):
 
         :return: secret stored in the vault as a dictionary
         """
+        mount_point = None
         try:
+            mount_point, secret_path = self._parse_secret_path(secret_path)
             if self.kv_engine_version == 1:
                 if secret_version:
                     raise VaultError("Secret version can only be used with version 2 of the KV engine")
-                response = self.client.secrets.kv.v1.read_secret(
-                    path=secret_path, mount_point=self.mount_point
-                )
+                response = self.client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
             else:
                 response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=self.mount_point, version=secret_version
+                    path=secret_path, mount_point=mount_point, version=secret_version
                 )
         except InvalidPath:
-            self.log.debug("Secret not found %s with mount point %s", secret_path, self.mount_point)
+            self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
             return None
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
@@ -367,12 +376,12 @@ class _VaultClient(LoggingMixin):
         """
         if self.kv_engine_version == 1:
             raise VaultError("Metadata might only be used with version 2 of the KV engine.")
+        mount_point = None
         try:
-            return self.client.secrets.kv.v2.read_secret_metadata(
-                path=secret_path, mount_point=self.mount_point
-            )
+            mount_point, secret_path = self._parse_secret_path(secret_path)
+            return self.client.secrets.kv.v2.read_secret_metadata(path=secret_path, mount_point=mount_point)
         except InvalidPath:
-            self.log.debug("Secret not found %s with mount point %s", secret_path, self.mount_point)
+            self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
             return None
 
     def get_secret_including_metadata(
@@ -391,15 +400,17 @@ class _VaultClient(LoggingMixin):
         """
         if self.kv_engine_version == 1:
             raise VaultError("Metadata might only be used with version 2 of the KV engine.")
+        mount_point = None
         try:
+            mount_point, secret_path = self._parse_secret_path(secret_path)
             return self.client.secrets.kv.v2.read_secret_version(
-                path=secret_path, mount_point=self.mount_point, version=secret_version
+                path=secret_path, mount_point=mount_point, version=secret_version
             )
         except InvalidPath:
             self.log.debug(
                 "Secret not found %s with mount point %s and version %s",
                 secret_path,
-                self.mount_point,
+                mount_point,
                 secret_version,
             )
             return None
@@ -429,12 +440,13 @@ class _VaultClient(LoggingMixin):
             raise VaultError("The method parameter is only valid for version 1")
         if self.kv_engine_version == 1 and cas:
             raise VaultError("The cas parameter is only valid for version 2")
+        mount_point, secret_path = self._parse_secret_path(secret_path)
         if self.kv_engine_version == 1:
             response = self.client.secrets.kv.v1.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=self.mount_point, method=method
+                secret_path=secret_path, secret=secret, mount_point=mount_point, method=method
             )
         else:
             response = self.client.secrets.kv.v2.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=self.mount_point, cas=cas
+                secret_path=secret_path, secret=secret, mount_point=mount_point, cas=cas
             )
         return response

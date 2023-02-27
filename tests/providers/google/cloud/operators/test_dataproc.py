@@ -57,7 +57,9 @@ from airflow.providers.google.cloud.operators.dataproc import (
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
+    DataprocDeleteClusterTrigger,
     DataprocSubmitTrigger,
+    DataprocWorkflowTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -440,6 +442,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
+        mock_hook.return_value.create_cluster.result.return_value = None
         create_cluster_args = {
             "region": GCP_REGION,
             "project_id": GCP_PROJECT,
@@ -874,6 +877,47 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_create_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        mock_hook.return_value.create_cluster.return_value = None
+        operator = DataprocDeleteClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            request_id=REQUEST_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_hook.return_value.delete_cluster.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster_uuid=None,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+        assert isinstance(exc.value.trigger, DataprocDeleteClusterTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
@@ -1320,6 +1364,36 @@ class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        operator = DataprocInstantiateWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template_id=TEMPLATE_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            version=2,
+            parameters={},
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+
+        mock_hook.return_value.instantiate_workflow_template.assert_called_once()
+
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+        assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
 @pytest.mark.need_serialized_dag
@@ -1881,6 +1955,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_batch.assert_called_once_with(
@@ -1911,6 +1986,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_batch.assert_called_once_with(
@@ -1940,14 +2016,91 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.create_batch.side_effect = AlreadyExists("")
-        mock_hook.return_value.get_batch.return_value.state = Batch.State.FAILED
+        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.FAILED)
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
-            mock_hook.return_value.get_batch.assert_called_once_with(
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_batch_already_exists_succeeds(self, mock_hook):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        op.execute(context=MagicMock())
+        mock_hook.return_value.wait_for_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            wait_check_interval=5,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_batch_already_exists_fails(self, mock_hook):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
+        with pytest.raises(AirflowException):
+            op.execute(context=MagicMock())
+            mock_hook.return_value.wait_for_batch.assert_called_once_with(
                 batch_id=BATCH_ID,
                 region=GCP_REGION,
                 project_id=GCP_PROJECT,
+                wait_check_interval=10,
+                retry=RETRY,
+                timeout=TIMEOUT,
+                metadata=METADATA,
+            )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_batch_already_exists_cancelled(self, mock_hook):
+        op = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.CANCELLED)
+        with pytest.raises(AirflowException):
+            op.execute(context=MagicMock())
+            mock_hook.return_value.wait_for_batch.assert_called_once_with(
+                batch_id=BATCH_ID,
+                region=GCP_REGION,
+                project_id=GCP_PROJECT,
+                wait_check_interval=10,
                 retry=RETRY,
                 timeout=TIMEOUT,
                 metadata=METADATA,

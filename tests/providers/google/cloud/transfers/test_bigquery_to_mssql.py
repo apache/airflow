@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -36,7 +35,7 @@ TEST_DAG_ID = "test-bigquery-operators"
 
 
 @pytest.mark.backend("mssql")
-class TestBigQueryToMsSqlOperator(unittest.TestCase):
+class TestBigQueryToMsSqlOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):
         destination_table = "table"

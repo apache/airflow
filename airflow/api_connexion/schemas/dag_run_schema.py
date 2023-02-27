@@ -162,6 +162,8 @@ class DagRunsBatchFormSchema(Schema):
     start_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     end_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    updated_at_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    updated_at_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
 
 
 class SetDagRunNoteFormSchema(Schema):

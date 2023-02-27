@@ -18,11 +18,9 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 try:
     from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
@@ -55,8 +53,9 @@ SCHEMA_JSON = [
 
 
 @pytest.mark.backend("mssql")
-class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
-    @parameterized.expand(
+class TestMsSqlToGoogleCloudStorageOperator:
+    @pytest.mark.parametrize(
+        "value, expected",
         [
             ("string", "string"),
             (32.9, 32.9),
@@ -66,7 +65,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
             (datetime.datetime(1970, 1, 1, 1, 0), "1970-01-01T01:00:00"),
             (datetime.time(hour=0, minute=0, second=0), "00:00:00"),
             (datetime.time(hour=23, minute=59, second=59), "23:59:59"),
-        ]
+        ],
     )
     def test_convert_type(self, value, expected):
         op = MSSQLToGCSOperator(
