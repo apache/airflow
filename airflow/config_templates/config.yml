@@ -566,7 +566,15 @@ database:
       type: integer
       example: ~
       default: "3"
-
+    check_migrations:
+      description: |
+        Whether to run alembic migrations during Airflow start up. Sometimes this operation can be expensive,
+        and the users can assert the correct version through other means (e.g. through a Helm chart).
+        Accepts "True" or "False".
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "True"
 logging:
   description: ~
   options:
