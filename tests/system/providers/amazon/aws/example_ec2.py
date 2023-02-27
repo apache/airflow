@@ -39,7 +39,8 @@ DAG_ID = "example_ec2"
 sys_test_context_task = SystemTestContextBuilder().build()
 
 
-def _get_latest_ami_id():
+@task
+def get_latest_ami_id():
     """Returns the AMI ID of the most recently-created Amazon Linux image"""
 
     # Amazon is retiring AL2 in 2023 and replacing it with Amazon Linux 2022.
@@ -88,7 +89,7 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     instance_name = f"{env_id}-instance"
     key_name = create_key_pair(key_name=f"{env_id}_key_pair")
-    image_id = _get_latest_ami_id()
+    image_id = get_latest_ami_id()
 
     config = {
         "InstanceType": "t2.micro",
@@ -150,6 +151,7 @@ with DAG(
         # TEST SETUP
         test_context,
         key_name,
+        image_id,
         # TEST BODY
         create_instance,
         instance_id,

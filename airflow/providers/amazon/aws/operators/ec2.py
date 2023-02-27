@@ -207,7 +207,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EC2TerminateInstanceOperator`
 
-    :instance_id: ID of the instance to be terminated.
+    :param instance_id: ID of the instance to be terminated.
     :param aws_conn_id: AWS connection to use
     :param region_name: AWS region name associated with the client.
     :param poll_interval: Number of seconds to wait before attempting to
