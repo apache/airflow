@@ -19,43 +19,48 @@
 
 /* global describe, test, expect, stateColors, jest */
 
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import React from "react";
+import { render, fireEvent, waitFor } from "@testing-library/react";
 
-import LegendRow from './LegendRow';
+import LegendRow from "./LegendRow";
 
-describe('Test LegendRow', () => {
-  test('Render displays correctly the different task states', () => {
+describe("Test LegendRow", () => {
+  test("Render displays correctly the different task states", () => {
     const onStatusHover = jest.fn();
     const onStatusLeave = jest.fn();
     const { getByText } = render(
-      <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />,
+      <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
     );
 
     Object.keys(stateColors).forEach((taskState) => {
       expect(getByText(taskState)).toBeInTheDocument();
     });
 
-    expect(getByText('no_status')).toBeInTheDocument();
+    expect(getByText("no_status")).toBeInTheDocument();
   });
 
   test.each([
-    { state: 'success', expectedSetValue: 'success' },
-    { state: 'failed', expectedSetValue: 'failed' },
-    { state: 'no_status', expectedSetValue: null },
+    { state: "success", expectedSetValue: "success" },
+    { state: "failed", expectedSetValue: "failed" },
+    { state: "no_status", expectedSetValue: null },
   ])(
-    'Hovering $state badge should trigger setHoverdTaskState function with $expectedSetValue',
+    "Hovering $state badge should trigger setHoverdTaskState function with $expectedSetValue",
     async ({ state, expectedSetValue }) => {
       const onStatusHover = jest.fn();
       const onStatusLeave = jest.fn();
       const { getByText } = render(
-        <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />,
+        <LegendRow
+          onStatusHover={onStatusHover}
+          onStatusLeave={onStatusLeave}
+        />
       );
       const successElement = getByText(state);
       fireEvent.mouseEnter(successElement);
-      await waitFor(() => expect(onStatusHover).toHaveBeenCalledWith(expectedSetValue));
+      await waitFor(() =>
+        expect(onStatusHover).toHaveBeenCalledWith(expectedSetValue)
+      );
       fireEvent.mouseLeave(successElement);
       await waitFor(() => expect(onStatusLeave).toHaveBeenLastCalledWith());
-    },
+    }
   );
 });
