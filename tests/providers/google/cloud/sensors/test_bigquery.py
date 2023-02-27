@@ -162,7 +162,7 @@ class TestBigQueryTableExistenceAsyncSensor:
             task.execute_complete(context={}, event=None)
 
 
-class TestBigQueryTableExistencePartitionAsyncSensor(TestCase):
+class TestBigQueryTableExistencePartitionAsyncSensor:
     def test_big_query_table_existence_partition_sensor_async(self):
         """
         Asserts that a task is deferred and a BigQueryTablePartitionExistenceTrigger will be fired
