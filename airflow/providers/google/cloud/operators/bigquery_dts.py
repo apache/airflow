@@ -32,9 +32,9 @@ from google.cloud.bigquery_datatransfer_v1 import (
 
 from airflow import AirflowException
 from airflow.compat.functools import cached_property
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ def _get_transfer_config_details(config_transfer_name: str):
     return {"project_id": config_details[1], "region": config_details[3], "config_id": config_details[5]}
 
 
-class BigQueryCreateDataTransferOperator(BaseOperator):
+class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
     """
     Creates a new data transfer configuration.
 
@@ -144,7 +144,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         return result
 
 
-class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
+class BigQueryDeleteDataTransferConfigOperator(GoogleCloudBaseOperator):
     """
     Deletes transfer configuration.
 
@@ -216,7 +216,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         )
 
 
-class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
+class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperator):
     """
     Start manual transfer runs to be executed now with schedule_time equal
     to current time. The transfer runs can be created for a time range where

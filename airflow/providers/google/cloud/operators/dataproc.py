@@ -37,7 +37,6 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataproc import (
@@ -50,6 +49,7 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocLink,
     DataprocListLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
@@ -391,7 +391,7 @@ class ClusterGenerator:
         return self._build_cluster_data()
 
 
-class DataprocCreateClusterOperator(BaseOperator):
+class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
     creation is successful or an error occurs in the creation process. If the cluster
@@ -662,7 +662,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         return event["cluster"]
 
 
-class DataprocScaleClusterOperator(BaseOperator):
+class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
     """
     Scale, up or down, a cluster on Google Cloud Dataproc.
     The operator will wait until the cluster is re-scaled.
@@ -798,7 +798,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         self.log.info("Cluster scaling finished")
 
 
-class DataprocDeleteClusterOperator(BaseOperator):
+class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
     """
     Deletes a cluster in a project.
 
@@ -911,7 +911,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         )
 
 
-class DataprocJobBaseOperator(BaseOperator):
+class DataprocJobBaseOperator(GoogleCloudBaseOperator):
     """
     The base class for operators that launch job on DataProc.
 
@@ -1615,7 +1615,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
-class DataprocCreateWorkflowTemplateOperator(BaseOperator):
+class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     """
     Creates new workflow template.
 
@@ -1680,7 +1680,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         )
 
 
-class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
+class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     """
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
     until the WorkflowTemplate is finished executing.
@@ -1808,7 +1808,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.log.info("Workflow %s completed successfully", event["operation_name"])
 
 
-class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
+class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator):
     """
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
     wait until the WorkflowTemplate is finished executing.
@@ -1900,7 +1900,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         self.log.info("Workflow %s completed successfully", self.workflow_id)
 
 
-class DataprocSubmitJobOperator(BaseOperator):
+class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     """
     Submits a job to a cluster.
 
@@ -2041,7 +2041,7 @@ class DataprocSubmitJobOperator(BaseOperator):
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, region=self.region)
 
 
-class DataprocUpdateClusterOperator(BaseOperator):
+class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
     """
     Updates a cluster in a project.
 
@@ -2180,7 +2180,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         self.log.info("%s completed successfully.", self.task_id)
 
 
-class DataprocCreateBatchOperator(BaseOperator):
+class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     """
     Creates a batch workload.
 
@@ -2371,7 +2371,7 @@ class DataprocCreateBatchOperator(BaseOperator):
             self.operation.cancel()
 
 
-class DataprocDeleteBatchOperator(BaseOperator):
+class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
     """
     Deletes the batch workload resource.
 
@@ -2435,7 +2435,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
         self.log.info("Batch deleted.")
 
 
-class DataprocGetBatchOperator(BaseOperator):
+class DataprocGetBatchOperator(GoogleCloudBaseOperator):
     """
     Gets the batch workload resource representation.
 
@@ -2503,7 +2503,7 @@ class DataprocGetBatchOperator(BaseOperator):
         return Batch.to_dict(batch)
 
 
-class DataprocListBatchesOperator(BaseOperator):
+class DataprocListBatchesOperator(GoogleCloudBaseOperator):
     """
     Lists batch workloads.
 
@@ -2573,7 +2573,7 @@ class DataprocListBatchesOperator(BaseOperator):
         return [Batch.to_dict(result) for result in results]
 
 
-class DataprocCancelOperationOperator(BaseOperator):
+class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
     """
     Cancel the batch workload resource.
 
