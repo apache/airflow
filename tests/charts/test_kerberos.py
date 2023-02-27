@@ -112,10 +112,10 @@ class TestKerberos:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert {'name': 'kerberos-keytab', 
-                'subPath': 'kerberos.keytab', 
-                'mountPath': '/etc/airflow.keytab', 
-                'readOnly': True} in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0]) 
+        assert {"name": "kerberos-keytab",
+                "subPath": "kerberos.keytab",
+                "mountPath": "/etc/airflow.keytab",
+                "readOnly": True} in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
     def test_kerberos_keytab_secret_available(self):
         docs = render_chart(
