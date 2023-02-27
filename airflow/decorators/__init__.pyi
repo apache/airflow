@@ -31,7 +31,6 @@ from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.sensor import sensor_task
-from airflow.decorators.setup_teardown import setup_task, teardown_task
 from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
 from airflow.kubernetes.secret import Secret
@@ -457,5 +456,5 @@ class TaskDecoratorCollection:
     def sensor(self, python_callable: FParams | FReturn | None = None) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
-setup: setup_task
-teardown: teardown_task
+setup: Callable
+teardown: Callable
