@@ -948,9 +948,11 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
 
         # Test whether xcom push occurs before polling for job
-        assert self.extra_links_manager_mock.mock_calls.index(xcom_push_call) < \
-               self.extra_links_manager_mock.mock_calls.index(wait_for_job_call), \
-               "Xcom push for Job Link has to be done before polling for job status"
+        assert self.extra_links_manager_mock.mock_calls.index(
+            xcom_push_call
+        ) < self.extra_links_manager_mock.mock_calls.index(
+            wait_for_job_call
+        ), "Xcom push for Job Link has to be done before polling for job status"
 
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
