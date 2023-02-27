@@ -23,9 +23,8 @@ Here is the current Database schema diagram.
 .. warning::
 
    The ER diagram shows the snapshot of the database structure valid for Airflow version |version| and it
-   should be treated as an internal detail. It might be changed at any time and you should not directly
-   access the database to retrieve information from it or modify the data - you should use
-   :doc:`stable-rest-api-ref` to do that instead.
+   should be treated as an internal detail. The database should not be accessed directly; instead, use the 
+   :doc:`stable-rest-api-ref` to access Airflow database data.
    The main purpose of this diagram is to help with troubleshooting and understanding of the
    internal Airflow DB architecture in case you have any problems with the database - for example
    when dealing with problems with migrations. See also :doc:`migrations-ref` for
