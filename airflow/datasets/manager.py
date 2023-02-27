@@ -59,7 +59,8 @@ class DatasetManager(LoggingMixin):
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
-        if dataset_model := self._get_dataset_model(dataset=dataset, session=session) is None:
+        dataset_model = self._get_dataset_model(dataset=dataset, session=session)
+        if dataset_model is None:
             return None
 
         dataset_event = DatasetEvent(
@@ -90,7 +91,8 @@ class DatasetManager(LoggingMixin):
 
         For local datasets, look them up, record the dataset event, and queue dagruns.
         """
-        if dataset_model := self._get_dataset_model(dataset=dataset, session=session) is None:
+        dataset_model = self._get_dataset_model(dataset=dataset, session=session) is None
+        if dataset_model is None:
             return None
 
         # When an external dataset change is made through the API, it isn't triggered by a task instance,
