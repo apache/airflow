@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import exc
 from sqlalchemy.orm.session import Session
 
 from airflow.configuration import conf
-from airflow.datasets import Dataset, ExternalDatasetChange
+from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -79,14 +79,14 @@ class DatasetManager(LoggingMixin):
         self,
         dataset: Dataset,
         external_source: str,
-        external_service_id: str,
         timestamp: datetime,
         session: Session,
+        user_id: int | None,
         extra=None,
         **kwargs,
     ) -> DatasetEvent | None:
         """
-        Register an dataset change from an external source (rather than task_instance)
+        Register a dataset change from an external source (rather than task_instance)
 
         For local datasets, look them up, record the dataset event, and queue dagruns.
         """
@@ -98,7 +98,7 @@ class DatasetManager(LoggingMixin):
         dataset_event = DatasetEvent(
             dataset_id=dataset_model.id,
             external_source=external_source,
-            external_service_id=external_service_id,
+            user_id=user_id,
             timestamp=timestamp,
             extra=extra,
         )
@@ -106,7 +106,7 @@ class DatasetManager(LoggingMixin):
         self._save_dataset_event(dataset_event, dataset_model, session)
         return dataset_event
 
-    def _get_dataset_model(self, dataset: Dataset, session: Session) -> Optional[DatasetModel]:
+    def _get_dataset_model(self, dataset: Dataset, session: Session) -> DatasetModel | None:
         dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)

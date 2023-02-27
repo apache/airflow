@@ -116,8 +116,6 @@ class ExternalDatasetChangeSchema(Schema):
     """External Dataset change/update Schema"""
 
     dataset_uri = fields.String()
-    external_service_id = auto_field()
-    external_source = fields.String(dump_only=True)
     timestamp = auto_field()
     extra = JsonObjectField()
 

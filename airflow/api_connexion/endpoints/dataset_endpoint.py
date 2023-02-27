@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from flask import request
+from flask_login import current_user
 from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, subqueryload
@@ -139,14 +141,14 @@ def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
     uri = json_body["dataset_uri"]
-    external_source = json_body["external_source"]
-    external_service_id = json_body["external_service_id"]
+    external_source = request.remote_addr
+    user_id = getattr(current_user, "id", None)
     timestamp = json_body["timestamp"]
     extra = json_body["extra"]
     dataset_event = dataset_manager.register_external_dataset_change(
         dataset=Dataset(uri),
         external_source=external_source,
-        external_service_id=external_service_id,
+        user_id=user_id,
         timestamp=timestamp,
         extra=extra,
         session=session,
