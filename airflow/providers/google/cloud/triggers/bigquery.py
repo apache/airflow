@@ -529,3 +529,72 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
                 if err.status == 404:
                     return False
                 raise err
+
+
+class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
+    """
+    Initialize the BigQuery Table Partition Existence Trigger with needed parameters
+    :param partition_id: The name of the partition to check the existence of.
+    :param project_id: Google Cloud Project where the job is running
+    :param dataset_id: The dataset ID of the requested table.
+    :param table_id: The table ID of the requested table.
+    :param gcp_conn_id: Reference to google cloud connection id
+    :param hook_params: params for hook
+    :param poll_interval: polling period in seconds to check for the status
+    """
+
+    def __init__(self, partition_id: str, **kwargs):
+        super().__init__(**kwargs)
+        self.partition_id = partition_id
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes BigQueryTablePartitionExistenceTrigger arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionExistenceTrigger",
+            {
+                "partition_id": self.partition_id,
+                "dataset_id": self.dataset_id,
+                "project_id": self.project_id,
+                "table_id": self.table_id,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_interval": self.poll_interval,
+                "hook_params": self.hook_params,
+            },
+        )
+
+    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+        """Will run until the table exists in the Google Big Query."""
+        hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id)
+        job_id = None
+        while True:
+            if job_id is not None:
+                status = await hook.get_job_status(job_id=job_id, project_id=self.project_id)
+                if status == "success":
+                    is_partition = await self._partition_exists(
+                        hook=hook, job_id=job_id, project_id=self.project_id
+                    )
+                    if is_partition:
+                        yield TriggerEvent(
+                            {
+                                "status": "success",
+                                "message": f"Partition: {self.partition_id} in table: {self.table_id}",
+                            }
+                        )
+                    job_id = None
+                elif status == "error":
+                    yield TriggerEvent({"status": "error", "message": status})
+                    return
+                self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                await asyncio.sleep(self.poll_interval)
+
+            else:
+                job_id = await hook.create_job_for_partition_get(self.dataset_id, project_id=self.project_id)
+                self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                await asyncio.sleep(self.poll_interval)
+
+    async def _partition_exists(self, hook: BigQueryAsyncHook, job_id: str | None, project_id: str):
+        query_results = await hook.get_job_output(job_id=job_id, project_id=project_id)
+        records = hook.get_records(query_results)
+        if records:
+            records = [row[0] for row in records]
+            return self.partition_id in records
