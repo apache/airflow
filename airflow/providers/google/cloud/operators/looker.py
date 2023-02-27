@@ -21,14 +21,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.looker import LookerHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class LookerStartPdtBuildOperator(BaseOperator):
+class LookerStartPdtBuildOperator(GoogleCloudBaseOperator):
     """
     Submits a PDT materialization job to Looker.
 

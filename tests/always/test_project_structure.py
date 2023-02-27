@@ -273,6 +273,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
+        "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
@@ -401,6 +402,10 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
         # EMR Step sensor difficult to test, see: https://github.com/apache/airflow/pull/27286
         "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
+    }
+
+    DEPRECATED_CLASSES = {
+        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
     }
 
 
