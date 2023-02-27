@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceAsyncSensor,
+    BigQueryTableExistencePartitionAsyncSensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
@@ -116,6 +117,16 @@ with models.DAG(
         partition_id=PARTITION_NAME,
     )
     # [END howto_sensor_bigquery_table_partition]
+
+    # [START howto_sensor_bigquery_table_partition_async]
+    check_table_partition_exists_async: BaseSensorOperator = BigQueryTableExistencePartitionAsyncSensor(
+        task_id="check_table_partition_exists_async",
+        partition_id=PARTITION_NAME,
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+    )
+    # [END howto_sensor_bigquery_table_partition_async]
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
