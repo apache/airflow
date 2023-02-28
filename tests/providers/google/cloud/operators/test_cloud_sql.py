@@ -21,7 +21,6 @@ import os
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -682,7 +681,8 @@ class TestCloudSqlQueryValidation:
         cloudsql_connection2 = Connection(uri=uri)
         get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, location, instance_name, database_type, use_proxy, use_ssl, sql, message",
         [
             (
                 "project_id",
@@ -735,11 +735,12 @@ class TestCloudSqlQueryValidation:
                 "SELECT * FROM TEST",
                 "SSL connections requires sslcert to be set",
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_create_operator_with_wrong_parameters(
         self,
+        get_connection,
         project_id,
         location,
         instance_name,
@@ -748,7 +749,6 @@ class TestCloudSqlQueryValidation:
         use_ssl,
         sql,
         message,
-        get_connection,
     ):
         uri = (
             f"gcpcloudsql://user:password@127.0.0.1:3200/testdb?"

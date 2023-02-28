@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 from googleapiclient.errors import HttpError
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.functions import (
@@ -69,9 +68,9 @@ def _prepare_test_bodies():
 
 
 class TestGcfFunctionDeploy:
-    @parameterized.expand(_prepare_test_bodies())
+    @pytest.mark.parametrize("body, message", _prepare_test_bodies())
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_body_empty_or_missing_fields(self, body, message, mock_hook):
+    def test_body_empty_or_missing_fields(self, mock_hook, body, message):
         mock_hook.return_value.upload_function_zip.return_value = "https://uploadUrl"
         with pytest.raises(AirflowException) as ctx:
             op = CloudFunctionDeployFunctionOperator(
@@ -166,9 +165,9 @@ class TestGcfFunctionDeploy:
         err = ctx.value
         assert "The required parameter 'body' is missing" in str(err)
 
-    @parameterized.expand([(runtime,) for runtime in VALID_RUNTIMES])
+    @pytest.mark.parametrize("runtime", VALID_RUNTIMES)
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_correct_runtime_field(self, runtime, mock_hook):
+    def test_correct_runtime_field(self, mock_hook, runtime):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body["runtime"] = runtime
@@ -183,19 +182,17 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.reset_mock()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "network",
         [
-            (network,)
-            for network in [
-                "network-01",
-                "n-0-2-3-4",
-                "projects/PROJECT/global/networks/network-01",
-                "projects/PRÓJECT/global/networks/netwórk-01",
-            ]
-        ]
+            "network-01",
+            "n-0-2-3-4",
+            "projects/PROJECT/global/networks/network-01",
+            "projects/PRÓJECT/global/networks/netwórk-01",
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_valid_network_field(self, network, mock_hook):
+    def test_valid_network_field(self, mock_hook, network):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body["network"] = network
@@ -210,18 +207,9 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.reset_mock()
 
-    @parameterized.expand(
-        [
-            (labels,)
-            for labels in [
-                {},
-                {"label": "value-01"},
-                {"label_324234_a_b_c": "value-01_93"},
-            ]
-        ]
-    )
+    @pytest.mark.parametrize("labels", [{}, {"label": "value-01"}, {"label_324234_a_b_c": "value-01_93"}])
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_valid_labels_field(self, labels, mock_hook):
+    def test_valid_labels_field(self, mock_hook, labels):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body["labels"] = labels
@@ -270,7 +258,8 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.reset_mock()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "key, value, message",
         [
             ("name", "", "The body field 'name' of value '' does not match"),
             ("description", "", "The body field 'description' of value '' does not match"),
@@ -282,10 +271,10 @@ class TestGcfFunctionDeploy:
             ("maxInstances", "0", "The max instances parameter has to be greater than 0"),
             ("maxInstances", "-1", "The max instances parameter has to be greater than 0"),
             ("maxInstances", "ss", "invalid literal for int() with base 10: 'ss'"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_invalid_field_values(self, key, value, message, mock_hook):
+    def test_invalid_field_values(self, mock_hook, key, value, message):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body[key] = value
@@ -303,7 +292,8 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.reset_mock()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "source_code, message",
         [
             (
                 {"sourceArchiveUrl": ""},
@@ -362,7 +352,7 @@ class TestGcfFunctionDeploy:
                 {"sourceRepository": {"url": ""}},
                 "The body field 'source_code.sourceRepository.url' of value '' does not match",
             ),
-        ]
+        ],
     )
     def test_invalid_source_code_union_field(self, source_code, message):
         body = deepcopy(VALID_BODY)
@@ -382,31 +372,43 @@ class TestGcfFunctionDeploy:
         err = ctx.value
         assert message in str(err)
 
-    # fmt: off
-    @parameterized.expand([
-        ({'sourceArchiveUrl': 'gs://url'}, 'test_project_id'),
-        ({'zip_path': '/path/to/file', 'sourceUploadUrl': None}, 'test_project_id'),
-        ({'zip_path': '/path/to/file', 'sourceUploadUrl': None}, None),
-        ({'sourceUploadUrl': 'https://source.developers.google.com/projects/a/repos/b/revisions/c/paths/d'},
-         'test_project_id'),
-        ({'sourceRepository': {
-            'url':
-                'https://source.developers.google.com/projects/a/repos/b/revisions/c/paths/d'
-        }}, 'test_project_id'),
-    ])
-    @mock.patch('airflow.providers.google.cloud.operators.functions.CloudFunctionsHook')
-    def test_valid_source_code_union_field(self, source_code, project_id, mock_hook):
-        mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
+    @pytest.mark.parametrize(
+        "source_code, project_id",
+        [
+            ({"sourceArchiveUrl": "gs://url"}, "test_project_id"),
+            ({"zip_path": "/path/to/file", "sourceUploadUrl": None}, "test_project_id"),
+            ({"zip_path": "/path/to/file", "sourceUploadUrl": None}, None),
+            (
+                {
+                    "sourceUploadUrl": (
+                        "https://source.developers.google.com/projects/a/repos/b/revisions/c/paths/d"
+                    )
+                },
+                "test_project_id",
+            ),
+            (
+                {
+                    "sourceRepository": {
+                        "url": "https://source.developers.google.com/projects/a/repos/b/revisions/c/paths/d"
+                    }
+                },
+                "test_project_id",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
+    def test_valid_source_code_union_field(self, mock_hook, source_code, project_id):
+        mock_hook.return_value.upload_function_zip.return_value = "https://uploadUrl"
         mock_hook.return_value.get_function.side_effect = mock.Mock(
-            side_effect=HttpError(resp=MOCK_RESP_404, content=b'not found')
+            side_effect=HttpError(resp=MOCK_RESP_404, content=b"not found")
         )
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
-        body.pop('sourceUploadUrl', None)
-        body.pop('sourceArchiveUrl', None)
-        body.pop('sourceRepository', None)
-        body.pop('sourceRepositoryUrl', None)
-        zip_path = source_code.pop('zip_path', None)
+        body.pop("sourceUploadUrl", None)
+        body.pop("sourceArchiveUrl", None)
+        body.pop("sourceRepository", None)
+        body.pop("sourceRepositoryUrl", None)
+        zip_path = source_code.pop("zip_path", None)
         body.update(source_code)
         if project_id:
             op = CloudFunctionDeployFunctionOperator(
@@ -422,23 +424,24 @@ class TestGcfFunctionDeploy:
             )
         op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
-            api_version='v1', gcp_conn_id='google_cloud_default', impersonation_chain=None,
+            api_version="v1",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
         )
         if zip_path:
             mock_hook.return_value.upload_function_zip.assert_called_once_with(
-                project_id=project_id, location='test_region', zip_path='/path/to/file'
+                project_id=project_id, location="test_region", zip_path="/path/to/file"
             )
         mock_hook.return_value.get_function.assert_called_once_with(
-            'projects/test_project_id/locations/test_region/functions/helloWorld'
+            "projects/test_project_id/locations/test_region/functions/helloWorld"
         )
         mock_hook.return_value.create_new_function.assert_called_once_with(
-            project_id=project_id, location='test_region', body=body
+            project_id=project_id, location="test_region", body=body
         )
         mock_hook.reset_mock()
 
-    # fmt: on
-
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "trigger, message",
         [
             ({"eventTrigger": {}}, "The required body field 'trigger.eventTrigger.eventType' is missing"),
             (
@@ -470,10 +473,10 @@ class TestGcfFunctionDeploy:
                 },
                 "The field 'trigger.eventTrigger.failurePolicy.retry' should be of dictionary type",
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_invalid_trigger_union_field(self, trigger, message, mock_hook):
+    def test_invalid_trigger_union_field(self, mock_hook, trigger, message):
         mock_hook.return_value.upload_function_zip.return_value = "https://uploadUrl"
         body = deepcopy(VALID_BODY)
         body.pop("httpsTrigger", None)
@@ -496,42 +499,37 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.reset_mock()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "trigger",
         [
-            ({"httpsTrigger": {}},),
-            ({"eventTrigger": {"eventType": "providers/test/eventTypes/a.b", "resource": "res"}},),
-            (
-                {
-                    "eventTrigger": {
-                        "eventType": "providers/test/eventTypes/a.b",
-                        "resource": "res",
-                        "service": "service_name",
-                    }
-                },
-            ),
-            (
-                {
-                    "eventTrigger": {
-                        "eventType": "providers/test/eventTypes/ą.b",
-                        "resource": "reś",
-                        "service": "service_namę",
-                    }
-                },
-            ),
-            (
-                {
-                    "eventTrigger": {
-                        "eventType": "providers/test/eventTypes/a.b",
-                        "resource": "res",
-                        "service": "service_name",
-                        "failurePolicy": {"retry": {}},
-                    }
-                },
-            ),
-        ]
+            {"httpsTrigger": {}},
+            {"eventTrigger": {"eventType": "providers/test/eventTypes/a.b", "resource": "res"}},
+            {
+                "eventTrigger": {
+                    "eventType": "providers/test/eventTypes/a.b",
+                    "resource": "res",
+                    "service": "service_name",
+                }
+            },
+            {
+                "eventTrigger": {
+                    "eventType": "providers/test/eventTypes/ą.b",
+                    "resource": "reś",
+                    "service": "service_namę",
+                }
+            },
+            {
+                "eventTrigger": {
+                    "eventType": "providers/test/eventTypes/a.b",
+                    "resource": "res",
+                    "service": "service_name",
+                    "failurePolicy": {"retry": {}},
+                }
+            },
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
-    def test_valid_trigger_union_field(self, trigger, mock_hook):
+    def test_valid_trigger_union_field(self, mock_hook, trigger):
         mock_hook.return_value.upload_function_zip.return_value = "https://uploadUrl"
         mock_hook.return_value.get_function.side_effect = mock.Mock(
             side_effect=HttpError(resp=MOCK_RESP_404, content=b"not found")
