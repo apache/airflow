@@ -546,7 +546,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
-
+    # [START gcp_sql_clone_template_fields]
     template_fields: Sequence[str] = (
         "project_id",
         "instance",
@@ -554,6 +554,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
         "gcp_conn_id",
         "api_version",
     )
+    # [END gcp_sql_clone_template_fields]
 
     def __init__(
         self,
