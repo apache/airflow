@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.spanner import (
@@ -172,14 +171,15 @@ class TestCloudSpanner:
         mock_hook.return_value.create_instance.assert_not_called()
         assert result is None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, instance_id, exp_msg",
         [
             ("", INSTANCE_ID, "project_id"),
             (PROJECT_ID, "", "instance_id"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_instance_create_ex_if_param_missing(self, project_id, instance_id, exp_msg, mock_hook):
+    def test_instance_create_ex_if_param_missing(self, mock_hook, project_id, instance_id, exp_msg):
         with pytest.raises(AirflowException) as ctx:
             SpannerDeployInstanceOperator(
                 project_id=project_id,
@@ -233,14 +233,15 @@ class TestCloudSpanner:
         mock_hook.return_value.delete_instance.assert_not_called()
         assert result
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, instance_id, exp_msg",
         [
             ("", INSTANCE_ID, "project_id"),
             (PROJECT_ID, "", "instance_id"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
-    def test_instance_delete_ex_if_param_missing(self, project_id, instance_id, exp_msg, mock_hook):
+    def test_instance_delete_ex_if_param_missing(self, mock_hook, project_id, instance_id, exp_msg):
         with pytest.raises(AirflowException) as ctx:
             SpannerDeleteInstanceOperator(project_id=project_id, instance_id=instance_id, task_id="id")
         err = ctx.value
@@ -285,17 +286,18 @@ class TestCloudSpanner:
         )
         assert result is None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, instance_id, database_id, query, exp_msg",
         [
             ("", INSTANCE_ID, DB_ID, INSERT_QUERY, "project_id"),
             (PROJECT_ID, "", DB_ID, INSERT_QUERY, "instance_id"),
             (PROJECT_ID, INSTANCE_ID, "", INSERT_QUERY, "database_id"),
             (PROJECT_ID, INSTANCE_ID, DB_ID, "", "query"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_instance_query_ex_if_param_missing(
-        self, project_id, instance_id, database_id, query, exp_msg, mock_hook
+        self, mock_hook, project_id, instance_id, database_id, query, exp_msg
     ):
         with pytest.raises(AirflowException) as ctx:
             SpannerQueryDatabaseInstanceOperator(
@@ -412,16 +414,17 @@ class TestCloudSpanner:
         mock_hook.return_value.update_database.assert_not_called()
         assert result
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, instance_id, database_id, ddl_statements, exp_msg",
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
             (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_database_create_ex_if_param_missing(
-        self, project_id, instance_id, database_id, ddl_statements, exp_msg, mock_hook
+        self, mock_hook, project_id, instance_id, database_id, ddl_statements, exp_msg
     ):
         with pytest.raises(AirflowException) as ctx:
             SpannerDeployDatabaseInstanceOperator(
@@ -481,16 +484,17 @@ class TestCloudSpanner:
         )
         assert result
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, instance_id, database_id, ddl_statements, exp_msg",
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
             (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_database_update_ex_if_param_missing(
-        self, project_id, instance_id, database_id, ddl_statements, exp_msg, mock_hook
+        self, mock_hook, project_id, instance_id, database_id, ddl_statements, exp_msg
     ):
         with pytest.raises(AirflowException) as ctx:
             SpannerUpdateDatabaseInstanceOperator(
@@ -570,16 +574,17 @@ class TestCloudSpanner:
         mock_hook.return_value.delete_database.assert_not_called()
         assert result
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, instance_id, database_id, ddl_statements, exp_msg",
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
             (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, "database_id"),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_database_delete_ex_if_param_missing(
-        self, project_id, instance_id, database_id, ddl_statements, exp_msg, mock_hook
+        self, mock_hook, project_id, instance_id, database_id, ddl_statements, exp_msg
     ):
         with pytest.raises(AirflowException) as ctx:
             SpannerDeleteDatabaseInstanceOperator(
