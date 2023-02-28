@@ -83,7 +83,7 @@ class TestLoggingMixin:
         handler1.set_context.assert_called_once_with(value)
         handler2.set_context.assert_called_once_with(value)
 
-    def tearDown(self):
+    def teardown_method(self):
         warnings.resetwarnings()
 
 

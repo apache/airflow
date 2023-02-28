@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from collections import OrderedDict
 from unittest import mock
 
@@ -55,7 +54,7 @@ REPLACE = ENCRYPT = GZIP = False
 ACL_POLICY = None
 
 
-class TestSalesforceToGcsOperator(unittest.TestCase):
+class TestSalesforceToGcsOperator:
     @mock.patch.object(S3Hook, "load_file")
     @mock.patch.object(SalesforceHook, "write_object_to_file")
     @mock.patch.object(SalesforceHook, "make_query")

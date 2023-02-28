@@ -28,7 +28,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www.views import DagRunModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
-from tests.test_utils.www import check_content_in_response, client_with_login
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
 
 
@@ -124,6 +124,31 @@ def running_dag_run(session):
     session.bulk_save_objects(tis)
     session.commit()
     return dr
+
+
+@pytest.fixture()
+def completed_dag_run_with_missing_task(session):
+    dag = DagBag().get_dag("example_bash_operator")
+    execution_date = timezone.datetime(2016, 1, 9)
+    dr = dag.create_dagrun(
+        state="success",
+        execution_date=execution_date,
+        data_interval=(execution_date, execution_date),
+        run_id="test_dag_runs_action",
+        session=session,
+    )
+    session.add(dr)
+    tis = [
+        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("also_run_this"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("run_after_loop"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("this_will_skip"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("run_this_last"), run_id=dr.run_id, state="success"),
+    ]
+    session.bulk_save_objects(tis)
+    session.commit()
+    return dag, dr
 
 
 def test_delete_dagrun(session, admin_client, running_dag_run):
@@ -235,3 +260,15 @@ def test_set_dag_runs_action_permission_denied(client_dr_without_dag_edit, runni
         follow_redirects=True,
     )
     check_content_in_response(f"Access denied for dag_id {running_dag_run.dag_id}", resp)
+
+
+def test_dag_runs_queue_new_tasks_action(session, admin_client, completed_dag_run_with_missing_task):
+    dag, dag_run = completed_dag_run_with_missing_task
+    resp = admin_client.post(
+        "/dagrun_queued",
+        data={"dag_id": dag.dag_id, "dag_run_id": dag_run.run_id, "confirmed": False},
+    )
+
+    check_content_in_response("runme_2", resp)
+    check_content_not_in_response("runme_1", resp)
+    assert resp.status_code == 200

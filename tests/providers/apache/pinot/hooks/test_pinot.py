@@ -271,13 +271,3 @@ class TestPinotDbApiHook:
         assert column == df.columns[0]
         for i, item in enumerate(result_sets):
             assert item[0] == df.values.tolist()[i][0]
-
-
-@pytest.mark.integration("pinot")
-class TestPinotDbApiHookIntegration:
-    @mock.patch.dict("os.environ", AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/")
-    def test_should_return_records(self):
-        hook = PinotDbApiHook()
-        sql = "select playerName from baseballStats  ORDER BY playerName limit 5"
-        records = hook.get_records(sql)
-        assert [["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]] == records

@@ -40,7 +40,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/3.0.0/tests/system/providers/tableau>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/|version|/tests/system/providers/tableau>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-tableau/>
     Installing from sources <installing-providers-from-sources>
 
@@ -60,7 +60,7 @@ Package apache-airflow-providers-tableau
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 4.0.0
+Release: 4.1.0
 
 Provider package
 ----------------

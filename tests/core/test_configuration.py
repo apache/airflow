@@ -24,12 +24,12 @@ import os
 import re
 import tempfile
 import textwrap
-import unittest
 import warnings
 from collections import OrderedDict
 from unittest import mock
 
 import pytest
+from pytest import param
 
 from airflow import configuration
 from airflow.configuration import (
@@ -60,10 +60,11 @@ def restore_env():
         yield
 
 
-@unittest.mock.patch.dict(
+@mock.patch.dict(
     "os.environ",
     {
         "AIRFLOW__TESTSECTION__TESTKEY": "testvalue",
+        "AIRFLOW__CORE__FERNET_KEY": "testvalue",
         "AIRFLOW__TESTSECTION__TESTPERCENT": "with%percent",
         "AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD": 'echo -n "OK"',
         "AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD": 'echo -n "NOT OK"',
@@ -71,23 +72,23 @@ def restore_env():
 )
 class TestConf:
     def test_airflow_home_default(self):
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             if "AIRFLOW_HOME" in os.environ:
                 del os.environ["AIRFLOW_HOME"]
             assert get_airflow_home() == expand_env_var("~/airflow")
 
     def test_airflow_home_override(self):
-        with unittest.mock.patch.dict("os.environ", AIRFLOW_HOME="/path/to/airflow"):
+        with mock.patch.dict("os.environ", AIRFLOW_HOME="/path/to/airflow"):
             assert get_airflow_home() == "/path/to/airflow"
 
     def test_airflow_config_default(self):
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             if "AIRFLOW_CONFIG" in os.environ:
                 del os.environ["AIRFLOW_CONFIG"]
             assert get_airflow_config("/home/airflow") == expand_env_var("/home/airflow/airflow.cfg")
 
     def test_airflow_config_override(self):
-        with unittest.mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
+        with mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
             assert get_airflow_config("/home//airflow") == "/path/to/airflow/airflow.cfg"
 
     @conf_vars({("core", "percent"): "with%%inside"})
@@ -101,7 +102,7 @@ class TestConf:
     def test_config_as_dict(self):
         """Test that getting config as dict works even if
         environment has non-legal env vars"""
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             os.environ["AIRFLOW__VAR__broken"] = "not_ok"
             asdict = conf.as_dict(raw=True, display_sensitive=True)
         assert asdict.get("VAR") is None
@@ -116,7 +117,7 @@ class TestConf:
 
         assert conf.has_option("testsection", "testkey")
 
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
         ):
             opt = conf.get("kubernetes_environment_variables", "AIRFLOW__TESTSECTION__TESTKEY")
@@ -135,15 +136,16 @@ class TestConf:
         assert cfg_dict["core"]["percent"] == "with%inside"
 
         # test env vars
-        assert cfg_dict["testsection"]["testkey"] == "< hidden >"
-        assert cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"] == "< hidden >"
+        assert cfg_dict["testsection"]["testkey"] == "testvalue"
+        assert cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"] == "nested"
 
     def test_conf_as_dict_source(self):
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         assert cfg_dict["core"]["load_examples"][1] == "airflow.cfg"
         assert cfg_dict["database"]["load_default_connections"][1] == "airflow.cfg"
-        assert cfg_dict["testsection"]["testkey"] == ("< hidden >", "env var")
+        assert cfg_dict["testsection"]["testkey"] == ("testvalue", "env var")
+        assert cfg_dict["core"]["fernet_key"] == ("< hidden >", "env var")
 
     def test_conf_as_dict_sensitive(self):
         # test display_sensitive
@@ -582,7 +584,7 @@ notacommand = OK
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in
             # sensitive_config_values and therefore should return 'OK' from the environment variable's
             # echo command, and must not return 'NOT OK' from the configuration
@@ -597,7 +599,7 @@ notacommand = OK
 
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
-        with unittest.mock.patch.dict("os.environ"):
+        with mock.patch.dict("os.environ"):
             asdict = test_cmdenv_conf.as_dict(True, display_sensitive)
             assert asdict["testcmdenv"]["itsacommand"] == (result, "cmd")
 
@@ -959,7 +961,7 @@ sql_alchemy_conn=sqlite://test
         new_env_var = test_conf._env_var_name(new_section, new_key)
 
         with pytest.warns(FutureWarning):
-            with unittest.mock.patch.dict("os.environ", **{old_env_var: old_value}):
+            with mock.patch.dict("os.environ", **{old_env_var: old_value}):
                 # Can't start with the new env var existing...
                 os.environ.pop(new_env_var, None)
 
@@ -999,15 +1001,13 @@ sql_alchemy_conn=sqlite://test
             return test_conf
 
         with pytest.warns(FutureWarning):
-            with unittest.mock.patch.dict(
-                "os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"
-            ):
+            with mock.patch.dict("os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"):
                 test_conf = make_config()
                 assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
 
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
-                with unittest.mock.patch.dict(
+                with mock.patch.dict(
                     "os.environ",
                     AIRFLOW__CORE__HOSTNAME_CALLABLE="CarrierPigeon",
                 ):
@@ -1370,7 +1370,7 @@ sql_alchemy_conn=sqlite://test
                 os.environ.clear()
                 assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
 
-    def test_should_not_falsely_emit_future_warning(self):
+    def test_as_dict_should_not_falsely_emit_future_warning(self):
         from airflow.configuration import AirflowConfigParser
 
         test_conf = AirflowConfigParser()
@@ -1378,4 +1378,55 @@ sql_alchemy_conn=sqlite://test
 
         with warnings.catch_warnings(record=True) as captured:
             test_conf.as_dict()
-        assert captured == []
+        for w in captured:  # only one expected
+            assert "deactivate_stale_dags_interval option in [scheduler] has been renamed" in str(w.message)
+
+    def test_suppress_future_warnings_no_future_warning(self):
+        from airflow.configuration import AirflowConfigParser
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_dict({"scheduler": {"deactivate_stale_dags_interval": 60}})
+        with warnings.catch_warnings(record=True) as captured:
+            test_conf.items("scheduler")
+        assert len(captured) == 1
+        c = captured[0]
+        assert c.category == FutureWarning
+        assert (
+            "you should use[scheduler/parsing_cleanup_interval] "
+            "instead. Please update your `conf.get*`" in str(c.message)
+        )
+        with warnings.catch_warnings(record=True) as captured:
+            with test_conf.suppress_future_warnings():
+                test_conf.items("scheduler")
+        assert len(captured) == 1
+        c = captured[0]
+        assert c.category == DeprecationWarning
+        assert (
+            "deactivate_stale_dags_interval option in [scheduler] "
+            "has been renamed to parsing_cleanup_interval" in str(c.message)
+        )
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            param("deactivate_stale_dags_interval", id="old"),
+            param("parsing_cleanup_interval", id="new"),
+        ],
+    )
+    def test_future_warning_only_for_code_ref(self, key):
+        from airflow.configuration import AirflowConfigParser
+
+        old_val = "deactivate_stale_dags_interval"
+        test_conf = AirflowConfigParser()
+        test_conf.read_dict({"scheduler": {old_val: 60}})  # config has old value
+        with warnings.catch_warnings(record=True) as captured:
+            test_conf.get("scheduler", str(key))  # could be old or new value
+
+        w = captured.pop()
+        assert "the old setting has been used, but please update" in str(w.message)
+        assert w.category == DeprecationWarning
+        # only if we use old value, do we also get a warning about code update
+        if key == old_val:
+            w = captured.pop()
+            assert "your `conf.get*` call to use the new name" in str(w.message)
+            assert w.category == FutureWarning

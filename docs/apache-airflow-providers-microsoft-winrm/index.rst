@@ -44,7 +44,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-winrm/3.0.0/tests/system/providers/microsoft/winrm>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-winrm/|version|/tests/system/providers/microsoft/winrm>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-winrm/>
     Installing from sources <installing-providers-from-sources>
 
@@ -64,7 +64,7 @@ Package apache-airflow-providers-microsoft-winrm
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-us/windows/win32/winrm/portal>`__
 
 
-Release: 3.1.0
+Release: 3.1.1
 
 Provider package
 ----------------

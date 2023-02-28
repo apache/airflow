@@ -59,6 +59,16 @@ class TestGoogleDriveHook:
             [
                 mock.call()
                 .files()
+                .list(
+                    q=(
+                        "trashed=false and mimeType='application/vnd.google-apps.folder' "
+                        "and name='AAA' and 'root' in parents"
+                    ),
+                    spaces="drive",
+                    fields="files(id, name)",
+                ),
+                mock.call()
+                .files()
                 .create(
                     body={
                         "name": "AAA",
@@ -119,6 +129,19 @@ class TestGoogleDriveHook:
 
         mock_get_conn.assert_has_calls(
             [
+                *[
+                    mock.call()
+                    .files()
+                    .list(
+                        q=(
+                            "trashed=false and mimeType='application/vnd.google-apps.folder' "
+                            f"and name='{d}' and '{key}' in parents"
+                        ),
+                        spaces="drive",
+                        fields="files(id, name)",
+                    )
+                    for d, key in [("AAA", "root"), ("BBB", "ID_1"), ("CCC", "ID_2")]
+                ],
                 mock.call()
                 .files()
                 .create(
@@ -155,6 +178,25 @@ class TestGoogleDriveHook:
         ]
 
         result_value = self.gdrive_hook._ensure_folders_exists("AAA/BBB/CCC/DDD")
+
+        mock_get_conn.assert_has_calls(
+            [
+                *[
+                    mock.call()
+                    .files()
+                    .list(
+                        q=(
+                            "trashed=false and mimeType='application/vnd.google-apps.folder' "
+                            f"and name='{d}' and '{key}' in parents"
+                        ),
+                        spaces="drive",
+                        fields="files(id, name)",
+                    )
+                    for d, key in [("AAA", "root"), ("BBB", "ID_1"), ("CCC", "ID_2"), ("DDD", "ID_3")]
+                ],
+            ],
+            any_order=True,
+        )
 
         mock_get_conn.return_value.files.return_value.create.assert_not_called()
         assert "ID_4" == result_value

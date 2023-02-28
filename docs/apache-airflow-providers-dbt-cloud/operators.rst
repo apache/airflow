@@ -40,6 +40,18 @@ execution time. This functionality is controlled by the ``wait_for_termination``
 :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`). Setting ``wait_for_termination`` to
 False is a good approach for long-running dbt Cloud jobs.
 
+The ``deferrable`` parameter along with ``wait_for_termination`` will control the functionality
+whether to poll the job status on the worker or defer using the Triggerer.
+When ``wait_for_termination`` is True and ``deferrable`` is False,we submit the job and ``poll``
+for its status on the worker. This will keep the worker slot occupied till the job execution is done.
+When ``wait_for_termination`` is True and ``deferrable`` is True,
+we submit the job and ``defer`` using Triggerer. This will release the worker slot leading to savings in
+resource utilization while the job is running.
+
+When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and can only
+track the job status with the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`.
+
+
 While ``schema_override`` and ``steps_override`` are explicit, optional parameters for the
 ``DbtCloudRunJobOperator``, custom run configurations can also be passed to the operator using the
 ``additional_run_config`` dictionary. This parameter can be used to initialize additional runtime

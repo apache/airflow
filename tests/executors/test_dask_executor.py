@@ -90,6 +90,12 @@ class TestDaskExecutor(TestBaseDask):
         self.dagbag = DagBag(include_examples=True)
         self.cluster = LocalCluster()
 
+    def test_supports_pickling(self):
+        assert not DaskExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not DaskExecutor.supports_sentry
+
     def test_dask_executor_functions(self):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         self.assert_tasks_on_executor(executor, timeout_executor=120)

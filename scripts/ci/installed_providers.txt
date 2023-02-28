@@ -19,5 +19,4 @@ sendgrid
 sftp
 slack
 sqlite
-sqlite
 ssh

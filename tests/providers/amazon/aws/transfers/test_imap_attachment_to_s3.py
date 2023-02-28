@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-from unittest.mock import patch
+from unittest import mock
 
 from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAttachmentToS3Operator
 
 
-class TestImapAttachmentToS3Operator(unittest.TestCase):
-    def setUp(self):
+class TestImapAttachmentToS3Operator:
+    def setup_method(self):
         self.kwargs = dict(
             imap_attachment_name="test_file",
             s3_bucket="test_bucket",
@@ -37,8 +36,8 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
             dag=None,
         )
 
-    @patch("airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.S3Hook")
-    @patch("airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.S3Hook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapHook")
     def test_execute(self, mock_imap_hook, mock_s3_hook):
         mock_imap_hook.return_value.__enter__ = mock_imap_hook
         mock_imap_hook.return_value.retrieve_mail_attachments.return_value = [("test_file", b"Hello World")]

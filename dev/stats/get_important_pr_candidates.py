@@ -354,7 +354,7 @@ DEFAULT_TOP_PRS = 10
 )
 @click.option("--top-number", type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select")
 @click.option("--save", type=click.File("wb"), help="Save PR data to a pickle file")
-@click.option("--load", type=click.File("rb"), help="Load PR data from a file and recalcuate scores")
+@click.option("--load", type=click.File("rb"), help="Load PR data from a file and recalculate scores")
 @click.option("--verbose", is_flag="True", help="Print scoring details")
 def main(
     github_token: str,

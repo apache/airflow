@@ -143,17 +143,26 @@ class ExternalTaskSensor(BaseSensorOperator):
         if external_task_id is not None and external_task_ids is not None:
             raise ValueError(
                 "Only one of `external_task_id` or `external_task_ids` may "
-                "be provided to ExternalTaskSensor; not both."
+                "be provided to ExternalTaskSensor; "
+                "use external_task_id or external_task_ids or external_task_group_id."
+            )
+
+        if external_task_group_id is not None and external_task_id is not None:
+            raise ValueError(
+                "Only one of `external_task_group_id` or `external_task_id` may "
+                "be provided to ExternalTaskSensor; "
+                "use external_task_id or external_task_ids or external_task_group_id."
+            )
+
+        if external_task_group_id is not None and external_task_ids is not None:
+            raise ValueError(
+                "Only one of `external_task_group_id` or `external_task_ids` may "
+                "be provided to ExternalTaskSensor; "
+                "use external_task_id or external_task_ids or external_task_group_id."
             )
 
         if external_task_id is not None:
             external_task_ids = [external_task_id]
-
-        if external_task_group_id and external_task_ids:
-            raise ValueError(
-                "Values for `external_task_group_id` and `external_task_id` or `external_task_ids` "
-                "can't be set at the same time"
-            )
 
         if external_task_ids or external_task_group_id:
             if not total_states <= set(State.task_states):
@@ -162,8 +171,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f"when `external_task_id` or `external_task_ids` or `external_task_group_id` "
                     f"is not `None`: {State.task_states}"
                 )
-            if external_task_ids and len(external_task_ids) > len(set(external_task_ids)):
-                raise ValueError("Duplicate task_ids passed in external_task_ids parameter")
+
         elif not total_states <= set(State.dag_states):
             raise ValueError(
                 f"Valid values for `allowed_states` and `failed_states` "
@@ -196,6 +204,9 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     @provide_session
     def poke(self, context, session=None):
+        if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
+            raise ValueError("Duplicate task_ids passed in external_task_ids parameter")
+
         dttm_filter = self._get_dttm_filter(context)
         serialized_dttm_filter = ",".join(dt.isoformat() for dt in dttm_filter)
 
@@ -211,6 +222,13 @@ class ExternalTaskSensor(BaseSensorOperator):
             self.log.info(
                 "Poking for task_group '%s' in dag '%s' on %s ... ",
                 self.external_task_group_id,
+                self.external_dag_id,
+                serialized_dttm_filter,
+            )
+
+        if self.external_dag_id and not self.external_task_group_id and not self.external_task_ids:
+            self.log.info(
+                "Poking for DAG '%s' on %s ... ",
                 self.external_dag_id,
                 serialized_dttm_filter,
             )
@@ -319,7 +337,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     def _count_query(self, model, session, states, dttm_filter) -> Query:
         query = session.query(func.count()).filter(
             model.dag_id == self.external_dag_id,
-            model.state.in_(states),  # pylint: disable=no-member
+            model.state.in_(states),
             model.execution_date.in_(dttm_filter),
         )
         return query

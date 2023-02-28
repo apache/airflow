@@ -205,7 +205,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
-        configuration = {"query": {"query": self.sql}}
+        configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
 
         return hook.insert_job(
             configuration=configuration,
@@ -319,11 +319,9 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         configuration = {
             "query": {
                 "query": self.sql,
-                "useLegacySql": False,
-            }
+                "useLegacySql": self.use_legacy_sql,
+            },
         }
-        if self.use_legacy_sql:
-            configuration["query"]["useLegacySql"] = self.use_legacy_sql
 
         return hook.insert_job(
             configuration=configuration,
@@ -453,7 +451,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Triggerer."""
-        configuration = {"query": {"query": sql}}
+        configuration = {"query": {"query": sql, "useLegacySql": self.use_legacy_sql}}
         return hook.insert_job(
             configuration=configuration,
             project_id=hook.project_id,
@@ -577,7 +575,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
-        configuration = {"query": {"query": self.sql}}
+        configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
 
         return hook.insert_job(
             configuration=configuration,
@@ -613,7 +611,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-        failed_tests(
+        failed_tests.extend(
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for col, checks in self.column_mapping.items()
             for check, check_values in checks.items()
@@ -689,7 +687,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         job_id: str,
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
-        configuration = {"query": {"query": self.sql}}
+        configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
 
         return hook.insert_job(
             configuration=configuration,
@@ -776,7 +774,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
+        domain-wide delegation enabled. Deprecated.
     :param location: The location used for the operation.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -821,6 +819,10 @@ class BigQueryGetDataOperator(BaseOperator):
         self.max_results = int(max_results)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -1158,7 +1160,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param table_id: The Name of the table to be created. (templated)
     :param table_resource: Table resource as described in documentation:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-        If provided all other parameters are ignored.
+        If provided all other parameters are ignored. (templated)
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
 
@@ -1256,6 +1258,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_id",
+        "table_resource",
         "project_id",
         "gcs_schema_object",
         "labels",
@@ -1308,6 +1311,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.gcs_schema_object = gcs_schema_object
         self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
@@ -1571,6 +1578,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.allow_jagged_rows = allow_jagged_rows
         self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.autodetect = autodetect
 
@@ -1632,7 +1643,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "compression": self.compression,
                 "csvOptions": {
-                    "fieldDelimeter": self.field_delimiter,
+                    "fieldDelimiter": self.field_delimiter,
                     "skipLeadingRows": self.skip_leading_rows,
                     "quote": self.quote_character,
                     "allowQuotedNewlines": self.allow_quoted_newlines,
@@ -1717,6 +1728,10 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         self.project_id = project_id
         self.delete_contents = delete_contents
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -1804,6 +1819,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.dataset_reference = dataset_reference if dataset_reference else {}
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.exists_ok = exists_ok
@@ -1884,6 +1903,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -1956,6 +1979,10 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         self.project_id = project_id
         self.max_results = max_results
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2030,6 +2057,10 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2111,6 +2142,10 @@ class BigQueryUpdateTableOperator(BaseOperator):
         self.fields = fields
         self.gcp_conn_id = gcp_conn_id
         self.table_resource = table_resource
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2200,6 +2235,10 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         self.fields = fields
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2278,6 +2317,10 @@ class BigQueryDeleteTableOperator(BaseOperator):
 
         self.deletion_dataset_table = deletion_dataset_table
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.ignore_if_missing = ignore_if_missing
         self.location = location
@@ -2352,6 +2395,10 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.table_resource = table_resource
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -2458,6 +2505,10 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2578,6 +2629,10 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.job_id = job_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.force_rerun = force_rerun
         self.reattach_states: set[str] = reattach_states or set()

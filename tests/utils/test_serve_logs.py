@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import jwt
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.serve_logs import create_app
@@ -92,7 +92,7 @@ class TestServeLogs:
         assert response.status_code == 403
 
     def test_forbidden_expired(self, client: FlaskClient, signer):
-        with freeze_time("2010-01-14"):
+        with time_machine.travel("2010-01-14"):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -105,7 +105,7 @@ class TestServeLogs:
         )
 
     def test_forbidden_future(self, client: FlaskClient, signer):
-        with freeze_time(datetime.datetime.utcnow() + datetime.timedelta(seconds=3600)):
+        with time_machine.travel(datetime.datetime.utcnow() + datetime.timedelta(seconds=3600)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -118,7 +118,7 @@ class TestServeLogs:
         )
 
     def test_ok_with_short_future_skew(self, client: FlaskClient, signer):
-        with freeze_time(datetime.datetime.utcnow() + datetime.timedelta(seconds=1)):
+        with time_machine.travel(datetime.datetime.utcnow() + datetime.timedelta(seconds=1)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -131,7 +131,7 @@ class TestServeLogs:
         )
 
     def test_ok_with_short_past_skew(self, client: FlaskClient, signer):
-        with freeze_time(datetime.datetime.utcnow() - datetime.timedelta(seconds=31)):
+        with time_machine.travel(datetime.datetime.utcnow() - datetime.timedelta(seconds=31)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -144,7 +144,7 @@ class TestServeLogs:
         )
 
     def test_forbidden_with_long_future_skew(self, client: FlaskClient, signer):
-        with freeze_time(datetime.datetime.utcnow() + datetime.timedelta(seconds=10)):
+        with time_machine.travel(datetime.datetime.utcnow() + datetime.timedelta(seconds=10)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -157,7 +157,7 @@ class TestServeLogs:
         )
 
     def test_forbidden_with_long_past_skew(self, client: FlaskClient, signer):
-        with freeze_time(datetime.datetime.utcnow() - datetime.timedelta(seconds=40)):
+        with time_machine.travel(datetime.datetime.utcnow() - datetime.timedelta(seconds=40)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(

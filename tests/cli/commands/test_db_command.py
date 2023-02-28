@@ -448,3 +448,98 @@ class TestCLIDBClean:
             confirm=True,
             skip_archive=False,
         )
+
+    @patch("airflow.cli.commands.db_command.export_archived_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
+    def test_export_archived_records(self, os_mock, export_archived_mock):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "export-archived",
+                "--output-path",
+                "path",
+            ]
+        )
+        db_command.export_archived(args)
+
+        export_archived_mock.assert_called_once_with(
+            export_format="csv", output_path="path", table_names=None, drop_archives=False, needs_confirm=True
+        )
+
+    @pytest.mark.parametrize(
+        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+    )
+    @patch("airflow.cli.commands.db_command.export_archived_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
+    def test_tables_in_export_archived_records_command(
+        self, os_mock, export_archived_mock, extra_args, expected
+    ):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "export-archived",
+                "--output-path",
+                "path",
+                *extra_args,
+            ]
+        )
+        db_command.export_archived(args)
+        export_archived_mock.assert_called_once_with(
+            export_format="csv",
+            output_path="path",
+            table_names=expected,
+            drop_archives=False,
+            needs_confirm=True,
+        )
+
+    @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
+    @patch("airflow.cli.commands.db_command.export_archived_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
+    def test_drop_archives_in_export_archived_records_command(
+        self, os_mock, export_archived_mock, extra_args, expected
+    ):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "export-archived",
+                "--output-path",
+                "path",
+                *extra_args,
+            ]
+        )
+        db_command.export_archived(args)
+        export_archived_mock.assert_called_once_with(
+            export_format="csv",
+            output_path="path",
+            table_names=None,
+            drop_archives=expected,
+            needs_confirm=True,
+        )
+
+    @pytest.mark.parametrize(
+        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+    )
+    @patch("airflow.cli.commands.db_command.drop_archived_tables")
+    def test_tables_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "drop-archived",
+                *extra_args,
+            ]
+        )
+        db_command.drop_archived(args)
+        mock_drop_archived_records.assert_called_once_with(table_names=expected, needs_confirm=True)
+
+    @pytest.mark.parametrize("extra_args, expected", [(["-y"], False), ([], True)])
+    @patch("airflow.cli.commands.db_command.drop_archived_tables")
+    def test_confirm_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "drop-archived",
+                *extra_args,
+            ]
+        )
+        db_command.drop_archived(args)
+        mock_drop_archived_records.assert_called_once_with(table_names=None, needs_confirm=expected)

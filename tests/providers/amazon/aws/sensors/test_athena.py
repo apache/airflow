@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 
 
-class TestAthenaSensor(unittest.TestCase):
-    def setUp(self):
+class TestAthenaSensor:
+    def setup_method(self):
         self.sensor = AthenaSensor(
             task_id="test_athena_sensor",
             query_execution_id="abc",
@@ -39,15 +38,15 @@ class TestAthenaSensor(unittest.TestCase):
 
     @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("SUCCEEDED",))
     def test_poke_success(self, mock_poll_query_status):
-        assert self.sensor.poke({})
+        assert self.sensor.poke({}) is True
 
     @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("RUNNING",))
     def test_poke_running(self, mock_poll_query_status):
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
 
     @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("QUEUED",))
     def test_poke_queued(self, mock_poll_query_status):
-        assert not self.sensor.poke({})
+        assert self.sensor.poke({}) is False
 
     @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("FAILED",))
     def test_poke_failed(self, mock_poll_query_status):

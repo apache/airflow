@@ -611,17 +611,18 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
-apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
-apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, atlassian.jira, aws,
-azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, common.sql, crypto, dask, databricks,
-datadog, dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord,
-doc, docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise,
-google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos,
-kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
-mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
-pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment,
-sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
-telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kylin, apache.livy,
+apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas,
+atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, common.sql,
+crypto, dask, databricks, datadog, dbt.cloud, deprecated_api, devel, devel_all, devel_ci,
+devel_hadoop, dingding, discord, doc, doc_gen, docker, druid, elasticsearch, exasol, facebook, ftp,
+gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http,
+imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
+microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
+opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
+qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
+snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
+webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -892,7 +893,7 @@ as described in the static code checks documentation.
 Coding style and best practices
 ===============================
 
-Most of our coding style rules are enforced programmatically by flake8 and mypy (which are run automatically
+Most of our coding style rules are enforced programmatically by ruff and mypy (which are run automatically
 on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
 semantic than style
 
@@ -938,13 +939,16 @@ To make this easier, there is the ``create_session`` helper:
     from airflow.utils.session import create_session
 
 
-    def my_call(*args, session: Session):
+    def my_call(x, y, *, session: Session):
         ...
         # You MUST not commit the session here.
 
 
     with create_session() as session:
-        my_call(*args, session=session)
+        my_call(x, y, session=session)
+
+.. warning::
+  **DO NOT** add a default to the ``session`` argument **unless** ``@provide_session`` is used.
 
 If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
 

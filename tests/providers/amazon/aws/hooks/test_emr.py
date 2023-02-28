@@ -190,3 +190,51 @@ class TestEmrHook:
         no_match = hook.get_cluster_id_by_name("foo", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
 
         assert no_match is None
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
+    def test_add_job_flow_steps_execution_role_arn(self, mock_conn):
+        """
+        Test that execution_role_arn only gets passed when it is not None.
+        """
+        mock_conn.run_job_flow.return_value = {
+            "JobFlowId": "job_flow_id",
+            "ClusterArn": "cluster_arn",
+        }
+        mock_conn.add_job_flow_steps.return_value = {
+            "StepIds": [
+                "step_id",
+            ],
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
+
+        job_flow = hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+        )
+
+        job_flow_id = job_flow["JobFlowId"]
+
+        step = {
+            "ActionOnFailure": "test_step",
+            "HadoopJarStep": {
+                "Args": ["test args"],
+                "Jar": "test.jar",
+            },
+            "Name": "step_1",
+        }
+
+        hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=step)
+        mock_conn.add_job_flow_steps.assert_called_with(JobFlowId=job_flow_id, Steps=step)
+
+        hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=step, execution_role_arn=None)
+        mock_conn.add_job_flow_steps.assert_called_with(JobFlowId=job_flow_id, Steps=step)
+
+        hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=step, execution_role_arn="")
+        mock_conn.add_job_flow_steps.assert_called_with(JobFlowId=job_flow_id, Steps=step)
+
+        hook.add_job_flow_steps(
+            job_flow_id=job_flow_id, steps=step, execution_role_arn="test-execution-role-arn"
+        )
+        mock_conn.add_job_flow_steps.assert_called_with(
+            JobFlowId=job_flow_id, Steps=step, ExecutionRoleArn="test-execution-role-arn"
+        )

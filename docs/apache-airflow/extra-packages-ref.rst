@@ -122,9 +122,13 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.druid        | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.flink        | ``pip install 'apache-airflow[apache.flink]'``      | Flink related operators & hooks                |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.hdfs         | ``pip install 'apache-airflow[apache.hdfs]'``       | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.hive         | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                     |
++---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.impala       | ``pip install 'apache-airflow[apache.impala]'``     | All Impala related operators & hooks           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.kylin        | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
@@ -298,7 +302,7 @@ These are extras that provide support for integration with external systems via 
 Bundle extras
 -------------
 
-These are extras that install one ore more extras as a bundle. Note that these extras should only be used for "development" version
+These are extras that install one or more extras as a bundle. Note that these extras should only be used for "development" version
 of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
 work when airflow is installed from 'PyPI`.
 
@@ -324,12 +328,14 @@ you need to list explicitly all the non-bundle extras that you want to install.
 Doc extras
 ----------
 
-This is the extra that is needed to generated documentation for Airflow. This is used for development time only
+Those are the extras that are needed to generated documentation for Airflow. This is used for development time only
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | extra               | install command                                     | enables                                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs (included in ``devel``)                |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| doc_gen             | ``pip install 'apache-airflow[doc_gen]'``           | Packages needed to generate er diagrams (included in ``devel_all``)  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 

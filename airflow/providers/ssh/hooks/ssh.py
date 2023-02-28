@@ -33,11 +33,7 @@ from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-
-try:
-    from airflow.utils.platform import getuser
-except ImportError:
-    from getpass import getuser  # type: ignore[misc]
+from airflow.utils.platform import getuser
 
 TIMEOUT_DEFAULT = 10
 
@@ -527,3 +523,12 @@ class SSHHook(BaseHook):
         exit_status = stdout.channel.recv_exit_status()
 
         return exit_status, agg_stdout, agg_stderr
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test the ssh connection by execute remote bash commands"""
+        try:
+            with self.get_conn() as conn:
+                conn.exec_command("pwd")
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)

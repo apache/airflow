@@ -79,7 +79,7 @@ After
 
 .. note::
 
-    See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+    See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 Customizing DAG UI Header and Airflow Page Titles
 -------------------------------------------------

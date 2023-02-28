@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
 
@@ -37,8 +37,8 @@ DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestDataplexHook(TestCase):
-    def setUp(self):
+class TestDataplexHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"),
             new=mock_base_gcp_hook_default_project_id,

@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/4.1.0/tests/system/providers/cncf/kubernetes>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/|version|/tests/system/providers/cncf/kubernetes>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/>
     Installing from sources <installing-providers-from-sources>
 
@@ -65,7 +65,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 5.0.0
+Release: 5.2.0
 
 Provider package
 ----------------
@@ -83,12 +83,14 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.3.0``
-``cryptography``    ``>=2.0.0``
-``kubernetes``      ``>=21.7.0,<24``
-==================  ==================
+======================  ==================
+PIP package             Version required
+======================  ==================
+``apache-airflow``      ``>=2.3.0``
+``asgiref``             ``>=3.5.2``
+``cryptography``        ``>=2.0.0``
+``kubernetes``          ``>=21.7.0,<24``
+``kubernetes_asyncio``  ``>=18.20.1,<25``
+======================  ==================
 
 .. include:: ../../airflow/providers/cncf/kubernetes/CHANGELOG.rst

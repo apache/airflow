@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, ClassVar, Collection, Optional, Sequence
 
 import attr
 import papermill as pm
@@ -33,8 +33,17 @@ if TYPE_CHECKING:
 class NoteBook(File):
     """Jupyter notebook"""
 
-    type_hint: str | None = "jupyter_notebook"
-    parameters: dict | None = {}
+    # For compatibility with Airflow 2.3:
+    # 1. Use predefined set because `File.template_fields` introduced in Airflow 2.4
+    # 2. Use old styled annotations because `cattrs` doesn't work well with PEP 604.
+
+    template_fields: ClassVar[Collection[str]] = {
+        "parameters",
+        *(File.template_fields if hasattr(File, "template_fields") else {"url"}),
+    }
+
+    type_hint: Optional[str] = "jupyter_notebook"  # noqa: UP007
+    parameters: Optional[dict] = {}  # noqa: UP007
 
     meta_schema: str = __name__ + ".NoteBook"
 
@@ -43,8 +52,8 @@ class PapermillOperator(BaseOperator):
     """
     Executes a jupyter notebook through papermill that is annotated with parameters
 
-    :param input_nb: input notebook (can also be a NoteBook or a File inlet)
-    :param output_nb: output notebook (can also be a NoteBook or File outlet)
+    :param input_nb: input notebook, either path or NoteBook inlet.
+    :param output_nb: output notebook, either path or NoteBook outlet.
     :param parameters: the notebook parameters to set
     :param kernel_name: (optional) name of kernel to execute the notebook against
         (ignores kernel name in the notebook document metadata)
@@ -57,36 +66,43 @@ class PapermillOperator(BaseOperator):
     def __init__(
         self,
         *,
-        input_nb: str | None = None,
-        output_nb: str | None = None,
+        input_nb: str | NoteBook | None = None,
+        output_nb: str | NoteBook | None = None,
         parameters: dict | None = None,
         kernel_name: str | None = None,
         language_name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        self.input_nb = input_nb
-        self.output_nb = output_nb
         self.parameters = parameters
+
+        if not input_nb:
+            raise ValueError("Input notebook is not specified")
+        elif not isinstance(input_nb, NoteBook):
+            self.input_nb = NoteBook(url=input_nb, parameters=self.parameters)
+        else:
+            self.input_nb = input_nb
+
+        if not output_nb:
+            raise ValueError("Output notebook is not specified")
+        elif not isinstance(output_nb, NoteBook):
+            self.output_nb = NoteBook(url=output_nb)
+        else:
+            self.output_nb = output_nb
+
         self.kernel_name = kernel_name
         self.language_name = language_name
-        if input_nb:
-            self.inlets.append(NoteBook(url=input_nb, parameters=self.parameters))
-        if output_nb:
-            self.outlets.append(NoteBook(url=output_nb))
+
+        self.inlets.append(self.input_nb)
+        self.outlets.append(self.output_nb)
 
     def execute(self, context: Context):
-        if not self.inlets or not self.outlets:
-            raise ValueError("Input notebook or output notebook is not specified")
-
-        for i, item in enumerate(self.inlets):
-            pm.execute_notebook(
-                item.url,
-                self.outlets[i].url,
-                parameters=item.parameters,
-                progress_bar=False,
-                report_mode=True,
-                kernel_name=self.kernel_name,
-                language=self.language_name,
-            )
+        pm.execute_notebook(
+            self.input_nb.url,
+            self.output_nb.url,
+            parameters=self.input_nb.parameters,
+            progress_bar=False,
+            report_mode=True,
+            kernel_name=self.kernel_name,
+            language=self.language_name,
+        )

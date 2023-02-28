@@ -28,26 +28,26 @@ class TestCliSyncPerm:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.cli.commands.sync_perm_command.cached_app")
-    def test_cli_sync_perm(self, mock_cached_app):
-        appbuilder = mock_cached_app.return_value.appbuilder
-        appbuilder.sm = mock.Mock()
+    @mock.patch("airflow.utils.cli_app_builder.get_application_builder")
+    def test_cli_sync_perm(self, mock_get_application_builder):
+        mock_appbuilder = mock.MagicMock()
+        mock_get_application_builder.return_value.__enter__.return_value = mock_appbuilder
 
         args = self.parser.parse_args(["sync-perm"])
         sync_perm_command.sync_perm(args)
 
-        appbuilder.add_permissions.assert_called_once_with(update_perms=True)
-        appbuilder.sm.sync_roles.assert_called_once_with()
-        appbuilder.sm.create_dag_specific_permissions.assert_not_called()
+        mock_appbuilder.add_permissions.assert_called_once_with(update_perms=True)
+        mock_appbuilder.sm.sync_roles.assert_called_once_with()
+        mock_appbuilder.sm.create_dag_specific_permissions.assert_not_called()
 
-    @mock.patch("airflow.cli.commands.sync_perm_command.cached_app")
-    def test_cli_sync_perm_include_dags(self, mock_cached_app):
-        appbuilder = mock_cached_app.return_value.appbuilder
-        appbuilder.sm = mock.Mock()
+    @mock.patch("airflow.utils.cli_app_builder.get_application_builder")
+    def test_cli_sync_perm_include_dags(self, mock_get_application_builder):
+        mock_appbuilder = mock.MagicMock()
+        mock_get_application_builder.return_value.__enter__.return_value = mock_appbuilder
 
         args = self.parser.parse_args(["sync-perm", "--include-dags"])
         sync_perm_command.sync_perm(args)
 
-        appbuilder.add_permissions.assert_called_once_with(update_perms=True)
-        appbuilder.sm.sync_roles.assert_called_once_with()
-        appbuilder.sm.create_dag_specific_permissions.assert_called_once_with()
+        mock_appbuilder.add_permissions.assert_called_once_with(update_perms=True)
+        mock_appbuilder.sm.sync_roles.assert_called_once_with()
+        mock_appbuilder.sm.create_dag_specific_permissions.assert_called_once_with()

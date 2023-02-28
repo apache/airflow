@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -103,6 +104,10 @@ class SFTPToGCSOperator(BaseOperator):
         self.destination_bucket = self._set_bucket_name(destination_bucket)
         self.gcp_conn_id = gcp_conn_id
         self.mime_type = mime_type
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.gzip = gzip
         self.sftp_conn_id = sftp_conn_id

@@ -24,6 +24,7 @@ import boto3
 import pytest
 from moto import mock_glue, mock_iam
 
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 
 
@@ -62,75 +63,149 @@ class TestGlueJobHook:
         assert "Arn" in iam_role["Role"]
         assert iam_role["Role"]["Arn"] == f"arn:aws:iam::123456789012:role{role_path}{expected_role}"
 
-    @mock.patch.object(GlueJobHook, "get_conn")
-    def test_get_or_create_glue_job_get_existing_job(self, mock_get_conn):
-        """
-        Calls 'get_or_create_glue_job' with a existing job.
-        Should retrieve existing one.
-        """
-        expected_job_name = "simple-job"
-        mock_get_conn.return_value.get_job.return_value = {"Job": {"Name": expected_job_name}}
+    @mock.patch.object(AwsBaseHook, "get_conn")
+    def test_has_job_exists(self, mock_get_conn):
+        job_name = "aws_test_glue_job"
+        mock_get_conn.return_value.get_job.return_value = {"Job": {"Name": job_name}}
 
-        some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
-        some_s3_bucket = "my-includes"
+        hook = GlueJobHook(aws_conn_id=None, job_name=job_name, s3_bucket="some_bucket")
+        result = hook.has_job(job_name)
+        assert result is True
+        mock_get_conn.return_value.get_job.assert_called_once_with(JobName=hook.job_name)
+
+    @mock.patch.object(AwsBaseHook, "get_conn")
+    def test_has_job_job_doesnt_exists(self, mock_get_conn):
+        class JobNotFoundException(Exception):
+            pass
+
+        mock_get_conn.return_value.exceptions.EntityNotFoundException = JobNotFoundException
+        mock_get_conn.return_value.get_job.side_effect = JobNotFoundException()
+
+        job_name = "aws_test_glue_job"
+        hook = GlueJobHook(aws_conn_id=None, job_name=job_name, s3_bucket="some_bucket")
+        result = hook.has_job(job_name)
+        assert result is False
+        mock_get_conn.return_value.get_job.assert_called_once_with(JobName=job_name)
+
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_create_or_update_glue_job_create_new_job(self, mock_get_conn, mock_get_iam_execution_role):
+        """
+        Calls 'create_or_update_glue_job' with no existing job.
+        Should create a new job.
+        """
+
+        class JobNotFoundException(Exception):
+            pass
+
+        expected_job_name = "aws_test_glue_job"
+        job_description = "This is test case job from Airflow"
+        role_name = "my_test_role"
+        role_name_arn = "test_role"
+        some_s3_bucket = "bucket"
+
+        mock_get_conn.return_value.exceptions.EntityNotFoundException = JobNotFoundException
+        mock_get_conn.return_value.get_job.side_effect = JobNotFoundException()
+        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": role_name_arn}}
 
         hook = GlueJobHook(
-            job_name="aws_test_glue_job",
-            desc="This is test case job from Airflow",
+            s3_bucket=some_s3_bucket,
+            job_name=expected_job_name,
+            desc=job_description,
+            concurrent_run_limit=2,
+            retry_limit=3,
+            num_of_dpus=5,
+            iam_role_name=role_name,
+            create_job_kwargs={"Command": {}},
+            region_name=self.some_aws_region,
+        )
+
+        result = hook.create_or_update_glue_job()
+
+        mock_get_conn.return_value.get_job.assert_called_once_with(JobName=expected_job_name)
+        mock_get_conn.return_value.create_job.assert_called_once_with(
+            Command={},
+            Description=job_description,
+            ExecutionProperty={"MaxConcurrentRuns": 2},
+            LogUri=f"s3://{some_s3_bucket}/logs/glue-logs/{expected_job_name}",
+            MaxCapacity=5,
+            MaxRetries=3,
+            Name=expected_job_name,
+            Role=role_name_arn,
+        )
+        mock_get_conn.return_value.update_job.assert_not_called()
+        assert result == expected_job_name
+
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_create_or_update_glue_job_update_existing_job(self, mock_get_conn, mock_get_iam_execution_role):
+        """
+        Calls 'create_or_update_glue_job' with a existing job.
+        Should update existing job configurations.
+        """
+        job_name = "aws_test_glue_job"
+        job_description = "This is test case job from Airflow"
+        role_name = "my_test_role"
+        role_name_arn = "test_role"
+        some_script = "s3://glue-examples/glue-scripts/sample_aws_glue_job.py"
+        some_s3_bucket = "my-includes"
+
+        mock_get_conn.return_value.get_job.return_value = {
+            "Job": {
+                "Name": job_name,
+                "Description": "Old description of job",
+                "Role": role_name_arn,
+            }
+        }
+        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": "test_role"}}
+
+        hook = GlueJobHook(
+            job_name=job_name,
+            desc=job_description,
             script_location=some_script,
-            iam_role_name="my_test_role",
+            iam_role_name=role_name,
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
         )
 
-        result = hook.get_or_create_glue_job()
+        result = hook.create_or_update_glue_job()
 
-        mock_get_conn.assert_called_once()
-        mock_get_conn.return_value.get_job.assert_called_once_with(JobName=hook.job_name)
-        assert result == expected_job_name
+        assert mock_get_conn.return_value.get_job.call_count == 2
+        mock_get_conn.return_value.update_job.assert_called_once_with(
+            JobName=job_name,
+            JobUpdate={
+                "Description": job_description,
+                "LogUri": f"s3://{some_s3_bucket}/logs/glue-logs/{job_name}",
+                "Role": role_name_arn,
+                "ExecutionProperty": {"MaxConcurrentRuns": 1},
+                "Command": {"Name": "glueetl", "ScriptLocation": some_script},
+                "MaxRetries": 0,
+                "MaxCapacity": 10,
+            },
+        )
+        assert result == job_name
 
     @mock_glue
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
-    def test_get_or_create_glue_job_create_new_job(self, mock_get_iam_execution_role):
-        """
-        Calls 'get_or_create_glue_job' with no existing job.
-        Should create a new job.
-        """
+    def test_create_or_update_glue_job_worker_type(self, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = {"Role": {"RoleName": "my_test_role", "Arn": "test_role"}}
-        expected_job_name = "aws_test_glue_job"
-
-        hook = GlueJobHook(
-            job_name=expected_job_name,
-            desc="This is test case job from Airflow",
-            iam_role_name="my_test_role",
-            script_location="s3://bucket",
-            s3_bucket="bucket",
-            region_name=self.some_aws_region,
-            create_job_kwargs={"Command": {}},
-        )
-
-        result = hook.get_or_create_glue_job()
-
-        assert result == expected_job_name
-
-    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
-    @mock.patch.object(GlueJobHook, "get_conn")
-    def test_get_or_create_glue_job_worker_type(self, mock_get_conn, mock_get_iam_execution_role):
-        mock_get_iam_execution_role.return_value = mock.MagicMock(Role={"RoleName": "my_test_role"})
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
+        expected_job_name = "aws_test_glue_job_worker_type"
 
-        mock_glue_job = mock_get_conn.return_value.get_job()["Job"]["Name"]
         glue_job = GlueJobHook(
-            job_name="aws_test_glue_job",
+            job_name=expected_job_name,
             desc="This is test case job from Airflow",
             script_location=some_script,
             iam_role_name="my_test_role",
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
             create_job_kwargs={"WorkerType": "G.2X", "NumberOfWorkers": 60},
-        ).get_or_create_glue_job()
-        assert glue_job == mock_glue_job
+        )
+
+        result = glue_job.create_or_update_glue_job()
+
+        assert result == expected_job_name
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "get_conn")
@@ -152,16 +227,16 @@ class TestGlueJobHook:
             )
 
     @mock.patch.object(GlueJobHook, "get_job_state")
-    @mock.patch.object(GlueJobHook, "get_or_create_glue_job")
+    @mock.patch.object(GlueJobHook, "create_or_update_glue_job")
     @mock.patch.object(GlueJobHook, "get_conn")
-    def test_initialize_job(self, mock_get_conn, mock_get_or_create_glue_job, mock_get_job_state):
+    def test_initialize_job(self, mock_get_conn, mock_create_or_update_glue_job, mock_get_job_state):
         some_data_path = "s3://glue-datasets/examples/medicare/SampleData.csv"
         some_script_arguments = {"--s3_input_data_path": some_data_path}
         some_run_kwargs = {"NumberOfWorkers": 5}
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
-        mock_get_or_create_glue_job.Name = mock.Mock(Name="aws_test_glue_job")
+        mock_create_or_update_glue_job.Name = mock.Mock(Name="aws_test_glue_job")
         mock_get_conn.return_value.start_job_run()
 
         mock_job_run_state = mock_get_job_state.return_value

@@ -20,8 +20,8 @@ from __future__ import annotations
 import datetime
 import unittest
 
-import freezegun
 import pytest
+import time_machine
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
@@ -113,7 +113,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                 dag=self.dag,
             )
 
-    @freezegun.freeze_time("2020-07-07 10:54:05")
+    @time_machine.travel("2020-07-07 10:54:05")
     def test_branch_datetime_operator_falls_within_range(self):
         """Check BranchDateTimeOperator branch operation"""
         for target_lower, target_upper in self.targets:
@@ -143,7 +143,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                 self.branch_op.target_upper = target_upper
 
                 for date in dates:
-                    with freezegun.freeze_time(date):
+                    with time_machine.travel(date):
                         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
                         self._assert_task_ids_match_states(
@@ -154,7 +154,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                             }
                         )
 
-    @freezegun.freeze_time("2020-07-07 10:54:05")
+    @time_machine.travel("2020-07-07 10:54:05")
     def test_branch_datetime_operator_upper_comparison_within_range(self):
         """Check BranchDateTimeOperator branch operation"""
         for _, target_upper in self.targets:
@@ -172,7 +172,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                     }
                 )
 
-    @freezegun.freeze_time("2020-07-07 10:54:05")
+    @time_machine.travel("2020-07-07 10:54:05")
     def test_branch_datetime_operator_lower_comparison_within_range(self):
         """Check BranchDateTimeOperator branch operation"""
         for target_lower, _ in self.targets:
@@ -190,7 +190,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                     }
                 )
 
-    @freezegun.freeze_time("2020-07-07 12:00:00")
+    @time_machine.travel("2020-07-07 12:00:00")
     def test_branch_datetime_operator_upper_comparison_outside_range(self):
         """Check BranchDateTimeOperator branch operation"""
         for _, target_upper in self.targets:
@@ -208,7 +208,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                     }
                 )
 
-    @freezegun.freeze_time("2020-07-07 09:00:00")
+    @time_machine.travel("2020-07-07 09:00:00")
     def test_branch_datetime_operator_lower_comparison_outside_range(self):
         """Check BranchDateTimeOperator branch operation"""
         for target_lower, _ in self.targets:
@@ -226,7 +226,7 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                     }
                 )
 
-    @freezegun.freeze_time("2020-12-01 09:00:00")
+    @time_machine.travel("2020-12-01 09:00:00")
     def test_branch_datetime_operator_use_task_logical_date(self):
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)

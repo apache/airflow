@@ -40,11 +40,14 @@ CONNECTION = {
     "password": "admin",
 }
 
-CONNECTION_WITH_EXTRA = CONNECTION.update(
-    {
-        "extra": '{"x_secret": "testsecret","y_secret": "test"}',
-    }
-)
+
+def conn_with_extra():
+    CONNECTION.update(
+        {
+            "extra": '{"x_secret": "testsecret","y_secret": "test"}',
+        }
+    )
+    return CONNECTION
 
 
 @pytest.fixture(autouse=True)
@@ -62,7 +65,7 @@ def test_create_connection(admin_client, session):
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
     init_views.init_connection_form()
-    admin_client.post("/connection/add", data=CONNECTION_WITH_EXTRA, follow_redirects=True)
+    admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
     _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
 
 
@@ -360,6 +363,6 @@ def test_process_form_invalid_extra_removed(admin_client):
 
     assert resp.status_code == 200
     with create_session() as session:
-        conn = session.query(Connection).get(1)
+        conn = session.get(Connection, 1)
 
     assert conn.extra == '{"foo": "bar"}'

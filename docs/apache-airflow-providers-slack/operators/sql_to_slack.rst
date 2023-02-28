@@ -18,7 +18,7 @@
 .. _howto/operator:SqlToSlackOperator:
 
 SqlToSlackOperator
-========================
+==================
 
 Use the :class:`~airflow.providers.slack.transfers.sql_to_slack` to post messages to predefined Slack
 channel.

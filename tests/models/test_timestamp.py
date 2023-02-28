@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pendulum
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 from airflow.models import Log, TaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -53,7 +53,7 @@ def add_log(execdate, session, dag_maker, timezone_override=None):
 @provide_session
 def test_timestamp_behaviour(dag_maker, session=None):
     execdate = timezone.utcnow()
-    with freeze_time(execdate):
+    with time_machine.travel(execdate, tick=False):
         current_time = timezone.utcnow()
         old_log = add_log(execdate, session, dag_maker)
         session.expunge(old_log)
@@ -65,7 +65,7 @@ def test_timestamp_behaviour(dag_maker, session=None):
 @provide_session
 def test_timestamp_behaviour_with_timezone(dag_maker, session=None):
     execdate = timezone.utcnow()
-    with freeze_time(execdate):
+    with time_machine.travel(execdate, tick=False):
         current_time = timezone.utcnow()
         old_log = add_log(execdate, session, dag_maker, timezone_override=pendulum.timezone("Europe/Warsaw"))
         session.expunge(old_log)

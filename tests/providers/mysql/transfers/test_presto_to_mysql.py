@@ -17,11 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from unittest.mock import patch
-
-import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOperator
@@ -61,20 +58,3 @@ class TestPrestoToMySqlTransfer:
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
             table=self.kwargs["mysql_table"], rows=mock_presto_hook.return_value.get_records.return_value
         )
-
-    @pytest.mark.skipif(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
-    )
-    def test_presto_to_mysql(self):
-        op = PrestoToMySqlOperator(
-            task_id="presto_to_mysql_check",
-            sql="""
-                SELECT name, count(*) as ccount
-                FROM airflow.static_babynames
-                GROUP BY name
-                """,
-            mysql_table="test_static_babynames",
-            mysql_preoperator="TRUNCATE TABLE test_static_babynames;",
-            dag=self.dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

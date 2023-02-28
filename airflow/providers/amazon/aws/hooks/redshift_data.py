@@ -27,20 +27,17 @@ if TYPE_CHECKING:
 
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     """
-    Interact with AWS Redshift Data, using the boto3 library
-    Hook attribute `conn` has all methods that listed in documentation
+    Interact with Amazon Redshift Data API.
+    Provide thin wrapper around
+    :external+boto3:py:class:`boto3.client("redshift-data") <RedshiftDataAPIService.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-data.html
-        - https://docs.aws.amazon.com/redshift-data/latest/APIReference/Welcome.html
-
-    Additional arguments (such as ``aws_conn_id`` or ``region_name``) may be specified and
-        are passed down to the underlying AwsBaseHook.
-
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - `Amazon Redshift Data API \
+        <https://docs.aws.amazon.com/redshift-data/latest/APIReference/Welcome.html>`__
     """
 
     def __init__(self, *args, **kwargs) -> None:

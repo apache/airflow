@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import warnings
 from itertools import chain
 from typing import (
     Any,
@@ -295,8 +296,25 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
+        if "return" not in self.function.__annotations__:
+            # No return type annotation, nothing to infer
+            return False
+
         try:
-            return_type = typing_extensions.get_type_hints(self.function).get("return", Any)
+            # We only care about the return annotation, not anything about the parameters
+            def fake():
+                ...
+
+            fake.__annotations__ = {"return": self.function.__annotations__["return"]}
+
+            return_type = typing_extensions.get_type_hints(fake, self.function.__globals__).get("return", Any)
+        except NameError as e:
+            warnings.warn(
+                f"Cannot infer multiple_outputs for TaskFlow function {self.function.__name__!r} with forward"
+                f" type references that are not imported. (Error was {e})",
+                stacklevel=4,
+            )
+            return False
         except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)

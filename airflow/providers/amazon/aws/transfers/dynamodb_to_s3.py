@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 from copy import copy
+from decimal import Decimal
 from os.path import getsize
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
@@ -36,8 +37,18 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+class JSONEncoder(json.JSONEncoder):
+    """Custom json encoder implementation"""
+
+    def default(self, obj):
+        """Convert decimal objects in a json serializable format."""
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+
 def _convert_item_to_json_bytes(item: dict[str, Any]) -> bytes:
-    return (json.dumps(item) + "\n").encode("utf-8")
+    return (json.dumps(item, cls=JSONEncoder) + "\n").encode("utf-8")
 
 
 def _upload_file_to_s3(
@@ -69,7 +80,7 @@ class DynamoDBToS3Operator(BaseOperator):
     :param dynamodb_table_name: Dynamodb table to replicate data from
     :param s3_bucket_name: S3 bucket to replicate data to
     :param file_size: Flush file to s3 if file size >= file_size
-    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>  # noqa: E501
+    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -77,7 +88,7 @@ class DynamoDBToS3Operator(BaseOperator):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    """
+    """  # noqa: E501
 
     template_fields: Sequence[str] = (
         "s3_bucket_name",

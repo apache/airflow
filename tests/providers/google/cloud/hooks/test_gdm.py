@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -39,8 +38,8 @@ TEST_PROJECT = "my-project"
 TEST_DEPLOYMENT = "my-deployment"
 
 
-class TestDeploymentManagerHook(unittest.TestCase):
-    def setUp(self):
+class TestDeploymentManagerHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_init,

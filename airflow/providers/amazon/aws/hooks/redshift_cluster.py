@@ -26,15 +26,14 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class RedshiftHook(AwsBaseHook):
     """
-    Interact with AWS Redshift, using the boto3 library
+    Interact with Amazon Redshift.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("redshift") <Redshift.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
@@ -53,6 +52,9 @@ class RedshiftHook(AwsBaseHook):
     ) -> dict[str, Any]:
         """
         Creates a new cluster with the specified parameters
+
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.create_cluster`
 
         :param cluster_identifier: A unique identifier for the cluster.
         :param node_type: The node type to be provisioned for the cluster.
@@ -82,6 +84,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Return status of a cluster
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.describe_clusters`
+
         :param cluster_identifier: unique identifier of a cluster
         :param skip_final_cluster_snapshot: determines cluster snapshot creation
         :param final_cluster_snapshot_identifier: Optional[str]
@@ -101,6 +106,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Delete a cluster and optionally create a snapshot
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.delete_cluster`
+
         :param cluster_identifier: unique identifier of a cluster
         :param skip_final_cluster_snapshot: determines cluster snapshot creation
         :param final_cluster_snapshot_identifier: name of final cluster snapshot
@@ -118,6 +126,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Gets a list of snapshots for a cluster
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.describe_cluster_snapshots`
+
         :param cluster_identifier: unique identifier of a cluster
         """
         response = self.get_conn().describe_cluster_snapshots(ClusterIdentifier=cluster_identifier)
@@ -132,6 +143,9 @@ class RedshiftHook(AwsBaseHook):
         """
         Restores a cluster from its snapshot
 
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.restore_from_cluster_snapshot`
+
         :param cluster_identifier: unique identifier of a cluster
         :param snapshot_identifier: unique identifier for a snapshot of a cluster
         """
@@ -145,6 +159,9 @@ class RedshiftHook(AwsBaseHook):
     ) -> str:
         """
         Creates a snapshot of a cluster
+
+        .. seealso::
+            - :external+boto3:py:meth:`Redshift.Client.create_cluster_snapshot`
 
         :param snapshot_identifier: unique identifier for a snapshot of a cluster
         :param cluster_identifier: unique identifier of a cluster

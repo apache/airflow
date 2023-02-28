@@ -28,14 +28,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.0
+.....
+
+Latest change: 2022-12-28
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`4f006e8c71 <https://github.com/apache/airflow/commit/4f006e8c71f850fce0450fbabd6aa6d61487498e>`_  2022-12-28   ``Add .bash and other extensions to SSHOperator template_ext (#28617)``
+`38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
+`b5338b5825 <https://github.com/apache/airflow/commit/b5338b5825859355b017bed3586d5a42208f1391>`_  2022-12-07   ``Add test_connection method for SSHHook (#28184)``
+`2b107e6f50 <https://github.com/apache/airflow/commit/2b107e6f504732715702ea65e77986c2d42f5d61>`_  2022-12-04   ``SSH task exit code added to XCOM as 'ssh_exit' key (#27370)``
+`4a3a429658 <https://github.com/apache/airflow/commit/4a3a42965801823c39baaccfa96c5e4cffae4012>`_  2022-12-03   ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+=================================================================================================  ===========  =======================================================================
+
 3.3.0
 .....
 
-Latest change: 2022-11-08
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `8f152a102b <https://github.com/apache/airflow/commit/8f152a102baf6851a719e4ad10fbb15e928fa72b>`_  2022-11-08   ``Apply log formatter on every ouput line in SSHOperator (#27442)``
 `dc760b45ea <https://github.com/apache/airflow/commit/dc760b45eaeccc3ff35a5acdfe70968ca0451331>`_  2022-11-07   ``SSHOperator ignores cmd_timeout (#27182) (#27184)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``

@@ -38,7 +38,6 @@ class TestJdbcOperator:
             handler=fetch_all_handler,
             parameters=jdbc_operator.parameters,
             return_last=True,
-            split_statements=False,
         )
 
     @patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
@@ -52,5 +51,4 @@ class TestJdbcOperator:
             parameters=jdbc_operator.parameters,
             handler=None,
             return_last=True,
-            split_statements=False,
         )

@@ -100,9 +100,9 @@ class AirflowAppBuilder:
     # Babel Manager Class
     bm = None
     # dict with addon name has key and intantiated class has value
-    addon_managers = None
+    addon_managers: dict
     # temporary list that hold addon_managers config key
-    _addon_managers = None
+    _addon_managers: list
 
     menu = None
     indexview = None
@@ -115,7 +115,7 @@ class AirflowAppBuilder:
     def __init__(
         self,
         app=None,
-        session=None,
+        session: Session | None = None,
         menu=None,
         indexview=None,
         base_template="airflow/main.html",
@@ -633,7 +633,7 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app):
+def init_appbuilder(app) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     from airflow.www.security import AirflowSecurityManager
 
@@ -645,7 +645,7 @@ def init_appbuilder(app):
              not FAB's security manager."""
         )
 
-    AirflowAppBuilder(
+    return AirflowAppBuilder(
         app=app,
         session=settings.Session,
         security_manager_class=security_manager_class,

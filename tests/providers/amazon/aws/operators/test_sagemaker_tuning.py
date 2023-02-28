@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -73,8 +72,8 @@ CREATE_TUNING_PARAMS: dict = {
 }
 
 
-class TestSageMakerTuningOperator(unittest.TestCase):
-    def setUp(self):
+class TestSageMakerTuningOperator:
+    def setup_method(self):
         self.sagemaker = SageMakerTuningOperator(
             task_id="test_sagemaker_operator",
             config=CREATE_TUNING_PARAMS,

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
@@ -81,8 +80,8 @@ mock_config = {
 }
 
 
-class TestGlueCrawlerOperator(unittest.TestCase):
-    def setUp(self):
+class TestGlueCrawlerOperator:
+    def setup_method(self):
         self.glue = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
 
     @mock.patch("airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerHook")
@@ -92,7 +91,7 @@ class TestGlueCrawlerOperator(unittest.TestCase):
 
         mock_hook.assert_has_calls(
             [
-                mock.call("aws_default"),
+                mock.call("aws_default", region_name=None),
                 mock.call().has_crawler("test-crawler"),
                 mock.call().update_crawler(**mock_config),
                 mock.call().start_crawler(mock_crawler_name),

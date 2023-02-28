@@ -28,7 +28,7 @@ many types of operation on a DAG, starting services, and supporting
 development and testing.
 
 .. note::
-    For more information on usage CLI, see :doc:`usage-cli`
+    For more information on usage CLI, see :doc:`/howto/usage-cli`
 
 .. contents:: Content
     :local:

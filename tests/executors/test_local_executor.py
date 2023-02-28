@@ -31,6 +31,18 @@ class TestLocalExecutor:
 
     TEST_SUCCESS_COMMANDS = 5
 
+    def test_supports_pickling(self):
+        assert not LocalExecutor.supports_pickling
+
+    def test_supports_sentry(self):
+        assert not LocalExecutor.supports_sentry
+
+    def test_is_local_default_value(self):
+        assert LocalExecutor.is_local
+
+    def test_serve_logs_default_value(self):
+        assert LocalExecutor.serve_logs
+
     @mock.patch("airflow.executors.local_executor.subprocess.check_call")
     def execution_parallelism_subprocess(self, mock_check_call, parallelism=0):
         success_command = ["airflow", "tasks", "run", "true", "some_parameter", "2020-10-07"]

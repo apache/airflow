@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import csv
+import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -83,6 +84,10 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         self.sheet_filter = sheet_filter
         self.destination_bucket = destination_bucket
         self.destination_path = destination_path
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

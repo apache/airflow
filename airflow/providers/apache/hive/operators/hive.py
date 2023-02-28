@@ -87,6 +87,7 @@ class HiveOperator(BaseOperator):
         mapred_queue: str | None = None,
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
+        hive_cli_params: str = "",
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -102,6 +103,7 @@ class HiveOperator(BaseOperator):
         self.mapred_queue = mapred_queue
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
+        self.hive_cli_params = hive_cli_params
 
         job_name_template = conf.get_mandatory_value(
             "hive",
@@ -124,6 +126,7 @@ class HiveOperator(BaseOperator):
             mapred_queue=self.mapred_queue,
             mapred_queue_priority=self.mapred_queue_priority,
             mapred_job_name=self.mapred_job_name,
+            hive_cli_params=self.hive_cli_params,
         )
 
     def prepare_template(self) -> None:

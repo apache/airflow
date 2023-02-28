@@ -28,14 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.0
+.....
+
+Latest change: 2023-01-23
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`3374fdfcbd <https://github.com/apache/airflow/commit/3374fdfcbddb630b4fc70ceedd5aed673e6c0a0d>`_  2023-01-23   ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+`8c4303e1ac <https://github.com/apache/airflow/commit/8c4303e1ace0774244b556a8d86a19058af2b16d>`_  2023-01-18   ``Add support for running a Beam Go pipeline with an executable binary (#28764)``
+=================================================================================================  ===========  =================================================================================
+
+4.1.1
+.....
+
+Latest change: 2023-01-14
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+`8da678ccd2 <https://github.com/apache/airflow/commit/8da678ccd2e5a30f9c2d22c7526b7a238c185d2f>`_  2023-01-03   ``Ensure Beam Go file downloaded from GCS still exists when referenced (#28664)``
+=================================================================================================  ===========  =================================================================================
+
 4.1.0
 .....
 
-Latest change: 2022-11-11
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `e8ab8ccc0e <https://github.com/apache/airflow/commit/e8ab8ccc0e7b82efc0dbf8bd31e0bbf57b1d5637>`_  2022-11-11   ``Add backward compatibility with old versions of Apache Beam (#27263)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``

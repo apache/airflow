@@ -38,7 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-plexus/3.0.0/tests/system/providers/plexus>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-plexus/|version|/tests/system/providers/plexus>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-plexus/>
     Installing from sources <installing-providers-from-sources>
 

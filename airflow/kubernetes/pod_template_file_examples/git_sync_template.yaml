@@ -26,7 +26,7 @@ metadata:
 spec:
   initContainers:
     - name: git-sync
-      image: "k8s.gcr.io/git-sync/git-sync:v3.4.0"
+      image: "k8s.gcr.io/git-sync/git-sync:v3.6.3"
       env:
         - name: GIT_SYNC_BRANCH
           value: "v2-2-stable"

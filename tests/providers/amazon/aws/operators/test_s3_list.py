@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
@@ -29,7 +28,7 @@ PREFIX = "TEST"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
-class TestS3ListOperator(unittest.TestCase):
+class TestS3ListOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     def test_execute(self, mock_hook):
 

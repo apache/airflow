@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -55,7 +54,7 @@ DESCRIBE_ENDPOINT_UPDATING_RESPONSE = {
 }
 
 
-class TestSageMakerEndpointSensor(unittest.TestCase):
+class TestSageMakerEndpointSensor:
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "describe_endpoint")
     def test_sensor_with_failure(self, mock_describe, mock_get_conn):

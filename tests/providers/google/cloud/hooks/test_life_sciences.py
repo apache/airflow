@@ -20,7 +20,6 @@ Tests for Google Cloud Life Sciences Hook
 """
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -48,8 +47,8 @@ TEST_PROJECT_ID = "life-science-project-id"
 TEST_LOCATION = "test-location"
 
 
-class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
-    def setUp(self):
+class TestLifeSciencesHookWithPassedProjectId:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -159,8 +158,8 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
             self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
 
 
-class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
-    def setUp(self):
+class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -265,8 +264,8 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             self.hook.run_pipeline(body={}, location=TEST_LOCATION)
 
 
-class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
-    def setUp(self):
+class TestLifeSciencesHookWithoutProjectId:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

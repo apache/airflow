@@ -54,6 +54,64 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-snowflake/**/*
     - tests/providers/snowflake/**/*
 
+  provider:DBs:
+    - airflow/providers/mysql/**/*
+    - docs/apache-airflow-providers-mysql/**/*
+    - tests/providers/mysql/**/*
+    - airflow/providers/postgres/**/*
+    - docs/apache-airflow-providers-postgres/**/*
+    - tests/providers/postgres/**/*
+    - airflow/providers/sqlite/**/*
+    - docs/apache-airflow-providers-sqlite/**/*
+    - tests/providers/sqlite/**/*
+    - airflow/providers/oracle/**/*
+    - docs/apache-airflow-providers-oracle/**/*
+    - tests/providers/oracle/**/*
+    - airflow/providers/influxdb/**/*
+    - docs/apache-airflow-providers-influxdb/**/*
+    - tests/providers/influxdb/**/*
+    - airflow/providers/microsoft/mssql/**/*
+    - docs/apache-airflow-providers-microsoft-mssql/**/*
+    - tests/providers/microsoft/mssql/**/*
+
+  provider:Protocols:
+    - airflow/providers/http/**/*
+    - docs/apache-airflow-providers-http/**/*
+    - tests/providers/http/**/*
+    - airflow/providers/ftp/**/*
+    - docs/apache-airflow-providers-ftp/**/*
+    - tests/providers/ftp/**/*
+    - airflow/providers/ssh/**/*
+    - docs/apache-airflow-providers-ssh/**/*
+    - tests/providers/ssh/**/*
+    - airflow/providers/jdbc/**/*
+    - docs/apache-airflow-providers-jdbc/**/*
+    - tests/providers/jdbc/**/*
+
+  provider:Docker:
+    - airflow/providers/docker/**/*
+    - docs/apache-airflow-providers-docker/**/*
+    - tests/providers/docker/**/*
+
+  provider:message-apps:
+    - airflow/providers/slack/**/*
+    - docs/apache-airflow-providers-slack/**/*
+    - tests/providers/slack/**/*
+    - airflow/providers/opsgenie/**/*
+    - docs/apache-airflow-providers-opsgenie/**/*
+    - tests/providers/opsgenie/**/*
+    - airflow/providers/telegram/**/*
+    - docs/apache-airflow-providers-telegram/**/*
+    - tests/providers/telegram/**/*
+
+  provider:trino/presto:
+    - airflow/providers/trino/**/*
+    - docs/apache-airflow-providers-trino/**/*
+    - tests/providers/trino/**/*
+    - airflow/providers/presto/**/*
+    - docs/apache-airflow-providers-presto/**/*
+    - tests/providers/presto/**/*
+
   area:providers:
     - airflow/providers/**/*
     - docs/apache-airflow-providers-*/**/*
@@ -67,8 +125,8 @@ labelPRBasedOnFilePath:
     - airflow/kubernetes_executor_templates/**/*
     - airflow/executors/kubernetes_executor.py
     - airflow/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow/executor/kubernetes.rst
-    - docs/apache-airflow/executor/celery_kubernetes.rst
+    - docs/apache-airflow/core-concepts/executor/kubernetes.rst
+    - docs/apache-airflow/core-concepts/executor/celery_kubernetes.rst
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
     - kubernetes_tests/**/*
 
@@ -83,7 +141,6 @@ labelPRBasedOnFilePath:
     - tests/www/api/**/*
 
   area:dev-tools:
-    - airflow/mypy/**/*
     - scripts/**/*
     - dev/**/*
     - .github/**/*
@@ -97,7 +154,6 @@ labelPRBasedOnFilePath:
     - .asf.yaml
     - .bash_completion
     - .dockerignore
-    - .flake8
     - .hadolint.yaml
     - .pre-commit-config.yaml
     - .rat-excludes
@@ -136,17 +192,17 @@ labelPRBasedOnFilePath:
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
     - docs/apache-airflow/cli-and-env-variables-ref.rst
-    - docs/apache-airflow/usage-cli.rst
+    - docs/apache-airflow/howto/usage-cli.rst
 
   area:Lineage:
     - airflow/lineage/**/*
     - tests/lineage/**/*
-    - docs/apache-airflow/lineage.rst
+    - docs/apache-airflow/administration-and-deployment/lineage.rst
 
   area:Logging:
     - airflow/providers/**/log/*
     - airflow/utils/log/**/*
-    - docs/apache-airflow/logging-monitoring/logging-*.rst
+    - docs/apache-airflow/administration-and-deployment/logging-monitoring/logging-*.rst
     - tests/providers/**/log/*
     - tests/utils/log/**/*
 
@@ -155,15 +211,15 @@ labelPRBasedOnFilePath:
     - airflow/plugins_manager.py
     - tests/cli/commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/plugins.rst
+    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
   area:Scheduler/Executor:
     - airflow/executors/**/*
     - airflow/jobs/**/*
     - airflow/task/task_runner/**/*
     - airflow/dag_processing/**/*
-    - docs/apache-airflow/executor/**/*
-    - docs/apache-airflow/concepts/scheduler.rst
+    - docs/apache-airflow/core-concepts/executor/**/*
+    - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/executors/**/*
     - tests/jobs/**/*
 
@@ -172,14 +228,14 @@ labelPRBasedOnFilePath:
     - airflow/providers/**/secrets/*
     - tests/secrets/**/*
     - tests/providers/**/secrets/*
-    - docs/apache-airflow/security/secrets/**/*
+    - docs/apache-airflow/administration-and-deployment/security/secrets/**/*
 
   area:Serialization:
     - airflow/serialization/**/*
     - airflow/models/serialized_dag.py
     - tests/serialization/**/*
     - tests/models/test_serialized_dag.py
-    - docs/apache-airflow/dag-serialization.rst
+    - docs/apache-airflow/administration-and-deployment/dag-serialization.rst
 
   area:core-operators:
     - airflow/operators/**/*
@@ -215,7 +271,7 @@ firstPRWelcomeComment: >
 
   Here are some useful points:
 
-  - Pay attention to the quality of your code (flake8, mypy and type annotations). Our [pre-commits](
+  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
   https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
   will help you with that.
 

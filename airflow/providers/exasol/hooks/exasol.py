@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 from contextlib import closing
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 import pandas as pd
 import pyexasol
-from pyexasol import ExaConnection
+from pyexasol import ExaConnection, ExaStatement
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 
@@ -133,6 +133,29 @@ class ExasolHook(DbApiHook):
             )
         self.log.info("Data saved to %s", filename)
 
+    @staticmethod
+    def get_description(statement: ExaStatement) -> Sequence[Sequence]:
+        """
+        Copied implementation from DB2-API wrapper.
+        More info https://github.com/exasol/pyexasol/blob/master/docs/DBAPI_COMPAT.md#db-api-20-wrapper
+        :param statement: Exasol statement
+        :return: description sequence of t
+        """
+        cols = []
+        for k, v in statement.columns().items():
+            cols.append(
+                (
+                    k,
+                    v.get("type", None),
+                    v.get("size", None),
+                    v.get("size", None),
+                    v.get("precision", None),
+                    v.get("scale", None),
+                    True,
+                )
+            )
+        return cols
+
     def run(
         self,
         sql: str | Iterable[str],
@@ -176,18 +199,17 @@ class ExasolHook(DbApiHook):
             self.set_autocommit(conn, autocommit)
             results = []
             for sql_statement in sql_list:
-                with closing(conn.execute(sql_statement, parameters)) as cur:
+                with closing(conn.execute(sql_statement, parameters)) as exa_statement:
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     if handler is not None:
-                        result = handler(cur)
+                        result = handler(exa_statement)
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
-                            _last_description = cur.description
+                            _last_columns = self.get_description(exa_statement)
                         else:
                             results.append(result)
-                            self.descriptions.append(cur.description)
-
-                    self.log.info("Rows affected: %s", cur.rowcount)
+                            self.descriptions.append(self.get_description(exa_statement))
+                    self.log.info("Rows affected: %s", exa_statement.rowcount)
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
@@ -196,7 +218,7 @@ class ExasolHook(DbApiHook):
         if handler is None:
             return None
         if return_single_query_results(sql, return_last, split_statements):
-            self.descriptions = [_last_description]
+            self.descriptions = [_last_columns]
             return _last_result
         else:
             return results
@@ -241,3 +263,17 @@ class ExasolHook(DbApiHook):
         :return: The cell
         """
         return cell
+
+
+def exasol_fetch_all_handler(statement: ExaStatement) -> list[tuple] | None:
+    if statement.result_type == "resultSet":
+        return statement.fetchall()
+    else:
+        return None
+
+
+def exasol_fetch_one_handler(statement: ExaStatement) -> list[tuple] | None:
+    if statement.result_type == "resultSet":
+        return statement.fetchone()
+    else:
+        return None

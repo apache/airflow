@@ -74,17 +74,19 @@ export default function useClearTask({
         params.append('map_index', mi.toString());
       });
 
-      return axios.post<AxiosResponse, string>(clearUrl, params.toString(), {
+      return axios.post<AxiosResponse, string[]>(clearUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
-        startRefresh();
+      onSuccess: (_, { confirmed }) => {
+        if (confirmed) {
+          queryClient.invalidateQueries('gridData');
+          queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
+          startRefresh();
+        }
       },
       onError: (error: Error) => errorToast({ error }),
     },

@@ -31,19 +31,15 @@ if TYPE_CHECKING:
 
 class AppflowHook(AwsBaseHook):
     """
-    Interact with Amazon Appflow, using the boto3 library.
-    Hook attribute ``conn`` has all methods that listed in documentation.
+    Interact with Amazon Appflow.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/appflow.html
-        - https://docs.aws.amazon.com/appflow/1.0/APIReference/Welcome.html
-
-    Additional arguments (such as ``aws_conn_id`` or ``region_name``) may be specified and
-        are passed down to the underlying AwsBaseHook.
-
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - `Amazon Appflow API Reference <https://docs.aws.amazon.com/appflow/1.0/APIReference/Welcome.html>`__
     """
 
     EVENTUAL_CONSISTENCY_OFFSET: int = 15  # seconds

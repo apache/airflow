@@ -36,6 +36,8 @@ from airflow.exceptions import (
     NoAvailablePoolSlot,
     TaskConcurrencyLimitReached,
 )
+from airflow.executors.executor_constants import MOCK_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, Pool, TaskInstance as TI
@@ -72,6 +74,10 @@ def dag_bag():
     return DagBag(include_examples=True)
 
 
+# Patch the MockExecutor into the dict of known executors in the Loader
+@patch.dict(
+    ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
+)
 class TestBackfillJob:
     @staticmethod
     def clean_db():

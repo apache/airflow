@@ -180,6 +180,36 @@ class TestWebserverDeployment:
             "spec.template.spec.containers[0].env", docs[0]
         )
 
+    def test_should_add_extra_volume_and_extra_volume_mount(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
+                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[-1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1].name", docs[0]
+        )
+
+    def test_should_add_global_volume_and_global_volume_mount(self):
+        docs = render_chart(
+            values={
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[-1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[-1].name", docs[0]
+        )
+
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
@@ -643,6 +673,18 @@ class TestWebserverDeployment:
         assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
         assert 1 == len(jmespath.search("spec.template.spec.initContainers", docs[0]))
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestWebserverService:
     def test_default_service(self):
@@ -756,6 +798,18 @@ class TestWebserverService:
 class TestWebserverConfigmap:
     def test_no_webserver_config_configmap_by_default(self):
         docs = render_chart(show_only=["templates/configmaps/webserver-configmap.yaml"])
+        assert 0 == len(docs)
+
+    def test_no_webserver_config_configmap_with_configmap_name(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "webserverConfigConfigMapName": "my-configmap",
+                }
+            },
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
         assert 0 == len(docs)
 
     def test_webserver_config_configmap(self):

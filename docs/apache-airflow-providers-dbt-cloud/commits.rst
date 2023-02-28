@@ -28,14 +28,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2023-02-02
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`91c0ce7666 <https://github.com/apache/airflow/commit/91c0ce7666f131176cb6368058dc1f259275b894>`_  2023-02-02   ``Drop Connection.schema use in DbtCloudHook (#29166)``
+`f805b4154a <https://github.com/apache/airflow/commit/f805b4154a8155823d7763beb9b6da76889ebd62>`_  2023-01-23   ``Allow downloading of dbt Cloud artifacts to non-existent paths (#29048)``
+`55049c50d5 <https://github.com/apache/airflow/commit/55049c50d52323e242c2387f285f0591ea38cde7>`_  2023-01-23   ``Add deferrable mode to 'DbtCloudRunJobOperator' (#29014)``
+`4f91931b35 <https://github.com/apache/airflow/commit/4f91931b359f76ae38272c727bfe21a18a470f2b>`_  2023-01-17   ``Provide more context for 'trigger_reason' in DbtCloudRunJobOperator (#28994)``
+=================================================================================================  ===========  ================================================================================
+
+2.3.1
+.....
+
+Latest change: 2023-01-14
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+`141338b24e <https://github.com/apache/airflow/commit/141338b24efeddb9460b53b8501654b50bc6b86e>`_  2023-01-12   ``Use entire tenant domain name in dbt Cloud connection (#28890)``
+=================================================================================================  ===========  ==================================================================
+
 2.3.0
 .....
 
-Latest change: 2022-10-24
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
 =================================================================================================  ===========  =========================================================================

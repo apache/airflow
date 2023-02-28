@@ -32,7 +32,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 
@@ -879,7 +879,7 @@ class TestDagBag:
         """
         db_clean_up()
         session = settings.Session()
-        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)) as frozen_time:
+        with time_machine.travel(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False) as frozen_time:
             dagbag = DagBag(
                 dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
                 include_examples=False,
@@ -889,7 +889,7 @@ class TestDagBag:
 
             def _sync_to_db():
                 mock_sync_perm_for_dag.reset_mock()
-                frozen_time.tick(20)
+                frozen_time.shift(20)
                 dagbag.sync_to_db(session=session)
 
             dag = dagbag.dags["test_example_bash_operator"]
@@ -950,7 +950,7 @@ class TestDagBag:
         Serialized DAG table after 'min_serialized_dag_fetch_interval' seconds are passed.
         """
 
-        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
+        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
@@ -962,18 +962,18 @@ class TestDagBag:
 
         # Check that if min_serialized_dag_fetch_interval has not passed we do not fetch the DAG
         # from DB
-        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
+        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 4)), tick=False):
             with assert_queries_count(0):
                 assert dag_bag.get_dag("example_bash_operator").tags == ["example", "example2"]
 
         # Make a change in the DAG and write Serialized DAG to the DB
-        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
+        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags += ["new_tag"]
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
-        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 8)):
+        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 8)), tick=False):
             with assert_queries_count(2):
                 updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
                 updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]

@@ -17,8 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import warnings
 from typing import TYPE_CHECKING, Sequence
+
+import oracledb
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -69,6 +72,9 @@ class OracleStoredProcedureOperator(BaseOperator):
     :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
         reference to a specific Oracle database.
     :param parameters: (optional, templated) the parameters provided in the call
+
+    If *do_xcom_push* is *True*, the numeric exit code emitted by
+    the database is pushed to XCom under key ``ORA`` in case of failure.
     """
 
     template_fields: Sequence[str] = (
@@ -93,4 +99,13 @@ class OracleStoredProcedureOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
+        try:
+            return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
+        except oracledb.DatabaseError as e:
+            if not self.do_xcom_push or not context:
+                raise
+            ti = context["ti"]
+            code_match = re.search("^ORA-(\\d+):.+", str(e))
+            if code_match:
+                ti.xcom_push(key="ORA", value=code_match.group(1))
+            raise

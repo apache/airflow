@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Classes for interacting with Kubernetes API"""
+"""Classes for interacting with Kubernetes API."""
 from __future__ import annotations
 
 import copy
@@ -27,12 +27,13 @@ from airflow.kubernetes.k8s_model import K8SModel
 
 
 class Secret(K8SModel):
-    """Defines Kubernetes Secret Volume"""
+    """Defines Kubernetes Secret Volume."""
 
     def __init__(self, deploy_type, deploy_target, secret, key=None, items=None):
         """
-        Initialize a Kubernetes Secret Object. Used to track requested secrets from
-        the user.
+        Initialize a Kubernetes Secret Object.
+
+        Used to track requested secrets from the user.
 
         :param deploy_type: The type of secret deploy in Kubernetes, either `env` or
             `volume`
@@ -64,7 +65,7 @@ class Secret(K8SModel):
         self.key = key
 
     def to_env_secret(self) -> k8s.V1EnvVar:
-        """Stores es environment secret"""
+        """Stores es environment secret."""
         return k8s.V1EnvVar(
             name=self.deploy_target,
             value_from=k8s.V1EnvVarSource(
@@ -73,11 +74,11 @@ class Secret(K8SModel):
         )
 
     def to_env_from_secret(self) -> k8s.V1EnvFromSource:
-        """Reads from environment to secret"""
+        """Reads from environment to secret."""
         return k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=self.secret))
 
     def to_volume_secret(self) -> tuple[k8s.V1Volume, k8s.V1VolumeMount]:
-        """Converts to volume secret"""
+        """Converts to volume secret."""
         vol_id = f"secretvol{uuid.uuid4()}"
         volume = k8s.V1Volume(name=vol_id, secret=k8s.V1SecretVolumeSource(secret_name=self.secret))
         if self.items:
@@ -85,7 +86,7 @@ class Secret(K8SModel):
         return (volume, k8s.V1VolumeMount(mount_path=self.deploy_target, name=vol_id, read_only=True))
 
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Attaches to pod"""
+        """Attaches to pod."""
         cp_pod = copy.deepcopy(pod)
 
         if self.deploy_type == "volume":

@@ -103,6 +103,7 @@ class AwsConnectionWrapper(LoggingMixin):
     conn_type: str | None = field(init=False, default=None)
     login: str | None = field(init=False, repr=False, default=None)
     password: str | None = field(init=False, repr=False, default=None)
+    schema: str | None = field(init=False, repr=False, default=None)
     extra_config: dict[str, Any] = field(init=False, repr=False, default_factory=dict)
 
     # AWS Credentials from connection.
@@ -123,6 +124,9 @@ class AwsConnectionWrapper(LoggingMixin):
     @cached_property
     def conn_repr(self):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
+
+    def get_service_config(self, service_name):
+        return self.extra_dejson.get("service_config", {}).get(service_name, {})
 
     def __post_init__(self, conn: Connection):
         if isinstance(conn, type(self)):
@@ -156,6 +160,7 @@ class AwsConnectionWrapper(LoggingMixin):
         self.conn_type = conn.conn_type or "aws"
         self.login = conn.login
         self.password = conn.password
+        self.schema = conn.schema or None
         self.extra_config = deepcopy(conn.extra_dejson)
 
         if self.conn_type.lower() == "s3":

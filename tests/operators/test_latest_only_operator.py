@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime
 
-from freezegun import freeze_time
+import time_machine
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
@@ -64,7 +64,7 @@ class TestLatestOnlyOperator:
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
             schedule=INTERVAL,
         )
-        self.freezer = freeze_time(FROZEN_NOW)
+        self.freezer = time_machine.travel(FROZEN_NOW, tick=False)
         self.freezer.start()
 
     def teardown_method(self):

@@ -48,6 +48,7 @@ from airflow.www.extensions.init_session import init_airflow_session_interface
 from airflow.www.extensions.init_views import (
     init_api_connexion,
     init_api_experimental,
+    init_api_internal,
     init_appbuilder_views,
     init_connection_form,
     init_error_handlers,
@@ -149,6 +150,8 @@ def create_app(config=None, testing=False):
         init_connection_form()
         init_error_handlers(flask_app)
         init_api_connexion(flask_app)
+        if conf.getboolean("webserver", "run_internal_api", fallback=False):
+            init_api_internal(flask_app)
         init_api_experimental(flask_app)
 
         sync_appbuilder_roles(flask_app)

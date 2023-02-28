@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-sqlite/3.0.0/tests/system/providers/sqlite>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-sqlite/|version|/tests/system/providers/sqlite>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-sqlite/>
     Installing from sources <installing-providers-from-sources>
 

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -42,7 +41,7 @@ TEMPLATE_SEARCHPATH = os.path.join(
 )
 
 
-class TestEmrCreateJobFlowOperator(unittest.TestCase):
+class TestEmrCreateJobFlowOperator:
     # When
     _config = {
         "Name": "test_job_flow",
@@ -59,7 +58,7 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         ],
     }
 
-    def setUp(self):
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
         # Mock out the emr_client (moto has incorrect response)

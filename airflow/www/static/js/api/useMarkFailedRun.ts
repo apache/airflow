@@ -42,16 +42,18 @@ export default function useMarkFailedRun(dagId: string, runId: string) {
         dag_run_id: runId,
       }).toString();
 
-      return axios.post<AxiosResponse, string>(markFailedUrl, params, {
+      return axios.post<AxiosResponse, string[]>(markFailedUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries('gridData');
-        startRefresh();
+      onSuccess: (_, { confirmed }) => {
+        if (confirmed) {
+          queryClient.invalidateQueries('gridData');
+          startRefresh();
+        }
       },
       onError: (error: Error) => errorToast({ error }),
     },

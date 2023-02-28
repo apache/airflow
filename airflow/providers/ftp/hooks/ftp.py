@@ -67,7 +67,7 @@ class FTPHook(BaseHook):
     def close_conn(self):
         """
         Closes the connection. An error will occur if the
-        connection wasn't ever opened.
+        connection was not ever opened.
         """
         conn = self.conn
         conn.quit()

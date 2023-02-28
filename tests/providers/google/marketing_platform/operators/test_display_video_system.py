@@ -33,17 +33,15 @@ SCOPES = [
 
 @pytest.mark.system("google.marketing_platform")
 @pytest.mark.credential_file(GMP_KEY)
-class DisplayVideoSystemTest(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
+class TestDisplayVideoSystem(GoogleSystemTest):
+    def setup_method(self):
         self.create_gcs_bucket(BUCKET)
 
-    def tearDown(self):
+    def teardown_method(self):
         self.delete_gcs_bucket(BUCKET)
         with provide_gcp_context(GCP_BIGQUERY_KEY, scopes=SCOPES):
             hook = BigQueryHook()
             hook.delete_dataset(dataset_id="airflow_test", delete_contents=True)
-            super().tearDown()
 
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag(self):

@@ -26,3 +26,7 @@ state = []
 @hookimpl
 def on_task_instance_running(previous_state, task_instance, session):
     state.append(State.RUNNING)
+
+
+def clear():
+    pass

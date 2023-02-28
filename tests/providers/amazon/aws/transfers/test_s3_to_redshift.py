@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -29,7 +28,7 @@ from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOp
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
-class TestS3ToRedshiftTransfer(unittest.TestCase):
+class TestS3ToRedshiftTransfer:
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")

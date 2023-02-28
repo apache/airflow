@@ -44,7 +44,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-cassandra/3.0.0/tests/system/providers/apache/cassandra>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-cassandra/|version|/tests/system/providers/apache/cassandra>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-cassandra/>
     Installing from sources <installing-providers-from-sources>
 
@@ -64,7 +64,7 @@ Package apache-airflow-providers-apache-cassandra
 `Apache Cassandra <http://cassandra.apache.org/>`__.
 
 
-Release: 3.1.0
+Release: 3.1.1
 
 Provider package
 ----------------

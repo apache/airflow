@@ -1013,7 +1013,7 @@ class BaseSecurityManager:
 
     @staticmethod
     def ldap_extract(ldap_dict: dict[str, list[bytes]], field_name: str, fallback: str) -> str:
-        raw_value = ldap_dict.get(field_name, [bytes()])
+        raw_value = ldap_dict.get(field_name, [b""])
         # decode - if empty string, default to fallback, otherwise take first element
         return raw_value[0].decode("utf-8") or fallback
 

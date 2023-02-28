@@ -35,6 +35,7 @@ CONNECTION_ID = "conn_id"
 class ExecuteParameter(NamedTuple):
     name: str
     expected_method: str
+    expected_arguments: list[str] | None
     expected_parameters: dict[str, Any] | None
 
 
@@ -57,15 +58,20 @@ class TestPsrpOperator:
         [
             # These tuples map the command parameter to an execution method and parameter set.
             pytest.param(
-                ExecuteParameter("command", call.add_script("cmd.exe /c @'\nfoo\n'@"), None), id="command"
+                ExecuteParameter("command", call.add_script("cmd.exe /c @'\nfoo\n'@"), None, None),
+                id="command",
             ),
-            pytest.param(ExecuteParameter("powershell", call.add_script("foo"), None), id="powershell"),
-            pytest.param(ExecuteParameter("cmdlet", call.add_cmdlet("foo"), {"bar": "baz"}), id="cmdlet"),
+            pytest.param(ExecuteParameter("powershell", call.add_script("foo"), None, None), id="powershell"),
+            pytest.param(
+                ExecuteParameter("cmdlet", call.add_cmdlet("foo"), ["abc"], {"bar": "baz"}), id="cmdlet"
+            ),
         ],
     )
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
     def test_execute(self, hook_impl, parameter, had_errors, rc, do_xcom_push):
         kwargs = {parameter.name: "foo"}
+        if parameter.expected_arguments:
+            kwargs["arguments"] = parameter.expected_arguments
         if parameter.expected_parameters:
             kwargs["parameters"] = parameter.expected_parameters
         psrp_session_init = Mock(spec=Command)
@@ -100,6 +106,8 @@ class TestPsrpOperator:
             call.add_command(psrp_session_init),
             parameter.expected_method,
         ]
+        if parameter.expected_arguments:
+            expected_ps_calls.append(call.add_argument("abc"))
         if parameter.expected_parameters:
             expected_ps_calls.extend([call.add_parameters({"bar": "baz"})])
         if parameter.name in ("cmdlet", "powershell") and do_xcom_push:

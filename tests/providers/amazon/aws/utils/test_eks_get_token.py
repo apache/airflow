@@ -23,12 +23,12 @@ import runpy
 from unittest import mock
 
 import pytest
-from freezegun import freeze_time
+import time_machine
 
 
 class TestGetEksToken:
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook")
-    @freeze_time("1995-02-14")
+    @time_machine.travel("1995-02-14", tick=False)
     @pytest.mark.parametrize(
         "args, expected_aws_conn_id, expected_region_name",
         [

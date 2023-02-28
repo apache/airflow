@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import logging
 import os
+import re
 import smtplib
 import warnings
 from email.mime.application import MIMEApplication
@@ -47,8 +48,26 @@ def send_email(
     conn_id: str | None = None,
     custom_headers: dict[str, Any] | None = None,
     **kwargs,
-):
-    """Send email using backend specified in EMAIL_BACKEND."""
+) -> None:
+    """
+    Send an email using the backend specified in the *EMAIL_BACKEND* configuration option.
+
+    :param to: A list or iterable of email addresses to send the email to.
+    :param subject: The subject of the email.
+    :param html_content: The content of the email in HTML format.
+    :param files: A list of paths to files to attach to the email.
+    :param dryrun: If *True*, the email will not actually be sent. Default: *False*.
+    :param cc: A string or iterable of strings containing email addresses to send a copy of the email to.
+    :param bcc: A string or iterable of strings containing email addresses to send a
+        blind carbon copy of the email to.
+    :param mime_subtype: The subtype of the MIME message. Default: "mixed".
+    :param mime_charset: The charset of the email. Default: "utf-8".
+    :param conn_id: The connection ID to use for the backend. If not provided, the default connection
+        specified in the *EMAIL_CONN_ID* configuration option will be used.
+    :param custom_headers: A dictionary of additional headers to add to the MIME message.
+        No validations are run on these values, and they should be able to be encoded.
+    :param kwargs: Additional keyword arguments to pass to the backend.
+    """
     backend = conf.getimport("email", "EMAIL_BACKEND")
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
     from_email = conf.get("email", "from_email", fallback=None)
@@ -87,9 +106,22 @@ def send_email_smtp(
     from_email: str | None = None,
     custom_headers: dict[str, Any] | None = None,
     **kwargs,
-):
-    """
-    Send an email with html content
+) -> None:
+    """Send an email with html content.
+
+    :param to: Recipient email address or list of addresses.
+    :param subject: Email subject.
+    :param html_content: Email body in HTML format.
+    :param files: List of file paths to attach to the email.
+    :param dryrun: If True, the email will not be sent, but all other actions will be performed.
+    :param cc: Carbon copy recipient email address or list of addresses.
+    :param bcc: Blind carbon copy recipient email address or list of addresses.
+    :param mime_subtype: MIME subtype of the email.
+    :param mime_charset: MIME charset of the email.
+    :param conn_id: Connection ID of the SMTP server.
+    :param from_email: Sender email address.
+    :param custom_headers: Dictionary of custom headers to include in the email.
+    :param kwargs: Additional keyword arguments.
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
@@ -133,21 +165,20 @@ def build_mime_message(
     custom_headers: dict[str, Any] | None = None,
 ) -> tuple[MIMEMultipart, list[str]]:
     """
-    Build a MIME message that can be used to send an email and
-    returns full list of recipients.
+    Build a MIME message that can be used to send an email and returns a full list of recipients.
 
-    :param mail_from: Email address to set as email's from
-    :param to: List of email addresses to set as email's to
-    :param subject: Email's subject
-    :param html_content: Content of email in HTML format
-    :param files: List of paths of files to be attached
-    :param cc: List of email addresses to set as email's CC
-    :param bcc: List of email addresses to set as email's BCC
-    :param mime_subtype: Can be used to specify the subtype of the message. Default = mixed
-    :param mime_charset: Email's charset. Default = UTF-8.
-    :param custom_headers: Additional headers to add to the MIME message.
-        No validations are run on these values and they should be able to be encoded.
-    :return: Email as MIMEMultipart and list of recipients' addresses.
+    :param mail_from: Email address to set as the email's "From" field.
+    :param to: A string or iterable of strings containing email addresses to set as the email's "To" field.
+    :param subject: The subject of the email.
+    :param html_content: The content of the email in HTML format.
+    :param files: A list of paths to files to be attached to the email.
+    :param cc: A string or iterable of strings containing email addresses to set as the email's "CC" field.
+    :param bcc: A string or iterable of strings containing email addresses to set as the email's "BCC" field.
+    :param mime_subtype: The subtype of the MIME message. Default: "mixed".
+    :param mime_charset: The charset of the email. Default: "utf-8".
+    :param custom_headers: Additional headers to add to the MIME message. No validations are run on these
+        values, and they should be able to be encoded.
+    :return: A tuple containing the email as a MIMEMultipart object and a list of recipient email addresses.
     """
     to = get_email_address_list(to)
 
@@ -159,12 +190,12 @@ def build_mime_message(
     if cc:
         cc = get_email_address_list(cc)
         msg["CC"] = ", ".join(cc)
-        recipients = recipients + cc
+        recipients += cc
 
     if bcc:
         # don't add bcc in header
         bcc = get_email_address_list(bcc)
-        recipients = recipients + bcc
+        recipients += bcc
 
     msg["Date"] = formatdate(localtime=True)
     mime_text = MIMEText(html_content, "html", mime_charset)
@@ -192,7 +223,15 @@ def send_mime_email(
     conn_id: str = "smtp_default",
     dryrun: bool = False,
 ) -> None:
-    """Send MIME email."""
+    """
+    Send a MIME email.
+
+    :param e_from: The email address of the sender.
+    :param e_to: The email address or a list of email addresses of the recipient(s).
+    :param mime_msg: The MIME message to send.
+    :param conn_id: The ID of the SMTP connection to use.
+    :param dryrun: If True, the email will not be sent, but a log message will be generated.
+    """
     smtp_host = conf.get_mandatory_value("smtp", "SMTP_HOST")
     smtp_port = conf.getint("smtp", "SMTP_PORT")
     smtp_starttls = conf.getboolean("smtp", "SMTP_STARTTLS")
@@ -245,20 +284,33 @@ def send_mime_email(
 
 
 def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
-    """Get list of email addresses."""
+    """
+    Returns a list of email addresses from the provided input.
+
+    :param addresses: A string or iterable of strings containing email addresses.
+    :return: A list of email addresses.
+    :raises TypeError: If the input is not a string or iterable of strings.
+    """
     if isinstance(addresses, str):
         return _get_email_list_from_str(addresses)
-
     elif isinstance(addresses, collections.abc.Iterable):
         if not all(isinstance(item, str) for item in addresses):
             raise TypeError("The items in your iterable must be strings.")
         return list(addresses)
-
-    received_type = type(addresses).__name__
-    raise TypeError(f"Unexpected argument type: Received '{received_type}'.")
+    else:
+        raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
 
 
 def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
+    """
+    Returns an SMTP connection to the specified host and port, with optional SSL encryption.
+
+    :param host: The hostname or IP address of the SMTP server.
+    :param port: The port number to connect to on the SMTP server.
+    :param timeout: The timeout in seconds for the connection.
+    :param with_ssl: Whether to use SSL encryption for the connection.
+    :return: An SMTP connection to the specified host and port.
+    """
     return (
         smtplib.SMTP_SSL(host=host, port=port, timeout=timeout)
         if with_ssl
@@ -267,8 +319,13 @@ def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> 
 
 
 def _get_email_list_from_str(addresses: str) -> list[str]:
-    delimiters = [",", ";"]
-    for delimiter in delimiters:
-        if delimiter in addresses:
-            return [address.strip() for address in addresses.split(delimiter)]
-    return [addresses]
+    """
+    Extract a list of email addresses from a string. The string
+    can contain multiple email addresses separated by
+    any of the following delimiters: ',' or ';'.
+
+    :param addresses: A string containing one or more email addresses.
+    :return: A list of email addresses.
+    """
+    pattern = r"\s*[,;]\s*"
+    return [address for address in re.split(pattern, addresses)]

@@ -73,6 +73,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--debug",
                 "--github-repository",
+                "--base-branch",
             ],
         }
     ],
@@ -95,7 +96,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python-versions",
                 "--skip-cleanup",
                 "--debug-resources",
-                "--include-success-outputs",
             ],
         },
     ],
@@ -109,6 +109,18 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--limit-python",
                 "--limit-platform",
                 "--skip-latest",
+            ],
+        }
+    ],
+    "breeze release-management generate-issue-content-providers": [
+        {
+            "name": "Generate issue content flags",
+            "options": [
+                "--github-token",
+                "--suffix",
+                "--only-available-in-dist",
+                "--excluded-pr-list",
+                "--disable-progress",
             ],
         }
     ],

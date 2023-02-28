@@ -312,6 +312,35 @@ class TestBeamHook:
                 variables=copy.deepcopy(BEAM_VARIABLES_GO),
             )
 
+    @mock.patch(BEAM_STRING.format("BeamCommandRunner"))
+    def test_start_go_pipeline_with_binary(self, mock_runner):
+        hook = BeamHook(runner=DEFAULT_RUNNER)
+        wait_for_done_method = mock_runner.return_value.wait_for_done
+        process_line_callback = MagicMock()
+
+        launcher_binary = "/path/to/launcher-main"
+        worker_binary = "/path/to/worker-main"
+
+        hook.start_go_pipeline_with_binary(
+            variables=BEAM_VARIABLES_GO,
+            launcher_binary=launcher_binary,
+            worker_binary=worker_binary,
+            process_line_callback=process_line_callback,
+        )
+
+        expected_cmd = [
+            launcher_binary,
+            f"--runner={DEFAULT_RUNNER}",
+            "--output=gs://test/output",
+            '--labels={"foo":"bar"}',
+            f"--worker_binary={worker_binary}",
+        ]
+
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None
+        )
+        wait_for_done_method.assert_called_once_with()
+
 
 class TestBeamRunner:
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamCommandRunner.log")

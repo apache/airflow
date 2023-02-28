@@ -64,14 +64,26 @@ def create_key_pair(key_name: str):
 
 @task
 def create_instance(instance_name: str, key_pair_id: str):
-    return boto3.client("ec2").run_instances(
+    client = boto3.client("ec2")
+
+    # Create the instance
+    instance_id = client.run_instances(
         ImageId=_get_latest_ami_id(),
         MinCount=1,
         MaxCount=1,
         InstanceType="t2.micro",
         KeyName=key_pair_id,
         TagSpecifications=[{"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}],
+        # Use IMDSv2 for greater security, see the following doc for more details:
+        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+        MetadataOptions={"HttpEndpoint": "enabled", "HttpTokens": "required"},
     )["Instances"][0]["InstanceId"]
+
+    # Wait for it to exist
+    waiter = client.get_waiter("instance_exists")
+    waiter.wait(InstanceIds=[instance_id])
+
+    return instance_id
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)

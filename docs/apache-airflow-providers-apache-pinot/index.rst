@@ -20,14 +20,26 @@
 
 Content
 -------
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pinot/|version|/tests/system/providers/apache/pinot>
     Python API <_api/airflow/providers/apache/pinot/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pinot/>
     Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/pinot/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

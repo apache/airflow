@@ -16,14 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[report]
-omit =
-    tests/*
-    scripts/*
-    dev/*
-    airflow/migrations/*
-    airflow/www/node_modules/**
-    airflow/_vendor/**
-
 [run]
+branch = True
 relative_files = True
+source = airflow
+omit =
+    airflow/_vendor/**
+    airflow/contrib/**
+    airflow/example_dags/**
+    airflow/migrations/**
+    airflow/providers/**/example_dags/**
+    airflow/www/node_modules/**
+
+[report]
+skip_empty = True
+exclude_lines =
+    pragma: no cover
+    @abstractmethod
+    @abstractproperty
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:

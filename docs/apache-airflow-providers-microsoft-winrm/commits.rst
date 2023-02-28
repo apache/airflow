@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.1
+.....
+
+Latest change: 2022-12-21
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
+=================================================================================================  ===========  ===============================================================
+
 3.1.0
 .....
 
-Latest change: 2022-10-24
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
 `674f9ce6ea <https://github.com/apache/airflow/commit/674f9ce6eaae533cfe31bc92cc92fa75ed7223fc>`_  2022-10-01   ``A few docs fixups (#26788)``

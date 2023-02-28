@@ -147,7 +147,7 @@ class HttpHook(BaseHook):
             req = requests.Request(self.method, url, data=data, headers=headers, **request_kwargs)
 
         prepped_request = session.prepare_request(req)
-        self.log.info("Sending '%s' to url: %s", self.method, url)
+        self.log.debug("Sending '%s' to url: %s", self.method, url)
         return self.run_and_check(session, prepped_request, extra_options)
 
     def check_response(self, response: requests.Response) -> None:

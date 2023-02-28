@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import json
 import os
 import select
@@ -310,11 +311,10 @@ class BeamHook(BaseHook):
         should_init_module: bool = False,
     ) -> None:
         """
-        Starts Apache Beam Go pipeline.
+        Starts Apache Beam Go pipeline with a source file.
 
         :param variables: Variables passed to the job.
         :param go_file: Path to the Go file with your beam pipeline.
-        :param go_file:
         :param process_line_callback: (optional) Callback that can be used to process each line of
             the stdout and stderr file descriptors.
         :param should_init_module: If False (default), will just execute a `go run` command. If True, will
@@ -345,4 +345,35 @@ class BeamHook(BaseHook):
             command_prefix=command_prefix,
             process_line_callback=process_line_callback,
             working_directory=working_directory,
+        )
+
+    def start_go_pipeline_with_binary(
+        self,
+        variables: dict,
+        launcher_binary: str,
+        worker_binary: str,
+        process_line_callback: Callable[[str], None] | None = None,
+    ) -> None:
+        """
+        Starts Apache Beam Go pipeline with an executable binary.
+
+        :param variables: Variables passed to the job.
+        :param launcher_binary: Path to the binary compiled for the launching platform.
+        :param worker_binary: Path to the binary compiled for the worker platform.
+        :param process_line_callback: (optional) Callback that can be used to process each line of
+            the stdout and stderr file descriptors.
+        """
+        job_variables = copy.deepcopy(variables)
+
+        if "labels" in job_variables:
+            job_variables["labels"] = json.dumps(job_variables["labels"], separators=(",", ":"))
+
+        job_variables["worker_binary"] = worker_binary
+
+        command_prefix = [launcher_binary]
+
+        self._start_pipeline(
+            variables=job_variables,
+            command_prefix=command_prefix,
+            process_line_callback=process_line_callback,
         )

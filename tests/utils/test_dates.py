@@ -105,6 +105,7 @@ class TestDates:
         assert arr4 == approx([2.3147, 1.1574], rel=1e-3)
 
 
+@pytest.mark.filterwarnings("ignore:`airflow.utils.dates.date_range:DeprecationWarning")
 class TestUtilsDatesDateRange:
     def test_no_delta(self):
         assert dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3)) == []

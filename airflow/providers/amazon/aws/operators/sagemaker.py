@@ -26,6 +26,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
+from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -103,7 +106,7 @@ class SageMakerBaseOperator(BaseOperator):
         """
         self.integer_fields = []
 
-    def execute(self, context: Context) -> None | dict:
+    def execute(self, context: Context):
         raise NotImplementedError("Please implement execute() in sub class!")
 
     @cached_property
@@ -750,3 +753,350 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config["ModelName"])
         self.log.info("Model %s deleted successfully.", self.config["ModelName"])
+
+
+class SageMakerStartPipelineOperator(SageMakerBaseOperator):
+    """
+    Starts a SageMaker pipeline execution.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStartPipelineOperator`
+
+    :param config: The configuration to start the pipeline execution.
+    :param aws_conn_id: The AWS connection ID to use.
+    :param pipeline_name: Name of the pipeline to start.
+    :param display_name: The name this pipeline execution will have in the UI. Doesn't need to be unique.
+    :param pipeline_params: Optional parameters for the pipeline.
+        All parameters supplied need to already be present in the pipeline definition.
+    :param wait_for_completion: If true, this operator will only complete once the pipeline is complete.
+    :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param verbose: Whether to print steps details when waiting for completion.
+        Defaults to true, consider turning off for pipelines that have thousands of steps.
+
+    :return str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
+    """
+
+    template_fields: Sequence[str] = ("aws_conn_id", "pipeline_name", "display_name", "pipeline_params")
+
+    def __init__(
+        self,
+        *,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        pipeline_name: str,
+        display_name: str = "airflow-triggered-execution",
+        pipeline_params: dict | None = None,
+        wait_for_completion: bool = False,
+        check_interval: int = CHECK_INTERVAL_SECOND,
+        verbose: bool = True,
+        **kwargs,
+    ):
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
+        self.pipeline_name = pipeline_name
+        self.display_name = display_name
+        self.pipeline_params = pipeline_params
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+        self.verbose = verbose
+
+    def execute(self, context: Context) -> str:
+        arn = self.hook.start_pipeline(
+            pipeline_name=self.pipeline_name,
+            display_name=self.display_name,
+            pipeline_params=self.pipeline_params,
+            wait_for_completion=self.wait_for_completion,
+            check_interval=self.check_interval,
+            verbose=self.verbose,
+        )
+        self.log.info(
+            "Starting a new execution for pipeline %s, running with ARN %s", self.pipeline_name, arn
+        )
+        return arn
+
+
+class SageMakerStopPipelineOperator(SageMakerBaseOperator):
+    """
+    Stops a SageMaker pipeline execution.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerStopPipelineOperator`
+
+    :param config: The configuration to start the pipeline execution.
+    :param aws_conn_id: The AWS connection ID to use.
+    :param pipeline_exec_arn: Amazon Resource Name of the pipeline execution to stop.
+    :param wait_for_completion: If true, this operator will only complete once the pipeline is fully stopped.
+    :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param verbose: Whether to print steps details when waiting for completion.
+        Defaults to true, consider turning off for pipelines that have thousands of steps.
+    :param fail_if_not_running: raises an exception if the pipeline stopped or succeeded before this was run
+
+    :return str: Returns the status of the pipeline execution after the operation has been done.
+    """
+
+    template_fields: Sequence[str] = (
+        "aws_conn_id",
+        "pipeline_exec_arn",
+    )
+
+    def __init__(
+        self,
+        *,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        pipeline_exec_arn: str,
+        wait_for_completion: bool = False,
+        check_interval: int = CHECK_INTERVAL_SECOND,
+        verbose: bool = True,
+        fail_if_not_running: bool = False,
+        **kwargs,
+    ):
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
+        self.pipeline_exec_arn = pipeline_exec_arn
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+        self.verbose = verbose
+        self.fail_if_not_running = fail_if_not_running
+
+    def execute(self, context: Context) -> str:
+        status = self.hook.stop_pipeline(
+            pipeline_exec_arn=self.pipeline_exec_arn,
+            wait_for_completion=self.wait_for_completion,
+            check_interval=self.check_interval,
+            verbose=self.verbose,
+            fail_if_not_running=self.fail_if_not_running,
+        )
+        self.log.info(
+            "Stop requested for pipeline execution with ARN %s. Status is now %s",
+            self.pipeline_exec_arn,
+            status,
+        )
+        return status
+
+
+class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
+    """
+    Registers an Amazon SageMaker model by creating a model version that specifies the model group to which it
+    belongs. Will create the model group if it does not exist already.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerRegisterModelVersionOperator`
+
+    :param image_uri: The Amazon EC2 Container Registry (Amazon ECR) path where inference code is stored.
+    :param model_url: The Amazon S3 path where the model artifacts (the trained weights of the model), which
+        result from model training, are stored. This path must point to a single gzip compressed tar archive
+        (.tar.gz suffix).
+    :param package_group_name: The name of the model package group that the model is going to be registered
+        to. Will be created if it doesn't already exist.
+    :param package_group_desc: Description of the model package group, if it was to be created (optional).
+    :param package_desc: Description of the model package (optional).
+    :param model_approval: Approval status of the model package. Defaults to PendingManualApproval
+    :param extras: Can contain extra parameters for the boto call to create_model_package, and/or overrides
+        for any parameter defined above. For a complete list of available parameters, see
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model_package
+
+    :return str: Returns the ARN of the model package created.
+    """
+
+    template_fields: Sequence[str] = (
+        "image_uri",
+        "model_url",
+        "package_group_name",
+        "package_group_desc",
+        "package_desc",
+        "model_approval",
+    )
+
+    def __init__(
+        self,
+        *,
+        image_uri: str,
+        model_url: str,
+        package_group_name: str,
+        package_group_desc: str = "",
+        package_desc: str = "",
+        model_approval: ApprovalStatus = ApprovalStatus.PENDING_MANUAL_APPROVAL,
+        extras: dict | None = None,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        config: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(config=config or {}, aws_conn_id=aws_conn_id, **kwargs)
+        self.image_uri = image_uri
+        self.model_url = model_url
+        self.package_group_name = package_group_name
+        self.package_group_desc = package_group_desc
+        self.package_desc = package_desc
+        self.model_approval = model_approval
+        self.extras = extras
+
+    def execute(self, context: Context):
+        # create a model package group if it does not exist
+        group_created = self.hook.create_model_package_group(self.package_group_name, self.package_desc)
+
+        # then create a model package in that group
+        input_dict = {
+            "InferenceSpecification": {
+                "Containers": [
+                    {
+                        "Image": self.image_uri,
+                        "ModelDataUrl": self.model_url,
+                    }
+                ],
+                "SupportedContentTypes": ["text/csv"],
+                "SupportedResponseMIMETypes": ["text/csv"],
+            },
+            "ModelPackageGroupName": self.package_group_name,
+            "ModelPackageDescription": self.package_desc,
+            "ModelApprovalStatus": self.model_approval.value,
+        }
+        if self.extras:
+            input_dict.update(self.extras)  # overrides config above if keys are redefined in extras
+        try:
+            res = self.hook.conn.create_model_package(**input_dict)
+            return res["ModelPackageArn"]
+        except ClientError:
+            # rollback group creation if adding the model to it was not successful
+            if group_created:
+                self.hook.conn.delete_model_package_group(ModelPackageGroupName=self.package_group_name)
+            raise
+
+
+class SageMakerAutoMLOperator(SageMakerBaseOperator):
+    """
+    Creates an auto ML job, learning to predict the given column from the data provided through S3.
+    The learning output is written to the specified S3 location.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerAutoMLOperator`
+
+    :param job_name: Name of the job to create, needs to be unique within the account.
+    :param s3_input: The S3 location (folder or file) where to fetch the data.
+        By default, it expects csv with headers.
+    :param target_attribute: The name of the column containing the values to predict.
+    :param s3_output: The S3 folder where to write the model artifacts. Must be 128 characters or fewer.
+    :param role_arn: The ARN of the IAM role to use when interacting with S3.
+        Must have read access to the input, and write access to the output folder.
+    :param compressed_input: Set to True if the input is gzipped.
+    :param time_limit: The maximum amount of time in seconds to spend training the model(s).
+    :param autodeploy_endpoint_name: If specified, the best model will be deployed to an endpoint with
+        that name. No deployment made otherwise.
+    :param extras: Use this dictionary to set any variable input variable for job creation that is not
+        offered through the parameters of this function. The format is described in:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_auto_ml_job
+    :param wait_for_completion: Whether to wait for the job to finish before returning. Defaults to True.
+    :param check_interval: Interval in seconds between 2 status checks when waiting for completion.
+
+    :returns: Only if waiting for completion, a dictionary detailing the best model. The structure is that of
+        the "BestCandidate" key in:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.describe_auto_ml_job
+    """
+
+    template_fields: Sequence[str] = (
+        "job_name",
+        "s3_input",
+        "target_attribute",
+        "s3_output",
+        "role_arn",
+        "compressed_input",
+        "time_limit",
+        "autodeploy_endpoint_name",
+        "extras",
+    )
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        s3_input: str,
+        target_attribute: str,
+        s3_output: str,
+        role_arn: str,
+        compressed_input: bool = False,
+        time_limit: int | None = None,
+        autodeploy_endpoint_name: str | None = None,
+        extras: dict | None = None,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        config: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(config=config or {}, aws_conn_id=aws_conn_id, **kwargs)
+        self.job_name = job_name
+        self.s3_input = s3_input
+        self.target_attribute = target_attribute
+        self.s3_output = s3_output
+        self.role_arn = role_arn
+        self.compressed_input = compressed_input
+        self.time_limit = time_limit
+        self.autodeploy_endpoint_name = autodeploy_endpoint_name
+        self.extras = extras
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+
+    def execute(self, context: Context) -> dict | None:
+        best = self.hook.create_auto_ml_job(
+            self.job_name,
+            self.s3_input,
+            self.target_attribute,
+            self.s3_output,
+            self.role_arn,
+            self.compressed_input,
+            self.time_limit,
+            self.autodeploy_endpoint_name,
+            self.extras,
+            self.wait_for_completion,
+            self.check_interval,
+        )
+        return best
+
+
+class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
+    """
+    Creates a SageMaker experiment, to be then associated to jobs etc.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerCreateExperimentOperator`
+
+    :param name: name of the experiment, must be unique within the AWS account
+    :param description: description of the experiment, optional
+    :param tags: tags to attach to the experiment, optional
+    :param aws_conn_id: The AWS connection ID to use.
+
+    :returns: the ARN of the experiment created, though experiments are referred to by name
+    """
+
+    template_fields: Sequence[str] = (
+        "name",
+        "description",
+        "tags",
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        description: str | None = None,
+        tags: dict | None = None,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        **kwargs,
+    ):
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
+        self.name = name
+        self.description = description
+        self.tags = tags or {}
+
+    def execute(self, context: Context) -> str:
+        sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        params = {
+            "ExperimentName": self.name,
+            "Description": self.description,
+            "Tags": format_tags(self.tags),
+        }
+        ans = sagemaker_hook.conn.create_experiment(**trim_none_values(params))
+        arn = ans["ExperimentArn"]
+        self.log.info("Experiment %s created successfully with ARN %s.", self.name, arn)
+        return arn

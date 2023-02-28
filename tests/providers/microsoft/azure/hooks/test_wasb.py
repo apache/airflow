@@ -413,7 +413,6 @@ class TestWasbHook:
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
         assert list(WasbHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "extra",
             "login",
             "password",
             "host",

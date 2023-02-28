@@ -42,6 +42,7 @@ from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
@@ -484,52 +485,67 @@ class DagFileProcessorManager(LoggingMixin):
 
         return self._run_parsing_loop()
 
-    @provide_session
-    def _deactivate_stale_dags(self, session=None):
-        """
-        Detects DAGs which are no longer present in files.
-
-        Deactivate them and remove them in the serialized_dag table
-        """
+    def _scan_stale_dags(self):
+        """Scan at fix internal DAGs which are no longer present in files."""
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
         if elapsed_time_since_refresh > self.parsing_cleanup_interval:
             last_parsed = {
                 fp: self.get_last_finish_time(fp) for fp in self.file_paths if self.get_last_finish_time(fp)
             }
-            to_deactivate = set()
-            query = session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).filter(
-                DagModel.is_active
+            DagFileProcessorManager.deactivate_stale_dags(
+                last_parsed=last_parsed,
+                dag_directory=self.get_dag_directory(),
+                processor_timeout=self._processor_timeout,
             )
-            if self.standalone_dag_processor:
-                query = query.filter(DagModel.processor_subdir == self.get_dag_directory())
-            dags_parsed = query.all()
-
-            for dag in dags_parsed:
-                # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
-                # last_parsed_time is _processor_timeout. Longer than that indicates that the DAG is
-                # no longer present in the file.
-                if (
-                    dag.fileloc in last_parsed
-                    and (dag.last_parsed_time + self._processor_timeout) < last_parsed[dag.fileloc]
-                ):
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
-                    to_deactivate.add(dag.dag_id)
-
-            if to_deactivate:
-                deactivated = (
-                    session.query(DagModel)
-                    .filter(DagModel.dag_id.in_(to_deactivate))
-                    .update({DagModel.is_active: False}, synchronize_session="fetch")
-                )
-                if deactivated:
-                    self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
-
-                for dag_id in to_deactivate:
-                    SerializedDagModel.remove_dag(dag_id)
-                    self.log.info("Deleted DAG %s in serialized_dag table", dag_id)
-
             self.last_deactivate_stale_dags_time = timezone.utcnow()
+
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def deactivate_stale_dags(
+        cls,
+        last_parsed: dict[str, datetime | None],
+        dag_directory: str,
+        processor_timeout: timedelta,
+        session: Session = NEW_SESSION,
+    ):
+        """
+        Detects DAGs which are no longer present in files.
+        Deactivate them and remove them in the serialized_dag table
+        """
+        to_deactivate = set()
+        query = session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).filter(
+            DagModel.is_active
+        )
+        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        if standalone_dag_processor:
+            query = query.filter(DagModel.processor_subdir == dag_directory)
+        dags_parsed = query.all()
+
+        for dag in dags_parsed:
+            # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
+            # last_parsed_time is _processor_timeout. Longer than that indicates that the DAG is
+            # no longer present in the file.
+            if (
+                dag.fileloc in last_parsed
+                and (dag.last_parsed_time + processor_timeout) < last_parsed[dag.fileloc]
+            ):
+                cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                to_deactivate.add(dag.dag_id)
+
+        if to_deactivate:
+            deactivated = (
+                session.query(DagModel)
+                .filter(DagModel.dag_id.in_(to_deactivate))
+                .update({DagModel.is_active: False}, synchronize_session="fetch")
+            )
+            if deactivated:
+                cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+
+            for dag_id in to_deactivate:
+                SerializedDagModel.remove_dag(dag_id)
+                cls.logger().info("Deleted DAG %s in serialized_dag table", dag_id)
 
     def _run_parsing_loop(self):
         # In sync mode we want timeout=None -- wait forever until a message is received
@@ -594,7 +610,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
-            self._deactivate_stale_dags()
+            self._scan_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
             refreshed_dag_dir = self._refresh_dag_dir()
 
@@ -725,7 +741,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             try:
                 self.log.debug("Removing old import errors")
-                self.clear_nonexistent_import_errors()
+                DagFileProcessorManager.clear_nonexistent_import_errors(file_paths=self._file_paths)
             except Exception:
                 self.log.exception("Error removing old import errors")
 
@@ -769,16 +785,19 @@ class DagFileProcessorManager(LoggingMixin):
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = time.monotonic()
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def clear_nonexistent_import_errors(self, session):
+    def clear_nonexistent_import_errors(file_paths: list[str] | None, session=NEW_SESSION):
         """
         Clears import errors for files that no longer exist.
 
+        :param file_paths: list of paths to DAG definition files
         :param session: session for ORM operations
         """
         query = session.query(errors.ImportError)
-        if self._file_paths:
-            query = query.filter(~errors.ImportError.filename.in_(self._file_paths))
+        if file_paths:
+            query = query.filter(~errors.ImportError.filename.in_(file_paths))
         query.delete(synchronize_session="fetch")
         session.commit()
 
@@ -946,9 +965,15 @@ class DagFileProcessorManager(LoggingMixin):
                 filtered_processors[file_path] = processor
             else:
                 self.log.warning("Stopping processor for %s", file_path)
-                Stats.decr("dag_processing.processes")
+                Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "stop"})
                 processor.terminate()
                 self._file_stats.pop(file_path)
+
+        to_remove = set(self._file_stats.keys()) - set(self._file_paths)
+        for key in to_remove:
+            # Remove the stats for any dag files that don't exist anymore
+            del self._file_stats[key]
+
         self._processors = filtered_processors
 
     def wait_until_finished(self):
@@ -959,7 +984,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _collect_results_from_processor(self, processor) -> None:
         self.log.debug("Processor for %s finished", processor.file_path)
-        Stats.decr("dag_processing.processes")
+        Stats.decr("dag_processing.processes", tags={"file_path": processor.file_path, "action": "finish"})
         last_finish_time = timezone.utcnow()
 
         if processor.result is not None:
@@ -1031,7 +1056,7 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
             del self._callback_to_execute[file_path]
-            Stats.incr("dag_processing.processes")
+            Stats.incr("dag_processing.processes", tags={"file_path": file_path, "action": "start"})
 
             processor.start()
             self.log.debug("Started a process (PID: %s) to generate tasks for %s", processor.pid, file_path)
@@ -1064,6 +1089,7 @@ class DagFileProcessorManager(LoggingMixin):
         is_mtime_mode = list_mode == "modified_time"
 
         file_paths_recently_processed = []
+        file_paths_to_stop_watching = set()
         for file_path in self._file_paths:
 
             if is_mtime_mode:
@@ -1071,6 +1097,8 @@ class DagFileProcessorManager(LoggingMixin):
                     files_with_mtime[file_path] = os.path.getmtime(file_path)
                 except FileNotFoundError:
                     self.log.warning("Skipping processing of missing file: %s", file_path)
+                    self._file_stats.pop(file_path, None)
+                    file_paths_to_stop_watching.add(file_path)
                     continue
                 file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
             else:
@@ -1099,12 +1127,18 @@ class DagFileProcessorManager(LoggingMixin):
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(file_paths)
 
+        if file_paths_to_stop_watching:
+            self.set_file_paths(
+                [path for path in self._file_paths if path not in file_paths_to_stop_watching]
+            )
+
         files_paths_at_run_limit = [
             file_path for file_path, stat in self._file_stats.items() if stat.run_count == self._max_runs
         ]
 
         file_paths_to_exclude = set(file_paths_in_progress).union(
-            file_paths_recently_processed, files_paths_at_run_limit
+            file_paths_recently_processed,
+            files_paths_at_run_limit,
         )
 
         # Do not convert the following list to set as set does not preserve the order
@@ -1122,12 +1156,11 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.log.debug("Queuing the following files for processing:\n\t%s", "\n\t".join(files_paths_to_queue))
 
+        default = DagFileStat(
+            num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
+        )
         for file_path in files_paths_to_queue:
-            if file_path not in self._file_stats:
-                self._file_stats[file_path] = DagFileStat(
-                    num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
-                )
-
+            self._file_stats.setdefault(file_path, default)
         self._file_path_queue.extend(files_paths_to_queue)
 
     def _kill_timed_out_processors(self):
@@ -1143,8 +1176,8 @@ class DagFileProcessorManager(LoggingMixin):
                     processor.pid,
                     processor.start_time.isoformat(),
                 )
-                Stats.decr("dag_processing.processes")
-                Stats.incr("dag_processing.processor_timeouts")
+                Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "timeout"})
+                Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_path})
                 # Deprecated; may be removed in a future Airflow release.
                 Stats.incr("dag_file_processor_timeouts")
                 processor.kill()
@@ -1152,6 +1185,15 @@ class DagFileProcessorManager(LoggingMixin):
                 # Clean up processor references
                 self.waitables.pop(processor.waitable_handle)
                 processors_to_remove.append(file_path)
+
+                stat = DagFileStat(
+                    num_dags=0,
+                    import_errors=1,
+                    last_finish_time=now,
+                    last_duration=duration,
+                    run_count=self.get_run_count(file_path) + 1,
+                )
+                self._file_stats[processor.file_path] = stat
 
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
@@ -1171,7 +1213,9 @@ class DagFileProcessorManager(LoggingMixin):
     def terminate(self):
         """Stops all running processors."""
         for processor in self._processors.values():
-            Stats.decr("dag_processing.processes")
+            Stats.decr(
+                "dag_processing.processes", tags={"file_path": processor.file_path, "action": "terminate"}
+            )
             processor.terminate()
 
     def end(self):

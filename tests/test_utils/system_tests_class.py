@@ -17,16 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from unittest import TestCase
+
+import pytest
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.exceptions import AirflowException
 from airflow.models.dagbag import DagBag
-from airflow.utils.log.logging_mixin import LoggingMixin
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.logging_command_executor import get_executor
 
@@ -56,18 +57,17 @@ def resolve_logs_folder() -> str:
     return get_default_logs_if_none(None)
 
 
-class SystemTest(TestCase, LoggingMixin):
-    @staticmethod
-    def execute_cmd(*args, **kwargs):
-        executor = get_executor()
-        return executor.execute_cmd(*args, **kwargs)
+class SystemTest:
+    log: logging.Logger
 
     @staticmethod
-    def check_output(*args, **kwargs):
-        executor = get_executor()
-        return executor.check_output(*args, **kwargs)
+    @pytest.fixture(autouse=True, scope="class")
+    def setup_logger(request):
+        klass = request.cls
+        klass.log = logging.getLogger(klass.__module__ + "." + klass.__name__)
 
-    def setUp(self) -> None:
+    @pytest.fixture(autouse=True, scope="function")
+    def setup_system(self):
         """
         We want to avoid random errors while database got reset - those
         Are apparently triggered by parser trying to parse DAGs while
@@ -86,14 +86,10 @@ class SystemTest(TestCase, LoggingMixin):
             file_path = os.path.join(logs_folder, file)
             if os.path.isfile(file_path):
                 os.remove(file_path)
-            elif os.path.isdir(file) and not file == "previous_runs":
+            elif os.path.isdir(file) and file != "previous_runs":
                 shutil.rmtree(file_path, ignore_errors=True)
-        super().setUp()
-
-    def tearDown(self) -> None:
-        """
-        We save the logs to a separate directory so that we can see them later.
-        """
+        yield
+        #  We save the logs to a separate directory so that we can see them later.
         date_str = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
         logs_folder = resolve_logs_folder()
         print()
@@ -106,7 +102,16 @@ class SystemTest(TestCase, LoggingMixin):
             if file != "previous_runs":
                 file_path = os.path.join(logs_folder, file)
                 shutil.move(file_path, target_dir)
-        super().tearDown()
+
+    @staticmethod
+    def execute_cmd(*args, **kwargs):
+        executor = get_executor()
+        return executor.execute_cmd(*args, **kwargs)
+
+    @staticmethod
+    def check_output(*args, **kwargs):
+        executor = get_executor()
+        return executor.check_output(*args, **kwargs)
 
     @staticmethod
     def _print_all_log_files():

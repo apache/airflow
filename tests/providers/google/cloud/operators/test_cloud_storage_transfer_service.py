@@ -24,8 +24,8 @@ from datetime import date, time
 from unittest import mock
 
 import pytest
+import time_machine
 from botocore.credentials import Credentials
-from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -189,7 +189,7 @@ class TestTransferJobPreprocessor(unittest.TestCase):
         TransferJobPreprocessor(body=body).process_body()
         assert body[SCHEDULE][START_TIME_OF_DAY] == DICT_TIME
 
-    @freeze_time("2018-10-15")
+    @time_machine.travel("2018-10-15", tick=False)
     def test_should_set_default_schedule(self):
         body = {}
         TransferJobPreprocessor(body=body, default_schedule=True).process_body()

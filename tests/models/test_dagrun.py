@@ -2187,3 +2187,38 @@ def test_mapping_against_empty_list(dag_maker, session):
     assert tis["add_one__1"] == TaskInstanceState.SKIPPED
     assert tis["add_one__2"] == TaskInstanceState.SKIPPED
     assert dr.state == State.SUCCESS
+
+
+def test_mapped_task_depends_on_past(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task(depends_on_past=True)
+        def print_value(value):
+            print(value)
+
+        print_value.expand_kwargs([{"value": i} for i in range(2)])
+
+    dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+    dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+
+    # print_value in dr2 is not ready yet since the task depends on past.
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 0
+
+    # Run print_value in dr1.
+    decision = dr1.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    # Now print_value in dr2 can run
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    # Both runs are finished now.
+    decision = dr1.task_instance_scheduling_decisions(session=session)
+    assert len(decision.unfinished_tis) == 0
+    decision = dr2.task_instance_scheduling_decisions(session=session)
+    assert len(decision.unfinished_tis) == 0
