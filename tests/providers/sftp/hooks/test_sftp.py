@@ -41,7 +41,6 @@ def generate_host_key(pkey: paramiko.PKey):
     return key_obj.get_base64()
 
 
-TMP_PATH = "/tmp"
 TMP_DIR_FOR_TESTS = "tests_sftp_hook_dir"
 SUB_DIR = "sub_dir"
 TMP_FILE_FOR_TESTS = "test_file.txt"
@@ -67,20 +66,32 @@ class TestSFTPHook:
         return old_login
 
     def _create_additional_test_file(self, file_name):
-        with open(os.path.join(TMP_PATH, file_name), "a") as file:
+        with open(os.path.join(self.temp_dir, file_name), "a") as file:
             file.write("Test file")
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, tmp_path_factory):
+        """Define default connection during tests and create directory structure."""
+        temp_dir = tmp_path_factory.mktemp("sftp-temp")
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
-        os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR))
+        os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR))
 
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
-            with open(os.path.join(TMP_PATH, file_name), "a") as file:
+            with open(os.path.join(temp_dir, file_name), "a") as file:
                 file.write("Test file")
-        with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
+        with open(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
             file.write("Test file")
-        os.mkfifo(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+
+        self.temp_dir = str(temp_dir)
+
+        yield
+
+        shutil.rmtree(os.path.join(temp_dir, TMP_DIR_FOR_TESTS))
+        for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
+            os.remove(os.path.join(temp_dir, file_name))
+        self.update_connection(self.old_login)
 
     def test_get_conn(self):
         output = self.hook.get_conn()
@@ -93,80 +104,84 @@ class TestSFTPHook:
         assert self.hook.conn is None
 
     def test_describe_directory(self):
-        output = self.hook.describe_directory(TMP_PATH)
+        output = self.hook.describe_directory(self.temp_dir)
         assert TMP_DIR_FOR_TESTS in output
 
     def test_list_directory(self):
-        output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
     def test_mkdir(self):
         new_dir_name = "mk_dir"
-        self.hook.mkdir(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.mkdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert new_dir_name in output
         # test the directory has default permissions to 777 - umask
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
         assert output.st_mode & 0o777 == 0o777 - umask
 
     def test_create_and_delete_directory(self):
         new_dir_name = "new_dir"
-        self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert new_dir_name in output
         # test the directory has default permissions to 777
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
         assert output.st_mode & 0o777 == 0o777 - umask
         # test directory already exists for code coverage, should not raise an exception
-        self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
+        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
         # test path already exists and is a file, should raise an exception
         with pytest.raises(AirflowException, match="already exists and is a file"):
-            self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS))
-        self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+            self.hook.create_directory(
+                os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)
+            )
+        self.hook.delete_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert new_dir_name not in output
 
     def test_create_and_delete_directories(self):
         base_dir = "base_dir"
         sub_dir = "sub_dir"
         new_dir_path = os.path.join(base_dir, sub_dir)
-        self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
-        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_path))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert base_dir in output
-        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, base_dir))
         assert sub_dir in output
-        self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
-        self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
-        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        self.hook.delete_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_path))
+        self.hook.delete_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, base_dir))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert new_dir_path not in output
         assert base_dir not in output
 
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
-            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(self.temp_dir, TMP_FILE_FOR_TESTS),
         )
-        output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS, TMP_FILE_FOR_TESTS]
         retrieved_file_name = "retrieved.txt"
         self.hook.retrieve_file(
-            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-            local_full_path=os.path.join(TMP_PATH, retrieved_file_name),
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(self.temp_dir, retrieved_file_name),
         )
-        assert retrieved_file_name in os.listdir(TMP_PATH)
-        os.remove(os.path.join(TMP_PATH, retrieved_file_name))
-        self.hook.delete_file(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
-        output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        assert retrieved_file_name in os.listdir(self.temp_dir)
+        os.remove(os.path.join(self.temp_dir, retrieved_file_name))
+        self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
     def test_get_mod_time(self):
         self.hook.store_file(
-            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(self.temp_dir, TMP_FILE_FOR_TESTS),
         )
-        output = self.hook.get_mod_time(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.get_mod_time(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS)
+        )
         assert len(output) == 14
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
@@ -291,13 +306,14 @@ class TestSFTPHook:
     @pytest.mark.parametrize(
         "path, exists",
         [
-            (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), True),
-            (os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), True),
-            (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS + "abc"), False),
-            (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, "abc"), False),
+            (TMP_DIR_FOR_TESTS, True),
+            (TMP_FILE_FOR_TESTS, True),
+            (TMP_DIR_FOR_TESTS + "abc", False),
+            (TMP_DIR_FOR_TESTS + "/abc", False),
         ],
     )
     def test_path_exists(self, path, exists):
+        path = os.path.join(self.temp_dir, path)
         result = self.hook.path_exists(path)
         assert result == exists
 
@@ -322,12 +338,12 @@ class TestSFTPHook:
         assert result == match
 
     def test_get_tree_map(self):
-        tree_map = self.hook.get_tree_map(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        tree_map = self.hook.get_tree_map(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         files, dirs, unknowns = tree_map
 
-        assert files == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
-        assert dirs == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)]
-        assert unknowns == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS)]
+        assert files == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
+        assert dirs == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR)]
+        assert unknowns == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS)]
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_connection_failure(self, mock_get_connection):
@@ -398,49 +414,43 @@ class TestSFTPHook:
         assert isinstance(hook.get_conn(), paramiko.SFTPClient)
 
     def test_get_suffix_pattern_match(self):
-        output = self.hook.get_file_by_pattern(TMP_PATH, "*.txt")
+        output = self.hook.get_file_by_pattern(self.temp_dir, "*.txt")
         # In CI files might have different name, so we check that file found rather than actual name
         assert output, TMP_FILE_FOR_TESTS
 
     def test_get_prefix_pattern_match(self):
-        output = self.hook.get_file_by_pattern(TMP_PATH, "test*")
+        output = self.hook.get_file_by_pattern(self.temp_dir, "test*")
         # In CI files might have different name, so we check that file found rather than actual name
         assert output, TMP_FILE_FOR_TESTS
 
     def test_get_pattern_not_match(self):
-        output = self.hook.get_file_by_pattern(TMP_PATH, "*.text")
+        output = self.hook.get_file_by_pattern(self.temp_dir, "*.text")
         assert output == ""
 
     def test_get_several_pattern_match(self):
-        output = self.hook.get_file_by_pattern(TMP_PATH, "*.log")
+        output = self.hook.get_file_by_pattern(self.temp_dir, "*.log")
         assert output == LOG_FILE_FOR_TESTS
 
     def test_get_first_pattern_match(self):
-        output = self.hook.get_file_by_pattern(TMP_PATH, "test_*.txt")
+        output = self.hook.get_file_by_pattern(self.temp_dir, "test_*.txt")
         assert output == TMP_FILE_FOR_TESTS
 
     def test_get_middle_pattern_match(self):
-        output = self.hook.get_file_by_pattern(TMP_PATH, "*_file_*.txt")
+        output = self.hook.get_file_by_pattern(self.temp_dir, "*_file_*.txt")
         assert output == ANOTHER_FILE_FOR_TESTS
 
     def test_get_none_matched_files(self):
-        output = self.hook.get_files_by_pattern(TMP_PATH, "*.text")
+        output = self.hook.get_files_by_pattern(self.temp_dir, "*.text")
         assert output == []
 
     def test_get_matched_files_several_pattern(self):
-        output = self.hook.get_files_by_pattern(TMP_PATH, "*.log")
+        output = self.hook.get_files_by_pattern(self.temp_dir, "*.log")
         assert output == [LOG_FILE_FOR_TESTS]
 
     def test_get_all_matched_files(self):
-        output = self.hook.get_files_by_pattern(TMP_PATH, "test_*.txt")
+        output = self.hook.get_files_by_pattern(self.temp_dir, "test_*.txt")
         assert output == [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS]
 
     def test_get_matched_files_with_different_pattern(self):
-        output = self.hook.get_files_by_pattern(TMP_PATH, "*_file_*.txt")
+        output = self.hook.get_files_by_pattern(self.temp_dir, "*_file_*.txt")
         assert output == [ANOTHER_FILE_FOR_TESTS]
-
-    def teardown_method(self):
-        shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
-            os.remove(os.path.join(TMP_PATH, file_name))
-        self.update_connection(self.old_login)
