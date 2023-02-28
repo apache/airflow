@@ -78,3 +78,7 @@ class TestClient:
         else:
             configuration = Configuration()
         assert not configuration.verify_ssl
+
+    def test_api_client_retry_configuration(self):
+        configuration = Configuration.get_default_copy()
+        assert not configuration.api_client_retry_configuration

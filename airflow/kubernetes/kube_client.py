@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import logging
 
+import urllib3.util
+
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
 try:
     from kubernetes import client, config
-    from kubernetes.client import Configuration
+    from kubernetes.client import ApiClient, Configuration
     from kubernetes.client.rest import ApiException
 
     has_kubernetes = True
@@ -105,16 +107,24 @@ def get_kube_client(
     if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
         _enable_tcp_keepalive()
 
+    new_client_config = Configuration.get_default_copy()
+    api_client_retry_configuration = conf.getjson("kubernetes", "api_client_retry_configuration")
+
+    if api_client_retry_configuration != {}:
+        new_client_config = urllib3.util.Retry(**api_client_retry_configuration)
+
     if in_cluster:
-        config.load_incluster_config()
+        config.load_incluster_config(client_configuration=new_client_config)
     else:
         if cluster_context is None:
             cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
         if config_file is None:
             config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
-        config.load_kube_config(config_file=config_file, context=cluster_context)
+        config.load_kube_config(
+            config_file=config_file, context=cluster_context, client_configuration=new_client_config
+        )
 
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
         _disable_verify_ssl()
 
-    return client.CoreV1Api()
+    return client.CoreV1Api(api_client=ApiClient(new_client_config))
