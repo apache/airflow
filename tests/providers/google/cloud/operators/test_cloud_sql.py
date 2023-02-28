@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 import pytest
@@ -149,7 +148,7 @@ IMPORT_BODY = {
 }
 
 
-class TestCloudSql(unittest.TestCase):
+class TestCloudSql:
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_sql"
         ".CloudSQLCreateInstanceOperator._check_if_instance_exists"
@@ -673,7 +672,7 @@ class TestCloudSql(unittest.TestCase):
         assert result
 
 
-class TestCloudSqlQueryValidation(unittest.TestCase):
+class TestCloudSqlQueryValidation:
     @staticmethod
     def _setup_connections(get_connection, uri):
         gcp_connection = mock.MagicMock()

@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import tempfile
 from copy import deepcopy
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
@@ -103,7 +103,7 @@ TEST_BUILD_INSTANCE = dict(
 )
 
 
-class TestCloudBuildOperator(TestCase):
+class TestCloudBuildOperator:
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_cancel_build(self, mock_hook):
         mock_hook.return_value.cancel_build.return_value = Build()
@@ -299,7 +299,7 @@ class TestCloudBuildOperator(TestCase):
         )
 
 
-class TestBuildProcessor(TestCase):
+class TestBuildProcessor:
     def test_verify_source(self):
         error_message = r"The source could not be determined."
         with pytest.raises(AirflowException, match=error_message):
