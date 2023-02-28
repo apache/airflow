@@ -1415,37 +1415,37 @@ class TestStringifiedDAGs:
             assert list(dag_task_group.teardown_children.keys()) == expected_teardown
 
         _check_taskgroup_children(
-            serialized_dag.task_group, dag.task_group, ["setup"], ["sometask"], ["teardown"]
+            serialized_dag.task_group, dag.task_group, ["setup_group"], ["sometask"], ["teardown_group"]
         )
 
-        se_setup_group = serialized_dag.task_group.setup_children["setup"]
-        dag_setup_group = dag.task_group.setup_children["setup"]
+        se_setup_group = serialized_dag.task_group.setup_children["setup_group"]
+        dag_setup_group = dag.task_group.setup_children["setup_group"]
         _check_taskgroup_children(
             se_setup_group,
             dag_setup_group,
-            ["setup.setup1", "setup.sub_setup"],
+            ["setup_group.setup1", "setup_group.sub_setup"],
             [],
             [],
         )
 
-        se_sub_setup_group = se_setup_group.setup_children["setup.sub_setup"]
-        dag_sub_setup_group = dag_setup_group.setup_children["setup.sub_setup"]
+        se_sub_setup_group = se_setup_group.setup_children["setup_group.sub_setup"]
+        dag_sub_setup_group = dag_setup_group.setup_children["setup_group.sub_setup"]
         _check_taskgroup_children(
             se_sub_setup_group,
             dag_sub_setup_group,
-            ["setup.sub_setup.setup2"],
+            ["setup_group.sub_setup.setup2"],
             [],
             [],
         )
 
-        se_teardown_group = serialized_dag.task_group.teardown_children["teardown"]
-        dag_teardown_group = dag.task_group.teardown_children["teardown"]
+        se_teardown_group = serialized_dag.task_group.teardown_children["teardown_group"]
+        dag_teardown_group = dag.task_group.teardown_children["teardown_group"]
         _check_taskgroup_children(
             se_teardown_group,
             dag_teardown_group,
             [],
             [],
-            ["teardown.teardown1"],
+            ["teardown_group.teardown1"],
         )
 
     def test_deps_sorted(self):
