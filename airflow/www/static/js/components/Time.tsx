@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import React from 'react';
-import moment from 'moment-timezone';
+import React from "react";
+import moment from "moment-timezone";
 
-import { useTimezone } from 'src/context/timezone';
-import { defaultFormatWithTZ } from 'src/datetime_utils';
+import { useTimezone } from "src/context/timezone";
+import { defaultFormatWithTZ } from "src/datetime_utils";
 
 interface Props {
   dateTime?: string | null;
@@ -35,13 +35,13 @@ const Time = ({ dateTime, format = defaultFormatWithTZ }: Props) => {
   if (!dateTime || !time.isValid()) return null;
 
   const formattedTime = time.tz(timezone).format(format);
-  const utcTime = time.tz('UTC').format(defaultFormatWithTZ);
+  const utcTime = time.tz("UTC").format(defaultFormatWithTZ);
 
   return (
     <time
       dateTime={dateTime}
       // show title if date is not UTC
-      title={timezone.toUpperCase() !== 'UTC' ? utcTime : undefined}
+      title={timezone.toUpperCase() !== "UTC" ? utcTime : undefined}
     >
       {formattedTime}
     </time>

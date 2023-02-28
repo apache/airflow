@@ -514,7 +514,6 @@ class BaseSerialization:
 
     @classmethod
     def _is_constructor_param(cls, attrname: str, instance: Any) -> bool:
-
         return attrname in cls._CONSTRUCTOR_PARAMS
 
     @classmethod
@@ -1202,7 +1201,6 @@ class SerializedDAG(DAG, BaseSerialization):
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
-
                 SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
 
                 v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
@@ -1319,6 +1317,13 @@ class TaskGroupSerialization(BaseSerialization):
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
+            "setup_children": {
+                label: child.serialize_for_task_group() for label, child in task_group.setup_children.items()
+            },
+            "teardown_children": {
+                label: child.serialize_for_task_group()
+                for label, child in task_group.teardown_children.items()
+            },
             "children": {
                 label: child.serialize_for_task_group() for label, child in task_group.children.items()
             },
@@ -1369,6 +1374,13 @@ class TaskGroupSerialization(BaseSerialization):
             task.task_group = weakref.proxy(group)
             return task
 
+        group.setup_children = {
+            label: set_ref(task_dict[val]) for label, (_type, val) in encoded_group["setup_children"].items()
+        }
+        group.teardown_children = {
+            label: set_ref(task_dict[val])
+            for label, (_type, val) in encoded_group["teardown_children"].items()
+        }
         group.children = {
             label: set_ref(task_dict[val])
             if _type == DAT.OP

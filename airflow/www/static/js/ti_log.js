@@ -18,22 +18,24 @@
  */
 
 /* global document, window, $ */
-import { escapeHtml } from './main';
-import { getMetaValue } from './utils';
-import { formatDateTime } from './datetime_utils';
+import { escapeHtml } from "./main";
+import { getMetaValue } from "./utils";
+import { formatDateTime } from "./datetime_utils";
 
-const executionDate = getMetaValue('execution_date');
-const dagId = getMetaValue('dag_id');
-const taskId = getMetaValue('task_id');
-const mapIndex = getMetaValue('map_index');
-const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
-const DELAY = parseInt(getMetaValue('delay'), 10);
-const AUTO_TAILING_OFFSET = parseInt(getMetaValue('auto_tailing_offset'), 10);
-const ANIMATION_SPEED = parseInt(getMetaValue('animation_speed'), 10);
-const TOTAL_ATTEMPTS = parseInt(getMetaValue('total_attempts'), 10);
+const executionDate = getMetaValue("execution_date");
+const dagId = getMetaValue("dag_id");
+const taskId = getMetaValue("task_id");
+const mapIndex = getMetaValue("map_index");
+const logsWithMetadataUrl = getMetaValue("logs_with_metadata_url");
+const DELAY = parseInt(getMetaValue("delay"), 10);
+const AUTO_TAILING_OFFSET = parseInt(getMetaValue("auto_tailing_offset"), 10);
+const ANIMATION_SPEED = parseInt(getMetaValue("animation_speed"), 10);
+const TOTAL_ATTEMPTS = parseInt(getMetaValue("total_attempts"), 10);
 
 function recurse(delay = DELAY) {
-  return new Promise((resolve) => { setTimeout(resolve, delay); });
+  return new Promise((resolve) => {
+    setTimeout(resolve, delay);
+  });
 }
 
 // Enable auto tailing only when users scroll down to the bottom
@@ -44,16 +46,18 @@ function checkAutoTailingCondition() {
   console.debug($(window).scrollTop());
   console.debug($(window).height());
   console.debug($(document).height());
-  return $(window).scrollTop() !== 0
-         && ($(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET);
+  return (
+    $(window).scrollTop() !== 0 &&
+    $(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET
+  );
 }
 
 function toggleWrap() {
-  $('pre code').toggleClass('wrap');
+  $("pre code").toggleClass("wrap");
 }
 
 function scrollBottom() {
-  $('html, body').animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
+  $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
 }
 
 window.toggleWrapLogs = toggleWrap;
@@ -61,9 +65,11 @@ window.scrollBottomLogs = scrollBottom;
 
 // Streaming log with auto-tailing.
 function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
-  console.debug(`Auto-tailing log for dag_id: ${dagId}, task_id: ${taskId}, `
-   + `execution_date: ${executionDate}, map_index: ${mapIndex}, try_number: ${tryNumber}, `
-   + `metadata: ${JSON.stringify(metadata)}`);
+  console.debug(
+    `Auto-tailing log for dag_id: ${dagId}, task_id: ${taskId}, ` +
+      `execution_date: ${executionDate}, map_index: ${mapIndex}, try_number: ${tryNumber}, ` +
+      `metadata: ${JSON.stringify(metadata)}`
+  );
 
   return Promise.resolve(
     $.ajax({
@@ -76,11 +82,11 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         try_number: tryNumber,
         metadata: JSON.stringify(metadata),
       },
-    }),
+    })
   ).then((res) => {
     // Stop recursive call to backend when error occurs.
     if (!res) {
-      document.getElementById(`loading-${tryNumber}`).style.display = 'none';
+      document.getElementById(`loading-${tryNumber}`).style.display = "none";
       return;
     }
     // res.error is a boolean
@@ -89,7 +95,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       if (res.message) {
         console.error(`Error while retrieving log: ${res.message}`);
       }
-      document.getElementById(`loading-${tryNumber}`).style.display = 'none';
+      document.getElementById(`loading-${tryNumber}`).style.display = "none";
       return;
     }
 
@@ -101,28 +107,47 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       }
 
       // Detect urls and log timestamps
-      const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
+      const urlRegex =
+        /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
       const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2},\d{3}/g;
-      const iso8601Regex = /\d{4}[./-]\d{2}[./-]\d{2}T\d{2}:\d{2}:\d{2}.\d{3}[+-]\d{4}/g;
+      const iso8601Regex =
+        /\d{4}[./-]\d{2}[./-]\d{2}T\d{2}:\d{2}:\d{2}.\d{3}[+-]\d{4}/g;
 
       res.message.forEach((item) => {
         const logBlockElementId = `try-${tryNumber}-${item[0]}`;
         let logBlock = document.getElementById(logBlockElementId);
         if (!logBlock) {
-          const logDivBlock = document.createElement('div');
-          const logPreBlock = document.createElement('pre');
+          const logDivBlock = document.createElement("div");
+          const logPreBlock = document.createElement("pre");
           logDivBlock.appendChild(logPreBlock);
           logPreBlock.innerHTML = `<code id="${logBlockElementId}"  ></code>`;
-          document.getElementById(`log-group-${tryNumber}`).appendChild(logDivBlock);
+          document
+            .getElementById(`log-group-${tryNumber}`)
+            .appendChild(logDivBlock);
           logBlock = document.getElementById(logBlockElementId);
         }
 
         // The message may contain HTML, so either have to escape it or write it as text.
         const escapedMessage = escapeHtml(item[1]);
         const linkifiedMessage = escapedMessage
-          .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
-          .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(`${date}+00:00`)}</time>`)
-          .replaceAll(iso8601Regex, (date) => `<time datetime="${date}" data-with-tz="true">${formatDateTime(`${date}`)}</time>`);
+          .replace(
+            urlRegex,
+            (url) => `<a href="${url}" target="_blank">${url}</a>`
+          )
+          .replaceAll(
+            dateRegex,
+            (date) =>
+              `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(
+                `${date}+00:00`
+              )}</time>`
+          )
+          .replaceAll(
+            iso8601Regex,
+            (date) =>
+              `<time datetime="${date}" data-with-tz="true">${formatDateTime(
+                `${date}`
+              )}</time>`
+          );
         logBlock.innerHTML += `${linkifiedMessage}`;
       });
 
@@ -133,7 +158,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
     }
 
     if (res.metadata.end_of_log) {
-      document.getElementById(`loading-${tryNumber}`).style.display = 'none';
+      document.getElementById(`loading-${tryNumber}`).style.display = "none";
       return;
     }
     recurse().then(() => autoTailingLog(tryNumber, res.metadata, autoTailing));
@@ -143,18 +168,18 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 function setDownloadUrl(tryNumber) {
   if (!tryNumber) {
     // default to the currently selected tab
-    tryNumber = $('#ti_log_try_number_list .active a').data('try-number');
+    tryNumber = $("#ti_log_try_number_list .active a").data("try-number");
   }
   const query = new URLSearchParams({
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
     try_number: tryNumber,
-    metadata: 'null',
-    format: 'file',
+    metadata: "null",
+    format: "file",
   });
   const url = `${logsWithMetadataUrl}?${query}`;
-  $('#ti_log_download_active').attr('href', url);
+  $("#ti_log_download_active").attr("href", url);
 }
 
 $(document).ready(() => {
@@ -172,8 +197,8 @@ $(document).ready(() => {
   }
 
   setDownloadUrl();
-  $('#ti_log_try_number_list a').click(function () {
-    const tryNumber = $(this).data('try-number');
+  $("#ti_log_try_number_list a").click(function () {
+    const tryNumber = $(this).data("try-number");
     setDownloadUrl(tryNumber);
   });
 });

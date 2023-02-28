@@ -1585,6 +1585,16 @@ pgbouncer:
     #   memory: 128Mi
     sslmode: "disable"
 
+    livenessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 1
+
+    readinessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 1
+
 # Configuration for the redis provisioned by the chart
 redis:
   enabled: true
