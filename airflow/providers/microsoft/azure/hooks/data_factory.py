@@ -1140,7 +1140,9 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         """
         async with await self.get_async_conn() as client:
             try:
+                print("I am here1")
                 pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
+                print("I am here2")
                 return pipeline_run
             except Exception as e:
                 raise AirflowException(e)

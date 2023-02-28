@@ -76,11 +76,33 @@ class TestADFPipelineRunStatusSensorTrigger:
         "mock_status",
         [
             "Queued",
+        ],
+    )
+    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    async def test_adf_pipeline_run_status_sensors_trigger_run_queued(self, mock_data_factory, mock_status):
+        """
+        Test if the task is run is in trigger successfully.
+        """
+        mock_data_factory.return_value = mock_status
+
+        task = asyncio.create_task(self.TRIGGER.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        # TriggerEvent was not returned
+        assert task.done() is False
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_status",
+        [
             "InProgress",
         ],
     )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_adf_pipeline_run_status_sensors_trigger_run(self, mock_data_factory, mock_status):
+    async def test_adf_pipeline_run_status_sensors_trigger_run_inprogress(
+        self, mock_data_factory, mock_status
+    ):
         """
         Test if the task is run is in trigger successfully.
         """
@@ -113,11 +135,28 @@ class TestADFPipelineRunStatusSensorTrigger:
         "mock_status, mock_message",
         [
             ("Failed", f"Pipeline run {RUN_ID} has Failed."),
+        ],
+    )
+    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    async def test_adf_pipeline_run_status_sensors_trigger_failed(
+        self, mock_data_factory, mock_status, mock_message
+    ):
+        """Test if the task is run is in trigger failure status."""
+        mock_data_factory.return_value = mock_status
+
+        generator = self.TRIGGER.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "error", "message": mock_message}) == actual
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_status, mock_message",
+        [
             ("Cancelled", f"Pipeline run {RUN_ID} has been Cancelled."),
         ],
     )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_adf_pipeline_run_status_sensors_trigger_failure_status(
+    async def test_adf_pipeline_run_status_sensors_trigger_cancelled(
         self, mock_data_factory, mock_status, mock_message
     ):
         """Test if the task is run is in trigger failure status."""
