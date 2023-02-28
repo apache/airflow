@@ -235,7 +235,7 @@ def test_create_existing_table(mock_hook, caplog, if_exists, is_conflict, expect
         assert log_msg in caplog.text
 
 
-class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
+class TestBigQueryCreateExternalTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
@@ -356,7 +356,7 @@ def test_create_empty_dataset(mock_hook, caplog, if_exists, is_conflict, expecte
         assert log_msg in caplog.text
 
 
-class TestBigQueryGetDatasetOperator(unittest.TestCase):
+class TestBigQueryGetDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryGetDatasetOperator(
