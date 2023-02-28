@@ -84,6 +84,7 @@ dependencies:
   - google-cloud-aiplatform>=1.7.1,<2.0.0
   - google-cloud-automl>=2.1.0
   - google-cloud-bigquery-datatransfer>=3.0.0
+  - google-cloud-bigquery-reservation>=1.8.0
   - google-cloud-bigtable>=2.0.0,<3.0.0
   - google-cloud-build>=3.0.0
   - google-cloud-compute>=0.1.0,<2.0.0
@@ -153,6 +154,12 @@ integrations:
   - integration-name: Google BigQuery
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/bigquery.rst
+    external-doc-url: https://cloud.google.com/bigquery/
+    logo: /integration-logos/gcp/BigQuery.png
+    tags: [gcp]
+  - integration-name: Google BigQuery Reservation
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/bigquery_reservation.rst
     external-doc-url: https://cloud.google.com/bigquery/
     logo: /integration-logos/gcp/BigQuery.png
     tags: [gcp]
@@ -464,6 +471,9 @@ operators:
   - integration-name: Google BigQuery Data Transfer Service
     python-modules:
       - airflow.providers.google.cloud.operators.bigquery_dts
+  - integration-name: Google BigQuery Reservation
+    python-modules:
+      - airflow.providers.google.cloud.operators.bigquery_reservation
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.operators.bigtable
@@ -674,6 +684,9 @@ hooks:
   - integration-name: Google BigQuery Data Transfer Service
     python-modules:
       - airflow.providers.google.cloud.hooks.bigquery_dts
+  - integration-name: Google BigQuery Reservation
+    python-modules:
+      - airflow.providers.google.cloud.hooks.bigquery_reservation
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.hooks.bigtable
