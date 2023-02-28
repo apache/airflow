@@ -316,14 +316,14 @@ class BaseSessionFactory(LoggingMixin):
         web_identity_token_loader = {
             "file": self._get_file_token_loader,
             "google": self._get_google_identity_token_loader,
-        }.get(federation, lambda: None)()
+        }.get(federation)
 
         if not web_identity_token_loader:
             raise AirflowException(f"Unsupported federation: {federation}.")
 
         return botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
             client_creator=client_creator,
-            web_identity_token_loader=web_identity_token_loader,
+            web_identity_token_loader=web_identity_token_loader(),
             role_arn=self.role_arn,
             extra_args=self.conn.assume_role_kwargs,
         )
