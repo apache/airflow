@@ -45,7 +45,7 @@ DATAFACTORY_NAME = "ADFProvidersTeamDataFactory"
 TASK_ID = "test_adf_pipeline_run_status_sensor"
 RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
 DEFAULT_CONNECTION_CLIENT_SECRET = "azure_data_factory_test_client_secret"
-MODULE = "astronomer.providers.microsoft.azure"
+MODULE = "airflow.providers.microsoft.azure"
 
 RESOURCE_GROUP = "testResourceGroup"
 DEFAULT_FACTORY = "defaultFactory"
