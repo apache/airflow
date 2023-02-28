@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import ANY, MagicMock, Mock, PropertyMock, patch
 
 import pytest
@@ -37,7 +36,7 @@ TARGET_BUCKET_NAME = "target_bucket_name"
 TARGET_FILENAME = "target_filename"
 
 
-class TestGcpTextToSpeech(unittest.TestCase):
+class TestGcpTextToSpeech:
     @patch("airflow.providers.google.cloud.operators.text_to_speech.GCSHook")
     @patch("airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook")
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
