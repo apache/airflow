@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -33,7 +32,7 @@ LOOKER_CONN_ID = "test-conn"
 TEST_JOB_ID = "123"
 
 
-class TestLookerCheckPdtBuildSensor(unittest.TestCase):
+class TestLookerCheckPdtBuildSensor:
     @mock.patch(SENSOR_PATH.format("LookerHook"))
     def test_done(self, mock_hook):
         mock_hook.return_value.pdt_build_status.return_value = {"status": JobStatus.DONE.value}

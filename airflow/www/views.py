@@ -89,7 +89,6 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
@@ -106,7 +105,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
+from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.utils import json as utils_json, timezone, yaml
@@ -566,9 +565,7 @@ def not_found(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
-            else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
             status_code=404,
             error_message="Page cannot be found.",
         ),
@@ -581,9 +578,7 @@ def method_not_allowed(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
-            else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
             status_code=405,
             error_message="Received an invalid request.",
         ),
@@ -599,10 +594,10 @@ def show_traceback(error):
             python_version=sys.version.split(" ")[0] if g.user.is_authenticated else "redact",
             airflow_version=version if g.user.is_authenticated else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True) and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and g.user.is_authenticated
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE", fallback=True) and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and g.user.is_authenticated
             else "Error! Please contact server admin.",
         ),
         500,
@@ -1527,7 +1522,15 @@ class Airflow(AirflowBaseView):
 
         ti = (
             session.query(models.TaskInstance)
-            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=execution_date, map_index=map_index)
+            .filter(
+                TaskInstance.task_id == task_id,
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.execution_date == execution_date,
+                TaskInstance.map_index == map_index,
+            )
+            .join(TaskInstance.dag_run)
+            .options(joinedload("trigger"))
+            .options(joinedload("trigger.triggerer_job"))
             .first()
         )
 
@@ -1831,70 +1834,6 @@ class Airflow(AirflowBaseView):
             dag=dag,
             title=title,
         )
-
-    @expose("/run", methods=["POST"])
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
-        ]
-    )
-    @action_logging
-    @provide_session
-    def run(self, session=None):
-        """Runs Task Instance."""
-        dag_id = request.form.get("dag_id")
-        task_id = request.form.get("task_id")
-        dag_run_id = request.form.get("dag_run_id")
-        map_index = request.args.get("map_index", -1, type=int)
-        origin = get_safe_url(request.form.get("origin"))
-        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-        task = dag.get_task(task_id)
-
-        ignore_all_deps = request.form.get("ignore_all_deps") == "true"
-        ignore_task_deps = request.form.get("ignore_task_deps") == "true"
-        ignore_ti_state = request.form.get("ignore_ti_state") == "true"
-
-        executor = ExecutorLoader.get_default_executor()
-
-        if not executor.supports_ad_hoc_ti_run:
-            msg = f"{executor.__class__.__name__} does not support ad hoc task runs"
-            return redirect_or_json(origin, msg, "error", 400)
-
-        dag_run = dag.get_dagrun(run_id=dag_run_id)
-        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index)
-        if not ti:
-            msg = "Could not queue task instance for execution, task instance is missing"
-            return redirect_or_json(origin, msg, "error", 400)
-
-        ti.refresh_from_task(task)
-
-        # Make sure the task instance can be run
-        dep_context = DepContext(
-            deps=RUNNING_DEPS,
-            ignore_all_deps=ignore_all_deps,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-        )
-        failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
-        if failed_deps:
-            failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
-            msg = f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}"
-            return redirect_or_json(origin, msg, "error", 400)
-
-        executor.job_id = None
-        executor.start()
-        executor.queue_task_instance(
-            ti,
-            ignore_all_deps=ignore_all_deps,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-        )
-        executor.heartbeat()
-        ti.queued_dttm = timezone.utcnow()
-        session.merge(ti)
-        msg = f"Sent {ti} to the message queue, it should start any moment now."
-        return redirect_or_json(origin, msg)
 
     @expose("/delete", methods=["POST"])
     @auth.has_access(
@@ -2866,7 +2805,7 @@ class Airflow(AirflowBaseView):
                         break
                     dates[dt.date()] += 1
             else:
-                prev_logical_date = datetime.min
+                prev_logical_date = DateTime.min
                 while True:
                     curr_info = dag.timetable.next_dagrun_info(
                         last_automated_data_interval=last_automated_data_interval,
@@ -2980,10 +2919,10 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data["dr_choices"]
 
-        task_instances = {
-            ti.task_id: wwwutils.get_instance_with_map(ti, session)
-            for ti in dag.get_task_instances(dttm, dttm)
-        }
+        task_instances = {}
+        for ti in dag.get_task_instances(dttm, dttm):
+            if ti.task_id not in task_instances:
+                task_instances[ti.task_id] = wwwutils.get_instance_with_map(ti, session)
         tasks = {
             t.task_id: {
                 "dag_id": t.dag_id,
@@ -3699,10 +3638,7 @@ class Airflow(AirflowBaseView):
                 )
                 .join(
                     DatasetEvent,
-                    and_(
-                        DatasetEvent.dataset_id == DatasetModel.id,
-                        DatasetEvent.timestamp > DatasetDagRunQueue.created_at,
-                    ),
+                    DatasetEvent.dataset_id == DatasetModel.id,
                     isouter=True,
                 )
                 .filter(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)

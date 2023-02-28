@@ -19,73 +19,76 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
-import { render } from '@testing-library/react';
+import React from "react";
+import { render } from "@testing-library/react";
 
-import { Wrapper } from 'src/utils/testUtils';
-import type { TaskState } from 'src/types';
+import { Wrapper } from "src/utils/testUtils";
+import type { TaskState } from "src/types";
 
-import InstanceTooltip from './InstanceTooltip';
+import InstanceTooltip from "./InstanceTooltip";
 
 const instance = {
   startDate: new Date().toISOString(),
   endDate: new Date().toISOString(),
-  state: 'success' as TaskState,
-  runId: 'run',
-  taskId: 'task',
-  note: '',
+  state: "success" as TaskState,
+  runId: "run",
+  taskId: "task",
+  note: "",
 };
 
-describe('Test Task InstanceTooltip', () => {
-  test('Displays a normal task', () => {
+describe("Test Task InstanceTooltip", () => {
+  test("Displays a normal task", () => {
     const { getByText, queryByText } = render(
       <InstanceTooltip
-        group={{ id: 'task', label: 'task', instances: [] }}
+        group={{ id: "task", label: "task", instances: [] }}
         instance={instance}
       />,
-      { wrapper: Wrapper },
+      { wrapper: Wrapper }
     );
 
-    expect(getByText('Status: success')).toBeDefined();
-    expect(queryByText('Contains a note')).toBeNull();
-    expect(getByText('Duration: 00:00:00')).toBeDefined();
+    expect(getByText("Status: success")).toBeDefined();
+    expect(queryByText("Contains a note")).toBeNull();
+    expect(getByText("Duration: 00:00:00")).toBeDefined();
   });
 
-  test('Displays a mapped task with overall status', () => {
+  test("Displays a mapped task with overall status", () => {
     const { getByText } = render(
       <InstanceTooltip
         group={{
-          id: 'task', label: 'task', instances: [], isMapped: true,
+          id: "task",
+          label: "task",
+          instances: [],
+          isMapped: true,
         }}
         instance={{ ...instance, mappedStates: { success: 2 } }}
       />,
-      { wrapper: Wrapper },
+      { wrapper: Wrapper }
     );
 
-    expect(getByText('Overall Status: success')).toBeDefined();
-    expect(getByText('2 mapped tasks')).toBeDefined();
-    expect(getByText('success: 2')).toBeDefined();
+    expect(getByText("Overall Status: success")).toBeDefined();
+    expect(getByText("2 mapped tasks")).toBeDefined();
+    expect(getByText("success: 2")).toBeDefined();
   });
 
-  test('Displays a task group with overall status', () => {
+  test("Displays a task group with overall status", () => {
     const { getByText, queryByText } = render(
       <InstanceTooltip
         group={{
-          id: 'task',
-          label: 'task',
+          id: "task",
+          label: "task",
           instances: [],
           children: [
             {
-              id: 'child_task',
-              label: 'child_task',
+              id: "child_task",
+              label: "child_task",
               instances: [
                 {
-                  taskId: 'child_task',
-                  runId: 'run',
-                  state: 'success',
-                  startDate: '',
-                  endDate: '',
-                  note: '',
+                  taskId: "child_task",
+                  runId: "run",
+                  state: "success",
+                  startDate: "",
+                  endDate: "",
+                  note: "",
                 },
               ],
             },
@@ -93,36 +96,36 @@ describe('Test Task InstanceTooltip', () => {
         }}
         instance={instance}
       />,
-      { wrapper: Wrapper },
+      { wrapper: Wrapper }
     );
 
-    expect(getByText('Overall Status: success')).toBeDefined();
-    expect(queryByText('mapped task')).toBeNull();
-    expect(getByText('success: 1')).toBeDefined();
+    expect(getByText("Overall Status: success")).toBeDefined();
+    expect(queryByText("mapped task")).toBeNull();
+    expect(getByText("success: 1")).toBeDefined();
   });
 
-  test('Mentions a task with a note', () => {
+  test("Mentions a task with a note", () => {
     const { getByText } = render(
       <InstanceTooltip
-        group={{ id: 'task', label: 'task', instances: [] }}
-        instance={{ ...instance, note: 'note' }}
+        group={{ id: "task", label: "task", instances: [] }}
+        instance={{ ...instance, note: "note" }}
       />,
-      { wrapper: Wrapper },
+      { wrapper: Wrapper }
     );
 
-    expect(getByText('Contains a note')).toBeInTheDocument();
+    expect(getByText("Contains a note")).toBeInTheDocument();
   });
 
-  test('Hides duration if there is no start date', () => {
+  test("Hides duration if there is no start date", () => {
     const { queryByText, getByText } = render(
       <InstanceTooltip
-        group={{ id: 'task', label: 'task', instances: [] }}
+        group={{ id: "task", label: "task", instances: [] }}
         instance={{ ...instance, startDate: null }}
       />,
-      { wrapper: Wrapper },
+      { wrapper: Wrapper }
     );
 
-    expect(getByText('Status: success')).toBeDefined();
-    expect(queryByText('Duration: 00:00:00')).toBeNull();
+    expect(getByText("Status: success")).toBeDefined();
+    expect(queryByText("Duration: 00:00:00")).toBeNull();
   });
 });

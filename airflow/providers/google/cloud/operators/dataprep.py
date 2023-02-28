@@ -20,15 +20,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 from airflow.providers.google.cloud.links.dataprep import DataprepFlowLink, DataprepJobGroupLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DataprepGetJobsForJobGroupOperator(BaseOperator):
+class DataprepGetJobsForJobGroupOperator(GoogleCloudBaseOperator):
     """
     Get information about the batch jobs within a Cloud Dataprep job.
     API documentation https://clouddataprep.com/documentation/api#section/Overview
@@ -62,7 +62,7 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
         return response
 
 
-class DataprepGetJobGroupOperator(BaseOperator):
+class DataprepGetJobGroupOperator(GoogleCloudBaseOperator):
     """
     Get the specified job group.
     A job group is a job that is executed from a specific node in a flow.
@@ -121,7 +121,7 @@ class DataprepGetJobGroupOperator(BaseOperator):
         return response
 
 
-class DataprepRunJobGroupOperator(BaseOperator):
+class DataprepRunJobGroupOperator(GoogleCloudBaseOperator):
     """
     Create a ``jobGroup``, which launches the specified job as the authenticated user.
     This performs the same action as clicking on the Run Job button in the application.
@@ -170,7 +170,7 @@ class DataprepRunJobGroupOperator(BaseOperator):
         return response
 
 
-class DataprepCopyFlowOperator(BaseOperator):
+class DataprepCopyFlowOperator(GoogleCloudBaseOperator):
     """
     Create a copy of the provided flow id, as well as all contained recipes.
 
@@ -229,7 +229,7 @@ class DataprepCopyFlowOperator(BaseOperator):
         return response
 
 
-class DataprepDeleteFlowOperator(BaseOperator):
+class DataprepDeleteFlowOperator(GoogleCloudBaseOperator):
     """
     Delete the flow with provided id.
 
@@ -256,7 +256,7 @@ class DataprepDeleteFlowOperator(BaseOperator):
         hook.delete_flow(flow_id=int(self.flow_id))
 
 
-class DataprepRunFlowOperator(BaseOperator):
+class DataprepRunFlowOperator(GoogleCloudBaseOperator):
     """
     Runs the flow with the provided id copy of the provided flow id.
 

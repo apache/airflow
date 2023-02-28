@@ -63,6 +63,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account
+    :param folder_id: The base/root folder id for each local path in the Drive folder
     :return: Remote file ids after upload
     """
 
@@ -82,6 +83,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         resumable: bool = False,
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        folder_id: str = "root",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -94,6 +96,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         self.resumable = resumable
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.folder_id = folder_id
 
     def execute(self, context: Context) -> list[str]:
         hook = GoogleDriveHook(
@@ -113,6 +116,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
                     remote_location=str(Path(self.drive_folder) / Path(local_path).name),
                     chunk_size=self.chunk_size,
                     resumable=self.resumable,
+                    folder_id=self.folder_id,
                 )
 
                 remote_file_ids.append(remote_file_id)

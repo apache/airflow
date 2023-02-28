@@ -26,8 +26,8 @@ from google.cloud.language_v1 import enums
 from google.cloud.language_v1.types import Document
 from google.protobuf.json_format import MessageToDict
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 MetaData = Sequence[Tuple[str, str]]
 
 
-class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeEntitiesOperator(GoogleCloudBaseOperator):
     """
     Finds named entities in the text along with entity types,
     salience, mentions for each entity, and other properties.
@@ -108,7 +108,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         return MessageToDict(response)
 
 
-class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeEntitySentimentOperator(GoogleCloudBaseOperator):
     """
     Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
     entity and its mentions.
@@ -185,7 +185,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         return MessageToDict(response)
 
 
-class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeSentimentOperator(GoogleCloudBaseOperator):
     """
     Analyzes the sentiment of the provided text.
 
@@ -257,7 +257,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         return MessageToDict(response)
 
 
-class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
+class CloudNaturalLanguageClassifyTextOperator(GoogleCloudBaseOperator):
     """
     Classifies a document into categories.
 
