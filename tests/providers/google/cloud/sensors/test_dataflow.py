@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -41,7 +40,7 @@ TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestDataflowJobStatusSensor(unittest.TestCase):
+class TestDataflowJobStatusSensor:
     @parameterized.expand(
         [
             (DataflowJobStatus.JOB_STATE_DONE, DataflowJobStatus.JOB_STATE_DONE, True),
@@ -107,7 +106,7 @@ class TestDataflowJobStatusSensor(unittest.TestCase):
         )
 
 
-class TestDataflowJobMetricsSensor(unittest.TestCase):
+class TestDataflowJobMetricsSensor:
     @parameterized.expand(
         [
             (DataflowJobStatus.JOB_STATE_RUNNING, True),
@@ -149,7 +148,7 @@ class TestDataflowJobMetricsSensor(unittest.TestCase):
         callback.assert_called_once_with(mock_fetch_job_metrics_by_id.return_value.__getitem__.return_value)
 
 
-class DataflowJobMessagesSensorTest(unittest.TestCase):
+class DataflowJobMessagesSensorTest:
     @parameterized.expand(
         [
             (DataflowJobStatus.JOB_STATE_RUNNING, True),
@@ -225,7 +224,7 @@ class DataflowJobMessagesSensorTest(unittest.TestCase):
         callback.assert_not_called()
 
 
-class DataflowJobAutoScalingEventsSensorTest(unittest.TestCase):
+class DataflowJobAutoScalingEventsSensorTest:
     @parameterized.expand(
         [
             (DataflowJobStatus.JOB_STATE_RUNNING, True),

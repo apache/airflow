@@ -16,14 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context
+from contextlib import contextmanager
 
 
-class TestS3BucketExampleDagsSystem(AmazonSystemTest):
-    """
-    System tests for AWS S3 operators
-    """
+class SetupTeardownContext:
+    """Track whether the next added task is a setup or teardown task"""
 
-    @provide_aws_context()
-    def test_run_example_dag_s3(self):
-        self.run_dag("s3_bucket_dag", AWS_DAG_FOLDER)
+    is_setup: bool = False
+    is_teardown: bool = False
+
+    @classmethod
+    @contextmanager
+    def setup(cls):
+        cls.is_setup = True
+        yield
+        cls.is_setup = False
+
+    @classmethod
+    @contextmanager
+    def teardown(cls):
+        cls.is_teardown = True
+        yield
+        cls.is_teardown = False

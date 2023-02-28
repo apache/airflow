@@ -17,28 +17,28 @@
  * under the License.
  */
 
-import React from 'react';
-import { MdPlayArrow, MdOutlineSchedule } from 'react-icons/md';
-import { RiArrowGoBackFill } from 'react-icons/ri';
-import { HiDatabase } from 'react-icons/hi';
+import React from "react";
+import { MdPlayArrow, MdOutlineSchedule } from "react-icons/md";
+import { RiArrowGoBackFill } from "react-icons/ri";
+import { HiDatabase } from "react-icons/hi";
 
-import type { IconBaseProps } from 'react-icons';
-import type { DagRun } from 'src/types';
+import type { IconBaseProps } from "react-icons";
+import type { DagRun } from "src/types";
 
 interface Props extends IconBaseProps {
-  runType: DagRun['runType'];
+  runType: DagRun["runType"];
 }
 
 const DagRunTypeIcon = ({ runType, ...rest }: Props) => {
   switch (runType) {
-    case 'manual':
-      return <MdPlayArrow style={{ display: 'inline' }} {...rest} />;
-    case 'backfill':
-      return <RiArrowGoBackFill style={{ display: 'inline' }} {...rest} />;
-    case 'scheduled':
-      return <MdOutlineSchedule style={{ display: 'inline' }} {...rest} />;
-    case 'dataset_triggered':
-      return <HiDatabase style={{ display: 'inline' }} {...rest} />;
+    case "manual":
+      return <MdPlayArrow style={{ display: "inline" }} {...rest} />;
+    case "backfill":
+      return <RiArrowGoBackFill style={{ display: "inline" }} {...rest} />;
+    case "scheduled":
+      return <MdOutlineSchedule style={{ display: "inline" }} {...rest} />;
+    case "dataset_triggered":
+      return <HiDatabase style={{ display: "inline" }} {...rest} />;
     default:
       return null;
   }

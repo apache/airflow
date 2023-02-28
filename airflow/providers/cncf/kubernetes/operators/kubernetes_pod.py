@@ -378,22 +378,20 @@ class KubernetesPodOperator(BaseOperator):
         seen_oids: set,
     ) -> None:
         if id(content) not in seen_oids:
-            template_fields: tuple | None = None
+            template_fields: tuple | None
 
             if isinstance(content, k8s.V1EnvVar):
                 template_fields = ("value", "name")
-
-            if isinstance(content, k8s.V1ResourceRequirements):
+            elif isinstance(content, k8s.V1ResourceRequirements):
                 template_fields = ("limits", "requests")
-
-            if isinstance(content, k8s.V1Volume):
+            elif isinstance(content, k8s.V1Volume):
                 template_fields = ("name", "persistent_volume_claim")
-
-            if isinstance(content, k8s.V1VolumeMount):
+            elif isinstance(content, k8s.V1VolumeMount):
                 template_fields = ("name",)
-
-            if isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
+            elif isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
                 template_fields = ("claim_name",)
+            else:
+                template_fields = None
 
             if template_fields:
                 seen_oids.add(id(content))

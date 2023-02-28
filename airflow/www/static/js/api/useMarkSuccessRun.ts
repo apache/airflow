@@ -17,22 +17,22 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useMutation, useQueryClient } from 'react-query';
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import { getMetaValue } from '../utils';
-import { useAutoRefresh } from '../context/autorefresh';
-import useErrorToast from '../utils/useErrorToast';
+import axios, { AxiosResponse } from "axios";
+import { useMutation, useQueryClient } from "react-query";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { getMetaValue } from "../utils";
+import { useAutoRefresh } from "../context/autorefresh";
+import useErrorToast from "../utils/useErrorToast";
 
-const markSuccessUrl = getMetaValue('dagrun_success_url');
-const csrfToken = getMetaValue('csrf_token');
+const markSuccessUrl = getMetaValue("dagrun_success_url");
+const csrfToken = getMetaValue("csrf_token");
 
 export default function useMarkSuccessRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunSuccess', dagId, runId],
+    ["dagRunSuccess", dagId, runId],
     ({ confirmed = false }: { confirmed: boolean }) => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
@@ -43,18 +43,18 @@ export default function useMarkSuccessRun(dagId: string, runId: string) {
 
       return axios.post<AxiosResponse, string[]>(markSuccessUrl, params, {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          "Content-Type": "application/x-www-form-urlencoded",
         },
       });
     },
     {
       onSuccess: (_, { confirmed }) => {
         if (confirmed) {
-          queryClient.invalidateQueries('gridData');
+          queryClient.invalidateQueries("gridData");
           startRefresh();
         }
       },
       onError: (error: Error) => errorToast({ error }),
-    },
+    }
   );
 }
