@@ -18,13 +18,18 @@
 """Hook for Google Drive service"""
 from __future__ import annotations
 
+import tenacity
+from logging import getLogger, WARNING
 from typing import IO, Any, Sequence
 
 from googleapiclient.discovery import Resource, build
+from googleapiclient.errors import Error as GoogleApiClientError
 from googleapiclient.http import HttpRequest, MediaFileUpload
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+log = getLogger(__name__)
 
 
 class GoogleDriveHook(GoogleBaseHook):
@@ -160,6 +165,11 @@ class GoogleDriveHook(GoogleBaseHook):
             )
         )
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(1),
+        before=tenacity.before_log(log, WARNING),
+        reraise=False,
+    )
     def _get_file_info(self, file_id: str):
         """
         Returns Google API file_info object containing id, name, parents in the response
@@ -169,12 +179,14 @@ class GoogleDriveHook(GoogleBaseHook):
         :return: file
         """
         file_info = (
-            self.get_conn().files()
-                .get(
+            self.get_conn()
+            .files()
+            .get(
                 fileId=file_id,
                 fields="id,name,parents",
                 supportsAllDrives=True,
-            ).execute()
+            )
+            .execute(num_retries=2)
         )
         return file_info
 
@@ -265,7 +277,7 @@ class GoogleDriveHook(GoogleBaseHook):
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
         folder_id: str = "root",
-        show_full_target_path: bool = True
+        show_full_target_path: bool = True,
     ) -> str:
         """
         Uploads a file that is available locally to a Google Drive service.
@@ -299,9 +311,13 @@ class GoogleDriveHook(GoogleBaseHook):
         )
         file_id = file.get("id")
 
-        upload_location = (
-            "" if folder_id == "root" else self._resolve_file_path(folder_id)
-        ) + remote_location
+        upload_location = remote_location
+
+        if folder_id != "root":
+            try:
+                upload_location = self._resolve_file_path(folder_id)
+            except (GoogleApiClientError, AirflowException) as e:
+                log.warning("A problem has been encountered when trying to resolve file path: ", e)
 
         if show_full_target_path:
             self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
