@@ -44,7 +44,7 @@ Use a dictionary that maps Param names to either a :class:`~airflow.models.param
         "the_dag",
         params={
             "x": Param(5, type="integer", minimum=3),
-            "y": 6
+            "y": 6,
         },
     ):
 
@@ -54,6 +54,8 @@ Task-level Params
 You can also add Params to individual tasks.
 
 .. code-block::
+    def print_it(v):
+        print(v)
 
     PythonOperator(
         task_id="print_x",
@@ -75,11 +77,9 @@ Params can be referenced in :ref:`templated strings <templates-ref>` under ``par
     PythonOperator(
         task_id="from_template",
         op_args=[
-            "{{ params.int_param + 10 }}",
+            "{{ params.x + 10 }}",
         ],
-        python_callable=(
-            lambda x: print(x)
-        ),
+        python_callable=print_it,
     )
 
 Even though Params can use a variety of types, the default behavior of templates is to provide your task with a string.
@@ -90,7 +90,7 @@ You can change this by setting ``render_template_as_native_obj=True`` while init
 
     with DAG(
         "the_dag",
-        params={"x": Param(5, type="integer", minimum=3)},
+        params={"int_param": Param(5, type="integer", minimum=3)},
         render_template_as_native_obj=True
     ):
 
