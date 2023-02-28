@@ -37,7 +37,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.3.0
-  - yandexcloud>=0.173.0
+  - yandexcloud>=0.202.0
 
 integrations:
   - integration-name: Yandex.Cloud
