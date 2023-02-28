@@ -391,3 +391,18 @@ class SFTPHook(SSHHook):
                 return file
 
         return ""
+
+    def get_files_by_pattern(self, path, fnmatch_pattern) -> list[str]:
+        """
+        Returning the list of matching files based on the given fnmatch type pattern
+
+        :param path: path to be checked
+        :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
+        :return: list of string containing the found files, or an empty list if none matched
+        """
+        matched_files = []
+        for file in self.list_directory(path):
+            if fnmatch(file, fnmatch_pattern):
+                matched_files.append(file)
+
+        return matched_files
