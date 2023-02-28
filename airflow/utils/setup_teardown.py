@@ -43,7 +43,7 @@ class SetupTeardownContext:
 
     @classmethod
     @contextmanager
-    def teardown(cls):
+    def teardown(cls, on_failure_fail_dagrun=None):
         if cls.is_setup or cls.is_teardown:
             raise AirflowException(
                 "A teardown task or taskgroup cannot be nested inside another"
@@ -51,7 +51,11 @@ class SetupTeardownContext:
             )
 
         cls.is_teardown = True
+        if on_failure_fail_dagrun:
+            setattr(cls, "on_failure_fail_dagrun", on_failure_fail_dagrun)
         try:
             yield
         finally:
             cls.is_teardown = False
+            if on_failure_fail_dagrun:
+                delattr(cls, "on_failure_fail_dagrun")

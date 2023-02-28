@@ -246,6 +246,8 @@ class TaskGroup(DAGNode):
         elif SetupTeardownContext.is_teardown or is_teardown:
             if isinstance(task, AbstractOperator):
                 setattr(task, "_is_teardown", True)
+                if getattr(SetupTeardownContext, "on_failure_fail_dagrun", False):
+                    setattr(task, "_on_failure_fail_dagrun", True)
 
         self.children[key] = task
 
