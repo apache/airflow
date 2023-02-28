@@ -1378,7 +1378,7 @@ class TestStringifiedDAGs:
 
             @setup
             @task_group
-            def setup():
+            def setup_group():
                 @task_group
                 def sub_setup():
                     EmptyOperator(task_id="setup2")
@@ -1388,12 +1388,12 @@ class TestStringifiedDAGs:
 
             @teardown
             @task_group
-            def teardown():
+            def teardown_group():
                 EmptyOperator(task_id="teardown1")
 
-            setup()
+            setup_group()
             EmptyOperator(task_id="sometask")
-            teardown()
+            teardown_group()
 
         dag_dict = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(dag_dict)
