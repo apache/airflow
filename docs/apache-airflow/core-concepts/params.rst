@@ -91,7 +91,7 @@ You can change this by setting ``render_template_as_native_obj=True`` while init
     with DAG(
         "the_dag",
         params={"int_param": Param(5, type="integer", minimum=3)},
-        render_template_as_native_obj=True
+        render_template_as_native_obj=True,
     ):
 
 
