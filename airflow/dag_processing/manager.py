@@ -842,6 +842,44 @@ class DagFileProcessorManager(LoggingMixin):
             len(new_filepaths),
         )
 
+    def handle_deleted_file(self, filepath: str) -> None:
+        """
+        Process a deleted file in the DAGs folder.
+
+        :param filepath: Path of the deleted file.
+        """
+        # Remove from observed file paths
+        self._file_paths.discard(filepath)
+
+        # Terminate file processors
+        if filepath in self._processors:
+            self._processors[filepath].terminate()
+            self._processors.pop(filepath)
+            self.log.info("Stopping processor for %s", filepath)
+            Stats.decr("dag_processing.processes")
+
+        # TODO: I feel this could be subject to race conditions so wrapped in try/except clause. Test properly
+        while filepath in self._file_path_queue:
+            try:
+                self._file_path_queue.remove(filepath)
+            except ValueError:
+                self.log.debug("Tried removing %s from file_path_queue but item was not found.")
+
+        # Remove from file statistics collection
+        self._file_stats.pop(filepath, None)
+
+        # Remove from DB
+        # TODO batch all queries into one transaction
+        SerializedDagModel.remove_deleted_file(filepath=filepath, processor_subdir=self.get_dag_directory())
+        DagModel.deactivate_dags_deleted_filepath(deleted_filepath=filepath)
+
+        from airflow.models.dagcode import DagCode
+
+        DagCode.remove_code_deleted_file(filepath=filepath)
+
+        errors.ImportError.purge_filepath(filepath=filepath)
+        DagWarning.purge_filepath(filepath=filepath)
+
     def handle_deleted_airflowignore_file(self, filepath: str) -> None:
         """
         Process a deleted .airflowignore file.
@@ -954,44 +992,6 @@ class DagFileProcessorManager(LoggingMixin):
             # TODO think about callback from handle_created_file. What if parsing the new file takes 30 mins?
             self.handle_created_file(filepath=dest_filepath)
             self.handle_deleted_file(filepath=src_filepath)
-
-    def handle_deleted_file(self, filepath: str) -> None:
-        """
-        Process a deleted file in the DAGs folder.
-
-        :param filepath: Path of the deleted file.
-        """
-        # Remove from observed file paths
-        self._file_paths.discard(filepath)
-
-        # Terminate file processors
-        if filepath in self._processors:
-            self._processors[filepath].terminate()
-            self._processors.pop(filepath)
-            self.log.info("Stopping processor for %s", filepath)
-            Stats.decr("dag_processing.processes")
-
-        # TODO: I feel this could be subject to race conditions so wrapped in try/except clause. Test properly
-        while filepath in self._file_path_queue:
-            try:
-                self._file_path_queue.remove(filepath)
-            except ValueError:
-                self.log.debug("Tried removing %s from file_path_queue but item was not found.")
-
-        # Remove from file statistics collection
-        self._file_stats.pop(filepath, None)
-
-        # Remove from DB
-        # TODO batch all queries into one transaction
-        SerializedDagModel.remove_deleted_file(filepath=filepath, processor_subdir=self.get_dag_directory())
-        DagModel.deactivate_dags_deleted_filepath(deleted_filepath=filepath)
-
-        from airflow.models.dagcode import DagCode
-
-        DagCode.remove_code_deleted_file(filepath=filepath)
-
-        errors.ImportError.purge_filepath(filepath=filepath)
-        DagWarning.purge_filepath(filepath=filepath)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed."""
