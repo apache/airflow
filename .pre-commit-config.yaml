@@ -641,7 +641,7 @@ repos:
         language: node
         files: ^airflow/www/.*\.(css|sass|scss)$
         # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-www-assets
         name: Compile www assets
         language: node
@@ -877,10 +877,10 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: ts-compile-and-lint-javascript
-        name: TS types generation and ESLint against current UI files
+      - id: ts-compile-format-lint-www
+        name: TS types generation and ESLint/Prettier against current UI files
         language: node
-        'types_or': [javascript, ts, tsx, yaml]
+        'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml$
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']

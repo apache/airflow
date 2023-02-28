@@ -27,8 +27,8 @@ from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.lambda_function import (
-    AwsLambdaInvokeFunctionOperator,
     LambdaCreateFunctionOperator,
+    LambdaInvokeFunctionOperator,
 )
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
 from airflow.utils.trigger_rule import TriggerRule
@@ -100,7 +100,7 @@ with models.DAG(
     wait_lambda_function_state.poke_interval = 1
 
     # [START howto_operator_invoke_lambda_function]
-    invoke_lambda_function = AwsLambdaInvokeFunctionOperator(
+    invoke_lambda_function = LambdaInvokeFunctionOperator(
         task_id="invoke_lambda_function",
         function_name=lambda_function_name,
         payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}),

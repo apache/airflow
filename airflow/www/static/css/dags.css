@@ -72,7 +72,7 @@
 .dags-table-more__menu::before {
   width: 0;
   height: 100%;
-  content: '';
+  content: "";
   pointer-events: none;
   transition: width 0.3s ease-in;
 }
@@ -92,7 +92,11 @@ tr:nth-child(2n) .dags-table-more__menu:hover {
 }
 
 tr:nth-child(2n) .dags-table-more__menu:hover::before {
-  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, #f9f9f9 100%);
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    #f9f9f9 100%
+  );
 }
 
 tr:nth-child(odd):hover .dags-table-more__menu:hover,
@@ -102,7 +106,11 @@ tr:nth-child(2n):hover .dags-table-more__menu:hover {
 
 tr:nth-child(odd):hover .dags-table-more__menu:hover::before,
 tr:nth-child(2n):hover .dags-table-more__menu:hover::before {
-  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, #f5f5f5 100%);
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    #f5f5f5 100%
+  );
 }
 
 .dags-table-more__links {
