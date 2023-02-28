@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import copy
-import unittest
 from unittest import mock
 from unittest.mock import ANY, MagicMock, patch
 
@@ -68,7 +67,7 @@ TEST_VERSION = {
 MLENGINE_AI_PATH = "airflow.providers.google.cloud.operators.mlengine.{}"
 
 
-class TestMLEngineBatchPredictionOperator(unittest.TestCase):
+class TestMLEngineBatchPredictionOperator:
     INPUT_MISSING_ORIGIN = {
         "dataFormat": "TEXT",
         "inputPaths": ["gs://legal-bucket/fake-input-path/*"],
@@ -97,8 +96,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         "task_id": "test-prediction",
     }
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
         self.dag = DAG(
             "test_dag",
             default_args={
@@ -315,7 +313,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         assert "A failure message" == str(ctx.value)
 
 
-class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
+class TestMLEngineTrainingCancelJobOperator:
 
     TRAINING_DEFAULT_ARGS = {
         "project_id": "test-project",
@@ -368,7 +366,7 @@ class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):
         assert http_error_code == ctx.value.resp.status
 
 
-class TestMLEngineModelOperator(unittest.TestCase):
+class TestMLEngineModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_create_model(self, mock_hook):
         task = MLEngineManageModelOperator(
@@ -430,7 +428,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
             task.execute(None)
 
 
-class TestMLEngineCreateModelOperator(unittest.TestCase):
+class TestMLEngineCreateModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_create_model(self, mock_hook):
         task = MLEngineCreateModelOperator(
@@ -454,7 +452,7 @@ class TestMLEngineCreateModelOperator(unittest.TestCase):
         )
 
 
-class TestMLEngineGetModelOperator(unittest.TestCase):
+class TestMLEngineGetModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_get_model(self, mock_hook):
         task = MLEngineGetModelOperator(
@@ -479,7 +477,7 @@ class TestMLEngineGetModelOperator(unittest.TestCase):
         assert mock_hook.return_value.get_model.return_value == result
 
 
-class TestMLEngineDeleteModelOperator(unittest.TestCase):
+class TestMLEngineDeleteModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_delete_model(self, mock_hook):
         task = MLEngineDeleteModelOperator(
@@ -504,7 +502,7 @@ class TestMLEngineDeleteModelOperator(unittest.TestCase):
         )
 
 
-class TestMLEngineVersionOperator(unittest.TestCase):
+class TestMLEngineVersionOperator:
     VERSION_DEFAULT_ARGS = {
         "project_id": "test-project",
         "model_name": "test-model",
@@ -532,7 +530,7 @@ class TestMLEngineVersionOperator(unittest.TestCase):
         )
 
 
-class TestMLEngineCreateVersion(unittest.TestCase):
+class TestMLEngineCreateVersion:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
         task = MLEngineCreateVersionOperator(
@@ -579,7 +577,7 @@ class TestMLEngineCreateVersion(unittest.TestCase):
             )
 
 
-class TestMLEngineSetDefaultVersion(unittest.TestCase):
+class TestMLEngineSetDefaultVersion:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
         task = MLEngineSetDefaultVersionOperator(
@@ -626,7 +624,7 @@ class TestMLEngineSetDefaultVersion(unittest.TestCase):
             )
 
 
-class TestMLEngineListVersions(unittest.TestCase):
+class TestMLEngineListVersions:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
         task = MLEngineListVersionsOperator(
@@ -661,7 +659,7 @@ class TestMLEngineListVersions(unittest.TestCase):
             )
 
 
-class TestMLEngineDeleteVersion(unittest.TestCase):
+class TestMLEngineDeleteVersion:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
         task = MLEngineDeleteVersionOperator(

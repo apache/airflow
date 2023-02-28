@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -51,7 +50,7 @@ transfer_config = TransferConfig(
 )
 
 
-class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
+class TestBigQueryCreateDataTransferOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
         **{"return_value.create_transfer_config.return_value": transfer_config},
@@ -78,7 +77,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
         assert "access_key_id" not in return_value.get("params", {})
 
 
-class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
+class TestBigQueryDeleteDataTransferConfigOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
     def test_execute(self, mock_hook):
         op = BigQueryDeleteDataTransferConfigOperator(
@@ -94,7 +93,7 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
         )
 
 
-class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.TestCase):
+class TestBigQueryDataTransferServiceStartTransferRunsOperator:
     OPERATOR_MODULE_PATH = "airflow.providers.google.cloud.operators.bigquery_dts"
 
     @mock.patch(

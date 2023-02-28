@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -45,7 +44,7 @@ LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
+class TestGoogleCloudStorageCreateBucket:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         operator = GCSCreateBucketOperator(
@@ -69,7 +68,7 @@ class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
         )
 
 
-class TestGoogleCloudStorageAcl(unittest.TestCase):
+class TestGoogleCloudStorageAcl:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_bucket_create_acl(self, mock_hook):
         operator = GCSBucketCreateAclEntryOperator(
@@ -109,7 +108,7 @@ class TestGoogleCloudStorageAcl(unittest.TestCase):
         )
 
 
-class TestGCSDeleteObjectsOperator(unittest.TestCase):
+class TestGCSDeleteObjectsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_objects(self, mock_hook):
         operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2])
@@ -157,7 +156,7 @@ class TestGCSDeleteObjectsOperator(unittest.TestCase):
         )
 
 
-class TestGoogleCloudStorageListOperator(unittest.TestCase):
+class TestGoogleCloudStorageListOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
@@ -173,7 +172,7 @@ class TestGoogleCloudStorageListOperator(unittest.TestCase):
         assert sorted(files) == sorted(MOCK_FILES)
 
 
-class TestGCSFileTransformOperator(unittest.TestCase):
+class TestGCSFileTransformOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -235,7 +234,7 @@ class TestGCSFileTransformOperator(unittest.TestCase):
         )
 
 
-class TestGCSTimeSpanFileTransformOperatorDateInterpolation(unittest.TestCase):
+class TestGCSTimeSpanFileTransformOperatorDateInterpolation:
     def test_execute(self):
         interp_dt = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
 
@@ -266,7 +265,7 @@ class TestGCSTimeSpanFileTransformOperatorDateInterpolation(unittest.TestCase):
         )
 
 
-class TestGCSTimeSpanFileTransformOperator(unittest.TestCase):
+class TestGCSTimeSpanFileTransformOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -392,7 +391,7 @@ class TestGCSTimeSpanFileTransformOperator(unittest.TestCase):
         )
 
 
-class TestGCSDeleteBucketOperator(unittest.TestCase):
+class TestGCSDeleteBucketOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_bucket(self, mock_hook):
         operator = GCSDeleteBucketOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET)
@@ -401,7 +400,7 @@ class TestGCSDeleteBucketOperator(unittest.TestCase):
         mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=TEST_BUCKET, force=True)
 
 
-class TestGoogleCloudStorageSync(unittest.TestCase):
+class TestGoogleCloudStorageSync:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         task = GCSSynchronizeBucketsOperator(

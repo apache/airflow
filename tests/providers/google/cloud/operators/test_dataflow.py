@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import copy
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -101,8 +100,8 @@ IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
 
 
-class TestDataflowPythonOperator(unittest.TestCase):
-    def setUp(self):
+class TestDataflowPythonOperator:
+    def setup_method(self):
         self.dataflow = DataflowCreatePythonJobOperator(
             task_id=TASK_ID,
             py_file=PY_FILE,
@@ -143,7 +142,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         self.dataflow.execute(None)
         beam_hook_mock.assert_called_once_with(runner="DataflowRunner")
-        self.assertTrue(self.dataflow.py_file.startswith("/tmp/dataflow"))
+        assert self.dataflow.py_file.startswith("/tmp/dataflow")
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
         mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         dataflow_hook_mock.assert_called_once_with(
@@ -182,8 +181,8 @@ class TestDataflowPythonOperator(unittest.TestCase):
         provide_gcloud_mock.assert_called_once_with()
 
 
-class TestDataflowJavaOperator(unittest.TestCase):
-    def setUp(self):
+class TestDataflowJavaOperator:
+    def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
             jar=JAR_FILE,
@@ -268,7 +267,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
 
         self.dataflow.execute(None)
 
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         start_java_hook.assert_not_called()
         gcs_provide_file.assert_called_once()
         variables = {
@@ -318,7 +317,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -372,7 +371,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -389,8 +388,8 @@ class TestDataflowJavaOperator(unittest.TestCase):
         )
 
 
-class TestDataflowJavaOperatorWithLocal(unittest.TestCase):
-    def setUp(self):
+class TestDataflowJavaOperatorWithLocal:
+    def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
             jar=LOCAL_JAR_FILE,
@@ -434,7 +433,7 @@ class TestDataflowJavaOperatorWithLocal(unittest.TestCase):
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -615,7 +614,7 @@ class TestDataflowStartFlexTemplateOperator:
         mock_defer_method.assert_called_once()
 
 
-class TestDataflowSqlOperator(unittest.TestCase):
+class TestDataflowSqlOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_execute(self, mock_hook):
         start_sql = DataflowStartSqlJobOperator(
@@ -649,7 +648,7 @@ class TestDataflowSqlOperator(unittest.TestCase):
         )
 
 
-class TestDataflowStopJobOperator(unittest.TestCase):
+class TestDataflowStopJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_exec_job_id(self, dataflow_mock):
         self.dataflow = DataflowStopJobOperator(

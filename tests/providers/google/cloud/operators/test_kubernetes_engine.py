@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -63,7 +62,7 @@ KUBE_ENV_VAR = "KUBECONFIG"
 FILE_NAME = "/tmp/mock_name"
 
 
-class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
+class TestGoogleCloudPlatformContainerOperator:
     @parameterized.expand(
         (body,)
         for body in [
@@ -216,8 +215,8 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
         mock_defer_method.assert_called_once()
 
 
-class TestGKEPodOperator(unittest.TestCase):
-    def setUp(self):
+class TestGKEPodOperator:
+    def setup_method(self):
         self.gke_op = GKEStartPodOperator(
             project_id=TEST_GCP_PROJECT_ID,
             location=PROJECT_LOCATION,

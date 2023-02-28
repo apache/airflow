@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -69,7 +68,7 @@ def _prepare_test_bodies():
     return body_values
 
 
-class TestGcfFunctionDeploy(unittest.TestCase):
+class TestGcfFunctionDeploy:
     @parameterized.expand(_prepare_test_bodies())
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_body_empty_or_missing_fields(self, body, message, mock_hook):
@@ -579,7 +578,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         mock_hook.reset_mock()
 
 
-class TestGcfFunctionDelete(unittest.TestCase):
+class TestGcfFunctionDelete:
     _FUNCTION_NAME = "projects/project_name/locations/project_location/functions/function_name"
     _DELETE_FUNCTION_EXPECTED = {
         "@type": "type.googleapis.com/google.cloud.functions.v1.CloudFunction",
@@ -678,7 +677,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
         )
 
 
-class TestGcfFunctionInvokeOperator(unittest.TestCase):
+class TestGcfFunctionInvokeOperator:
     @mock.patch("airflow.providers.google.cloud.operators.functions.GoogleCloudBaseOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_execute(self, mock_gcf_hook, mock_xcom):
