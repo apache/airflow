@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
@@ -186,3 +187,44 @@ class TestRedshiftDataHook:
             (dict(Id=STATEMENT_ID, NextToken="token1"),),
             (dict(Id=STATEMENT_ID, NextToken="token2"),),
         ]
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_result_num_rows(self, mock_conn, caplog):
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED", "ResultRows": 123}
+
+        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        # https://docs.pytest.org/en/stable/how-to/logging.html
+        with caplog.at_level(logging.INFO):
+            hook.execute_query(
+                sql=SQL,
+                database=DATABASE,
+                cluster_identifier=cluster_identifier,
+                db_user=db_user,
+                secret_arn=secret_arn,
+                statement_name=statement_name,
+                parameters=parameters,
+                wait_for_completion=True,
+            )
+            assert "Processed 123 rows" in caplog.text
+
+        # ensure message is not there when `ResultRows` is not returned
+        caplog.clear()
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        with caplog.at_level(logging.INFO):
+            hook.execute_query(
+                sql=SQL,
+                database=DATABASE,
+                cluster_identifier=cluster_identifier,
+                db_user=db_user,
+                secret_arn=secret_arn,
+                statement_name=statement_name,
+                parameters=parameters,
+                wait_for_completion=True,
+            )
+            assert "Processed " not in caplog.text
