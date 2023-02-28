@@ -18,8 +18,6 @@
 """Hook for Google Drive service"""
 from __future__ import annotations
 
-import tenacity
-from logging import getLogger, WARNING
 from typing import IO, Any, Sequence
 
 from googleapiclient.discovery import Resource, build
@@ -28,8 +26,6 @@ from googleapiclient.http import HttpRequest, MediaFileUpload
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-
-log = getLogger(__name__)
 
 
 class GoogleDriveHook(GoogleBaseHook):
@@ -165,11 +161,6 @@ class GoogleDriveHook(GoogleBaseHook):
             )
         )
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(1),
-        before=tenacity.before_log(log, WARNING),
-        reraise=False,
-    )
     def _get_file_info(self, file_id: str):
         """
         Returns Google API file_info object containing id, name, parents in the response
