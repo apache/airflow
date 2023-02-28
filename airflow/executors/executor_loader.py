@@ -170,7 +170,8 @@ class ExecutorLoader:
         initialized) because loading the executor class is heavy work we want to
         avoid unless needed.
         """
-        if not executor.is_single_threaded:
+        if executor.is_single_threaded:
+            # Single threaded executors can run with any backend
             return
 
         # This is set in tests when we want to be able to use the SequentialExecutor.
@@ -179,6 +180,7 @@ class ExecutorLoader:
 
         from airflow.settings import engine
 
+        # SQLite only works with single threaded executors
         if engine.dialect.name == "sqlite":
             raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
 
