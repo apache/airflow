@@ -39,6 +39,7 @@ from airflow.utils.platform import getuser
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.retries import run_with_db_retries
 
 
 def _resolve_dagrun_model():
@@ -210,40 +211,43 @@ class BaseJob(Base, LoggingMixin):
 
         previous_heartbeat = self.latest_heartbeat
 
-        try:
-            with create_session() as session:
-                # This will cause it to load from the db
-                session.merge(self)
-                previous_heartbeat = self.latest_heartbeat
 
-            if self.state in State.terminating_states:
-                self.kill()
+        for attempt in run_with_db_retries():
+            with attempt:
+                try:
+                    with create_session() as session:
+                        # This will cause it to load from the db
+                        session.merge(self)
+                        previous_heartbeat = self.latest_heartbeat
 
-            # Figure out how long to sleep for
-            sleep_for = 0
-            if self.latest_heartbeat:
-                seconds_remaining = (
-                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-                )
-                sleep_for = max(0, seconds_remaining)
-            sleep(sleep_for)
+                    if self.state in State.terminating_states:
+                        self.kill()
 
-            # Update last heartbeat time
-            with create_session() as session:
-                # Make the session aware of this object
-                session.merge(self)
-                self.latest_heartbeat = timezone.utcnow()
-                session.commit()
-                # At this point, the DB has updated.
-                previous_heartbeat = self.latest_heartbeat
+                    # Figure out how long to sleep for
+                    sleep_for = 0
+                    if self.latest_heartbeat:
+                        seconds_remaining = (
+                            self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                        )
+                        sleep_for = max(0, seconds_remaining)
+                    sleep(sleep_for)
 
-                self.heartbeat_callback(session=session)
-                self.log.debug("[heartbeat]")
-        except OperationalError:
-            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-            self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
-            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
-            self.latest_heartbeat = previous_heartbeat
+                    # Update last heartbeat time
+                    with create_session() as session:
+                        # Make the session aware of this object
+                        session.merge(self)
+                        self.latest_heartbeat = timezone.utcnow()
+                        session.commit()
+                        # At this point, the DB has updated.
+                        previous_heartbeat = self.latest_heartbeat
+
+                        self.heartbeat_callback(session=session)
+                        self.log.debug("[heartbeat]")
+                except OperationalError:
+                    Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+                    self.log.exception("%s heartbeat got an exception(retry:%d)", self.__class__.__name__, attempt.retry_state.attempt_number)
+                    # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+                    self.latest_heartbeat = previous_heartbeat
 
     def run(self):
         """Starts the job."""
