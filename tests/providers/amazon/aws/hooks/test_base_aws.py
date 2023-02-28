@@ -22,6 +22,7 @@ import os
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from unittest import mock
+from unittest.mock import mock_open
 from uuid import UUID
 
 import boto3
@@ -29,6 +30,7 @@ import pytest
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from botocore.exceptions import NoCredentialsError
+from botocore.utils import FileWebIdentityTokenLoader
 from moto import mock_dynamodb, mock_emr, mock_iam, mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
 
@@ -484,10 +486,44 @@ class TestAwsBaseHook:
             [mock.call.get_default_id_token_credentials(target_audience="aws-federation.airflow.apache.org")]
         )
 
+    @mock.patch.object(
+        AwsBaseHook,
+        "get_connection",
+        return_value=Connection(
+            conn_id="aws_default",
+            conn_type="aws",
+            extra=json.dumps(
+                {
+                    "role_arn": "arn:aws:iam::123456:role/role_arn",
+                    "assume_role_method": "assume_role_with_web_identity",
+                    "assume_role_with_web_identity_token_file": "/my-token-path",
+                    "assume_role_with_web_identity_federation": "file",
+                }
+            ),
+        ),
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.base_aws.botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher"
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.botocore.session.Session")
+    def test_get_credentials_from_token_file(
+        self, mock_session, mock_credentials_fetcher, mock_get_connection
+    ):
+        mock_open_ = mock_open(read_data="TOKEN")
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.botocore.utils.FileWebIdentityTokenLoader.__init__.__defaults__",
+            new=(mock_open_,),
+        ):
+            AwsBaseHook(aws_conn_id="aws_default", client_type="airflow_test").get_session()
+
+        _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
+        assert isinstance(mock_creds_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader)
+        assert mock_creds_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
+        assert mock_open_.call_args[0][0] == "/my-token-path"
+
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
     def test_assume_role_with_saml(self, mock_get_connection):
-
         idp_url = "https://my-idp.local.corp"
         principal_arn = "principal_arn_1234567890"
         role_arn = "arn:aws:iam::123456:role/role_arn"
