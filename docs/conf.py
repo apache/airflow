@@ -648,6 +648,7 @@ if PACKAGE_NAME in ("apache-airflow-providers-google", "apache-airflow"):
                 "google-cloud-automl",
                 "google-cloud-bigquery",
                 "google-cloud-bigquery-datatransfer",
+                "google-cloud-bigquery-reservation",
                 "google-cloud-bigquery-storage",
                 "google-cloud-bigtable",
                 "google-cloud-container",

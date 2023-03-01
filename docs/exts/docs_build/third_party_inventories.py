@@ -33,6 +33,7 @@ THIRD_PARTY_INDEXES = {
     "google-api-core": "https://googleapis.dev/python/google-api-core/latest",
     "google-cloud-automl": "https://googleapis.dev/python/automl/latest",
     "google-cloud-bigquery": "https://googleapis.dev/python/bigquery/latest",
+    "google-cloud-bigquery-reservation": "https://googleapis.dev/python/bigqueryreservation/latest",
     "google-cloud-bigquery-datatransfer": "https://googleapis.dev/python/bigquerydatatransfer/latest",
     "google-cloud-bigquery-storage": "https://googleapis.dev/python/bigquerystorage/latest",
     "google-cloud-bigtable": "https://googleapis.dev/python/bigtable/latest",
