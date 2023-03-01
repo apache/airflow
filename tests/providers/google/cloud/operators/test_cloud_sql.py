@@ -18,11 +18,9 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -149,7 +147,7 @@ IMPORT_BODY = {
 }
 
 
-class TestCloudSql(unittest.TestCase):
+class TestCloudSql:
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_sql"
         ".CloudSQLCreateInstanceOperator._check_if_instance_exists"
@@ -673,7 +671,7 @@ class TestCloudSql(unittest.TestCase):
         assert result
 
 
-class TestCloudSqlQueryValidation(unittest.TestCase):
+class TestCloudSqlQueryValidation:
     @staticmethod
     def _setup_connections(get_connection, uri):
         gcp_connection = mock.MagicMock()
@@ -683,7 +681,8 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         cloudsql_connection2 = Connection(uri=uri)
         get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, location, instance_name, database_type, use_proxy, use_ssl, sql, message",
         [
             (
                 "project_id",
@@ -736,11 +735,12 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
                 "SELECT * FROM TEST",
                 "SSL connections requires sslcert to be set",
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_create_operator_with_wrong_parameters(
         self,
+        get_connection,
         project_id,
         location,
         instance_name,
@@ -749,7 +749,6 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         use_ssl,
         sql,
         message,
-        get_connection,
     ):
         uri = (
             f"gcpcloudsql://user:password@127.0.0.1:3200/testdb?"
