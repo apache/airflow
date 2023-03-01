@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Button, Flex, Link, Divider } from "@chakra-ui/react";
+import { Button, Flex, Link, Box, Text, Divider } from "@chakra-ui/react";
 
 import { useExtraLinks } from "src/api";
 
@@ -29,25 +29,22 @@ interface Props {
   extraLinks: string[];
 }
 
-const ExtraLinks = ({
-  dagId,
-  taskId,
-  executionDate,
-  extraLinks = [],
-}: Props) => {
-  const { data: links = [] } = useExtraLinks({
+const ExtraLinks = ({ dagId, taskId, executionDate, extraLinks }: Props) => {
+  const { data: links } = useExtraLinks({
     dagId,
     taskId,
     executionDate,
     extraLinks,
   });
 
-  if (!links.length) return null;
+  if (!links?.length) return null;
+
   const isExternal = (url: string | null) =>
     url && /^(?:[a-z]+:)?\/\//.test(url);
 
   return (
-    <>
+    <Box mb={3}>
+      <Text as="strong">Extra Links</Text>
       <Divider my={2} />
       <Flex flexWrap="wrap">
         {links.map(({ name, url }) => (
@@ -58,12 +55,14 @@ const ExtraLinks = ({
             href={url}
             isDisabled={!url}
             target={isExternal(url) ? "_blank" : undefined}
+            mr={2}
           >
             {name}
           </Button>
         ))}
       </Flex>
-    </>
+      <Divider my={2} />
+    </Box>
   );
 };
 
