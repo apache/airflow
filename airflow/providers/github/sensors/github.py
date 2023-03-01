@@ -65,7 +65,7 @@ class GithubSensor(BaseSensorOperator):
 
         if self.result_processor:
             if self.allow_templates_in_result_processor:
-                return self.result_processor(github_result, templated_fields=None)
+                return self.result_processor(github_result, templated_fields=templated_fields)
             return self.result_processor(github_result)
 
         return github_result
@@ -141,7 +141,10 @@ class GithubTagSensor(BaseGithubRepositorySensor):
 
     def tag_checker(self, repo: Any, templated_fields=None) -> bool | None:
         """Checking existence of Tag in a Repository"""
-        tag_name = templated_fields.get("tag_name")
+        if templated_fields:
+            tag_name = templated_fields.get("tag_name")
+        else:
+            tag_name = self.tag_name
         result = None
         try:
             if repo is not None and tag_name is not None:
