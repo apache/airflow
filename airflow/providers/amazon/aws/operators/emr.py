@@ -159,12 +159,13 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
     :param: master_instance_security_group_id: Optional unique ID of an EC2 security
         group to associate with the master instance of the EMR cluster for this notebook execution.
     :param tags: Optional list of key value pair to associate with the notebook execution.
+    :param waiter_max_attempts: Maximum number of tries before failing.
+    :param waiter_delay: Number of seconds between polling the state of the notebook.
+
     :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
         Defaults to 25 * 60 seconds. (Deprecated.  Please use waiter_max_attempts.)
     :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
         Defaults to 60 seconds. (Deprecated.  Please use waiter_delay.)
-    :param waiter_max_attempts: Maximum number of tries before failing.
-    :param waiter_delay: Number of seconds between polling the state of the notebook.
     """
 
     template_fields: Sequence[str] = (
@@ -194,11 +195,11 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         tags: list | None = None,
         wait_for_completion: bool = False,
         aws_conn_id: str = "aws_default",
+        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
+        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
+        waiter_delay: int | None | ArgNotSet = NOTSET,
         waiter_countdown: int = 25 * 60,
         waiter_check_interval_seconds: int = 60,
-        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | ArgNotSet = NOTSET,
-        waiter_delay: int | ArgNotSet = NOTSET,
         **kwargs: Any,
     ):
         if waiter_max_attempts is NOTSET:
@@ -207,12 +208,14 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
                 "future this will default to None and defer to the waiter's default value."
             )
+            waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
         if waiter_delay is NOTSET:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
                 "future this will default to None and defer to the waiter's default value."
             )
+            waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
         self.editor_id = editor_id
         self.relative_path = relative_path
@@ -224,12 +227,8 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.cluster_id = cluster_id
         self.aws_conn_id = aws_conn_id
-        self.waiter_max_attempts = (
-            (waiter_countdown // waiter_check_interval_seconds)
-            if waiter_max_attempts is NOTSET
-            else waiter_max_attempts
-        )
-        self.waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else NOTSET
+        self.waiter_max_attempts = waiter_max_attempts
+        self.waiter_delay = waiter_delay
         self.master_instance_security_group_id = master_instance_security_group_id
 
     def execute(self, context: Context):
@@ -292,12 +291,13 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
     :param wait_for_completion: If True, the operator will wait for the notebook.
         to be in a STOPPED or FINISHED state. Defaults to False.
     :param aws_conn_id: aws connection to use.
+    :param waiter_max_attempts: Maximum number of tries before failing.
+    :param waiter_delay: Number of seconds between polling the state of the notebook.
+
     :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
         Defaults to 25 * 60 seconds. (Deprecated.  Please use waiter_max_attempts.)
     :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
         Defaults to 60 seconds. (Deprecated.  Please use waiter_delay.)
-    :param waiter_max_attempts: Maximum number of tries before failing.
-    :param waiter_delay: Number of seconds between polling the state of the notebook.
     """
 
     template_fields: Sequence[str] = (
@@ -311,11 +311,11 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         notebook_execution_id: str,
         wait_for_completion: bool = False,
         aws_conn_id: str = "aws_default",
+        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
+        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
+        waiter_delay: int | None | ArgNotSet = NOTSET,
         waiter_countdown: int = 25 * 60,
         waiter_check_interval_seconds: int = 60,
-        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | ArgNotSet = NOTSET,
-        waiter_delay: int | ArgNotSet = NOTSET,
         **kwargs: Any,
     ):
         if waiter_max_attempts is NOTSET:
@@ -324,22 +324,20 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
                 "future this will default to None and defer to the waiter's default value."
             )
+            waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
         if waiter_delay is NOTSET:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
                 "future this will default to None and defer to the waiter's default value."
             )
+            waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
         self.notebook_execution_id = notebook_execution_id
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
-        self.waiter_max_attempts = (
-            (waiter_countdown // waiter_check_interval_seconds)
-            if waiter_max_attempts is NOTSET
-            else waiter_max_attempts
-        )
-        self.waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.waiter_delay = waiter_delay
 
     def execute(self, context: Context) -> None:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -582,12 +580,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param region_name: Region named passed to EmrHook
     :param wait_for_completion: Whether to finish task immediately after creation (False) or wait for jobflow
         completion (True)
+    :param waiter_max_attempts: Maximum number of tries before failing.
+    :param waiter_delay: Number of seconds between polling the state of the notebook.
+
     :param waiter_countdown: Max. seconds to wait for jobflow completion (only in combination with
         wait_for_completion=True, None = no limit) (Deprecated.  Please use waiter_max_attempts.)
     :param waiter_check_interval_seconds: Number of seconds between polling the jobflow state. Defaults to 60
         seconds. (Deprecated.  Please use waiter_delay.)
-    :param waiter_max_attempts: Maximum number of tries before failing.
-    :param waiter_delay: Number of seconds between polling the state of the notebook.
     """
 
     template_fields: Sequence[str] = (
@@ -608,11 +607,11 @@ class EmrCreateJobFlowOperator(BaseOperator):
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
         wait_for_completion: bool = False,
+        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
+        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
+        waiter_delay: int | None | ArgNotSet = NOTSET,
         waiter_countdown: int | None = None,
         waiter_check_interval_seconds: int = 60,
-        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | ArgNotSet = NOTSET,
-        waiter_delay: int | ArgNotSet = NOTSET,
         **kwargs: Any,
     ):
         if waiter_max_attempts is NOTSET:
@@ -621,26 +620,24 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
                 "future this will default to None and defer to the waiter's default value."
             )
+            # waiter_countdown defaults to never timing out, which is not supported
+            # by boto waiters, so we will set it here to "a very long time" for now.
+            waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
         if waiter_delay is NOTSET:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
                 "future this will default to None and defer to the waiter's default value."
             )
+            waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
         self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
-        # waiter_countdown defaults to never timing out, which is not supported by waiters
-        self.waiter_countdown = waiter_countdown or 999
         self.wait_for_completion = wait_for_completion
-        self.waiter_max_attempts = (
-            (self.waiter_countdown // waiter_check_interval_seconds)
-            if waiter_max_attempts is NOTSET
-            else waiter_max_attempts
-        )
-        self.waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.waiter_delay = waiter_delay
 
         self._job_flow_id: str | None = None
 
