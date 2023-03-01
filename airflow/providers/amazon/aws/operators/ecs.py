@@ -39,7 +39,7 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     EcsTaskDefinitionStates,
     should_retry_eni,
 )
-from airflow.providers.amazon.aws.sensors.ecs import EcsClusterStateSensor, EcsTaskDefinitionStateSensor
+from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
@@ -83,6 +83,10 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         cluster, you create a cluster that's named default.
     :param create_cluster_kwargs: Extra arguments for Cluster Creation.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = ("cluster_name", "create_cluster_kwargs", "wait_for_completion")
@@ -93,31 +97,44 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         cluster_name: str,
         create_cluster_kwargs: dict | None = None,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.create_cluster_kwargs = create_cluster_kwargs or {}
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info(
-            "Creating cluster %s using the following values: %s",
+            "Creating cluster %r using the following values: %s",
             self.cluster_name,
             self.create_cluster_kwargs,
         )
         result = self.client.create_cluster(clusterName=self.cluster_name, **self.create_cluster_kwargs)
+        cluster_details = result["cluster"]
+        cluster_state = cluster_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsClusterStateSensor(
-                task_id="await_cluster",
-                cluster_name=self.cluster_name,
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until
-                # the cluster is ready or has reached a failed state.
-                pass
+        if cluster_state == EcsClusterStates.ACTIVE:
+            # In some circumstances the ECS Cluster is created immediately,
+            # and there is no reason to wait for completion.
+            self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("cluster_active")
+            waiter.wait(
+                clusters=[cluster_details["clusterArn"]],
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        return result["cluster"]
+        return cluster_details
 
 
 class EcsDeleteClusterOperator(EcsBaseOperator):
@@ -130,6 +147,10 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
 
     :param cluster_name: The short name or full Amazon Resource Name (ARN) of the cluster to delete.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = ("cluster_name", "wait_for_completion")
@@ -139,28 +160,39 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         *,
         cluster_name: str,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
-        self.log.info("Deleting cluster %s.", self.cluster_name)
+        self.log.info("Deleting cluster %r.", self.cluster_name)
         result = self.client.delete_cluster(cluster=self.cluster_name)
+        cluster_details = result["cluster"]
+        cluster_state = cluster_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsClusterStateSensor(
-                task_id="await_cluster_delete",
-                cluster_name=self.cluster_name,
-                target_state=EcsClusterStates.INACTIVE,
-                failure_states={EcsClusterStates.FAILED},
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until
-                # the cluster is deleted or reaches a failed state.
-                pass
+        if cluster_state == EcsClusterStates.INACTIVE:
+            # In some circumstances the ECS Cluster is deleted immediately,
+            # so there is no reason to wait for completion.
+            self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("cluster_inactive")
+            waiter.wait(
+                clusters=[cluster_details["clusterArn"]],
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        return result["cluster"]
+        return cluster_details
 
 
 class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
@@ -174,30 +206,53 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
     :param task_definition: The family and revision (family:revision) or full Amazon Resource Name (ARN)
         of the task definition to deregister. If you use a family name, you must specify a revision.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = ("task_definition", "wait_for_completion")
 
-    def __init__(self, *, task_definition: str, wait_for_completion: bool = True, **kwargs):
+    def __init__(
+        self,
+        *,
+        task_definition: str,
+        wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.task_definition = task_definition
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info("Deregistering task definition %s.", self.task_definition)
         result = self.client.deregister_task_definition(taskDefinition=self.task_definition)
+        task_definition_details = result["taskDefinition"]
+        task_definition_arn = task_definition_details["taskDefinitionArn"]
+        task_definition_state = task_definition_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsTaskDefinitionStateSensor(
-                task_id="await_deregister_task_definition",
-                task_definition=self.task_definition,
-                target_state=EcsTaskDefinitionStates.INACTIVE,
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until the
-                # task definition is deregistered or reaches a failed state.
-                pass
+        if task_definition_state == EcsTaskDefinitionStates.INACTIVE:
+            # In some circumstances the ECS Task Definition is deleted immediately,
+            # so there is no reason to wait for completion.
+            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("task_definition_inactive")
+            waiter.wait(
+                taskDefinition=task_definition_arn,
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        return result["taskDefinition"]["taskDefinitionArn"]
+        return task_definition_arn
 
 
 class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
@@ -213,6 +268,10 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         the different containers that make up your task.
     :param register_task_kwargs: Extra arguments for Register Task Definition.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = (
@@ -229,6 +288,8 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -236,6 +297,8 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         self.container_definitions = container_definitions
         self.register_task_kwargs = register_task_kwargs or {}
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info(
@@ -249,18 +312,28 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
             containerDefinitions=self.container_definitions,
             **self.register_task_kwargs,
         )
-        task_arn = response["taskDefinition"]["taskDefinitionArn"]
+        task_definition_details = response["taskDefinition"]
+        task_definition_arn = task_definition_details["taskDefinitionArn"]
+        task_definition_state = task_definition_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsTaskDefinitionStateSensor(
-                task_id="await_register_task_definition", task_definition=task_arn
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until
-                # the task definition is registered or reaches a failed state.
-                pass
+        if task_definition_state == EcsTaskDefinitionStates.ACTIVE:
+            # In some circumstances the ECS Task Definition is created immediately,
+            # so there is no reason to wait for completion.
+            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("task_definition_active")
+            waiter.wait(
+                taskDefinition=task_definition_arn,
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        context["ti"].xcom_push(key="task_definition_arn", value=task_arn)
-        return task_arn
+        context["ti"].xcom_push(key="task_definition_arn", value=task_definition_arn)
+        return task_definition_arn
 
 
 class EcsRunTaskOperator(EcsBaseOperator):

@@ -55,7 +55,7 @@ def should_retry_eni(exception: Exception):
     return False
 
 
-class EcsClusterStates(Enum):
+class EcsClusterStates(str, Enum):
     """Contains the possible State values of an ECS Cluster."""
 
     ACTIVE = "ACTIVE"
@@ -65,14 +65,15 @@ class EcsClusterStates(Enum):
     INACTIVE = "INACTIVE"
 
 
-class EcsTaskDefinitionStates(Enum):
+class EcsTaskDefinitionStates(str, Enum):
     """Contains the possible State values of an ECS Task Definition."""
 
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
+    DELETE_IN_PROGRESS = "DELETE_IN_PROGRESS"
 
 
-class EcsTaskStates(Enum):
+class EcsTaskStates(str, Enum):
     """Contains the possible State values of an ECS Task."""
 
     PROVISIONING = "PROVISIONING"
