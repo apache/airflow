@@ -172,6 +172,7 @@ class ClusterGenerator:
         auto_delete_ttl: int | None = None,
         customer_managed_key: str | None = None,
         enable_component_gateway: bool | None = False,
+        labels: dict | None = None,
         **kwargs,
     ) -> None:
 
@@ -209,6 +210,7 @@ class ClusterGenerator:
         self.customer_managed_key = customer_managed_key
         self.enable_component_gateway = enable_component_gateway
         self.single_node = num_workers == 0
+        self.labels = labels
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -330,7 +332,8 @@ class ClusterGenerator:
 
         if self.storage_bucket:
             cluster_data["config_bucket"] = self.storage_bucket
-
+        if self.labels:
+            cluster_data["labels"] = self.labels
         if self.image_version:
             cluster_data["software_config"]["image_version"] = self.image_version
 
@@ -380,7 +383,6 @@ class ClusterGenerator:
             cluster_data["autoscaling_config"] = {"policy_uri": self.autoscaling_policy}
         if self.enable_component_gateway:
             cluster_data["endpoint_config"] = {"enable_http_port_access": self.enable_component_gateway}
-
         return cluster_data
 
     def make(self):

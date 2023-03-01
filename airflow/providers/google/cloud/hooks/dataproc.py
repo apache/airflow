@@ -327,6 +327,9 @@ class DataprocHook(GoogleBaseHook):
         if cluster_config is not None:
             cluster["config"] = cluster_config  # type: ignore
             cluster["labels"] = labels  # type: ignore
+            cluster_config_label = cluster_config.pop("labels", None)
+            if cluster_config_label is not None:
+                cluster["labels"].update(cluster_config_label)  # type: ignore
 
         client = self.get_cluster_client(region=region)
         result = client.create_cluster(
@@ -1156,7 +1159,6 @@ class DataprocAsyncHook(GoogleBaseHook):
         # semantic versioning spec: x.y.z).
         labels = labels or {}
         labels.update({"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")})
-
         cluster = {
             "project_id": project_id,
             "cluster_name": cluster_name,
@@ -1166,6 +1168,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         if cluster_config is not None:
             cluster["config"] = cluster_config  # type: ignore
             cluster["labels"] = labels  # type: ignore
+            cluster_config_label = cluster_config.pop("labels", None)
+            if cluster_config_label is not None:
+                cluster["labels"].update(cluster_config_label)  # type: ignore
 
         client = self.get_cluster_client(region=region)
         result = await client.create_cluster(
