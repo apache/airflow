@@ -2029,7 +2029,7 @@ class TestStringifiedDAGs:
         dag = DAG("test_not_templateable_fields", start_date=datetime(2019, 8, 1))
         with dag:
             TestOperator(task_id="test", execution_timeout=timedelta(seconds=10))
-        with pytest.raises(AirflowException, match="Cannot use execution_timeout as template field"):
+        with pytest.raises(AirflowException, match="Cannot template BaseOperator fields: execution_timeout"):
             SerializedDAG.to_dict(dag)
 
 
