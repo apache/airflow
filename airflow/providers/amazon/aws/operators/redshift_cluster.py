@@ -84,6 +84,9 @@ class RedshiftCreateClusterOperator(BaseOperator):
     :param default_iam_role_arn: ARN for the IAM role.
     :param aws_conn_id: str = The Airflow connection used for AWS credentials.
         The default connection id is ``aws_default``.
+    :param wait_for_completion: Whether wait for the cluster to be in ``available`` state
+    :param max_attempt: The maximum number of attempts to be made. Default: 5
+    :param poll_interval: The amount of time in seconds to wait between attempts. Default: 60
     """
 
     template_fields: Sequence[str] = (
@@ -133,6 +136,9 @@ class RedshiftCreateClusterOperator(BaseOperator):
         aqua_configuration_status: str | None = None,
         default_iam_role_arn: str | None = None,
         aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = False,
+        max_attempt: int = 5,
+        poll_interval: int = 60,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -170,6 +176,9 @@ class RedshiftCreateClusterOperator(BaseOperator):
         self.aqua_configuration_status = aqua_configuration_status
         self.default_iam_role_arn = default_iam_role_arn
         self.aws_conn_id = aws_conn_id
+        self.wait_for_completion = wait_for_completion
+        self.max_attempt = max_attempt
+        self.poll_interval = poll_interval
         self.kwargs = kwargs
 
     def execute(self, context: Context):
@@ -242,6 +251,15 @@ class RedshiftCreateClusterOperator(BaseOperator):
             self.master_user_password,
             params,
         )
+        if self.wait_for_completion:
+            redshift_hook.get_conn().get_waiter("cluster_available").wait(
+                ClusterIdentifier=self.cluster_identifier,
+                WaiterConfig={
+                    "Delay": self.poll_interval,
+                    "MaxAttempts": self.max_attempt,
+                },
+            )
+
         self.log.info("Created Redshift cluster %s", self.cluster_identifier)
         self.log.info(cluster)
 

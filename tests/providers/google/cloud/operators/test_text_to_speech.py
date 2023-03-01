@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import ANY, MagicMock, Mock, PropertyMock, patch
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
@@ -37,7 +35,7 @@ TARGET_BUCKET_NAME = "target_bucket_name"
 TARGET_FILENAME = "target_filename"
 
 
-class TestGcpTextToSpeech(unittest.TestCase):
+class TestGcpTextToSpeech:
     @patch("airflow.providers.google.cloud.operators.text_to_speech.GCSHook")
     @patch("airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook")
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
@@ -75,27 +73,28 @@ class TestGcpTextToSpeech(unittest.TestCase):
             bucket_name=TARGET_BUCKET_NAME, object_name=TARGET_FILENAME, filename=ANY
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "missing_arg, input_data, voice, audio_config, target_bucket_name, target_filename",
         [
             ("input_data", "", VOICE, AUDIO_CONFIG, TARGET_BUCKET_NAME, TARGET_FILENAME),
             ("voice", INPUT, "", AUDIO_CONFIG, TARGET_BUCKET_NAME, TARGET_FILENAME),
             ("audio_config", INPUT, VOICE, "", TARGET_BUCKET_NAME, TARGET_FILENAME),
             ("target_bucket_name", INPUT, VOICE, AUDIO_CONFIG, "", TARGET_FILENAME),
             ("target_filename", INPUT, VOICE, AUDIO_CONFIG, TARGET_BUCKET_NAME, ""),
-        ]
+        ],
     )
     @patch("airflow.providers.google.cloud.operators.text_to_speech.GCSHook")
     @patch("airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook")
     def test_missing_arguments(
         self,
+        mock_text_to_speech_hook,
+        mock_gcp_hook,
         missing_arg,
         input_data,
         voice,
         audio_config,
         target_bucket_name,
         target_filename,
-        mock_text_to_speech_hook,
-        mock_gcp_hook,
     ):
         mocked_context = Mock()
 

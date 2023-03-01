@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -34,7 +33,7 @@ GCP_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestCloudTranslateSpeech(unittest.TestCase):
+class TestCloudTranslateSpeech:
     @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
     @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")
     def test_minimal_green_path(self, mock_translate_hook, mock_speech_hook):

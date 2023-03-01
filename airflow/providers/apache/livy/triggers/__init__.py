@@ -14,16 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context
-
-
-class TestS3BucketExampleDagsSystem(AmazonSystemTest):
-    """
-    System tests for AWS S3 operators
-    """
-
-    @provide_aws_context()
-    def test_run_example_dag_s3(self):
-        self.run_dag("s3_bucket_dag", AWS_DAG_FOLDER)

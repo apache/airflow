@@ -17,13 +17,13 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
-import ELK, { ElkShape, ElkExtendedEdge } from 'elkjs';
+import axios, { AxiosResponse } from "axios";
+import { useQuery } from "react-query";
+import ELK, { ElkShape, ElkExtendedEdge } from "elkjs";
 
-import { getMetaValue } from 'src/utils';
-import type { DepEdge, DepNode } from 'src/types';
-import type { NodeType } from 'src/datasets/Graph/Node';
+import { getMetaValue } from "src/utils";
+import type { DepEdge, DepNode } from "src/types";
+import type { NodeType } from "src/datasets/Graph/Node";
 
 interface DatasetDependencies {
   edges: DepEdge[];
@@ -52,7 +52,7 @@ interface Data {
 
 // Take text and font to calculate how long each node should be
 function getTextWidth(text: string, font: string) {
-  const context = document.createElement('canvas').getContext('2d');
+  const context = document.createElement("canvas").getContext("2d");
   if (context) {
     context.font = font;
     const metrics = context.measureText(text);
@@ -62,18 +62,18 @@ function getTextWidth(text: string, font: string) {
 }
 
 const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
-  id: 'root',
+  id: "root",
   layoutOptions: {
-    'spacing.nodeNodeBetweenLayers': '40.0',
-    'spacing.edgeNodeBetweenLayers': '10.0',
-    'layering.strategy': 'INTERACTIVE',
-    algorithm: 'layered',
-    'crossingMinimization.semiInteractive': 'true',
-    'spacing.edgeEdgeBetweenLayers': '10.0',
-    'spacing.edgeNode': '10.0',
-    'spacing.edgeEdge': '10.0',
-    'spacing.nodeNode': '20.0',
-    'elk.direction': 'DOWN',
+    "spacing.nodeNodeBetweenLayers": "40.0",
+    "spacing.edgeNodeBetweenLayers": "10.0",
+    "layering.strategy": "INTERACTIVE",
+    algorithm: "layered",
+    "crossingMinimization.semiInteractive": "true",
+    "spacing.edgeEdgeBetweenLayers": "10.0",
+    "spacing.edgeNode": "10.0",
+    "spacing.edgeEdge": "10.0",
+    "spacing.nodeNode": "20.0",
+    "elk.direction": "DOWN",
   },
   children: nodes.map(({ id, value }) => ({
     id,
@@ -82,7 +82,11 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
     height: 40,
     value,
   })),
-  edges: edges.map((e) => ({ id: `${e.source}-${e.target}`, sources: [e.source], targets: [e.target] })),
+  edges: edges.map((e) => ({
+    id: `${e.source}-${e.target}`,
+    sources: [e.source],
+    targets: [e.target],
+  })),
 });
 
 interface SeparateGraphsProps {
@@ -91,43 +95,49 @@ interface SeparateGraphsProps {
 }
 
 // find the downstream graph of each upstream edge
-const findDownstreamGraph = (
-  { edges, graphs = [] }: SeparateGraphsProps,
-): EdgeGroup[] => {
+const findDownstreamGraph = ({
+  edges,
+  graphs = [],
+}: SeparateGraphsProps): EdgeGroup[] => {
   let unassignedEdges = [...edges];
 
   const mergedGraphs = graphs
-    .reduce(
-      (newGraphs, graph) => {
-        const otherGroupIndex = newGraphs.findIndex(
-          (otherGroup) => otherGroup.edges.some(
-            (otherEdge) => graph.edges.some(
-              (edge) => edge.target === otherEdge.target,
-            ),
-          ),
-        );
-        if (otherGroupIndex === -1) {
-          return [...newGraphs, graph];
-        }
+    .reduce((newGraphs, graph) => {
+      const otherGroupIndex = newGraphs.findIndex((otherGroup) =>
+        otherGroup.edges.some((otherEdge) =>
+          graph.edges.some((edge) => edge.target === otherEdge.target)
+        )
+      );
+      if (otherGroupIndex === -1) {
+        return [...newGraphs, graph];
+      }
 
-        const mergedEdges = [...newGraphs[otherGroupIndex].edges, ...graph.edges]
-          .filter((edge, edgeIndex, otherEdges) => (
-            edgeIndex === otherEdges.findIndex(
-              (otherEdge) => otherEdge.source === edge.source && otherEdge.target === edge.target,
-            )
-          ));
-        return [
-          ...newGraphs.filter((_, newGraphIndex) => newGraphIndex !== otherGroupIndex),
-          { edges: mergedEdges },
-        ];
-      },
-      [] as EdgeGroup[],
-    )
+      const mergedEdges = [
+        ...newGraphs[otherGroupIndex].edges,
+        ...graph.edges,
+      ].filter(
+        (edge, edgeIndex, otherEdges) =>
+          edgeIndex ===
+          otherEdges.findIndex(
+            (otherEdge) =>
+              otherEdge.source === edge.source &&
+              otherEdge.target === edge.target
+          )
+      );
+      return [
+        ...newGraphs.filter(
+          (_, newGraphIndex) => newGraphIndex !== otherGroupIndex
+        ),
+        { edges: mergedEdges },
+      ];
+    }, [] as EdgeGroup[])
     .map((graph) => {
       // find the next set of downstream edges and filter them out of the unassigned edges list
       const downstreamEdges: DepEdge[] = [];
       unassignedEdges = unassignedEdges.filter((edge) => {
-        const isDownstream = graph.edges.some((graphEdge) => graphEdge.target === edge.source);
+        const isDownstream = graph.edges.some(
+          (graphEdge) => graphEdge.target === edge.source
+        );
         if (isDownstream) downstreamEdges.push(edge);
         return !isDownstream;
       });
@@ -144,7 +154,10 @@ const findDownstreamGraph = (
 };
 
 // separate the list of nodes/edges into distinct dataset pipeline graphs
-const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependencies[] => {
+const separateGraphs = ({
+  edges,
+  nodes,
+}: DatasetDependencies): DatasetDependencies[] => {
   const separatedGraphs: EdgeGroup[] = [];
   const remainingEdges: DepEdge[] = [];
 
@@ -157,19 +170,20 @@ const separateGraphs = ({ edges, nodes }: DatasetDependencies): DatasetDependenc
     }
   });
 
-  const edgeGraphs = findDownstreamGraph({ edges: remainingEdges, graphs: separatedGraphs });
+  const edgeGraphs = findDownstreamGraph({
+    edges: remainingEdges,
+    graphs: separatedGraphs,
+  });
 
   // once all the edges are found, add the nodes
   return edgeGraphs.map((eg) => {
-    const graphNodes = nodes.filter(
-      (n) => eg.edges.some(
-        (e) => e.target === n.id || e.source === n.id,
-      ),
+    const graphNodes = nodes.filter((n) =>
+      eg.edges.some((e) => e.target === n.id || e.source === n.id)
     );
-    return ({
+    return {
       edges: eg.edges,
       nodes: graphNodes,
-    });
+    };
   });
 };
 
@@ -179,12 +193,16 @@ const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
   const graphs = separateGraphs({ edges, nodes });
 
   // get computed style to calculate how large each node should be
-  const font = `bold ${16}px ${window.getComputedStyle(document.body).fontFamily}`;
+  const font = `bold ${16}px ${
+    window.getComputedStyle(document.body).fontFamily
+  }`;
 
   // Finally generate the graph data with elk
-  const subGraphs = await Promise.all(graphs.map(async (g) => (
-    elk.layout(generateGraph({ nodes: g.nodes, edges: g.edges, font }))
-  )));
+  const subGraphs = await Promise.all(
+    graphs.map(async (g) =>
+      elk.layout(generateGraph({ nodes: g.nodes, edges: g.edges, font }))
+    )
+  );
   const fullGraph = await elk.layout(generateGraph({ nodes, edges, font }));
 
   return {
@@ -194,12 +212,11 @@ const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
 };
 
 export default function useDatasetDependencies() {
-  return useQuery(
-    'datasetDependencies',
-    async () => {
-      const datasetDepsUrl = getMetaValue('dataset_dependencies_url');
-      const rawData = await axios.get<AxiosResponse, DatasetDependencies>(datasetDepsUrl);
-      return formatDependencies(rawData);
-    },
-  );
+  return useQuery("datasetDependencies", async () => {
+    const datasetDepsUrl = getMetaValue("dataset_dependencies_url");
+    const rawData = await axios.get<AxiosResponse, DatasetDependencies>(
+      datasetDepsUrl
+    );
+    return formatDependencies(rawData);
+  });
 }

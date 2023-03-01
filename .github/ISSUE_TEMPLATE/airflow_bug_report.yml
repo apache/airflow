@@ -1,7 +1,7 @@
 ---
 name: Airflow Bug report
 description: Problems and issues with code in Apache Airflow core
-labels: ["kind:bug", "area:core"]
+labels: ["kind:bug", "area:core", "needs-triage"]
 body:
   - type: markdown
     attributes:

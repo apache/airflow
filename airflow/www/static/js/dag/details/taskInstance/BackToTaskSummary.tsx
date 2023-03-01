@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import React from 'react';
-import { Button, Flex } from '@chakra-ui/react';
+import React from "react";
+import { Button, Flex } from "@chakra-ui/react";
 
 interface Props {
   isMapIndexDefined: boolean;
@@ -30,12 +30,7 @@ const BackToTaskSummary = ({ isMapIndexDefined, onClick }: Props) => {
 
   return (
     <Flex justifyContent="right">
-      <Button
-        variant="ghost"
-        colorScheme="blue"
-        onClick={onClick}
-        size="lg"
-      >
+      <Button variant="ghost" colorScheme="blue" onClick={onClick} size="lg">
         Back to Dynamic Task Summary
       </Button>
     </Flex>

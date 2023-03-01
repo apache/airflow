@@ -147,6 +147,8 @@ DAG runs.
 
 ------------
 
+.. _ui:task-duration:
+
 Task Duration
 .............
 The duration of your different tasks over the past N runs. This view lets
@@ -157,6 +159,20 @@ DAG over many runs.
 ------------
 
 .. image:: img/duration.png
+
+------------
+
+.. _ui:landing-times:
+
+Landing Times
+.............
+Airflow landing times are calculated from the task's scheduled time to
+the time the task finishes, either with success or another state (see
+:ref:`concepts:task-instances`).
+
+------------
+
+.. image:: img/landing_times.png
 
 ------------
 

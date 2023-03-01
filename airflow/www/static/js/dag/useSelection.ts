@@ -17,15 +17,15 @@
  * under the License.
  */
 
-import { useSearchParams } from 'react-router-dom';
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
+import { useSearchParams } from "react-router-dom";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
-const RUN_ID = 'dag_run_id';
-const TASK_ID = 'task_id';
-const MAP_INDEX = 'map_index';
+const RUN_ID = "dag_run_id";
+const TASK_ID = "task_id";
+const MAP_INDEX = "map_index";
 
 export interface SelectionProps {
-  runId?: string | null ;
+  runId?: string | null;
   taskId?: string | null;
   mapIndex?: number | null;
 }
