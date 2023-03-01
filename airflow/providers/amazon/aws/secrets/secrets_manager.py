@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import re
 import warnings
 from typing import Any
 from urllib.parse import unquote
@@ -41,13 +42,16 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
         backend_kwargs = {"connections_prefix": "airflow/connections"}
 
-    For example, if secrets prefix is ``airflow/connections/smtp_default``, this would be accessible
-    if you provide ``{"connections_prefix": "airflow/connections"}`` and request conn_id ``smtp_default``.
-    If variables prefix is ``airflow/variables/hello``, this would be accessible
-    if you provide ``{"variables_prefix": "airflow/variables"}`` and request variable key ``hello``.
-    And if config_prefix is ``airflow/config/sql_alchemy_conn``, this would be accessible
-    if you provide ``{"config_prefix": "airflow/config"}`` and request config
-    key ``sql_alchemy_conn``.
+    For example, when ``{"connections_prefix": "airflow/connections"}`` is set, if a secret is defined with
+    the path ``airflow/connections/smtp_default``, the connection with conn_id ``smtp_default`` would be
+    accessible.
+
+    When ``{"variables_prefix": "airflow/variables"}`` is set, if a secret is defined with
+    the path ``airflow/variables/hello``, the variable with the name ``hello`` would be accessible.
+
+    When ``{"config_prefix": "airflow/config"}`` set, if a secret is defined with
+    the path ``airflow/config/sql_alchemy_conn``, the config with they ``sql_alchemy_conn`` would be
+    accessible.
 
     You can also pass additional keyword arguments listed in AWS Connection Extra config
     to this class, and they would be used for establishing a connection and passed on to Boto3 client.
@@ -84,12 +88,24 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null value in the configuration), requests for connections will not be
         sent to AWS Secrets Manager. If you don't want a connections_prefix, set it as an empty string
+    :param connections_lookup_pattern: Specifies a pattern the connection ID needs to match to be looked up in
+        AWS Secrets Manager. Applies only if `connections_prefix` is not None.
+        If set to None (null value in the configuration), all connections will be looked up first in
+        AWS Secrets Manager.
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null value in the configuration), requests for variables will not be sent to
         AWS Secrets Manager. If you don't want a variables_prefix, set it as an empty string
+    :param variables_lookup_pattern: Specifies a pattern the variable key needs to match to be looked up in
+        AWS Secrets Manager. Applies only if `variables_prefix` is not None.
+        If set to None (null value in the configuration), all variables will be looked up first in
+        AWS Secrets Manager.
     :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
         If set to None (null value in the configuration), requests for configurations will not be sent to
         AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
+    :param config_lookup_pattern: Specifies a pattern the config key needs to match to be looked up in
+        AWS Secrets Manager. Applies only if `config_prefix` is not None.
+        If set to None (null value in the configuration), all config keys will be looked up first in
+        AWS Secrets Manager.
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :param extra_conn_words: for using just when you set full_url_mode as false and store
         the secrets in different fields of secrets manager. You can add more words for each connection
@@ -101,8 +117,11 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     def __init__(
         self,
         connections_prefix: str = "airflow/connections",
+        connections_lookup_pattern: str | None = None,
         variables_prefix: str = "airflow/variables",
+        variables_lookup_pattern: str | None = None,
         config_prefix: str = "airflow/config",
+        config_lookup_pattern: str | None = None,
         sep: str = "/",
         extra_conn_words: dict[str, list[str]] | None = None,
         **kwargs,
@@ -120,6 +139,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
+        self.connections_lookup_pattern = connections_lookup_pattern
+        self.variables_lookup_pattern = variables_lookup_pattern
+        self.config_lookup_pattern = config_lookup_pattern
         self.sep = sep
 
         if kwargs.pop("full_url_mode", None) is not None:
@@ -223,7 +245,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        secret = self._get_secret(self.connections_prefix, conn_id)
+        secret = self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern)
 
         if secret is not None and secret.strip().startswith("{"):
             # Before Airflow 2.3, the AWS SecretsManagerBackend added support for JSON secrets.
@@ -264,14 +286,14 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str) -> str | None:
         """
-        Get Airflow Variable from Environment Variable
+        Get Airflow Variable
         :param key: Variable Key
         :return: Variable Value
         """
         if self.variables_prefix is None:
             return None
 
-        return self._get_secret(self.variables_prefix, key)
+        return self._get_secret(self.variables_prefix, key, self.variables_lookup_pattern)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -282,14 +304,19 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.config_prefix is None:
             return None
 
-        return self._get_secret(self.config_prefix, key)
+        return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
 
-    def _get_secret(self, path_prefix, secret_id: str) -> str | None:
+    def _get_secret(self, path_prefix, secret_id: str, lookup_pattern: str | None) -> str | None:
         """
         Get secret value from Secrets Manager
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
+        :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in
+            Secrets Manager
         """
+        if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
+            return None
+
         error_msg = "An error occurred when calling the get_secret_value operation"
         if path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
