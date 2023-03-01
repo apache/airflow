@@ -1375,10 +1375,15 @@ class TaskGroupSerialization(BaseSerialization):
             return task
 
         group.setup_children = {
-            label: set_ref(task_dict[val]) for label, (_type, val) in encoded_group["setup_children"].items()
+            label: set_ref(task_dict[val])
+            if _type == DAT.OP
+            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
+            for label, (_type, val) in encoded_group["setup_children"].items()
         }
         group.teardown_children = {
             label: set_ref(task_dict[val])
+            if _type == DAT.OP
+            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
             for label, (_type, val) in encoded_group["teardown_children"].items()
         }
         group.children = {

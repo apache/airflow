@@ -38,6 +38,7 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
+from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -138,8 +139,8 @@ class TaskGroup(DAGNode):
 
         self.children: dict[str, DAGNode] = {}
 
-        self.setup_children: dict[str, AbstractOperator] = {}
-        self.teardown_children: dict[str, AbstractOperator] = {}
+        self.setup_children: dict[str, DAGNode] = {}
+        self.teardown_children: dict[str, DAGNode] = {}
 
         if parent_group:
             parent_group.add(self)
@@ -214,7 +215,6 @@ class TaskGroup(DAGNode):
         :meta private:
         """
         from airflow.models.abstractoperator import AbstractOperator
-        from airflow.utils.setup_teardown import SetupTeardownContext
 
         existing_tg = task.task_group
         if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
@@ -238,17 +238,16 @@ class TaskGroup(DAGNode):
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
-        if isinstance(task, AbstractOperator):
-            if SetupTeardownContext.is_setup:
+        if SetupTeardownContext.is_setup:
+            if isinstance(task, AbstractOperator):
                 setattr(task, "_is_setup", True)
-                self.setup_children[key] = task
-                return
-            elif SetupTeardownContext.is_teardown:
-                self.teardown_children[key] = task
+            self.setup_children[key] = task
+        elif SetupTeardownContext.is_teardown:
+            if isinstance(task, AbstractOperator):
                 setattr(task, "_is_teardown", True)
-                return
-
-        self.children[key] = task
+            self.teardown_children[key] = task
+        else:
+            self.children[key] = task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
