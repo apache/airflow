@@ -207,7 +207,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
-    template_fields: Sequence[str] = ("sql", "parameters")
+    template_fields: Sequence[str] = ("conn_id", "sql", "parameters")
     template_ext: Sequence[str] = (".sql", ".json")
     template_fields_renderers = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
@@ -265,6 +265,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             return_last=self.return_last,
             **extra_kwargs,
         )
+        if not self.do_xcom_push:
+            return None
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
             # For simplicity, we pass always list as input to _process_output, regardless if
             # single query results are going to be returned, and we return the first element
@@ -556,7 +558,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields = ("partition_clause", "table", "sql")
+    template_fields = ("partition_clause", "table", "sql", "conn_id")
 
     template_fields_renderers = {"sql": "sql"}
 

@@ -35,19 +35,25 @@ runs:
         name: container-logs-${{env.JOB_ID}}
         path: "./files/container_logs*"
         retention-days: 7
-    - name: "Upload artifact for coverage"
-      uses: actions/upload-artifact@v3
-      if: env.COVERAGE == 'true'
-      with:
-        name: coverage-${{env.JOB_ID}}
-        path: ./files/coverage*.xml
-        retention-days: 7
     - name: "Upload artifact for warnings"
       uses: actions/upload-artifact@v3
       with:
         name: test-warnings-${{env.JOB_ID}}
         path: ./files/warnings-*.txt
         retention-days: 7
+    - name: "Move coverage artifacts in separate directory"
+      if: env.COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
+      shell: bash
+      run: |
+        mkdir ./files/coverage-reposts
+        mv ./files/coverage*.xml ./files/coverage-reposts/ || true
+    - name: "Upload all coverage reports to codecov"
+      uses: codecov/codecov-action@v3
+      if: env.COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
+      with:
+        name: coverage-${{env.JOB_ID}}
+        flags: python-${{env.PYTHON_MAJOR_MINOR_VERSION}},${{env.BACKEND}}-${{env.BACKEND_VERSION}}
+        directory: "./files/coverage-reposts/"
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

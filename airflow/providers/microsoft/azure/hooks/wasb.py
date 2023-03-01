@@ -466,7 +466,7 @@ class WasbHook(BaseHook):
         **kwargs,
     ) -> None:
         """
-        Delete a file from Azure Blob Storage.
+        Delete a file, or all blobs matching a prefix, from Azure Blob Storage.
 
         :param container_name: Name of the container.
         :param blob_name: Name of the blob.
@@ -486,7 +486,11 @@ class WasbHook(BaseHook):
         if not ignore_if_missing and len(blobs_to_delete) == 0:
             raise AirflowException(f"Blob(s) not found: {blob_name}")
 
-        self.delete_blobs(container_name, *blobs_to_delete, **kwargs)
+        # The maximum number of blobs that can be deleted in a single request is 256 using the underlying
+        # `ContainerClient.delete_blobs()` method. Therefore the deletes need to be in batches of <= 256.
+        num_blobs_to_delete = len(blobs_to_delete)
+        for i in range(0, num_blobs_to_delete, 256):
+            self.delete_blobs(container_name, *blobs_to_delete[i : i + 256], **kwargs)
 
     def test_connection(self):
         """Test Azure Blob Storage connection."""

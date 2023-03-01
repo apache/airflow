@@ -17,14 +17,14 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
-import { Button, useDisclosure } from '@chakra-ui/react';
+import React, { useState } from "react";
+import { Button, useDisclosure } from "@chakra-ui/react";
 
-import { useMarkFailedRun } from 'src/api';
-import { getMetaValue } from 'src/utils';
-import ConfirmDialog from 'src/components/ConfirmDialog';
+import { useMarkFailedRun } from "src/api";
+import { getMetaValue } from "src/utils";
+import ConfirmDialog from "src/components/ConfirmDialog";
 
-const canEdit = getMetaValue('can_edit') === 'True';
+const canEdit = getMetaValue("can_edit") === "True";
 
 interface Props {
   dagId: string;
@@ -50,7 +50,14 @@ const MarkFailedRun = ({ dagId, runId }: Props) => {
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="red" isLoading={isLoading} isDisabled={!canEdit}>Mark Failed</Button>
+      <Button
+        onClick={onClick}
+        colorScheme="red"
+        isLoading={isLoading}
+        isDisabled={!canEdit}
+      >
+        Mark Failed
+      </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}

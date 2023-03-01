@@ -65,7 +65,7 @@ class GlueJobHook(AwsBaseHook):
         concurrent_run_limit: int = 1,
         script_location: str | None = None,
         retry_limit: int = 0,
-        num_of_dpus: int | None = None,
+        num_of_dpus: int | float | None = None,
         iam_role_name: str | None = None,
         create_job_kwargs: dict | None = None,
         *args,
@@ -92,7 +92,7 @@ class GlueJobHook(AwsBaseHook):
         elif worker_type_exists and not num_workers_exists:
             raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
         elif num_of_dpus is None:
-            self.num_of_dpus = 10
+            self.num_of_dpus: int | float = 10
         else:
             self.num_of_dpus = num_of_dpus
 
@@ -100,22 +100,16 @@ class GlueJobHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def create_glue_job_config(self) -> dict:
-        if self.s3_bucket is None:
-            raise ValueError("Could not initialize glue job, error: Specify Parameter `s3_bucket`")
-
         default_command = {
             "Name": "glueetl",
             "ScriptLocation": self.script_location,
         }
         command = self.create_job_kwargs.pop("Command", default_command)
-
-        s3_log_path = f"s3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}"
         execution_role = self.get_iam_execution_role()
 
-        ret_config = {
+        config = {
             "Name": self.job_name,
             "Description": self.desc,
-            "LogUri": s3_log_path,
             "Role": execution_role["Role"]["Arn"],
             "ExecutionProperty": {"MaxConcurrentRuns": self.concurrent_run_limit},
             "Command": command,
@@ -124,9 +118,12 @@ class GlueJobHook(AwsBaseHook):
         }
 
         if hasattr(self, "num_of_dpus"):
-            ret_config["MaxCapacity"] = self.num_of_dpus
+            config["MaxCapacity"] = self.num_of_dpus
 
-        return ret_config
+        if self.s3_bucket is not None:
+            config["LogUri"] = f"s3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}"
+
+        return config
 
     def list_jobs(self) -> list:
         """

@@ -1283,3 +1283,35 @@ class TestKubernetesPodOperatorSystem:
             == "apple-sauce"
         )
         assert MyK8SPodOperator(task_id=str(uuid4())).base_container_name == "tomato-sauce"
+
+
+def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
+    logger = logging.getLogger("airflow.task")
+    monkeypatch.setattr(logger, "propagate", True)
+
+    class Var:
+        def __getattr__(self, name):
+            raise KeyError(name)
+
+    context = {
+        "password": "secretpassword",
+        "var": Var(),
+    }
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+        KubernetesPodOperator,
+    )
+
+    task = KubernetesPodOperator(
+        task_id="dry_run_demo",
+        name="hello-dry-run",
+        image="python:3.8-slim-buster",
+        cmds=["printenv"],
+        env_vars={
+            "password": "{{ password }}",
+            "VAR2": "{{ var.value.nonexisting}}",
+        },
+    )
+    with pytest.raises(KeyError):
+        task.render_template_fields(context=context)
+    assert "password" in caplog.text
+    assert "secretpassword" not in caplog.text
