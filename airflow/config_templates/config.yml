@@ -2467,7 +2467,7 @@ kubernetes_executor:
   options:
     api_client_retry_configuration:
       description: |
-        Settings to configure the urllib3.Retry hook, consumed by Kubernetes client.
+        Settings to configure the Retry hook, consumed by Kubernetes client.
       version_added: 2.6.0
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'

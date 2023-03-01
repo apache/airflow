@@ -111,7 +111,7 @@ def get_kube_client(
     api_client_retry_configuration = conf.getjson("kubernetes", "api_client_retry_configuration", fallback={})
 
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
-        new_client_config.verify_ssl = False
+        _disable_verify_ssl()
 
     if api_client_retry_configuration != {}:
         new_client_config.retries = urllib3.util.Retry(api_client_retry_configuration)
