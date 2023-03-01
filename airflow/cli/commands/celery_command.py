@@ -21,14 +21,14 @@ from __future__ import annotations
 from contextlib import contextmanager
 from multiprocessing import Process
 
-import daemon
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
-from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
+import airflow._vendor.daemon as daemon
 from airflow import settings
+from airflow._vendor.daemon.pidfile import TimeoutPIDLockFile
 from airflow.configuration import conf
 from airflow.executors.celery_executor import app as celery_app
 from airflow.utils import cli as cli_utils

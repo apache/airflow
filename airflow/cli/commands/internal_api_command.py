@@ -27,9 +27,7 @@ from contextlib import suppress
 from tempfile import gettempdir
 from time import sleep
 
-import daemon
 import psutil
-from daemon.pidfile import TimeoutPIDLockFile
 from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
@@ -37,7 +35,9 @@ from flask_wtf.csrf import CSRFProtect
 from lockfile.pidlockfile import read_pid_from_pidfile
 from sqlalchemy.engine.url import make_url
 
+import airflow._vendor.daemon as daemon
 from airflow import settings
+from airflow._vendor.daemon.pidfile import TimeoutPIDLockFile
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.commands.webserver_command import GunicornMonitor
 from airflow.configuration import conf

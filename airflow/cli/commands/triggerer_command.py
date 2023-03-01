@@ -23,10 +23,9 @@ from functools import partial
 from multiprocessing import Process
 from typing import Generator
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-
+import airflow._vendor.daemon as daemon
 from airflow import settings
+from airflow._vendor.daemon.pidfile import TimeoutPIDLockFile
 from airflow.configuration import conf
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import cli as cli_utils

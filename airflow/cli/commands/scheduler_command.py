@@ -21,10 +21,9 @@ import signal
 from contextlib import contextmanager
 from multiprocessing import Process
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-
+import airflow._vendor.daemon as daemon
 from airflow import settings
+from airflow._vendor.daemon.pidfile import TimeoutPIDLockFile
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader

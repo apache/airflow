@@ -17,10 +17,9 @@
 """Kerberos command."""
 from __future__ import annotations
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-
+import airflow._vendor.daemon as daemon
 from airflow import settings
+from airflow._vendor.daemon.pidfile import TimeoutPIDLockFile
 from airflow.security import kerberos as krb
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations

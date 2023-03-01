@@ -20,10 +20,9 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-
+import airflow._vendor.daemon as daemon
 from airflow import settings
+from airflow._vendor.daemon.pidfile import TimeoutPIDLockFile
 from airflow.configuration import conf
 from airflow.jobs.dag_processor_job import DagProcessorJob
 from airflow.utils import cli as cli_utils

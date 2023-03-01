@@ -10,7 +10,7 @@ the `_vendor` package.
 All Vendored libraries must follow these rules:
 
 1. Vendored libraries must be pure Python--no compiling (so that we do not have to release multi-platform airflow packages on PyPI).
-2. Source code for the libary is included in this directory.
+2. Source code for the library is included in this directory.
 3. License must be included in this repo and in the [LICENSE](../../LICENSE) file and in the
    [licenses](../../licenses) folder.
 4. Requirements of the library become requirements of airflow core.
