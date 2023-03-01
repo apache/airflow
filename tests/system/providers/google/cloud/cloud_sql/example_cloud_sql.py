@@ -236,11 +236,9 @@ with models.DAG(
     # ############################################## #
     # ### CLONE AN INSTANCE ######################## #
     # ############################################## #
-    #[START howto_operator_cloudsql_clone]
+    # [START howto_operator_cloudsql_clone]
     sql_instance_clone = CloudSQLCloneInstanceOperator(
-        instance=INSTANCE_NAME,
-        destination_instance_name=CLONED_INSTANCE_NAME,
-        task_id="sql_instance_clone"
+        instance=INSTANCE_NAME, destination_instance_name=CLONED_INSTANCE_NAME, task_id="sql_instance_clone"
     )
     # [END howto_operator_cloudsql_clone]
 

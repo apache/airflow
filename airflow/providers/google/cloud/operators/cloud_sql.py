@@ -527,6 +527,10 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
     """
     Clones an instance to a target instance
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSQLCloneInstanceOperator`
+
     :param instance: Database instance ID to be cloned. This does not include the
             project ID.
     :param destination_instance_name: Database instance ID to be created. This does not include the
@@ -546,6 +550,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
     # [START gcp_sql_clone_template_fields]
     template_fields: Sequence[str] = (
         "project_id",
