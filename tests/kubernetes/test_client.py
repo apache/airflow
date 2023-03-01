@@ -22,6 +22,7 @@ from unittest import mock
 from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
+from airflow.configuration import initialize_config
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive, get_kube_client
 
 
@@ -80,5 +81,9 @@ class TestClient:
         assert not configuration.verify_ssl
 
     def test_api_client_retry_configuration(self):
-        configuration = Configuration.get_default_copy()
-        assert not configuration.api_client_retry_configuration
+        conf = initialize_config()
+        api_client_retry_configuration = conf.getjson(
+            "kubernetes", "api_client_retry_configuration", fallback={}
+        )
+
+        assert api_client_retry_configuration == {}

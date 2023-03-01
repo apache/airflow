@@ -108,10 +108,13 @@ def get_kube_client(
         _enable_tcp_keepalive()
 
     new_client_config = Configuration.get_default_copy()
-    api_client_retry_configuration = conf.getjson("kubernetes", "api_client_retry_configuration")
+    api_client_retry_configuration = conf.getjson("kubernetes", "api_client_retry_configuration", fallback={})
+
+    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+        new_client_config.verify_ssl = False
 
     if api_client_retry_configuration != {}:
-        new_client_config = urllib3.util.Retry(**api_client_retry_configuration)
+        new_client_config.retries = urllib3.util.Retry(api_client_retry_configuration)
 
     if in_cluster:
         config.load_incluster_config(client_configuration=new_client_config)
@@ -123,8 +126,5 @@ def get_kube_client(
         config.load_kube_config(
             config_file=config_file, context=cluster_context, client_configuration=new_client_config
         )
-
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
-        _disable_verify_ssl()
 
     return client.CoreV1Api(api_client=ApiClient(new_client_config))
