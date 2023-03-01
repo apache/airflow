@@ -3547,8 +3547,8 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         root = request.args.get("root")
         if root:
-            filter_upstream = True if request.args.get("filter_upstream") == "true" else False
-            filter_downstream = True if request.args.get("filter_downstream") == "true" else False
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
             dag = dag.partial_subset(
                 task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
             )
