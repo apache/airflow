@@ -84,9 +84,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
     :param create_cluster_kwargs: Extra arguments for Cluster Creation.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
     :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = ("cluster_name", "create_cluster_kwargs", "wait_for_completion")
@@ -119,8 +119,8 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         cluster_state = cluster_details.get("status")
 
         if cluster_state == EcsClusterStates.ACTIVE:
-            # In some circumstances ECS Cluster deleted immediately,
-            # and there is no reason wait for completion.
+            # In some circumstances the ECS Cluster is deleted immediately,
+            # and there is no reason to wait for completion.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_active")
@@ -148,9 +148,9 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
     :param cluster_name: The short name or full Amazon Resource Name (ARN) of the cluster to delete.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
     :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = ("cluster_name", "wait_for_completion")
@@ -177,8 +177,8 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         cluster_state = cluster_details.get("status")
 
         if cluster_state == EcsClusterStates.INACTIVE:
-            # In some circumstances ECS Cluster deleted immediately,
-            # and there is no reason wait for completion.
+            # In some circumstances the ECS Cluster is deleted immediately,
+            # so there is no reason to wait for completion.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_inactive")
@@ -207,9 +207,9 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         of the task definition to deregister. If you use a family name, you must specify a revision.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
     :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = ("task_definition", "wait_for_completion")
@@ -237,8 +237,8 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         task_definition_state = task_definition_details.get("status")
 
         if task_definition_state == EcsTaskDefinitionStates.INACTIVE:
-            # In some circumstances ECS Task Definition deleted immediately,
-            # and there is no reason wait for completion.
+            # In some circumstances the ECS Task Definition is deleted immediately,
+            # so there is no reason to wait for completion.
             self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("task_definition_inactive")
@@ -269,9 +269,9 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
     :param register_task_kwargs: Extra arguments for Register Task Definition.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
     :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then default waiter value will use.
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = (
@@ -317,8 +317,8 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         task_definition_state = task_definition_details.get("status")
 
         if task_definition_state == EcsTaskDefinitionStates.ACTIVE:
-            # In some circumstances ECS Task Definition created immediately,
-            # and there is no reason wait for completion.
+            # In some circumstances the ECS Task Definition is created immediately,
+            # so there is no reason to wait for completion.
             self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("task_definition_active")
