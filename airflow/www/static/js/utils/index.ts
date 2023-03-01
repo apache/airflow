@@ -73,10 +73,9 @@ const getGroupAndMapSummary = ({
       }
     });
   } else if (group.isMapped && mappedStates) {
-    Object.keys(mappedStates).forEach((stateKey) => {
-      const num = mappedStates[stateKey];
-      totalTasks += num;
-      childTaskMap.set(stateKey || "no_status", num);
+    Object.entries(mappedStates).forEach(([key, value]) => {
+      totalTasks += value;
+      childTaskMap.set(key || "no_status", value);
     });
   }
 

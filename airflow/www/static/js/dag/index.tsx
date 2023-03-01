@@ -40,13 +40,7 @@ const mainElement = document.getElementById("react-container");
 
 if (mainElement) {
   const styleTag = document.createElement("style");
-  // We need to set the z-index manually to make sure edges inside of groups still work
-  let style = reactFlowStyle.toString();
-  style += `
-    .react-flow__node {
-      z-index: -1 !important;
-    }
-  `;
+  const style = reactFlowStyle.toString();
   styleTag.innerHTML = style;
   shadowRoot?.appendChild(styleTag);
   shadowRoot?.appendChild(mainElement);

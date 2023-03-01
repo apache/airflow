@@ -122,6 +122,7 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
           minZoom={0.25}
           maxZoom={1}
           onlyRenderVisibleElements
+          defaultEdgeOptions={{ zIndex: 1 }}
         >
           <Panel position="top-right">
             <Box bg="#ffffffdd" p={1}>
