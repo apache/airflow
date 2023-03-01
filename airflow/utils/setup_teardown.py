@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+from airflow.exceptions import AirflowException
+
 
 class SetupTeardownContext:
     """Track whether the next added task is a setup or teardown task"""
@@ -28,13 +30,28 @@ class SetupTeardownContext:
     @classmethod
     @contextmanager
     def setup(cls):
+        if cls.is_setup or cls.is_teardown:
+            raise AirflowException(
+                "A setup task or taskgroup cannot be nested inside another setup/teardown task or taskgroup"
+            )
+
         cls.is_setup = True
-        yield
-        cls.is_setup = False
+        try:
+            yield
+        finally:
+            cls.is_setup = False
 
     @classmethod
     @contextmanager
     def teardown(cls):
+        if cls.is_setup or cls.is_teardown:
+            raise AirflowException(
+                "A teardown task or taskgroup cannot be nested inside another"
+                " setup/teardown task or taskgroup"
+            )
+
         cls.is_teardown = True
-        yield
-        cls.is_teardown = False
+        try:
+            yield
+        finally:
+            cls.is_teardown = False
