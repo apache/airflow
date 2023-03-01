@@ -1960,7 +1960,8 @@ celery:
         Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
         and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
         applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
-        also applies to adopted tasks.
+        also applies to adopted tasks. To calculate adoption time, subtract the
+        :ref:`task duration<ui:task-duration>` from the task's :ref:`landing time<ui:landing-times>`.
       version_added: 2.0.0
       type: integer
       example: ~
