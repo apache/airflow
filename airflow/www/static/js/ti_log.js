@@ -183,22 +183,19 @@ function setDownloadUrl(tryNumber) {
 }
 
 $(document).ready(() => {
-  // Lazily load all past task instance logs.
-  // TODO: We only need to have recursive queries for
-  // latest running task instances. Currently it does not
-  // work well with ElasticSearch because ES query only
-  // returns at most 10k documents. We want the ability
-  // to display all logs in the front-end.
-  // An optimization here is to render from latest attempt.
-  for (let i = TOTAL_ATTEMPTS; i >= 1; i -= 1) {
-    // Only autoTailing the page when streaming the latest attempt.
-    const autoTailing = i === TOTAL_ATTEMPTS;
-    autoTailingLog(i, null, autoTailing);
-  }
+  // Automatically load logs for the latest attempt
+  autoTailingLog(TOTAL_ATTEMPTS, null, true);
 
   setDownloadUrl();
   $("#ti_log_try_number_list a").click(function () {
     const tryNumber = $(this).data("try-number");
+
+    // Load logs if not yet loaded for a given attempt
+    if (tryNumber !== TOTAL_ATTEMPTS && !$(this).data("loaded")) {
+      $(this).data("loaded", true);
+      autoTailingLog(tryNumber, null, false);
+    }
+
     setDownloadUrl(tryNumber);
   });
 });
