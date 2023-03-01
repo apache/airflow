@@ -120,9 +120,9 @@ class TestExecutorLoader:
     @pytest.mark.parametrize(
         ["executor", "expectation"],
         [
-            (FakeExecutor, nullcontext()),
+            (FakeSingleThreadedExecutor, nullcontext()),
             (
-                FakeSingleThreadedExecutor,
+                FakeExecutor,
                 pytest.raises(AirflowConfigException, match=r"^error: cannot use SQLite with the .+"),
             ),
         ],

@@ -25,7 +25,6 @@ from unittest import mock
 import pytest
 import time_machine
 from botocore.credentials import Credentials
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
@@ -166,7 +165,7 @@ class TestTransferJobPreprocessor:
         body = TransferJobPreprocessor(body=body).process_body()
         assert body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] == TEST_AWS_ACCESS_KEY
 
-    @parameterized.expand([(SCHEDULE_START_DATE,), (SCHEDULE_END_DATE,)])
+    @pytest.mark.parametrize("field_attr", [SCHEDULE_START_DATE, SCHEDULE_END_DATE])
     def test_should_format_date_from_python_to_dict(self, field_attr):
         body = {SCHEDULE: {field_attr: NATIVE_DATE}}
         TransferJobPreprocessor(body=body).process_body()
@@ -177,7 +176,7 @@ class TestTransferJobPreprocessor:
         TransferJobPreprocessor(body=body).process_body()
         assert body[SCHEDULE][START_TIME_OF_DAY] == DICT_TIME
 
-    @parameterized.expand([(SCHEDULE_START_DATE,), (SCHEDULE_END_DATE,)])
+    @pytest.mark.parametrize("field_attr", [SCHEDULE_START_DATE, SCHEDULE_END_DATE])
     def test_should_not_change_date_for_dict(self, field_attr):
         body = {SCHEDULE: {field_attr: DICT_DATE}}
         TransferJobPreprocessor(body=body).process_body()
@@ -218,13 +217,14 @@ class TestTransferJobValidator:
         err = ctx.value
         assert "The required parameter 'body' is empty or None" in str(err)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "transfer_spec",
         [
-            (dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items(), SOURCE_HTTP.items())),),
-            (dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items())),),
-            (dict(itertools.chain(SOURCE_AWS.items(), SOURCE_HTTP.items())),),
-            (dict(itertools.chain(SOURCE_GCS.items(), SOURCE_HTTP.items())),),
-        ]
+            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items(), SOURCE_HTTP.items())),
+            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items())),
+            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_HTTP.items())),
+            dict(itertools.chain(SOURCE_GCS.items(), SOURCE_HTTP.items())),
+        ],
     )
     def test_verify_data_source(self, transfer_spec):
         body = {TRANSFER_SPEC: transfer_spec}
@@ -237,7 +237,7 @@ class TestTransferJobValidator:
             "gcsDataSource, awsS3DataSource and httpDataSource." in str(err)
         )
 
-    @parameterized.expand([(VALID_TRANSFER_JOB_GCS,), (VALID_TRANSFER_JOB_AWS,)])
+    @pytest.mark.parametrize("body", [VALID_TRANSFER_JOB_GCS, VALID_TRANSFER_JOB_AWS])
     def test_verify_success(self, body):
         try:
             TransferJobValidator(body=body).validate_body()

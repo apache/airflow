@@ -1304,7 +1304,7 @@ class TestStringifiedDAGs:
 
     def test_task_group_setup_teardown_tasks(self):
         """
-        Test TaskGroup setup and teardown serialization/deserialization.
+        Test TaskGroup setup and teardown task serialization/deserialization.
         """
         from airflow.operators.empty import EmptyOperator
 
@@ -1364,6 +1364,88 @@ class TestStringifiedDAGs:
             ["group1.group2.setup2"],
             ["group1.group2.task2"],
             ["group1.group2.teardown2"],
+        )
+
+    def test_task_group_setup_teardown_taskgroups(self):
+        """
+        Test TaskGroup setup and teardown taskgroup serialization/deserialization.
+        """
+        from airflow.decorators import setup, task_group, teardown
+        from airflow.operators.empty import EmptyOperator
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG("test_task_group_setup_teardown_task_groups", start_date=execution_date) as dag:
+
+            @setup
+            @task_group
+            def setup_group():
+                @task_group
+                def sub_setup():
+                    EmptyOperator(task_id="setup2")
+
+                EmptyOperator(task_id="setup1")
+                sub_setup()
+
+            @teardown
+            @task_group
+            def teardown_group():
+                EmptyOperator(task_id="teardown1")
+
+            setup_group()
+            EmptyOperator(task_id="sometask")
+            teardown_group()
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+
+        def _check_taskgroup_children(
+            se_task_group, dag_task_group, expected_setup, expected_children, expected_teardown
+        ):
+            assert list(se_task_group.children.keys()) == expected_children
+            assert list(dag_task_group.children.keys()) == expected_children
+
+            assert list(se_task_group.setup_children.keys()) == expected_setup
+            assert list(dag_task_group.setup_children.keys()) == expected_setup
+
+            assert list(se_task_group.teardown_children.keys()) == expected_teardown
+            assert list(dag_task_group.teardown_children.keys()) == expected_teardown
+
+        _check_taskgroup_children(
+            serialized_dag.task_group, dag.task_group, ["setup_group"], ["sometask"], ["teardown_group"]
+        )
+
+        se_setup_group = serialized_dag.task_group.setup_children["setup_group"]
+        dag_setup_group = dag.task_group.setup_children["setup_group"]
+        _check_taskgroup_children(
+            se_setup_group,
+            dag_setup_group,
+            ["setup_group.setup1", "setup_group.sub_setup"],
+            [],
+            [],
+        )
+
+        se_sub_setup_group = se_setup_group.setup_children["setup_group.sub_setup"]
+        dag_sub_setup_group = dag_setup_group.setup_children["setup_group.sub_setup"]
+        _check_taskgroup_children(
+            se_sub_setup_group,
+            dag_sub_setup_group,
+            ["setup_group.sub_setup.setup2"],
+            [],
+            [],
+        )
+
+        se_teardown_group = serialized_dag.task_group.teardown_children["teardown_group"]
+        dag_teardown_group = dag.task_group.teardown_children["teardown_group"]
+        _check_taskgroup_children(
+            se_teardown_group,
+            dag_teardown_group,
+            [],
+            [],
+            ["teardown_group.teardown1"],
         )
 
     def test_deps_sorted(self):
