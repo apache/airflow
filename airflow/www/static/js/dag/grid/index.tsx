@@ -86,7 +86,7 @@ const Grid = ({
   }, [tableRef, isPanelOpen]);
 
   return (
-    <Box p={3} pt={0} height="100%" position="relative">
+    <Box height="100%" position="relative">
       <IconButton
         fontSize="2xl"
         variant="ghost"
@@ -101,7 +101,7 @@ const Grid = ({
         position="absolute"
         right={0}
         zIndex={2}
-        top="30px"
+        top={-8}
       />
       <Box
         maxHeight={`calc(100% - ${offsetTop}px)`}
@@ -109,6 +109,7 @@ const Grid = ({
         overflow="auto"
         position="relative"
         pr={4}
+        mt={8}
       >
         <Table pr="10px">
           <Thead>
