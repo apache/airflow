@@ -33,41 +33,17 @@ import { RiFocus3Line } from "react-icons/ri";
 
 import { useGraphData, useGridData } from "src/api";
 import useSelection from "src/dag/useSelection";
-import { getTask, useOffsetTop } from "src/utils";
-import type { TaskInstance } from "src/types";
+import { useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
-import type { NodeType } from "src/datasets/Graph/Node";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
 
 import Edge from "./Edge";
 import Node, { CustomNodeProps } from "./Node";
-import { buildEdges, nodeStrokeColor, nodeColor } from "./utils";
+import { buildEdges, nodeStrokeColor, nodeColor, flattenNodes } from "./utils";
 
 const nodeTypes = { custom: Node };
 const edgeTypes = { custom: Edge };
-
-// Child task positions are relative to their parent,
-// we need to recursively added up the absolute position
-const getNodePosition = (
-  nodes: ReactFlowNode<CustomNodeProps>[],
-  nodeId: string,
-  x = 0,
-  y = 0
-) => {
-  const node = nodes.find((n) => n.id === nodeId);
-  if (node) {
-    x += node.position.x;
-    y += node.position.y;
-
-    if (node?.parentNode) {
-      const parentPosition = getNodePosition(nodes, node.parentNode);
-      x += parentPosition.x;
-      y += parentPosition.y;
-    }
-  }
-  return { x, y };
-};
 
 interface Props {
   openGroupIds: string[];
@@ -100,58 +76,25 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
 
   const offsetTop = useOffsetTop(graphRef);
 
-  const nodes: ReactFlowNode<CustomNodeProps>[] = [];
-
-  const flattenNodes = (children: NodeType[], parent?: string) => {
-    const parentNode = parent ? { parentNode: parent } : undefined;
-    children.forEach((node) => {
-      let instance: TaskInstance | undefined;
-      const group = getTask({ taskId: node.id, task: groups });
-      if (!node.id.includes("join_id") && selected.runId) {
-        instance = group?.instances.find((ti) => ti.runId === selected.runId);
-      }
-      const isSelected = node.id === selected.taskId && !!instance;
-
-      nodes.push({
-        id: node.id,
-        data: {
-          width: node.width,
-          height: node.height,
-          task: group,
-          instance,
-          isSelected,
-          latestDagRunId,
-          onToggleCollapse: () => {
-            let newGroupIds = [];
-            if (!node.value.isOpen) {
-              newGroupIds = [...openGroupIds, node.value.label];
-            } else {
-              newGroupIds = openGroupIds.filter((g) => g !== node.value.label);
-            }
-            onToggleGroups(newGroupIds);
-          },
-          ...node.value,
-        },
-        type: "custom",
-        position: {
-          x: node.x || 0,
-          y: node.y || 0,
-        },
-        ...parentNode,
-      });
-      if (node.children) {
-        flattenNodes(node.children, node.id);
-      }
-    });
-  };
+  let nodes: ReactFlowNode<CustomNodeProps>[] = [];
 
   if (graphData?.children) {
-    flattenNodes(graphData.children);
+    nodes = flattenNodes({
+      children: graphData.children,
+      selected,
+      openGroupIds,
+      onToggleGroups,
+      latestDagRunId,
+      groups,
+    });
   }
 
   const focusNode = () => {
     if (selected.taskId) {
-      const { x, y } = getNodePosition(nodes, selected.taskId);
+      const node = nodes.find((n) => n.id === selected.taskId);
+      const x = node?.positionAbsolute?.x || node?.position.x;
+      const y = node?.positionAbsolute?.y || node?.position.y;
+      if (!x || !y) return;
       setCenter(x, y, { duration: 1000 });
     }
   };

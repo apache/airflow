@@ -21,7 +21,92 @@ import Color from "color";
 import type { Node as ReactFlowNode } from "reactflow";
 import type { ElkExtendedEdge } from "elkjs";
 
+import type { SelectionProps } from "src/dag/useSelection";
+import { getTask } from "src/utils";
+import type { Task, TaskInstance } from "src/types";
+import type { NodeType } from "src/datasets/Graph/Node";
+
 import type { CustomNodeProps } from "./Node";
+
+interface FlattenNodesProps {
+  children: NodeType[];
+  selected: SelectionProps;
+  groups: Task;
+  latestDagRunId: string;
+  parent?: ReactFlowNode<CustomNodeProps>;
+  openGroupIds: string[];
+  onToggleGroups: (groupIds: string[]) => void;
+}
+
+// Generate a flattened list of nodes for react-flow to render
+export const flattenNodes = ({
+  children,
+  selected,
+  groups,
+  latestDagRunId,
+  onToggleGroups,
+  openGroupIds,
+  parent,
+}: FlattenNodesProps) => {
+  let nodes: ReactFlowNode<CustomNodeProps>[] = [];
+  const parentNode = parent ? { parentNode: parent.id } : undefined;
+  children.forEach((node) => {
+    let instance: TaskInstance | undefined;
+    const group = getTask({ taskId: node.id, task: groups });
+    if (!node.id.includes("join_id") && selected.runId) {
+      instance = group?.instances.find((ti) => ti.runId === selected.runId);
+    }
+    const isSelected = node.id === selected.taskId && !!instance;
+
+    const newNode = {
+      id: node.id,
+      data: {
+        width: node.width,
+        height: node.height,
+        task: group,
+        instance,
+        isSelected,
+        latestDagRunId,
+        onToggleCollapse: () => {
+          let newGroupIds = [];
+          if (!node.value.isOpen) {
+            newGroupIds = [...openGroupIds, node.value.label];
+          } else {
+            newGroupIds = openGroupIds.filter((g) => g !== node.value.label);
+          }
+          onToggleGroups(newGroupIds);
+        },
+        ...node.value,
+      },
+      type: "custom",
+      position: {
+        x: node.x || 0,
+        y: node.y || 0,
+      },
+      positionAbsolute: {
+        x: (parent?.positionAbsolute?.x || 0) + (node.x || 0),
+        y: (parent?.positionAbsolute?.y || 0) + (node.y || 0),
+      },
+      ...parentNode,
+    };
+
+    nodes.push(newNode);
+
+    if (node.children) {
+      const childNodes = flattenNodes({
+        children: node.children,
+        selected,
+        groups,
+        latestDagRunId,
+        onToggleGroups,
+        openGroupIds,
+        parent: newNode,
+      });
+      nodes = [...nodes, ...childNodes];
+    }
+  });
+  return nodes;
+};
 
 export const nodeColor = ({
   data: { height, width, instance },
