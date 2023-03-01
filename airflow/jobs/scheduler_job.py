@@ -897,7 +897,7 @@ class SchedulerJob(BaseJob):
                 
                 for attempt in run_with_db_retries():
                     with attempt:
-                        start_time = time.time()
+                        start_time = time.monotonic()
                         try:
                             with create_session() as session:
                                 num_queued_tis = self._do_scheduling(session)
@@ -906,7 +906,7 @@ class SchedulerJob(BaseJob):
                                 session.expunge_all()
                                 num_finished_events = self._process_executor_events(session=session)
                         except OperationalError as e:
-                            total_time = time.time() - start_time
+                            total_time = time.monotonic() - start_time
                             self.log.error("%s got a DB exception (retry:%d, total time in seconds: %d)", self.__class__.__name__, attempt.retry_state.attempt_number, total_time)
                             raise
                 
