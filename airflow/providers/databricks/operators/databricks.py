@@ -285,12 +285,12 @@ class DatabricksSubmitRunOperator(BaseOperator):
         *,
         json: Any | None = None,
         tasks: list[object] | None = None,
-        spark_jar_task: dict[str, str] | None = None,
-        notebook_task: dict[str, str] | None = None,
-        spark_python_task: dict[str, str | list[str]] | None = None,
-        spark_submit_task: dict[str, list[str]] | None = None,
-        pipeline_task: dict[str, str] | None = None,
-        dbt_task: dict[str, str | list[str]] | None = None,
+        spark_jar_task: dict[str, object] | None = None,
+        notebook_task: dict[str, object] | None = None,
+        spark_python_task: dict[str, object] | None = None,
+        spark_submit_task: dict[str, object] | None = None,
+        pipeline_task: dict[str, object] | None = None,
+        dbt_task: dict[str, object] | None = None,
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
         libraries: list[dict[str, str]] | None = None,
@@ -353,7 +353,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if "dbt_task" in self.json and "git_source" not in self.json:
             raise AirflowException("git_source is required for dbt_task")
 
-        self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
@@ -372,7 +371,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        self.run_id = self._hook.submit_run(self.json)
+        json_normalised = normalise_json_content(self.json)
+        self.run_id = self._hook.submit_run(json_normalised)
         _handle_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self):
