@@ -32,11 +32,12 @@ if TYPE_CHECKING:
 class GithubSensor(BaseSensorOperator):
     """
     Base GithubSensor which can monitor for any change.
-
     :param github_conn_id: reference to a pre-defined GitHub Connection
     :param method_name: method name from PyGithub to be executed
     :param method_params: parameters for the method method_name
     :param result_processor: function that return boolean and act as a sensor response
+    :param allow_templates_in_result_processor: boolean to determine if
+    templated args will be passed to the result_processor function, default=False
     """
 
     def __init__(
@@ -46,6 +47,7 @@ class GithubSensor(BaseSensorOperator):
         github_conn_id: str = "github_default",
         method_params: dict | None = None,
         result_processor: Callable | None = None,
+        allow_templates_in_result_processor: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -55,12 +57,15 @@ class GithubSensor(BaseSensorOperator):
             self.result_processor = result_processor
         self.method_name = method_name
         self.method_params = method_params
+        self.allow_templates_in_result_processor = allow_templates_in_result_processor
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context, templated_fields: dict | None = None) -> bool:
         hook = GithubHook(github_conn_id=self.github_conn_id)
         github_result = getattr(hook.client, self.method_name)(**self.method_params)
 
         if self.result_processor:
+            if self.allow_templates_in_result_processor:
+                return self.result_processor(github_result, templated_fields=None)
             return self.result_processor(github_result)
 
         return github_result
@@ -69,7 +74,6 @@ class GithubSensor(BaseSensorOperator):
 class BaseGithubRepositorySensor(GithubSensor):
     """
     Base GitHub sensor at Repository level.
-
     :param github_conn_id: reference to a pre-defined GitHub Connection
     :param repository_name: full qualified name of the repository to be monitored, ex. "apache/airflow"
     """
@@ -90,21 +94,24 @@ class BaseGithubRepositorySensor(GithubSensor):
             **kwargs,
         )
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context, templated_fields: dict | None = None) -> bool:
         """
         Function that the sensors defined while deriving this class should
         override.
         """
-        raise AirflowException("Override me.")
+        raise AirflowException(
+            "Override me. (BaseGithubRepositorySensor can't be used directly to create Airflow tasks)"
+        )
 
 
 class GithubTagSensor(BaseGithubRepositorySensor):
     """
     Monitors a github tag for its creation.
-
     :param github_conn_id: reference to a pre-defined GitHub Connection
     :param tag_name: name of the tag to be monitored
     :param repository_name: fully qualified name of the repository to be monitored, ex. "apache/airflow"
+    :param allow_templates_in_result_processor: boolean to determine if
+    templated args will be passed to the result_processor function, default=True
     """
 
     template_fields = ("tag_name",)
@@ -115,6 +122,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         github_conn_id: str = "github_default",
         tag_name: str | None = None,
         repository_name: str | None = None,
+        allow_templates_in_result_processor: bool = True,
         **kwargs,
     ) -> None:
         self.repository_name = repository_name
@@ -123,20 +131,22 @@ class GithubTagSensor(BaseGithubRepositorySensor):
             github_conn_id=github_conn_id,
             repository_name=repository_name,
             result_processor=self.tag_checker,
+            allow_templates_in_result_processor=allow_templates_in_result_processor,
             **kwargs,
         )
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: Context, templated_fields: dict | None = None) -> bool:
         self.log.info("Poking for tag: %s in repository: %s", self.tag_name, self.repository_name)
-        return GithubSensor.poke(self, context=context)
+        return GithubSensor.poke(self, context=context, templated_fields={"tag_name": self.tag_name})
 
-    def tag_checker(self, repo: Any) -> bool | None:
+    def tag_checker(self, repo: Any, templated_fields=None) -> bool | None:
         """Checking existence of Tag in a Repository"""
+        tag_name = templated_fields.get("tag_name")
         result = None
         try:
-            if repo is not None and self.tag_name is not None:
+            if repo is not None and tag_name is not None:
                 all_tags = [x.name for x in repo.get_tags()]
-                result = self.tag_name in all_tags
+                result = tag_name in all_tags
 
         except GithubException as github_error:  # type: ignore[misc]
             raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
@@ -144,7 +154,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
             raise AirflowException(f"GitHub operator error: {str(e)}")
 
         if result is True:
-            self.log.info("Tag %s exists in %s repository, Success.", self.tag_name, self.repository_name)
+            self.log.info("Tag %s exists in %s repository, Success.", tag_name, self.repository_name)
         else:
-            self.log.info("Tag %s doesn't exists in %s repository yet.", self.tag_name, self.repository_name)
+            self.log.info("Tag %s doesn't exists in %s repository yet.", tag_name, self.repository_name)
         return result
