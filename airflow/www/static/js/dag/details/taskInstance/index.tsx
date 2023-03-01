@@ -182,7 +182,7 @@ const TaskInstance = ({ taskId, runId, mapIndex, onSelect }: Props) => {
                   key={dagId + runId + taskId + instance.mapIndex}
                 />
               )}
-              <Box mb={8}>
+              <Box mb={3}>
                 <TaskActions
                   title={taskActionsTitle}
                   runId={runId}
@@ -193,12 +193,12 @@ const TaskInstance = ({ taskId, runId, mapIndex, onSelect }: Props) => {
                   isGroup={isGroup}
                 />
               </Box>
-              {!isMapped && (
+              {!isMapped && group.extraLinks && (
                 <ExtraLinks
                   taskId={taskId}
                   dagId={dagId}
                   executionDate={executionDate}
-                  extraLinks={group?.extraLinks || []}
+                  extraLinks={group?.extraLinks}
                 />
               )}
               <Details instance={instance} group={group} dagId={dagId} />
