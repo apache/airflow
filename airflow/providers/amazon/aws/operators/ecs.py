@@ -119,7 +119,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         cluster_state = cluster_details.get("status")
 
         if cluster_state == EcsClusterStates.ACTIVE:
-            # In some circumstances the ECS Cluster is deleted immediately,
+            # In some circumstances the ECS Cluster is created immediately,
             # and there is no reason to wait for completion.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.wait_for_completion:
