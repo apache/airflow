@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.decorators import setup, task, teardown
+from airflow.decorators import setup, task, task_group, teardown
 
 
 class TestSetupTearDownTask:
@@ -28,6 +28,7 @@ class TestSetupTearDownTask:
 
         with dag_maker() as dag:
             mytask()
+
         setup_task = dag.task_group.setup_children["mytask"]
         assert setup_task._is_setup
         assert len(dag.task_group.setup_children) == 1
@@ -101,3 +102,49 @@ class TestSetupTearDownTask:
         assert len(dag.task_group.setup_children) == 0
         assert len(dag.task_group.children) == 0
         assert len(dag.task_group.teardown_children) == 1
+
+    def test_setup_taskgroup(self, dag_maker):
+        @setup
+        @task_group
+        def mygroup():
+            @task
+            def mytask():
+                print("I am a setup task")
+
+            mytask()
+
+        with dag_maker() as dag:
+            mygroup()
+
+        assert len(dag.task_group.setup_children) == 1
+        assert len(dag.task_group.children) == 0
+        assert len(dag.task_group.teardown_children) == 0
+        setup_task_group = dag.task_group.setup_children["mygroup"]
+        assert len(setup_task_group.setup_children) == 1
+        assert len(setup_task_group.children) == 0
+        assert len(setup_task_group.teardown_children) == 0
+        setup_task = setup_task_group.setup_children["mygroup.mytask"]
+        assert setup_task._is_setup
+
+    def test_teardown_taskgroup(self, dag_maker):
+        @teardown
+        @task_group
+        def mygroup():
+            @task
+            def mytask():
+                print("I am a teardown task")
+
+            mytask()
+
+        with dag_maker() as dag:
+            mygroup()
+
+        assert len(dag.task_group.setup_children) == 0
+        assert len(dag.task_group.children) == 0
+        assert len(dag.task_group.teardown_children) == 1
+        teardown_task_group = dag.task_group.teardown_children["mygroup"]
+        assert len(teardown_task_group.setup_children) == 0
+        assert len(teardown_task_group.children) == 0
+        assert len(teardown_task_group.teardown_children) == 1
+        teardown_task = teardown_task_group.teardown_children["mygroup.mytask"]
+        assert teardown_task._is_teardown
