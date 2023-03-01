@@ -777,7 +777,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
-                    raise AirflowException(f"Cannot use {template_field} as template field")
+                    raise AirflowException(f"Cannot template BaseOperator fields: {template_field}")
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)
