@@ -512,7 +512,7 @@ More information
 """"""""""""""""
 
 See Google Cloud SQL API documentation to `clone an instance
-<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/clone>`_.
+<https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances/clone>`_.
 
 .. _howto/operator:CloudSQLExecuteQueryOperator:
 
