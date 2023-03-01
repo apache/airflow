@@ -38,13 +38,12 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
-from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.setup_teardown import SetupTeardown, SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.abstractoperator import AbstractOperator
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
@@ -137,10 +136,11 @@ class TaskGroup(DAGNode):
         self._group_id = group_id
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
-        self.children: dict[str, DAGNode] = {}
-
-        self.setup_children: dict[str, DAGNode] = {}
-        self.teardown_children: dict[str, DAGNode] = {}
+        self._all_children_by_kind: dict[SetupTeardown | None, dict[str, DAGNode]] = {
+            None: {},
+            SetupTeardown.setup: {},
+            SetupTeardown.teardown: {},
+        }
 
         if parent_group:
             parent_group.add(self)
@@ -198,16 +198,17 @@ class TaskGroup(DAGNode):
     def parent_group(self) -> TaskGroup | None:
         return self.task_group
 
-    def __iter__(self):
-        for child in self.all_children.values():
-            if isinstance(child, TaskGroup):
-                yield from child
-            else:
-                yield child
+    def __iter__(self) -> Iterator[DAGNode]:
+        for children in self._all_children_by_kind.values():
+            for child in children.values():
+                if isinstance(child, TaskGroup):
+                    yield from child
+                else:
+                    yield child
 
     @property
-    def all_children(self) -> dict[str, DAGNode]:
-        return {**self.setup_children, **self.children, **self.teardown_children}
+    def children(self) -> dict[str, DAGNode]:
+        return self._all_children_by_kind[None]
 
     def add(self, task: DAGNode) -> None:
         """Add a task to this TaskGroup.
@@ -224,7 +225,7 @@ class TaskGroup(DAGNode):
         task.task_group = weakref.proxy(self)
         key = task.node_id
 
-        if key in self.all_children:
+        if any(key in children for children in self._all_children_by_kind.values()):
             node_type = "Task" if hasattr(task, "task_id") else "Task Group"
             raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
 
@@ -238,27 +239,22 @@ class TaskGroup(DAGNode):
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
-        if SetupTeardownContext.is_setup:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_setup", True)
-            self.setup_children[key] = task
-        elif SetupTeardownContext.is_teardown:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_teardown", True)
-            self.teardown_children[key] = task
-        else:
-            self.children[key] = task
+        if isinstance(task, AbstractOperator):
+            task.setup_teardown = SetupTeardownContext.setup_teardown
+
+        self._all_children_by_kind[SetupTeardownContext.setup_teardown][key] = task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
 
-        if key in self.children:
-            del self.children[key]
-        elif key in self.setup_children:
-            del self.setup_children[key]
-        elif key in self.teardown_children:
-            del self.teardown_children[key]
-        else:
+        def _do_remove(key: str) -> str | None:
+            for children in self._all_children_by_kind.values():
+                if key in children:
+                    del children[key]
+                    return key
+            return None
+
+        if _do_remove(key) is None:
             raise KeyError(f"Node id {key!r} not part of this task group")
 
         self.used_group_ids.remove(key)
@@ -350,39 +346,38 @@ class TaskGroup(DAGNode):
     def __exit__(self, _type, _value, _tb):
         TaskGroupContext.pop_context_managed_task_group()
 
-    def has_task(self, task: BaseOperator) -> bool:
-        """Returns True if this TaskGroup or its children TaskGroups contains the given task."""
-        if task.task_id in self.all_children:
+    def _has_child(self, node_id: str) -> bool:
+        """Returns True if this TaskGroup or its children TaskGroups contains the given node ID."""
+        if any(node_id in children for children in self._all_children_by_kind.values()):
             return True
-
-        return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
+        return any(c._has_child(node_id) for c in self.children.values() if isinstance(c, TaskGroup))
 
     @property
-    def roots(self) -> list[BaseOperator]:
+    def roots(self) -> list[DAGNode]:
         """Required by TaskMixin"""
         return list(self.get_roots())
 
     @property
-    def leaves(self) -> list[BaseOperator]:
+    def leaves(self) -> list[DAGNode]:
         """Required by TaskMixin"""
         return list(self.get_leaves())
 
-    def get_roots(self) -> Generator[BaseOperator, None, None]:
+    def get_roots(self) -> Generator[DAGNode, None, None]:
         """
         Returns a generator of tasks that are root tasks, i.e. those with no upstream
         dependencies within the TaskGroup.
         """
         for task in self:
-            if not any(self.has_task(parent) for parent in task.get_direct_relatives(upstream=True)):
+            if not any(self._has_child(n.node_id) for n in task.get_direct_relatives(upstream=True)):
                 yield task
 
-    def get_leaves(self) -> Generator[BaseOperator, None, None]:
+    def get_leaves(self) -> Generator[DAGNode, None, None]:
         """
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup
         """
         for task in self:
-            if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
+            if not any(self._has_child(n.node_id) for n in task.get_direct_relatives(upstream=False)):
                 yield task
 
     def child_id(self, label):
@@ -431,7 +426,11 @@ class TaskGroup(DAGNode):
 
     def get_child_by_label(self, label: str) -> DAGNode:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
-        return self.all_children[self.child_id(label)]
+        key = self.child_id(label)
+        for children in self._all_children_by_kind.values():
+            if key in children:
+                return children[key]
+        raise KeyError(key)
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
@@ -439,7 +438,7 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
-    def topological_sort(self, _include_subdag_tasks: bool = False):
+    def topological_sort(self, _include_subdag_tasks: bool = False) -> list[DAGNode]:
         """
         Sorts children in topographical order, such that a task comes after any of its
         upstream dependencies.
@@ -450,13 +449,17 @@ class TaskGroup(DAGNode):
         # not have to pre-compute the "in-degree" of the nodes.
         from airflow.operators.subdag import SubDagOperator  # Avoid circular import
 
-        graph_unsorted = copy.copy(self.all_children)
+        # special case
+        if not any(self._all_children_by_kind.values()):
+            return []
+
+        graph_unsorted = {
+            node_id: child
+            for children in self._all_children_by_kind.values()
+            for node_id, child in children.items()
+        }
 
         graph_sorted: list[DAGNode] = []
-
-        # special case
-        if len(self.all_children) == 0:
-            return graph_sorted
 
         # Run until the unsorted graph is empty.
         while graph_unsorted:
@@ -521,15 +524,17 @@ class TaskGroup(DAGNode):
         while groups_to_visit:
             visiting = groups_to_visit.pop(0)
 
-            for child in visiting.all_children.values():
-                if isinstance(child, AbstractOperator):
-                    yield child
-                elif isinstance(child, TaskGroup):
-                    groups_to_visit.append(child)
-                else:
-                    raise ValueError(
-                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
-                    )
+            for children in visiting._all_children_by_kind.values():
+                for child in children.values():
+                    if isinstance(child, AbstractOperator):
+                        yield child
+                    elif isinstance(child, TaskGroup):
+                        groups_to_visit.append(child)
+                    else:
+                        raise ValueError(
+                            f"Encountered a DAGNode that is not a TaskGroup or "
+                            f"an AbstractOperator: {type(child)}"
+                        )
 
 
 class MappedTaskGroup(TaskGroup):

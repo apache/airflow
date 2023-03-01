@@ -16,42 +16,49 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
+import contextlib
+import enum
 
 from airflow.exceptions import AirflowException
 
 
-class SetupTeardownContext:
-    """Track whether the next added task is a setup or teardown task"""
+class SetupTeardown(enum.Enum):
+    """Flag to indicate a setup/teardown context."""
 
-    is_setup: bool = False
-    is_teardown: bool = False
+    setup = "setup"
+    teardown = "teardown"
+
+
+class SetupTeardownContext:
+    """Track whether the next added task is a setup or teardown task."""
+
+    setup_teardown: SetupTeardown | None = None
 
     @classmethod
-    @contextmanager
+    @contextlib.contextmanager
     def setup(cls):
-        if cls.is_setup or cls.is_teardown:
+        if cls.setup_teardown is not None:
             raise AirflowException(
-                "A setup task or taskgroup cannot be nested inside another setup/teardown task or taskgroup"
+                "A setup task or task group cannot be nested inside another setup/teardown task or taskgroup"
             )
 
-        cls.is_setup = True
+        cls.setup_teardown = SetupTeardown.setup
         try:
             yield
         finally:
-            cls.is_setup = False
+            cls.setup_teardown = None
 
     @classmethod
-    @contextmanager
+    @contextlib.contextmanager
     def teardown(cls):
-        if cls.is_setup or cls.is_teardown:
+        if cls.setup_teardown is not None:
             raise AirflowException(
-                "A teardown task or taskgroup cannot be nested inside another"
+                "A teardown task or task group cannot be nested inside another"
                 " setup/teardown task or taskgroup"
             )
 
-        cls.is_teardown = True
+        cls.setup_teardown = SetupTeardown.teardown
         try:
             yield
         finally:
-            cls.is_teardown = False
+            cls.setup_teardown = None

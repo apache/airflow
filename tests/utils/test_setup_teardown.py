@@ -20,31 +20,25 @@ from __future__ import annotations
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.setup_teardown import SetupTeardown, SetupTeardownContext
 
 
 class TestSetupTearDownContext:
     def test_setup(self):
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
         with SetupTeardownContext.setup():
-            assert SetupTeardownContext.is_setup is True
-            assert SetupTeardownContext.is_teardown is False
+            assert SetupTeardownContext.setup_teardown == SetupTeardown.setup
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
     def test_teardown(self):
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
-        with SetupTeardownContext.setup():
-            assert SetupTeardownContext.is_setup is True
-            assert SetupTeardownContext.is_teardown is False
+        with SetupTeardownContext.teardown():
+            assert SetupTeardownContext.setup_teardown == SetupTeardown.teardown
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
     def test_setup_exception(self):
         """Ensure context is reset even if an exception happens"""
@@ -52,8 +46,7 @@ class TestSetupTearDownContext:
             with SetupTeardownContext.setup():
                 raise Exception("Hello")
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
     def test_teardown_exception(self):
         """Ensure context is reset even if an exception happens"""
@@ -61,8 +54,7 @@ class TestSetupTearDownContext:
             with SetupTeardownContext.teardown():
                 raise Exception("Hello")
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
     def test_setup_block_nested(self):
         with SetupTeardownContext.setup():
@@ -76,8 +68,7 @@ class TestSetupTearDownContext:
                 with SetupTeardownContext.setup():
                     raise Exception("This should not be reached")
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
     def test_teardown_block_nested(self):
         with SetupTeardownContext.teardown():
@@ -91,8 +82,7 @@ class TestSetupTearDownContext:
                 with SetupTeardownContext.teardown():
                     raise Exception("This should not be reached")
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
     def test_teardown_nested_in_setup_blocked(self):
         with SetupTeardownContext.setup():
@@ -106,8 +96,7 @@ class TestSetupTearDownContext:
                 with SetupTeardownContext.teardown():
                     raise Exception("This should not be reached")
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None
 
     def test_setup_nested_in_teardown_blocked(self):
         with SetupTeardownContext.teardown():
@@ -121,5 +110,4 @@ class TestSetupTearDownContext:
                 with SetupTeardownContext.setup():
                     raise Exception("This should not be reached")
 
-        assert SetupTeardownContext.is_setup is False
-        assert SetupTeardownContext.is_teardown is False
+        assert SetupTeardownContext.setup_teardown is None

@@ -62,6 +62,7 @@ from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.operator_resources import Resources
+from airflow.utils.setup_teardown import SetupTeardown
 from airflow.utils.task_group import TaskGroup
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import CustomOperator, GoogleLink, MockOperator
@@ -126,9 +127,14 @@ serialized_simple_dag_ground_truth = {
         "_task_group": {
             "_group_id": None,
             "prefix_group_id": True,
-            "setup_children": {},
-            "teardown_children": {},
-            "children": {"bash_task": ("operator", "bash_task"), "custom_task": ("operator", "custom_task")},
+            "all_children_by_kind": {
+                "": {
+                    "bash_task": ("operator", "bash_task"),
+                    "custom_task": ("operator", "custom_task"),
+                },
+                "setup": {},
+                "teardown": {},
+            },
             "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
@@ -338,6 +344,26 @@ def timetable_plugin(monkeypatch):
         plugins_manager,
         "timetable_classes",
         {"tests.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
+    )
+
+
+def _check_taskgroup_children(
+    se_task_group,
+    dag_task_group,
+    expected_setup,
+    expected_children,
+    expected_teardown,
+):
+    se_children = {key: sorted(children) for key, children in se_task_group._all_children_by_kind.items()}
+    dag_children = {key: sorted(children) for key, children in dag_task_group._all_children_by_kind.items()}
+    assert (
+        se_children
+        == dag_children
+        == {
+            None: expected_children,
+            SetupTeardown.setup: expected_setup,
+            SetupTeardown.teardown: expected_teardown,
+        }
     )
 
 
@@ -1330,18 +1356,6 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
-        def _check_taskgroup_children(
-            se_task_group, dag_task_group, expected_setup, expected_children, expected_teardown
-        ):
-            assert list(se_task_group.children.keys()) == expected_children
-            assert list(dag_task_group.children.keys()) == expected_children
-
-            assert list(se_task_group.setup_children.keys()) == expected_setup
-            assert list(dag_task_group.setup_children.keys()) == expected_setup
-
-            assert list(se_task_group.teardown_children.keys()) == expected_teardown
-            assert list(dag_task_group.teardown_children.keys()) == expected_teardown
-
         _check_taskgroup_children(
             serialized_dag.task_group, dag.task_group, ["setup"], ["group1"], ["teardown"]
         )
@@ -1402,24 +1416,12 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
-        def _check_taskgroup_children(
-            se_task_group, dag_task_group, expected_setup, expected_children, expected_teardown
-        ):
-            assert list(se_task_group.children.keys()) == expected_children
-            assert list(dag_task_group.children.keys()) == expected_children
-
-            assert list(se_task_group.setup_children.keys()) == expected_setup
-            assert list(dag_task_group.setup_children.keys()) == expected_setup
-
-            assert list(se_task_group.teardown_children.keys()) == expected_teardown
-            assert list(dag_task_group.teardown_children.keys()) == expected_teardown
-
         _check_taskgroup_children(
             serialized_dag.task_group, dag.task_group, ["setup_group"], ["sometask"], ["teardown_group"]
         )
 
-        se_setup_group = serialized_dag.task_group.setup_children["setup_group"]
-        dag_setup_group = dag.task_group.setup_children["setup_group"]
+        se_setup_group = serialized_dag.task_group._all_children_by_kind[SetupTeardown.setup]["setup_group"]
+        dag_setup_group = dag.task_group._all_children_by_kind[SetupTeardown.setup]["setup_group"]
         _check_taskgroup_children(
             se_setup_group,
             dag_setup_group,
@@ -1428,8 +1430,12 @@ class TestStringifiedDAGs:
             [],
         )
 
-        se_sub_setup_group = se_setup_group.setup_children["setup_group.sub_setup"]
-        dag_sub_setup_group = dag_setup_group.setup_children["setup_group.sub_setup"]
+        se_sub_setup_group = se_setup_group._all_children_by_kind[SetupTeardown.setup][
+            "setup_group.sub_setup"
+        ]
+        dag_sub_setup_group = dag_setup_group._all_children_by_kind[SetupTeardown.setup][
+            "setup_group.sub_setup"
+        ]
         _check_taskgroup_children(
             se_sub_setup_group,
             dag_sub_setup_group,
@@ -1438,8 +1444,10 @@ class TestStringifiedDAGs:
             [],
         )
 
-        se_teardown_group = serialized_dag.task_group.teardown_children["teardown_group"]
-        dag_teardown_group = dag.task_group.teardown_children["teardown_group"]
+        se_teardown_group = serialized_dag.task_group._all_children_by_kind[SetupTeardown.teardown][
+            "teardown_group"
+        ]
+        dag_teardown_group = dag.task_group._all_children_by_kind[SetupTeardown.teardown]["teardown_group"]
         _check_taskgroup_children(
             se_teardown_group,
             dag_teardown_group,
@@ -2490,11 +2498,13 @@ def test_mapped_task_group_serde():
         "taskgroup",
         {
             "_group_id": "tg",
-            "setup_children": {},
-            "teardown_children": {},
-            "children": {
-                "tg.op1": ("operator", "tg.op1"),
-                # "tg.op2": ("operator", "tg.op2"),
+            "all_children_by_kind": {
+                "": {
+                    "tg.op1": ("operator", "tg.op1"),
+                    # "tg.op2": ("operator", "tg.op2"),
+                },
+                "setup": {},
+                "teardown": {},
             },
             "downstream_group_ids": [],
             "downstream_task_ids": [],

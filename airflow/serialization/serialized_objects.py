@@ -57,6 +57,7 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
+from airflow.utils.setup_teardown import SetupTeardown
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
@@ -1308,6 +1309,11 @@ class TaskGroupSerialization(BaseSerialization):
         if not task_group:
             return None
 
+        def serialize_kind(k: SetupTeardown | None) -> str:
+            if k is None:
+                return ""
+            return str(k.value)
+
         # task_group.xxx_ids needs to be sorted here, because task_group.xxx_ids is a set,
         # when converting set to list, the order is uncertain.
         # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
@@ -1317,15 +1323,11 @@ class TaskGroupSerialization(BaseSerialization):
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
-            "setup_children": {
-                label: child.serialize_for_task_group() for label, child in task_group.setup_children.items()
-            },
-            "teardown_children": {
-                label: child.serialize_for_task_group()
-                for label, child in task_group.teardown_children.items()
-            },
-            "children": {
-                label: child.serialize_for_task_group() for label, child in task_group.children.items()
+            "all_children_by_kind": {
+                serialize_kind(kind): {
+                    label: child.serialize_for_task_group() for label, child in children.items()
+                }
+                for kind, children in task_group._all_children_by_kind.items()
             },
             "upstream_group_ids": cls.serialize(sorted(task_group.upstream_group_ids)),
             "downstream_group_ids": cls.serialize(sorted(task_group.downstream_group_ids)),
@@ -1370,27 +1372,21 @@ class TaskGroupSerialization(BaseSerialization):
                 **kwargs,
             )
 
-        def set_ref(task: Operator) -> Operator:
+        def deserialize_child(typ: DAT, val: Any) -> DAGNode:
+            if typ != DAT.OP:  # Task group.
+                return cls.deserialize_task_group(val, group, task_dict, dag=dag)
+            task = task_dict[val]
             task.task_group = weakref.proxy(group)
             return task
 
-        group.setup_children = {
-            label: set_ref(task_dict[val])
-            if _type == DAT.OP
-            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
-            for label, (_type, val) in encoded_group["setup_children"].items()
-        }
-        group.teardown_children = {
-            label: set_ref(task_dict[val])
-            if _type == DAT.OP
-            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
-            for label, (_type, val) in encoded_group["teardown_children"].items()
-        }
-        group.children = {
-            label: set_ref(task_dict[val])
-            if _type == DAT.OP
-            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
-            for label, (_type, val) in encoded_group["children"].items()
+        def deserialize_kind(v: str) -> SetupTeardown | None:
+            if not v:
+                return None
+            return SetupTeardown(v)
+
+        group._all_children_by_kind = {
+            deserialize_kind(kind): {key: deserialize_child(typ, val) for key, (typ, val) in children.items()}
+            for kind, children in encoded_group["all_children_by_kind"].items()
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))
         group.downstream_group_ids.update(cls.deserialize(encoded_group["downstream_group_ids"]))

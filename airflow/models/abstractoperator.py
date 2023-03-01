@@ -30,6 +30,7 @@ from airflow.template.templater import Templater
 from airflow.utils.context import Context
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardown
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
@@ -101,6 +102,12 @@ class AbstractOperator(Templater, DAGNode):
 
     outlets: list
     inlets: list
+
+    setup_teardown: SetupTeardown | None = None
+    """Indicate whether this is a setup or teadown task.
+
+    :meta private:
+    """
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
