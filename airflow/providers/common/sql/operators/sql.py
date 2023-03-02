@@ -73,6 +73,8 @@ def _get_failed_checks(checks, col=None):
 
 parse_boolean = _parse_boolean
 """
+:sphinx-autoapi-skip:
+
 IMPORTANT!!! Keep it for compatibility with released 8.4.0 version of google provider.
 
 Unfortunately the provider used _get_failed_checks and parse_boolean as imports and we should
@@ -187,14 +189,14 @@ class BaseSQLOperator(BaseOperator):
 class SQLExecuteQueryOperator(BaseSQLOperator):
     """
     Executes SQL code in a specific database
-    :param sql: the SQL code or string pointing to a template file to be executed (templated).
-    File must have a '.sql' extensions.
 
     When implementing a specific Operator, you can also implement `_process_output` method in the
     hook to perform additional processing of values returned by the DB Hook of yours. For example, you
     can join description retrieved from the cursors of your statements with returned values, or save
     the output of your operator to a file.
 
+    :param sql: the SQL code or string pointing to a template file to be executed (templated).
+        File must have a '.sql' extension.
     :param autocommit: (optional) if True, each command is automatically committed (default: False).
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
@@ -286,40 +288,41 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     Checks are performed on a per-column basis specified by the column_mapping.
 
     Each check can take one or more of the following options:
-    - equal_to: an exact value to equal, cannot be used with other comparison options
-    - greater_than: value that result should be strictly greater than
-    - less_than: value that results should be strictly less than
-    - geq_to: value that results should be greater than or equal to
-    - leq_to: value that results should be less than or equal to
-    - tolerance: the percentage that the result may be off from the expected value
-    - partition_clause: an extra clause passed into a WHERE statement to partition data
+
+    * ``equal_to``: an exact value to equal, cannot be used with other comparison options
+    * ``greater_than``: value that result should be strictly greater than
+    * ``less_than``: value that results should be strictly less than
+    * ``geq_to``: value that results should be greater than or equal to
+    * ``leq_to``: value that results should be less than or equal to
+    * ``tolerance``: the percentage that the result may be off from the expected value
+    * ``partition_clause``: an extra clause passed into a WHERE statement to partition data
 
     :param table: the table to run checks on
     :param column_mapping: the dictionary of columns and their associated checks, e.g.
 
-    .. code-block:: python
+        .. code-block:: python
 
-        {
-            "col_name": {
-                "null_check": {
-                    "equal_to": 0,
-                    "partition_clause": "foreign_key IS NOT NULL",
-                },
-                "min": {
-                    "greater_than": 5,
-                    "leq_to": 10,
-                    "tolerance": 0.2,
-                },
-                "max": {"less_than": 1000, "geq_to": 10, "tolerance": 0.01},
+            {
+                "col_name": {
+                    "null_check": {
+                        "equal_to": 0,
+                        "partition_clause": "foreign_key IS NOT NULL",
+                    },
+                    "min": {
+                        "greater_than": 5,
+                        "leq_to": 10,
+                        "tolerance": 0.2,
+                    },
+                    "max": {"less_than": 1000, "geq_to": 10, "tolerance": 0.01},
+                }
             }
-        }
 
     :param partition_clause: a partial SQL statement that is added to a WHERE clause in the query built by
         the operator that creates partition_clauses for the checks to run on, e.g.
 
-    .. code-block:: python
+        .. code-block:: python
 
-        "date = '1970-01-01'"
+            "date = '1970-01-01'"
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
@@ -534,21 +537,21 @@ class SQLTableCheckOperator(BaseSQLOperator):
     :param checks: the dictionary of checks, where check names are followed by a dictionary containing at
         least a check statement, and optionally a partition clause, e.g.:
 
-    .. code-block:: python
+        .. code-block:: python
 
-        {
-            "row_count_check": {"check_statement": "COUNT(*) = 1000"},
-            "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
-            "third_check": {"check_statement": "MIN(col) = 1", "partition_clause": "col IS NOT NULL"},
-        }
+            {
+                "row_count_check": {"check_statement": "COUNT(*) = 1000"},
+                "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
+                "third_check": {"check_statement": "MIN(col) = 1", "partition_clause": "col IS NOT NULL"},
+            }
 
 
     :param partition_clause: a partial SQL statement that is added to a WHERE clause in the query built by
         the operator that creates partition_clauses for the checks to run on, e.g.
 
-    .. code-block:: python
+        .. code-block:: python
 
-        "date = '1970-01-01'"
+            "date = '1970-01-01'"
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
@@ -807,12 +810,11 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     :param date_filter_column: The column name for the dates to filter on. Defaults to 'ds'
     :param ratio_formula: which formula to use to compute the ratio between
         the two metrics. Assuming cur is the metric of today and ref is
-        the metric to today - days_back.
+        the metric to today - days_back. Default: 'max_over_min'
 
-        max_over_min: computes max(cur, ref) / min(cur, ref)
-        relative_diff: computes abs(cur-ref) / ref
+        * ``max_over_min``: computes max(cur, ref) / min(cur, ref)
+        * ``relative_diff``: computes abs(cur-ref) / ref
 
-        Default: 'max_over_min'
     :param ignore_zero: whether we should ignore zero metrics
     :param metrics_thresholds: a dictionary of ratios indexed by metrics
     """
@@ -1029,7 +1031,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
     :param sql: The SQL code to be executed, should return true or false (templated)
        Template reference are recognized by str ending in '.sql'.
-       Expected SQL query to return Boolean (True/False), integer (0 = False, Otherwise = 1)
+       Expected SQL query to return a boolean (True/False), integer (0 = False, Otherwise = 1)
        or string (true/y/yes/1/on/false/n/no/0/off).
     :param follow_task_ids_if_true: task id or task ids to follow if query returns true
     :param follow_task_ids_if_false: task id or task ids to follow if query returns false
