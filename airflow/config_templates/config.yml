@@ -884,7 +884,7 @@ metrics:
       default: ""
     statsd_invert_allow_list:
       description: |
-        Set to True to invert the functionality of the allowlist to a blocklist
+        Set to True to invert the functionality of the statsd_invert_allow_list to a blocklist
       version_added: 2.6.0
       type: boolean
       example: ~
@@ -932,7 +932,9 @@ metrics:
       default: ~
     statsd_disabled_tags:
       description: |
-        List of tag names the user chooses to disable
+        If you want to avoid sending all the available metrics tags to StatsD,
+        you can configure a blocklist of prefixes (comma separated) to filter out metric tags
+        that start with the elements of the list (e.g: "job_id,run_id")
       version_added: 2.6.0
       type: string
       example: job_id,run_id,dag_id,task_id
