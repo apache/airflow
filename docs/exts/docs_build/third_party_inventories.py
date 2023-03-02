@@ -17,7 +17,10 @@
 from __future__ import annotations
 
 THIRD_PARTY_INDEXES = {
-    "boto3": "https://boto3.amazonaws.com/v1/documentation/api/latest",
+    # Temporary set to the latest version of boto3 inventory which has all the methods
+    # This should be changed back to "latest" once the inventory is fixed
+    # See https://github.com/boto/boto3/issues/3610 for details
+    "boto3": "https://boto3.amazonaws.com/v1/documentation/api/1.26.80",
     "celery": "https://docs.celeryq.dev/en/stable/",
     "docker": "https://docker-py.readthedocs.io/en/stable",
     "hdfs": "https://hdfscli.readthedocs.io/en/latest",
