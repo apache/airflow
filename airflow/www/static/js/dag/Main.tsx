@@ -31,6 +31,7 @@ import Details from "./details";
 import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
 import LegendRow from "./nav/LegendRow";
+import useToggleGroups from "./useToggleGroups";
 
 const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
@@ -69,6 +70,7 @@ const Main = () => {
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
   >();
+  const { openGroupIds, onToggleGroups } = useToggleGroups();
 
   // Add a debounced delay to not constantly trigger highlighting certain task states
   const onStatusHover = debounce(
@@ -157,6 +159,8 @@ const Main = () => {
                 isPanelOpen={isOpen}
                 onPanelToggle={onPanelToggle}
                 hoveredTaskState={hoveredTaskState}
+                openGroupIds={openGroupIds}
+                onToggleGroups={onToggleGroups}
               />
             </Box>
             {isOpen && (
@@ -175,7 +179,10 @@ const Main = () => {
                   bg="white"
                   height="100%"
                 >
-                  <Details />
+                  <Details
+                    openGroupIds={openGroupIds}
+                    onToggleGroups={onToggleGroups}
+                  />
                 </Box>
               </>
             )}

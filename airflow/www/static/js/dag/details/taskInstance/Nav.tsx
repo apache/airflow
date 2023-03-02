@@ -18,7 +18,7 @@
  */
 
 import React, { forwardRef } from "react";
-import { Flex, Divider } from "@chakra-ui/react";
+import { Flex } from "@chakra-ui/react";
 
 import { getMetaValue, appendSearchParams } from "src/utils";
 import LinkButton from "src/components/LinkButton";
@@ -33,7 +33,6 @@ const taskInstancesUrl = getMetaValue("task_instances_list_url");
 const renderedK8sUrl = getMetaValue("rendered_k8s_url");
 const renderedTemplatesUrl = getMetaValue("rendered_templates_url");
 const xcomUrl = getMetaValue("xcom_url");
-const logUrl = getMetaValue("log_url");
 const taskUrl = getMetaValue("task_url");
 const gridUrl = getMetaValue("grid_url");
 const gridUrlNoRoot = getMetaValue("grid_url_no_root");
@@ -60,7 +59,6 @@ const Nav = forwardRef<HTMLDivElement, Props>(
     });
     const detailsLink = `${taskUrl}&${params}`;
     const renderedLink = `${renderedTemplatesUrl}&${params}`;
-    const logLink = `${logUrl}&${params}`;
     const xcomLink = `${xcomUrl}&${params}`;
     const k8sLink = `${renderedK8sUrl}&${params}`;
     const listParams = new URLSearchParamsWrapper({
@@ -78,6 +76,8 @@ const Nav = forwardRef<HTMLDivElement, Props>(
       root: taskId,
     });
 
+    if (mapIndex !== undefined && mapIndex >= 0)
+      listParams.append("_flt_0_map_index", mapIndex.toString());
     if (baseDate) filterParams.append("base_date", baseDate);
     if (numRuns) filterParams.append("num_runs", numRuns);
 
@@ -96,32 +96,28 @@ const Nav = forwardRef<HTMLDivElement, Props>(
     const isSubDag = operator === "SubDagOperator";
 
     return (
-      <>
-        <Flex flexWrap="wrap" ref={ref}>
-          {(!isMapped || mapIndex !== undefined) && (
-            <>
-              <LinkButton href={detailsLink}>Task Instance Details</LinkButton>
-              <LinkButton href={renderedLink}>Rendered Template</LinkButton>
-              {isK8sExecutor && (
-                <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>
-              )}
-              {isSubDag && (
-                <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
-              )}
-              <LinkButton href={logLink}>Log</LinkButton>
-              <LinkButton href={xcomLink}>XCom</LinkButton>
-            </>
-          )}
-          <LinkButton
-            href={allInstancesLink}
-            title="View all instances across all DAG runs"
-          >
-            List Instances, all runs
-          </LinkButton>
-          <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
-        </Flex>
-        <Divider mt={3} />
-      </>
+      <Flex flexWrap="wrap" ref={ref} mb={2}>
+        {(!isMapped || mapIndex !== undefined) && (
+          <>
+            <LinkButton href={detailsLink}>More Details</LinkButton>
+            <LinkButton href={renderedLink}>Rendered Template</LinkButton>
+            {isK8sExecutor && (
+              <LinkButton href={k8sLink}>K8s Pod Spec</LinkButton>
+            )}
+            {isSubDag && (
+              <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
+            )}
+            <LinkButton href={xcomLink}>XCom</LinkButton>
+          </>
+        )}
+        <LinkButton
+          href={allInstancesLink}
+          title="View all instances across all DAG runs"
+        >
+          List Instances, all runs
+        </LinkButton>
+        <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
+      </Flex>
     );
   }
 );

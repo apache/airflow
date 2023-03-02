@@ -25,6 +25,7 @@ import { render, fireEvent, waitFor } from "@testing-library/react";
 
 import { Wrapper } from "src/utils/testUtils";
 import * as useGridDataModule from "src/api/useGridData";
+import useToggleGroups from "src/dag/useToggleGroups";
 
 import Grid from ".";
 
@@ -112,6 +113,11 @@ const mockGridData = {
 const EXPAND = "Expand all task groups";
 const COLLAPSE = "Collapse all task groups";
 
+const GridWithGroups = () => {
+  const { openGroupIds, onToggleGroups } = useToggleGroups();
+  return <Grid openGroupIds={openGroupIds} onToggleGroups={onToggleGroups} />;
+};
+
 describe("Test ToggleGroups", () => {
   beforeAll(() => {
     class ResizeObserver {
@@ -137,9 +143,10 @@ describe("Test ToggleGroups", () => {
   });
 
   test("Group defaults to closed", () => {
-    const { getByTestId, getByText, getAllByTestId } = render(<Grid />, {
-      wrapper: Wrapper,
-    });
+    const { getByTestId, getByText, getAllByTestId } = render(
+      <Grid openGroupIds={[]} onToggleGroups={() => {}} />,
+      { wrapper: Wrapper }
+    );
 
     const groupName = getByText("group_1");
 
@@ -149,7 +156,9 @@ describe("Test ToggleGroups", () => {
   });
 
   test("Buttons are disabled if all groups are expanded or collapsed", () => {
-    const { getByTitle } = render(<Grid />, { wrapper: Wrapper });
+    const { getByTitle, queryAllByTestId } = render(<GridWithGroups />, {
+      wrapper: Wrapper,
+    });
 
     const expandButton = getByTitle(EXPAND);
     const collapseButton = getByTitle(COLLAPSE);
@@ -157,16 +166,23 @@ describe("Test ToggleGroups", () => {
     expect(expandButton).toBeEnabled();
     expect(collapseButton).toBeDisabled();
 
+    const taskElements = queryAllByTestId("task-instance");
+    expect(taskElements).toHaveLength(1);
+
     fireEvent.click(expandButton);
+
+    const newTaskElements = queryAllByTestId("task-instance");
+    expect(newTaskElements).toHaveLength(3);
 
     expect(collapseButton).toBeEnabled();
     expect(expandButton).toBeDisabled();
   });
 
   test("Expand/collapse buttons toggle nested groups", async () => {
-    const { getByText, queryAllByTestId, getByTitle } = render(<Grid />, {
-      wrapper: Wrapper,
-    });
+    const { getByText, queryAllByTestId, getByTitle } = render(
+      <GridWithGroups />,
+      { wrapper: Wrapper }
+    );
 
     const expandButton = getByTitle(EXPAND);
     const collapseButton = getByTitle(COLLAPSE);
@@ -198,9 +214,11 @@ describe("Test ToggleGroups", () => {
   });
 
   test("Hovered effect on task state", async () => {
-    const { rerender, queryAllByTestId } = render(<Grid />, {
-      wrapper: Wrapper,
-    });
+    const openGroupIds = ["group_1", "task_1"];
+    const { rerender, queryAllByTestId } = render(
+      <Grid openGroupIds={openGroupIds} onToggleGroups={() => {}} />,
+      { wrapper: Wrapper }
+    );
 
     const taskElements = queryAllByTestId("task-instance");
     expect(taskElements).toHaveLength(3);
@@ -209,13 +227,25 @@ describe("Test ToggleGroups", () => {
       expect(taskElement).toHaveStyle("opacity: 1");
     });
 
-    rerender(<Grid hoveredTaskState="success" />);
+    rerender(
+      <Grid
+        hoveredTaskState="success"
+        openGroupIds={openGroupIds}
+        onToggleGroups={() => {}}
+      />
+    );
 
     taskElements.forEach((taskElement) => {
       expect(taskElement).toHaveStyle("opacity: 1");
     });
 
-    rerender(<Grid hoveredTaskState="failed" />);
+    rerender(
+      <Grid
+        hoveredTaskState="failed"
+        openGroupIds={openGroupIds}
+        onToggleGroups={() => {}}
+      />
+    );
 
     taskElements.forEach((taskElement) => {
       expect(taskElement).toHaveStyle("opacity: 0.3");

@@ -30,6 +30,7 @@ import DagNode from "./DagNode";
 
 export interface NodeType extends ElkShape {
   value: DepNode["value"];
+  children?: NodeType[];
 }
 
 interface Props {

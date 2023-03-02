@@ -27,7 +27,7 @@ const MAP_INDEX = "map_index";
 export interface SelectionProps {
   runId?: string | null;
   taskId?: string | null;
-  mapIndex?: number | null;
+  mapIndex?: number;
 }
 
 const useSelection = () => {
@@ -59,7 +59,8 @@ const useSelection = () => {
   const runId = searchParams.get(RUN_ID);
   const taskId = searchParams.get(TASK_ID);
   const mapIndexParam = searchParams.get(MAP_INDEX);
-  const mapIndex = mapIndexParam !== null ? parseInt(mapIndexParam, 10) : null;
+  const mapIndex =
+    mapIndexParam !== null ? parseInt(mapIndexParam, 10) : undefined;
 
   return {
     selected: {

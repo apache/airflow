@@ -17,31 +17,33 @@
  * under the License.
  */
 
-/* global localStorage, ResizeObserver */
+/* global ResizeObserver */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { Table, Tbody, Box, Thead, IconButton } from "@chakra-ui/react";
 
 import { MdDoubleArrow } from "react-icons/md";
 
 import { useGridData } from "src/api";
-import { getMetaValue, useOffsetTop } from "src/utils";
+import { useOffsetTop } from "src/utils";
 
 import renderTaskRows from "./renderTaskRows";
 import DagRuns from "./dagRuns";
-
-const dagId = getMetaValue("dag_id");
 
 interface Props {
   isPanelOpen?: boolean;
   onPanelToggle?: () => void;
   hoveredTaskState?: string | null;
+  openGroupIds: string[];
+  onToggleGroups: (groupIds: string[]) => void;
 }
 
 const Grid = ({
   isPanelOpen = false,
   onPanelToggle,
   hoveredTaskState,
+  openGroupIds,
+  onToggleGroups,
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
@@ -51,15 +53,6 @@ const Grid = ({
     data: { groups, dagRuns },
   } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
-
-  const openGroupsKey = `${dagId}/open-groups`;
-  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey) || "[]");
-  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
-
-  const onToggleGroups = (groupIds: string[]) => {
-    localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
-    setOpenGroupIds(groupIds);
-  };
 
   useEffect(() => {
     const scrollOnResize = new ResizeObserver(() => {

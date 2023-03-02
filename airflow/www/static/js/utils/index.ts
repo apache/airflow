@@ -18,8 +18,7 @@
  */
 
 import Color from "color";
-
-import type { DagRun, RunOrdering, Task } from "src/types";
+import type { DagRun, RunOrdering, Task, TaskInstance } from "src/types";
 
 import useOffsetTop from "./useOffsetTop";
 
@@ -48,6 +47,43 @@ const finalStatesMap = () =>
     ["skipped", 0],
     ["no_status", 0],
   ]);
+
+interface GroupSummaryProps {
+  group: Task;
+  runId?: string;
+  mappedStates: TaskInstance["mappedStates"];
+}
+
+const getGroupAndMapSummary = ({
+  group,
+  runId,
+  mappedStates,
+}: GroupSummaryProps) => {
+  let totalTasks = 0;
+  const childTaskMap = finalStatesMap();
+  if (!!group.children && !group.isMapped) {
+    group.children?.forEach((child) => {
+      const taskInstance = child.instances.find((ti) => ti.runId === runId);
+      if (taskInstance) {
+        const stateKey =
+          taskInstance.state == null ? "no_status" : taskInstance.state;
+        if (childTaskMap.has(stateKey)) {
+          childTaskMap.set(stateKey, (childTaskMap.get(stateKey) || 0) + 1);
+        }
+      }
+    });
+  } else if (group.isMapped && mappedStates) {
+    Object.entries(mappedStates).forEach(([key, value]) => {
+      totalTasks += value;
+      childTaskMap.set(key || "no_status", value);
+    });
+  }
+
+  return {
+    totalTasks,
+    childTaskMap,
+  };
+};
 
 const appendSearchParams = (
   url: string | null,
@@ -144,6 +180,7 @@ const getStatusBackgroundColor = (color: string, hasNote: boolean) =>
 export {
   hoverDelay,
   finalStatesMap,
+  getGroupAndMapSummary,
   getMetaValue,
   appendSearchParams,
   getTask,

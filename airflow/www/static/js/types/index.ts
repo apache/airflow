@@ -112,7 +112,11 @@ interface DepNode {
     label: string;
     rx: number;
     ry: number;
+    isOpen?: boolean;
+    isJoinNode?: boolean;
+    childCount?: number;
   };
+  children?: DepNode[];
 }
 
 interface DepEdge {

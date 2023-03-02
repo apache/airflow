@@ -29,6 +29,7 @@ import useMarkFailedTask from "./useMarkFailedTask";
 import useMarkSuccessTask from "./useMarkSuccessTask";
 import useExtraLinks from "./useExtraLinks";
 import useConfirmMarkTask from "./useConfirmMarkTask";
+import useGraphData from "./useGraphData";
 import useGridData from "./useGridData";
 import useMappedInstances from "./useMappedInstances";
 import useDatasets from "./useDatasets";
@@ -55,6 +56,7 @@ export {
   useDatasetEvents,
   useDatasets,
   useExtraLinks,
+  useGraphData,
   useGridData,
   useMappedInstances,
   useMarkFailedRun,

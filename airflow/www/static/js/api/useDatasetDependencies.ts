@@ -25,6 +25,8 @@ import { getMetaValue } from "src/utils";
 import type { DepEdge, DepNode } from "src/types";
 import type { NodeType } from "src/datasets/Graph/Node";
 
+import { getTextWidth } from "src/utils/graph";
+
 interface DatasetDependencies {
   edges: DepEdge[];
   nodes: DepNode[];
@@ -48,17 +50,6 @@ interface Graph extends ElkShape {
 interface Data {
   fullGraph: Graph;
   subGraphs: Graph[];
-}
-
-// Take text and font to calculate how long each node should be
-function getTextWidth(text: string, font: string) {
-  const context = document.createElement("canvas").getContext("2d");
-  if (context) {
-    context.font = font;
-    const metrics = context.measureText(text);
-    return metrics.width;
-  }
-  return text.length * 9;
 }
 
 const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
