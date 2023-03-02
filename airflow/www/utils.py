@@ -286,9 +286,15 @@ def generate_pages(
 
     is_disabled = "disabled" if current_page <= 0 else ""
 
-    first_node_link = (
-        void_link if is_disabled else f"?{get_params(page=0, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
+    qs = get_params(
+        page=0,
+        search=search,
+        status=status,
+        tags=tags,
+        sorting_key=sorting_key,
+        sorting_direction=sorting_direction,
     )
+    first_node_link = void_link if is_disabled else f"?{qs}"
     output.append(
         first_node.format(
             href_link=first_node_link,
@@ -298,7 +304,15 @@ def generate_pages(
 
     page_link = void_link
     if current_page > 0:
-        page_link = f"?{get_params(page=current_page - 1, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
+        qs = get_params(
+            page=current_page - 1,
+            search=search,
+            status=status,
+            tags=tags,
+            sorting_key=sorting_key,
+            sorting_direction=sorting_direction,
+        )
+        page_link = f"?{qs}"
 
     output.append(previous_node.format(href_link=page_link, disabled=is_disabled))
 
@@ -316,30 +330,44 @@ def generate_pages(
         return page == current
 
     for page in pages:
+        qs = get_params(
+            page=page,
+            search=search,
+            status=status,
+            tags=tags,
+            sorting_key=sorting_key,
+            sorting_direction=sorting_direction,
+        )
         vals = {
             "is_active": "active" if is_current(current_page, page) else "",
-            "href_link": void_link
-            if is_current(current_page, page)
-            else f"?{get_params(page=page, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}",
+            "href_link": void_link if is_current(current_page, page) else f"?{qs}",
             "page_num": page + 1,
         }
         output.append(page_node.format(**vals))
 
     is_disabled = "disabled" if current_page >= num_of_pages - 1 else ""
 
-    page_link = (
-        void_link
-        if current_page >= num_of_pages - 1
-        else f"?{get_params(page=current_page + 1, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
+    qs = get_params(
+        page=current_page + 1,
+        search=search,
+        status=status,
+        tags=tags,
+        sorting_key=sorting_key,
+        sorting_direction=sorting_direction,
     )
+    page_link = void_link if current_page >= num_of_pages - 1 else f"?{qs}"
 
     output.append(next_node.format(href_link=page_link, disabled=is_disabled))
 
-    last_node_link = (
-        void_link
-        if is_disabled
-        else f"?{get_params(page=last_page, search=search, status=status, tags=tags, sorting_key=sorting_key, sorting_direction=sorting_direction)}"
+    qs = get_params(
+        page=last_page,
+        search=search,
+        status=status,
+        tags=tags,
+        sorting_key=sorting_key,
+        sorting_direction=sorting_direction,
     )
+    last_node_link = void_link if is_disabled else f"?{qs}"
     output.append(
         last_node.format(
             href_link=last_node_link,
