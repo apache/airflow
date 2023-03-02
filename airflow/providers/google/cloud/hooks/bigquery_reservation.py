@@ -33,7 +33,6 @@ class BigQueryReservationServiceHook(GoogleBaseHook):
 
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
     :param location: The location of the BigQuery resource.
-    :param delegate_to: This performs a task on one host with reference to other hosts.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
     """
@@ -47,12 +46,10 @@ class BigQueryReservationServiceHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = GoogleBaseHook.default_conn_name,
         location: str | None = None,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.location = location
