@@ -240,6 +240,26 @@ class TestStatsWithAllowList:
         self.statsd_client.assert_not_called()
 
 
+class TestStatsWithInvertedAllowList:
+    def setup_method(self):
+        self.statsd_client = Mock(spec=statsd.StatsClient)
+        self.stats = SafeStatsdLogger(
+            self.statsd_client, AllowListValidator("stats_one, stats_two", inverse=True)
+        )
+
+    def test_increment_counter_with_allowed_key(self):
+        self.stats.incr("stats_one")
+        self.statsd_client.assert_not_called()
+
+    def test_increment_counter_with_allowed_prefix(self):
+        self.stats.incr("stats_two.bla")
+        self.statsd_client.assert_not_called()
+
+    def test_not_increment_counter_if_not_allowed(self):
+        self.stats.incr("stats_three")
+        self.statsd_client.incr.assert_called_once_with("stats_three", 1, 1)
+
+
 class TestDogStatsWithAllowList:
     def setup_method(self):
         pytest.importorskip("datadog")
@@ -280,6 +300,25 @@ class TestDogStatsWithMetricsTags:
         )
 
 
+class TestDogStatsWithDisabledMetricsTags:
+    def setup_method(self):
+        pytest.importorskip("datadog")
+        from datadog import DogStatsd
+
+        self.dogstatsd_client = Mock(speck=DogStatsd)
+        self.dogstatsd = SafeDogStatsdLogger(
+            self.dogstatsd_client,
+            metrics_tags=True,
+            allowed_tag_validator=AllowListValidator("key1", inverse=True),
+        )
+
+    def test_does_send_stats_using_dogstatsd_with_tags(self):
+        self.dogstatsd.incr("empty_key", 1, 1, tags={"key1": "value1", "key2": "value2"})
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric="empty_key", sample_rate=1, tags=["key2:value2"], value=1
+        )
+
+
 class TestStatsWithInfluxDBEnabled:
     def setup_method(self):
         with conf_vars(
@@ -289,7 +328,11 @@ class TestStatsWithInfluxDBEnabled:
             }
         ):
             self.statsd_client = Mock(spec=statsd.StatsClient)
-            self.stats = SafeStatsdLogger(self.statsd_client, influxdb_tags_enabled=True)
+            self.stats = SafeStatsdLogger(
+                self.statsd_client,
+                influxdb_tags_enabled=True,
+                allowed_tag_validator=AllowListValidator("key2,key3", inverse=True),
+            )
 
     def test_increment_counter(self):
         self.stats.incr(
@@ -302,16 +345,14 @@ class TestStatsWithInfluxDBEnabled:
             "test_stats_run.delay",
             tags={"key0": "val0", "key1": "val1", "key2": "val2"},
         )
-        self.statsd_client.incr.assert_called_once_with(
-            "test_stats_run.delay,key0=val0,key1=val1,key2=val2", 1, 1
-        )
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=val0,key1=val1", 1, 1)
 
     def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(
             "test_stats_run.delay",
-            tags={"key0,": "val0", "key1": "val1", "key2": "val2"},
+            tags={"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
         )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1,key2=val2", 1, 1)
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1", 1, 1)
 
 
 def always_invalid(stat_name):

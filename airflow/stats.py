@@ -266,19 +266,23 @@ def validate_stat(fn: T) -> T:
 
 
 class AllowListValidator:
-    """Class to filter unwanted stats."""
+    """Class to filter unwanted stats. If inverse is True, allow_list becomes a blocklist"""
 
-    def __init__(self, allow_list=None):
+    def __init__(self, allow_list=None, inverse=False):
         if allow_list:
 
             self.allow_list = tuple(item.strip().lower() for item in allow_list.split(","))
         else:
             self.allow_list = None
+        self.inverse = inverse
 
     def test(self, stat):
         """Test if stat is in the Allow List."""
         if self.allow_list is not None:
-            return stat.strip().lower().startswith(self.allow_list)
+            if self.inverse:
+                return not stat.strip().lower().startswith(self.allow_list)
+            else:
+                return stat.strip().lower().startswith(self.allow_list)
         else:
             return True  # default is all metrics allowed
 
@@ -291,10 +295,11 @@ def prepare_stat_with_tags(fn: T) -> T:
         if self.influxdb_tags_enabled:
             if stat is not None and tags is not None:
                 for k, v in tags.items():
-                    if all((c not in [",", "="] for c in v + k)):
-                        stat += f",{k}={v}"
-                    else:
-                        log.error("Dropping invalid tag: %s=%s.", k, v)
+                    if self.allowed_tag_validator.test(k):
+                        if all((c not in [",", "="] for c in v + k)):
+                            stat += f",{k}={v}"
+                        else:
+                            log.error("Dropping invalid tag: %s=%s.", k, v)
         return fn(self, stat, *args, tags=tags, **kwargs)
 
     return cast(T, wrapper)
@@ -307,13 +312,13 @@ class SafeStatsdLogger:
         self,
         statsd_client,
         allow_list_validator=AllowListValidator(),
-        aggregation_optimizer_enabled=False,
         influxdb_tags_enabled=False,
+        allowed_tag_validator=AllowListValidator(),
     ):
         self.statsd = statsd_client
         self.allow_list_validator = allow_list_validator
-        self.aggregation_optimizer_enabled = aggregation_optimizer_enabled
         self.influxdb_tags_enabled = influxdb_tags_enabled
+        self.allowed_tag_validator = allowed_tag_validator
 
     @prepare_stat_with_tags
     @validate_stat
@@ -398,12 +403,12 @@ class SafeDogStatsdLogger:
         dogstatsd_client,
         allow_list_validator=AllowListValidator(),
         metrics_tags=False,
-        aggregation_optimizer_enabled=False,
+        allowed_tag_validator=AllowListValidator(),
     ):
         self.dogstatsd = dogstatsd_client
         self.allow_list_validator = allow_list_validator
         self.metrics_tags = metrics_tags
-        self.aggregation_optimizer_enabled = aggregation_optimizer_enabled
+        self.allowed_tag_validator = allowed_tag_validator
 
     @validate_stat
     def incr(
@@ -416,7 +421,9 @@ class SafeDogStatsdLogger:
     ):
         """Increment stat."""
         if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.allowed_tag_validator.test(key)
+            ]
         else:
             tags_list = []
         if self.allow_list_validator.test(stat):
@@ -434,7 +441,9 @@ class SafeDogStatsdLogger:
     ):
         """Decrement stat."""
         if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.allowed_tag_validator.test(key)
+            ]
         else:
             tags_list = []
         if self.allow_list_validator.test(stat):
@@ -453,7 +462,9 @@ class SafeDogStatsdLogger:
     ):
         """Gauge stat."""
         if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.allowed_tag_validator.test(key)
+            ]
         else:
             tags_list = []
         if self.allow_list_validator.test(stat):
@@ -470,7 +481,9 @@ class SafeDogStatsdLogger:
     ):
         """Stats timing."""
         if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.allowed_tag_validator.test(key)
+            ]
         else:
             tags_list = []
         if self.allow_list_validator.test(stat):
@@ -489,7 +502,9 @@ class SafeDogStatsdLogger:
     ):
         """Timer metric that can be cancelled."""
         if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [f"{key}:{value}" for key, value in tags.items()]
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.allowed_tag_validator.test(key)
+            ]
         else:
             tags_list = []
         if stat and self.allow_list_validator.test(stat):
@@ -547,14 +562,15 @@ class _Stats(type):
             port=conf.getint("metrics", "statsd_port"),
             prefix=conf.get("metrics", "statsd_prefix"),
         )
-        allow_list_validator = AllowListValidator(conf.get("metrics", "statsd_allow_list", fallback=None))
-        aggregation_optimizer_enabled = conf.get(
-            "metrics", "statsd_aggregation_optimized_naming_enabled", fallback=False
+        invert_allow_list = conf.get("metrics", "statsd_invert_allow_list", fallback=False)
+        allow_list_validator = AllowListValidator(
+            conf.get("metrics", "statsd_allow_list", fallback=None), inverse=invert_allow_list
         )
         influxdb_tags_enabled = conf.get("metrics", "statsd_influxdb_enabled", fallback=False)
-        return SafeStatsdLogger(
-            statsd, allow_list_validator, aggregation_optimizer_enabled, influxdb_tags_enabled
+        allowed_tag_validator = AllowListValidator(
+            conf.get("metrics", "statsd_disabled_tags", fallback=None), inverse=True
         )
+        return SafeStatsdLogger(statsd, allow_list_validator, influxdb_tags_enabled, allowed_tag_validator)
 
     @classmethod
     def get_dogstatsd_logger(cls):
@@ -568,13 +584,14 @@ class _Stats(type):
             constant_tags=cls.get_constant_tags(),
         )
         dogstatsd_allow_list = conf.get("metrics", "statsd_allow_list", fallback=None)
-        allow_list_validator = AllowListValidator(dogstatsd_allow_list)
+        invert_allow_list = conf.get("metrics", "statsd_invert_allow_list", fallback=False)
+        allow_list_validator = AllowListValidator(dogstatsd_allow_list, inverse=invert_allow_list)
         datadog_metrics_tags = conf.get("metrics", "statsd_datadog_metrics_tags", fallback=True)
-        aggregation_optimizer_enabled = conf.get(
-            "metrics", "statsd_aggregation_optimized_naming_enabled", fallback=False
+        allowed_tag_validator = AllowListValidator(
+            conf.get("metrics", "statsd_disabled_tags", fallback=None), inverse=True
         )
         return SafeDogStatsdLogger(
-            dogstatsd, allow_list_validator, datadog_metrics_tags, aggregation_optimizer_enabled
+            dogstatsd, allow_list_validator, datadog_metrics_tags, allowed_tag_validator
         )
 
     @classmethod
