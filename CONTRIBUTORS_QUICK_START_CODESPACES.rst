@@ -38,7 +38,7 @@ Setup and develop using GitHub Codespaces
 3. Once the codespace starts your terminal should be already in ``Breeze`` environment and you should
    be able to edit and run the tests in VS Code interface.
 
-4. You can use `Quick start quide for Visual Studio Code <CONTRIBUTORS_QUICK_START_VSC.rst>`_ for details
+4. You can use `Quick start quide for Visual Studio Code <CONTRIBUTORS_QUICK_START_VSCODE.rst>`_ for details
    as Codespaces use Visual Studio Code as interface.
 
 

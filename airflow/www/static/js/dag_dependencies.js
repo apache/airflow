@@ -21,16 +21,18 @@
   global d3, localStorage, dagreD3, dagNodes, edges, arrange, document,
 */
 
-const highlightColor = '#000000';
-const upstreamColor = '#2020A0';
-const downstreamColor = '#0000FF';
-const initialStrokeWidth = '3px';
-const highlightStrokeWidth = '5px';
+const highlightColor = "#000000";
+const upstreamColor = "#2020A0";
+const downstreamColor = "#0000FF";
+const initialStrokeWidth = "3px";
+const highlightStrokeWidth = "5px";
 const duration = 500;
 
 let nodes = dagNodes;
 const fullNodes = nodes;
-const filteredNodes = nodes.filter((n) => edges.some((e) => e.u === n.id || e.v === n.id));
+const filteredNodes = nodes.filter((n) =>
+  edges.some((e) => e.u === n.id || e.v === n.id)
+);
 
 // Preparation of DagreD3 data structures
 let g = new dagreD3.graphlib.Graph()
@@ -39,11 +41,11 @@ let g = new dagreD3.graphlib.Graph()
     ranksep: 15,
     rankdir: arrange,
   })
-  .setDefaultEdgeLabel(() => ({ lineInterpolate: 'basis' }));
+  .setDefaultEdgeLabel(() => ({ lineInterpolate: "basis" }));
 
 const render = dagreD3.render();
-const svg = d3.select('#graph-svg');
-const innerSvg = d3.select('#graph-svg g');
+const svg = d3.select("#graph-svg");
+const innerSvg = d3.select("#graph-svg g");
 
 // Returns true if a node's id or its children's id matches search_text
 function nodeMatches(nodeId, searchText) {
@@ -55,9 +57,9 @@ function highlightNodes(nodesToHighlight, color, strokeWidth) {
   nodesToHighlight.forEach((nodeid) => {
     const myNode = g.node(nodeid).elem;
     d3.select(myNode)
-      .selectAll('rect,circle')
-      .style('stroke', color)
-      .style('stroke-width', strokeWidth);
+      .selectAll("rect,circle")
+      .style("stroke", color)
+      .style("stroke-width", strokeWidth);
   });
 }
 
@@ -65,8 +67,11 @@ let zoom = null;
 
 function setUpZoomSupport() {
   // Set up zoom support for Graph
-  zoom = d3.behavior.zoom().on('zoom', () => {
-    innerSvg.attr('transform', `translate(${d3.event.translate})scale(${d3.event.scale})`);
+  zoom = d3.behavior.zoom().on("zoom", () => {
+    innerSvg.attr(
+      "transform",
+      `translate(${d3.event.translate})scale(${d3.event.scale})`
+    );
   });
   svg.call(zoom);
 
@@ -83,42 +88,39 @@ function setUpZoomSupport() {
   // Calculate applicable scale for zoom
   const zoomScale = Math.min(
     Math.min(width / graphWidth, height / graphHeight),
-    1.5, // cap zoom level to 1.5 so nodes are not too large
+    1.5 // cap zoom level to 1.5 so nodes are not too large
   );
 
-  zoom.translate([(width / 2) - ((graphWidth * zoomScale) / 2) + padding, padding]);
+  zoom.translate([width / 2 - (graphWidth * zoomScale) / 2 + padding, padding]);
   zoom.scale(zoomScale);
   zoom.event(innerSvg);
 }
 
 function setUpNodeHighlighting(focusItem = null) {
-  d3.selectAll('g.node').on('mouseover', function (d) {
-    d3.select(this).selectAll('rect').style('stroke', highlightColor);
+  d3.selectAll("g.node").on("mouseover", function (d) {
+    d3.select(this).selectAll("rect").style("stroke", highlightColor);
     highlightNodes(g.predecessors(d), upstreamColor, highlightStrokeWidth);
     highlightNodes(g.successors(d), downstreamColor, highlightStrokeWidth);
     const adjacentNodeNames = [d, ...g.predecessors(d), ...g.successors(d)];
-    d3.selectAll('g.nodes g.node')
+    d3.selectAll("g.nodes g.node")
       .filter((x) => !adjacentNodeNames.includes(x))
-      .style('opacity', 0.2);
+      .style("opacity", 0.2);
     const adjacentEdges = g.nodeEdges(d);
-    d3.selectAll('g.edgePath')[0]
+    d3.selectAll("g.edgePath")[0]
       // eslint-disable-next-line no-underscore-dangle
       .filter((x) => !adjacentEdges.includes(x.__data__))
       .forEach((x) => {
-        d3.select(x).style('opacity', 0.2);
+        d3.select(x).style("opacity", 0.2);
       });
   });
 
-  d3.selectAll('g.node').on('mouseout', function (d) {
-    d3.select(this).selectAll('rect,circle').style('stroke', null);
+  d3.selectAll("g.node").on("mouseout", function (d) {
+    d3.select(this).selectAll("rect,circle").style("stroke", null);
     highlightNodes(g.predecessors(d), null, initialStrokeWidth);
     highlightNodes(g.successors(d), null, initialStrokeWidth);
-    d3.selectAll('g.node')
-      .style('opacity', 1);
-    d3.selectAll('g.node rect')
-      .style('stroke-width', initialStrokeWidth);
-    d3.selectAll('g.edgePath')
-      .style('opacity', 1);
+    d3.selectAll("g.node").style("opacity", 1);
+    d3.selectAll("g.node rect").style("stroke-width", initialStrokeWidth);
+    d3.selectAll("g.edgePath").style("opacity", 1);
     if (focusItem) {
       localStorage.removeItem(focusItem);
     }
@@ -128,33 +130,38 @@ function setUpNodeHighlighting(focusItem = null) {
 function searchboxHighlighting(s) {
   let match = null;
 
-  d3.selectAll('g.nodes g.node').filter(function forEach(d) {
-    if (s === '') {
-      d3.select('g.edgePaths')
-        .transition().duration(duration)
-        .style('opacity', 1);
+  d3.selectAll("g.nodes g.node").filter(function forEach(d) {
+    if (s === "") {
+      d3.select("g.edgePaths")
+        .transition()
+        .duration(duration)
+        .style("opacity", 1);
       d3.select(this)
-        .transition().duration(duration)
-        .style('opacity', 1)
-        .selectAll('rect')
-        .style('stroke-width', initialStrokeWidth);
+        .transition()
+        .duration(duration)
+        .style("opacity", 1)
+        .selectAll("rect")
+        .style("stroke-width", initialStrokeWidth);
     } else {
-      d3.select('g.edgePaths')
-        .transition().duration(duration)
-        .style('opacity', 0.2);
+      d3.select("g.edgePaths")
+        .transition()
+        .duration(duration)
+        .style("opacity", 0.2);
       if (nodeMatches(d, s)) {
         if (!match) match = this;
         d3.select(this)
-          .transition().duration(duration)
-          .style('opacity', 1)
-          .selectAll('rect')
-          .style('stroke-width', highlightStrokeWidth);
+          .transition()
+          .duration(duration)
+          .style("opacity", 1)
+          .selectAll("rect")
+          .style("stroke-width", highlightStrokeWidth);
       } else {
         d3.select(this)
           .transition()
-          .style('opacity', 0.2).duration(duration)
-          .selectAll('rect')
-          .style('stroke-width', initialStrokeWidth);
+          .style("opacity", 0.2)
+          .duration(duration)
+          .selectAll("rect")
+          .style("stroke-width", initialStrokeWidth);
       }
     }
     return null;
@@ -162,7 +169,7 @@ function searchboxHighlighting(s) {
 
   // This moves the matched node to the center of the graph area
   if (match) {
-    const transform = d3.transform(d3.select(match).attr('transform'));
+    const transform = d3.transform(d3.select(match).attr("transform"));
 
     const svgBb = svg.node().getBoundingClientRect();
     transform.translate = [
@@ -179,8 +186,8 @@ function searchboxHighlighting(s) {
   }
 }
 
-d3.select('#searchbox').on('keyup', () => {
-  const s = document.getElementById('searchbox').value;
+d3.select("#searchbox").on("keyup", () => {
+  const s = document.getElementById("searchbox").value;
   searchboxHighlighting(s);
 });
 
@@ -191,7 +198,7 @@ const renderGraph = () => {
       ranksep: 15,
       rankdir: arrange,
     })
-    .setDefaultEdgeLabel(() => ({ lineInterpolate: 'basis' }));
+    .setDefaultEdgeLabel(() => ({ lineInterpolate: "basis" }));
 
   // set nodes
   nodes.forEach((node) => {
@@ -208,7 +215,7 @@ const renderGraph = () => {
   realEdges.forEach((edge) => {
     g.setEdge(edge.u, edge.v, {
       curve: d3.curveBasis,
-      arrowheadClass: 'arrowhead',
+      arrowheadClass: "arrowhead",
     });
   });
 
@@ -218,19 +225,21 @@ const renderGraph = () => {
 };
 
 // rerender graph when filtering dags with dependencies or not
-document.getElementById('deps-filter').addEventListener('change', function onChange() {
-  // reset searchbox
-  document.getElementById('searchbox').value = '';
-  if (this.checked) {
-    nodes = filteredNodes;
-  } else {
-    nodes = fullNodes;
-  }
-  renderGraph();
-});
+document
+  .getElementById("deps-filter")
+  .addEventListener("change", function onChange() {
+    // reset searchbox
+    document.getElementById("searchbox").value = "";
+    if (this.checked) {
+      nodes = filteredNodes;
+    } else {
+      nodes = fullNodes;
+    }
+    renderGraph();
+  });
 
 // initial filter check and render
-if (document.getElementById('deps-filter').checked) {
+if (document.getElementById("deps-filter").checked) {
   nodes = filteredNodes;
 }
 

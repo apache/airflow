@@ -57,7 +57,7 @@
   border-radius: 50%;
   width: 1.5rem;
   height: 1.5rem;
-  content: '';
+  content: "";
   background-color: #edecec;
   transition-timing-function: ease-in-out;
   transition-duration: 0.25s;

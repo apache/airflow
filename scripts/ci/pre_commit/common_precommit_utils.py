@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import hashlib
 import os
 import re
@@ -23,6 +24,18 @@ from pathlib import Path
 
 AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
+
+
+def read_airflow_version() -> str:
+    ast_obj = ast.parse((AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "__init__.py").read_text())
+    for node in ast_obj.body:
+        if not isinstance(node, ast.Assign):
+            continue
+
+        if node.targets[0].id == "__version__":  # type: ignore[attr-defined]
+            return ast.literal_eval(node.value)
+
+    raise RuntimeError("Couldn't find __version__ in AST")
 
 
 def filter_out_providers_on_non_main_branch(files: list[str]) -> list[str]:

@@ -44,7 +44,7 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
 from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 DAG_ID = "example_gcp_mlengine"

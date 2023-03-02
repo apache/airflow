@@ -21,14 +21,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudTranslateTextOperator(BaseOperator):
+class CloudTranslateTextOperator(GoogleCloudBaseOperator):
     """
     Translate a string or list of strings.
 

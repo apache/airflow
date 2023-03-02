@@ -240,8 +240,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query. The DbApiHook method must be overridden because Pandas
         doesn't support PEP 249 connections, except for SQLite. See:
 
-        https://github.com/pydata/pandas/blob/master/pandas/io/sql.py#L447
-        https://github.com/pydata/pandas/issues/6900
+        https://github.com/pandas-dev/pandas/blob/055d008615272a1ceca9720dc365a2abd316f353/pandas/io/sql.py#L415
+        https://github.com/pandas-dev/pandas/issues/6900
 
         :param sql: The BigQuery SQL to execute.
         :param parameters: The parameters to render the SQL query with (not
@@ -3047,6 +3047,24 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_client = await self.get_job_instance(project_id, job_id, session)
             job_query_response = await job_client.get_query_results(cast(Session, session))
             return job_query_response
+
+    async def create_job_for_partition_get(
+        self,
+        dataset_id: str | None,
+        project_id: str | None = None,
+    ):
+        """Create a new job and get the job_id using gcloud-aio."""
+        async with ClientSession() as session:
+            self.log.info("Executing create_job..")
+            job_client = await self.get_job_instance(project_id, "", session)
+
+            query_request = {
+                "query": "SELECT partition_id "
+                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`",
+                "useLegacySql": False,
+            }
+            job_query_resp = await job_client.query(query_request, cast(Session, session))
+            return job_query_resp["jobReference"]["jobId"]
 
     def get_records(self, query_results: dict[str, Any]) -> list[Any]:
         """

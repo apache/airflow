@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.cloud.transfers.gdrive_to_local import GoogleDriveToLocalOperator
 
@@ -28,7 +28,7 @@ FILE_NAME = "file.pdf"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestGoogleDriveToLocalOperator(TestCase):
+class TestGoogleDriveToLocalOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.gdrive_to_local.GoogleDriveHook")
     def test_execute(self, hook_mock):
         with NamedTemporaryFile("wb") as temp_file:

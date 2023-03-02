@@ -47,9 +47,9 @@ but its keys need to be of primitive form. In case you are implementing a regist
 not to have circular imports. Typically, this can be avoided by using ``str`` for populating the list of serializers.
 Like so: ``serializers = ["my.company.Foo"]`` instead of ``serializers = [Foo]``.
 
-::
+.. note::
 
-  Note: Serialization and deserialization is dependent on speed. Use built-in functions like ``dict`` as much as you can and stay away from using classes and other complex structures.
+  Serialization and deserialization is dependent on speed. Use built-in functions like ``dict`` as much as you can and stay away from using classes and other complex structures.
 
 Airflow Object
 --------------

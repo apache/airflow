@@ -21,6 +21,7 @@ import sys
 from copy import deepcopy
 from unittest import mock
 
+import boto3
 import pytest
 
 from airflow.exceptions import AirflowException
@@ -36,7 +37,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
     EcsRunTaskOperator,
     EcsTaskLogFetcher,
 )
-from airflow.providers.amazon.aws.sensors.ecs import EcsClusterStateSensor, EcsTaskDefinitionStateSensor
+from airflow.utils.types import NOTSET
 
 CLUSTER_NAME = "test_cluster"
 CONTAINER_NAME = "e1ed7aac-d9b2-4315-8726-d2432bf11868"
@@ -78,10 +79,28 @@ RESPONSE_WITHOUT_FAILURES = {
         }
     ],
 }
-NOTSET = type("ArgumentNotSet", (), {"__str__": lambda self: "argument-not-set"})
+WAITERS_TEST_CASES = [
+    pytest.param(None, None, id="default-values"),
+    pytest.param(3.14, None, id="set-delay-only"),
+    pytest.param(None, 42, id="set-max-attempts-only"),
+    pytest.param(2.71828, 9000, id="user-defined"),
+]
 
 
-class TestEcsBaseOperator:
+@pytest.fixture
+def patch_hook_waiters():
+    with mock.patch.object(EcsHook, "get_waiter") as m:
+        yield m
+
+
+class EcsBaseTestCase:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.client = boto3.client("ecs", region_name="eu-west-3")
+        monkeypatch.setattr(EcsHook, "conn", self.client)
+
+
+class TestEcsBaseOperator(EcsBaseTestCase):
     """Test Base ECS Operator."""
 
     @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
@@ -118,7 +137,7 @@ class TestEcsBaseOperator:
         assert op.client is client
 
 
-class TestEcsRunTaskOperator:
+class TestEcsRunTaskOperator(EcsBaseTestCase):
     def set_up_operator(self, **kwargs):
         self.ecs_operator_args = {
             "task_id": "task",
@@ -633,79 +652,153 @@ class TestEcsRunTaskOperator:
         assert self.ecs.execute(None) is None
 
 
-class TestEcsCreateClusterOperator:
-    @mock.patch.object(EcsClusterStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute(self, mock_conn, mock_sensor):
-        op = EcsCreateClusterOperator(task_id="task", cluster_name=CLUSTER_NAME)
-        result = op.execute(None)
+class TestEcsCreateClusterOperator(EcsBaseTestCase):
+    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
+        mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
+        patch_hook_waiters.return_value = mocked_waiters
+        op = EcsCreateClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            wait_for_completion=True,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
+        with mock.patch.object(self.client, "create_cluster") as mock_client_method:
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(clusterName=CLUSTER_NAME)
+        patch_hook_waiters.assert_called_once_with("cluster_active")
 
-        mock_sensor.assert_called_once()
-        mock_conn.create_cluster.assert_called_once_with(clusterName=CLUSTER_NAME)
+        expected_waiter_config = {}
+        if waiter_delay:
+            expected_waiter_config["Delay"] = waiter_delay
+        if waiter_max_attempts:
+            expected_waiter_config["MaxAttempts"] = waiter_max_attempts
+        mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
 
-    @mock.patch.object(EcsClusterStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute_without_wait(self, mock_conn, mock_sensor):
+    def test_execute_immediate_create(self, patch_hook_waiters):
+        """Test if cluster created during initial request."""
+        op = EcsCreateClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=True)
+        with mock.patch.object(self.client, "create_cluster") as mock_client_method:
+            mock_client_method.return_value = {"cluster": {"status": "ACTIVE", "foo": "bar"}}
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(clusterName=CLUSTER_NAME)
+        patch_hook_waiters.assert_not_called()
+        assert result == {"status": "ACTIVE", "foo": "bar"}
+
+    def test_execute_without_waiter(self, patch_hook_waiters):
         op = EcsCreateClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=False)
-        result = op.execute(None)
-
-        mock_sensor.assert_not_called()
-        mock_conn.create_cluster.assert_called_once_with(clusterName=CLUSTER_NAME)
+        with mock.patch.object(self.client, "create_cluster") as mock_client_method:
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(clusterName=CLUSTER_NAME)
+        patch_hook_waiters.assert_not_called()
         assert result is not None
 
 
-class TestEcsDeleteClusterOperator:
-    @mock.patch.object(EcsClusterStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute(self, mock_client, mock_sensor):
-        op = EcsDeleteClusterOperator(task_id="task", cluster_name=CLUSTER_NAME)
-        result = op.execute(None)
+class TestEcsDeleteClusterOperator(EcsBaseTestCase):
+    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
+        mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
+        patch_hook_waiters.return_value = mocked_waiters
+        op = EcsDeleteClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            wait_for_completion=True,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
 
-        mock_client.delete_cluster.assert_called_once_with(cluster=CLUSTER_NAME)
-        mock_sensor.assert_called_once()
+        with mock.patch.object(self.client, "delete_cluster") as mock_client_method:
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(cluster=CLUSTER_NAME)
+        patch_hook_waiters.assert_called_once_with("cluster_inactive")
+
+        expected_waiter_config = {}
+        if waiter_delay:
+            expected_waiter_config["Delay"] = waiter_delay
+        if waiter_max_attempts:
+            expected_waiter_config["MaxAttempts"] = waiter_max_attempts
+        mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
 
-    @mock.patch.object(EcsClusterStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute_without_wait(self, mock_conn, mock_sensor):
+    def test_execute_immediate_delete(self, patch_hook_waiters):
+        """Test if cluster deleted during initial request."""
+        op = EcsDeleteClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=True)
+        with mock.patch.object(self.client, "delete_cluster") as mock_client_method:
+            mock_client_method.return_value = {"cluster": {"status": "INACTIVE", "foo": "bar"}}
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(cluster=CLUSTER_NAME)
+        patch_hook_waiters.assert_not_called()
+        assert result == {"status": "INACTIVE", "foo": "bar"}
+
+    def test_execute_without_waiter(self, patch_hook_waiters):
         op = EcsDeleteClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=False)
-        result = op.execute(None)
-
-        mock_sensor.assert_not_called()
-        mock_conn.delete_cluster.assert_called_once_with(cluster=CLUSTER_NAME)
+        with mock.patch.object(self.client, "delete_cluster") as mock_client_method:
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(cluster=CLUSTER_NAME)
+        patch_hook_waiters.assert_not_called()
         assert result is not None
 
 
-class TestEcsDeregisterTaskDefinitionOperator:
-    @mock.patch.object(EcsTaskDefinitionStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute(self, mock_conn, mock_sensor):
-        op = EcsDeregisterTaskDefinitionOperator(task_id="task", task_definition=TASK_DEFINITION_NAME)
-        result = op.execute(None)
+class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
+    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
+        mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
+        patch_hook_waiters.return_value = mocked_waiters
+        op = EcsDeregisterTaskDefinitionOperator(
+            task_id="task",
+            task_definition=TASK_DEFINITION_NAME,
+            wait_for_completion=True,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
+        with mock.patch.object(self.client, "deregister_task_definition") as mock_client_method:
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
+        patch_hook_waiters.assert_called_once_with("task_definition_inactive")
 
-        mock_conn.deregister_task_definition.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
-        mock_sensor.assert_called_once()
+        expected_waiter_config = {}
+        if waiter_delay:
+            expected_waiter_config["Delay"] = waiter_delay
+        if waiter_max_attempts:
+            expected_waiter_config["MaxAttempts"] = waiter_max_attempts
+        mocked_waiters.wait.assert_called_once_with(
+            taskDefinition=mock.ANY, WaiterConfig=expected_waiter_config
+        )
         assert result is not None
 
-    @mock.patch.object(EcsTaskDefinitionStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute_without_wait(self, mock_conn, mock_sensor):
+    def test_execute_immediate_delete(self, patch_hook_waiters):
+        """Test if task definition deleted during initial request."""
+        op = EcsDeregisterTaskDefinitionOperator(
+            task_id="task", task_definition=TASK_DEFINITION_NAME, wait_for_completion=True
+        )
+        with mock.patch.object(self.client, "deregister_task_definition") as mock_client_method:
+            mock_client_method.return_value = {
+                "taskDefinition": {"status": "INACTIVE", "taskDefinitionArn": "foo-bar"}
+            }
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
+        patch_hook_waiters.assert_not_called()
+        assert result == "foo-bar"
+
+    def test_execute_without_waiter(self, patch_hook_waiters):
         op = EcsDeregisterTaskDefinitionOperator(
             task_id="task", task_definition=TASK_DEFINITION_NAME, wait_for_completion=False
         )
-        result = op.execute(None)
-
-        mock_sensor.assert_not_called()
-        mock_conn.deregister_task_definition.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
+        with mock.patch.object(self.client, "deregister_task_definition") as mock_client_method:
+            result = op.execute({})
+            mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
+        patch_hook_waiters.assert_not_called()
         assert result is not None
 
 
-class TestEcsRegisterTaskDefinitionOperator:
-    @mock.patch.object(EcsTaskDefinitionStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute(self, mock_conn, mock_sensor):
-        mock_context = mock.MagicMock()
+class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
+    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
+        patch_hook_waiters.return_value = mocked_waiters
         expected_task_definition_config = {
             "family": "family_name",
             "containerDefinitions": [
@@ -721,17 +814,63 @@ class TestEcsRegisterTaskDefinitionOperator:
             "memory": "512",
             "networkMode": "awsvpc",
         }
+        op = EcsRegisterTaskDefinitionOperator(
+            task_id="task",
+            **TASK_DEFINITION_CONFIG,
+            wait_for_completion=True,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
+        with mock.patch.object(self.client, "register_task_definition") as mock_client_method:
+            result = op.execute({"ti": mock_ti})
+            mock_client_method.assert_called_once_with(**expected_task_definition_config)
+        patch_hook_waiters.assert_called_once_with("task_definition_active")
+        mock_ti.xcom_push.assert_called_once_with(key="task_definition_arn", value=mock.ANY)
 
-        op = EcsRegisterTaskDefinitionOperator(task_id="task", **TASK_DEFINITION_CONFIG)
-        result = op.execute(mock_context)
+        expected_waiter_config = {}
+        if waiter_delay:
+            expected_waiter_config["Delay"] = waiter_delay
+        if waiter_max_attempts:
+            expected_waiter_config["MaxAttempts"] = waiter_max_attempts
+        mocked_waiters.wait.assert_called_once_with(
+            taskDefinition=mock.ANY, WaiterConfig=expected_waiter_config
+        )
+        mocked_waiters.wait.assert_called_once_with(
+            taskDefinition=mock.ANY, WaiterConfig=expected_waiter_config
+        )
 
-        mock_conn.register_task_definition.assert_called_once_with(**expected_task_definition_config)
-        mock_sensor.assert_called_once()
         assert result is not None
 
-    @mock.patch.object(EcsTaskDefinitionStateSensor, "poke")
-    @mock.patch.object(EcsHook, "conn")
-    def test_execute_without_wait(self, mock_conn, mock_sensor):
+    def test_execute_immediate_create(self, patch_hook_waiters):
+        """Test if task definition created during initial request."""
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        expected_task_definition_config = {
+            "family": "family_name",
+            "containerDefinitions": [
+                {
+                    "name": CONTAINER_NAME,
+                    "image": "ubuntu",
+                    "workingDirectory": "/usr/bin",
+                    "entryPoint": ["sh", "-c"],
+                    "command": ["ls"],
+                }
+            ],
+            "cpu": "256",
+            "memory": "512",
+            "networkMode": "awsvpc",
+        }
+        op = EcsRegisterTaskDefinitionOperator(task_id="task", **TASK_DEFINITION_CONFIG)
+        with mock.patch.object(self.client, "register_task_definition") as mock_client_method:
+            mock_client_method.return_value = {
+                "taskDefinition": {"status": "ACTIVE", "taskDefinitionArn": "foo-bar"}
+            }
+            result = op.execute({"ti": mock_ti})
+            mock_client_method.assert_called_once_with(**expected_task_definition_config)
+        patch_hook_waiters.assert_not_called()
+        mock_ti.xcom_push.assert_called_once_with(key="task_definition_arn", value="foo-bar")
+        assert result == "foo-bar"
+
+    def test_execute_without_waiter(self, patch_hook_waiters):
         mock_context = mock.MagicMock()
         expected_task_definition_config = {
             "family": "family_name",
@@ -752,8 +891,8 @@ class TestEcsRegisterTaskDefinitionOperator:
         op = EcsRegisterTaskDefinitionOperator(
             task_id="task", **TASK_DEFINITION_CONFIG, wait_for_completion=False
         )
-        result = op.execute(mock_context)
-
-        mock_sensor.assert_not_called()
-        mock_conn.register_task_definition.assert_called_once_with(**expected_task_definition_config)
+        with mock.patch.object(self.client, "register_task_definition") as mock_client_method:
+            result = op.execute(mock_context)
+            mock_client_method.assert_called_once_with(**expected_task_definition_config)
+        patch_hook_waiters.assert_not_called()
         assert result is not None

@@ -190,6 +190,7 @@ with DAG(
         ingestion_id=ingestion_id,
     )
     # [END howto_sensor_quicksight]
+    await_job.poke_interval = 10
 
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_s3_bucket",

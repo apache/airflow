@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 
 import pytest
 from gcloud.aio.storage import Bucket, Storage
@@ -26,13 +25,7 @@ from gcloud.aio.storage import Bucket, Storage
 from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
 from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-    from asynctest.mock import CoroutineMock as AsyncMock
-else:
-    from unittest import mock
-    from unittest.mock import AsyncMock
+from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 TEST_BUCKET = "TEST_BUCKET"
 TEST_OBJECT = "TEST_OBJECT"
@@ -66,7 +59,7 @@ def test_gcs_blob_trigger_serialization():
 
 
 @pytest.mark.asyncio
-@mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
+@async_mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
 async def test_gcs_blob_trigger_success(mock_object_exists):
     """
     Tests that the GCSBlobTrigger is success case
@@ -87,7 +80,7 @@ async def test_gcs_blob_trigger_success(mock_object_exists):
 
 
 @pytest.mark.asyncio
-@mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
+@async_mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
 async def test_gcs_blob_trigger_pending(mock_object_exists):
     """
     Test that GCSBlobTrigger is in loop if file isn't found.
@@ -110,7 +103,7 @@ async def test_gcs_blob_trigger_pending(mock_object_exists):
 
 
 @pytest.mark.asyncio
-@mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
+@async_mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
 async def test_gcs_blob_trigger_exception(mock_object_exists):
     """
     Tests the GCSBlobTrigger does fire if there is an exception.

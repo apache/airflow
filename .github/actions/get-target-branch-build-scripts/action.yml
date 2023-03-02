@@ -17,7 +17,6 @@
 #
 ---
 name: 'Gets target branch build scripts'
-description: 'Checks out target branch build scripts (including breeze) and replaces the current version'
 runs:
   using: "composite"
   steps:

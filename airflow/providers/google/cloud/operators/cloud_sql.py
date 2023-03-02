@@ -24,9 +24,10 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, Connection
+from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
@@ -213,7 +214,7 @@ CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
 ]
 
 
-class CloudSQLBaseOperator(BaseOperator):
+class CloudSQLBaseOperator(GoogleCloudBaseOperator):
     """
     Abstract base operator for Google Cloud SQL operators to inherit from.
 
@@ -1114,7 +1115,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
-class CloudSQLExecuteQueryOperator(BaseOperator):
+class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
     """
     Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
     cloud-sql-proxy to establish secure connection with the database.
@@ -1137,6 +1138,8 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
        its schema should be gcpcloudsql://.
        See :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook` for
        details on how to define ``gcpcloudsql://`` connection.
+    :param sql_proxy_binary_path: (optional) Path to the cloud-sql-proxy binary.
+          is not specified or the binary is not present, it is automatically downloaded.
     """
 
     # [START gcp_sql_query_template_fields]
@@ -1154,6 +1157,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         parameters: Iterable | Mapping | None = None,
         gcp_conn_id: str = "google_cloud_default",
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
+        sql_proxy_binary_path: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1163,6 +1167,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.gcp_connection: Connection | None = None
+        self.sql_proxy_binary_path = sql_proxy_binary_path
 
     def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook) -> None:
         cloud_sql_proxy_runner = None
@@ -1186,6 +1191,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,
             default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, "project"),
+            sql_proxy_binary_path=self.sql_proxy_binary_path,
         )
         hook.validate_ssl_certs()
         connection = hook.create_connection()

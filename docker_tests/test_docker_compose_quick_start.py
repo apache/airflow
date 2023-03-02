@@ -16,15 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import os
 import subprocess
-import tempfile
-from pathlib import Path
 from pprint import pprint
 from shutil import copyfile
 from time import monotonic, sleep
-from unittest import mock
 
 import requests
 
@@ -51,16 +47,6 @@ def api_request(method: str, path: str, base_url: str = "http://localhost:8080/a
     )
     response.raise_for_status()
     return response.json()
-
-
-@contextlib.contextmanager
-def tmp_chdir(path):
-    current_cwd = os.getcwd()
-    try:
-        os.chdir(path)
-        yield current_cwd
-    finally:
-        os.chdir(current_cwd)
 
 
 def wait_for_container(container_id: str, timeout: int = 300):
@@ -105,6 +91,9 @@ def wait_for_container(container_id: str, timeout: int = 300):
 
 
 def wait_for_terminal_dag_state(dag_id, dag_run_id):
+    print(f" Simplified representation of DAG {dag_id} ".center(72, "="))
+    pprint(api_request("GET", f"dags/{DAG_ID}/details"))
+
     # Wait 80 seconds
     for _ in range(80):
         dag_state = api_request("GET", f"dags/{dag_id}/dagRuns/{dag_run_id}").get("state")
@@ -114,53 +103,60 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
             break
 
 
-def test_trigger_dag_and_wait_for_result():
+def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
+    """Simple test which reproduce setup docker-compose environment and trigger example dag."""
+    tmp_dir = tmp_path_factory.mktemp("airflow-quick-start")
+    monkeypatch.chdir(tmp_dir)
+    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", docker_image)
+    monkeypatch.setenv("COMPOSE_PROJECT_NAME", "quick-start")
+
     compose_file_path = (
         SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"
     )
+    copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
 
-    with tempfile.TemporaryDirectory() as tmp_dir, tmp_chdir(tmp_dir), mock.patch.dict(
-        "os.environ", AIRFLOW_IMAGE_NAME=docker_image
-    ):
-        copyfile(str(compose_file_path), f"{tmp_dir}/docker-compose.yaml")
-        os.mkdir(f"{tmp_dir}/dags")
-        os.mkdir(f"{tmp_dir}/logs")
-        os.mkdir(f"{tmp_dir}/plugins")
-        (Path(tmp_dir) / ".env").write_text(f"AIRFLOW_UID={subprocess.check_output(['id', '-u']).decode()}\n")
-        print(".emv=", (Path(tmp_dir) / ".env").read_text())
-        copyfile(
-            str(SOURCE_ROOT / "airflow" / "example_dags" / "example_bash_operator.py"),
-            f"{tmp_dir}/dags/example_bash_operator.py",
-        )
+    # Create required directories for docker compose quick start howto
+    for subdir in ("dags", "logs", "plugins"):
+        (tmp_dir / subdir).mkdir()
 
-        run_command(["docker-compose", "config"])
-        run_command(["docker-compose", "down", "--volumes", "--remove-orphans"])
+    dot_env_file = tmp_dir / ".env"
+    dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
+    print(" .env file content ".center(72, "="))
+    print(dot_env_file.read_text())
+
+    run_command(["docker-compose", "config"])
+    run_command(["docker-compose", "down", "--volumes", "--remove-orphans"])
+    try:
+        run_command(["docker-compose", "up", "-d"])
+        # The --wait condition was released in docker-compose v2.1.1, but we want to support
+        # docker-compose v1 yet.
+        # See:
+        # https://github.com/docker/compose/releases/tag/v2.1.1
+        # https://github.com/docker/compose/pull/8777
+        for container_id in (
+            subprocess.check_output(["docker-compose", "ps", "-q"]).decode().strip().splitlines()
+        ):
+            wait_for_container(container_id)
+        api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
+        api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
         try:
-            run_command(["docker-compose", "up", "-d"])
-            # The --wait condition was released in docker-compose v2.1.1, but we want to support
-            # docker-compose v1 yet.
-            # See:
-            # https://github.com/docker/compose/releases/tag/v2.1.1
-            # https://github.com/docker/compose/pull/8777
-            for container_id in (
-                subprocess.check_output(["docker-compose", "ps", "-q"]).decode().strip().splitlines()
-            ):
-                wait_for_container(container_id)
-            api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
-            api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
-            try:
-                wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
-                dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
-                assert dag_state == "success"
-            except Exception:
-                print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}")
-                pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}"))
-                print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")
-                pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances"))
-                raise
+            wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
+            dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
+            assert dag_state == "success"
         except Exception:
-            run_command(["docker", "ps"])
-            run_command(["docker-compose", "logs"])
+            print("HTTP: GET health")
+            pprint(api_request("GET", "health"))
+            print(f"HTTP: GET dags/{DAG_ID}/dagRuns")
+            pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns"))
+            print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")
+            pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances"))
             raise
-        finally:
-            run_command(["docker-compose", "down", "--volumes"])
+    except Exception:
+        print(f"Current working directory: {os.getcwd()}")
+        run_command(["docker", "version"])
+        run_command(["docker-compose", "version"])
+        run_command(["docker", "ps"])
+        run_command(["docker-compose", "logs"])
+        raise
+    finally:
+        run_command(["docker-compose", "down", "--volumes"])
