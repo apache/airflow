@@ -905,9 +905,14 @@ class SchedulerJob(BaseJob):
                                 self.executor.heartbeat()
                                 session.expunge_all()
                                 num_finished_events = self._process_executor_events(session=session)
-                        except OperationalError as e:
+                        except OperationalError:
                             total_time = time.monotonic() - start_time
-                            self.log.error("%s got a DB exception (retry:%d, total time in seconds: %d)", self.__class__.__name__, attempt.retry_state.attempt_number, total_time)
+                            self.log.error(
+                                "%s got a DB exception (retry:%d, total time in seconds: %d)", 
+                                self.__class__.__name__, 
+                                attempt.retry_state.attempt_number, 
+                                total_time,
+                            )
                             raise
                 
                 if self.processor_agent:

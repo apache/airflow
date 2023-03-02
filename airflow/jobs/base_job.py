@@ -36,10 +36,10 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
-from airflow.utils.retries import run_with_db_retries
 
 
 def _resolve_dagrun_model():
@@ -211,7 +211,6 @@ class BaseJob(Base, LoggingMixin):
 
         previous_heartbeat = self.latest_heartbeat
 
-
         for attempt in run_with_db_retries():
             with attempt:
                 try:
@@ -245,7 +244,11 @@ class BaseJob(Base, LoggingMixin):
                         self.log.debug("[heartbeat]")
                 except OperationalError:
                     Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-                    self.log.exception("%s heartbeat got an exception(retry:%d)", self.__class__.__name__, attempt.retry_state.attempt_number)
+                    self.log.exception(
+                            "%s heartbeat got an exception(retry:%d)", 
+                            self.__class__.__name__, 
+                            attempt.retry_state.attempt_number,
+                        )
                     # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
                     self.latest_heartbeat = previous_heartbeat
 
