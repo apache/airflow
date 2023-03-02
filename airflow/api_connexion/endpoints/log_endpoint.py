@@ -21,8 +21,7 @@ from typing import Any
 from flask import Response, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.session import Session
+from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound

@@ -23,8 +23,7 @@ from typing import Any
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import Session, reconstructor, synonym
+from sqlalchemy.orm import Session, declared_attr, reconstructor, synonym
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded

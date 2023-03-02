@@ -31,8 +31,7 @@ import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.orm.session import Session as SASession
+from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
