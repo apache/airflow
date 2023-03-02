@@ -170,11 +170,11 @@ class ExecutorLoader:
         initialized) because loading the executor class is heavy work we want to
         avoid unless needed.
         """
+        # Single threaded executors can run with any backend.
         if executor.is_single_threaded:
-            # Single threaded executors can run with any backend
             return
 
-        # This is set in tests when we want to be able to use the SequentialExecutor.
+        # This is set in tests when we want to be able to use SQLite.
         if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
             return
 
