@@ -58,6 +58,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
@@ -561,7 +562,7 @@ class TaskInstance(Base, LoggingMixin):
         self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
-    @property
+    @hybrid_property
     def try_number(self):
         """
         Return the try number that this task number will be when it is actually
