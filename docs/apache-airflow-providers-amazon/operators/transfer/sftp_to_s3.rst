@@ -20,7 +20,7 @@ SFTP to Amazon S3
 =================
 
 Use the ``SFTPToS3Operator`` transfer to copy the data from a SFTP server to an Amazon Simple Storage Service (S3) file.
-For more information about the service visits `Amazon Transfer for SFTP API documentation <https://docs.aws.amazon.com/whitepapers/latest/architecting-hipaa-security-and-compliance-on-aws/aws-transfer-for-sftp.html>`_.
+
 
 Prerequisite Tasks
 ------------------
