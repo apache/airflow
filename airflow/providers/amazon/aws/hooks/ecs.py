@@ -57,10 +57,10 @@ def should_retry_eni(exception: Exception):
 
 class _StringCompareEnum(Enum):
     """
-    Enum which could be compared with regular `str` and subclasses.
+    Enum which can be compared with regular `str` and subclasses.
 
-    This class for avoid multiple inheritance such as AwesomeEnum(str, Enum)
-    which is not work well with templated_fields, and Jinja templates.
+    This class avoids multiple inheritance such as AwesomeEnum(str, Enum)
+    which does not work well with templated_fields and Jinja templates.
     """
 
     def __eq__(self, other):
