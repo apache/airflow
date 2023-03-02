@@ -132,12 +132,18 @@ class TestCustomECSServiceWaiters:
         assert "task_definition_inactive" in hook_waiters
 
     @staticmethod
-    def describe_clusters(status: str, cluster_name: str = "spam-egg", failures: dict | list | None = None):
+    def describe_clusters(
+        status: str | EcsClusterStates, cluster_name: str = "spam-egg", failures: dict | list | None = None
+    ):
         """
         Helper function for generate minimal DescribeClusters response for single job.
         https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeClusters.html
         """
-        assert status in EcsClusterStates.__members__.values()
+        if isinstance(status, EcsClusterStates):
+            status = status.value
+        else:
+            assert status in EcsClusterStates.__members__.values()
+
         failures = failures or []
         if isinstance(failures, dict):
             failures = [failures]
@@ -154,7 +160,7 @@ class TestCustomECSServiceWaiters:
         waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_active")
         waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
 
-    @pytest.mark.parametrize("state", [EcsClusterStates.FAILED, EcsClusterStates.INACTIVE])
+    @pytest.mark.parametrize("state", ["FAILED", "INACTIVE"])
     def test_cluster_active_failure_states(self, mock_describe_clusters, state):
         """Test cluster reach inactive state during creation."""
         mock_describe_clusters.side_effect = [
@@ -196,11 +202,16 @@ class TestCustomECSServiceWaiters:
         waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
 
     @staticmethod
-    def describe_task_definition(status: str, task_definition: str = "spam-egg"):
+    def describe_task_definition(status: str | EcsTaskDefinitionStates, task_definition: str = "spam-egg"):
         """
         Helper function for generate minimal DescribeTaskDefinition response for single job.
         https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeTaskDefinition.html
         """
+        if isinstance(status, EcsTaskDefinitionStates):
+            status = status.value
+        else:
+            assert status in EcsTaskDefinitionStates.__members__.values()
+
         return {
             "taskDefinition": {
                 "taskDefinitionArn": (

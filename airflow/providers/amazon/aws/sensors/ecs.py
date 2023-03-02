@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
-from airflow import AirflowException
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
