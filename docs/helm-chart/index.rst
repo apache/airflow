@@ -141,6 +141,12 @@ This is so these CI/CD services can perform updates without issues and preserve 
 
 This also applies if you install the chart using ``--wait`` in your ``helm install`` command.
 
+For Flux, you also need to ensure the "Jobs" are deleted and retriggered in each helmRelease, below is how you would do it:
+.. code-block:: yaml
+spec:
+  force: true        # enable this to recreate resources on immutable fields changes
+
+
 .. note::
     While deploying this Helm chart with Argo, you might encounter issues with database migrations not running automatically on upgrade.
 
