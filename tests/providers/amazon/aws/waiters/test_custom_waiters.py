@@ -18,11 +18,15 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 
 import boto3
+import pytest
+from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
 from moto import mock_eks
 
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, EcsTaskDefinitionStates
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 
@@ -69,7 +73,7 @@ class TestBaseWaiter:
         assert waiter.client == client_name
 
 
-class TestServiceWaiters:
+class TestCustomEKSServiceWaiters:
     def test_service_waiters(self):
         hook = EksHook()
         with open(hook.waiter_path) as config_file:
@@ -98,3 +102,139 @@ class TestServiceWaiters:
             # so the best we can do it make sure the same attrs exist.
             assert hasattr(boto_waiter, attr)
             assert hasattr(client_waiter, attr)
+
+
+class TestCustomECSServiceWaiters:
+    """Test waiters from ``amazon/aws/waiters/ecs.json``."""
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.client = boto3.client("ecs", region_name="eu-west-3")
+        monkeypatch.setattr(EcsHook, "conn", self.client)
+
+    @pytest.fixture
+    def mock_describe_clusters(self):
+        """Mock ``ECS.Client.describe_clusters`` method."""
+        with mock.patch.object(self.client, "describe_clusters") as m:
+            yield m
+
+    @pytest.fixture
+    def mock_describe_task_definition(self):
+        """Mock ``ECS.Client.describe_task_definition`` method."""
+        with mock.patch.object(self.client, "describe_task_definition") as m:
+            yield m
+
+    def test_service_waiters(self):
+        hook_waiters = EcsHook(aws_conn_id=None).list_waiters()
+        assert "cluster_active" in hook_waiters
+        assert "cluster_inactive" in hook_waiters
+        assert "task_definition_active" in hook_waiters
+        assert "task_definition_inactive" in hook_waiters
+
+    @staticmethod
+    def describe_clusters(status: str, cluster_name: str = "spam-egg", failures: dict | list | None = None):
+        """
+        Helper function for generate minimal DescribeClusters response for single job.
+        https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeClusters.html
+        """
+        assert status in EcsClusterStates.__members__.values()
+        failures = failures or []
+        if isinstance(failures, dict):
+            failures = [failures]
+
+        return {"clusters": [{"clusterName": cluster_name, "status": status}], "failures": failures}
+
+    def test_cluster_active(self, mock_describe_clusters):
+        """Test cluster reach Active state during creation."""
+        mock_describe_clusters.side_effect = [
+            self.describe_clusters(EcsClusterStates.DEPROVISIONING),
+            self.describe_clusters(EcsClusterStates.PROVISIONING),
+            self.describe_clusters(EcsClusterStates.ACTIVE),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_active")
+        waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+
+    @pytest.mark.parametrize("state", [EcsClusterStates.FAILED, EcsClusterStates.INACTIVE])
+    def test_cluster_active_failure_states(self, mock_describe_clusters, state):
+        """Test cluster reach inactive state during creation."""
+        mock_describe_clusters.side_effect = [
+            self.describe_clusters(EcsClusterStates.PROVISIONING),
+            self.describe_clusters(state),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_active")
+        with pytest.raises(WaiterError, match=f'matched expected path: "{state}"'):
+            waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+
+    def test_cluster_active_failure_reasons(self, mock_describe_clusters):
+        """Test cluster reach failure state during creation."""
+        mock_describe_clusters.side_effect = [
+            self.describe_clusters(EcsClusterStates.PROVISIONING),
+            self.describe_clusters(EcsClusterStates.PROVISIONING, failures={"reason": "MISSING"}),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_active")
+        with pytest.raises(WaiterError, match='matched expected path: "MISSING"'):
+            waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+
+    def test_cluster_inactive(self, mock_describe_clusters):
+        """Test cluster reach Inactive state during deletion."""
+        mock_describe_clusters.side_effect = [
+            self.describe_clusters(EcsClusterStates.ACTIVE),
+            self.describe_clusters(EcsClusterStates.ACTIVE),
+            self.describe_clusters(EcsClusterStates.INACTIVE),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_inactive")
+        waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+
+    def test_cluster_inactive_failure_reasons(self, mock_describe_clusters):
+        """Test cluster reach failure state during deletion."""
+        mock_describe_clusters.side_effect = [
+            self.describe_clusters(EcsClusterStates.ACTIVE),
+            self.describe_clusters(EcsClusterStates.DEPROVISIONING),
+            self.describe_clusters(EcsClusterStates.DEPROVISIONING, failures={"reason": "MISSING"}),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_inactive")
+        waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+
+    @staticmethod
+    def describe_task_definition(status: str, task_definition: str = "spam-egg"):
+        """
+        Helper function for generate minimal DescribeTaskDefinition response for single job.
+        https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeTaskDefinition.html
+        """
+        return {
+            "taskDefinition": {
+                "taskDefinitionArn": (
+                    f"arn:aws:ecs:eu-west-3:123456789012:task-definition/{task_definition}:42"
+                ),
+                "status": status,
+            }
+        }
+
+    def test_task_definition_active(self, mock_describe_task_definition):
+        """Test task definition reach active state during creation."""
+        mock_describe_task_definition.side_effect = [
+            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
+            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
+            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_active")
+        waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+
+    def test_task_definition_failure(self, mock_describe_task_definition):
+        """Test task definition reach delete in progress state during creation."""
+        mock_describe_task_definition.side_effect = [
+            self.describe_task_definition(EcsTaskDefinitionStates.DELETE_IN_PROGRESS),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_active")
+        with pytest.raises(WaiterError, match='matched expected path: "DELETE_IN_PROGRESS"'):
+            waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 1})
+
+    def test_task_definition_inactive(self, mock_describe_task_definition):
+        """Test task definition reach inactive state during deletion."""
+        mock_describe_task_definition.side_effect = [
+            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
+            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
+            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
+        ]
+        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_inactive")
+        waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})

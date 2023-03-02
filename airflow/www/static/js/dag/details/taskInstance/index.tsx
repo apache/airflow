@@ -17,34 +17,18 @@
  * under the License.
  */
 
-/* global localStorage */
-
-import React, { useRef, useState } from "react";
-import {
-  Box,
-  Text,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
-} from "@chakra-ui/react";
+import React, { useRef } from "react";
+import { Box } from "@chakra-ui/react";
 
 import { useGridData, useTaskInstance } from "src/api";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import type { DagRun, TaskInstance as TaskInstanceType } from "src/types";
-import type { SelectionProps } from "src/dag/useSelection";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
-import ExtraLinks from "./ExtraLinks";
-import Logs from "./Logs";
 import TaskNav from "./Nav";
+import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
-import MappedInstances from "./MappedInstances";
 import TaskActions from "./taskActions";
-import BackToTaskSummary from "./BackToTaskSummary";
-
-const detailsPanelActiveTabIndex = "detailsPanelActiveTabIndex";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -52,22 +36,16 @@ interface Props {
   taskId: string;
   runId: DagRun["runId"];
   mapIndex: TaskInstanceType["mapIndex"];
-  onSelect: (selectionProps: SelectionProps) => void;
 }
 
-const TaskInstance = ({ taskId, runId, mapIndex, onSelect }: Props) => {
-  const taskInstancesRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(taskInstancesRef);
+const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
+  const taskInstanceRef = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(taskInstanceRef);
   const isMapIndexDefined = !(mapIndex === undefined);
   const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
   const {
     data: { dagRuns, groups },
   } = useGridData();
-  const storageTabIndex = parseInt(
-    localStorage.getItem(detailsPanelActiveTabIndex) || "0",
-    10
-  );
-  const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
   const group = getTask({ taskId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
@@ -92,27 +70,7 @@ const TaskInstance = ({ taskId, runId, mapIndex, onSelect }: Props) => {
     ? mappedTaskInstance
     : group?.instances.find((ti) => ti.runId === runId);
 
-  const handleTabsChange = (index: number) => {
-    localStorage.setItem(detailsPanelActiveTabIndex, index.toString());
-    setPreferedTabIndex(index);
-  };
-
   if (!group || !run || !instance) return null;
-
-  let isPreferedTabDisplayed = false;
-
-  switch (preferedTabIndex) {
-    case 0:
-      isPreferedTabDisplayed = true;
-      break;
-    case 1:
-      isPreferedTabDisplayed = !isGroup || (isGroup && !!isMapped);
-      break;
-    default:
-      isPreferedTabDisplayed = false;
-  }
-
-  const selectedTabIndex = isPreferedTabDisplayed ? preferedTabIndex : 0;
 
   const { executionDate } = run;
 
@@ -124,7 +82,13 @@ const TaskInstance = ({ taskId, runId, mapIndex, onSelect }: Props) => {
   }
 
   return (
-    <Box pt={2} height="100%">
+    <Box
+      py="4px"
+      height="100%"
+      maxHeight={`calc(100% - ${offsetTop}px)`}
+      ref={taskInstanceRef}
+      overflowY="auto"
+    >
       {!isGroup && (
         <TaskNav
           taskId={taskId}
@@ -135,106 +99,36 @@ const TaskInstance = ({ taskId, runId, mapIndex, onSelect }: Props) => {
           operator={operator}
         />
       )}
-      <Tabs
-        size="lg"
-        index={selectedTabIndex}
-        onChange={handleTabsChange}
-        height="100%"
-      >
-        <TabList>
-          <Tab>
-            <Text as="strong">Details</Text>
-          </Tab>
-          {isMappedTaskSummary && !isGroup && (
-            <Tab>
-              <Text as="strong">Mapped Tasks</Text>
-            </Tab>
-          )}
-          {!isGroupOrMappedTaskSummary && (
-            <Tab>
-              <Text as="strong">Logs</Text>
-            </Tab>
-          )}
-        </TabList>
-
-        <BackToTaskSummary
-          isMapIndexDefined={isMapIndexDefined}
-          onClick={() => onSelect({ runId, taskId })}
+      {!isGroupOrMappedTaskSummary && (
+        <NotesAccordion
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          mapIndex={instance.mapIndex}
+          initialValue={instance.note}
+          key={dagId + runId + taskId + instance.mapIndex}
         />
-
-        <TabPanels height="100%">
-          {/* Details Tab */}
-          <TabPanel
-            pt={isMapIndexDefined ? "0px" : undefined}
-            ref={taskInstancesRef}
-            maxHeight={`calc(100% - ${offsetTop}px)`}
-            overflowY="auto"
-            pb={0}
-          >
-            <Box py="4px">
-              {!isGroupOrMappedTaskSummary && (
-                <NotesAccordion
-                  dagId={dagId}
-                  runId={runId}
-                  taskId={taskId}
-                  mapIndex={instance.mapIndex}
-                  initialValue={instance.note}
-                  key={dagId + runId + taskId + instance.mapIndex}
-                />
-              )}
-              <Box mb={3}>
-                <TaskActions
-                  title={taskActionsTitle}
-                  runId={runId}
-                  taskId={taskId}
-                  dagId={dagId}
-                  executionDate={executionDate}
-                  mapIndexes={actionsMapIndexes}
-                  isGroup={isGroup}
-                />
-              </Box>
-              {!isMapped && group.extraLinks && (
-                <ExtraLinks
-                  taskId={taskId}
-                  dagId={dagId}
-                  executionDate={executionDate}
-                  extraLinks={group?.extraLinks}
-                />
-              )}
-              <Details instance={instance} group={group} dagId={dagId} />
-            </Box>
-          </TabPanel>
-
-          {/* Logs Tab */}
-          {!isGroupOrMappedTaskSummary && (
-            <TabPanel pt={isMapIndexDefined ? "0px" : undefined} height="100%">
-              <Logs
-                dagId={dagId}
-                dagRunId={runId}
-                taskId={taskId!}
-                mapIndex={mapIndex}
-                executionDate={executionDate}
-                tryNumber={instance?.tryNumber}
-                state={instance?.state}
-              />
-            </TabPanel>
-          )}
-
-          {/* Mapped Task Instances Tab */}
-          {isMappedTaskSummary && !isGroup && (
-            <TabPanel height="100%" pb={0}>
-              <MappedInstances
-                dagId={dagId}
-                runId={runId}
-                taskId={taskId}
-                onRowClicked={(row) =>
-                  onSelect({ runId, taskId, mapIndex: row.values.mapIndex })
-                }
-              />
-            </TabPanel>
-          )}
-        </TabPanels>
-      </Tabs>
+      )}
+      <Box mb={8}>
+        <TaskActions
+          title={taskActionsTitle}
+          runId={runId}
+          taskId={taskId}
+          dagId={dagId}
+          executionDate={executionDate}
+          mapIndexes={actionsMapIndexes}
+          isGroup={isGroup}
+        />
+      </Box>
+      {!isMapped && group.extraLinks && (
+        <ExtraLinks
+          taskId={taskId}
+          dagId={dagId}
+          executionDate={executionDate}
+          extraLinks={group?.extraLinks}
+        />
+      )}
+      <Details instance={instance} group={group} dagId={dagId} />
     </Box>
   );
 };

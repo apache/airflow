@@ -892,7 +892,9 @@ def _clear_db(request):
 
 
 @pytest.fixture(autouse=True)
-def _clear_entry_point_cache():
+def clear_lru_cache():
+    from airflow.executors.executor_loader import ExecutorLoader
     from airflow.utils.entry_points import _get_grouped_entry_points
 
+    ExecutorLoader.validate_database_executor_compatibility.cache_clear()
     _get_grouped_entry_points.cache_clear()
