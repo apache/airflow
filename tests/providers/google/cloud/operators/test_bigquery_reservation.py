@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.bigquery_reservation import (
@@ -51,7 +50,7 @@ class TestBigQueryBiEngineReservationCreateOperator:
         )
 
 
-class TestBigQueryBiEngineReservationDeleteOperator(unittest.TestCase):
+class TestBigQueryBiEngineReservationDeleteOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_reservation.BigQueryReservationServiceHook"
     )
