@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useRef } from "react";
+import React, { useRef, ReactNode } from "react";
 import {
   Table,
   Tbody,
@@ -90,90 +90,127 @@ const Dag = () => {
   const lastStart = dagRuns[dagRuns.length - 1]?.startDate;
 
   return (
-    <>
+    <Box
+      height="100%"
+      maxHeight={`calc(100% - ${offsetTop}px)`}
+      ref={detailsRef}
+      overflowY="auto"
+    >
       <Button as={Link} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
-        DAG Details
+        More Details
       </Button>
-      <Box
-        height="100%"
-        maxHeight={`calc(100% - ${offsetTop}px)`}
-        ref={detailsRef}
-        overflowY="auto"
-      >
-        <Table variant="striped">
-          <Tbody>
-            {durations.length > 0 && (
-              <>
-                <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-                  <Td>
-                    <Heading size="sm">DAG Runs Summary</Heading>
-                  </Td>
-                  <Td />
-                </Tr>
-                <Tr>
-                  <Td>Total Runs Displayed</Td>
-                  <Td>{durations.length}</Td>
-                </Tr>
-                {stateSummary}
-                {firstStart && (
-                  <Tr>
-                    <Td>First Run Start</Td>
-                    <Td>
-                      <Time dateTime={firstStart} />
-                    </Td>
-                  </Tr>
-                )}
-                {lastStart && (
-                  <Tr>
-                    <Td>Last Run Start</Td>
-                    <Td>
-                      <Time dateTime={lastStart} />
-                    </Td>
-                  </Tr>
-                )}
-                <Tr>
-                  <Td>Max Run Duration</Td>
-                  <Td>{formatDuration(max)}</Td>
-                </Tr>
-                <Tr>
-                  <Td>Mean Run Duration</Td>
-                  <Td>{formatDuration(avg)}</Td>
-                </Tr>
-                <Tr>
-                  <Td>Min Run Duration</Td>
-                  <Td>{formatDuration(min)}</Td>
-                </Tr>
-              </>
-            )}
-            <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-              <Td>
-                <Heading size="sm">DAG Summary</Heading>
-              </Td>
-              <Td />
-            </Tr>
-            <Tr>
-              <Td>Total Tasks</Td>
-              <Td>{taskSummary.taskCount}</Td>
-            </Tr>
-            {!!taskSummary.groupCount && (
-              <Tr>
-                <Td>Total Task Groups</Td>
-                <Td>{taskSummary.groupCount}</Td>
-              </Tr>
-            )}
-            {Object.entries(taskSummary.operators).map(([key, value]) => (
-              <Tr key={key}>
+      <Table variant="striped">
+        <Tbody>
+          {durations.length > 0 && (
+            <>
+              <Tr borderBottomWidth={2} borderBottomColor="gray.300">
                 <Td>
-                  {key}
-                  {value > 1 && "s"}
+                  <Heading size="sm">DAG Runs Summary</Heading>
                 </Td>
-                <Td>{value}</Td>
+                <Td />
               </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      </Box>
-    </>
+              <Tr>
+                <Td>Total Runs Displayed</Td>
+                <Td>{durations.length}</Td>
+              </Tr>
+              {stateSummary}
+              {firstStart && (
+                <Tr>
+                  <Td>First Run Start</Td>
+                  <Td>
+                    <Time dateTime={firstStart} />
+                  </Td>
+                </Tr>
+              )}
+              {lastStart && (
+                <Tr>
+                  <Td>Last Run Start</Td>
+                  <Td>
+                    <Time dateTime={lastStart} />
+                  </Td>
+                </Tr>
+              )}
+              <Tr>
+                <Td>Max Run Duration</Td>
+                <Td>{formatDuration(max)}</Td>
+              </Tr>
+              <Tr>
+                <Td>Mean Run Duration</Td>
+                <Td>{formatDuration(avg)}</Td>
+              </Tr>
+              <Tr>
+                <Td>Min Run Duration</Td>
+                <Td>{formatDuration(min)}</Td>
+              </Tr>
+            </>
+          )}
+          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+            <Td>
+              <Heading size="sm">DAG Runs Summary</Heading>
+            </Td>
+            <Td />
+          </Tr>
+          <Tr>
+            <Td>Total Runs Displayed</Td>
+            <Td>{durations.length}</Td>
+          </Tr>
+          {stateSummary}
+          {firstStart && (
+            <Tr>
+              <Td>First Run Start</Td>
+              <Td>
+                <Time dateTime={firstStart} />
+              </Td>
+            </Tr>
+          )}
+          {lastStart && (
+            <Tr>
+              <Td>Last Run Start</Td>
+              <Td>
+                <Time dateTime={lastStart} />
+              </Td>
+            </Tr>
+          )}
+          <Tr>
+            <Td>Max Run Duration</Td>
+            <Td>{formatDuration(max)}</Td>
+          </Tr>
+          <Tr>
+            <Td>Mean Run Duration</Td>
+            <Td>{formatDuration(avg)}</Td>
+          </Tr>
+          <Tr>
+            <Td>Min Run Duration</Td>
+            <Td>{formatDuration(min)}</Td>
+          </Tr>
+          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+            <Td>
+              <Heading size="sm">DAG Summary</Heading>
+            </Td>
+            <Td />
+          </Tr>
+          <Tr>
+            <Td>Total Tasks</Td>
+            <Td>{taskSummary.taskCount}</Td>
+          </Tr>
+          {!!taskSummary.groupCount && (
+            <Tr>
+              <Td>Total Task Groups</Td>
+              <Td>{taskSummary.groupCount}</Td>
+            </Tr>
+          )}
+          {Object.entries(taskSummary.operators).map(([key, value]) => (
+            <Tr key={key}>
+              <Td>
+                {key}
+                {value > 1 && "s"}
+              </Td>
+              <Td>{value}</Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </Box>
   );
 };
 
