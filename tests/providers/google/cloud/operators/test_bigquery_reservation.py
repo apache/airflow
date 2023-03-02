@@ -31,7 +31,7 @@ LOCATION = "US"
 SIZE = 100
 
 
-class TestBigQueryBiEngineReservationCreateOperator(unittest.TestCase):
+class TestBigQueryBiEngineReservationCreateOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_reservation.BigQueryReservationServiceHook"
     )
