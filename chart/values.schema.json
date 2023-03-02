@@ -4588,6 +4588,50 @@
                                 "verify-full"
                             ],
                             "default": "disable"
+                        },
+                        "livenessProbe": {
+                            "description": "LivenessProbe configurations for ``metricsExporterSidecar``",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "initialDelaySeconds": {
+                                    "description": "Metrics Exporter liveness probe initial delay",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "periodSeconds": {
+                                    "description": "Metrics Exporter liveness probe frequency",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Metrics Exporter liveness probe command timeout",
+                                    "type": "integer",
+                                    "default": 1
+                                }
+                            }
+                        },
+                        "readinessProbe": {
+                            "description": "ReadinessProbe configurations for ``metricsExporterSidecar``",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "initialDelaySeconds": {
+                                    "description": "Metrics Exporter readiness probe initial delay",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "periodSeconds": {
+                                    "description": "Metrics Exporter readiness probe frequency",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Metrics Exporter readiness probe command timeout",
+                                    "type": "integer",
+                                    "default": 1
+                                }
+                            }
                         }
                     }
                 }

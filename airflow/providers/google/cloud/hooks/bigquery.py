@@ -3048,6 +3048,24 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_query_response = await job_client.get_query_results(cast(Session, session))
             return job_query_response
 
+    async def create_job_for_partition_get(
+        self,
+        dataset_id: str | None,
+        project_id: str | None = None,
+    ):
+        """Create a new job and get the job_id using gcloud-aio."""
+        async with ClientSession() as session:
+            self.log.info("Executing create_job..")
+            job_client = await self.get_job_instance(project_id, "", session)
+
+            query_request = {
+                "query": "SELECT partition_id "
+                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`",
+                "useLegacySql": False,
+            }
+            job_query_resp = await job_client.query(query_request, cast(Session, session))
+            return job_query_resp["jobReference"]["jobId"]
+
     def get_records(self, query_results: dict[str, Any]) -> list[Any]:
         """
         Given the output query response from gcloud-aio bigquery, convert the response to records.

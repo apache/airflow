@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,16 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module contains a Google API base operator."""
 from __future__ import annotations
 
-from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest, provide_aws_context
+from airflow.models import BaseOperator
 
 
-class TestS3BucketExampleDagsSystem(AmazonSystemTest):
+class GoogleCloudBaseOperator(BaseOperator):
     """
-    System tests for AWS S3 operators
+    Abstract base class that takes care of common specifics of the operators built
+    on top of Google API client libraries.
     """
 
-    @provide_aws_context()
-    def test_run_example_dag_s3(self):
-        self.run_dag("s3_bucket_dag", AWS_DAG_FOLDER)
+    pass

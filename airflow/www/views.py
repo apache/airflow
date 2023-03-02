@@ -2921,10 +2921,10 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data["dr_choices"]
 
-        task_instances = {
-            ti.task_id: wwwutils.get_instance_with_map(ti, session)
-            for ti in dag.get_task_instances(dttm, dttm)
-        }
+        task_instances = {}
+        for ti in dag.get_task_instances(dttm, dttm):
+            if ti.task_id not in task_instances:
+                task_instances[ti.task_id] = wwwutils.get_instance_with_map(ti, session)
         tasks = {
             t.task_id: {
                 "dag_id": t.dag_id,
@@ -3531,6 +3531,42 @@ class Airflow(AirflowBaseView):
             return {"error": None, "url": url}
         else:
             return {"url": None, "error": f"No URL found for {link_name}"}, 404
+
+    @expose("/object/graph_data")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped
+    @action_logging
+    @provide_session
+    def graph_data(self, session=None):
+        """Get Graph Data"""
+        dag_id = request.args.get("dag_id")
+        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        root = request.args.get("root")
+        if root:
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
+            dag = dag.partial_subset(
+                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            )
+
+        nodes = task_group_to_dict(dag.task_group)
+        edges = dag_edges(dag)
+
+        data = {
+            "arrange": dag.orientation,
+            "nodes": nodes,
+            "edges": edges,
+        }
+        return (
+            htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
 
     @expose("/object/task_instances")
     @auth.has_access(

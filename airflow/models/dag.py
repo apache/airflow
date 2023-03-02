@@ -1501,25 +1501,28 @@ class DAG(LoggingMixin):
     ) -> list[TaskInstance]:
         """Get ``num`` task instances before (including) ``base_date``.
 
-        The returned list may contain exactly ``num`` task instances. It can
-        have less if there are less than ``num`` scheduled DAG runs before
-        ``base_date``, or more if there are manual task runs between the
-        requested period, which does not count toward ``num``.
+        The returned list may contain exactly ``num`` task instances
+        corresponding to any DagRunType. It can have less if there are
+        less than ``num`` scheduled DAG runs before ``base_date``.
         """
-        min_date: datetime | None = (
+        execution_dates: list[Any] = (
             session.query(DagRun.execution_date)
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date <= base_date,
-                DagRun.run_type != DagRunType.MANUAL,
             )
             .order_by(DagRun.execution_date.desc())
-            .offset(num)
-            .limit(1)
-            .scalar()
+            .limit(num)
+            .all()
         )
-        if min_date is None:
-            min_date = timezone.utc_epoch()
+
+        if len(execution_dates) == 0:
+            return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
+
+        min_date: datetime | None = execution_dates[-1]._mapping.get(
+            "execution_date"
+        )  # getting the last value from the list
+
         return self.get_task_instances(start_date=min_date, end_date=base_date, session=session)
 
     @provide_session
@@ -1534,6 +1537,7 @@ class DAG(LoggingMixin):
             start_date = (timezone.utcnow() - timedelta(30)).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
+
         query = self._get_task_instances(
             task_ids=None,
             start_date=start_date,
