@@ -882,6 +882,13 @@ metrics:
       type: string
       example: ~
       default: ""
+    statsd_invert_allow_list:
+      description: |
+        Set to True to invert the functionality of the allowlist to a blocklist
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
     stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
@@ -923,6 +930,13 @@ metrics:
       type: string
       example: ~
       default: ~
+    statsd_disabled_tags:
+      description: |
+        List of tag names the user chooses to disable
+      version_added: 2.6.0
+      type: string
+      example: job_id,run_id,dag_id,task_id
+      default: job_id,run_id
     statsd_influxdb_enabled:
       description: |
         To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
