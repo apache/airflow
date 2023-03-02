@@ -83,8 +83,8 @@ const Header = () => {
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
-  const isTaskDetails = runId && taskId && mapIndex === null;
-  const isMappedTaskDetails = runId && taskId && mapIndex !== null;
+  const isTaskDetails = runId && taskId && mapIndex === undefined;
+  const isMappedTaskDetails = runId && taskId && mapIndex !== undefined;
 
   return (
     <Breadcrumb separator={<Text color="gray.300">/</Text>}>
@@ -119,7 +119,7 @@ const Header = () => {
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
-      {mapIndex !== null && (
+      {mapIndex !== undefined && (
         <BreadcrumbItem isCurrentPage mt={4}>
           <BreadcrumbLink
             _hover={isMappedTaskDetails ? { cursor: "default" } : undefined}

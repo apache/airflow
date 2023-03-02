@@ -123,6 +123,7 @@ const config = {
       {
         test: /\.css$/,
         include: CSS_DIR,
+        exclude: /node_modules/,
         use: [
           {
             loader: MiniCssExtractPlugin.loader,
@@ -132,6 +133,13 @@ const config = {
           },
           "css-loader",
         ],
+      },
+      // Extract css files
+      {
+        test: /\.css$/,
+        exclude: CSS_DIR,
+        include: /node_modules/,
+        use: ["css-loader"],
       },
       /* for css linking images */
       {
@@ -199,7 +207,6 @@ const config = {
           from: "node_modules/nvd3/build/*.min.*",
           flatten: true,
         },
-        // Update this when upgrade d3 package, as the path in new D3 is different
         {
           from: "node_modules/d3/d3.min.*",
           flatten: true,
