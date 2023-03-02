@@ -245,10 +245,10 @@ class BaseJob(Base, LoggingMixin):
                 except OperationalError:
                     Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
                     self.log.exception(
-                            "%s heartbeat got an exception(retry:%d)", 
-                            self.__class__.__name__, 
-                            attempt.retry_state.attempt_number,
-                        )
+                        "%s heartbeat got an exception(retry:%d)",
+                        self.__class__.__name__,
+                        attempt.retry_state.attempt_number,
+                    )
                     # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
                     self.latest_heartbeat = previous_heartbeat
 

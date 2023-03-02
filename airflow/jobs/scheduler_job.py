@@ -908,9 +908,9 @@ class SchedulerJob(BaseJob):
                         except OperationalError:
                             total_time = time.monotonic() - start_time
                             self.log.error(
-                                "%s got a DB exception (retry:%d, total time in seconds: %d)", 
-                                self.__class__.__name__, 
-                                attempt.retry_state.attempt_number, 
+                                "%s got a DB exception (retry:%d, total time in seconds: %d)",
+                                self.__class__.__name__,
+                                attempt.retry_state.attempt_number,
                                 total_time,
                             )
                             raise
