@@ -44,6 +44,7 @@ from tests.providers.amazon.aws.utils.eks_test_constants import (
     TASK_ID,
 )
 from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys
+from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 CLUSTER_NAME = "cluster1"
 NODEGROUP_NAME = "nodegroup1"
@@ -59,17 +60,6 @@ CREATE_NODEGROUP_KWARGS = {
     "capacityType": "ON_DEMAND",
     "instanceTypes": "t3.large",
 }
-
-
-def assert_expected_waiter_type(waiter: mock.MagicMock, expected: str):
-    """
-    There does not appear to be a straight-forward way to assert the type of waiter.
-    Instead, get the class name and check if it contains the expected name.
-
-    :param waiter: A mocked Boto3 Waiter object.
-    :param expected: The expected class name of the Waiter object, for example "ClusterActive".
-    """
-    assert expected in str(type(waiter.call_args[0][0]))
 
 
 class ClusterParams(TypedDict):

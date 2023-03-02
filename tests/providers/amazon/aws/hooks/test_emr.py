@@ -28,6 +28,13 @@ from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 
 class TestEmrHook:
+    def test_service_waiters(self):
+        hook = EmrHook(aws_conn_id=None)
+        official_waiters = hook.conn.waiter_names
+        custom_waiters = ["job_flow_waiting", "notebook_running", "notebook_stopped"]
+
+        assert hook.list_waiters() == [*official_waiters, *custom_waiters]
+
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
         hook = EmrHook(aws_conn_id="aws_default", region_name="ap-southeast-2")

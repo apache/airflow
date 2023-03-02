@@ -19,13 +19,16 @@ from __future__ import annotations
 
 import os
 from datetime import timedelta
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
+from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.utils import timezone
+from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 TASK_ID = "test_task"
@@ -34,7 +37,8 @@ TEST_DAG_ID = "test_dag_id"
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
-RUN_JOB_FLOW_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "JobFlowId": "j-8989898989"}
+JOB_FLOW_ID = "j-8989898989"
+RUN_JOB_FLOW_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "JobFlowId": JOB_FLOW_ID}
 
 TEMPLATE_SEARCHPATH = os.path.join(
     AIRFLOW_MAIN_FOLDER, "tests", "providers", "amazon", "aws", "config_templates"
@@ -158,4 +162,20 @@ class TestEmrCreateJobFlowOperator:
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
         with patch("boto3.session.Session", boto3_session_mock):
-            assert self.operator.execute(self.mock_context) == "j-8989898989"
+            assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
+
+    @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
+    @mock.patch.object(Waiter, "wait")
+    def test_execute_with_wait(self, mock_waiter, _):
+        self.emr_client_mock.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        # Mock out the emr_client creator
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = self.emr_client_mock
+        boto3_session_mock = MagicMock(return_value=emr_session_mock)
+        self.operator.wait_for_completion = True
+
+        with patch("boto3.session.Session", boto3_session_mock):
+            assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
+            mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
+            assert_expected_waiter_type(mock_waiter, "job_flow_waiting")
