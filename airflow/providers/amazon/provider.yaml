@@ -597,4 +597,6 @@ additional-extras:
   - name: pandas
     dependencies:
       - pandas>=0.17.1
+  - name: aiobotocore
+    dependencies:
       - aiobotocore>=2.1.1

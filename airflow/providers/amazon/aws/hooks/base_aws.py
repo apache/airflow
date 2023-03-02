@@ -992,7 +992,7 @@ class AwsBaseAsyncHook(AwsBaseHook):
 
     def __init__(self, **kwargs) -> None:
         try:
-            pass
+            import aiobotocore
         except ImportError:
             raise AirflowOptionalProviderFeatureException(
                 "AWS deferrable operator feature is disable. To enable it please install aiobotocore>=2.1.1"
