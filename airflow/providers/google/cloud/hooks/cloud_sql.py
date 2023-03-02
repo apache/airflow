@@ -360,7 +360,7 @@ class CloudSQLHook(GoogleBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
-        # :return: None
+        :return: None
         """
         try:
             response = (

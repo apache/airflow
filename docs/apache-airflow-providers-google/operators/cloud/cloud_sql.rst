@@ -485,11 +485,13 @@ For parameter definition, take a look at
 
 Arguments
 """""""""
+
 For ``clone_context`` object attributes please refer to
 `CloneContext <https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances/clone#clonecontext>`_
 
 Using the operator
 """"""""""""""""""
+
 You can create the operator with or without project id. If project id is missing it will be retrieved from the Google
 Cloud connection used. Both variants are shown:
 
