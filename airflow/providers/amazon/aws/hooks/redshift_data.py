@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from pprint import pformat
 from time import sleep
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -112,8 +113,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 return status
             elif status == "FAILED" or status == "ABORTED":
                 raise ValueError(
-                    f"Statement {statement_id!r} terminated with status {status}, "
-                    f"error msg: {resp.get('Error')}"
+                    f"Statement {statement_id!r} terminated with status {status}. "
+                    f"Response details: {pformat(resp)}"
                 )
             else:
                 self.log.info("Query %s", status)
