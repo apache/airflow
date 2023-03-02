@@ -149,9 +149,9 @@ def test_task_start_date_filter(admin_client, url, content):
 @pytest.mark.parametrize(
     "url",
     [
-        "/taskinstance/list/?_flt_1_try_number=0", # greater than
-        "/taskinstance/list/?_flt_2_try_number=5", # less than
-    ]
+        "/taskinstance/list/?_flt_1_try_number=0",  # greater than
+        "/taskinstance/list/?_flt_2_try_number=5",  # less than
+    ],
 )
 def test_try_number_filter(admin_client, url):
     resp = admin_client.get(url)

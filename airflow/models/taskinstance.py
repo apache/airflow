@@ -58,7 +58,6 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
@@ -139,6 +138,10 @@ if TYPE_CHECKING:
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
     from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
 
 
 PAST_DEPENDS_MET = "past_depends_met"
