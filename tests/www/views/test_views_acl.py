@@ -251,6 +251,7 @@ def test_dag_autocomplete_success(client_all_dags):
     )
     assert resp.json == [
         {"name": "airflow", "type": "owner"},
+        {"name": "example_setup_teardown_taskflow", "type": "dag"},
         {"name": "test_mapped_taskflow", "type": "dag"},
         {"name": "tutorial_taskflow_api", "type": "dag"},
         {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
