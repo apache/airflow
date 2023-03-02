@@ -247,8 +247,9 @@ def generate_pages(
     :param status: 'all', 'active', or 'paused'
     :param tags: array of strings of the current filtered tags
     :param window: the number of pages to be shown in the paging component (7 default)
-    :param sorting_key: the sorting key selected for the dags
-    :param sorting_direction: direction of sorting, 'asc' or 'desc'
+    :param sorting_key: the sorting key selected for dags, None indicates that sorting is not needed/provided
+    :param sorting_direction: direction of sorting, 'asc' or 'desc',
+    None indicates that sorting is not needed/provided
     :return: the HTML string of the paging component
     """
     void_link = "javascript:void(0)"
