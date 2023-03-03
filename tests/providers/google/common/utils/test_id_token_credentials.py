@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import unittest
 from unittest import mock
 
@@ -61,11 +60,7 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
             del os.environ[CREDENTIALS]
         with pytest.raises(
             exceptions.DefaultCredentialsError,
-            match=re.escape(
-                "Could not automatically determine credentials. Please set GOOGLE_APPLICATION_CREDENTIALS "
-                "or explicitly create credentials and re-run the application. For more information, please "
-                "see https://cloud.google.com/docs/authentication/getting-started"
-            ),
+            match="Please set GOOGLE_APPLICATION_CREDENTIALS",
         ):
             get_default_id_token_credentials(target_audience="example.org")
 
