@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.11.0
 ......
 
-Latest change: 2023-02-28
+Latest change: 2023-03-03
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`3fc9461654 <https://github.com/apache/airflow/commit/3fc946165458f203162ddb229bee133e1a6fcac2>`_  2023-03-03   ``Add 'CloudSQLCloneInstanceOperator' (#29726)``
+`47ab0ca629 <https://github.com/apache/airflow/commit/47ab0ca6295f301d393dbb29e134fa90be0ad7df>`_  2023-03-03   ``Move help message to the google auth code (#29888)``
 `972fca2253 <https://github.com/apache/airflow/commit/972fca22532121493d49753bd6d8388af5943689>`_  2023-02-28   ``Fix 'NoneType' object is not subscriptable. (#29820)``
 `ec844eaa0a <https://github.com/apache/airflow/commit/ec844eaa0a3864d1da74d9ee6c3cf7edb36fbe8c>`_  2023-02-27   ``Add deferrable mode to BigQueryTablePartitionExistenceSensor. (#29735)``
 `a5adb87ab4 <https://github.com/apache/airflow/commit/a5adb87ab4ee537eb37ef31aba755b40f6f29a1e>`_  2023-02-26   ``Add a new param for BigQuery operators to support additional actions when resource exists (#29394)``

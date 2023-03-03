@@ -33,6 +33,7 @@ Features
 * ``Add a new param for BigQuery operators to support additional actions when resource exists (#29394)``
 * ``Add deferrable mode to DataprocInstantiateWorkflowTemplateOperator (#28618)``
 * ``Dataproc batches (#29136)``
+* ``Add 'CloudSQLCloneInstanceOperator' (#29726)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -48,6 +49,7 @@ Misc
 * ``Update google cloud dlp package and adjust hook and operators (#29234)``
 * ``Refactor Dataproc Trigger (#29364)``
 * ``Remove <2.0.0 limit on google-cloud-bigtable (#29644)``
+* ``Move help message to the google auth code (#29888)``
 
 8.10.0
 ......
