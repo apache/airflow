@@ -36,6 +36,8 @@ Latest change: 2023-03-02
 =================================================================================================  ===========  =======================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================================
+`76d8aaa836 <https://github.com/apache/airflow/commit/76d8aaa8362ba199d98680d71ccb3a800cbc4d38>`_  2023-03-02   ``Fix Amazon ECS Enums (#29871)``
+`faf792f634 <https://github.com/apache/airflow/commit/faf792f634f3d2dae672ca184b4d95bd4834924d>`_  2023-03-02   ``Implement custom boto waiters for some EMR operators (#29822)``
 `ea8ce218b9 <https://github.com/apache/airflow/commit/ea8ce218b9abe3c69f4c2d8c65180cf8bafebdd6>`_  2023-03-02   ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
 `181a825259 <https://github.com/apache/airflow/commit/181a8252597e314e5675e2b9655cb44da412eeb2>`_  2023-03-01   ``Use waiters in ECS Operators instead of inner sensors (#29761)``
 `5de47910f3 <https://github.com/apache/airflow/commit/5de47910f3ebd803453b8fb5ca6e4f26ad611375>`_  2023-03-01   ``Allow to specify which connection, variable or config are being looked up in the backend using *_lookup_pattern parameters (#29580)``
