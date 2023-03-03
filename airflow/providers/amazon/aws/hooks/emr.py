@@ -69,23 +69,24 @@ class EmrHook(AwsBaseHook):
         :param cluster_states: State(s) of cluster to find
         :return: id of the EMR cluster
         """        
-        response = self.get_conn().list_clusters(ClusterStates=cluster_states)
-        while true:
-            matching_clusters = list(
+        response_iterator = self.get_conn().get_paginator('list_clusters').paginate(ClusterStates=cluster_states)
+        matching_clusters = list()
+        for page in response_iterator:
+            matching_clusters.extend(list(
                 filter(lambda cluster: cluster["Name"] == emr_cluster_name, response["Clusters"])
-            )
+            ))
 
-            if len(matching_clusters) == 1:
-                cluster_id = matching_clusters[0]["Id"]
-                self.log.info("Found cluster name = %s id = %s", emr_cluster_name, cluster_id)
-                return cluster_id
-            elif len(matching_clusters) > 1:
-                raise AirflowException(f"More than one cluster found for name {emr_cluster_name}")
-            elif response["Marker"]:
-                response = self.get_conn().list_clusters(ClusterStates=cluster_states, Marker = response["Marker"])
-            else:
-                self.log.info("No cluster found for name %s", emr_cluster_name)
-                return None
+        if len(matching_clusters) == 1:
+            cluster_id = matching_clusters[0]["Id"]
+            self.log.info("Found cluster name = %s id = %s", emr_cluster_name, cluster_id)
+            return cluster_id
+        elif len(matching_clusters) > 1:
+            raise AirflowException(f"More than one cluster found for name {emr_cluster_name}")
+        elif response["Marker"]:
+            response = self.get_conn().list_clusters(ClusterStates=cluster_states, Marker = response["Marker"])
+        else:
+            self.log.info("No cluster found for name %s", emr_cluster_name)
+            return None
 
     def create_job_flow(self, job_flow_overrides: dict[str, Any]) -> dict[str, Any]:
         """
