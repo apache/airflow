@@ -113,8 +113,10 @@ def get_kube_client(
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
         _disable_verify_ssl()
 
-    if api_client_retry_configuration != {}:
-        new_client_config.retries = urllib3.util.Retry(api_client_retry_configuration)
+    if isinstance(api_client_retry_configuration, dict) and api_client_retry_configuration != {}:
+        new_client_config.retries = urllib3.util.Retry(**api_client_retry_configuration)
+    else:
+        raise ValueError("api_client_retry_configuration should be a dictionary")
 
     if in_cluster:
         config.load_incluster_config(client_configuration=new_client_config)

@@ -24,6 +24,7 @@ from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.configuration import initialize_config
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive, get_kube_client
+from tests.test_utils.config import conf_vars
 
 
 class TestClient:
@@ -80,10 +81,22 @@ class TestClient:
             configuration = Configuration()
         assert not configuration.verify_ssl
 
-    def test_api_client_retry_configuration(self):
+    def test_api_client_retry_configuration_default(self):
         conf = initialize_config()
         api_client_retry_configuration = conf.getjson(
             "kubernetes", "api_client_retry_configuration", fallback={}
         )
 
         assert api_client_retry_configuration == {}
+
+    @mock.patch("airflow.kubernetes.kube_client.conf")
+    @conf_vars({("kubernetes", "api_client_retry_configuration"): '{"total": 3, "backoff_factor": 0.5}'})
+    def test_api_client_retry_configuration_correct_values(self, conf):
+        get_kube_client(in_cluster=False)
+        conf.getboolean.assert_called_with("kubernetes", "api_client_retry_configuration")
+
+        api_client_retry_configuration = conf.getjson(
+            "kubernetes", "api_client_retry_configuration", fallback={}
+        )
+
+        assert api_client_retry_configuration == {"total": 3, "backoff_factor": 0.5}
