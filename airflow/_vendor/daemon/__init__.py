@@ -36,7 +36,7 @@ from .daemon import DaemonContext
 __all__ = ['DaemonContext']
 
 
-# Copyright © 2009–2022 Ben Finney <ben+python@benfinney.id.au>
+# Copyright © 2009–2023 Ben Finney <ben+python@benfinney.id.au>
 # Copyright © 2006 Robert Niederreiter
 #
 # This is free software: you may copy, modify, and/or distribute this work

@@ -864,28 +864,23 @@ def get_maximum_file_descriptors():
     return result
 
 
-_total_file_descriptor_range = (0, get_maximum_file_descriptors())
-_total_file_descriptor_set = set(range(*_total_file_descriptor_range))
+_total_file_descriptor_range = range(0, get_maximum_file_descriptors())
 
 
-def _get_candidate_file_descriptors(exclude):
-    """ Get the collection of candidate file descriptors.
+def _validate_fd_values(fds):
+    """ Validate the collection of file descriptors `fds`.
 
-        :param exclude: A collection of file descriptors that should
-            be excluded from the return set.
-        :return: The collection (a `set`) of file descriptors that are
-            candidates for files that may be open in this process.
+        :param fds: A collection of file descriptors.
+        :raise TypeError: When any of the `fds` are an invalid type.
+        :return: ``None``.
 
-        Determine the set of all `int` values that could be open file
-        descriptors in this process. A file descriptor is a candidate
-        if it is within the range (0, `maxfd`), excluding those
-        integers in the `exclude` collection.
-
-        The `maxfd` value is determined from the standard library
-        `resource` module.
+        A valid file descriptor is an `int` value.
         """
-    candidates = _total_file_descriptor_set.difference(exclude)
-    return candidates
+    invalid_fds = set(filter((lambda fd: not isinstance(fd, int)), fds))
+    if invalid_fds:
+        value_to_complain_about = next(invalid_fds)
+        raise TypeError(
+                "not an integer file descriptor", value_to_complain_about)
 
 
 def _get_candidate_file_descriptor_ranges(exclude):
@@ -904,29 +899,30 @@ def _get_candidate_file_descriptor_ranges(exclude):
         in this process, excluding those integers in the `exclude`
         collection.
         """
-    candidates_list = sorted(_get_candidate_file_descriptors(exclude))
+    _validate_fd_values(exclude)
     ranges = []
 
-    def append_range_if_needed(candidate_range):
-        (low, high) = candidate_range
-        if (low < high):
-            # The range is not empty.
-            ranges.append(candidate_range)
+    remaining_range = _total_file_descriptor_range
+    for exclude_fd in sorted(exclude):
+        if (exclude_fd > remaining_range.stop):
+            # This and all later exclusions are higher than the remaining
+            # range.
+            break
+        if (exclude_fd < remaining_range.start):
+            # The remaining range does not include the current exclusion.
+            continue
+        if (exclude_fd != remaining_range.start):
+            # There is a candidate range below the current exclusion.
+            ranges.append((remaining_range.start, exclude_fd))
+        # Narrow the remaining range to those above the current exclusion.
+        remaining_range = range(exclude_fd + 1, remaining_range.stop)
 
-    this_range = (
-        (min(candidates_list), (min(candidates_list) + 1))
-        if candidates_list else (0, 0))
-    for fd in candidates_list[1:]:
-        high = fd + 1
-        if this_range[1] == fd:
-            # This file descriptor extends the current range.
-            this_range = (this_range[0], high)
-        else:
-            # The previous range has ended at a gap.
-            append_range_if_needed(this_range)
-            # This file descriptor begins a new range.
-            this_range = (fd, high)
-    append_range_if_needed(this_range)
+    if (remaining_range.start < remaining_range.stop):
+        # After excluding all the specified file descriptors, there is a
+        # remaining range; append it as a candidate for closing file
+        # descriptors.
+        ranges.append((remaining_range.start, remaining_range.stop))
+
     return ranges
 
 
@@ -1032,7 +1028,7 @@ def register_atexit_function(func):
     atexit.register(func)
 
 
-# Copyright © 2008–2022 Ben Finney <ben+python@benfinney.id.au>
+# Copyright © 2008–2023 Ben Finney <ben+python@benfinney.id.au>
 # Copyright © 2007–2008 Robert Niederreiter, Jens Klein
 # Copyright © 2004–2005 Chad J. Schroeder
 # Copyright © 2003 Clark Evans
