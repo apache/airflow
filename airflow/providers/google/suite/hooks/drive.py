@@ -24,7 +24,6 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import Error as GoogleApiClientError
 from googleapiclient.http import HttpRequest, MediaFileUpload
 
-from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -188,9 +187,6 @@ class GoogleDriveHook(GoogleBaseHook):
         :param file_id: The id of a file in Google Drive
         :return: Google Drive full path for a file
         """
-        MAX_NESTED_FOLDERS_LEVEL = 20  # Link to docs https://support.google.com/a/users/answer/7338880?hl=en
-        iteration = 1
-
         has_reached_root = False
         current_file_id = file_id
         path: str = ""
@@ -208,10 +204,6 @@ class GoogleDriveHook(GoogleBaseHook):
                 current_file_id = file_info["parents"][0]
             else:
                 has_reached_root = True
-
-            if iteration >= MAX_NESTED_FOLDERS_LEVEL:
-                raise AirflowException(f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} levels")
-            iteration += 1
         return path
 
     def get_file_id(
@@ -307,8 +299,8 @@ class GoogleDriveHook(GoogleBaseHook):
         if folder_id != "root":
             try:
                 upload_location = self._resolve_file_path(folder_id)
-            except (GoogleApiClientError, AirflowException) as e:
-                log.warning("A problem has been encountered when trying to resolve file path: ", e)
+            except GoogleApiClientError as e:
+                self.log.warning("A problem has been encountered when trying to resolve file path: ", e)
 
         if show_full_target_path:
             self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
