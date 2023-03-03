@@ -331,6 +331,32 @@ class TestGcpSqlHookDefaultProjectId:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
+    def test_instance_clone(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
+        clone_method = get_conn.return_value.instances.return_value.clone
+        execute_method = clone_method.return_value.execute
+        execute_method.return_value = {"name": "operation_id"}
+        wait_for_operation_to_complete.return_value = None
+        body = {
+            "cloneContext": {
+                "kind": "sql#cloneContext",
+                "destinationInstanceName": "clonedInstance",
+            }
+        }
+        self.cloudsql_hook.clone_instance(instance="instance", body=body)
+
+        clone_method.assert_called_once_with(instance="instance", project="example-project", body=body)
+        execute_method.assert_called_once_with(num_retries=5)
+        wait_for_operation_to_complete.assert_called_once_with(
+            operation_name="operation_id", project_id="example-project"
+        )
+        assert 1 == mock_get_credentials.call_count
+
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id",
+        return_value=(mock.MagicMock(), "example-project"),
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
     def test_get_database(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute

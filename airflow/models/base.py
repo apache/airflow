@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import MetaData, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 from airflow.configuration import conf
 

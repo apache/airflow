@@ -26,10 +26,12 @@ Airflow's :class:`~airflow.models.connection.Connection` object is used for stor
 
 Connections may be defined in the following ways:
 
-  - in :ref:`environment variables <environment_variables_secrets_backend>`
+  - in :ref:`environment variables <environment_variables_connections>`
   - in an external :doc:`/administration-and-deployment/security/secrets/secrets-backend/index`
   - in the :ref:`Airflow metadata database <connections-in-database>`
     (using the :ref:`CLI <connection/cli>` or :ref:`web UI <creating_connection_ui>`)
+
+.. _environment_variables_connections:
 
 Storing connections in environment variables
 --------------------------------------------
@@ -92,7 +94,7 @@ Storing connections in the database
 -----------------------------------
 .. seealso::
 
-    Connections can alternatively be stored in :ref:`environment variables <environment_variables_secrets_backend>` or an :doc:`external secrets backend </administration-and-deployment/security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
+    Connections can alternatively be stored in :ref:`environment variables <environment_variables_connections>` or an :doc:`external secrets backend </administration-and-deployment/security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
 
 When storing connections in the database, you may manage them using either the web UI or the Airflow CLI.
 
@@ -179,7 +181,6 @@ Exporting connections to file
 
 You can export to file connections stored in the database (e.g. for migrating connections from one environment to another).  See :ref:`Exporting Connections <cli-export-connections>` for usage.
 
-.. _environment_variables_secrets_backend:
 
 Security of connections in the database
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
