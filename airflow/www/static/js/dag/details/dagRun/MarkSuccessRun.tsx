@@ -54,6 +54,7 @@ const MarkSuccessRun = ({ dagId, runId }: Props) => {
   return (
     <>
       <Button
+        ml={2}
         onClick={onClick}
         colorScheme="green"
         isLoading={isLoading}

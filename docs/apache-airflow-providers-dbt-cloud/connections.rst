@@ -102,5 +102,5 @@ For example, to add a connection with the connection ID of "dbt_cloud_default":
         export AIRFLOW_CONN_DBT_CLOUD_DEFAULT='dbt-cloud://:api_token@my-tenant.getdbt.com'
 
 You can refer to the documentation on
-:ref:`creating connections via environment variables <environment_variables_secrets_backend>` for more
+:ref:`creating connections via environment variables <environment_variables_connections>` for more
 information.
