@@ -18,7 +18,6 @@
  */
 
 import { useSearchParams } from "react-router-dom";
-import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 const RUN_ID = "dag_run_id";
 const TASK_ID = "task_id";
@@ -42,7 +41,7 @@ const useSelection = () => {
   };
 
   const onSelect = ({ runId, taskId, mapIndex }: SelectionProps) => {
-    const params = new URLSearchParamsWrapper(searchParams);
+    const params = new URLSearchParams(window.location.search);
 
     if (runId) params.set(RUN_ID, runId);
     else params.delete(RUN_ID);
