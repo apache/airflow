@@ -41,6 +41,7 @@ const useSelection = () => {
   };
 
   const onSelect = ({ runId, taskId, mapIndex }: SelectionProps) => {
+    // Check the window, in case params have changed since this hook was loaded
     const params = new URLSearchParams(window.location.search);
 
     if (runId) params.set(RUN_ID, runId);
