@@ -82,8 +82,6 @@ class EmrHook(AwsBaseHook):
             return cluster_id
         elif len(matching_clusters) > 1:
             raise AirflowException(f"More than one cluster found for name {emr_cluster_name}")
-        elif response["Marker"]:
-            response = self.get_conn().list_clusters(ClusterStates=cluster_states, Marker = response["Marker"])
         else:
             self.log.info("No cluster found for name %s", emr_cluster_name)
             return None
