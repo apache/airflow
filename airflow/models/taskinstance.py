@@ -139,6 +139,8 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
+    # This is a workaround because mypy doesn't work with hybrid_property
+    # TODO: remove this hack and move hybrid_property back to main import block
     hybrid_property = property
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
