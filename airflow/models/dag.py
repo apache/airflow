@@ -87,7 +87,12 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import (
+    DatasetTriggeredTimetable,
+    NullTimetable,
+    OnceTimetable,
+    ContinuousTimetable,
+)
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -181,6 +186,8 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return NullTimetable()
     if interval == "@once":
         return OnceTimetable()
+    if interval == "@continuous":
+        return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
@@ -858,7 +865,7 @@ class DAG(LoggingMixin):
         DO NOT use this method is there is a known data interval.
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, (NullTimetable, OnceTimetable)):
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable, ContinuousTimetable)):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
