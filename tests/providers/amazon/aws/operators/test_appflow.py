@@ -23,6 +23,7 @@ from unittest.mock import ANY
 import pytest
 
 from airflow.providers.amazon.aws.operators.appflow import (
+    AppflowBaseOperator,
     AppflowRecordsShortCircuitOperator,
     AppflowRunAfterOperator,
     AppflowRunBeforeOperator,
@@ -41,7 +42,14 @@ EXECUTION_ID = "ex_id"
 CONNECTION_TYPE = "Salesforce"
 SOURCE = "salesforce"
 
-DUMP_COMMON_ARGS = {"aws_conn_id": CONN_ID, "task_id": TASK_ID, "source": SOURCE, "flow_name": FLOW_NAME}
+DUMP_COMMON_ARGS = {
+    "aws_conn_id": CONN_ID,
+    "task_id": TASK_ID,
+    "source": SOURCE,
+    "flow_name": FLOW_NAME,
+    "poll_interval": 0,
+}
+AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0  # avoid wait
 
 
 @pytest.fixture
@@ -71,14 +79,21 @@ def appflow_conn():
         mock_conn.update_flow.return_value = {}
         mock_conn.start_flow.return_value = {"executionId": EXECUTION_ID}
         mock_conn.describe_flow_execution_records.return_value = {
-            "flowExecutions": [{"executionId": EXECUTION_ID, "executionResult": {"recordsProcessed": 1}}]
+            "flowExecutions": [
+                {
+                    "executionId": EXECUTION_ID,
+                    "executionResult": {"recordsProcessed": 1},
+                    "executionStatus": "Successful",
+                }
+            ]
         }
         yield mock_conn
 
 
 def run_assertions_base(appflow_conn, tasks):
     appflow_conn.describe_flow.assert_called_with(flowName=FLOW_NAME)
-    assert appflow_conn.describe_flow.call_count == 3
+    assert appflow_conn.describe_flow.call_count == 2
+    appflow_conn.describe_flow_execution_records.assert_called_once()
     appflow_conn.update_flow.assert_called_once_with(
         flowName=FLOW_NAME,
         tasks=tasks,
@@ -93,8 +108,8 @@ def run_assertions_base(appflow_conn, tasks):
 def test_run(appflow_conn, ctx):
     operator = AppflowRunOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)  # type: ignore
-    appflow_conn.describe_flow.assert_called_with(flowName=FLOW_NAME)
-    assert appflow_conn.describe_flow.call_count == 2
+    appflow_conn.describe_flow.assert_called_once_with(flowName=FLOW_NAME)
+    appflow_conn.describe_flow_execution_records.assert_called_once()
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
 
 
@@ -105,7 +120,9 @@ def test_run_full(appflow_conn, ctx):
 
 
 def test_run_after(appflow_conn, ctx):
-    operator = AppflowRunAfterOperator(source_field="col0", filter_date="2022-05-26", **DUMP_COMMON_ARGS)
+    operator = AppflowRunAfterOperator(
+        source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
+    )
     operator.execute(ctx)  # type: ignore
     run_assertions_base(
         appflow_conn,
@@ -121,7 +138,9 @@ def test_run_after(appflow_conn, ctx):
 
 
 def test_run_before(appflow_conn, ctx):
-    operator = AppflowRunBeforeOperator(source_field="col0", filter_date="2022-05-26", **DUMP_COMMON_ARGS)
+    operator = AppflowRunBeforeOperator(
+        source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
+    )
     operator.execute(ctx)  # type: ignore
     run_assertions_base(
         appflow_conn,
@@ -137,7 +156,9 @@ def test_run_before(appflow_conn, ctx):
 
 
 def test_run_daily(appflow_conn, ctx):
-    operator = AppflowRunDailyOperator(source_field="col0", filter_date="2022-05-26", **DUMP_COMMON_ARGS)
+    operator = AppflowRunDailyOperator(
+        source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
+    )
     operator.execute(ctx)  # type: ignore
     run_assertions_base(
         appflow_conn,
