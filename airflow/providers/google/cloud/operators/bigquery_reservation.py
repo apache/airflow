@@ -28,6 +28,10 @@ class BigQueryBiEngineReservationCreateOperator(BaseOperator):
     """
     Create or Update BI engine reservation.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryBiEngineReservationCreateOperator`
+
     :param location: The BI engine reservation location. (templated)
     :param size: The BI Engine reservation memory size (GB). (templated)
     :param project_id: (Optional) The name of the project where the reservation
@@ -83,6 +87,10 @@ class BigQueryBiEngineReservationCreateOperator(BaseOperator):
 class BigQueryBiEngineReservationDeleteOperator(BaseOperator):
     """
     Delete or Update BI engine reservation.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryBiEngineReservationDeleteOperator`
 
     :param project_id: Google Cloud Project where the reservation is attached. (templated)
     :param location: Location where the reservation is attached. (templated)
