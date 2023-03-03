@@ -48,10 +48,13 @@ Misc
 ~~~~
 
 * ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
-* ``Use waiters in ECS Operators instead of inner sensors (#29761)``
 * ``Standardize AWS lambda naming (#29749)``
 * ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
 * ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use waiters in ECS Operators instead of inner sensors (#29761)``
 
 7.2.1
 .....
