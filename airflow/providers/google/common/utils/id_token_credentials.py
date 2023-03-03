@@ -36,8 +36,25 @@ import os
 import google.auth.transport
 import google.oauth2
 from google.auth import credentials as google_auth_credentials, environment_vars, exceptions
-from google.auth._default import _AUTHORIZED_USER_TYPE, _HELP_MESSAGE, _SERVICE_ACCOUNT_TYPE, _VALID_TYPES
 from google.oauth2 import credentials as oauth2_credentials, service_account
+
+# Valid types accepted for file-based credentials.
+# They are taken  from "google.auth._default" and since they are all "protected" and the imports might
+# change any time and fail the whole Google provider functionality - we should inline them
+_AUTHORIZED_USER_TYPE = "authorized_user"
+_SERVICE_ACCOUNT_TYPE = "service_account"
+_EXTERNAL_ACCOUNT_TYPE = "external_account"
+_EXTERNAL_ACCOUNT_AUTHORIZED_USER_TYPE = "external_account_authorized_user"
+_IMPERSONATED_SERVICE_ACCOUNT_TYPE = "impersonated_service_account"
+_GDCH_SERVICE_ACCOUNT_TYPE = "gdch_service_account"
+_VALID_TYPES = (
+    _AUTHORIZED_USER_TYPE,
+    _SERVICE_ACCOUNT_TYPE,
+    _EXTERNAL_ACCOUNT_TYPE,
+    _EXTERNAL_ACCOUNT_AUTHORIZED_USER_TYPE,
+    _IMPERSONATED_SERVICE_ACCOUNT_TYPE,
+    _GDCH_SERVICE_ACCOUNT_TYPE,
+)
 
 
 class IDTokenCredentialsAdapter(google_auth_credentials.Credentials):
@@ -198,7 +215,12 @@ def get_default_id_token_credentials(
         if current_credentials is not None:
             return current_credentials
 
-    raise exceptions.DefaultCredentialsError(_HELP_MESSAGE)
+    raise exceptions.DefaultCredentialsError(
+        f"""Could not automatically determine credentials. Please set {environment_vars.CREDENTIALS} or
+        explicitly create credentials and re-run the application. For more information, please see
+        https://cloud.google.com/docs/authentication/getting-started
+""".strip()
+    )
 
 
 if __name__ == "__main__":
