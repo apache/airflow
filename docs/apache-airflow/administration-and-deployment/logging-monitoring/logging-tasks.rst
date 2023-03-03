@@ -27,12 +27,13 @@ capability of Apache Airflow. You can see all of these providers in :doc:`apache
 
 When using S3, GCS, WASB or OSS remote logging service, you can delete the local log files after
 they are uploaded to the remote location, by setting th config:
-    .. code-block:: ini
 
-        [logging]
-        remote_logging = True
-        remote_base_log_folder = schema://path/to/remote/log
-        delete_local_logs = True
+.. code-block:: ini
+
+    [logging]
+    remote_logging = True
+    remote_base_log_folder = schema://path/to/remote/log
+    delete_local_logs = True
 
 Configuring logging
 -------------------
