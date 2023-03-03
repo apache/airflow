@@ -36,7 +36,7 @@ class GithubSensor(BaseSensorOperator):
     :param method_name: method name from PyGithub to be executed
     :param method_params: parameters for the method method_name
     :param result_processor: function that returns a boolean and acts as a sensor response
-    :param templated_processor: function that returns boolean and acts as a sensor response
+    :param templated_processor: function that returns a boolean and acts as a sensor response
     including a dictionary of templated fields. Use this function when building custom operators
     to allow for the passing of a dictionary of rendered template fields.
     """
