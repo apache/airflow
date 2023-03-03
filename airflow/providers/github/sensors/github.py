@@ -35,9 +35,10 @@ class GithubSensor(BaseSensorOperator):
     :param github_conn_id: reference to a pre-defined GitHub Connection
     :param method_name: method name from PyGithub to be executed
     :param method_params: parameters for the method method_name
-    :param result_processor: function that return boolean and act as a sensor response
-    :param allow_templates_in_result_processor: boolean to determine if
-    templated args will be passed to the result_processor function, default=False
+    :param result_processor: function that returns a boolean and acts as a sensor response
+    :param templated_processor: function that returns boolean and acts as a sensor response
+    including a dictionary of templated fields. Use this function when building custom operators
+    to allow for the passing of a dictionary of rendered template fields.
     """
 
     def __init__(
@@ -47,7 +48,7 @@ class GithubSensor(BaseSensorOperator):
         github_conn_id: str = "github_default",
         method_params: dict | None = None,
         result_processor: Callable | None = None,
-        allow_templates_in_result_processor: bool = False,
+        templated_processor: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -57,16 +58,21 @@ class GithubSensor(BaseSensorOperator):
             self.result_processor = result_processor
         self.method_name = method_name
         self.method_params = method_params
-        self.allow_templates_in_result_processor = allow_templates_in_result_processor
+        self.templated_processor = templated_processor
+
+        if self.result_processor and self.templated_processor:
+            raise AirflowException(
+                "Please provide either `result_processor` or `templated_processor`, not both."
+            )
 
     def poke(self, context: Context, templated_fields: dict | None = None) -> bool:
         hook = GithubHook(github_conn_id=self.github_conn_id)
         github_result = getattr(hook.client, self.method_name)(**self.method_params)
 
         if self.result_processor:
-            if self.allow_templates_in_result_processor:
-                return self.result_processor(github_result, templated_fields=templated_fields)
             return self.result_processor(github_result)
+        if self.templated_processor:
+            return self.templated_processor(github_result, templated_fields=templated_fields)
 
         return github_result
 
@@ -84,11 +90,13 @@ class BaseGithubRepositorySensor(GithubSensor):
         github_conn_id: str = "github_default",
         repository_name: str | None = None,
         result_processor: Callable | None = None,
+        templated_processor: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
             github_conn_id=github_conn_id,
             result_processor=result_processor,
+            templated_processor=templated_processor,
             method_name="get_repo",
             method_params={"full_name_or_id": repository_name},
             **kwargs,
@@ -110,8 +118,6 @@ class GithubTagSensor(BaseGithubRepositorySensor):
     :param github_conn_id: reference to a pre-defined GitHub Connection
     :param tag_name: name of the tag to be monitored
     :param repository_name: fully qualified name of the repository to be monitored, ex. "apache/airflow"
-    :param allow_templates_in_result_processor: boolean to determine if
-    templated args will be passed to the result_processor function, default=True
     """
 
     template_fields = ("tag_name",)
@@ -122,7 +128,6 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         github_conn_id: str = "github_default",
         tag_name: str | None = None,
         repository_name: str | None = None,
-        allow_templates_in_result_processor: bool = True,
         **kwargs,
     ) -> None:
         self.repository_name = repository_name
@@ -130,8 +135,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         super().__init__(
             github_conn_id=github_conn_id,
             repository_name=repository_name,
-            result_processor=self.tag_checker,
-            allow_templates_in_result_processor=allow_templates_in_result_processor,
+            templated_processor=self.tag_checker,
             **kwargs,
         )
 
