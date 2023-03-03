@@ -191,7 +191,7 @@ class TestEmrHook:
 
         for i in range(51):
             hook.create_job_flow(
-                {"Name": "test_cluster" + i%50, "Instancesas": {"KeepJobFlowAliveWhenNoSteps": True}}
+                {"Name": "test_cluster" + str(i%50), "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
             )
 
         job_flow_id = job_flow["JobFlowId"]
@@ -204,7 +204,8 @@ class TestEmrHook:
 
         assert no_match is None
 
-        self.assertRaises(AirflowException, hook.get_cluster_id_by_name("test_cluster0", ["RUNNING", "WAITING", "BOOTSTRAPPING"]))
+        with pytest.raises(AirflowException):
+            hook.get_cluster_id_by_name("test_cluster0", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_add_job_flow_steps_execution_role_arn(self, mock_conn):

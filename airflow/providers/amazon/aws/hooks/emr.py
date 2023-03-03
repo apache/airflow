@@ -73,7 +73,7 @@ class EmrHook(AwsBaseHook):
         matching_clusters = list()
         for page in response_iterator:
             matching_clusters.extend(list(
-                filter(lambda cluster: cluster["Name"] == emr_cluster_name, response["Clusters"])
+                filter(lambda cluster: cluster["Name"] == emr_cluster_name, page["Clusters"])
             ))
 
         if len(matching_clusters) == 1:
