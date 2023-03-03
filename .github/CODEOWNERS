@@ -90,3 +90,8 @@ Dockerfile.ci @potiuk @ashb
 /dev/PROJECT_GUIDELINES.md  @kaxil
 /dev/PROVIDER_PACKAGE_DETAILS.md  @kaxil
 ISSUE_TRIAGE_PROCESS.rst @eladkal
+
+# AIP-52 - Setup and Teardown
+/airflow/decorators/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
+/airflow/utils/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
+/airflow/example_dags/example_setup_teardown*.py @jedcunningham @ephraimbuddy @dstandish
