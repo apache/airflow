@@ -3457,6 +3457,14 @@
                         "my-webserver-configmap"
                     ]
                 },
+                "configMapAnnotations": {
+                    "description": "Annotations to add to the webserver configmap",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "service": {
                     "description": "Webserver Service configuration.",
                     "type": "object",
@@ -4195,6 +4203,14 @@
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the StatsD pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "configMapAnnotations": {
+                    "description": "Annotations to add to the StatsD configmap.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {

@@ -825,6 +825,20 @@ class TestWebserverConfigmap:
             == jmespath.search('data."webserver_config.py"', docs[0]).strip()
         )
 
+    def test_webserver_configmap_annotation(self):
+            docs = render_chart(
+                values={
+                    "webserver": {
+                        "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                        "configMapAnnotations": {"test_annotation": "test_annotation_value"},
+                    },
+                },
+                show_only=["templates/configmaps/webserver-configmap.yaml"],
+            )
+
+            assert "annotations" in jmespath.search("metadata", docs[0])
+            assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestWebserverNetworkPolicy:
     def test_off_by_default(self):

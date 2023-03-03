@@ -32,6 +32,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+{{- if .Values.statsd.configMapAnnotations }}
+  annotations:
+{{- toYaml .Values.statsd.configMapAnnotations | nindent 4 }}
+{{- end }}
 data:
   mappings.yml: |-
 {{- if .Values.statsd.overrideMappings }}
