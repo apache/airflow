@@ -19,9 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
-from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH_PROJECT_ID
 

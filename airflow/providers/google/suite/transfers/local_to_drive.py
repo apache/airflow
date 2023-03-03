@@ -121,7 +121,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
                     chunk_size=self.chunk_size,
                     resumable=self.resumable,
                     folder_id=self.folder_id,
-                    show_full_target_path=self.show_full_target_path
+                    show_full_target_path=self.show_full_target_path,
                 )
 
                 remote_file_ids.append(remote_file_id)
