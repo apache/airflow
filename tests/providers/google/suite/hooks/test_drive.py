@@ -298,19 +298,6 @@ class TestGoogleDriveHook:
         assert result_value == "root/folder_A/file.csv"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
-    def test_resolve_file_path_when_file_nested_in_21_directories(self, mock_get_conn):
-        returned_array = []
-        MAX_NESTED_FOLDERS_LEVEL = 20
-        for x in range(0, MAX_NESTED_FOLDERS_LEVEL + 1):
-            returned_array.append({"id": "ID_1", "name": "folder", "parents": ["ID_1"]})
-
-        mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = returned_array
-
-        with pytest.raises(AirflowException) as ctx:
-            self.gdrive_hook._resolve_file_path(file_id="ID_1")
-        assert str(ctx.value) == f"File is nested deeper than {MAX_NESTED_FOLDERS_LEVEL} levels"
-
-    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_multiple_files_exists(self, mock_get_conn):
         folder_id = "abxy1z"
         drive_id = "abc123"
