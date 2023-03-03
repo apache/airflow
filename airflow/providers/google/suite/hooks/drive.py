@@ -199,7 +199,7 @@ class GoogleDriveHook(GoogleBaseHook):
                 path = f'{file_info["name"]}/{path}'
 
             # Google API returns parents array if there is at least one object inside
-            if "parents" in file_info:
+            if "parents" in file_info and len(file_info["parents"]) == 1:
                 # https://developers.google.com/drive/api/guides/ref-single-parent
                 current_file_id = file_info["parents"][0]
             else:
