@@ -85,6 +85,15 @@ def test_task_mapping_default_args():
     assert mapped.start_date == pendulum.instance(default_args["start_date"])
 
 
+def test_task_mapping_override_default_args():
+    default_args = {"retries": 2}
+    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+        literal = ["a", "b", "c"]
+        mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
+
+    assert mapped.partial_kwargs["retries"] == 1
+
+
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
         BaseOperator.partial(task_id="a").expand(file=[1, 2, {"a": "b"}])
