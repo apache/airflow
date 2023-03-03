@@ -24,6 +24,38 @@
 Changelog
 ---------
 
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add num rows affected to Redshift Data API hook (#29797)``
+* ``Add 'wait_for_completion' param in 'RedshiftCreateClusterOperator' (#29657)``
+* ``Add Amazon Redshift-data to S3<>RS Transfer Operators (#27947)``
+* ``Allow to specify which connection, variable or config are being looked up in the backend using *_lookup_pattern parameters (#29580)``
+* ``Implement file credentials provider for AWS hook AssumeRoleWithWebIdentity (#29623)``
+* ``Implement custom boto waiters for some EMR operators (#29822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix code checking job names in sagemaker (#29245)``
+* ``Avoid emitting fallback message for S3TaskHandler if streaming logs (#29708)``
+* ``Use waiters in ECS Operators instead of inner sensors (#29761)``
+
+Misc
+~~~~
+
+* ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
+* ``Standardize AWS lambda naming (#29749)``
+* ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
+* ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Amazon ECS Enums (#29871)``
+
 7.2.1
 .....
 

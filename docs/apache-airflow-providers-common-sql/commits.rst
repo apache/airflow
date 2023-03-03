@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.3.4
 .....
 
-Latest change: 2023-01-30
+Latest change: 2023-02-22
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`19f1e7c27b <https://github.com/apache/airflow/commit/19f1e7c27b85e297497842c73f13533767ebd6ba>`_  2023-02-22   ``Do not process output when do_xcom_push=False  (#29599)``
 `0af6f20c5f <https://github.com/apache/airflow/commit/0af6f20c5f36c6cac3fc1b23ff47763ea2c24ba2>`_  2023-01-30   ``Make the S3-to-SQL system test self-contained (#29204)``
 `129f0820cd <https://github.com/apache/airflow/commit/129f0820cd03c721ebebe3461489f255bb9e752c>`_  2023-01-23   ``Make static checks generated file  more stable accross the board (#29080)``
 =================================================================================================  ===========  =============================================================================

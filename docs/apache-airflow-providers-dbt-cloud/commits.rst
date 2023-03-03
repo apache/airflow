@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.0
+.....
+
+Latest change: 2023-02-23
+
+=================================================================================================  ===========  ============================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================
+`e6d3176082 <https://github.com/apache/airflow/commit/e6d317608251d2725627ac2da0e60d5c5b206c1e>`_  2023-02-23   ``Add 'DbtCloudJobRunAsyncSensor' (#29695)``
+=================================================================================================  ===========  ============================================
+
 3.0.0
 .....
 
-Latest change: 2023-02-02
+Latest change: 2023-02-08
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `91c0ce7666 <https://github.com/apache/airflow/commit/91c0ce7666f131176cb6368058dc1f259275b894>`_  2023-02-02   ``Drop Connection.schema use in DbtCloudHook (#29166)``
 `f805b4154a <https://github.com/apache/airflow/commit/f805b4154a8155823d7763beb9b6da76889ebd62>`_  2023-01-23   ``Allow downloading of dbt Cloud artifacts to non-existent paths (#29048)``
 `55049c50d5 <https://github.com/apache/airflow/commit/55049c50d52323e242c2387f285f0591ea38cde7>`_  2023-01-23   ``Add deferrable mode to 'DbtCloudRunJobOperator' (#29014)``

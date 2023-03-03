@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2023-02-22
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`47ebe99972 <https://github.com/apache/airflow/commit/47ebe99972b2cc3cc007460e28461b1676c03706>`_  2023-02-22   ``Add Livy Operator with deferrable mode (#29047)``
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
+=================================================================================================  ===========  ==================================================================
+
 3.2.0
 .....
 
-Latest change: 2022-10-31
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `7dd7400dd4 <https://github.com/apache/airflow/commit/7dd7400dd4588e063078986026e14ea606a55a76>`_  2022-10-31   ``Add template to livy operator documentation (#27404)``
 `f75582a8eb <https://github.com/apache/airflow/commit/f75582a8ebe989b342aa0a29e66a2df6e16d6848>`_  2022-10-31   ``Add Spark's 'appId' to xcom output (#27376)``
 `0c94eff950 <https://github.com/apache/airflow/commit/0c94eff95071c126f97e5f2a438a754ed29549d0>`_  2022-10-31   ``add template field renderer to livy operator (#27321)``

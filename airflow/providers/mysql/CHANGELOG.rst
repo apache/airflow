@@ -27,6 +27,14 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+4.0.2
+.....
+
+Misc
+~~~~
+
+* ``Use MariaDB client binaries in arm64 image for support MySQL backend (#29519)``
+
 4.0.1
 .....
 

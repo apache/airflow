@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+5.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'KubernetesPodOperator._render_nested_template_fields' improved by changing the conditionals for a map (#29760)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
+
 5.2.1
 .....
 
