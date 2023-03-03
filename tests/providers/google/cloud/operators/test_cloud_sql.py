@@ -25,6 +25,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.operators.cloud_sql import (
+    CloudSQLCloneInstanceOperator,
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator,
@@ -358,6 +359,36 @@ class TestCloudSql:
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance=INSTANCE_NAME
+        )
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCloneInstanceOperator._check_if_instance_exists"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    def test_instance_clone(self, mock_hook, _check_if_instance_exists):
+        destination_instance_name = "clone-test-name"
+        _check_if_instance_exists.return_value = True
+        op = CloudSQLCloneInstanceOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            destination_instance_name=destination_instance_name,
+            task_id="id",
+        )
+        result = op.execute(None)
+        assert result
+        mock_hook.assert_called_once_with(
+            api_version="v1beta4",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+        )
+        body = {
+            "cloneContext": {
+                "kind": "sql#cloneContext",
+                "destinationInstanceName": destination_instance_name,
+            }
+        }
+        mock_hook.return_value.clone_instance.assert_called_once_with(
+            project_id=PROJECT_ID, instance=INSTANCE_NAME, body=body
         )
 
     @mock.patch(

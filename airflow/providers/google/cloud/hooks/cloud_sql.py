@@ -347,6 +347,33 @@ class CloudSQLHook(GoogleBaseHook):
         except HttpError as ex:
             raise AirflowException(f"Importing instance {instance} failed: {ex.content}")
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def clone_instance(self, instance: str, body: dict, project_id: str) -> None:
+        """
+        Clones an instance to a target instance.
+
+        :param instance: Database instance ID to be cloned. This does not include the
+            project ID.
+        :param instance: Database instance ID to be used for the clone. This does not include the
+            project ID.
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the Google Cloud connection is used.
+        :return: None
+        """
+        try:
+            response = (
+                self.get_conn()
+                .instances()
+                .clone(project=project_id, instance=instance, body=body)
+                .execute(num_retries=self.num_retries)
+            )
+            operation_name = response["name"]
+            self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        except HttpError as ex:
+            raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
+
     def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:
         """
         Waits for the named operation to complete - checks status of the
