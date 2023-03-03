@@ -29,24 +29,27 @@ interface Props {
     targets: string[];
     sections: Record<string, any>[];
   };
-  isSelected: boolean;
+  isSelected?: boolean;
+  showMarker?: boolean;
 }
 
-const Edge = ({ edge, isSelected }: Props) => {
+const Edge = ({ edge, isSelected = false, showMarker = true }: Props) => {
   const { colors } = useTheme();
   return (
     <>
-      <MarkerArrow
-        id="marker-arrow"
-        fill={isSelected ? colors.blue[400] : colors.gray[400]}
-        refX={6}
-        size={6}
-      />
-      {edge.sections.map((s) => (
+      {showMarker && (
+        <MarkerArrow
+          id="marker-arrow"
+          fill={isSelected ? colors.blue[400] : colors.gray[400]}
+          refX={6}
+          size={6}
+        />
+      )}
+      {(edge.sections || []).map((s) => (
         <LinePath
           key={s.id}
           stroke={isSelected ? colors.blue[400] : colors.gray[400]}
-          strokeWidth={isSelected ? 2 : 1}
+          strokeWidth={isSelected ? 3 : 2}
           x={(d) => d.x || 0}
           y={(d) => d.y || 0}
           data={[s.startPoint, ...(s.bendPoints || []), s.endPoint]}
