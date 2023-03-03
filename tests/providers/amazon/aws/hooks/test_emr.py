@@ -24,6 +24,7 @@ import boto3
 import pytest
 from moto import mock_emr
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 
@@ -188,6 +189,11 @@ class TestEmrHook:
             {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
         )
 
+        for i in range(51):
+            hook.create_job_flow(
+                {"Name": "test_cluster" + i%50, "Instancesas": {"KeepJobFlowAliveWhenNoSteps": True}}
+            )
+
         job_flow_id = job_flow["JobFlowId"]
 
         matching_cluster = hook.get_cluster_id_by_name("test_cluster", ["RUNNING", "WAITING"])
@@ -197,6 +203,8 @@ class TestEmrHook:
         no_match = hook.get_cluster_id_by_name("foo", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
 
         assert no_match is None
+
+        self.assertRaises(AirflowException, hook.get_cluster_id_by_name("test_cluster0", ["RUNNING", "WAITING", "BOOTSTRAPPING"]))
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_add_job_flow_steps_execution_role_arn(self, mock_conn):
