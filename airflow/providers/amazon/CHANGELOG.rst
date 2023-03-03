@@ -42,7 +42,7 @@ Bug Fixes
 
 * ``fix code checking job names in sagemaker (#29245)``
 * ``Avoid emitting fallback message for S3TaskHandler if streaming logs (#29708)``
-* ``Fix Amazon ECS Enums (#29871)``
+* ``Use waiters in ECS Operators instead of inner sensors (#29761)``
 
 Misc
 ~~~~
@@ -54,7 +54,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use waiters in ECS Operators instead of inner sensors (#29761)``
+   * ``Fix Amazon ECS Enums (#29871)``
 
 7.2.1
 .....
