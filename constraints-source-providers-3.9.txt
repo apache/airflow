@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-03T11:58:54Z
+# This constraints file was automatically generated on 2023-03-03T18:05:37Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -354,7 +354,7 @@ pinotdb==0.4.14
 pipdeptree==2.5.1
 pipx==1.1.0
 pkginfo==1.9.6
-platformdirs==3.0.0
+platformdirs==3.1.0
 pluggy==1.0.0
 ply==3.11
 plyvel==1.5.0
@@ -506,7 +506,7 @@ tornado==6.2
 towncrier==22.12.0
 tqdm==4.64.1
 traitlets==5.9.0
-trino==0.321.0
+trino==0.322.0
 twine==4.0.2
 types-Deprecated==1.2.9.1
 types-Markdown==3.4.2.5
