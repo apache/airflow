@@ -1327,7 +1327,7 @@ class TaskGroupSerialization(BaseSerialization):
                 serialize_kind(kind): {
                     label: child.serialize_for_task_group() for label, child in children.items()
                 }
-                for kind, children in task_group._all_children_by_kind.items()
+                for kind, children in task_group.all_children_by_kind.items()
             },
             "upstream_group_ids": cls.serialize(sorted(task_group.upstream_group_ids)),
             "downstream_group_ids": cls.serialize(sorted(task_group.downstream_group_ids)),
@@ -1384,7 +1384,7 @@ class TaskGroupSerialization(BaseSerialization):
                 return None
             return SetupTeardown(v)
 
-        group._all_children_by_kind = {
+        group.all_children_by_kind = {
             deserialize_kind(kind): {key: deserialize_child(typ, val) for key, (typ, val) in children.items()}
             for kind, children in encoded_group["all_children_by_kind"].items()
         }

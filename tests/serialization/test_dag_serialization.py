@@ -354,8 +354,8 @@ def _check_taskgroup_children(
     expected_children,
     expected_teardown,
 ):
-    se_children = {key: sorted(children) for key, children in se_task_group._all_children_by_kind.items()}
-    dag_children = {key: sorted(children) for key, children in dag_task_group._all_children_by_kind.items()}
+    se_children = {key: sorted(children) for key, children in se_task_group.all_children_by_kind.items()}
+    dag_children = {key: sorted(children) for key, children in dag_task_group.all_children_by_kind.items()}
     assert (
         se_children
         == dag_children
@@ -1420,8 +1420,8 @@ class TestStringifiedDAGs:
             serialized_dag.task_group, dag.task_group, ["setup_group"], ["sometask"], ["teardown_group"]
         )
 
-        se_setup_group = serialized_dag.task_group._all_children_by_kind[SetupTeardown.setup]["setup_group"]
-        dag_setup_group = dag.task_group._all_children_by_kind[SetupTeardown.setup]["setup_group"]
+        se_setup_group = serialized_dag.task_group.all_children_by_kind[SetupTeardown.setup]["setup_group"]
+        dag_setup_group = dag.task_group.all_children_by_kind[SetupTeardown.setup]["setup_group"]
         _check_taskgroup_children(
             se_setup_group,
             dag_setup_group,
@@ -1430,10 +1430,8 @@ class TestStringifiedDAGs:
             [],
         )
 
-        se_sub_setup_group = se_setup_group._all_children_by_kind[SetupTeardown.setup][
-            "setup_group.sub_setup"
-        ]
-        dag_sub_setup_group = dag_setup_group._all_children_by_kind[SetupTeardown.setup][
+        se_sub_setup_group = se_setup_group.all_children_by_kind[SetupTeardown.setup]["setup_group.sub_setup"]
+        dag_sub_setup_group = dag_setup_group.all_children_by_kind[SetupTeardown.setup][
             "setup_group.sub_setup"
         ]
         _check_taskgroup_children(
@@ -1444,10 +1442,10 @@ class TestStringifiedDAGs:
             [],
         )
 
-        se_teardown_group = serialized_dag.task_group._all_children_by_kind[SetupTeardown.teardown][
+        se_teardown_group = serialized_dag.task_group.all_children_by_kind[SetupTeardown.teardown][
             "teardown_group"
         ]
-        dag_teardown_group = dag.task_group._all_children_by_kind[SetupTeardown.teardown]["teardown_group"]
+        dag_teardown_group = dag.task_group.all_children_by_kind[SetupTeardown.teardown]["teardown_group"]
         _check_taskgroup_children(
             se_teardown_group,
             dag_teardown_group,

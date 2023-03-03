@@ -21,12 +21,13 @@ together when the DAG is displayed graphically.
 """
 from __future__ import annotations
 
+import collections
 import copy
 import functools
 import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Generator, Iterator, Sequence
 
 from airflow.compat.functools import cache
 from airflow.exceptions import (
@@ -48,6 +49,8 @@ if TYPE_CHECKING:
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
+
+DAGNodeMapping = Dict[str, DAGNode]
 
 
 class TaskGroup(DAGNode):
@@ -136,11 +139,7 @@ class TaskGroup(DAGNode):
         self._group_id = group_id
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
-        self._all_children_by_kind: dict[SetupTeardown | None, dict[str, DAGNode]] = {
-            None: {},
-            SetupTeardown.setup: {},
-            SetupTeardown.teardown: {},
-        }
+        self.all_children_by_kind: dict[SetupTeardown | None, DAGNodeMapping] = collections.defaultdict(dict)
 
         if parent_group:
             parent_group.add(self)
@@ -199,7 +198,7 @@ class TaskGroup(DAGNode):
         return self.task_group
 
     def __iter__(self) -> Iterator[DAGNode]:
-        for children in self._all_children_by_kind.values():
+        for children in self.all_children_by_kind.values():
             for child in children.values():
                 if isinstance(child, TaskGroup):
                     yield from child
@@ -207,8 +206,8 @@ class TaskGroup(DAGNode):
                     yield child
 
     @property
-    def children(self) -> dict[str, DAGNode]:
-        return self._all_children_by_kind[None]
+    def children(self) -> DAGNodeMapping:
+        return self.all_children_by_kind[None]
 
     def add(self, task: DAGNode) -> None:
         """Add a task to this TaskGroup.
@@ -225,7 +224,7 @@ class TaskGroup(DAGNode):
         task.task_group = weakref.proxy(self)
         key = task.node_id
 
-        if any(key in children for children in self._all_children_by_kind.values()):
+        if any(key in children for children in self.all_children_by_kind.values()):
             node_type = "Task" if hasattr(task, "task_id") else "Task Group"
             raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
 
@@ -242,13 +241,13 @@ class TaskGroup(DAGNode):
         if isinstance(task, AbstractOperator):
             task.setup_teardown = SetupTeardownContext.setup_teardown
 
-        self._all_children_by_kind[SetupTeardownContext.setup_teardown][key] = task
+        self.all_children_by_kind[SetupTeardownContext.setup_teardown][key] = task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
 
         def _do_remove(key: str) -> str | None:
-            for children in self._all_children_by_kind.values():
+            for children in self.all_children_by_kind.values():
                 if key in children:
                     del children[key]
                     return key
@@ -348,7 +347,7 @@ class TaskGroup(DAGNode):
 
     def _has_child(self, node_id: str) -> bool:
         """Returns True if this TaskGroup or its children TaskGroups contains the given node ID."""
-        if any(node_id in children for children in self._all_children_by_kind.values()):
+        if any(node_id in children for children in self.all_children_by_kind.values()):
             return True
         return any(c._has_child(node_id) for c in self.children.values() if isinstance(c, TaskGroup))
 
@@ -427,7 +426,7 @@ class TaskGroup(DAGNode):
     def get_child_by_label(self, label: str) -> DAGNode:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         key = self.child_id(label)
-        for children in self._all_children_by_kind.values():
+        for children in self.all_children_by_kind.values():
             if key in children:
                 return children[key]
         raise KeyError(key)
@@ -450,12 +449,12 @@ class TaskGroup(DAGNode):
         from airflow.operators.subdag import SubDagOperator  # Avoid circular import
 
         # special case
-        if not any(self._all_children_by_kind.values()):
+        if not any(self.all_children_by_kind.values()):
             return []
 
         graph_unsorted = {
             node_id: child
-            for children in self._all_children_by_kind.values()
+            for children in self.all_children_by_kind.values()
             for node_id, child in children.items()
         }
 
@@ -524,7 +523,7 @@ class TaskGroup(DAGNode):
         while groups_to_visit:
             visiting = groups_to_visit.pop(0)
 
-            for children in visiting._all_children_by_kind.values():
+            for children in visiting.all_children_by_kind.values():
                 for child in children.values():
                     if isinstance(child, AbstractOperator):
                         yield child

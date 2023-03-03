@@ -2212,27 +2212,30 @@ class DAG(LoggingMixin):
             for t in itertools.chain(matched_tasks, also_include, direct_upstreams)
         }
 
-        def filter_task_group(group, parent_group):
+        def filter_task_group(group: TaskGroup, parent_group: TaskGroup | None) -> TaskGroup:
             """Exclude tasks not included in the subdag from the given TaskGroup."""
             copied = copy.copy(group)
             copied.used_group_ids = set(copied.used_group_ids)
-            copied._parent_group = parent_group
+            copied.task_group = parent_group
+            copied.all_children_by_kind = collections.defaultdict(dict)
 
-            copied.children = {}
-
-            for child in group.children.values():
-                if isinstance(child, AbstractOperator):
-                    if child.task_id in dag.task_dict:
-                        task = copied.children[child.task_id] = dag.task_dict[child.task_id]
-                        task.task_group = weakref.proxy(copied)
+            for kind, children in group.all_children_by_kind.items():
+                for child in children.values():
+                    if isinstance(child, AbstractOperator):
+                        try:
+                            task = dag.task_dict[child.task_id]
+                        except KeyError:
+                            copied.used_group_ids.discard(child.task_id)
+                        else:
+                            copied.all_children_by_kind[kind][child.task_id] = task
+                            task.task_group = weakref.proxy(copied)
+                    elif isinstance(child, TaskGroup):
+                        filtered_child = filter_task_group(child, copied)
+                        # Only include this child TaskGroup if it is non-empty.
+                        if child.group_id and any(c for c in filtered_child.all_children_by_kind.values()):
+                            copied.all_children_by_kind[kind][child.group_id] = filtered_child
                     else:
-                        copied.used_group_ids.discard(child.task_id)
-                else:
-                    filtered_child = filter_task_group(child, copied)
-
-                    # Only include this child TaskGroup if it is non-empty.
-                    if filtered_child.children:
-                        copied.children[child.group_id] = filtered_child
+                        raise RuntimeError(f"unknown child type: {type(child).__name__}")
 
             return copied
 
