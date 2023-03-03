@@ -191,7 +191,7 @@ class TestEmrHook:
 
         for i in range(51):
             hook.create_job_flow(
-                {"Name": "test_cluster" + str(i%50), "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+                {"Name": "test_cluster" + str(i % 50), "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
             )
 
         job_flow_id = job_flow["JobFlowId"]
