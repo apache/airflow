@@ -1,10 +1,11 @@
-from airflow.timetables.simple import ContinuousTimetable
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from __future__ import annotations
+
 import pendulum
-
 import pytest
-
 import time_machine
+
+from airflow.timetables.base import TimeRestriction
+from airflow.timetables.simple import ContinuousTimetable
 
 START_DATE = pendulum.datetime(2023, 3, 3, tz="UTC")
 DURING_DATE = pendulum.datetime(2023, 3, 6, tz="UTC")

@@ -19,8 +19,9 @@ from __future__ import annotations
 import operator
 from typing import TYPE_CHECKING, Any, Collection
 
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from pendulum import DateTime
+
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 if TYPE_CHECKING:
     from sqlalchemy import Session

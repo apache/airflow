@@ -88,10 +88,10 @@ from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
+    ContinuousTimetable,
     DatasetTriggeredTimetable,
     NullTimetable,
     OnceTimetable,
-    ContinuousTimetable,
 )
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
