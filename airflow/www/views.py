@@ -3900,7 +3900,10 @@ class Airflow(AirflowBaseView):
             audit_logs_count=audit_logs_count,
             page_size=PAGE_SIZE,
             paging=wwwutils.generate_pages(
-                current_page, num_of_pages, arg_sorting_key, arg_sorting_direction
+                current_page,
+                num_of_pages,
+                sorting_key=arg_sorting_key if arg_sorting_key else None,
+                sorting_direction=arg_sorting_direction if arg_sorting_direction else None,
             ),
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,

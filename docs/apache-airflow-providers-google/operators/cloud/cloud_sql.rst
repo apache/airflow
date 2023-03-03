@@ -473,6 +473,49 @@ More information
 See Google Cloud SQL API documentation to `patch an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
+.. _howto/operator:CloudSQLCloneInstanceOperator:
+
+CloudSQLCloneInstanceOperator
+-----------------------------
+
+Clones an Cloud SQL instance.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCloneInstanceOperator`.
+
+Arguments
+"""""""""
+
+For ``clone_context`` object attributes please refer to
+`CloneContext <https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances/clone#clonecontext>`_
+
+Using the operator
+""""""""""""""""""
+
+You can create the operator with or without project id. If project id is missing it will be retrieved from the Google
+Cloud connection used. Both variants are shown:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_clone]
+    :end-before: [END howto_operator_cloudsql_clone]
+
+Templating
+""""""""""
+
+.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_sql_clone_template_fields]
+    :end-before: [END gcp_sql_clone_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud SQL API documentation to `clone an instance
+<https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances/clone>`_.
+
 .. _howto/operator:CloudSQLExecuteQueryOperator:
 
 CloudSQLExecuteQueryOperator
