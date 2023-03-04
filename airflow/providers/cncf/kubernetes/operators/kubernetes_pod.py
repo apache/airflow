@@ -225,6 +225,7 @@ class KubernetesPodOperator(BaseOperator):
     BASE_CONTAINER_NAME = "base"
 
     POD_CHECKED_KEY = "already_checked"
+    POST_TERMINATION_TIMEOUT = 120
 
     template_fields: Sequence[str] = (
         "image",
@@ -531,6 +532,7 @@ class KubernetesPodOperator(BaseOperator):
                     pod=self.pod,
                     container_name=self.base_container_name,
                     follow=True,
+                    post_termination_timeout=self.POST_TERMINATION_TIMEOUT,
                 )
             else:
                 self.pod_manager.await_container_completion(
