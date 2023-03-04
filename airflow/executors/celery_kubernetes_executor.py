@@ -41,10 +41,13 @@ class CeleryKubernetesExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = True
     supports_pickling: bool = True
     supports_sentry: bool = False
-    change_sensor_mode_to_reschedule: bool = False
-    is_single_threaded: bool = False
+
     is_local: bool = False
+    is_single_threaded: bool = False
+    is_production: bool = True
+
     serve_logs: bool = False
+    change_sensor_mode_to_reschedule: bool = False
 
     callback_sink: BaseCallbackSink | None = None
 

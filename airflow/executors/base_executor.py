@@ -109,14 +109,15 @@ class BaseExecutor(LoggingMixin):
     supports_pickling: bool = True
     supports_sentry: bool = False
 
-    job_id: None | int | str = None
-    callback_sink: BaseCallbackSink | None = None
-
     is_local: bool = False
     is_single_threaded: bool = False
-    change_sensor_mode_to_reschedule: bool = False
+    is_production: bool = True
 
+    change_sensor_mode_to_reschedule: bool = False
     serve_logs: bool = False
+
+    job_id: None | int | str = None
+    callback_sink: BaseCallbackSink | None = None
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()

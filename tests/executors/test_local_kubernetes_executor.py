@@ -35,6 +35,9 @@ class TestLocalKubernetesExecutor:
     def test_is_local_default_value(self):
         assert not LocalKubernetesExecutor.is_local
 
+    def test_is_production_default_value(self):
+        assert LocalKubernetesExecutor.is_production
+
     def test_serve_logs_default_value(self):
         assert LocalKubernetesExecutor.serve_logs
 

@@ -40,6 +40,9 @@ class TestCeleryKubernetesExecutor:
     def test_is_local_default_value(self):
         assert not CeleryKubernetesExecutor.is_local
 
+    def test_is_production_default_value(self):
+        assert CeleryKubernetesExecutor.is_production
+
     def test_serve_logs_default_value(self):
         assert not CeleryKubernetesExecutor.serve_logs
 

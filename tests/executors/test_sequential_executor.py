@@ -32,6 +32,9 @@ class TestSequentialExecutor:
     def test_is_local_default_value(self):
         assert SequentialExecutor.is_local
 
+    def test_is_production_default_value(self):
+        assert not SequentialExecutor.is_production
+
     def test_serve_logs_default_value(self):
         assert SequentialExecutor.serve_logs
 
