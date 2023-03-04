@@ -334,6 +334,8 @@ def partial(
         partial_kwargs["priority_weight"] if partial_kwargs["priority_weight"] else DEFAULT_PRIORITY_WEIGHT
     )
     partial_kwargs["weight_rule"] = partial_kwargs["weight_rule"] or DEFAULT_WEIGHT_RULE
+    partial_kwargs["inlets"] = partial_kwargs["inlets"] or []
+    partial_kwargs["outlets"] = partial_kwargs["outlets"] or []
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
