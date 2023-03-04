@@ -21,6 +21,7 @@ import json
 import os
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, mock_open
 from uuid import UUID
@@ -981,9 +982,12 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
         assert not result, f"Credentials Method: {hook.get_session().get_credentials().method}"
 
 
+TEST_WAITER_CONFIG_LOCATION = Path(__file__).parents[1].joinpath("waiters/test.json")
+
+
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_params_not_provided(waiter_path_mock: MagicMock, caplog):
-    waiter_path_mock.return_value = "../waiters/test.json"
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
     hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
 
     with caplog.at_level("WARN"):
@@ -996,7 +1000,7 @@ def test_waiter_config_params_not_provided(waiter_path_mock: MagicMock, caplog):
 
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_no_params_needed(waiter_path_mock: MagicMock, caplog):
-    waiter_path_mock.return_value = "../waiters/test.json"
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
     hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
 
     with caplog.at_level("WARN"):
@@ -1008,7 +1012,7 @@ def test_waiter_config_no_params_needed(waiter_path_mock: MagicMock, caplog):
 
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_with_parameters_specified(waiter_path_mock: MagicMock):
-    waiter_path_mock.return_value = "../waiters/test.json"
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
     hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
 
     waiter = hook.get_waiter("wait_for_test", {"PARAM_1": "hello", "PARAM_2": "world"})
@@ -1018,7 +1022,7 @@ def test_waiter_config_with_parameters_specified(waiter_path_mock: MagicMock):
 
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_extra_param(waiter_path_mock: MagicMock, caplog):
-    waiter_path_mock.return_value = "../waiters/test.json"
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
     hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
 
     with caplog.at_level("WARN"):
@@ -1030,7 +1034,7 @@ def test_waiter_config_extra_param(waiter_path_mock: MagicMock, caplog):
 
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_param_wrong_format(waiter_path_mock: MagicMock):
-    waiter_path_mock.return_value = "../waiters/test.json"
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
     hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
     hacky_key = '"delay": 15,'  # this is forbidden, keys should conform to the defined format
 
