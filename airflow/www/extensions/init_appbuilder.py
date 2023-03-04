@@ -125,6 +125,8 @@ class AirflowAppBuilder:
         static_url_path="/appbuilder",
         security_manager_class=None,
         update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
+        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
+        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
     ):
         """
         App-builder constructor.
@@ -146,6 +148,10 @@ class AirflowAppBuilder:
         :param update_perms:
             optional, update permissions flag (Boolean) you can use
             FAB_UPDATE_PERMS config key also
+        :param auth_rate_limited:
+            optional, rate limit authentication attempts if set to True (defaults to True)
+        :param auth_rate_limit:
+            optional, rate limit authentication attempts configuration (defaults "to 5 per 40 second")
         """
         self.baseviews = []
         self._addon_managers = []
@@ -158,6 +164,8 @@ class AirflowAppBuilder:
         self.static_url_path = static_url_path
         self.app = app
         self.update_perms = update_perms
+        self.auth_rate_limited = auth_rate_limited
+        self.auth_rate_limit = auth_rate_limit
         if app is not None:
             self.init_app(app, session)
 
@@ -172,10 +180,13 @@ class AirflowAppBuilder:
         app.config.setdefault("APP_ICON", "")
         app.config.setdefault("LANGUAGES", {"en": {"flag": "gb", "name": "English"}})
         app.config.setdefault("ADDON_MANAGERS", [])
+        app.config.setdefault("RATELIMIT_ENABLED", self.auth_rate_limited)
         app.config.setdefault("FAB_API_MAX_PAGE_SIZE", 100)
         app.config.setdefault("FAB_BASE_TEMPLATE", self.base_template)
         app.config.setdefault("FAB_STATIC_FOLDER", self.static_folder)
         app.config.setdefault("FAB_STATIC_URL_PATH", self.static_url_path)
+        app.config.setdefault("AUTH_RATE_LIMITED", self.auth_rate_limited)
+        app.config.setdefault("AUTH_RATE_LIMIT", self.auth_rate_limit)
 
         self.app = app
 
@@ -433,6 +444,7 @@ class AirflowAppBuilder:
             if self.app:
                 self.register_blueprint(baseview)
                 self._add_permission(baseview)
+                self.add_limits(baseview)
         self.add_link(
             name=name,
             href=href,
@@ -563,6 +575,11 @@ class AirflowAppBuilder:
         """
         return self.sm.security_converge(self.baseviews, self.menu, dry)
 
+    def get_url_for_login_with(self, next_url: str | None = None) -> str:
+        if self.sm.auth_view is None:
+            return ""
+        return url_for(f"{self.sm.auth_view.endpoint}.{'login'}", next=next_url)
+
     @property
     def get_url_for_login(self):
         return url_for(f"{self.sm.auth_view.endpoint}.login")
@@ -584,6 +601,10 @@ class AirflowAppBuilder:
             f"{self.bm.locale_view.endpoint}.{self.bm.locale_view.default_view}",
             locale=lang,
         )
+
+    def add_limits(self, baseview) -> None:
+        if hasattr(baseview, "limits"):
+            self.sm.add_limit_view(baseview)
 
     def add_permissions(self, update_perms=False):
         if self.update_perms or update_perms:
@@ -653,4 +674,6 @@ def init_appbuilder(app) -> AirflowAppBuilder:
         security_manager_class=security_manager_class,
         base_template="airflow/main.html",
         update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
+        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
+        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
     )

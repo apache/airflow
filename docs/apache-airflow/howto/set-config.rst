@@ -130,3 +130,15 @@ the example below.
     generated using the secret key has a short expiry time though - make sure that time on ALL the machines
     that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
     "forbidden" errors when the logs are accessed.
+
+
+Configuring Flask Application for Airflow Webserver
+===================================================
+
+Airflow uses Flask to render the web UI. When you initialize the Airflow webserver, predefined configuration
+is used, based on the ``webserver`` section of the ``airflow.cfg`` file. You can override these settings
+and add any extra settings however by adding flask configuration to ``webserver_config.py`` file in your
+``$AIRFLOW_HOME`` directory. This file is automatically loaded by the webserver.
+
+For example if you would like to change rate limit strategy to "moving window", you can set the
+``RATELIMIT_STRATEGY`` to ``moving-window``.

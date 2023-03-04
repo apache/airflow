@@ -447,9 +447,12 @@ def frozen_sleep(monkeypatch):
 
 @pytest.fixture(scope="session")
 def app():
-    from airflow.www import app
+    from tests.test_utils.config import conf_vars
 
-    return app.create_app(testing=True)
+    with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+        from airflow.www import app
+
+        yield app.create_app(testing=True)
 
 
 @pytest.fixture

@@ -263,3 +263,24 @@ certs and keys.
     ssl_key = <path to key>
     ssl_cert = <path to cert>
     ssl_cacert = <path to cacert>
+
+Rate limiting
+-------------
+
+Airflow can be configured to limit the number of authentication requests in a given time window. We are using
+`Flask-Limiter <https://flask-limiter.readthedocs.io/en/stable/>`_ to achieve that and by default Airflow
+uses per-webserver default limit of 5 requests per 40 second fixed window. By default no common storage for
+rate limits is used between the gunicorn processes you run so rate-limit is applied separately for each process,
+so assuming random distribution of the requests by gunicorn with single webserver instance and default 4
+gunicorn workers, the effective rate limit is 5 x 4 = 20 requests per 40 second window (more or less).
+However you can configure the rate limit to be shared between the processes by using rate limit storage via
+setting the ``RATELIMIT_*`` configuration settings in ``webserver_config.py``.
+For example, to use Redis as a rate limit storage you can use the following configuration (you need
+to set ``redis_host`` to your Redis instance)
+
+```
+RATELIMIT_STORAGE_URI = 'redis://redis_host:6379/0
+```
+
+You can also configure other rate limit settings in ``webserver_config.py`` - for more details, see the
+`Flask Limiter rate limit configuration <https://flask-limiter.readthedocs.io/en/stable/configuration.html>`_.
