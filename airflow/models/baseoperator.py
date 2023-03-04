@@ -324,7 +324,9 @@ def partial(
     partial_kwargs["execution_timeout"] = (
         partial_kwargs["execution_timeout"] or DEFAULT_TASK_EXECUTION_TIMEOUT
     )
-    partial_kwargs["retry_delay"] = partial_kwargs["retry_delay"] or DEFAULT_RETRY_DELAY
+    partial_kwargs["retry_delay"] = (
+        partial_kwargs["retry_delay"] if partial_kwargs["retry_delay"] is not None else DEFAULT_RETRY_DELAY
+    )
     partial_kwargs["retry_exponential_backoff"] = (
         partial_kwargs["retry_exponential_backoff"] if partial_kwargs["retry_exponential_backoff"] else False
     )
