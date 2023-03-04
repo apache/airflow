@@ -26,7 +26,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
@@ -238,7 +238,7 @@ class TestGKEPodOperator:
         "airflow.hooks.base.BaseHook.get_connections",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess")
     @mock.patch("tempfile.NamedTemporaryFile")
@@ -272,7 +272,7 @@ class TestGKEPodOperator:
         "airflow.hooks.base.BaseHook.get_connections",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess")
     @mock.patch("tempfile.NamedTemporaryFile")
@@ -322,7 +322,7 @@ class TestGKEPodOperator:
         "airflow.hooks.base.BaseHook.get_connections",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess")
     @mock.patch("tempfile.NamedTemporaryFile")
@@ -360,7 +360,7 @@ class TestGKEPodOperator:
         "airflow.hooks.base.BaseHook.get_connections",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess")
     @mock.patch("tempfile.NamedTemporaryFile")
@@ -398,7 +398,7 @@ class TestGKEPodOperator:
         "airflow.hooks.base.BaseHook.get_connections",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess")
     @mock.patch("tempfile.NamedTemporaryFile")
@@ -436,7 +436,7 @@ class TestGKEPodOperator:
         "airflow.hooks.base.BaseHook.get_connections",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GoogleBaseHook")
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.execute_in_subprocess")
     @mock.patch("tempfile.NamedTemporaryFile")

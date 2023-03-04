@@ -28,7 +28,12 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+except ImportError:
+    # preserve backward compatibility for older versions of cncf.kubernetes provider
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
