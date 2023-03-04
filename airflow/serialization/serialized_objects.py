@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import datetime
 import enum
+import inspect
 import logging
 import warnings
 import weakref
@@ -701,6 +702,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def task_type(self) -> str:
         # Overwrites task_type of BaseOperator to use _task_type instead of
         # __class__.__name__.
+
         return self._task_type
 
     @task_type.setter
@@ -769,8 +771,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
+        # And raise an exception if the field is not templateable
+        forbidden_fields = set(inspect.signature(BaseOperator.__init__).parameters.keys())
         if op.template_fields:
             for template_field in op.template_fields:
+                if template_field in forbidden_fields:
+                    raise AirflowException(f"Cannot template BaseOperator fields: {template_field}")
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)
