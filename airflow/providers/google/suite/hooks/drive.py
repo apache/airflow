@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import IO, Any, Sequence
 
 from googleapiclient.discovery import Resource, build
+from googleapiclient.errors import Error as GoogleApiClientError
 from googleapiclient.http import HttpRequest, MediaFileUpload
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -159,6 +160,52 @@ class GoogleDriveHook(GoogleBaseHook):
             )
         )
 
+    def _get_file_info(self, file_id: str):
+        """
+        Returns Google API file_info object containing id, name, parents in the response
+        https://developers.google.com/drive/api/v3/reference/files/get
+
+        :param file_id: id as string representation of interested file
+        :return: file
+        """
+        file_info = (
+            self.get_conn()
+            .files()
+            .get(
+                fileId=file_id,
+                fields="id,name,parents",
+                supportsAllDrives=True,
+            )
+            .execute(num_retries=2)
+        )
+        return file_info
+
+    def _resolve_file_path(self, file_id: str) -> str:
+        """
+        Returns the full Google Drive path for given file_id
+
+        :param file_id: The id of a file in Google Drive
+        :return: Google Drive full path for a file
+        """
+        has_reached_root = False
+        current_file_id = file_id
+        path: str = ""
+        while not has_reached_root:
+            # current_file_id can be file or directory id, Google API treats them the same way.
+            file_info = self._get_file_info(current_file_id)
+            if current_file_id == file_id:
+                path = f'{file_info["name"]}'
+            else:
+                path = f'{file_info["name"]}/{path}'
+
+            # Google API returns parents array if there is at least one object inside
+            if "parents" in file_info and len(file_info["parents"]) == 1:
+                # https://developers.google.com/drive/api/guides/ref-single-parent
+                current_file_id = file_info["parents"][0]
+            else:
+                has_reached_root = True
+        return path
+
     def get_file_id(
         self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
     ) -> dict:
@@ -213,6 +260,7 @@ class GoogleDriveHook(GoogleBaseHook):
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
         folder_id: str = "root",
+        show_full_target_path: bool = True,
     ) -> str:
         """
         Uploads a file that is available locally to a Google Drive service.
@@ -227,6 +275,7 @@ class GoogleDriveHook(GoogleBaseHook):
         :param resumable: True if this is a resumable upload. False means upload
             in a single request.
         :param folder_id: The base/root folder id for remote_location (part of the drive URL of a folder).
+        :param show_full_target_path: If true then it reveals full available file path in the logs.
         :return: File ID
         """
         service = self.get_conn()
@@ -243,8 +292,21 @@ class GoogleDriveHook(GoogleBaseHook):
             .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
             .execute(num_retries=self.num_retries)
         )
-        self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)
-        return file.get("id")
+        file_id = file.get("id")
+
+        upload_location = remote_location
+
+        if folder_id != "root":
+            try:
+                upload_location = self._resolve_file_path(folder_id)
+            except GoogleApiClientError as e:
+                self.log.warning("A problem has been encountered when trying to resolve file path: ", e)
+
+        if show_full_target_path:
+            self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
+        else:
+            self.log.info("File %s has been uploaded successfully to gdrive", local_location)
+        return file_id
 
     def download_file(self, file_id: str, file_handle: IO, chunk_size: int = 100 * 1024 * 1024):
         """

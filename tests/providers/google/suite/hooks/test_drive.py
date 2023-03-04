@@ -274,6 +274,27 @@ class TestGoogleDriveHook:
         assert result_value == {"id": "ID_1", "mime_type": "text/plain"}
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_resolve_file_path_when_file_in_root_directory(self, mock_get_conn):
+        mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = [
+            {"id": "ID_1", "name": "file.csv", "parents": ["ID_2"]},
+            {"id": "ID_2", "name": "root"},
+        ]
+
+        result_value = self.gdrive_hook._resolve_file_path(file_id="ID_1")
+        assert result_value == "root/file.csv"
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_resolve_file_path_when_file_nested_in_2_directories(self, mock_get_conn):
+        mock_get_conn.return_value.files.return_value.get.return_value.execute.side_effect = [
+            {"id": "ID_1", "name": "file.csv", "parents": ["ID_2"]},
+            {"id": "ID_2", "name": "folder_A", "parents": ["ID_3"]},
+            {"id": "ID_3", "name": "root"},
+        ]
+
+        result_value = self.gdrive_hook._resolve_file_path(file_id="ID_1")
+        assert result_value == "root/folder_A/file.csv"
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_multiple_files_exists(self, mock_get_conn):
         folder_id = "abxy1z"
         drive_id = "abc123"
@@ -300,8 +321,9 @@ class TestGoogleDriveHook:
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._ensure_folders_exists")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._resolve_file_path")
     def test_upload_file_to_root_directory(
-        self, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload
+        self, mock_resolve_file_path, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload
     ):
         mock_get_conn.return_value.files.return_value.create.return_value.execute.return_value = {
             "id": "FILE_ID"
@@ -310,6 +332,7 @@ class TestGoogleDriveHook:
         return_value = self.gdrive_hook.upload_file("local_path", "remote_path")
 
         mock_ensure_folders_exists.assert_not_called()
+        mock_resolve_file_path.assert_not_called()
         mock_get_conn.assert_has_calls(
             [
                 mock.call()
@@ -353,3 +376,34 @@ class TestGoogleDriveHook:
             ]
         )
         assert return_value == "FILE_ID"
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._ensure_folders_exists")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook._resolve_file_path")
+    def test_upload_file_into_folder_id(
+        self, mock_resolve_file_path, mock_ensure_folders_exists, mock_get_conn, mock_media_file_upload
+    ):
+        file_id = "FILE_ID"
+        folder_id = "FOLDER_ID"
+        mock_get_conn.return_value.files.return_value.create.return_value.execute.return_value = {
+            "id": file_id
+        }
+        mock_resolve_file_path.return_value = "Shared_Folder_A/Folder_B"  # path for FOLDER_ID
+
+        return_value = self.gdrive_hook.upload_file("/tmp/file.csv", "/file.csv", folder_id=folder_id)
+
+        mock_ensure_folders_exists.assert_not_called()
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call()
+                .files()
+                .create(
+                    body={"name": "file.csv", "parents": [folder_id]},
+                    fields="id",
+                    media_body=mock_media_file_upload.return_value,
+                    supportsAllDrives=True,
+                )
+            ]
+        )
+        assert return_value == file_id
