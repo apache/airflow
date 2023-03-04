@@ -86,12 +86,17 @@ def test_task_mapping_default_args():
 
 
 def test_task_mapping_override_default_args():
-    default_args = {"retries": 2}
+    default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
     with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
 
+    # retries should be 1 because it is provided as a partial arg
     assert mapped.partial_kwargs["retries"] == 1
+    # start_date should be equal to default_args["start_date"] because it is not provided as partial arg
+    assert mapped.start_date == pendulum.instance(default_args["start_date"])
+    # owner should be equal to Airflow default owner (airflow) because it is not provided at all
+    assert mapped.owner == "airflow"
 
 
 def test_map_unknown_arg_raises():
