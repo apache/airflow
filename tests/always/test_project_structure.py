@@ -418,6 +418,15 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     }
 
 
+class TestCncfProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "cncf"
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
+    DEPRECATED_CLASSES = {
+        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
+        "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
+    }
+
+
 class TestDockerProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "docker"
 

@@ -37,14 +37,14 @@ from pytest import param
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 
-HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
@@ -1257,7 +1257,7 @@ class TestKubernetesPodOperatorSystem:
             pass
 
         with mock.patch(
-            "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.get_container_termination_message",
+            "airflow.providers.cncf.kubernetes.operators.pod.get_container_termination_message",
             side_effect=ShortCircuitException(),
         ) as mock_get_container_termination_message:
             with pytest.raises(ShortCircuitException):
@@ -1297,7 +1297,7 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
         "password": "secretpassword",
         "var": Var(),
     }
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+    from airflow.providers.cncf.kubernetes.operators.pod import (
         KubernetesPodOperator,
     )
 

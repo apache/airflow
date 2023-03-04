@@ -27,9 +27,9 @@ from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
-KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
+KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
-HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 
 XCOM_IMAGE = "XCOM_IMAGE"
 

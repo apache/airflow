@@ -538,7 +538,7 @@ class TestEksDeleteFargateProfileOperator:
 
 
 class TestEksPodOperator:
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
     def test_existing_nodegroup(

@@ -32,22 +32,22 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
     _optionally_suppress,
 )
-from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
-KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
+KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
-HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
-KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.{}"
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
+KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
 
 TEST_TASK_ID = "kubernetes_task_async"
 TEST_NAMESPACE = "default"
