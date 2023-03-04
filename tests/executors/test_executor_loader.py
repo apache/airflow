@@ -120,10 +120,11 @@ class TestExecutorLoader:
     @pytest.mark.parametrize(
         ["executor", "expectation"],
         [
-            (FakeExecutor, nullcontext()),
-            (
-                FakeSingleThreadedExecutor,
+            pytest.param(FakeSingleThreadedExecutor, nullcontext(), id="single-threaded"),
+            pytest.param(
+                FakeExecutor,
                 pytest.raises(AirflowConfigException, match=r"^error: cannot use SQLite with the .+"),
+                id="multi-threaded",
             ),
         ],
     )

@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'DbtCloudJobRunAsyncSensor' (#29695)``
+
 3.0.0
 .....
 

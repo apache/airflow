@@ -19,12 +19,10 @@ from __future__ import annotations
 
 import json
 import os
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -63,18 +61,18 @@ KUBE_ENV_VAR = "KUBECONFIG"
 FILE_NAME = "/tmp/mock_name"
 
 
-class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
-    @parameterized.expand(
-        (body,)
-        for body in [
+class TestGoogleCloudPlatformContainerOperator:
+    @pytest.mark.parametrize(
+        "body",
+        [
             PROJECT_BODY_CREATE_DICT,
             PROJECT_BODY_CREATE_DICT_NODE_POOLS,
             PROJECT_BODY_CREATE_CLUSTER,
             PROJECT_BODY_CREATE_CLUSTER_NODE_POOLS,
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook")
-    def test_create_execute(self, body, mock_hook):
+    def test_create_execute(self, mock_hook, body):
         operator = GKECreateClusterOperator(
             project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, body=body, task_id=PROJECT_TASK_ID
         )
@@ -86,9 +84,9 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
             wait_to_complete=True,
         )
 
-    @parameterized.expand(
-        (body,)
-        for body in [
+    @pytest.mark.parametrize(
+        "body",
+        [
             None,
             {"missing_name": "test-name", "initial_node_count": 1},
             {
@@ -129,10 +127,10 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
                     "node_pools": [{"name": "a_node_pool", "initial_node_count": 1}],
                 },
             )(),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook")
-    def test_create_execute_error_body(self, body, mock_hook):
+    def test_create_execute_error_body(self, mock_hook, body):
         with pytest.raises(AirflowException):
             GKECreateClusterOperator(
                 project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, body=body, task_id=PROJECT_TASK_ID
@@ -216,8 +214,8 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
         mock_defer_method.assert_called_once()
 
 
-class TestGKEPodOperator(unittest.TestCase):
-    def setUp(self):
+class TestGKEPodOperator:
+    def setup_method(self):
         self.gke_op = GKEStartPodOperator(
             project_id=TEST_GCP_PROJECT_ID,
             location=PROJECT_LOCATION,

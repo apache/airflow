@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import inspect
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call
 
@@ -263,13 +262,13 @@ def assert_warning(msg: str, warnings):
     assert any(msg in str(w) for w in warnings)
 
 
-class DataprocTestBase(unittest.TestCase):
+class DataprocTestBase:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
         cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
 
-    def setUp(self):
+    def setup_method(self):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.extra_links_manager_mock = Mock()
@@ -289,8 +288,7 @@ class DataprocTestBase(unittest.TestCase):
 
 class DataprocJobTestBase(DataprocTestBase):
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def setup_class(cls):
         cls.extra_links_expected_calls = [
             call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
             call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
@@ -299,14 +297,14 @@ class DataprocJobTestBase(DataprocTestBase):
 
 class DataprocClusterTestBase(DataprocTestBase):
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def setup_class(cls):
+        super().setup_class()
         cls.extra_links_expected_calls_base = [
             call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
         ]
 
 
-class TestsClusterGenerator(unittest.TestCase):
+class TestsClusterGenerator:
     def test_image_version(self):
         with pytest.raises(ValueError) as ctx:
             ClusterGenerator(
@@ -850,7 +848,7 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
 
 
-class TestDataprocClusterDeleteOperator(unittest.TestCase):
+class TestDataprocClusterDeleteOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         op = DataprocDeleteClusterOperator(
@@ -950,11 +948,11 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
 
         # Test whether xcom push occurs before polling for job
-        self.assertLess(
-            self.extra_links_manager_mock.mock_calls.index(xcom_push_call),
-            self.extra_links_manager_mock.mock_calls.index(wait_for_job_call),
-            msg="Xcom push for Job Link has to be done before polling for job status",
-        )
+        assert self.extra_links_manager_mock.mock_calls.index(
+            xcom_push_call
+        ) < self.extra_links_manager_mock.mock_calls.index(
+            wait_for_job_call
+        ), "Xcom push for Job Link has to be done before polling for job status"
 
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -1331,7 +1329,7 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
 
 
-class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
+class TestDataprocWorkflowTemplateInstantiateOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         version = 6
@@ -1437,7 +1435,7 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
     assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
 
 
-class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
+class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         template = {}
@@ -1510,7 +1508,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
     assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
 
 
-class TestDataProcHiveOperator(unittest.TestCase):
+class TestDataProcHiveOperator:
     query = "define sin HiveUDF('sin');"
     variables = {"key": "value"}
     job_id = "uuid_id"
@@ -1572,7 +1570,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
         assert self.job == job
 
 
-class TestDataProcPigOperator(unittest.TestCase):
+class TestDataProcPigOperator:
     query = "define sin HiveUDF('sin');"
     variables = {"key": "value"}
     job_id = "uuid_id"
@@ -1634,7 +1632,7 @@ class TestDataProcPigOperator(unittest.TestCase):
         assert self.job == job
 
 
-class TestDataProcSparkSqlOperator(unittest.TestCase):
+class TestDataProcSparkSqlOperator:
     query = "SHOW DATABASES;"
     variables = {"key": "value"}
     job_name = "simple"
@@ -1824,7 +1822,7 @@ def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task
     assert link == DATAPROC_JOB_LINK_EXPECTED
 
 
-class TestDataProcHadoopOperator(unittest.TestCase):
+class TestDataProcHadoopOperator:
     args = ["wordcount", "gs://pub/shakespeare/rose.txt"]
     jar = "file:///usr/lib/spark/examples/jars/spark-examples.jar"
     job_name = "simple"
@@ -1863,7 +1861,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
         assert self.job == job
 
 
-class TestDataProcPySparkOperator(unittest.TestCase):
+class TestDataProcPySparkOperator:
     uri = "gs://{}/{}"
     job_id = "uuid_id"
     job_name = "simple"

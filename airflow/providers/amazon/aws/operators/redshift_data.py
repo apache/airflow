@@ -25,6 +25,8 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 
 if TYPE_CHECKING:
+    from mypy_boto3_redshift_data.type_defs import GetStatementResultResponseTypeDef
+
     from airflow.utils.context import Context
 
 
@@ -46,6 +48,8 @@ class RedshiftDataOperator(BaseOperator):
     :param with_event: indicates whether to send an event to EventBridge
     :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
     :param poll_interval: how often in seconds to check the query status
+    :param return_sql_result: if True will return the result of an SQL statement,
+        if False (default) will return statement ID
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     """
@@ -62,6 +66,7 @@ class RedshiftDataOperator(BaseOperator):
     )
     template_ext = (".sql",)
     template_fields_renderers = {"sql": "sql"}
+    statement_id: str | None
 
     def __init__(
         self,
@@ -75,6 +80,7 @@ class RedshiftDataOperator(BaseOperator):
         with_event: bool = False,
         wait_for_completion: bool = True,
         poll_interval: int = 10,
+        return_sql_result: bool = False,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
         await_result: bool | None = None,
@@ -106,6 +112,7 @@ class RedshiftDataOperator(BaseOperator):
                 "Invalid poll_interval:",
                 poll_interval,
             )
+        self.return_sql_result = return_sql_result
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.statement_id: str | None = None
@@ -166,7 +173,7 @@ class RedshiftDataOperator(BaseOperator):
         )
         return self.hook.wait_for_results(statement_id=statement_id, poll_interval=self.poll_interval)
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
         """Execute a statement against Amazon Redshift"""
         self.log.info("Executing statement: %s", self.sql)
 
@@ -183,7 +190,12 @@ class RedshiftDataOperator(BaseOperator):
             poll_interval=self.poll_interval,
         )
 
-        return self.statement_id
+        if self.return_sql_result:
+            result = self.hook.conn.get_statement_result(Id=self.statement_id)
+            self.log.debug("Statement result: %s", result)
+            return result
+        else:
+            return self.statement_id
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query"""

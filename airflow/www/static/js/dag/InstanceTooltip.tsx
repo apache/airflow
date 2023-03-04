@@ -17,13 +17,13 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import React from "react";
+import { Box, Text } from "@chakra-ui/react";
 
-import { finalStatesMap } from 'src/utils';
-import { formatDuration, getDuration } from 'src/datetime_utils';
-import type { TaskInstance, Task } from 'src/types';
-import Time from 'src/components/Time';
+import { getGroupAndMapSummary } from "src/utils";
+import { formatDuration, getDuration } from "src/datetime_utils";
+import type { TaskInstance, Task } from "src/types";
+import Time from "src/components/Time";
 
 interface Props {
   group: Task;
@@ -32,87 +32,58 @@ interface Props {
 
 const InstanceTooltip = ({
   group,
-  instance: {
-    startDate, endDate, state, runId, mappedStates, note,
-  },
+  instance: { startDate, endDate, state, runId, mappedStates, note },
 }: Props) => {
   if (!group) return null;
   const isGroup = !!group.children;
+  const { isMapped } = group;
   const summary: React.ReactNode[] = [];
 
-  const isMapped = group?.isMapped;
+  const { totalTasks, childTaskMap } = getGroupAndMapSummary({
+    group,
+    runId,
+    mappedStates,
+  });
 
-  const numMap = finalStatesMap();
-  let numMapped = 0;
-  if (isGroup && group.children && !isMapped) {
-    group.children.forEach((child) => {
-      const taskInstance = child.instances.find((ti) => ti.runId === runId);
-      if (taskInstance) {
-        const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
-        if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
-      }
-    });
-  }
-
-  if (isMapped && mappedStates) {
-    Object.keys(mappedStates).forEach((stateKey) => {
-      const num = mappedStates[stateKey];
-      numMapped += num;
-      numMap.set(stateKey || 'no_status', num);
-    });
-  }
-
-  numMap.forEach((key, val) => {
+  childTaskMap.forEach((key, val) => {
     if (key > 0) {
       summary.push(
         // eslint-disable-next-line react/no-array-index-key
         <Text key={val} ml="10px">
           {val}
-          {': '}
+          {": "}
           {key}
-        </Text>,
+        </Text>
       );
     }
   });
 
   return (
     <Box py="2px">
-      {group.tooltip && (
-        <Text>{group.tooltip}</Text>
-      )}
-      {isMapped && numMapped > 0 && (
+      {group.tooltip && <Text>{group.tooltip}</Text>}
+      {isMapped && totalTasks > 0 && (
         <Text>
-          {numMapped}
-          {' '}
-          mapped task
-          {isGroup && ' group'}
-          {numMapped > 1 && 's'}
+          {totalTasks} mapped task
+          {isGroup && " group"}
+          {totalTasks > 1 && "s"}
         </Text>
       )}
       <Text>
-        {(isGroup || isMapped) ? 'Overall ' : ''}
-        Status:
-        {' '}
-        {state || 'no status'}
+        {isGroup || totalTasks ? "Overall " : ""}
+        Status: {state || "no status"}
       </Text>
       {(isGroup || isMapped) && summary}
       {startDate && (
         <>
           <Text>
-            Started:
-            {' '}
-            <Time dateTime={startDate} />
+            Started: <Time dateTime={startDate} />
           </Text>
           <Text>
-            Duration:
-            {' '}
-            {formatDuration(getDuration(startDate, endDate))}
+            Duration: {formatDuration(getDuration(startDate, endDate))}
           </Text>
         </>
       )}
-      {note && (
-        <Text>Contains a note</Text>
-      )}
+      {note && <Text>Contains a note</Text>}
     </Box>
   );
 };

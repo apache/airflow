@@ -23,12 +23,11 @@ from __future__ import annotations
 import json
 import tempfile
 from copy import deepcopy
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource, StorageSource
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
@@ -103,7 +102,7 @@ TEST_BUILD_INSTANCE = dict(
 )
 
 
-class TestCloudBuildOperator(TestCase):
+class TestCloudBuildOperator:
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_cancel_build(self, mock_hook):
         mock_hook.return_value.cancel_build.return_value = Build()
@@ -137,7 +136,8 @@ class TestCloudBuildOperator(TestCase):
         with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
             CloudBuildCreateBuildOperator(task_id="id")
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "file_type, file_content",
         [
             (
                 ".json",
@@ -151,7 +151,7 @@ class TestCloudBuildOperator(TestCase):
                   args: ['echo', 'Hello {{ params.name }}!']
                 """,
             ),
-        ]
+        ],
     )
     def test_load_templated(self, file_type, file_content):
         with tempfile.NamedTemporaryFile(suffix=file_type, mode="w+") as f:
@@ -299,7 +299,7 @@ class TestCloudBuildOperator(TestCase):
         )
 
 
-class TestBuildProcessor(TestCase):
+class TestBuildProcessor:
     def test_verify_source(self):
         error_message = r"The source could not be determined."
         with pytest.raises(AirflowException, match=error_message):
@@ -308,7 +308,8 @@ class TestBuildProcessor(TestCase):
         with pytest.raises(AirflowException, match=error_message):
             BuildProcessor(build={"source": {}}).process_body()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dict",
         [
             (
                 "https://source.cloud.google.com/airflow-project/airflow-repo",
@@ -326,26 +327,28 @@ class TestBuildProcessor(TestCase):
                     "branch_name": "feature/branch",
                 },
             ),
-        ]
+        ],
     )
     def test_convert_repo_url_to_dict_valid(self, url, expected_dict):
         body = {"source": {"repo_source": url}}
         body = BuildProcessor(build=body).process_body()
         assert body.source.repo_source == RepoSource(expected_dict)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url",
         [
-            ("http://source.e.com/airflow-project/airflow-repo/branch-name",),
-            ("httpXs://source.cloud.google.com/airflow-project/airflow-repo",),
-            ("://source.cloud.google.com/airflow-project/airflow-repo",),
-        ]
+            "http://source.e.com/airflow-project/airflow-repo/branch-name",
+            "httpXs://source.cloud.google.com/airflow-project/airflow-repo",
+            "://source.cloud.google.com/airflow-project/airflow-repo",
+        ],
     )
     def test_convert_repo_url_to_dict_invalid(self, url):
         body = {"source": {"repo_source": url}}
         with pytest.raises(AirflowException, match="Invalid URL."):
             BuildProcessor(build=body).process_body()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_dict",
         [
             (
                 "gs://bucket-name/airflow-object.tar.gz",
@@ -355,22 +358,20 @@ class TestBuildProcessor(TestCase):
                 "gs://bucket-name/airflow-object.tar.gz#1231231",
                 {"bucket": "bucket-name", "object_": "airflow-object.tar.gz", "generation": 1231231},
             ),
-        ]
+        ],
     )
     def test_convert_storage_url_to_dict_valid(self, url, expected_dict):
         body = {"source": {"storage_source": url}}
         body = BuildProcessor(build=body).process_body()
         assert body.source.storage_source == StorageSource(expected_dict)
 
-    @parameterized.expand(
-        [("///object",), ("gsXXa:///object",), ("gs://bucket-name/",), ("gs://bucket-name",)]
-    )
+    @pytest.mark.parametrize("url", ["///object", "gsXXa:///object", "gs://bucket-name/", "gs://bucket-name"])
     def test_convert_storage_url_to_dict_invalid(self, url):
         body = {"source": {"storage_source": url}}
         with pytest.raises(AirflowException, match="Invalid URL."):
             BuildProcessor(build=body).process_body()
 
-    @parameterized.expand([("storage_source",), ("repo_source",)])
+    @pytest.mark.parametrize("source_key", ["storage_source", "repo_source"])
     def test_do_nothing(self, source_key):
         body = {"source": {source_key: {}}}
         expected_body = deepcopy(body)
@@ -458,7 +459,8 @@ def test_async_create_build_with_missing_build_should_throw_exception(mock_hook)
         CloudBuildCreateBuildOperator(task_id="id")
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "file_type, file_content",
     [
         (
             ".json",
@@ -472,7 +474,7 @@ def test_async_create_build_with_missing_build_should_throw_exception(mock_hook)
               args: ['echo', 'Hello {{ params.name }}!']
             """,
         ),
-    ]
+    ],
 )
 def test_async_load_templated_should_execute_successfully(file_type, file_content):
     with tempfile.NamedTemporaryFile(suffix=file_type, mode="w+") as f:

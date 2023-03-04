@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryInsertJobTrigger,
     BigQueryIntervalCheckTrigger,
     BigQueryTableExistenceTrigger,
+    BigQueryTablePartitionExistenceTrigger,
     BigQueryValueCheckTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -59,6 +60,7 @@ TEST_RATIO_FORMULA = "max_over_min"
 TEST_IGNORE_ZERO = True
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
 TEST_HOOK_PARAMS: dict[str, Any] = {}
+TEST_PARTITION_ID = "1234"
 
 
 def test_bigquery_insert_job_op_trigger_serialization():
@@ -1043,3 +1045,36 @@ async def test_table_exists_raise_exception(mock_get_table_client):
     )
     with pytest.raises(ClientResponseError):
         await trigger._table_exists(hook, TEST_DATASET_ID, TEST_TABLE_ID, TEST_GCP_PROJECT_ID)
+
+
+class TestBigQueryTablePartitionExistenceTrigger:
+    def test_big_query_table_existence_partition_trigger_serialization_should_execute_successfully(self):
+        """
+        Asserts that the BigQueryTablePartitionExistenceTrigger correctly serializes its arguments
+        and classpath.
+        """
+
+        trigger = BigQueryTablePartitionExistenceTrigger(
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            partition_id=TEST_PARTITION_ID,
+            poll_interval=POLLING_PERIOD_SECONDS,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            hook_params={},
+        )
+
+        classpath, kwargs = trigger.serialize()
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionExistenceTrigger"
+        )
+        assert kwargs == {
+            "dataset_id": TEST_DATASET_ID,
+            "project_id": TEST_GCP_PROJECT_ID,
+            "table_id": TEST_TABLE_ID,
+            "partition_id": TEST_PARTITION_ID,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "poll_interval": POLLING_PERIOD_SECONDS,
+            "hook_params": TEST_HOOK_PARAMS,
+        }
