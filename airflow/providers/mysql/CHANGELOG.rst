@@ -27,6 +27,27 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+4.0.2
+.....
+
+Misc
+~~~~
+
+* ``Use MariaDB client binaries in arm64 image for support MySQL backend (#29519)``
+
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed MyPy errors introduced by new mysql-connector-python (#28995)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove conn.close() ignores (#29005)" (#29010)``
+   * ``Remove conn.close() ignores (#29005)``
+
 4.0.0
 .....
 

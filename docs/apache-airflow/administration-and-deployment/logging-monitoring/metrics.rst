@@ -141,7 +141,7 @@ Name                                                Description
 ``scheduler.tasks.running``                         Number of tasks running in executor
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)
-                                                    with respect to pool limits, dag concurrency, executor state,
+                                                    with respect to pool limits, DAG concurrency, executor state,
                                                     and priority.
 ``executor.open_slots``                             Number of open slots on executor
 ``executor.queued_tasks``                           Number of queued tasks on executor
@@ -161,7 +161,7 @@ Name                                                Description
 =================================================== ========================================================================
 ``dagrun.dependency-check.<dag_id>``                Milliseconds taken to check DAG dependencies
 ``dag.<dag_id>.<task_id>.duration``                 Milliseconds taken to finish a task
-``dag_processing.last_duration.<dag_file>``         Milliseconds taken to load the given DAG file
+``dag_processing.last_duration.<dag_file>``         Seconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
 ``dagrun.schedule_delay.<dag_id>``                  Seconds of delay between the scheduled DagRun

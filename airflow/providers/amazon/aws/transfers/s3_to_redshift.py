@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
@@ -43,7 +44,7 @@ class S3ToRedshiftOperator(BaseOperator):
     :param table: reference to a specific table in redshift database
     :param s3_bucket: reference to a specific S3 bucket
     :param s3_key: key prefix that selects single or multiple objects from S3
-    :param redshift_conn_id: reference to a specific redshift database
+    :param redshift_conn_id: reference to a specific redshift database OR a redshift data-api connection
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
@@ -62,6 +63,9 @@ class S3ToRedshiftOperator(BaseOperator):
     :param copy_options: reference to a list of COPY options
     :param method: Action to be performed on execution. Available ``APPEND``, ``UPSERT`` and ``REPLACE``.
     :param upsert_keys: List of fields to use as key on upsert action
+    :param redshift_data_api_kwargs: If using the Redshift Data API instead of the SQL-based connection,
+        dict of arguments for the hook's ``execute_query`` method.
+        Cannot include any of these kwargs: ``{'sql', 'parameters'}``
     """
 
     template_fields: Sequence[str] = (
@@ -91,6 +95,7 @@ class S3ToRedshiftOperator(BaseOperator):
         autocommit: bool = False,
         method: str = "APPEND",
         upsert_keys: list[str] | None = None,
+        redshift_data_api_kwargs: dict = {},
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,9 +111,15 @@ class S3ToRedshiftOperator(BaseOperator):
         self.autocommit = autocommit
         self.method = method
         self.upsert_keys = upsert_keys
+        self.redshift_data_api_kwargs = redshift_data_api_kwargs
 
         if self.method not in AVAILABLE_METHODS:
             raise AirflowException(f"Method not found! Available methods: {AVAILABLE_METHODS}")
+
+        if self.redshift_data_api_kwargs:
+            for arg in ["sql", "parameters"]:
+                if arg in self.redshift_data_api_kwargs.keys():
+                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
     def _build_copy_query(self, copy_destination: str, credentials_block: str, copy_options: str) -> str:
         column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ""
@@ -121,7 +132,11 @@ class S3ToRedshiftOperator(BaseOperator):
         """
 
     def execute(self, context: Context) -> None:
-        redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+        redshift_hook: RedshiftDataHook | RedshiftSQLHook
+        if self.redshift_data_api_kwargs:
+            redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
+        else:
+            redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
 
         if conn.extra_dejson.get("role_arn", False):
@@ -142,7 +157,12 @@ class S3ToRedshiftOperator(BaseOperator):
         if self.method == "REPLACE":
             sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]
         elif self.method == "UPSERT":
-            keys = self.upsert_keys or redshift_hook.get_table_primary_key(self.table, self.schema)
+            if isinstance(redshift_hook, RedshiftDataHook):
+                keys = self.upsert_keys or redshift_hook.get_table_primary_key(
+                    table=self.table, schema=self.schema, **self.redshift_data_api_kwargs
+                )
+            else:
+                keys = self.upsert_keys or redshift_hook.get_table_primary_key(self.table, self.schema)
             if not keys:
                 raise AirflowException(
                     f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys'"
@@ -162,5 +182,8 @@ class S3ToRedshiftOperator(BaseOperator):
             sql = copy_statement
 
         self.log.info("Executing COPY command...")
-        redshift_hook.run(sql, autocommit=self.autocommit)
+        if isinstance(redshift_hook, RedshiftDataHook):
+            redshift_hook.execute_query(sql=sql, **self.redshift_data_api_kwargs)
+        else:
+            redshift_hook.run(sql, autocommit=self.autocommit)
         self.log.info("COPY command complete...")

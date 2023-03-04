@@ -167,7 +167,7 @@ class TestFTPFileTransmitOperator:
                 ftp_conn_id=DEFAULT_CONN_ID,
                 local_filepath="/tmp/test",
                 remote_filepath=["/tmp/test1", "/tmp/test2"],
-            )
+            ).execute(None)
 
         with pytest.raises(ValueError):
             FTPFileTransmitOperator(
@@ -175,7 +175,7 @@ class TestFTPFileTransmitOperator:
                 ftp_conn_id=DEFAULT_CONN_ID,
                 local_filepath=["/tmp/test1", "/tmp/test2"],
                 remote_filepath="/tmp/test1",
-            )
+            ).execute(None)
 
 
 class TestFTPSFileTransmitOperator:

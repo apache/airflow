@@ -17,6 +17,7 @@
 """This module contains Google Dataplex sensors."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
@@ -91,6 +92,10 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.retry = retry
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

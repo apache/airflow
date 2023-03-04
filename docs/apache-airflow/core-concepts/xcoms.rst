@@ -38,9 +38,9 @@ You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
 XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a DAG run, while Variables are global and designed for overall configuration and value sharing.
 
-::
+.. note::
 
-  Note: If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
+  If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
 
 Custom XCom Backends
 --------------------
@@ -51,7 +51,7 @@ If you want to implement your own backend, you should subclass :class:`~airflow.
 
 There is also an ``orm_deserialize_value`` method that is called whenever the XCom objects are rendered for UI or reporting purposes; if you have large or expensive-to-retrieve values in your XComs, you should override this method to avoid calling that code (and instead return a lighter, incomplete representation) so the UI remains responsive.
 
-You can also override the ``clear`` method and use it when clearing results for given dags and tasks. This allows the custom XCom backend to process the data lifecycle easier.
+You can also override the ``clear`` method and use it when clearing results for given DAGs and tasks. This allows the custom XCom backend to process the data lifecycle easier.
 
 Working with Custom XCom Backends in Containers
 -----------------------------------------------

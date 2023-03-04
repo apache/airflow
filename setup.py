@@ -49,8 +49,6 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = "2.6.0.dev0"
-
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
@@ -162,7 +160,7 @@ class ListExtras(Command):
         print("\n".join(wrap(", ".join(EXTRAS_DEPENDENCIES.keys()), 100)))
 
 
-def git_version(version_: str) -> str:
+def git_version() -> str:
     """
     Return a version to identify the state of the underlying git repo. The version will
     indicate whether the head of the current git-backed working directory is tied to a
@@ -171,7 +169,6 @@ def git_version(version_: str) -> str:
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
 
-    :param str version_: Semver version
     :return: Found Airflow version in Git repo
     """
     try:
@@ -193,7 +190,7 @@ def git_version(version_: str) -> str:
         if repo.is_dirty():
             return f".dev0+{sha}.dirty"
         # commit is clean
-        return f".release:{version_}+{sha}"
+        return f".release:{sha}"
     return "no_git_version"
 
 
@@ -203,7 +200,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 
     :param str filename: Destination file to write.
     """
-    text = f"{git_version(version)}"
+    text = git_version()
     with open(filename, "w") as file:
         file.write(text)
 
@@ -281,7 +278,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.1.4",
+    "flask-appbuilder[oauth]==4.3.0",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -338,7 +335,7 @@ mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==0.971",
+    "mypy==1.0.0",
     "types-boto",
     "types-certifi",
     "types-croniter",
@@ -377,24 +374,17 @@ devel_only = [
     "jsondiff",
     "mongomock",
     "moto[cloudformation, glue]>=4.0",
-    "parameterized",
     "paramiko",
     "pipdeptree",
     "pre-commit",
     "pypsrp",
     "pygithub",
-    # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
-    # It contains a number of potential breaking changes but none of them looks breaking our use
-    # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
-    # TODO: upgrade it and remove the limit
-    "pytest~=6.0",
+    "pytest",
     "pytest-asyncio",
     "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
-    # We should attempt to remove the limit when we upgrade Pytest
-    # TODO: remove the limit when we upgrade pytest
-    "pytest-rerunfailures~=9.1",
+    "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
     "python-jose",
@@ -410,6 +400,7 @@ devel_only = [
     "twine",
     "wheel",
     "yamllint",
+    "aioresponses",
 ]
 
 
@@ -912,9 +903,7 @@ def do_setup() -> None:
     write_version()
     setup(
         distclass=AirflowDistribution,
-        version=version,
         extras_require=EXTRAS_DEPENDENCIES,
-        download_url=("https://archive.apache.org/dist/airflow/" + version),
         cmdclass={
             "extra_clean": CleanCommand,
             "compile_assets": CompileAssets,

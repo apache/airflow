@@ -22,6 +22,7 @@ data from Cassandra to Google Cloud Storage in JSON format.
 from __future__ import annotations
 
 import json
+import warnings
 from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
@@ -120,6 +121,10 @@ class CassandraToGCSOperator(BaseOperator):
         self.approx_max_file_size_bytes = approx_max_file_size_bytes
         self.cassandra_conn_id = cassandra_conn_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'mpersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain

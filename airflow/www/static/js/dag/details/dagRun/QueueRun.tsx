@@ -17,14 +17,14 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
-import { Button, useDisclosure } from '@chakra-ui/react';
+import React, { useState } from "react";
+import { Button, useDisclosure } from "@chakra-ui/react";
 
-import { useQueueRun } from 'src/api';
-import ConfirmDialog from 'src/components/ConfirmDialog';
-import { getMetaValue } from 'src/utils';
+import { useQueueRun } from "src/api";
+import ConfirmDialog from "src/components/ConfirmDialog";
+import { getMetaValue } from "src/utils";
 
-const canEdit = getMetaValue('can_edit') === 'True';
+const canEdit = getMetaValue("can_edit") === "True";
 
 interface Props {
   dagId: string;
@@ -55,7 +55,7 @@ const QueueRun = ({ dagId, runId }: Props) => {
       <Button
         onClick={onClick}
         isLoading={isLoading}
-        ml="5px"
+        ml={2}
         title="Queue up new tasks to make the DAG run up-to-date with any DAG file changes."
         isDisabled={!canEdit}
       >

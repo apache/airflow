@@ -30,7 +30,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
-from types import FunctionType
+from types import ClassMethodDescriptorType, FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -169,7 +169,7 @@ def get_merged_defaults(
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
-    class_method = None
+    class_method: ClassMethodDescriptorType | None = None
 
     def __get__(
         self, obj: BaseOperator, cls: type[BaseOperator] | None = None
@@ -914,6 +914,20 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             self.template_fields = [self.template_fields]
+
+    @classmethod
+    def as_setup(cls, *args, **kwargs):
+        from airflow.utils.setup_teardown import SetupTeardownContext
+
+        with SetupTeardownContext.setup():
+            return cls(*args, **kwargs)
+
+    @classmethod
+    def as_teardown(cls, *args, **kwargs):
+        from airflow.utils.setup_teardown import SetupTeardownContext
+
+        with SetupTeardownContext.teardown():
+            return cls(*args, **kwargs)
 
     def __eq__(self, other):
         if type(self) is type(other):

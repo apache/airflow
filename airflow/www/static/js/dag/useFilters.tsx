@@ -19,35 +19,35 @@
 
 /* global moment */
 
-import { useSearchParams } from 'react-router-dom';
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
+import { useSearchParams } from "react-router-dom";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 declare const defaultDagRunDisplayNumber: number;
 
 export interface Filters {
-  baseDate: string | null,
-  numRuns: string | null,
-  runType: string | null,
-  runState: string | null,
+  baseDate: string | null;
+  numRuns: string | null;
+  runType: string | null;
+  runState: string | null;
 }
 
 export interface UtilFunctions {
-  onBaseDateChange: (value: string) => void,
-  onNumRunsChange: (value: string) => void,
-  onRunTypeChange: (value: string) => void,
-  onRunStateChange: (value: string) => void,
-  clearFilters: () => void,
+  onBaseDateChange: (value: string) => void;
+  onNumRunsChange: (value: string) => void;
+  onRunTypeChange: (value: string) => void;
+  onRunStateChange: (value: string) => void;
+  clearFilters: () => void;
 }
 
 export interface FilterHookReturn extends UtilFunctions {
-  filters: Filters,
+  filters: Filters;
 }
 
 // Params names
-export const BASE_DATE_PARAM = 'base_date';
-export const NUM_RUNS_PARAM = 'num_runs';
-export const RUN_TYPE_PARAM = 'run_type';
-export const RUN_STATE_PARAM = 'run_state';
+export const BASE_DATE_PARAM = "base_date";
+export const NUM_RUNS_PARAM = "num_runs";
+export const RUN_TYPE_PARAM = "run_type";
+export const RUN_STATE_PARAM = "run_state";
 
 const date = new Date();
 date.setMilliseconds(0);
@@ -58,26 +58,26 @@ const useFilters = (): FilterHookReturn => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const baseDate = searchParams.get(BASE_DATE_PARAM) || now;
-  const numRuns = searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
+  const numRuns =
+    searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
   const runType = searchParams.get(RUN_TYPE_PARAM);
   const runState = searchParams.get(RUN_STATE_PARAM);
 
-  const makeOnChangeFn = (
-    paramName: string,
-    formatFn?: (arg: string) => string,
-  ) => (value: string) => {
-    const formattedValue = formatFn ? formatFn(value) : value;
-    const params = new URLSearchParamsWrapper(searchParams);
+  const makeOnChangeFn =
+    (paramName: string, formatFn?: (arg: string) => string) =>
+    (value: string) => {
+      const formattedValue = formatFn ? formatFn(value) : value;
+      const params = new URLSearchParamsWrapper(searchParams);
 
-    if (formattedValue) params.set(paramName, formattedValue);
-    else params.delete(paramName);
+      if (formattedValue) params.set(paramName, formattedValue);
+      else params.delete(paramName);
 
-    setSearchParams(params);
-  };
+      setSearchParams(params);
+    };
 
   const onBaseDateChange = makeOnChangeFn(
     BASE_DATE_PARAM,
-    (localDate: string) => moment(localDate).utc().format(),
+    (localDate: string) => moment(localDate).utc().format()
   );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
   const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);

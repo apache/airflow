@@ -18,10 +18,11 @@
 import sys
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import Dict, Tuple  # noqa: F401  # This is used by annotation tests.
+from typing import TYPE_CHECKING, Dict, Tuple
 
 import pytest
 
+from airflow import PY38
 from airflow.decorators import task as task_decorator
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
@@ -87,6 +88,44 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return {"x": x, "y": y}
 
         assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
+
+    def test_infer_multiple_outputs_forward_annotation(self):
+        if TYPE_CHECKING:
+
+            class FakeTypeCheckingOnlyClass:
+                ...
+
+            class UnresolveableName:
+                ...
+
+        @task_decorator
+        def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
+            ...
+
+        assert t1(5, 5).operator.multiple_outputs is True
+
+        @task_decorator
+        def t2(x: "FakeTypeCheckingOnlyClass", y: int) -> "Dict[int, int]":  # type: ignore[empty-body]
+            ...
+
+        assert t2(5, 5).operator.multiple_outputs is True
+
+        with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
+
+            @task_decorator
+            def t3(  # type: ignore[empty-body]
+                x: "FakeTypeCheckingOnlyClass",
+                y: int,
+            ) -> "UnresolveableName[int, int]":
+                ...
+
+            line = sys._getframe().f_lineno - 6 if PY38 else sys._getframe().f_lineno - 3
+
+        warn = recwarn[0]
+        assert warn.filename == __file__
+        assert warn.lineno == line
+
+        assert t3(5, 5).operator.multiple_outputs is False
 
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
@@ -422,21 +461,32 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert "add_2" in self.dag.task_ids
 
-    def test_task_documentation(self):
-        """Tests that task_decorator loads doc_md from function doc"""
+    @pytest.mark.parametrize(
+        argnames=["op_doc_attr", "op_doc_value", "expected_doc_md"],
+        argvalues=[
+            pytest.param("doc", "task docs.", None, id="set_doc"),
+            pytest.param("doc_json", '{"task": "docs."}', None, id="set_doc_json"),
+            pytest.param("doc_md", "task docs.", "task docs.", id="set_doc_md"),
+            pytest.param("doc_rst", "task docs.", None, id="set_doc_rst"),
+            pytest.param("doc_yaml", "task:\n\tdocs", None, id="set_doc_yaml"),
+            pytest.param("doc_md", None, "Adds 2 to number.", id="no_doc_md_use_docstring"),
+        ],
+    )
+    def test_task_documentation(self, op_doc_attr, op_doc_value, expected_doc_md):
+        """Tests that task_decorator loads doc_md from function doc if doc_md is not explicitly provided."""
+        kwargs = {}
+        kwargs[op_doc_attr] = op_doc_value
 
-        @task_decorator
+        @task_decorator(**kwargs)
         def add_2(number: int):
-            """
-            Adds 2 to number.
-            """
+            """Adds 2 to number."""
             return number + 2
 
         test_number = 10
         with self.dag:
             ret = add_2(test_number)
 
-        assert ret.operator.doc_md.strip(), "Adds 2 to number."
+        assert ret.operator.doc_md == expected_doc_md
 
     def test_user_provided_task_id_in_a_loop_is_used(self):
         """Tests that when looping that user provided task_id is used"""

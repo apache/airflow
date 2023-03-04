@@ -103,7 +103,7 @@ content but Docker finds them "different"  (because of the "w" permission).
 In this case whenever in Dockerfile we will use:
 
 ```
-COPY scripts/ci/build_airlfow /opt/airflow/scripts/ci/build
+COPY scripts/ci/build_airflow /opt/airflow/scripts/ci/build
 ```
 
 Docker "thinks" that the file has changed and will simply invalidate the cache.

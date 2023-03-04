@@ -328,15 +328,6 @@ so you can change it at any place, and run
 
 inside container, to enable modified tmux configurations.
 
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=78">
-        <img src="images/breeze/overlayed_breeze_installation.png" width="640"
-             alt="Airflow Breeze - Installation">
-      </a>
-    </div>
-
 Regular development tasks
 =========================
 
@@ -368,15 +359,6 @@ default settings.
 
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=389">
-        <img src="images/breeze/overlayed_breeze_select_backend_python.png" width="640"
-             alt="Airflow Breeze - Selecting Python and Backend version">
-      </a>
-    </div>
 
 Building the documentation
 --------------------------
@@ -421,15 +403,6 @@ Those are all available flags of ``build-docs`` command:
   :width: 100%
   :alt: Breeze build documentation
 
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1760">
-        <img src="images/breeze/overlayed_breeze_build_docs.png" width="640"
-             alt="Airflow Breeze - Build docs">
-      </a>
-    </div>
 
 Running static checks
 ---------------------
@@ -596,6 +569,62 @@ Those are all available flags of ``shell`` command:
   :width: 100%
   :alt: Breeze shell
 
+Running Breeze with Metrics
+---------------------------
+
+Running Breeze with a StatsD Metrics Stack
+..........................................
+
+You can launch an instance of Breeze pre-configured to emit StatsD metrics using
+``breeze start-airflow --integration statsd``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running StatsD, Prometheus, and
+Grafana.  The integration configures the "Targets" in Prometheus, the "Datasources" in
+Grafana, and includes a default dashboard in Grafana.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 29102 -> forwarded to StatsD Exporter -> breeze-statsd-exporter:9102
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports/databases using:
+
+* StatsD Metrics: http://127.0.0.1:29102/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
+Running Breeze with an OpenTelemetry Metrics Stack
+..................................................
+
+----
+
+[Work in Progress]
+NOTE:  This will launch the stack as described below but Airflow integration is
+still a Work in Progress.  This should be considered experimental and likely to
+change by the time Airflow fully supports emitting metrics via OpenTelemetry.
+
+----
+
+You can launch an instance of Breeze pre-configured to emit OTel metrics using
+``breeze start-airflow --integration otel``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running OpenTelemetry-Collector,
+Prometheus, and Grafana.  The integration configures the "Targets" in Prometheus,
+the "Datasources" in Grafana, and includes a default dashboard in Grafana.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 28888 -> forwarded to OpenTelemetry Collector -> breeze-otel_collector:8888
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports/databases using:
+
+* OpenTelemetry Collector: http://127.0.0.1:28888/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
 
 Stopping the environment
 ------------------------
@@ -640,6 +669,24 @@ In case the problems are not solved, you can set the VERBOSE_COMMANDS variable t
 Then run the failed command, copy-and-paste the output from your terminal to the
 `Airflow Slack <https://s.apache.org/airflow-slack>`_  #airflow-breeze channel and
 describe your problem.
+
+
+.. warning::
+
+    Some operating systems (Fedora, ArchLinux, RHEL, Rocky) have recently introduced Kernel changes that result in
+    Airflow in Breeze consuming 100% memory when run inside the community Docker implementation maintained
+    by the OS teams.
+
+    This is an issue with backwards-incompatible containerd configuration that some of Airflow dependencies
+    have problems with and is tracked in a few issues:
+
+    * `Moby issue <https://github.com/moby/moby/issues/43361>`_
+    * `Containerd issue <https://github.com/containerd/containerd/pull/7566>`_
+
+    There is no solution yet from the containerd team, but seems that installing
+    `Docker Desktop on Linux <https://docs.docker.com/desktop/install/linux-install/>`_ solves the problem as
+    stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
+    run Breeze with no problems.
 
 Advanced commands
 =================
@@ -743,7 +790,7 @@ For example this will only run kerberos tests:
 
 .. code-block:: bash
 
-   breeze testing integration-tests --integration Kerberos
+   breeze testing integration-tests --integration kerberos
 
 
 Here is the detailed set of options for the ``breeze testing integration-tests`` command.
@@ -940,7 +987,7 @@ All parameters of the command are here:
 Running k8s tests
 .................
 
-You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those testa are placed
+You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those tests are placed
 in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
 you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
 for all clusters in parallel.
@@ -1380,6 +1427,18 @@ check if there are any images that need regeneration.
   :width: 100%
   :alt: Breeze setup regenerate-command-images
 
+Breeze check-all-params-in-groups
+...................
+
+When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
+for the command is present and that all parameters are assigned to the right group so they can be
+nicely presented in ``--help`` output. You can check that via ``check-all-params-in-groups`` command.
+
+.. image:: ./images/breeze/output_setup_check-all-params-in-groups.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_check-all-params-in-groups.svg
+  :width: 100%
+  :alt: Breeze setup check-all-params-in-group
+
 
 CI tasks
 --------
@@ -1602,10 +1661,10 @@ Generating Provider Issue
 
 You can use Breeze to generate a provider issue when you release new providers.
 
-.. image:: ./images/breeze/output_release-management_generate-issue-content.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content.svg
+.. image:: ./images/breeze/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content-providers.svg
   :width: 100%
-  :alt: Breeze generate-issue-content
+  :alt: Breeze generate-issue-content-providers
 
 Preparing airflow packages
 ..........................
@@ -1775,7 +1834,8 @@ By default Breeze starts only airflow container without any integration enabled.
 that is selected). You can start the additional integrations by passing ``--integration`` flag
 with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags
 to start more than one integration at a time.
-Finally you can specify ``--integration all`` to start all integrations.
+Finally you can specify ``--integration all-testable`` to start all testable integrations and
+``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
 ``breeze stop`` command. or restarted via ``breeze restart`` command

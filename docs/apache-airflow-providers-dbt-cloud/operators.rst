@@ -40,6 +40,18 @@ execution time. This functionality is controlled by the ``wait_for_termination``
 :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`). Setting ``wait_for_termination`` to
 False is a good approach for long-running dbt Cloud jobs.
 
+The ``deferrable`` parameter along with ``wait_for_termination`` will control the functionality
+whether to poll the job status on the worker or defer using the Triggerer.
+When ``wait_for_termination`` is True and ``deferrable`` is False,we submit the job and ``poll``
+for its status on the worker. This will keep the worker slot occupied till the job execution is done.
+When ``wait_for_termination`` is True and ``deferrable`` is True,
+we submit the job and ``defer`` using Triggerer. This will release the worker slot leading to savings in
+resource utilization while the job is running.
+
+When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and can only
+track the job status with the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`.
+
+
 While ``schema_override`` and ``steps_override`` are explicit, optional parameters for the
 ``DbtCloudRunJobOperator``, custom run configurations can also be passed to the operator using the
 ``additional_run_config`` dictionary. This parameter can be used to initialize additional runtime
@@ -86,6 +98,22 @@ the ``account_id`` for the task is referenced within the ``default_args`` of the
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor]
     :end-before: [END howto_operator_dbt_cloud_run_job_sensor]
 
+.. _howto/operator:DbtCloudJobRunAsyncSensor:
+
+Poll for status of a dbt Cloud Job run asynchronously
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor`
+(deferrable version) to periodically retrieve the
+status of a dbt Cloud job run asynchronously. This sensor will free up the worker slots since
+polling for job status happens on the Airflow triggerer, leading to efficient utilization
+of resources within Airflow.
+
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dbt_cloud_run_job_async_sensor]
+    :end-before: [END howto_operator_dbt_cloud_run_job_async_sensor]
 
 .. _howto/operator:DbtCloudGetJobRunArtifactOperator:
 

@@ -55,7 +55,24 @@ def should_retry_eni(exception: Exception):
     return False
 
 
-class EcsClusterStates(Enum):
+class _StringCompareEnum(Enum):
+    """
+    Enum which can be compared with regular `str` and subclasses.
+
+    This class avoids multiple inheritance such as AwesomeEnum(str, Enum)
+    which does not work well with templated_fields and Jinja templates.
+    """
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return super().__hash__()  # Need to set because we redefine __eq__
+
+
+class EcsClusterStates(_StringCompareEnum):
     """Contains the possible State values of an ECS Cluster."""
 
     ACTIVE = "ACTIVE"
@@ -65,14 +82,15 @@ class EcsClusterStates(Enum):
     INACTIVE = "INACTIVE"
 
 
-class EcsTaskDefinitionStates(Enum):
+class EcsTaskDefinitionStates(_StringCompareEnum):
     """Contains the possible State values of an ECS Task Definition."""
 
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
+    DELETE_IN_PROGRESS = "DELETE_IN_PROGRESS"
 
 
-class EcsTaskStates(Enum):
+class EcsTaskStates(_StringCompareEnum):
     """Contains the possible State values of an ECS Task."""
 
     PROVISIONING = "PROVISIONING"

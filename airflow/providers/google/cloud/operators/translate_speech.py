@@ -24,16 +24,16 @@ from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudTranslateSpeechOperator(BaseOperator):
+class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
     """
     Recognizes speech in audio input and translates it.
 

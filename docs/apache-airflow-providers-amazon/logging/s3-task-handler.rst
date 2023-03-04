@@ -129,7 +129,7 @@ With the above configurations, Webserver and Worker Pods can access Amazon S3 bu
 
 - Using Airflow CLI
 
-  ``airflow connections add aws_conn --conn-uri aws://@/?egion_name=eu-west-1``
+  ``airflow connections add aws_conn --conn-uri aws://@/?region_name=eu-west-1``
 
   Note that ``@`` used in ``-conn-uri`` parameter usually separates password and host but in this case it complies with uri validator used.
 

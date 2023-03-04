@@ -27,6 +27,7 @@
 """
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -35,7 +36,6 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform import gapic, hyperparameter_tuning
 from google.cloud.aiplatform_v1.types import HyperparameterTuningJob
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobHook,
 )
@@ -43,12 +43,13 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIHyperparameterTuningJobListLink,
     VertexAITrainingLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CreateHyperparameterTuningJobOperator(BaseOperator):
+class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Create Hyperparameter Tuning job
 
@@ -217,6 +218,10 @@ class CreateHyperparameterTuningJobOperator(BaseOperator):
         self.tensorboard = tensorboard
         self.sync = sync
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: HyperparameterTuningJobHook | None = None
@@ -278,7 +283,7 @@ class CreateHyperparameterTuningJobOperator(BaseOperator):
             self.hook.cancel_hyperparameter_tuning_job()
 
 
-class GetHyperparameterTuningJobOperator(BaseOperator):
+class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Gets a HyperparameterTuningJob
 
@@ -327,6 +332,10 @@ class GetHyperparameterTuningJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -358,7 +367,7 @@ class GetHyperparameterTuningJobOperator(BaseOperator):
             )
 
 
-class DeleteHyperparameterTuningJobOperator(BaseOperator):
+class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Deletes a HyperparameterTuningJob.
 
@@ -395,6 +404,10 @@ class DeleteHyperparameterTuningJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -422,7 +435,7 @@ class DeleteHyperparameterTuningJobOperator(BaseOperator):
             )
 
 
-class ListHyperparameterTuningJobOperator(BaseOperator):
+class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
     Lists HyperparameterTuningJobs in a Location.
 
@@ -481,6 +494,10 @@ class ListHyperparameterTuningJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

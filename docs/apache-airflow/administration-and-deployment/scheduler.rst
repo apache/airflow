@@ -47,7 +47,7 @@ Your DAGs will start executing once the scheduler is running successfully.
     Subsequent DAG Runs are created according to your DAG's :doc:`timetable <../authoring-and-scheduling/timetable>`.
 
 
-For dags with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
+For DAGs with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
 has ended. This technique makes sure that whatever data is required for that period is fully available before the DAG is executed.
 In the UI, it appears as if Airflow is running your tasks a day **late**
 
@@ -111,7 +111,7 @@ outline of the scheduling loop is:
 - Select schedulable TaskInstances, and whilst respecting Pool limits and other concurrency limits, enqueue
   them for execution
 
-This does however place some requirements on the Database.
+This does, however, place some requirements on the Database.
 
 .. _scheduler:ha:db_requirements:
 
@@ -180,7 +180,7 @@ different processes. In order to fine-tune your scheduler, you need to include a
 * The logic and definition of your DAG structure:
     * how many DAG files you have
     * how many DAGs you have in your files
-    * how large the DAG files are (remember dag parser needs to read and parse the file every n seconds)
+    * how large the DAG files are (remember DAG parser needs to read and parse the file every n seconds)
     * how complex they are (i.e. how fast they can be parsed, how many tasks and dependencies they have)
     * whether parsing your DAG file involves importing a lot of libraries or heavy processing at the top level
       (Hint! It should not. See :ref:`best_practices/top_level_code`)
@@ -274,7 +274,7 @@ There are several areas of resource usage that you should pay attention to:
   which dramatically decreases performance. Note that Airflow Scheduler in versions prior to ``2.1.4``
   generated a lot of ``Page Cache`` memory used by log files (when the log files were not removed).
   This was generally harmless, as the memory is just cache and could be reclaimed at any time by the system,
-  however in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
+  however, in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
   Regardless - make sure when you look at memory usage, pay attention to the kind of memory you are observing.
   Usually you should look at ``working memory``(names might vary depending on your deployment) rather
   than ``total memory used``.
@@ -314,8 +314,8 @@ Scheduler Configuration options
 """""""""""""""""""""""""""""""
 
 The following config settings can be used to control aspects of the Scheduler.
-However you can also look at other non-performance-related scheduler configuration parameters available at
-:doc:`../configurations-ref` in ``[scheduler]`` section.
+However, you can also look at other non-performance-related scheduler configuration parameters available at
+:doc:`../configurations-ref` in the ``[scheduler]`` section.
 
 - :ref:`config:scheduler__max_dagruns_to_create_per_loop`
 

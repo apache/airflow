@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
@@ -44,10 +45,16 @@ class ReadyToRescheduleDep(BaseTIDep):
         from airflow.models.mappedoperator import MappedOperator
 
         is_mapped = isinstance(ti.task, MappedOperator)
-        if not is_mapped and not getattr(ti.task, "reschedule", False):
-            # Mapped sensors don't have the reschedule property (it can only
-            # be calculated after unmapping), so we don't check them here.
-            # They are handled below by checking TaskReschedule instead.
+        executor, _ = ExecutorLoader.import_default_executor_cls()
+        if (
+            # Mapped sensors don't have the reschedule property (it can only be calculated after unmapping),
+            # so we don't check them here. They are handled below by checking TaskReschedule instead.
+            not is_mapped
+            and not getattr(ti.task, "reschedule", False)
+            # Executors can force running in reschedule mode,
+            # in which case we ignore the value of the task property.
+            and not executor.change_sensor_mode_to_reschedule
+        ):
             yield self._passing_status(reason="Task is not in reschedule mode.")
             return
 

@@ -38,6 +38,7 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
+from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -137,6 +138,10 @@ class TaskGroup(DAGNode):
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
         self.children: dict[str, DAGNode] = {}
+
+        self.setup_children: dict[str, DAGNode] = {}
+        self.teardown_children: dict[str, DAGNode] = {}
+
         if parent_group:
             parent_group.add(self)
 
@@ -194,11 +199,15 @@ class TaskGroup(DAGNode):
         return self.task_group
 
     def __iter__(self):
-        for child in self.children.values():
+        for child in self.all_children.values():
             if isinstance(child, TaskGroup):
                 yield from child
             else:
                 yield child
+
+    @property
+    def all_children(self) -> dict[str, DAGNode]:
+        return {**self.setup_children, **self.children, **self.teardown_children}
 
     def add(self, task: DAGNode) -> None:
         """Add a task to this TaskGroup.
@@ -215,7 +224,7 @@ class TaskGroup(DAGNode):
         task.task_group = weakref.proxy(self)
         key = task.node_id
 
-        if key in self.children:
+        if key in self.all_children:
             node_type = "Task" if hasattr(task, "task_id") else "Task Group"
             raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
 
@@ -229,16 +238,30 @@ class TaskGroup(DAGNode):
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
-        self.children[key] = task
+        if SetupTeardownContext.is_setup:
+            if isinstance(task, AbstractOperator):
+                setattr(task, "_is_setup", True)
+            self.setup_children[key] = task
+        elif SetupTeardownContext.is_teardown:
+            if isinstance(task, AbstractOperator):
+                setattr(task, "_is_teardown", True)
+            self.teardown_children[key] = task
+        else:
+            self.children[key] = task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
 
-        if key not in self.children:
+        if key in self.children:
+            del self.children[key]
+        elif key in self.setup_children:
+            del self.setup_children[key]
+        elif key in self.teardown_children:
+            del self.teardown_children[key]
+        else:
             raise KeyError(f"Node id {key!r} not part of this task group")
 
         self.used_group_ids.remove(key)
-        del self.children[key]
 
     @property
     def group_id(self) -> str | None:
@@ -253,7 +276,9 @@ class TaskGroup(DAGNode):
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
-    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
+    def update_relative(
+        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+    ) -> None:
         """
         Overrides TaskMixin.update_relative.
 
@@ -264,8 +289,12 @@ class TaskGroup(DAGNode):
             # Handles setting relationship between a TaskGroup and another TaskGroup
             if upstream:
                 parent, child = (self, other)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, other.downstream_join_id, self.upstream_join_id)
             else:
                 parent, child = (other, self)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, self.downstream_join_id, other.upstream_join_id)
 
             parent.upstream_group_ids.add(child.group_id)
             child.downstream_group_ids.add(parent.group_id)
@@ -278,10 +307,18 @@ class TaskGroup(DAGNode):
                         f"or operators; received {task.__class__.__name__}"
                     )
 
+                # Do not set a relationship between a TaskGroup and a Label's roots
+                if self == task:
+                    continue
+
                 if upstream:
                     self.upstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, task.node_id, self.upstream_join_id)
                 else:
                     self.downstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, self.downstream_join_id, task.node_id)
 
     def _set_relatives(
         self,
@@ -297,7 +334,7 @@ class TaskGroup(DAGNode):
             task_or_task_list = [task_or_task_list]
 
         for task_like in task_or_task_list:
-            self.update_relative(task_like, upstream)
+            self.update_relative(task_like, upstream, edge_modifier=edge_modifier)
 
         if upstream:
             for task in self.get_roots():
@@ -315,7 +352,7 @@ class TaskGroup(DAGNode):
 
     def has_task(self, task: BaseOperator) -> bool:
         """Returns True if this TaskGroup or its children TaskGroups contains the given task."""
-        if task.task_id in self.children:
+        if task.task_id in self.all_children:
             return True
 
         return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
@@ -361,7 +398,7 @@ class TaskGroup(DAGNode):
     @property
     def upstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate upstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate upstream TaskGroups or tasks, a proxy node called
         upstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
@@ -370,7 +407,7 @@ class TaskGroup(DAGNode):
     @property
     def downstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate downstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate downstream TaskGroups or tasks, a proxy node called
         downstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
@@ -394,7 +431,7 @@ class TaskGroup(DAGNode):
 
     def get_child_by_label(self, label: str) -> DAGNode:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
-        return self.children[self.child_id(label)]
+        return self.all_children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
@@ -413,12 +450,12 @@ class TaskGroup(DAGNode):
         # not have to pre-compute the "in-degree" of the nodes.
         from airflow.operators.subdag import SubDagOperator  # Avoid circular import
 
-        graph_unsorted = copy.copy(self.children)
+        graph_unsorted = copy.copy(self.all_children)
 
         graph_sorted: list[DAGNode] = []
 
         # special case
-        if len(self.children) == 0:
+        if len(self.all_children) == 0:
             return graph_sorted
 
         # Run until the unsorted graph is empty.
@@ -484,7 +521,7 @@ class TaskGroup(DAGNode):
         while groups_to_visit:
             visiting = groups_to_visit.pop(0)
 
-            for child in visiting.children.values():
+            for child in visiting.all_children.values():
                 if isinstance(child, AbstractOperator):
                     yield child
                 elif isinstance(child, TaskGroup):

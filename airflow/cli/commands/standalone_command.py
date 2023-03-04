@@ -27,7 +27,7 @@ from collections import deque
 
 from termcolor import colored
 
-from airflow.configuration import AIRFLOW_HOME, conf
+from airflow.configuration import AIRFLOW_HOME, conf, make_group_other_inaccessible
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -195,6 +195,7 @@ class StandaloneCommand:
             )
             with open(password_path, "w") as file:
                 file.write(password)
+            make_group_other_inaccessible(password_path)
             appbuilder.sm.add_user("admin", "Admin", "User", "admin@example.com", role, password)
             self.print_output("standalone", "Created admin user")
         # If the user does exist and we know its password, read the password

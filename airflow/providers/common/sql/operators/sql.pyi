@@ -31,11 +31,11 @@
 Definition of the public interface for airflow.providers.common.sql.operators.sql
 isort:skip_file
 """
-from _typeshed import Incomplete
+from _typeshed import Incomplete  # noqa: F401
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.context import Context
-from typing import Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
+from typing import Any, Callable, Iterable, Mapping, Sequence, SupportsAbs, Union
 
 def _parse_boolean(val: str) -> str | bool: ...
 def parse_boolean(val: str) -> str | bool: ...
