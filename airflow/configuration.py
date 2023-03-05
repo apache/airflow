@@ -1547,8 +1547,11 @@ def initialize_config() -> AirflowConfigParser:
         import shutil
 
         if in_airflow_home:
-            log.warning("webserver_config.py is still present in %s, this will be deprecated and moved to %s",
-                        AIRFLOW_HOME, AIRFLOW_CONFIG)
+            log.warning(
+                "webserver_config.py is still present in %s, this will be deprecated and moved to %s",
+                AIRFLOW_HOME,
+                AIRFLOW_CONFIG,
+            )
 
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
