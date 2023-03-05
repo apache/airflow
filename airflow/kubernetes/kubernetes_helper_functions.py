@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 import string
@@ -119,3 +120,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
         try_number=try_number,
         map_index=map_index,
     )
+
+
+def annotations_to_str(annotations: dict[str, str]) -> str:
+    return json.dumps(annotations)

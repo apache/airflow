@@ -48,7 +48,7 @@ try:
         get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
-    from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
+    from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, annotations_to_str
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.utils.state import State
 except ImportError:
@@ -1252,6 +1252,21 @@ class TestKubernetesExecutor:
 
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
+
+    def test_annotations_to_str(self):
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        annotations = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        expected = '{"dag_id": "dag", "run_id": "run_id", "task_id": "task", "try_number": "1"}'
+
+        annotations_str = annotations_to_str(annotations)
+        assert type(annotations_str) == str
+        assert annotations_str == expected
 
 
 class TestKubernetesJobWatcher:
