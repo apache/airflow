@@ -264,7 +264,7 @@ google-auth==2.16.2
 google-cloud-aiplatform==1.16.1
 google-cloud-appengine-logging==1.1.3
 google-cloud-audit-log==0.2.4
-google-cloud-automl==2.8.0
+google-cloud-automl==2.11.0
 google-cloud-bigquery-datatransfer==3.7.0
 google-cloud-bigquery-storage==2.14.1
 google-cloud-bigquery==2.34.4
