@@ -21,6 +21,7 @@ from datetime import datetime
 import pytz
 
 from airflow.providers.amazon.aws.utils import (
+    _StringCompareEnum,
     datetime_to_epoch,
     datetime_to_epoch_ms,
     datetime_to_epoch_us,
@@ -32,16 +33,19 @@ DT = datetime(2000, 1, 1, tzinfo=pytz.UTC)
 EPOCH = 946_684_800
 
 
-class TestUtils:
-    def test_trim_none_values(self):
-        input_object = {
-            "test": "test",
-            "empty": None,
-        }
-        expected_output_object = {
-            "test": "test",
-        }
-        assert trim_none_values(input_object) == expected_output_object
+class EnumTest(_StringCompareEnum):
+    FOO = "FOO"
+
+
+def test_trim_none_values():
+    input_object = {
+        "test": "test",
+        "empty": None,
+    }
+    expected_output_object = {
+        "test": "test",
+    }
+    assert trim_none_values(input_object) == expected_output_object
 
 
 def test_datetime_to_epoch():
@@ -58,3 +62,8 @@ def test_datetime_to_epoch_us():
 
 def test_get_airflow_version():
     assert len(get_airflow_version()) == 3
+
+
+def test_str_enum():
+    assert EnumTest.FOO == "FOO"
+    assert EnumTest.FOO.value == "FOO"
