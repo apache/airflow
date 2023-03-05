@@ -267,7 +267,7 @@ def validate_stat(fn: T) -> T:
 
 
 class ListValidator(metaclass=abc.ABCMeta):
-    def __init__(self, validate_list=None) -> None:
+    def __init__(self, validate_list: tuple[str, ...] | None = None) -> None:
         if validate_list:
             self.validate_list = tuple(item.strip().lower() for item in validate_list.split(","))
         else:
@@ -576,6 +576,10 @@ class _Stats(type):
         )
         if conf.get("metrics", "statsd_allow_list", fallback=None):
             metrics_validator = AllowListValidator(conf.get("metrics", "statsd_allow_list"))
+            if conf.get("metrics", "statsd_block_list", fallback=None):
+                log.warning(
+                    "Both statsd_allow_list and statsd_block_list has been set. Ignoring statsd_block_list configuration."
+                )
         elif conf.get("metrics", "statsd_block_list", fallback=None):
             metrics_validator = BlockListValidator(conf.get("metrics", "statsd_block_list"))
         else:
@@ -597,6 +601,10 @@ class _Stats(type):
         )
         if conf.get("metrics", "statsd_allow_list", fallback=None):
             metrics_validator = AllowListValidator(conf.get("metrics", "statsd_allow_list"))
+            if conf.get("metrics", "statsd_block_list", fallback=None):
+                log.warning(
+                    "Both statsd_allow_list and statsd_block_list has been set. Ignoring statsd_block_list configuration."
+                )
         elif conf.get("metrics", "statsd_block_list", fallback=None):
             metrics_validator = BlockListValidator(conf.get("metrics", "statsd_block_list"))
         else:
