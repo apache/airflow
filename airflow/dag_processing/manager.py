@@ -993,6 +993,75 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_created_file(filepath=dest_filepath)
             self.handle_deleted_file(filepath=src_filepath)
 
+    def handle_moved_airflowignore_file(self, src_filepath: str, dest_filepath: str) -> None:
+        """
+        Process a moved .airflowignore file.
+
+        A moved .airflowignore file can result in both new filepaths getting observed (as a result of
+        removing an ignore-pattern in the source folder) and filepaths getting unobserved (as a result of
+        adding ignore-patterns in the destination folder). The processing logic is:
+        - We have currently observed filepaths A
+        - Find non-ignored filepaths B after modification
+        - A - B --> Observed filepaths to delete.
+        - A ∩ B --> Observed filepaths to keep (i.e. no action).
+        - B - A --> New filepaths to check for DAGs.
+
+        :param src_filepath: Origin of the moved .airflowignore file.
+        :param dest_filepath: Destination of the moved .airflowignore file.
+        """
+        if not dest_filepath.endswith(".airflowignore"):
+            self.log.warning(
+                "%s was moved to %s which doesn't have a .airflowignore extension and is thus considered "
+                "removed. Checking for filepaths that are unignored by removal of %s.",
+                src_filepath,
+                dest_filepath,
+                src_filepath,
+            )
+            self.handle_deleted_airflowignore_file(filepath=src_filepath)
+        elif not src_filepath.endswith(".airflowignore"):
+            self.log.info(
+                "%s was moved to %s which is treated as the creation of a new .airflowignore file since it "
+                "didn't have a .airflowignore extension before moving. Checking for filepaths to ignore.",
+                src_filepath,
+                dest_filepath,
+            )
+            self.handle_created_airflowignore_file(filepath=dest_filepath)
+        else:
+            # Both src and dest filepaths have .airflowignore extension
+            airflowignore_dir_path = str(Path(dest_filepath).parent)
+            matching_filepaths = list_py_file_paths(directory=airflowignore_dir_path)
+
+            filepaths_to_remove = self._file_paths - matching_filepaths
+            filepaths_to_check = matching_filepaths - self._file_paths
+
+            for fp_to_remove in filepaths_to_remove:
+                self.log.info(
+                    "Removing metadata for %s since it's ignored by move of %s to %s.",
+                    fp_to_remove,
+                    src_filepath,
+                    dest_filepath,
+                )
+                self.handle_deleted_file(filepath=fp_to_remove)
+
+            for fp_to_check in filepaths_to_check:
+                self.log.info(
+                    "Checking %s for DAGs since it's unignored by move of %s to %s.",
+                    fp_to_check,
+                    src_filepath,
+                    dest_filepath,
+                )
+                self.handle_created_file(filepath=fp_to_check)
+
+            self.log.info(
+                "Processed move of %s to %s. Removed %s filepath(s) and added %s from/to observed filepaths, "
+                "currently observing %s filepaths.",
+                src_filepath,
+                dest_filepath,
+                len(filepaths_to_remove),
+                len(filepaths_to_check),
+                len(self._file_paths),
+            )
+
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed."""
         if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
@@ -1496,11 +1565,14 @@ class AirflowFileSystemEventHandler(PatternMatchingEventHandler, LoggingMixin):
             self._dag_file_processor_manager.handle_moved_file(
                 src_filepath=event.src_path, dest_filepath=event.dest_path
             )
-        elif event.src_path.endswith(".airflowignore"):
+        elif event.src_path.endswith(".airflowignore") or event.dest_path.endswith(".airflowignore"):
             self.log.info(
                 "Detected move of %s to %s, checking changes to make in the list of observed DAG files.",
                 event.src_path,
                 event.dest_path,
+            )
+            self._dag_file_processor_manager.handle_moved_airflowignore_file(
+                src_filepath=event.src_path, dest_filepath=event.dest_path
             )
 
     def on_created(self, event: FileCreatedEvent):
