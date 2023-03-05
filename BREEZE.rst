@@ -233,6 +233,16 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 Once this is complete, you should have ``breeze`` binary on your PATH and available to run by ``breeze``
 command.
 
+**Docker errors that may come while running breeze**
+
+- If docker not runing in python virtual environment
+- **Solution** : ``sudo chmod 666 /var/run/docker.sock``  
+|
+- If error response from dockerfile parse error
+- **Solution** : ``export DOCKER_BUILDKIT=1``  
+|
+|
+
 Those are all available commands for Breeze and details about the commands are described below:
 
 .. image:: ./images/breeze/output-commands.svg
