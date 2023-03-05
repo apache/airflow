@@ -27,7 +27,7 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger
+from airflow.stats import AllowListValidator, BlockListValidator, SafeDogStatsdLogger, SafeStatsdLogger
 from tests.test_utils.config import conf_vars
 
 
@@ -124,6 +124,46 @@ class TestStats:
         ):
             importlib.reload(airflow.stats)
             airflow.stats.Stats.incr("empty_key")
+        importlib.reload(airflow.stats)
+
+    def test_load_allow_list_validator(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_allow_list"): "name1,name2",
+            }
+        ):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+        # Avoid side-effects
+        importlib.reload(airflow.stats)
+
+    def test_load_block_list_validator(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_block_list"): "name1,name2",
+            }
+        ):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.metrics_validator, BlockListValidator)
+            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+        # Avoid side-effects
+        importlib.reload(airflow.stats)
+
+    def test_load_allow_and_block_list_validator_loads_only_allow_list_validator(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_allow_list"): "name1,name2",
+                ("metrics", "statsd_block_list"): "name1,name2",
+            }
+        ):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+        # Avoid side-effects
         importlib.reload(airflow.stats)
 
 
@@ -240,12 +280,10 @@ class TestStatsWithAllowList:
         self.statsd_client.assert_not_called()
 
 
-class TestStatsWithInvertedAllowList:
+class TestStatsWithBlockList:
     def setup_method(self):
         self.statsd_client = Mock(spec=statsd.StatsClient)
-        self.stats = SafeStatsdLogger(
-            self.statsd_client, AllowListValidator("stats_one, stats_two", inverse=True)
-        )
+        self.stats = SafeStatsdLogger(self.statsd_client, BlockListValidator("stats_one, stats_two"))
 
     def test_increment_counter_with_allowed_key(self):
         self.stats.incr("stats_one")
@@ -309,7 +347,7 @@ class TestDogStatsWithDisabledMetricsTags:
         self.dogstatsd = SafeDogStatsdLogger(
             self.dogstatsd_client,
             metrics_tags=True,
-            allowed_tag_validator=AllowListValidator("key1", inverse=True),
+            metric_tags_validator=BlockListValidator("key1"),
         )
 
     def test_does_send_stats_using_dogstatsd_with_tags(self):
@@ -331,7 +369,7 @@ class TestStatsWithInfluxDBEnabled:
             self.stats = SafeStatsdLogger(
                 self.statsd_client,
                 influxdb_tags_enabled=True,
-                allowed_tag_validator=AllowListValidator("key2,key3", inverse=True),
+                metric_tags_validator=BlockListValidator("key2,key3"),
             )
 
     def test_increment_counter(self):
