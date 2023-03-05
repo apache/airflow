@@ -85,9 +85,6 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - 4. Check if docker can be run without root
 - ``docker run hello-world``
 |
-- If error response from dockerfile parse error
-- **Solution** : ``export DOCKER_BUILDKIT=1``
-|
 |
 
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
