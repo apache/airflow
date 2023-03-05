@@ -72,6 +72,24 @@ Here is an example configuration with more than 200GB disk space for Docker:
   Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
   `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
 
+**Docker errors that may come while running breeze**
+
+- If docker not running in python virtual environment
+- **Solution**
+- 1. Create the docker group if it does not exist
+- ``sudo groupadd docker``
+- 2. Add your user to the docker group.
+- ``sudo usermod -aG docker $USER``
+- 3. Log in to the new docker group
+- ``newgrp docker``
+- 4. Check if docker can be run without root
+- ``docker run hello-world``
+|
+- If error response from dockerfile parse error
+- **Solution** : ``export DOCKER_BUILDKIT=1``
+|
+|
+
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__
 
@@ -232,16 +250,6 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 
 Once this is complete, you should have ``breeze`` binary on your PATH and available to run by ``breeze``
 command.
-
-**Docker errors that may come while running breeze**
-
-- If docker not runing in python virtual environment
-- **Solution** : ``sudo chmod 666 /var/run/docker.sock``
-|
-- If error response from dockerfile parse error
-- **Solution** : ``export DOCKER_BUILDKIT=1``
-|
-|
 
 Those are all available commands for Breeze and details about the commands are described below:
 
