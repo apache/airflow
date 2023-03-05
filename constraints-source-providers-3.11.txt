@@ -367,7 +367,7 @@ presto-python-client==0.8.3
 prison==0.2.1
 prometheus-client==0.16.0
 prompt-toolkit==3.0.38
-proto-plus==1.19.6
+proto-plus==1.22.2
 protobuf==4.22.0
 psutil==5.9.4
 psycopg2-binary==2.9.5
