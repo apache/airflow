@@ -89,14 +89,10 @@ class TestClient:
 
         assert api_client_retry_configuration == {}
 
-    @mock.patch("airflow.kubernetes.kube_client.conf")
+    @mock.patch("kubernetes.config.incluster_config.InClusterConfigLoader")
     @conf_vars({("kubernetes", "api_client_retry_configuration"): '{"total": 3, "backoff_factor": 0.5}'})
-    def test_api_client_retry_configuration_correct_values(self, conf):
-        get_kube_client(in_cluster=False)
-        conf.getboolean.assert_called_with("kubernetes", "api_client_retry_configuration")
-
-        api_client_retry_configuration = conf.getjson(
-            "kubernetes", "api_client_retry_configuration", fallback={}
-        )
-
-        assert api_client_retry_configuration == {"total": 3, "backoff_factor": 0.5}
+    def test_api_client_retry_configuration_correct_values(self, mock_in_cluster_loader):
+        get_kube_client(in_cluster=True)
+        client_configuration = mock_in_cluster_loader().load_and_set.call_args.args[0]
+        assert client_configuration.retries.total == 3
+        assert client_configuration.retries.backoff_factor == 0.5
