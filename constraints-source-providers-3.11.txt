@@ -376,7 +376,7 @@ pure-eval==0.2.2
 pure-sasl==0.6.2
 py4j==0.10.9.5
 pyOpenSSL==23.0.0
-pyarrow==11.0.0
+pyarrow==10.0.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycountry==22.3.5
