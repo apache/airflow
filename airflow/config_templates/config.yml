@@ -566,7 +566,15 @@ database:
       type: integer
       example: ~
       default: "3"
-
+    check_migrations:
+      description: |
+        Whether to run alembic migrations during Airflow start up. Sometimes this operation can be expensive,
+        and the users can assert the correct version through other means (e.g. through a Helm chart).
+        Accepts "True" or "False".
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "True"
 logging:
   description: ~
   options:
@@ -1004,17 +1012,18 @@ api:
       default: "airflow.api.auth.backend.session"
     maximum_page_limit:
       description: |
-        Used to set the maximum page limit for API requests
+        Used to set the maximum page limit for API requests. If limit passed as param
+        is greater than maximum page limit, it will be ignored and maximum page limit value
+        will be set as the limit
       version_added: 2.0.0
       type: integer
       example: ~
       default: "100"
     fallback_page_limit:
       description: |
-        Used to set the default page limit when limit is zero. A default limit
-        of 100 is set on OpenApi spec. However, this particular default limit
-        only work when limit is set equal to zero(0) from API requests.
-        If no limit is supplied, the OpenApi spec default is used.
+        Used to set the default page limit when limit param is zero or not provided in API
+        requests. Otherwise if positive integer is passed in the API requests as limit, the
+        smallest number of user given limit or maximum page limit is taken as limit.
       type: integer
       example: ~
       version_added: 2.0.0
@@ -1591,6 +1600,20 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    auth_rate_limited:
+      description: |
+        Boolean for enabling rate limiting on authentication endpoints.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
+    auth_rate_limit:
+      description: |
+          Rate limit for authentication endpoints.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "5 per 40 second"
 
 email:
   description: |
@@ -1951,7 +1974,8 @@ celery:
         Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
         and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
         applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
-        also applies to adopted tasks.
+        also applies to adopted tasks. To calculate adoption time, subtract the
+        :ref:`task duration<ui:task-duration>` from the task's :ref:`landing time<ui:landing-times>`.
       version_added: 2.0.0
       type: integer
       example: ~

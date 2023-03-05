@@ -22,6 +22,7 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 versions:
+  - 5.2.2
   - 5.2.1
   - 5.2.0
   - 5.1.1
@@ -88,6 +89,7 @@ operators:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
+      - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
 
 sensors:

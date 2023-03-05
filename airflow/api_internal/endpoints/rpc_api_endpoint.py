@@ -25,7 +25,7 @@ from typing import Any, Callable
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
-from airflow.models import Variable, XCom
+from airflow.models import Trigger, Variable, XCom
 from airflow.models.dagwarning import DagWarning
 from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -53,6 +53,13 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.set,
         Variable.update,
         Variable.delete,
+        Trigger.from_object,
+        Trigger.bulk_fetch,
+        Trigger.clean_unused,
+        Trigger.submit_event,
+        Trigger.submit_failure,
+        Trigger.ids_for_triggerer,
+        Trigger.assign_unassigned,
     ]
     return {f"{func.__module__}.{func.__qualname__}": func for func in functions}
 

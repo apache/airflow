@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Livy Operator with deferrable mode (#29047)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+   * ``Fix providers documentation formatting (#28754)``
+
 3.2.0
 .....
 

@@ -40,7 +40,8 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         :ref:`howto/operator:LocalFilesystemToGoogleDriveOperator`
 
     :param local_paths: Python list of local file paths
-    :param drive_folder: path of the Drive folder
+    :param drive_folder: path of the Drive folder, if folder_id param is given then drive_folder is a
+        sub path of folder_id.
     :param gcp_conn_id: Airflow Connection ID for GCP
     :param delete: should the local files be deleted after upload?
     :param ignore_if_missing: if True, then don't fail even if all files
@@ -64,6 +65,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account
     :param folder_id: The base/root folder id for each local path in the Drive folder
+    :param show_full_target_path: If true then it reveals full available file path in the logs.
     :return: Remote file ids after upload
     """
 
@@ -84,6 +86,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         folder_id: str = "root",
+        show_full_target_path: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,6 +100,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.folder_id = folder_id
+        self.show_full_target_path = show_full_target_path
 
     def execute(self, context: Context) -> list[str]:
         hook = GoogleDriveHook(
@@ -117,6 +121,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
                     chunk_size=self.chunk_size,
                     resumable=self.resumable,
                     folder_id=self.folder_id,
+                    show_full_target_path=self.show_full_target_path,
                 )
 
                 remote_file_ids.append(remote_file_id)

@@ -1,7 +1,7 @@
 ---
 name: Airflow Helm Chart Bug report
 description: Problems and issues with the Apache Airflow Official Helm Chart
-labels: ["kind:bug", "area:helm-chart"]
+labels: ["kind:bug", "area:helm-chart", "needs-triage"]
 body:
   - type: markdown
     attributes:

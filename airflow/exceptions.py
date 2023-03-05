@@ -29,6 +29,12 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
 
 
+class AirflowTermSignal(Exception):
+    """Raise when we receive a TERM signal"""
+
+    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+
+
 class AirflowException(Exception):
     """
     Base class for all Airflow's errors.
@@ -167,6 +173,10 @@ class AirflowDagInconsistent(AirflowException):
 
 class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in DAG definition."""
+
+
+class AirflowClusterPolicyError(AirflowException):
+    """Raise when there is an error except AirflowClusterPolicyViolation in Cluster Policy."""
 
 
 class AirflowTimetableInvalid(AirflowException):

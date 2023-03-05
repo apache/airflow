@@ -24,6 +24,11 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+* ``Support multiple mount points in Vault backend secret (#29734)``
+
 3.2.0
 .....
 

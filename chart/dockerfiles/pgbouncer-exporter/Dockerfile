@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ARG ALPINE_VERSION="3.12"
+ARG ALPINE_VERSION="3.17"
 ARG GO_VERSION
 
 FROM golang:${GO_VERSION} AS builder
@@ -33,7 +33,7 @@ FROM alpine:${ALPINE_VERSION} AS final
 # We want to make sure this one includes latest security fixes.
 # "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
 # hadolint ignore=DL3018
-RUN apk --no-cache add libressl libressl-dev
+RUN apk --no-cache add libressl libressl-dev openssl
 
 COPY --from=builder /usr/src/myapp/pgbouncer_exporter /bin
 
@@ -50,6 +50,8 @@ LABEL org.apache.airflow.component="pgbouncer-exporter" \
     maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 HEALTHCHECK CMD ["/bin/pgbouncer_exporter", "health"]
+
+USER nobody
 
 ENTRYPOINT ["/bin/pgbouncer_exporter"]
 CMD ["server"]

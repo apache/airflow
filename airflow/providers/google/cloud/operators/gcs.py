@@ -35,13 +35,13 @@ from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
 
 
-class GCSCreateBucketOperator(BaseOperator):
+class GCSCreateBucketOperator(GoogleCloudBaseOperator):
     """
     Creates a new bucket. Google Cloud Storage uses a flat namespace,
     so you can't create a bucket with a name that is already in use.
@@ -166,7 +166,7 @@ class GCSCreateBucketOperator(BaseOperator):
             self.log.warning("Bucket %s already exists", self.bucket_name)
 
 
-class GCSListObjectsOperator(BaseOperator):
+class GCSListObjectsOperator(GoogleCloudBaseOperator):
     """
     List all objects from the bucket with the given string prefix and delimiter in name.
 
@@ -264,7 +264,7 @@ class GCSListObjectsOperator(BaseOperator):
         return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
 
-class GCSDeleteObjectsOperator(BaseOperator):
+class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     """
     Deletes objects from a Google Cloud Storage bucket, either
     from an explicit list of object names or all objects
@@ -344,7 +344,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
 
 
-class GCSBucketCreateAclEntryOperator(BaseOperator):
+class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
     """
     Creates a new ACL entry on the specified bucket.
 
@@ -417,7 +417,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         )
 
 
-class GCSObjectCreateAclEntryOperator(BaseOperator):
+class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
     """
     Creates a new ACL entry on the specified object.
 
@@ -505,7 +505,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         )
 
 
-class GCSFileTransformOperator(BaseOperator):
+class GCSFileTransformOperator(GoogleCloudBaseOperator):
     """
     Copies data from a source GCS location to a temporary location on the
     local filesystem. Runs a transformation on this file as specified by
@@ -611,7 +611,7 @@ class GCSFileTransformOperator(BaseOperator):
             )
 
 
-class GCSTimeSpanFileTransformOperator(BaseOperator):
+class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     """
     Determines a list of objects that were added or modified at a GCS source
     location during a specific time-span, copies them to a temporary location
@@ -866,7 +866,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
             return files_uploaded
 
 
-class GCSDeleteBucketOperator(BaseOperator):
+class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
     """
     Deletes bucket from a Google Cloud Storage.
 
@@ -915,7 +915,7 @@ class GCSDeleteBucketOperator(BaseOperator):
         hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
 
 
-class GCSSynchronizeBucketsOperator(BaseOperator):
+class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
     """
     Synchronizes the contents of the buckets or bucket's directories in the Google Cloud Services.
 

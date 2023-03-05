@@ -165,15 +165,17 @@ spec:
               command:
                 - pgbouncer_exporter
                 - health
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: {{ .Values.pgbouncer.metricsExporterSidecar.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.livenessProbe.timeoutSeconds }}
           readinessProbe:
             exec:
               command:
                 - pgbouncer_exporter
                 - health
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.timeoutSeconds }}
       volumes:
         - name: pgbouncer-config
           secret:
