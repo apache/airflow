@@ -115,6 +115,8 @@ def get_kube_client(
 
     if isinstance(api_client_retry_configuration, dict) and api_client_retry_configuration != {}:
         new_client_config.retries = urllib3.util.Retry(**api_client_retry_configuration)
+    elif isinstance(api_client_retry_configuration, dict) and api_client_retry_configuration == {}:
+        pass
     else:
         raise ValueError("api_client_retry_configuration should be a dictionary")
 
