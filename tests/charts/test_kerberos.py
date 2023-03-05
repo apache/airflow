@@ -97,6 +97,28 @@ class TestKerberos:
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
+    def test_kerberos_keytab_exists_in_worker_when_enable(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "kerberos": {
+                    "enabled": True,
+                    "keytabBase64Content": "dGVzdGtleXRhYg==",
+                    "configPath": "/etc/krb5.conf",
+                    "ccacheMountPath": "/var/kerberos-ccache",
+                    "ccacheFileName": "ccache",
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {
+            "name": "kerberos-keytab",
+            "subPath": "kerberos.keytab",
+            "mountPath": "/etc/airflow.keytab",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
     def test_kerberos_keytab_secret_available(self):
         docs = render_chart(
             values={
