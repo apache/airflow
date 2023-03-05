@@ -428,6 +428,11 @@ class TestCncfProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
         "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
     }
+    BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
+
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"
+    }
 
 
 class TestSlackProviderProjectStructure(ExampleCoverageTest):

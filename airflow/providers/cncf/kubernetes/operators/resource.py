@@ -18,27 +18,27 @@
 
 from __future__ import annotations
 
-from typing import Sequence
-
-from kubernetes.client import CoreV1Api
+from kubernetes.client import ApiClient
+from kubernetes.utils import create_from_yaml
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_dict
 from airflow.utils import yaml
 
 
-class KubernetesResourceOperator(BaseOperator):
+class KubernetesResourceBaseOperator(BaseOperator):
     """Abstract base class for all Kubernetes Resource operators."""
 
-    template_fields: Sequence[str] = ("resource_name",)
-    template_fields_renderers = {}
+    template_fields = ("yaml_conf",)
+    template_fields_renderers = {"yaml_conf": "yaml"}
 
     def __init__(
         self,
         *,
+        yaml_conf: str,
         namespace: str | None = None,
-        resource_name: str | None = None,
         kubernetes_conn_id: str | None = "kubernetes_default",
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
@@ -47,15 +47,15 @@ class KubernetesResourceOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self._namespace = namespace
-        self.resource_name = resource_name
         self.kubernetes_conn_id = kubernetes_conn_id
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.config_file = config_file
+        self.yaml_conf = yaml_conf
 
     @cached_property
-    def client(self) -> CoreV1Api:
-        return self.hook.core_v1_client
+    def client(self) -> ApiClient:
+        return self.hook.api_client
 
     @cached_property
     def hook(self) -> KubernetesHook:
@@ -78,31 +78,25 @@ class KubernetesResourceOperator(BaseOperator):
                 return "default"
 
 
-class kubernetesPVCcreate(KubernetesResourceOperator):
-    """Create PVC resource in a kubernetes."""
-
-    template_fields: Sequence[str] = tuple(
-        {
-            "pvc_conf",
-        }
-        | set(KubernetesResourceOperator.template_fields)
-    )
-    pvc_conf: str
-
-    def __int__(self, *, pvc_conf: str, **kwargs):
-        super().__init__(**kwargs)
-        self.pvc_conf = pvc_conf
+class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
+    """Create a resource in a kubernetes."""
 
     def execute(self, context) -> None:
-        self.client.create_namespaced_persistent_volume_claim(
-            namespace=self.get_namespace(), body=yaml.safe_load(self.pvc_conf)
+        print(self.yaml_conf)
+        create_from_yaml(
+            k8s_client=self.client,
+            yaml_objects=[yaml.safe_load(self.yaml_conf)],
+            namespace=self.get_namespace(),
         )
 
 
-class kubernetesPVCdelete(KubernetesResourceOperator):
-    """Delete PVC resource in a kubernetes."""
+class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
+    """Delete a resource in a kubernetes."""
 
     def execute(self, context) -> None:
-        self.client.delete_namespaced_persistent_volume_claim(
-            name=self.resource_name, namespace=self.get_namespace()
+        print(self.yaml_conf)
+        delete_from_dict(
+            k8s_client=self.client,
+            yml_document=yaml.safe_load(self.yaml_conf),
+            namespace=self.get_namespace(),
         )
