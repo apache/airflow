@@ -540,8 +540,6 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Tests Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -834,13 +832,43 @@ jobs:
       - name: "Post Helm Tests"
         uses: ./.github/actions/post_tests
 
+  test-pytest-collection:
+    timeout-minutes: 5
+    name: "Test Pytest collection"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.image-build == 'true'
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        id: wait-for-images
+        run: breeze ci-image pull --wait-for-image --tag-as-latest
+        env:
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      - name: "Tests Pytest collection"
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py"
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
   tests-postgres:
     timeout-minutes: 130
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -884,7 +912,7 @@ jobs:
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -928,7 +956,7 @@ jobs:
     name: >
       MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -970,7 +998,7 @@ jobs:
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
@@ -1011,7 +1039,7 @@ jobs:
     timeout-minutes: 130
     name: Integration Tests Postgres
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
@@ -1071,7 +1099,7 @@ jobs:
     timeout-minutes: 130
     name: Integration Tests MySQL
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
@@ -1112,7 +1140,7 @@ jobs:
     name: "Quarantined tests"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     continue-on-error: true
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "Quarantined"
