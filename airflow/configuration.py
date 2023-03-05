@@ -1552,6 +1552,7 @@ def initialize_config() -> AirflowConfigParser:
         import shutil
 
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
+        os.makedirs(os.path.dirname(AIRFLOW_HOME + "/config"), exist_ok=True)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
 
