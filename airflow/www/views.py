@@ -89,7 +89,6 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
@@ -624,10 +623,8 @@ class AirflowBaseView(BaseView):
     }
 
     if not conf.getboolean("core", "unit_test_mode"):
-        executor, _ = ExecutorLoader.import_default_executor_cls()
         extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
-        if not executor.is_production:
-            extra_args["production_executor_warning"] = executor.__name__
+        extra_args["sequential_executor_warning"] = conf.get("core", "executor") == "SequentialExecutor"
 
     line_chart_attr = {
         "legend.maxKeyLength": 200,
