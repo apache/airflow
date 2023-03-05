@@ -236,10 +236,10 @@ command.
 **Docker errors that may come while running breeze**
 
 - If docker not runing in python virtual environment
-- **Solution** : ``sudo chmod 666 /var/run/docker.sock``  
+- **Solution** : ``sudo chmod 666 /var/run/docker.sock``
 |
 - If error response from dockerfile parse error
-- **Solution** : ``export DOCKER_BUILDKIT=1``  
+- **Solution** : ``export DOCKER_BUILDKIT=1``
 |
 |
 
