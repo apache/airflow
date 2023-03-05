@@ -1535,8 +1535,20 @@ def initialize_config() -> AirflowConfigParser:
     global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = AIRFLOW_HOME + "/webserver_config.py"
 
+    # Prioritise airflow webserver config that is present in the config location
+    webserver_config_in_config = AIRFLOW_HOME + "/config/webserver_config.py"
+    in_airflow_home = True
+
     if not os.path.isfile(WEBSERVER_CONFIG):
+        if os.path.isfile(webserver_config_in_config):
+            in_airflow_home = False
+            WEBSERVER_CONFIG = webserver_config_in_config
+
         import shutil
+
+        if in_airflow_home:
+            log.warning("webserver_config.py is still present in %s, this will be deprecated and moved to %s",
+                        AIRFLOW_HOME, AIRFLOW_CONFIG)
 
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)

@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import initialize_config
+from airflow.configuration import initialize_config, WEBSERVER_CONFIG, get_airflow_home
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
 from airflow.www.views import (
@@ -60,6 +60,20 @@ def test_configuration_expose_config(admin_client):
     with conf_vars({("webserver", "expose_config"): "True"}):
         resp = admin_client.get("configuration", follow_redirects=True)
     check_content_in_response(["Airflow Configuration"], resp)
+
+
+# @mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False",
+#                               "AIRFLOW__CORE__AIRFLOW_HOME": "/tmp/airflow_home"})
+# def test_configuration_webserver(admin_client):
+#     with open(get_airflow_home() + "/config/webserver_config_test.py", "w"):
+#         pass
+#
+#     conf = initialize_config()
+#     conf.validate()
+#     assert WEBSERVER_CONFIG == get_airflow_home() + "/config/webserver_config_test.py"
+#
+#     if os.path.exists(get_airflow_home() + "/config/webserver_config_test.py"):
+#         os.remove(get_airflow_home() + "/config/webserver_config_test.py")
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
@@ -255,12 +269,12 @@ def test_mark_task_instance_state(test_app):
     def get_task_instance(session, task):
         return (
             session.query(TaskInstance)
-            .filter(
+                .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.execution_date == start_date,
             )
-            .one()
+                .one()
         )
 
     with create_session() as session:
