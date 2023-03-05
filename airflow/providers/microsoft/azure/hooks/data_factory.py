@@ -1068,14 +1068,17 @@ def provide_targeted_factory_async(func: T) -> T:
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
                 conn = await sync_to_async(self.get_connection)(self.conn_id)
-                default_value = conn.extra_dejson.get(default_key)
+                extras = conn.extra_dejson
+                default_value = extras.get(default_key) or extras.get(
+                    f"extra__azure_data_factory__{default_key}"
+                )
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
 
-                bound_args.arguments[arg] = conn.extra_dejson[default_key]
+                bound_args.arguments[arg] = default_value
 
-        await bind_argument("resource_group_name", "extra__azure_data_factory__resource_group_name")
-        await bind_argument("factory_name", "extra__azure_data_factory__factory_name")
+        await bind_argument("resource_group_name", "resource_group_name")
+        await bind_argument("factory_name", "factory_name")
 
         return await func(*bound_args.args, **bound_args.kwargs)
 
@@ -1100,10 +1103,11 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
             return self._conn
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
-        tenant = conn.extra_dejson.get("extra__azure_data_factory__tenantId")
+        extras = conn.extra_dejson
+        tenant = get_field(extras, "tenantId")
 
         try:
-            subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
+            subscription_id = get_field(extras, "subscriptionId", strict=True)
         except KeyError:
             raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
 
@@ -1132,7 +1136,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         **config: Any,
     ) -> PipelineRun:
         """
-        Connects to Azure Data Factory asynchronously to get the pipeline run details by run id
+        Connect to Azure Data Factory asynchronously to get the pipeline run details by run id
 
         :param run_id: The pipeline run identifier.
         :param resource_group_name: The resource group name.
@@ -1149,7 +1153,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         self, run_id: str, resource_group_name: str | None = None, factory_name: str | None = None
     ) -> str:
         """
-        Connects to Azure Data Factory asynchronously and gets the pipeline status by run_id
+        Connect to Azure Data Factory asynchronously and get the pipeline status by run_id
 
         :param run_id: The pipeline run identifier.
         :param resource_group_name: The resource group name.

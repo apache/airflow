@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -100,18 +99,10 @@ class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunSt
     def __init__(
         self,
         *,
-        poll_interval: float = 5,
+        poke_interval: float = 60,
         **kwargs: Any,
     ):
-        # TODO: Remove once deprecated
-        if poll_interval:
-            self.poke_interval = poll_interval
-            warnings.warn(
-                "Argument `poll_interval` is deprecated and will be removed "
-                "in a future release.  Please use  `poke_interval` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        self.poke_interval = poke_interval
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:

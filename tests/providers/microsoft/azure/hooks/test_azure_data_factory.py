@@ -34,6 +34,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
+    get_field,
     provide_targeted_factory,
 )
 from airflow.utils import db
@@ -727,72 +728,59 @@ def test_backcompat_prefix_both_prefers_short(mock_connect):
 
 class TestAzureDataFactoryAsyncHook:
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "mock_status",
-        ["Queued"],
-    )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_queued(self, mock_get_pipeline_run, mock_conn, mock_status):
+    async def test_get_adf_pipeline_run_status_queued(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
+        mock_status = "Queued"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "mock_status",
-        ["InProgress"],
-    )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_inprogress(
-        self, mock_get_pipeline_run, mock_conn, mock_status
+        self,
+        mock_get_pipeline_run,
+        mock_conn,
     ):
         """Test get_adf_pipeline_run_status function with mocked status"""
+        mock_status = "InProgress"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "mock_status",
-        ["Succeeded"],
-    )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_success(self, mock_get_pipeline_run, mock_conn, mock_status):
+    async def test_get_adf_pipeline_run_status_success(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
+        mock_status = "Succeeded"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "mock_status",
-        ["Failed"],
-    )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_failed(self, mock_get_pipeline_run, mock_conn, mock_status):
+    async def test_get_adf_pipeline_run_status_failed(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
+        mock_status = "Failed"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "mock_status",
-        ["Cancelled"],
-    )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_cancelled(self, mock_get_pipeline_run, mock_conn, mock_status):
+    async def test_get_adf_pipeline_run_status_cancelled(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
+        mock_status = "Cancelled"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
@@ -934,3 +922,47 @@ class TestAzureDataFactoryAsyncHook:
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         with pytest.raises(ValueError):
             await hook.get_async_conn()
+
+    def test_get_field_prefixed_extras(self):
+        """Test get_field function for retrieving prefixed extra fields"""
+        mock_conn = Connection(
+            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+            conn_type="azure_data_factory",
+            extra=json.dumps(
+                {
+                    "extra__azure_data_factory__tenantId": "tenantId",
+                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
+                    "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
+                    "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
+                }
+            ),
+        )
+        extras = mock_conn.extra_dejson
+        assert get_field(extras, "tenantId", strict=True) == "tenantId"
+        assert get_field(extras, "subscriptionId", strict=True) == "subscriptionId"
+        assert get_field(extras, "resource_group_name", strict=True) == RESOURCE_GROUP_NAME
+        assert get_field(extras, "factory_name", strict=True) == DATAFACTORY_NAME
+        with pytest.raises(KeyError):
+            get_field(extras, "non-existent-field", strict=True)
+
+    def test_get_field_non_prefixed_extras(self):
+        """Test get_field function for retrieving non-prefixed extra fields"""
+        mock_conn = Connection(
+            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+            conn_type="azure_data_factory",
+            extra=json.dumps(
+                {
+                    "tenantId": "tenantId",
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
+                }
+            ),
+        )
+        extras = mock_conn.extra_dejson
+        assert get_field(extras, "tenantId", strict=True) == "tenantId"
+        assert get_field(extras, "subscriptionId", strict=True) == "subscriptionId"
+        assert get_field(extras, "resource_group_name", strict=True) == RESOURCE_GROUP_NAME
+        assert get_field(extras, "factory_name", strict=True) == DATAFACTORY_NAME
+        with pytest.raises(KeyError):
+            get_field(extras, "non-existent-field", strict=True)
