@@ -26,6 +26,7 @@
     TriggerResource
     datafactory
     DataFlow
+    DataFlowResources
     mgmt
 """
 from __future__ import annotations
@@ -33,7 +34,7 @@ from __future__ import annotations
 import inspect
 import time
 from functools import wraps
-from typing import Any, Callable, Union
+from typing import IO, Any, Callable, Union
 
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -41,6 +42,7 @@ from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import (
     CreateRunResponse,
     DataFlow,
+    DataFlowResource,
     DatasetResource,
     Factory,
     LinkedServiceResource,
@@ -51,7 +53,6 @@ from azure.mgmt.datafactory.models import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.typing_compat import TypedDict
 
 Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 
@@ -89,14 +90,6 @@ def provide_targeted_factory(func: Callable) -> Callable:
         return func(*bound_args.args, **bound_args.kwargs)
 
     return wrapper
-
-
-class PipelineRunInfo(TypedDict):
-    """Type class for the pipeline run info dictionary."""
-
-    run_id: str
-    factory_name: str | None
-    resource_group_name: str | None
 
 
 class AzureDataFactoryPipelineRunStatus:
@@ -205,7 +198,7 @@ class AzureDataFactoryHook(BaseHook):
         return self._conn
 
     @provide_targeted_factory
-    def get_factory(self, resource_group_name: str, factory_name: str, **config: Any) -> Factory:
+    def get_factory(self, resource_group_name: str, factory_name: str, **config: Any) -> Factory | None:
         """
         Get the factory.
 
@@ -303,7 +296,7 @@ class AzureDataFactoryHook(BaseHook):
         factory_name: str,
         if_none_match: str | None = None,
         **config: Any,
-    ) -> LinkedServiceResource:
+    ) -> LinkedServiceResource | None:
         """
         Get the linked service.
 
@@ -412,7 +405,7 @@ class AzureDataFactoryHook(BaseHook):
         resource_group_name: str,
         factory_name: str,
         **config: Any,
-    ) -> DatasetResource:
+    ) -> DatasetResource | None:
         """
         Get the dataset.
 
@@ -513,7 +506,7 @@ class AzureDataFactoryHook(BaseHook):
         factory_name: str,
         if_none_match: str | None = None,
         **config: Any,
-    ) -> DataFlow:
+    ) -> DataFlowResource:
         """
         Get the dataflow.
 
@@ -524,7 +517,7 @@ class AzureDataFactoryHook(BaseHook):
          ETag matches the existing entity tag, or if * was provided, then no content will be returned.
          Default value is None.
         :param config: Extra parameters for the ADF client.
-        :return: The dataflow.
+        :return: The DataFlowResource.
         """
         return self.get_conn().data_flows.get(
             resource_group_name, factory_name, dataflow_name, if_none_match, **config
@@ -548,11 +541,12 @@ class AzureDataFactoryHook(BaseHook):
     def update_dataflow(
         self,
         dataflow_name: str,
-        dataflow: DataFlow,
+        dataflow: DataFlowResource | IO,
         resource_group_name: str,
         factory_name: str,
+        if_match: str | None = None,
         **config: Any,
-    ) -> DataFlow:
+    ) -> DataFlowResource:
         """
         Update the dataflow.
 
@@ -560,9 +554,11 @@ class AzureDataFactoryHook(BaseHook):
         :param dataflow: The dataflow resource definition.
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
+        :param if_match: ETag of the data flow entity. Should only be specified for update, for which
+         it should match existing entity or can be * for unconditional update. Default value is None.
         :param config: Extra parameters for the ADF client.
         :raise AirflowException: If the dataset does not exist.
-        :return: The dataflow.
+        :return: DataFlowResource.
         """
         if not self._dataflow_exists(
             dataflow_name,
@@ -572,7 +568,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Dataflow {dataflow_name!r} does not exist.")
 
         return self.get_conn().data_flows.create_or_update(
-            resource_group_name, factory_name, dataflow_name, dataflow, **config
+            resource_group_name, factory_name, dataflow_name, dataflow, if_match, **config
         )
 
     @provide_targeted_factory
@@ -627,7 +623,7 @@ class AzureDataFactoryHook(BaseHook):
         resource_group_name: str,
         factory_name: str,
         **config: Any,
-    ) -> PipelineResource:
+    ) -> PipelineResource | None:
         """
         Get the pipeline.
 
@@ -763,8 +759,8 @@ class AzureDataFactoryHook(BaseHook):
     def get_pipeline_run_status(
         self,
         run_id: str,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
     ) -> str:
         """
         Get a pipeline run's current status.
@@ -805,12 +801,7 @@ class AzureDataFactoryHook(BaseHook):
             status.
         :return: Boolean indicating if the pipeline run has reached the ``expected_status``.
         """
-        pipeline_run_info = PipelineRunInfo(
-            run_id=run_id,
-            factory_name=factory_name,
-            resource_group_name=resource_group_name,
-        )
-        pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+        pipeline_run_status = self.get_pipeline_run_status(run_id, factory_name, resource_group_name)
 
         start_time = time.monotonic()
 
@@ -827,7 +818,7 @@ class AzureDataFactoryHook(BaseHook):
             # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
             time.sleep(check_interval)
 
-            pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+            pipeline_run_status = self.get_pipeline_run_status(run_id, factory_name, resource_group_name)
 
         return pipeline_run_status in expected_statuses
 
@@ -856,7 +847,7 @@ class AzureDataFactoryHook(BaseHook):
         resource_group_name: str,
         factory_name: str,
         **config: Any,
-    ) -> TriggerResource:
+    ) -> TriggerResource | None:
         """
         Get the trigger.
 
@@ -884,6 +875,7 @@ class AzureDataFactoryHook(BaseHook):
         trigger: TriggerResource,
         resource_group_name: str,
         factory_name: str,
+        if_match: str | None = None,
         **config: Any,
     ) -> TriggerResource:
         """
@@ -893,6 +885,8 @@ class AzureDataFactoryHook(BaseHook):
         :param trigger: The trigger resource definition.
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
+        :param if_match: ETag of the trigger entity.  Should only be specified for update, for which it
+         should match existing entity or can be * for unconditional update. Default value is None.
         :param config: Extra parameters for the ADF client.
         :raise AirflowException: If the trigger does not exist.
         :return: The trigger.
@@ -901,7 +895,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Trigger {trigger_name!r} does not exist.")
 
         return self.get_conn().triggers.create_or_update(
-            resource_group_name, factory_name, trigger_name, trigger, **config
+            resource_group_name, factory_name, trigger_name, trigger, if_match, **config
         )
 
     @provide_targeted_factory

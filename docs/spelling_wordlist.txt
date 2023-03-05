@@ -345,6 +345,7 @@ Datadog
 datadog
 Dataflow
 dataflow
+DataFlowResource
 Dataform
 DataFrame
 Dataframe
