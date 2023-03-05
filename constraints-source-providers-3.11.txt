@@ -340,7 +340,7 @@ orjson==3.8.7
 oscrypto==1.3.0
 oss2==2.16.0
 packaging==21.3
-pandas-gbq==0.17.9
+pandas-gbq==0.19.1
 pandas==1.5.3
 papermill==2.4.0
 paramiko==3.0.0
