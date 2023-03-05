@@ -183,7 +183,7 @@ geomet==0.2.1.post1
 gevent==22.10.2
 gitdb==4.0.10
 google-ads==18.0.0
-google-api-core==2.8.2
+google-api-core==2.10.2
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.8.0
