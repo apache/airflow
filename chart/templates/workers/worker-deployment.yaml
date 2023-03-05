@@ -217,7 +217,11 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- include "airflow_config_mount" . | nindent 12 }}
-            {{- if .Values.workers.kerberosSidecar.enabled }}
+            {{- if .Values.kerberos.enabled }}
+            - name: kerberos-keytab
+              subPath: "kerberos.keytab"
+              mountPath: {{ .Values.kerberos.keytabPath | quote }}
+              readOnly: true
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
               subPath: krb5.conf
