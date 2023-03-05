@@ -1600,6 +1600,20 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    auth_rate_limited:
+      description: |
+        Boolean for enabling rate limiting on authentication endpoints.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
+    auth_rate_limit:
+      description: |
+          Rate limit for authentication endpoints.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "5 per 40 second"
 
 email:
   description: |

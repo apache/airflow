@@ -27,7 +27,7 @@ import pytest
 import pytz
 from kubernetes.client import models as k8s
 
-from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState, KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.triggers.base import TriggerEvent
 
 if sys.version_info < (3, 8):
@@ -35,7 +35,7 @@ if sys.version_info < (3, 8):
 else:
     from unittest import mock
 
-TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod.KubernetesPodTrigger"
+TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 HOOK_PATH = "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook"
 POD_NAME = "test-pod-name"
 NAMESPACE = "default"

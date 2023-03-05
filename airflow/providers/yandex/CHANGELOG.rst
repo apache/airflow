@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``support Yandex SDK feature "endpoint" (#29635)``
+
 3.2.0
 .....
 

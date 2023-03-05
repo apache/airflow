@@ -26,7 +26,7 @@ import re
 from typing import Any
 from uuid import uuid4
 
-from flask import current_app, g, session, url_for
+from flask import Flask, current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
     AUTH_DB,
@@ -67,6 +67,8 @@ from flask_appbuilder.security.views import (
 )
 from flask_babel import lazy_gettext as _
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -252,6 +254,10 @@ class BaseSecurityManager:
             app.config.setdefault("AUTH_LDAP_LASTNAME_FIELD", "sn")
             app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
 
+        # Rate limiting
+        app.config.setdefault("AUTH_RATE_LIMITED", True)
+        app.config.setdefault("AUTH_RATE_LIMIT", "5 per 40 second")
+
         if self.auth_type == AUTH_OID:
             from flask_openid import OpenID
 
@@ -279,6 +285,14 @@ class BaseSecurityManager:
 
         # Setup Flask-Jwt-Extended
         self.jwt_manager = self.create_jwt_manager(app)
+
+        # Setup Flask-Limiter
+        self.limiter = self.create_limiter(app)
+
+    def create_limiter(self, app: Flask) -> Limiter:
+        limiter = Limiter(key_func=get_remote_address)
+        limiter.init_app(app)
+        return limiter
 
     def create_login_manager(self, app) -> LoginManager:
         """
@@ -515,6 +529,14 @@ class BaseSecurityManager:
         return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
 
     @property
+    def is_auth_limited(self) -> bool:
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
+
+    @property
+    def auth_rate_limit(self) -> str:
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
+
+    @property
     def current_user(self):
         """Current user object"""
         if current_user.is_authenticated:
@@ -749,6 +771,11 @@ class BaseSecurityManager:
                 # self.appbuilder.add_view_no_menu(self.registeruser_view)
 
         self.appbuilder.add_view_no_menu(self.auth_view)
+
+        # this needs to be done after the view is added, otherwise the blueprint
+        # is not initialized
+        if self.is_auth_limited:
+            self.limiter.limit(self.auth_rate_limit, methods=["POST"])(self.auth_view.blueprint)
 
         self.user_view = self.appbuilder.add_view(
             self.user_view,
@@ -1396,6 +1423,24 @@ class BaseSecurityManager:
             )
         else:
             return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
+
+    def add_limit_view(self, baseview):
+        if not baseview.limits:
+            return
+
+        for limit in baseview.limits:
+            self.limiter.limit(
+                limit_value=limit.limit_value,
+                key_func=limit.key_func,
+                per_method=limit.per_method,
+                methods=limit.methods,
+                error_message=limit.error_message,
+                exempt_when=limit.exempt_when,
+                override_defaults=limit.override_defaults,
+                deduct_when=limit.deduct_when,
+                on_breach=limit.on_breach,
+                cost=limit.cost,
+            )(baseview.blueprint)
 
     def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
         """
