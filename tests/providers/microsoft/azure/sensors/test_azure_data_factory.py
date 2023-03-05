@@ -111,12 +111,3 @@ class TestAzureDataFactoryPipelineRunStatusAsyncSensor:
 
         with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
-
-    def test_poll_interval_deprecation_warning(self):
-        """Test DeprecationWarning for AzureDataFactoryPipelineRunStatusAsyncSensor
-        by setting param poll_interval"""
-        # TODO: Remove once deprecated
-        with pytest.warns(expected_warning=DeprecationWarning):
-            AzureDataFactoryPipelineRunStatusAsyncSensor(
-                task_id="pipeline_run_sensor_async", run_id=self.RUN_ID, poll_interval=5.0
-            )
