@@ -120,7 +120,7 @@ mdit-py-plugins==0.3.5
 mdurl==0.1.2
 msgpack==1.0.4
 multidict==6.0.4
-numpy==1.24.2
+numpy==1.23.4
 oauthlib==3.2.2
 ordered-set==4.1.0
 packaging==23.0

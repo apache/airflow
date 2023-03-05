@@ -328,7 +328,7 @@ nbformat==5.7.3
 neo4j==5.6.0
 networkx==3.0
 nodeenv==1.7.0
-numpy==1.22.4
+numpy==1.23.4
 oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.3
