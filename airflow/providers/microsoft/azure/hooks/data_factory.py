@@ -237,6 +237,7 @@ class AzureDataFactoryHook(BaseHook):
         factory: Factory,
         resource_group_name: str,
         factory_name: str,
+        if_match: str | None = None,
         **config: Any,
     ) -> Factory:
         """
@@ -245,6 +246,8 @@ class AzureDataFactoryHook(BaseHook):
         :param factory: The factory resource definition.
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
+        :param if_match: ETag of the factory entity. Should only be specified for update, for which it
+         should match existing entity or can be * for unconditional update. Default value is None.
         :param config: Extra parameters for the ADF client.
         :raise AirflowException: If the factory does not exist.
         :return: The factory.
@@ -253,7 +256,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Factory {factory!r} does not exist.")
 
         return self.get_conn().factories.create_or_update(
-            resource_group_name, factory_name, factory, **config
+            resource_group_name, factory_name, factory, if_match, **config
         )
 
     @provide_targeted_factory
@@ -298,6 +301,7 @@ class AzureDataFactoryHook(BaseHook):
         linked_service_name: str,
         resource_group_name: str,
         factory_name: str,
+        if_none_match: str | None = None,
         **config: Any,
     ) -> LinkedServiceResource:
         """
@@ -306,11 +310,14 @@ class AzureDataFactoryHook(BaseHook):
         :param linked_service_name: The linked service name.
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
+        :param if_none_match: ETag of the linked service entity. Should only be specified for get. If
+         the ETag matches the existing entity tag, or if * was provided, then no content will be
+         returned. Default value is None.
         :param config: Extra parameters for the ADF client.
         :return: The linked service.
         """
         return self.get_conn().linked_services.get(
-            resource_group_name, factory_name, linked_service_name, **config
+            resource_group_name, factory_name, linked_service_name, if_none_match, **config
         )
 
     def _linked_service_exists(self, resource_group_name, factory_name, linked_service_name) -> bool:
@@ -504,6 +511,7 @@ class AzureDataFactoryHook(BaseHook):
         dataflow_name: str,
         resource_group_name: str,
         factory_name: str,
+        if_none_match: str | None = None,
         **config: Any,
     ) -> DataFlow:
         """
@@ -512,10 +520,15 @@ class AzureDataFactoryHook(BaseHook):
         :param dataflow_name: The dataflow name.
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
+        :param if_none_match: ETag of the data flow entity. Should only be specified for get. If the
+         ETag matches the existing entity tag, or if * was provided, then no content will be returned.
+         Default value is None.
         :param config: Extra parameters for the ADF client.
         :return: The dataflow.
         """
-        return self.get_conn().data_flows.get(resource_group_name, factory_name, dataflow_name, **config)
+        return self.get_conn().data_flows.get(
+            resource_group_name, factory_name, dataflow_name, if_none_match, **config
+        )
 
     def _dataflow_exists(
         self,
