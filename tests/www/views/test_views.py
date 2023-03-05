@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import os
 import re
+import unittest
 from typing import Callable
 from unittest import mock
 
 import pytest
 
-from airflow.configuration import initialize_config, WEBSERVER_CONFIG, get_airflow_home
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, get_airflow_home, initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
 from airflow.www.views import (
@@ -62,18 +63,21 @@ def test_configuration_expose_config(admin_client):
     check_content_in_response(["Airflow Configuration"], resp)
 
 
-# @mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False",
-#                               "AIRFLOW__CORE__AIRFLOW_HOME": "/tmp/airflow_home"})
-# def test_configuration_webserver(admin_client):
-#     with open(get_airflow_home() + "/config/webserver_config_test.py", "w"):
-#         pass
-#
-#     conf = initialize_config()
-#     conf.validate()
-#     assert WEBSERVER_CONFIG == get_airflow_home() + "/config/webserver_config_test.py"
-#
-#     if os.path.exists(get_airflow_home() + "/config/webserver_config_test.py"):
-#         os.remove(get_airflow_home() + "/config/webserver_config_test.py")
+@unittest.skipIf(
+    os.path.isfile(AIRFLOW_HOME + "/webserver_config.py"),
+    "skip test if default webserver_config.py file is present",
+)
+@mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"})
+def test_configuration_webserver():
+    config_file_path = get_airflow_home() + "/config/webserver_config.py"
+    with open(config_file_path, "w"):
+        pass
+
+    initialize_config()
+    assert WEBSERVER_CONFIG == config_file_path
+
+    if os.path.exists(config_file_path):
+        os.remove(config_file_path)
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
@@ -269,12 +273,12 @@ def test_mark_task_instance_state(test_app):
     def get_task_instance(session, task):
         return (
             session.query(TaskInstance)
-                .filter(
+            .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.execution_date == start_date,
             )
-                .one()
+            .one()
         )
 
     with create_session() as session:
