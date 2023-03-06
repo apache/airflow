@@ -161,7 +161,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain", "location")
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
