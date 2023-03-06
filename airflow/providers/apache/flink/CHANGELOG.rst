@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make cncf.kubernetes required for flink provider (#29710)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add more precise optional dependency to cncf.kubernetes from flink (#29707)``
+
 1.0.0
 .....
 

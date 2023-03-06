@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
 
@@ -51,7 +51,7 @@ API_VERSION = "v1"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestDataplexCreateTaskOperator(TestCase):
+class TestDataplexCreateTaskOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(TASK_STR)
     def test_execute(self, task_mock, hook_mock):
@@ -90,7 +90,7 @@ class TestDataplexCreateTaskOperator(TestCase):
         )
 
 
-class TestDataplexDeleteTaskOperator(TestCase):
+class TestDataplexDeleteTaskOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
         op = DataplexDeleteTaskOperator(
@@ -122,7 +122,7 @@ class TestDataplexDeleteTaskOperator(TestCase):
         )
 
 
-class TestDataplexListTasksOperator(TestCase):
+class TestDataplexListTasksOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
         op = DataplexListTasksOperator(
@@ -156,7 +156,7 @@ class TestDataplexListTasksOperator(TestCase):
         )
 
 
-class TestDataplexGetTaskOperator(TestCase):
+class TestDataplexGetTaskOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(TASK_STR)
     def test_execute(self, task_mock, hook_mock):
@@ -191,7 +191,7 @@ class TestDataplexGetTaskOperator(TestCase):
         )
 
 
-class TestDataplexDeleteLakeOperator(TestCase):
+class TestDataplexDeleteLakeOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
         op = DataplexDeleteLakeOperator(
@@ -221,7 +221,7 @@ class TestDataplexDeleteLakeOperator(TestCase):
         )
 
 
-class TestDataplexCreateLakeOperator(TestCase):
+class TestDataplexCreateLakeOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(LAKE_STR)
     def test_execute(self, lake_mock, hook_mock):

@@ -19,47 +19,47 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
-import { render } from '@testing-library/react';
+import React from "react";
+import { render } from "@testing-library/react";
 
-import { TableWrapper } from 'src/utils/testUtils';
-import type { Task } from 'src/types';
+import { TableWrapper } from "src/utils/testUtils";
+import type { Task } from "src/types";
 
-import renderTaskRows from './renderTaskRows';
+import renderTaskRows from "./renderTaskRows";
 
-describe('Test renderTaskRows', () => {
-  test('Renders name and task instance', () => {
+describe("Test renderTaskRows", () => {
+  test("Renders name and task instance", () => {
     const task: Task = {
       id: null,
       label: null,
       children: [
         {
           extraLinks: [],
-          id: 'group_1',
-          label: 'group_1',
+          id: "group_1",
+          label: "group_1",
           instances: [
             {
-              endDate: '2021-10-26T15:42:03.391939+00:00',
-              runId: 'run1',
-              startDate: '2021-10-26T15:42:03.391917+00:00',
-              state: 'success',
-              taskId: 'group_1',
-              note: '',
+              endDate: "2021-10-26T15:42:03.391939+00:00",
+              runId: "run1",
+              startDate: "2021-10-26T15:42:03.391917+00:00",
+              state: "success",
+              taskId: "group_1",
+              note: "",
             },
           ],
           children: [
             {
-              id: 'group_1.task_1',
-              label: 'group_1.task_1',
+              id: "group_1.task_1",
+              label: "group_1.task_1",
               extraLinks: [],
               instances: [
                 {
-                  endDate: '2021-10-26T15:42:03.391939+00:00',
-                  runId: 'run1',
-                  startDate: '2021-10-26T15:42:03.391917+00:00',
-                  state: 'success',
-                  taskId: 'group_1.task_1',
-                  note: '',
+                  endDate: "2021-10-26T15:42:03.391939+00:00",
+                  runId: "run1",
+                  startDate: "2021-10-26T15:42:03.391917+00:00",
+                  state: "success",
+                  taskId: "group_1.task_1",
+                  note: "",
                 },
               ],
             },
@@ -70,24 +70,24 @@ describe('Test renderTaskRows', () => {
     };
 
     const { queryByTestId, getByText } = render(
-      <>{renderTaskRows({ task, dagRunIds: ['run1'] })}</>,
-      { wrapper: TableWrapper },
+      <>{renderTaskRows({ task, dagRunIds: ["run1"] })}</>,
+      { wrapper: TableWrapper }
     );
 
-    expect(getByText('group_1')).toBeInTheDocument();
-    expect(queryByTestId('task-instance')).toBeDefined();
-    expect(queryByTestId('blank-task')).toBeNull();
+    expect(getByText("group_1")).toBeInTheDocument();
+    expect(queryByTestId("task-instance")).toBeDefined();
+    expect(queryByTestId("blank-task")).toBeNull();
   });
 
-  test('Still renders names if there are no instances', () => {
+  test("Still renders names if there are no instances", () => {
     const task = {
       id: null,
       label: null,
       children: [
         {
           extraLinks: [],
-          id: 'group_1',
-          label: 'group_1',
+          id: "group_1",
+          label: "group_1",
           instances: [],
         },
       ],
@@ -96,27 +96,27 @@ describe('Test renderTaskRows', () => {
 
     const { queryByTestId, getByText } = render(
       <>{renderTaskRows({ task, dagRunIds: [] })}</>,
-      { wrapper: TableWrapper },
+      { wrapper: TableWrapper }
     );
 
-    expect(getByText('group_1')).toBeInTheDocument();
-    expect(queryByTestId('task-instance')).toBeNull();
+    expect(getByText("group_1")).toBeInTheDocument();
+    expect(queryByTestId("task-instance")).toBeNull();
   });
 
-  test('Still renders correctly if task instance is null', () => {
+  test("Still renders correctly if task instance is null", () => {
     const task: Task = {
       id: null,
       label: null,
       children: [
         {
           extraLinks: [],
-          id: 'group_1',
-          label: 'group_1',
+          id: "group_1",
+          label: "group_1",
           instances: [],
           children: [
             {
-              id: 'group_1.task_1',
-              label: 'group_1.task_1',
+              id: "group_1.task_1",
+              label: "group_1.task_1",
               extraLinks: [],
               instances: [],
             },
@@ -127,12 +127,12 @@ describe('Test renderTaskRows', () => {
     };
 
     const { queryByTestId, getByText } = render(
-      <>{renderTaskRows({ task, dagRunIds: ['run1'] })}</>,
-      { wrapper: TableWrapper },
+      <>{renderTaskRows({ task, dagRunIds: ["run1"] })}</>,
+      { wrapper: TableWrapper }
     );
 
-    expect(getByText('group_1')).toBeInTheDocument();
-    expect(queryByTestId('task-instance')).toBeNull();
-    expect(queryByTestId('blank-task')).toBeInTheDocument();
+    expect(getByText("group_1")).toBeInTheDocument();
+    expect(queryByTestId("task-instance")).toBeNull();
+    expect(queryByTestId("blank-task")).toBeInTheDocument();
   });
 });

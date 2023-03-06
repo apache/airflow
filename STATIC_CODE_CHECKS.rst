@@ -305,7 +305,7 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| ts-compile-and-lint-javascript                            | TS types generation and ESLint against current UI files          |         |
+| ts-compile-format-lint-www                                | TS types generation and ESLint/Prettier against current UI files |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere                                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
