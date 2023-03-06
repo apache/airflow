@@ -615,7 +615,7 @@ class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        location: str,
+        location: str = "global",
         project_id: str | None = None,
         page_size: int | None = None,
         page_token: str | None = None,

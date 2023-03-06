@@ -386,7 +386,7 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_build_triggers(
         self,
-        location: str,
+        location: str = "global",
         project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         page_token: str | None = None,
@@ -409,7 +409,7 @@ class CloudBuildHook(GoogleBaseHook):
         :param metadata: Optional, additional metadata that is provided to the method.
 
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         parent = f"projects/{project_id}/locations/{location}"
 
