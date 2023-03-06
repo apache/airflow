@@ -1,1 +1,1 @@
-ExternalTaskSensor now has an explict `skipped_states` list
+ExternalTaskSensor now has an explicit ``skipped_states`` list

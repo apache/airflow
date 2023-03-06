@@ -149,7 +149,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if len(total_states) != len(self.allowed_states + self.skipped_states + self.failed_states):
             raise AirflowException(
-                f"Duplicate values provided across allowed_states, skipped_states and failed_states."
+                "Duplicate values provided across allowed_states, skipped_states and failed_states."
             )
 
         # convert [] to None
@@ -179,14 +179,14 @@ class ExternalTaskSensor(BaseSensorOperator):
         if external_task_ids or external_task_group_id:
             if not total_states <= set(State.task_states):
                 raise ValueError(
-                    f"Valid values for `allowed_states`, `skipped_states` and `failed_states` "
-                    f"when `external_task_id` or `external_task_ids` or `external_task_group_id` "
+                    "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
+                    "when `external_task_id` or `external_task_ids` or `external_task_group_id` "
                     f"is not `None`: {State.task_states}"
                 )
 
         elif not total_states <= set(State.dag_states):
             raise ValueError(
-                f"Valid values for `allowed_states`, `skipped_states` and `failed_states` "
+                "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
                 f"when `external_task_id` and `external_task_group_id` is `None`: {State.dag_states}"
             )
 
@@ -304,7 +304,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             else:
                 raise AirflowSkipException(
                     f"The external DAG {self.external_dag_id} reached a state in our states-to-skip-on list. "
-                    f"Skipping."
+                    "Skipping."
                 )
 
         # only go green if every single task has reached an allowed state
