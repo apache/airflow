@@ -75,10 +75,10 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
+    :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id", "location")
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -91,6 +91,7 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        location: str = "global",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -101,6 +102,7 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.location = location
 
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -110,6 +112,7 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+            location=self.location,
         )
 
         self.xcom_push(context, key="id", value=result.id)
@@ -454,10 +457,10 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
+    :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id", "location")
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -470,6 +473,7 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        location: str = "global",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -480,6 +484,7 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.location = location
 
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -489,6 +494,7 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+            location=self.location,
         )
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -688,7 +694,7 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        location: str,
+        location: str = "global",
         project_id: str | None = None,
         page_size: int | None = None,
         filter_: str | None = None,
@@ -754,10 +760,10 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
+    :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "id_", "gcp_conn_id", "location")
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -771,6 +777,7 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        location: str = "global",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -782,6 +789,7 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.location = location
 
     def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -792,6 +800,7 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+            location=self.location,
         )
 
         self.xcom_push(context, key="id", value=result.id)

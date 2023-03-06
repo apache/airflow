@@ -118,6 +118,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global"
     ) -> Build:
         """
         Cancels a build in progress.
@@ -130,9 +131,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start cancelling build: %s.", id_)
 
@@ -315,6 +316,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> Build:
         """
         Returns information about a previously requested build.
@@ -327,9 +329,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start retrieving build: %s.", id_)
 
@@ -432,7 +434,7 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_builds(
         self,
-        location: str,
+        location: str = "global",
         project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         page_token: int | None = None,
@@ -457,7 +459,7 @@ class CloudBuildHook(GoogleBaseHook):
         :param metadata: Optional, additional metadata that is provided to the method.
 
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         parent = f"projects/{project_id}/locations/{location}"
 
@@ -489,6 +491,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> Build:
         """
         Creates a new build based on the specified build. This method creates a new build
@@ -503,9 +506,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start retrying build: %s.", id_)
 
