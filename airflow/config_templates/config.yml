@@ -2129,6 +2129,18 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    stale_dag_threshold:
+      description: |
+        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
+        DAGs (DAGs which are no longer present in the expected files). The reason why we need
+        this threshold is to account for the time between when the file is parsed and when the
+        DAG is loaded. The absolute maximum that this could take is `dag_file_processor_timeout`,
+        but when you have a long timeout configured, it results in a significant delay in the
+        deactivation of stale dags.
+      version_added: 2.6.0
+      type: integer
+      example: ~
+      default: "50"
     dag_dir_list_interval:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
