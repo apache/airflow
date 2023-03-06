@@ -89,11 +89,11 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2021.04.28-1.14.0
+    tag: airflow-pgbouncer-2023.02.24-1.16.1
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2021.09.22-0.12.0
+    tag: airflow-pgbouncer-exporter-2023.02.21-0.14.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
