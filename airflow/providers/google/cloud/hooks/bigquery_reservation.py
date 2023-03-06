@@ -37,8 +37,6 @@ class BigQueryReservationServiceHook(GoogleBaseHook):
         credentials.
     """
 
-    conn_name_attr = "gcp_conn_id"
-    default_conn_name = "google_cloud_bigquery_reservation_default"
     hook_name = "Google Bigquery Reservation"
 
     def __init__(
