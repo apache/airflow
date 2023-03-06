@@ -565,6 +565,7 @@ class TestDagFileProcessorManager:
         {
             ("core", "load_examples"): "False",
             ("scheduler", "standalone_dag_processor"): "True",
+            ("scheduler", "stale_dag_threshold"): "50",
         }
     )
     def test_scan_stale_dags_standalone_mode(self):
