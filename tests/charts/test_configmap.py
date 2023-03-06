@@ -88,12 +88,12 @@ class TestConfigmap:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "kerberos": {"enabled": True, "config": "krb5content"},
+                "kerberos": {"enabled": True, "config": "krb5\ncontent"},
             },
             show_only=["templates/configmaps/configmap.yaml"],
         )
 
-        assert jmespath.search('data."krb5.conf"', docs[0]) == "\nkrb5content\n"
+        assert jmespath.search('data."krb5.conf"', docs[0]) == "krb5\ncontent"
 
     def test_pod_template_is_templated(self):
         docs = render_chart(
