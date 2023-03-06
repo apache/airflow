@@ -67,7 +67,7 @@ class CloudBuildHook(GoogleBaseHook):
         super().__init__(
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
         )
-        self._client: CloudBuildClient | None = None
+        self._client: dict[str, CloudBuildClient] = {}
 
     def _get_build_id_from_operation(self, operation: Operation) -> str:
         """
@@ -91,15 +91,24 @@ class CloudBuildHook(GoogleBaseHook):
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
 
-    def get_conn(self) -> CloudBuildClient:
+    def get_conn(self, location: str = "global") -> CloudBuildClient:
         """
         Retrieves the connection to Google Cloud Build.
 
+        :param location: The location of the project.
+
         :return: Google Cloud Build client object.
         """
-        if not self._client:
-            self._client = CloudBuildClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
-        return self._client
+        if location not in self._client:
+            client_options = None if location == "global" else {
+                "api_endpoint": f"{location}-cloudbuild.googleapis.com"
+            }
+            self._client[location] = CloudBuildClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=client_options,
+            )
+        return self._client[location]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_build(
@@ -145,7 +154,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        location: str | None = None,
+        location: str = "global",
     ) -> tuple[Operation, str]:
         """
         Starts a build with the specified configuration without waiting for it to finish.
@@ -159,12 +168,11 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-        :param location: Optional, The location of the project.
-            If set to None or missing, global is used.
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
-        parent = f"projects/{project_id}/locations/{location}" if location is not None else None
+        parent = f"projects/{project_id}/locations/{location}"
 
         self.log.info("Start creating build...")
 

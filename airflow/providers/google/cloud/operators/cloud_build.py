@@ -158,8 +158,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
     :param deferrable: Run operator in the deferrable mode
-    :param location: Optional, The location of the project.
-        If set to None or missing, global is used.
+    :param location: The location of the project.
     """
 
     template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
@@ -179,7 +178,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         delegate_to: str | None = None,
         poll_interval: float = 4.0,
         deferrable: bool = False,
-        location: str | None = None,
+        location: str = "global",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -126,7 +126,7 @@ class TestCloudBuildOperator:
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, delegate_to=None)
         build = Build(BUILD)
         mock_hook.return_value.create_build_without_waiting_for_result.assert_called_once_with(
-            build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location=None
+            build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
         )
         mock_hook.return_value.wait_for_operation.assert_called_once_with(timeout=None, operation=BUILD)
 
@@ -414,7 +414,7 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
     mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, delegate_to=None)
     build = Build(BUILD)
     mock_hook.return_value.create_build_without_waiting_for_result.assert_called_once_with(
-        build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location=None
+        build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
     )
     mock_hook.return_value.get_build.assert_called_once_with(id_=BUILD_ID, project_id=None)
 
