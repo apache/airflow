@@ -243,6 +243,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                     impersonation_chain=self.impersonation_chain,
                     delegate_to=self.delegate_to,
                     poll_interval=self.poll_interval,
+                    location=self.location,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )

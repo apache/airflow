@@ -629,12 +629,16 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> Build:
         """Retrieves a Cloud Build with a specified id."""
         if not id_:
             raise AirflowException("Google Cloud Build id is required.")
 
-        client = CloudBuildAsyncClient()
+        client_options = None if location == "global" else {
+            "api_endpoint": f"{location}-cloudbuild.googleapis.com"
+        }
+        client = CloudBuildAsyncClient(client_options=client_options)
 
         request = GetBuildRequest(
             project_id=project_id,
