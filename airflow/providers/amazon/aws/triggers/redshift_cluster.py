@@ -21,7 +21,7 @@ from typing import Any, AsyncIterator
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
+from typing import Any
 
 class RedshiftClusterTrigger(BaseTrigger):
     """AWS Redshift trigger"""
