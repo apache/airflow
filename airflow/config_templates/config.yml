@@ -882,6 +882,16 @@ metrics:
       type: string
       example: ~
       default: ""
+    statsd_block_list:
+      description: |
+        If you want to avoid sending all the available metrics to StatsD,
+        you can configure a block list of prefixes (comma separated) to filter out metrics that
+        start with the elements of the list (e.g: "scheduler,executor,dagrun").
+        If statsd_allow_list and statsd_block_list are both configured, statsd_block_list is ignored
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
     stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
@@ -923,6 +933,15 @@ metrics:
       type: string
       example: ~
       default: ~
+    statsd_disabled_tags:
+      description: |
+        If you want to avoid sending all the available metrics tags to StatsD,
+        you can configure a block list of prefixes (comma separated) to filter out metric tags
+        that start with the elements of the list (e.g: "job_id,run_id")
+      version_added: 2.6.0
+      type: string
+      example: job_id,run_id,dag_id,task_id
+      default: job_id,run_id
     statsd_influxdb_enabled:
       description: |
         To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
