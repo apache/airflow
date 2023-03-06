@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger, RedshiftCreateClusterTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -140,6 +140,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         max_attempt: int = 5,
         poll_interval: int = 60,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -180,6 +181,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.max_attempt = max_attempt
         self.poll_interval = poll_interval
+        self.deferrable = deferrable
         self.kwargs = kwargs
 
     def execute(self, context: Context):
@@ -252,6 +254,16 @@ class RedshiftCreateClusterOperator(BaseOperator):
             self.master_user_password,
             params,
         )
+        if self.deferrable:
+            self.defer(
+                trigger=RedshiftCreateClusterTrigger(
+                    cluster_identifier=self.cluster_identifier,
+                    poll_interval=self.poll_interval,
+                    max_attempt=self.max_attempt,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
         if self.wait_for_completion:
             redshift_hook.get_conn().get_waiter("cluster_available").wait(
                 ClusterIdentifier=self.cluster_identifier,
@@ -263,6 +275,11 @@ class RedshiftCreateClusterOperator(BaseOperator):
 
         self.log.info("Created Redshift cluster %s", self.cluster_identifier)
         self.log.info(cluster)
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error creating cluster: {event}")
+        return
 
 
 class RedshiftCreateClusterSnapshotOperator(BaseOperator):
