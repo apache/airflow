@@ -29,12 +29,11 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- if or (.Values.labels) (.Values.webserver.labels) }}
-{{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
-{{- end }}
+    {{- if or (.Values.labels) (.Values.webserver.labels) }}
+      {{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
   {{- with .Values.ingress.web.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
+  annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   {{- if and .Values.ingress.web.hosts (.Values.ingress.web.hosts | first | kindIs "string" | not) }}
