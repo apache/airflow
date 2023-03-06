@@ -42,6 +42,7 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
+from aiobotocore.session import AioSession, get_session as async_get_session
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
@@ -653,6 +654,14 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     @property
     def async_conn(self):
         """Get an aiobotocore client to use for async operations."""
+        if not self.client_type:
+            raise ValueError("client_type must be specified.")
+
+        return self.get_client_type(region_name=self.region_name, deferrable=True)
+
+    @cached_property
+    def async_conn(self):
+        """Get an Aiobotocore client to use for async operations (cached)."""
         if not self.client_type:
             raise ValueError("client_type must be specified.")
 
