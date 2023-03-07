@@ -317,6 +317,7 @@ firstPRMergeComment: >
 # Comment to be posted to on first time issues
 firstIssueWelcomeComment: >
   Thanks for opening your first issue here! Be sure to follow the issue template!
+  If you are willing to raise PR to address this issue please do so, no need to wait for approval.
 
 checkUpToDate:
   targetBranch: main
