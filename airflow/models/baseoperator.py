@@ -148,7 +148,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
 def get_merged_defaults(
     dag: DAG | None,
     task_group: TaskGroup | None,
-    task_params: dict | None,
+    task_params: collections.abc.MutableMapping | None,
     task_default_args: dict | None,
 ) -> tuple[dict, ParamsDict]:
     args, params = _get_parent_defaults(dag, task_group)
@@ -193,7 +193,7 @@ def partial(
     end_date: datetime | None = None,
     owner: str = DEFAULT_OWNER,
     email: None | str | Iterable[str] = None,
-    params: dict | None = None,
+    params: collections.abc.MutableMapping | None = None,
     resources: dict[str, Any] | None = None,
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
@@ -697,7 +697,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
-        params: dict | None = None,
+        params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str = DEFAULT_WEIGHT_RULE,
