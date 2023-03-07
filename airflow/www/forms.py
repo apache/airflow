@@ -226,9 +226,6 @@ def create_connection_form_class() -> type[DynamicForm]:
         port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
         extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
 
-        def iter_extra_field_names(self) -> Iterator[tuple[str, str]]:
-            return ((k, v.field_name) for k, v in providers_manager.connection_form_widgets.items())
-
     for key, value in providers_manager.connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
 

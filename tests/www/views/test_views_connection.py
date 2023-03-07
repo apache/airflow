@@ -64,10 +64,10 @@ def test_action_logging_connection_masked_secrets(session, admin_client):
 
 def test_prefill_form_null_extra():
     mock_form = mock.Mock()
-    mock_form.iter_extra_field_names.return_value = ()
     mock_form.data = {"conn_id": "test", "extra": None, "conn_type": "test"}
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(return_value=())
     cmv.prefill_form(form=mock_form, pk=1)
 
 
@@ -91,10 +91,10 @@ def test_prefill_form_backcompat(extras, expected):
     Either way, the field is known internally to the model view as the prefixed value.
     """
     mock_form = mock.Mock()
-    mock_form.iter_extra_field_names.return_value = [("extra__test__my_param", "my_param")]
     mock_form.data = {"conn_id": "test", "extra": json.dumps(extras), "conn_type": "test"}
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__my_param", "my_param")])
     cmv.prefill_form(form=mock_form, pk=1)
     assert mock_form.extra__test__my_param.data == expected
 
@@ -113,7 +113,6 @@ def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
 
     # Testing parameters set in both `Extra` and custom fields.
     mock_form = mock.Mock()
-    mock_form.iter_extra_field_names.return_value = [("extra__test__custom_field", field_name)]
     mock_form.data = {
         "conn_type": "test",
         "conn_id": "extras_test",
@@ -123,6 +122,7 @@ def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
     }
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__custom_field", field_name)])
     cmv.process_form(form=mock_form, is_created=True)
     assert json.loads(mock_form.extra.data) == {
         field_name: "custom_field_val",
@@ -141,7 +141,6 @@ def test_process_form_extras_extra_only(mock_pm_hooks, mock_import_str):
     """
     # Testing parameters set in `Extra` field only.
     mock_form = mock.Mock()
-    mock_form.iter_extra_field_names.return_value = ()
     mock_form.data = {
         "conn_type": "test2",
         "conn_id": "extras_test2",
@@ -149,6 +148,7 @@ def test_process_form_extras_extra_only(mock_pm_hooks, mock_import_str):
     }
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(return_value=())
     cmv.process_form(form=mock_form, is_created=True)
     assert json.loads(mock_form.extra.data) == {"param2": "param2_val"}
 
@@ -166,10 +166,6 @@ def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_n
 
     # Testing parameters set in custom fields only.
     mock_form = mock.Mock()
-    mock_form.iter_extra_field_names.return_value = [
-        ("extra__test3__custom_field", field_name),
-        ("extra__test3__custom_bool_field", False),
-    ]
     mock_form.data = {
         "conn_type": "test3",
         "conn_id": "extras_test3",
@@ -178,6 +174,12 @@ def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_n
     }
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(
+        return_value=[
+            ("extra__test3__custom_field", field_name),
+            ("extra__test3__custom_bool_field", False),
+        ],
+    )
     cmv.process_form(form=mock_form, is_created=True)
     assert json.loads(mock_form.extra.data) == {field_name: False}
 
@@ -195,7 +197,6 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
 
     # Testing parameters set in both extra and custom fields (connection updates).
     mock_form = mock.Mock()
-    mock_form.iter_extra_field_names.return_value = [("extra__test4__custom_field", field_name)]
     mock_form.data = {
         "conn_type": "test4",
         "conn_id": "extras_test4",
@@ -204,6 +205,7 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
     }
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test4__custom_field", field_name)])
     cmv.process_form(form=mock_form, is_created=True)
 
     if field_name == "custom_field":

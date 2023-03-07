@@ -48,6 +48,7 @@ from flask import (
     before_render_template,
     flash,
     g,
+    has_request_context,
     make_response,
     redirect,
     render_template,
@@ -4348,9 +4349,10 @@ class ConnectionModelView(AirflowModelView):
         "is_extra_encrypted",
     ]
 
-    # These columns are monkey-patched at runtime so we can delay calculating
-    # entries relying on providers to make webserver start up faster.
-    add_columns = edit_columns = [
+    # The real add_columns and edit_columns are dynamically generated at runtime
+    # so we can delay calculating entries relying on providers to make webserver
+    # start up faster.
+    _add_columns = _edit_columns = [
         "conn_id",
         "conn_type",
         "description",
@@ -4374,25 +4376,42 @@ class ConnectionModelView(AirflowModelView):
 
     base_order = ("conn_id", "asc")
 
-    def _get_add_widget(self, form, exclude_cols=None, widgets=None):
-        """Inject code to dynamically calculate ``add_columns``.
+    def _iter_extra_field_names(self) -> Iterator[tuple[str, str]]:
+        """Iterate through provider-backed connection fields.
 
-        This is the last possible moment when ``add_columns`` is needed to
-        render the add form view.
+        Note that this cannot be a property (including a cached property)
+        because Flask-Appbuilder attempts to access all members on startup, and
+        using a property would initialize the providers manager too eagerly.
         """
-        if self.add_columns is type(self).add_columns:  # Not patched yet.
-            self.add_columns = [*self.add_columns, *(k for k, _ in form.iter_extra_field_names())]
-        return super()._get_add_widget(form, exclude_cols, widgets)
+        return ((k, v.field_name) for k, v in ProvidersManager().connection_form_widgets.items())
 
-    def _get_edit_widget(self, form, exclude_cols=None, widgets=None):
-        """Inject code to dynamically calculate ``edit_columns``.
+    @property
+    def add_columns(self) -> list[str]:
+        """A list of columns to show in the Add form.
 
-        This is the last possible moment when ``edit_columns`` is needed to
-        render the edit form view.
+        This dynamically calculates additional fields from providers and add
+        them to the backing list. This calculation is done exactly once (by
+        checking we're referencing the class-level variable instead of the
+        instance-level), and only after we enter the request context (to skip
+        superfuluous checks done by Flask-Appbuilder on startup).
         """
-        if self.edit_columns is type(self).edit_columns:  # Not patched yet.
-            self.edit_columns = [*self.edit_columns, *(k for k, _ in form.iter_extra_field_names())]
-        return super()._get_edit_widget(form, exclude_cols, widgets)
+        if self._add_columns is type(self)._add_columns and has_request_context():
+            self._add_columns = [*self._add_columns, *(k for k, _ in self._iter_extra_field_names())]
+        return self._add_columns
+
+    @property
+    def edit_columns(self) -> list[str]:
+        """A list of columns to show in the Edit form.
+
+        This dynamically calculates additional fields from providers and add
+        them to the backing list. This calculation is done exactly once (by
+        checking we're referencing the class-level variable instead of the
+        instance-level), and only after we enter the request context (to skip
+        superfuluous checks done by Flask-Appbuilder on startup).
+        """
+        if self._edit_columns is type(self)._edit_columns and has_request_context():
+            self._edit_columns = [*self._edit_columns, *(k for k, _ in self._iter_extra_field_names())]
+        return self._edit_columns
 
     @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
     @auth.has_access(
@@ -4507,7 +4526,7 @@ class ConnectionModelView(AirflowModelView):
                 del form.extra
         del extra_json
 
-        for key, field_name in form.iter_extra_field_names():
+        for key, field_name in self._iter_extra_field_names():
             if key in form.data and key.startswith("extra__"):
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
@@ -4535,7 +4554,7 @@ class ConnectionModelView(AirflowModelView):
             logging.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
             return
 
-        for field_key, field_name in form.iter_extra_field_names():
+        for field_key, field_name in self._iter_extra_field_names():
             value = extra_dictionary.get(field_name, "")
 
             if not value:
