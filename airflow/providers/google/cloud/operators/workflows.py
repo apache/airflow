@@ -31,19 +31,19 @@ from google.cloud.workflows.executions_v1beta import Execution
 from google.cloud.workflows_v1beta import Workflow
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
 from airflow.providers.google.cloud.links.workflows import (
     WorkflowsExecutionLink,
     WorkflowsListOfWorkflowsLink,
     WorkflowsWorkflowDetailsLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class WorkflowsCreateWorkflowOperator(BaseOperator):
+class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
     """
     Creates a new workflow. If a workflow with the specified name
     already exists in the specified project and location, the long
@@ -152,7 +152,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         return Workflow.to_dict(workflow)
 
 
-class WorkflowsUpdateWorkflowOperator(BaseOperator):
+class WorkflowsUpdateWorkflowOperator(GoogleCloudBaseOperator):
     """
     Updates an existing workflow.
     Running this method has no impact on already running
@@ -239,7 +239,7 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         return Workflow.to_dict(workflow)
 
 
-class WorkflowsDeleteWorkflowOperator(BaseOperator):
+class WorkflowsDeleteWorkflowOperator(GoogleCloudBaseOperator):
     """
     Deletes a workflow with the specified name.
     This method also cancels and deletes all running
@@ -299,7 +299,7 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         operation.result()
 
 
-class WorkflowsListWorkflowsOperator(BaseOperator):
+class WorkflowsListWorkflowsOperator(GoogleCloudBaseOperator):
     """
     Lists Workflows in a given project and location.
     The default order is not specified.
@@ -373,7 +373,7 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         return [Workflow.to_dict(w) for w in workflows_iter]
 
 
-class WorkflowsGetWorkflowOperator(BaseOperator):
+class WorkflowsGetWorkflowOperator(GoogleCloudBaseOperator):
     """
     Gets details of a single Workflow.
 
@@ -441,7 +441,7 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         return Workflow.to_dict(workflow)
 
 
-class WorkflowsCreateExecutionOperator(BaseOperator):
+class WorkflowsCreateExecutionOperator(GoogleCloudBaseOperator):
     """
     Creates a new execution using the latest revision of
     the given workflow.
@@ -518,7 +518,7 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         return Execution.to_dict(execution)
 
 
-class WorkflowsCancelExecutionOperator(BaseOperator):
+class WorkflowsCancelExecutionOperator(GoogleCloudBaseOperator):
     """
     Cancels an execution using the given ``workflow_id`` and ``execution_id``.
 
@@ -591,7 +591,7 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
         return Execution.to_dict(execution)
 
 
-class WorkflowsListExecutionsOperator(BaseOperator):
+class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
     """
     Returns a list of executions which belong to the
     workflow with the given name. The method returns
@@ -667,7 +667,7 @@ class WorkflowsListExecutionsOperator(BaseOperator):
         return [Execution.to_dict(e) for e in execution_iter if e.start_time > self.start_date_filter]
 
 
-class WorkflowsGetExecutionOperator(BaseOperator):
+class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):
     """
     Returns an execution for the given ``workflow_id`` and ``execution_id``.
 

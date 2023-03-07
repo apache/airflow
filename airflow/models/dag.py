@@ -308,8 +308,7 @@ class DAG(LoggingMixin):
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
     :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created. The timeout
-        is only enforced for scheduled DagRuns.
+        timing out / failing, so that new DagRuns can be created.
     :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
@@ -1502,25 +1501,28 @@ class DAG(LoggingMixin):
     ) -> list[TaskInstance]:
         """Get ``num`` task instances before (including) ``base_date``.
 
-        The returned list may contain exactly ``num`` task instances. It can
-        have less if there are less than ``num`` scheduled DAG runs before
-        ``base_date``, or more if there are manual task runs between the
-        requested period, which does not count toward ``num``.
+        The returned list may contain exactly ``num`` task instances
+        corresponding to any DagRunType. It can have less if there are
+        less than ``num`` scheduled DAG runs before ``base_date``.
         """
-        min_date: datetime | None = (
+        execution_dates: list[Any] = (
             session.query(DagRun.execution_date)
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date <= base_date,
-                DagRun.run_type != DagRunType.MANUAL,
             )
             .order_by(DagRun.execution_date.desc())
-            .offset(num)
-            .limit(1)
-            .scalar()
+            .limit(num)
+            .all()
         )
-        if min_date is None:
-            min_date = timezone.utc_epoch()
+
+        if len(execution_dates) == 0:
+            return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
+
+        min_date: datetime | None = execution_dates[-1]._mapping.get(
+            "execution_date"
+        )  # getting the last value from the list
+
         return self.get_task_instances(start_date=min_date, end_date=base_date, session=session)
 
     @provide_session
@@ -1535,6 +1537,7 @@ class DAG(LoggingMixin):
             start_date = (timezone.utcnow() - timedelta(30)).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
+
         query = self._get_task_instances(
             task_ids=None,
             start_date=start_date,
@@ -3244,7 +3247,11 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=NEW_SESSION):
-        return session.query(DagModel).options(joinedload(DagModel.parent_dag)).get(dag_id)
+        return session.get(
+            DagModel,
+            dag_id,
+            options=[joinedload(DagModel.parent_dag)],
+        )
 
     @classmethod
     @provide_session
@@ -3326,6 +3333,7 @@ class DagModel(Base):
         session.commit()
 
     @classmethod
+    @internal_api_call
     @provide_session
     def deactivate_deleted_dags(cls, alive_dag_filelocs: list[str], session=NEW_SESSION):
         """
@@ -3543,8 +3551,8 @@ def dag(
                 owner_links=owner_links,
                 auto_register=auto_register,
             ) as dag_obj:
-                # Set DAG documentation from function documentation.
-                if f.__doc__:
+                # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                if f.__doc__ and not dag_obj.doc_md:
                     dag_obj.doc_md = f.__doc__
 
                 # Generate DAGParam for each function arg/kwarg and replace it for calling the function.

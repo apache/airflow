@@ -28,7 +28,9 @@ from airflow.models.pool import Pool
 class Client(api_client.Client):
     """Local API client implementation."""
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
+    def trigger_dag(
+        self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True
+    ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
@@ -36,7 +38,22 @@ class Client(api_client.Client):
             execution_date=execution_date,
             replace_microseconds=replace_microseconds,
         )
-        return f"Created {dag_run}"
+        if dag_run:
+            return {
+                "conf": dag_run.conf,
+                "dag_id": dag_run.dag_id,
+                "dag_run_id": dag_run.run_id,
+                "data_interval_end": dag_run.data_interval_start,
+                "data_interval_start": dag_run.data_interval_end,
+                "end_date": dag_run.end_date,
+                "external_trigger": dag_run.external_trigger,
+                "last_scheduling_decision": dag_run.last_scheduling_decision,
+                "logical_date": dag_run.logical_date,
+                "run_type": dag_run.run_type,
+                "start_date": dag_run.start_date,
+                "state": dag_run.state,
+            }
+        return dag_run
 
     def delete_dag(self, dag_id):
         count = delete_dag.delete_dag(dag_id)

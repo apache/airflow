@@ -333,6 +333,14 @@ cd airflow-site
 export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```
 
+Note if this is not the first time you clone the repo make sure main branch is rebased:
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+git checkout main
+git rebase --pull
+```
+
 - Then you can go to the directory and build the necessary documentation packages
 
 ```shell script
@@ -561,12 +569,22 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
+script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
+may help with verifying installation of the packages.
 
 ```shell script
 # Copy the list of packages (pypi urls) into `packages.txt` then run:
 python check_files.py providers -p {PATH_TO_SVN}
+```
+
+After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
+package and verify the correct versions are installed:
+
+```shell script
+docker build -f Dockerfile.pmc --tag local/airflow .
+docker run --rm --entrypoint "airflow" local/airflow info
+docker image rm local/airflow
 ```
 
 ### Licences check
@@ -901,7 +919,7 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-Copy links to updated packages.
+Copy links to updated packages, sort it aphabeticly and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -937,11 +955,7 @@ the artifacts have been published.
 
 Subject:
 
-```shell script
-cat <<EOF
-Airflow Providers prepared on $(date "+%B %d, %Y") are ready
-EOF
-```
+[ANNOUNCE] Apache Airflow Providers prepared on <DATE OF CUT RC> are released
 
 Body:
 
@@ -984,5 +998,5 @@ Don't forget to thank the folks who tested and close the issue tracking the test
 ```shell script
 Thank you everyone.
 Providers are released
-I invite everyone to help improve providers for the next release, a list of open bugs can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Akind%3Abug+label%3Aarea%3Aproviders).
+I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
 ```

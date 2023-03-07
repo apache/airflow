@@ -20,17 +20,20 @@ from __future__ import annotations
 import copy
 import re
 import shlex
+import sys
+from asyncio import Future
 from typing import Any
-from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
+from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.beam.hooks.beam import BeamCommandRunner, BeamHook
+from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
+    AsyncDataflowHook,
     DataflowHook,
     DataflowJobStatus,
     DataflowJobType,
@@ -38,6 +41,12 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     _fallback_to_project_id_from_variables,
     process_line_and_extract_dataflow_job_id_callback,
 )
+
+if sys.version_info < (3, 8):
+    from asynctest import mock
+else:
+    from unittest import mock
+
 
 DEFAULT_RUNNER = "DirectRunner"
 BEAM_STRING = "airflow.providers.apache.beam.hooks.beam.{}"
@@ -52,6 +61,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
+TEST_ENVIRONMENT = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -1839,9 +1849,12 @@ class TestDataflow:
             nonlocal found_job_id
             found_job_id = job_id
 
-        BeamCommandRunner(
-            cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback)
-        ).wait_for_done()
+        mock_log = MagicMock()
+        run_beam_command(
+            cmd=cmd,
+            process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback),
+            log=mock_log,
+        )
         assert found_job_id == TEST_JOB_ID
 
     def test_data_flow_missing_job_id(self):
@@ -1852,15 +1865,18 @@ class TestDataflow:
             nonlocal found_job_id
             found_job_id = job_id
 
-        BeamCommandRunner(
-            cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback)
-        ).wait_for_done()
+        log = MagicMock()
+        run_beam_command(
+            cmd=cmd,
+            process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback),
+            log=log,
+        )
         assert found_job_id is None
 
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamCommandRunner.log")
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
-    def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, mock_logging):
+    def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen):
+        mock_logging = MagicMock()
         mock_logging.info = MagicMock()
         mock_logging.warning = MagicMock()
         mock_proc = MagicMock()
@@ -1878,7 +1894,49 @@ class TestDataflow:
         mock_proc_poll.side_effect = [None, poll_resp_error]
         mock_proc.poll = mock_proc_poll
         mock_popen.return_value = mock_proc
-        dataflow = BeamCommandRunner(["test", "cmd"])
-        mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
         with pytest.raises(Exception):
-            dataflow.wait_for_done()
+            run_beam_command(cmd=["test", "cmd"], log=mock_logging)
+            mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
+
+
+@pytest.fixture()
+def make_mock_awaitable():
+    def func(mock_obj, return_value):
+        f = Future()
+        f.set_result(return_value)
+        mock_obj.return_value = f
+
+    return func
+
+
+class TestAsyncHook:
+    @pytest.fixture
+    def hook(self):
+        return AsyncDataflowHook(
+            gcp_conn_id=TEST_PROJECT_ID,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.initialize_client")
+    async def test_get_job(self, initialize_client_mock, hook, make_mock_awaitable):
+        client = initialize_client_mock.return_value
+        make_mock_awaitable(client.get_job, None)
+
+        await hook.get_job(
+            project_id=TEST_PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            location=TEST_LOCATION,
+        )
+        request = GetJobRequest(
+            dict(
+                project_id=TEST_PROJECT_ID,
+                job_id=TEST_JOB_ID,
+                location=TEST_LOCATION,
+                view=JobView.JOB_VIEW_SUMMARY,
+            )
+        )
+
+        initialize_client_mock.assert_called_once()
+        client.get_job.assert_called_once_with(
+            request=request,
+        )

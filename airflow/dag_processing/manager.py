@@ -141,8 +141,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def start(self) -> None:
         """Launch DagFileProcessorManager processor and start DAG parsing loop in manager."""
-        mp_start_method = self._get_multiprocessing_start_method()
-        context = multiprocessing.get_context(mp_start_method)
+        context = self._get_multiprocessing_context()
         self._last_parsing_stat_received_at = time.monotonic()
 
         self._parent_signal_conn, child_signal_conn = context.Pipe()
@@ -433,6 +432,8 @@ class DagFileProcessorManager(LoggingMixin):
         self.last_deactivate_stale_dags_time = timezone.make_aware(datetime.fromtimestamp(0))
         # How often to check for DAGs which are no longer in files
         self.parsing_cleanup_interval = conf.getint("scheduler", "parsing_cleanup_interval")
+        # How long to wait for a DAG to be reparsed after its file has been parsed before disabling
+        self.stale_dag_threshold = conf.getint("scheduler", "stale_dag_threshold")
         # How long to wait before timing out a process to parse a DAG file
         self._processor_timeout = processor_timeout
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
@@ -496,7 +497,7 @@ class DagFileProcessorManager(LoggingMixin):
             DagFileProcessorManager.deactivate_stale_dags(
                 last_parsed=last_parsed,
                 dag_directory=self.get_dag_directory(),
-                processor_timeout=self._processor_timeout,
+                stale_dag_threshold=self.stale_dag_threshold,
             )
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 
@@ -507,7 +508,7 @@ class DagFileProcessorManager(LoggingMixin):
         cls,
         last_parsed: dict[str, datetime | None],
         dag_directory: str,
-        processor_timeout: timedelta,
+        stale_dag_threshold: int,
         session: Session = NEW_SESSION,
     ):
         """
@@ -525,11 +526,12 @@ class DagFileProcessorManager(LoggingMixin):
 
         for dag in dags_parsed:
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
-            # last_parsed_time is _processor_timeout. Longer than that indicates that the DAG is
-            # no longer present in the file.
+            # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
+            # no longer present in the file. We have a stale_dag_threshold configured to prevent a
+            # significant delay in deactivation of stale dags when a large timeout is configured
             if (
                 dag.fileloc in last_parsed
-                and (dag.last_parsed_time + processor_timeout) < last_parsed[dag.fileloc]
+                and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold)) < last_parsed[dag.fileloc]
             ):
                 cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
@@ -1008,6 +1010,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, ".")
         Stats.timing(f"dag_processing.last_duration.{file_name}", last_duration)
+        Stats.timing("dag_processing.last_duration", last_duration, tags={"file_name": file_name})
 
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors."""

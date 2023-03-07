@@ -72,6 +72,21 @@ Here is an example configuration with more than 200GB disk space for Docker:
   Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
   `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
 
+**Docker errors that may come while running breeze**
+
+- If docker not running in python virtual environment
+- **Solution**
+- 1. Create the docker group if it does not exist
+- ``sudo groupadd docker``
+- 2. Add your user to the docker group.
+- ``sudo usermod -aG docker $USER``
+- 3. Log in to the new docker group
+- ``newgrp docker``
+- 4. Check if docker can be run without root
+- ``docker run hello-world``
+|
+|
+
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__
 
@@ -569,6 +584,62 @@ Those are all available flags of ``shell`` command:
   :width: 100%
   :alt: Breeze shell
 
+Running Breeze with Metrics
+---------------------------
+
+Running Breeze with a StatsD Metrics Stack
+..........................................
+
+You can launch an instance of Breeze pre-configured to emit StatsD metrics using
+``breeze start-airflow --integration statsd``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running StatsD, Prometheus, and
+Grafana.  The integration configures the "Targets" in Prometheus, the "Datasources" in
+Grafana, and includes a default dashboard in Grafana.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 29102 -> forwarded to StatsD Exporter -> breeze-statsd-exporter:9102
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports/databases using:
+
+* StatsD Metrics: http://127.0.0.1:29102/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
+Running Breeze with an OpenTelemetry Metrics Stack
+..................................................
+
+----
+
+[Work in Progress]
+NOTE:  This will launch the stack as described below but Airflow integration is
+still a Work in Progress.  This should be considered experimental and likely to
+change by the time Airflow fully supports emitting metrics via OpenTelemetry.
+
+----
+
+You can launch an instance of Breeze pre-configured to emit OTel metrics using
+``breeze start-airflow --integration otel``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running OpenTelemetry-Collector,
+Prometheus, and Grafana.  The integration configures the "Targets" in Prometheus,
+the "Datasources" in Grafana, and includes a default dashboard in Grafana.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 28888 -> forwarded to OpenTelemetry Collector -> breeze-otel_collector:8888
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports/databases using:
+
+* OpenTelemetry Collector: http://127.0.0.1:28888/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
 
 Stopping the environment
 ------------------------
@@ -613,6 +684,24 @@ In case the problems are not solved, you can set the VERBOSE_COMMANDS variable t
 Then run the failed command, copy-and-paste the output from your terminal to the
 `Airflow Slack <https://s.apache.org/airflow-slack>`_  #airflow-breeze channel and
 describe your problem.
+
+
+.. warning::
+
+    Some operating systems (Fedora, ArchLinux, RHEL, Rocky) have recently introduced Kernel changes that result in
+    Airflow in Breeze consuming 100% memory when run inside the community Docker implementation maintained
+    by the OS teams.
+
+    This is an issue with backwards-incompatible containerd configuration that some of Airflow dependencies
+    have problems with and is tracked in a few issues:
+
+    * `Moby issue <https://github.com/moby/moby/issues/43361>`_
+    * `Containerd issue <https://github.com/containerd/containerd/pull/7566>`_
+
+    There is no solution yet from the containerd team, but seems that installing
+    `Docker Desktop on Linux <https://docs.docker.com/desktop/install/linux-install/>`_ solves the problem as
+    stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
+    run Breeze with no problems.
 
 Advanced commands
 =================
@@ -1760,7 +1849,8 @@ By default Breeze starts only airflow container without any integration enabled.
 that is selected). You can start the additional integrations by passing ``--integration`` flag
 with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags
 to start more than one integration at a time.
-Finally you can specify ``--integration all`` to start all integrations.
+Finally you can specify ``--integration all-testable`` to start all testable integrations and
+``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
 ``breeze stop`` command. or restarted via ``breeze restart`` command

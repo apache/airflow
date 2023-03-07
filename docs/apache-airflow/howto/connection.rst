@@ -26,10 +26,12 @@ Airflow's :class:`~airflow.models.connection.Connection` object is used for stor
 
 Connections may be defined in the following ways:
 
-  - in :ref:`environment variables <environment_variables_secrets_backend>`
+  - in :ref:`environment variables <environment_variables_connections>`
   - in an external :doc:`/administration-and-deployment/security/secrets/secrets-backend/index`
   - in the :ref:`Airflow metadata database <connections-in-database>`
     (using the :ref:`CLI <connection/cli>` or :ref:`web UI <creating_connection_ui>`)
+
+.. _environment_variables_connections:
 
 Storing connections in environment variables
 --------------------------------------------
@@ -92,7 +94,7 @@ Storing connections in the database
 -----------------------------------
 .. seealso::
 
-    Connections can alternatively be stored in :ref:`environment variables <environment_variables_secrets_backend>` or an :doc:`external secrets backend </administration-and-deployment/security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
+    Connections can alternatively be stored in :ref:`environment variables <environment_variables_connections>` or an :doc:`external secrets backend </administration-and-deployment/security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
 
 When storing connections in the database, you may manage them using either the web UI or the Airflow CLI.
 
@@ -179,7 +181,6 @@ Exporting connections to file
 
 You can export to file connections stored in the database (e.g. for migrating connections from one environment to another).  See :ref:`Exporting Connections <cli-export-connections>` for usage.
 
-.. _environment_variables_secrets_backend:
 
 Security of connections in the database
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -214,7 +215,7 @@ for description on how to add custom providers.
 
 The custom connection types are defined via Hooks delivered by the providers. The Hooks can implement
 methods defined in the protocol class :class:`~airflow.hooks.base_hook.DiscoverableHook`. Note that your
-custom Hook should not derive from this class, this class is a dummy example to document expectations
+custom Hook should not derive from this class, this class is an example to document expectations
 regarding about class fields and methods that your Hook might define. Another good example is
 :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`.
 
@@ -290,8 +291,8 @@ and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of t
 .. note:: Deprecated ``hook-class-names``
 
    Prior to Airflow 2.2.0, the connections in providers have been exposed via ``hook-class-names`` array
-   in provider's meta-data, this however has proven to be not well optimized for using individual hooks
-   in workers and the ``hook-class-names`` array is now replaced by ``connection-types`` array. Until
+   in provider's meta-data. However, this has proven to be inefficient when using individual hooks
+   in workers, and the ``hook-class-names`` array is now replaced by the ``connection-types`` array. Until
    provider supports Airflow below 2.2.0, both ``connection-types`` and ``hook-class-names`` should be
    present. Automated checks during CI build will verify consistency of those two arrays.
 

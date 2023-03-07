@@ -19,21 +19,24 @@
 
 /* global describe, test, expect, jest, window */
 
-import React from 'react';
-import '@testing-library/jest-dom';
-import { render, fireEvent } from '@testing-library/react';
+import React from "react";
+import "@testing-library/jest-dom";
+import { render, fireEvent } from "@testing-library/react";
 
-import { ClipboardButton } from './Clipboard';
+import { ClipboardButton } from "./Clipboard";
 
-describe('ClipboardButton', () => {
-  test('Loads button', async () => {
+describe("ClipboardButton", () => {
+  test("Loads button", async () => {
     const windowPrompt = window.prompt;
     window.prompt = jest.fn();
     const { getByText } = render(<ClipboardButton value="lorem ipsum" />);
 
     const button = getByText(/copy/i);
     fireEvent.click(button);
-    expect(window.prompt).toHaveBeenCalledWith('Copy to clipboard: Ctrl+C, Enter', 'lorem ipsum');
+    expect(window.prompt).toHaveBeenCalledWith(
+      "Copy to clipboard: Ctrl+C, Enter",
+      "lorem ipsum"
+    );
     window.prompt = windowPrompt;
   });
 });

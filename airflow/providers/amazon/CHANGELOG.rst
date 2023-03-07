@@ -24,6 +24,92 @@
 Changelog
 ---------
 
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add num rows affected to Redshift Data API hook (#29797)``
+* ``Add 'wait_for_completion' param in 'RedshiftCreateClusterOperator' (#29657)``
+* ``Add Amazon Redshift-data to S3<>RS Transfer Operators (#27947)``
+* ``Allow to specify which connection, variable or config are being looked up in the backend using *_lookup_pattern parameters (#29580)``
+* ``Implement file credentials provider for AWS hook AssumeRoleWithWebIdentity (#29623)``
+* ``Implement custom boto waiters for some EMR operators (#29822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix code checking job names in sagemaker (#29245)``
+* ``Avoid emitting fallback message for S3TaskHandler if streaming logs (#29708)``
+* ``Use waiters in ECS Operators instead of inner sensors (#29761)``
+
+Misc
+~~~~
+
+* ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
+* ``Standardize AWS lambda naming (#29749)``
+* ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
+* ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Amazon ECS Enums (#29871)``
+
+7.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Explicitly handle exceptions raised by config parsing in AWS provider (#29587)``
+
+Misc
+~~~~
+
+* ``Fix docstring for EcsRunTaskOperator region_name -> region (#29562)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+
+7.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add option to wait for completion on the EmrCreateJobFlowOperator (#28827)``
+* ``Add transfer operator S3 to (generic) SQL (#29085)``
+* ``add retries to stop_pipeline on conflict (#29077)``
+* ``Add log for AWS Glue Job Console URL (#28925)``
+* ``Enable individual trigger logging (#27758)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: 'num_of_dpus' typehints- GlueJobHook/Operator (#29176)``
+* ``Fix typo in DataSyncHook boto3 methods for create location in NFS and EFS (#28948)``
+* ``Decrypt SecureString value obtained by SsmHook (#29142)``
+
+Misc
+~~~~
+
+* ``log the observed status in redshift sensor (#29274)``
+* ``Use thin/passthrough hook instead of one-liner hook method (#29252)``
+* ``Move imports in AWS SqlToS3Operator transfer to callable function (#29045)``
+* ``introduce base class for EKS sensors (#29053)``
+* ``introduce a method to convert dictionaries to boto-style key-value lists (#28816)``
+* ``Update provide_bucket_name() decorator to handle new conn_type (#28706)``
+* ``uniformize getting hook through cached property in aws sensors (#29001)``
+* ``Use boto3 intersphinx inventory in documentation/docstrings. (#28945)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``shorten other wait times in sys tests (#29254)``
+   * ``Fix false-positive spellcheck failure (#29190)``
+
 7.1.0
 .....
 

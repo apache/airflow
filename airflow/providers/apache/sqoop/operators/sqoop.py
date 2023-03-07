@@ -82,6 +82,7 @@ class SqoopOperator(BaseOperator):
     :param extra_export_options: Extra export options to pass as dict.
         If a key doesn't have a value, just pass an empty string to it.
         Don't include prefix of -- for sqoop options.
+    :param libjars: Optional Comma separated jar files to include in the classpath.
     """
 
     template_fields: Sequence[str] = (
@@ -150,6 +151,7 @@ class SqoopOperator(BaseOperator):
         extra_import_options: dict[str, Any] | None = None,
         extra_export_options: dict[str, Any] | None = None,
         schema: str | None = None,
+        libjars: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -187,6 +189,7 @@ class SqoopOperator(BaseOperator):
         self.extra_export_options = extra_export_options or {}
         self.hook: SqoopHook | None = None
         self.schema = schema
+        self.libjars = libjars
 
     def execute(self, context: Context) -> None:
         """Execute sqoop job"""
@@ -265,4 +268,5 @@ class SqoopOperator(BaseOperator):
             hcatalog_database=self.hcatalog_database,
             hcatalog_table=self.hcatalog_table,
             properties=self.properties,
+            libjars=self.libjars,
         )

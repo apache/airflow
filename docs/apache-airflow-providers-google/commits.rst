@@ -35,14 +35,87 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.11.0
+......
+
+Latest change: 2023-03-03
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`3fc9461654 <https://github.com/apache/airflow/commit/3fc946165458f203162ddb229bee133e1a6fcac2>`_  2023-03-03   ``Add 'CloudSQLCloneInstanceOperator' (#29726)``
+`47ab0ca629 <https://github.com/apache/airflow/commit/47ab0ca6295f301d393dbb29e134fa90be0ad7df>`_  2023-03-03   ``Move help message to the google auth code (#29888)``
+`972fca2253 <https://github.com/apache/airflow/commit/972fca22532121493d49753bd6d8388af5943689>`_  2023-02-28   ``Fix 'NoneType' object is not subscriptable. (#29820)``
+`ec844eaa0a <https://github.com/apache/airflow/commit/ec844eaa0a3864d1da74d9ee6c3cf7edb36fbe8c>`_  2023-02-27   ``Add deferrable mode to BigQueryTablePartitionExistenceSensor. (#29735)``
+`a5adb87ab4 <https://github.com/apache/airflow/commit/a5adb87ab4ee537eb37ef31aba755b40f6f29a1e>`_  2023-02-26   ``Add a new param for BigQuery operators to support additional actions when resource exists (#29394)``
+`1e7c064560 <https://github.com/apache/airflow/commit/1e7c064560b8504b45e3a53dc8f294b143b4ec7d>`_  2023-02-25   ``Google Cloud Providers - Introduce GoogleCloudBaseOperator (#29680)``
+`ad08f66228 <https://github.com/apache/airflow/commit/ad08f662280612f44549a71f9c835595cfd05f0a>`_  2023-02-22   ``Remove <2.0.0 limit on google-cloud-bigtable (#29644)``
+`dba390e323 <https://github.com/apache/airflow/commit/dba390e32330675e1b94442c8001ea980754c189>`_  2023-02-22   ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
+`f51742d20b <https://github.com/apache/airflow/commit/f51742d20b2e53bcd90a19db21e4e12d2a287677>`_  2023-02-21   ``Don't push secret in XCOM in BigQueryCreateDataTransferOperator (#29348)``
+`3dbcf99d20 <https://github.com/apache/airflow/commit/3dbcf99d20d47cde0debdd5faf9bd9b2ebde1718>`_  2023-02-21   ``Update google cloud dlp package and adjust hook and operators (#29234)``
+`6ef5ba9104 <https://github.com/apache/airflow/commit/6ef5ba9104f5a658b003f8ade274f19d7ec1b6a9>`_  2023-02-20   ``Refactor Dataproc Trigger (#29364)``
+`7e3a9fc858 <https://github.com/apache/airflow/commit/7e3a9fc8586d0e6d9eddbf833a75280e68050da8>`_  2023-02-20   ``Dataproc batches (#29136)``
+`1677d80e65 <https://github.com/apache/airflow/commit/1677d80e6573acfc7a706ac25c4ee3a353071f7b>`_  2023-02-20   ``Add deferrable mode to DataprocInstantiateWorkflowTemplateOperator (#28618)``
+=================================================================================================  ===========  ======================================================================================================
+
+8.10.0
+......
+
+Latest change: 2023-02-18
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`470fdaea27 <https://github.com/apache/airflow/commit/470fdaea275660970777c0f72b8867b382eabc14>`_  2023-02-18   ``Prepare docs for 02 2023 midmonth wave of Providers (#29589)``
+`f37772adfd <https://github.com/apache/airflow/commit/f37772adfdfdee8763147e0563897e4d5d5657c8>`_  2023-02-18   ``'GoogleDriveHook': Add folder_id param to upload_file (#29477)``
+`28126c12fb <https://github.com/apache/airflow/commit/28126c12fbdd2cac84e0fbcf2212154085aa5ed9>`_  2023-02-14   ``Add defer mode to GKECreateClusterOperator and GKEDeleteClusterOperator (#28406)``
+`32c571e592 <https://github.com/apache/airflow/commit/32c571e5926983903ac8b9017c36f14137a797a5>`_  2023-02-14   ``Move cloud_sql_binary_path from connection to Hook (#29499)``
+`41fade2d21 <https://github.com/apache/airflow/commit/41fade2d219c1841fafa439cc5dbb036f34ee32a>`_  2023-02-13   ``Upgrade Mypy to 1.0 (#29468)``
+`5e6f8eb4d5 <https://github.com/apache/airflow/commit/5e6f8eb4d5fdcaa713022ee46b1ca9bd2e3ab44e>`_  2023-02-13   ``Check that cloud sql provider version is valid (#29497)``
+`f9e9d23457 <https://github.com/apache/airflow/commit/f9e9d23457cba5d3e18b5bdb7b65ecc63735b65b>`_  2023-02-11   ``Restore trigger logging (#29482)``
+`7ee1a56244 <https://github.com/apache/airflow/commit/7ee1a5624497fc457af239e93e4c1af94972bbe6>`_  2023-02-11   ``Add documentation for BigQuery transfer operators (#29466)``
+`60d4bcd1d1 <https://github.com/apache/airflow/commit/60d4bcd1d101bb56955081d14e3e138a0c960c5f>`_  2023-02-10   ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+`6c1eeb5839 <https://github.com/apache/airflow/commit/6c1eeb58393173895944d5414793b38abdc7510d>`_  2023-02-11   ``Revert "Upgrade mypy to 0.991 (#28926)" (#29470)``
+`6ae0a80cba <https://github.com/apache/airflow/commit/6ae0a80cbaf1d33343b763c7f82612b4522afc40>`_  2023-02-11   ``Upgrade mypy to 0.991 (#28926)``
+=================================================================================================  ===========  ====================================================================================
+
+8.9.0
+.....
+
+Latest change: 2023-02-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
+`1b18a501fe <https://github.com/apache/airflow/commit/1b18a501fe818079e535838fa4f232b03365fc75>`_  2023-02-03   ``Enable individual trigger logging (#27758)``
+`872df121e2 <https://github.com/apache/airflow/commit/872df121e2ae24520eeb29fe606183a566e35dd8>`_  2023-02-03   ``Add deferrable capability to existing ''DataprocDeleteClusterOperator'' (#29349)``
+`094d6bf01b <https://github.com/apache/airflow/commit/094d6bf01b9d8b1a5d358dc10fd561cf3a04c51b>`_  2023-01-30   ``Add deferrable mode to dataflow operators (#27776)``
+`9d9351728c <https://github.com/apache/airflow/commit/9d9351728cac9f9ed3bea0504dcfa8da15a7461b>`_  2023-01-30   ``Add deferrable mode to DataprocCreateBatchOperator (#28457)``
+`9fd80130e2 <https://github.com/apache/airflow/commit/9fd80130e2351c7ec31bbeb6c10f6b11708b318b>`_  2023-01-25   ``Add deferrable mode to DataprocCreateClusterOperator and DataprocUpdateClusterOperator (#28529)``
+`02bebf897b <https://github.com/apache/airflow/commit/02bebf897b5a7d166f8cc9304eb58290aea1eba6>`_  2023-01-25   ``Add deferrable mode to MLEngineStartTrainingJobOperator (#27405)``
+`cf90a1a567 <https://github.com/apache/airflow/commit/cf90a1a5673d4c7a72b7209439eca6c03b07b99a>`_  2023-01-25   ``Keyfile dict can be dict not str (#29135)``
+`b4c50dadd3 <https://github.com/apache/airflow/commit/b4c50dadd36d66e4d222c627a61771653767afd6>`_  2023-01-24   ``GCSTaskHandler may use remote log conn id (#29117)``
+`b2825e1185 <https://github.com/apache/airflow/commit/b2825e11852890cf0b0f4d0bcaae592311781cdf>`_  2023-01-24   ``Fix GoogleDriveHook writing files to trashed folders on upload v2 (#29119)``
+`be0e35321f <https://github.com/apache/airflow/commit/be0e35321f0bbd7d21c75096cad45dbe20c2359a>`_  2023-01-24   ``fix Google provider CHANGELOG.rst (#29122)``
+`3374fdfcbd <https://github.com/apache/airflow/commit/3374fdfcbddb630b4fc70ceedd5aed673e6c0a0d>`_  2023-01-23   ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+`7e2493e3c8 <https://github.com/apache/airflow/commit/7e2493e3c8b2dbeb378dba4e40110ab1e4ad24da>`_  2023-01-23   ``fix Google provider CHANGELOG.rst (#29114)``
+`90e6277da6 <https://github.com/apache/airflow/commit/90e6277da6b4102cf565134739af10bafa9d3894>`_  2023-01-23   ``Auto ML assets (#25466)``
+`e926bb9bb0 <https://github.com/apache/airflow/commit/e926bb9bb0ce97b4bb32e49279bde237ba8935ed>`_  2023-01-20   ``Add deferrable mode to DataFusionStartPipelineOperator (#28690)``
+`5fcdd321c5 <https://github.com/apache/airflow/commit/5fcdd321c5b9f220991af4c552401c8dd00fbffe>`_  2023-01-20   ``Add deferrable mode for Big Query Transfer operator (#27833)``
+`5350be2194 <https://github.com/apache/airflow/commit/5350be2194250366536db7f78b88dc8e49c9620e>`_  2023-01-19   ``Add support for write_on_empty in BaseSQLToGCSOperator (#28959)``
+`dc3a3c7c52 <https://github.com/apache/airflow/commit/dc3a3c7c52aab815ddd49b33aba4e6040d8512af>`_  2023-01-16   ``Add DataprocCancelOperationOperator (#28456)``
+=================================================================================================  ===========  ===================================================================================================
+
 8.8.0
 .....
 
-Latest change: 2023-01-12
+Latest change: 2023-01-14
 
 =================================================================================================  ===========  =========================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================================================================================
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
 `ce858a5d71 <https://github.com/apache/airflow/commit/ce858a5d719fb1dff85ad7e4747f0777404d1f56>`_  2023-01-12   ``Switch to ruff for faster static checks (#28893)``
 `f1eb2f1af4 <https://github.com/apache/airflow/commit/f1eb2f1af42c537f7c49a891f238083fd5d9e762>`_  2023-01-12   ``'BigQueryCreateExternalTableOperator' fix field delimiter not working with csv (#28856)``
 `a337e6209a <https://github.com/apache/airflow/commit/a337e6209ad1ded42db3f1d788c3f4df4f1d645a>`_  2023-01-11   ``Fix using private _get_credentials instead of public get_credentials (#28588)``
