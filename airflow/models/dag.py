@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+import collections.abc
 import copy
 import functools
 import itertools
@@ -403,7 +404,7 @@ class DAG(LoggingMixin):
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
-        params: dict | None = None,
+        params: collections.abc.MutableMapping | None = None,
         access_control: dict | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
@@ -3489,7 +3490,7 @@ def dag(
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
-    params: dict | None = None,
+    params: collections.abc.MutableMapping | None = None,
     access_control: dict | None = None,
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
