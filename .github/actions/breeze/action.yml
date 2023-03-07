@@ -35,8 +35,10 @@ runs:
       uses: actions/cache@v3
       with:
         path: ~/.local/pipx
-        key: "breeze-${{ hashFiles('dev/breeze/README.md') }}"  # README has the latest breeze's hash
-        restore-keys: breeze-
+        # README has the latest breeze's hash and python location is used to distinguish between
+        # different minor versions of python
+        key: "breeze-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
+        restore-keys: breeze-${{ env.pythonLocation }}
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
