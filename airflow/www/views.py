@@ -32,7 +32,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
-from operator import itemgetter
 from typing import Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urljoin, urlsplit
 
@@ -59,7 +58,6 @@ from flask import (
 )
 from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
-from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_appbuilder.security.decorators import has_access
 from flask_appbuilder.urltools import get_order_args, get_page_args, get_page_size_args
@@ -75,7 +73,6 @@ from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
-from wtforms.validators import InputRequired
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -127,12 +124,12 @@ from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
-    ConnectionForm,
     DagRunEditForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
+    create_connection_form_class,
 )
 from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
@@ -4278,41 +4275,6 @@ class XComModelView(AirflowModelView):
         )
 
 
-def lazy_add_provider_discovered_options_to_connection_form():
-    """Adds provider-discovered connection parameters as late as possible"""
-
-    def _get_connection_types() -> list[tuple[str, str]]:
-        """Returns connection types available."""
-        _connection_types = [
-            ("fs", "File (path)"),
-            ("mesos_framework-id", "Mesos Framework ID"),
-            ("email", "Email"),
-            ("generic", "Generic"),
-        ]
-        providers_manager = ProvidersManager()
-        for connection_type, provider_info in providers_manager.hooks.items():
-            if provider_info:
-                _connection_types.append((connection_type, provider_info.hook_name))
-        return _connection_types
-
-    ConnectionForm.conn_type = SelectField(
-        lazy_gettext("Connection Type"),
-        choices=sorted(_get_connection_types(), key=itemgetter(1)),
-        widget=Select2Widget(),
-        validators=[InputRequired()],
-        description="""
-            Connection Type missing?
-            Make sure you've installed the corresponding Airflow Provider Package.
-        """,
-    )
-    for key, value in ProvidersManager().connection_form_widgets.items():
-        setattr(ConnectionForm, key, value.field)
-        ConnectionModelView.extra_field_name_mapping[key] = value.field_name
-        ConnectionModelView.add_columns.append(key)
-        ConnectionModelView.edit_columns.append(key)
-        ConnectionModelView.extra_fields.append(key)
-
-
 # Used to store a dictionary of field behaviours used to dynamically change available
 # fields in ConnectionForm based on type of connection chosen
 # See airflow.hooks.base_hook.DiscoverableHook for details on how to customize your Hooks.
@@ -4336,6 +4298,19 @@ class ConnectionFormWidget(FormWidget):
             for connection_type, hook_info in ProvidersManager().hooks.items()
             if hook_info and hook_info.connection_testable
         ]
+
+
+class ConnectionFormProxy:
+    """A stand-in for the connection form class.
+
+    Flask-Appbuilder model views only ever call the ``refresh()`` function on
+    the form class, so this is the perfect place to make the form generation
+    dynamic. See docstring of ``create_connection_form_class`` for rationales.
+    """
+
+    @staticmethod
+    def refresh(obj=None):
+        return create_connection_form_class().refresh(obj)
 
 
 class ConnectionModelView(AirflowModelView):
@@ -4372,7 +4347,10 @@ class ConnectionModelView(AirflowModelView):
         "is_encrypted",
         "is_extra_encrypted",
     ]
-    add_columns = [
+
+    # These columns are monkey-patched at runtime so we can delay calculating
+    # entries relying on providers to make webserver start up faster.
+    add_columns = edit_columns = [
         "conn_id",
         "conn_type",
         "description",
@@ -4383,12 +4361,11 @@ class ConnectionModelView(AirflowModelView):
         "port",
         "extra",
     ]
-    edit_columns = add_columns.copy()
 
-    # Initialized later by lazy_add_provider_discovered_options_to_connection_form
-    extra_fields: list[str] = []
+    # We will generate the actual ConnectionForm when it is actually needed,
+    # i.e. when the web form views are displayed and submitted.
+    add_form = edit_form = ConnectionFormProxy
 
-    add_form = edit_form = ConnectionForm
     add_template = "airflow/conn_create.html"
     edit_template = "airflow/conn_edit.html"
 
@@ -4397,7 +4374,25 @@ class ConnectionModelView(AirflowModelView):
 
     base_order = ("conn_id", "asc")
 
-    extra_field_name_mapping: dict[str, str] = {}
+    def _get_add_widget(self, form, exclude_cols=None, widgets=None):
+        """Inject code to dynamically calculate ``add_columns``.
+
+        This is the last possible moment when ``add_columns`` is needed to
+        render the add form view.
+        """
+        if self.add_columns is type(self).add_columns:  # Not patched yet.
+            self.add_columns = [*self.add_columns, *(k for k, _ in form.iter_extra_field_names())]
+        return super()._get_add_widget(form, exclude_cols, widgets)
+
+    def _get_edit_widget(self, form, exclude_cols=None, widgets=None):
+        """Inject code to dynamically calculate ``edit_columns``.
+
+        This is the last possible moment when ``edit_columns`` is needed to
+        render the edit form view.
+        """
+        if self.edit_columns is type(self).edit_columns:  # Not patched yet.
+            self.edit_columns = [*self.edit_columns, *(k for k, _ in form.iter_extra_field_names())]
+        return super()._get_edit_widget(form, exclude_cols, widgets)
 
     @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
     @auth.has_access(
@@ -4512,17 +4507,14 @@ class ConnectionModelView(AirflowModelView):
                 del form.extra
         del extra_json
 
-        for key in self.extra_fields:
+        for key, field_name in form.iter_extra_field_names():
             if key in form.data and key.startswith("extra__"):
-                # Check to ensure the extra field corresponds to the connection type of the form submission
-                # before adding to extra_field_name_mapping.
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
                     value = form.data[key]
                     # Some extra fields have a default value of False so we need to explicitly check the
                     # value isn't an empty string.
                     if value != "":
-                        field_name = self.extra_field_name_mapping[key]
                         extra[field_name] = value
 
         if extra.keys():
@@ -4543,8 +4535,7 @@ class ConnectionModelView(AirflowModelView):
             logging.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
             return
 
-        for field_key in self.extra_fields:
-            field_name = self.extra_field_name_mapping[field_key]
+        for field_key, field_name in form.iter_extra_field_names():
             value = extra_dictionary.get(field_name, "")
 
             if not value:
