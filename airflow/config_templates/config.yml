@@ -606,6 +606,14 @@ logging:
       type: string
       example: ~
       default: ""
+    delete_local_logs:
+      description: |
+        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        they are uploaded to the remote location.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "False"
     google_key_path:
       description: |
         Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
@@ -627,6 +635,16 @@ logging:
       version_added: 2.0.0
       type: string
       example: ~
+      default: ""
+    remote_task_handler_kwargs:
+      description: |
+        The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
+        task handler and it overrides the values provided by Airflow config. For example if you set
+        `delete_local_logs=False` and you provide ``{{"delete_local_copy": true}}``, then the local
+        log files will be deleted after they are uploaded to remote location.
+      version_added: 2.6.0
+      type: string
+      example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
       description: |
