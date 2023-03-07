@@ -390,7 +390,8 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
     def execute(self, context):
         hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
-        self.run_id = hook.submit_run(self.json)
+        json_normalised = normalise_json_content(self.json)
+        self.run_id = hook.submit_run(json_normalised)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
     def execute_complete(self, context: dict | None, event: dict):
