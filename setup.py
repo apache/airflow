@@ -49,7 +49,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = "2.5.1"
+version = "2.5.2"
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
@@ -179,7 +179,7 @@ def git_version(version_: str) -> str:
 
         try:
             repo = git.Repo(str(AIRFLOW_SOURCES_ROOT / ".git"))
-        except (git.NoSuchPathError):
+        except git.NoSuchPathError:
             logger.warning(".git directory not found: Cannot compute the git version")
             return ""
         except git.InvalidGitRepositoryError:
@@ -484,12 +484,12 @@ EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
 
 def add_extras_for_all_providers() -> None:
-    for (provider_name, provider_dict) in PROVIDER_DEPENDENCIES.items():
+    for provider_name, provider_dict in PROVIDER_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[provider_name] = provider_dict[DEPS]
 
 
 def add_additional_extras() -> None:
-    for (extra_name, extra_dependencies) in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
+    for extra_name, extra_dependencies in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[extra_name] = extra_dependencies
 
 
