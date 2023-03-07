@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google BigQuery Reservation Service operators."""
+"""This module contains Google BigQuery BI Engine Service operators."""
 from __future__ import annotations
 
 from typing import Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.bigquery_reservation import BigQueryReservationServiceHook
+from airflow.providers.google.cloud.hooks.bigquery_biengine import BigQueryReservationServiceHook
 
 
 class BigQueryBiEngineReservationCreateOperator(BaseOperator):

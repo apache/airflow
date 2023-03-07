@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a BigQuery Reservation Hook."""
+"""This module contains a BigQuery BI Engine Hook."""
 from __future__ import annotations
 
 from typing import Sequence
@@ -29,7 +29,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class BigQueryReservationServiceHook(GoogleBaseHook):
     """
-    Hook for Google Bigquery Reservation API.
+    Hook for Google Bigquery Bi Engine reservation API.
 
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
     :param location: The location of the BigQuery resource.
@@ -37,7 +37,7 @@ class BigQueryReservationServiceHook(GoogleBaseHook):
         credentials.
     """
 
-    hook_name = "Google Bigquery Reservation"
+    hook_name = "Google Bigquery BI Engine"
 
     def __init__(
         self,

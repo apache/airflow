@@ -159,7 +159,7 @@ integrations:
     tags: [gcp]
   - integration-name: Google BigQuery Reservation
     how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/bigquery_reservation.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/bigquery_biengine.rst
     external-doc-url: https://cloud.google.com/bigquery/
     logo: /integration-logos/gcp/BigQuery.png
     tags: [gcp]
@@ -473,7 +473,7 @@ operators:
       - airflow.providers.google.cloud.operators.bigquery_dts
   - integration-name: Google BigQuery Reservation
     python-modules:
-      - airflow.providers.google.cloud.operators.bigquery_reservation
+      - airflow.providers.google.cloud.operators.bigquery_biengine
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.operators.bigtable
@@ -686,7 +686,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.bigquery_dts
   - integration-name: Google BigQuery Reservation
     python-modules:
-      - airflow.providers.google.cloud.hooks.bigquery_reservation
+      - airflow.providers.google.cloud.hooks.bigquery_biengine
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.hooks.bigtable

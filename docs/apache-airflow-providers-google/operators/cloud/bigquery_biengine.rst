@@ -37,7 +37,7 @@ You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used.
 
 To create BI Engine reservation you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery_reservation.BigQueryBiEngineReservationCreateOperator`.
+:class:`~airflow.providers.google.cloud.operators.bigquery_biengine.BigQueryBiEngineReservationCreateOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_reservation_bi_engine.py
     :language: python
@@ -52,7 +52,7 @@ Deleting BI Engine reservation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To delete BI Engine reservation you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery_reservation.BigQueryBiEngineReservationDeleteOperator`.
+:class:`~airflow.providers.google.cloud.operators.bigquery_biengine.BigQueryBiEngineReservationDeleteOperator`.
 
 You can create the operator with or without project id and size. If project id is missing
 it will be retrieved from the Google Cloud connection used. If size is missing, all reservations will be deleted.

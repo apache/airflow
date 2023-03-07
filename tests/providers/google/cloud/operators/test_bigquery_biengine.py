@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.operators.bigquery_reservation import (
+from airflow.providers.google.cloud.operators.bigquery_biengine import (
     BigQueryBiEngineReservationCreateOperator,
     BigQueryBiEngineReservationDeleteOperator,
 )
@@ -31,9 +31,7 @@ SIZE = 100
 
 
 class TestBigQueryBiEngineReservationCreateOperator:
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.bigquery_reservation.BigQueryReservationServiceHook"
-    )
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery_biengine.BigQueryReservationServiceHook")
     def test_execute(self, hook_mock):
         operator = BigQueryBiEngineReservationCreateOperator(
             project_id=PROJECT_ID,
@@ -51,9 +49,7 @@ class TestBigQueryBiEngineReservationCreateOperator:
 
 
 class TestBigQueryBiEngineReservationDeleteOperator:
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.bigquery_reservation.BigQueryReservationServiceHook"
-    )
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery_biengine.BigQueryReservationServiceHook")
     def test_execute(self, hook_mock):
         operator = BigQueryBiEngineReservationDeleteOperator(
             project_id=PROJECT_ID,

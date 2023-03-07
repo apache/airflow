@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.google.cloud.operators.bigquery_reservation import (
+from airflow.providers.google.cloud.operators.bigquery_biengine import (
     BigQueryBiEngineReservationCreateOperator,
     BigQueryBiEngineReservationDeleteOperator,
 )

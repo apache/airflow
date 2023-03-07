@@ -24,7 +24,7 @@ import pytest
 from google.cloud.bigquery_reservation_v1 import BiReservation, ReservationServiceClient
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.bigquery_reservation import (
+from airflow.providers.google.cloud.hooks.bigquery_biengine import (
     BigQueryReservationServiceHook,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -42,7 +42,7 @@ PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/biReservation"
 class TestBigQueryReservationHook:
     def setup_method(self):
         with mock.patch(
-            "airflow.providers.google.cloud.hooks.bigquery_reservation.GoogleBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.bigquery_biengine.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BigQueryReservationServiceHook(location=LOCATION)
@@ -61,7 +61,7 @@ class TestBigQueryReservationHook:
 
     # Create BI Reservation
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigquery_reservation.BigQueryReservationServiceHook.get_client"
+        "airflow.providers.google.cloud.hooks.bigquery_biengine.BigQueryReservationServiceHook.get_client"
     )
     def test_create_bi_reservation_existing_reservation_success(self, client_mock):
         requested_size_gb = SIZE
@@ -78,7 +78,7 @@ class TestBigQueryReservationHook:
         )
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigquery_reservation.BigQueryReservationServiceHook.get_client"
+        "airflow.providers.google.cloud.hooks.bigquery_biengine.BigQueryReservationServiceHook.get_client"
     )
     def test_create_bi_reservation_none_existing_reservation_success(self, client_mock):
         requested_size_gb = SIZE
@@ -108,7 +108,7 @@ class TestBigQueryReservationHook:
 
     # Delete BI Reservation
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigquery_reservation.BigQueryReservationServiceHook.get_client"
+        "airflow.providers.google.cloud.hooks.bigquery_biengine.BigQueryReservationServiceHook.get_client"
     )
     def test_delete_bi_reservation_size_none_success(self, client_mock):
         initial_size = SIZE_KO
@@ -123,7 +123,7 @@ class TestBigQueryReservationHook:
         )
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigquery_reservation.BigQueryReservationServiceHook.get_client"
+        "airflow.providers.google.cloud.hooks.bigquery_biengine.BigQueryReservationServiceHook.get_client"
     )
     def test_delete_bi_reservation_size_filled_update_non_negative_success(self, client_mock):
         initial_size = 100 * CONSTANT_GO_TO_KO
@@ -139,7 +139,7 @@ class TestBigQueryReservationHook:
         )
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigquery_reservation.BigQueryReservationServiceHook.get_client"
+        "airflow.providers.google.cloud.hooks.bigquery_biengine.BigQueryReservationServiceHook.get_client"
     )
     def test_delete_bi_reservation_size_filled_update_negative_success(self, client_mock):
         initial_size = 100 * CONSTANT_GO_TO_KO
