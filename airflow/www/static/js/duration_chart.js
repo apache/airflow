@@ -20,15 +20,15 @@
 /* global document, $ */
 
 function handleCheck() {
-  if ($('#isCumulative').is(':checked')) {
-    $('#dur_chart').hide();
-    $('#cum_dur_chart').show();
+  if ($("#isCumulative").is(":checked")) {
+    $("#dur_chart").hide();
+    $("#cum_dur_chart").show();
   } else {
-    $('#dur_chart').show();
-    $('#cum_dur_chart').hide();
+    $("#dur_chart").show();
+    $("#cum_dur_chart").hide();
   }
 }
-$(document).on('chartload', handleCheck);
+$(document).on("chartload", handleCheck);
 $(document).ready(handleCheck);
 
-$('#isCumulative').on('click', handleCheck);
+$("#isCumulative").on("click", handleCheck);

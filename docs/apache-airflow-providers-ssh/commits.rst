@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.5.0
+.....
+
+Latest change: 2023-02-19
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`fd000684d0 <https://github.com/apache/airflow/commit/fd000684d05a993ade3fef38b683ef3cdfdfc2b6>`_  2023-02-19   ``SSH Provider: Add cmd_timeout to ssh connection extra (#29347)``
+=================================================================================================  ===========  ==================================================================
+
 3.4.0
 .....
 
-Latest change: 2022-12-28
+Latest change: 2023-01-02
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `4f006e8c71 <https://github.com/apache/airflow/commit/4f006e8c71f850fce0450fbabd6aa6d61487498e>`_  2022-12-28   ``Add .bash and other extensions to SSHOperator template_ext (#28617)``
 `38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
 `b5338b5825 <https://github.com/apache/airflow/commit/b5338b5825859355b017bed3586d5a42208f1391>`_  2022-12-07   ``Add test_connection method for SSHHook (#28184)``

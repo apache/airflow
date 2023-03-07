@@ -146,7 +146,7 @@ See: `Configuring PipelineOptions for execution on the Cloud Dataflow service <h
 Asynchronous execution
 """"""""""""""""""""""
 
-Dataflow batch jobs are by default asynchronous - however this is dependent on the application code (contained in the JAR
+Dataflow batch jobs are by default asynchronous; however, this is dependent on the application code (contained in the JAR
 or Python file) and how it is written. In order for the Dataflow job to execute asynchronously, ensure the
 pipeline objects are not being waited upon (not calling ``waitUntilFinish`` or ``wait_until_finish`` on the
 ``PipelineResult`` in your application code).

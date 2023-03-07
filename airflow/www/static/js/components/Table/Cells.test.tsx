@@ -19,27 +19,25 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
-import '@testing-library/jest-dom';
-import { render } from '@testing-library/react';
+import React from "react";
+import "@testing-library/jest-dom";
+import { render } from "@testing-library/react";
 
-import { ChakraWrapper } from 'src/utils/testUtils';
-import * as utils from 'src/utils';
-import { TaskInstanceLink } from './Cells';
+import { ChakraWrapper } from "src/utils/testUtils";
+import * as utils from "src/utils";
+import { TaskInstanceLink } from "./Cells";
 
-const taskId = 'task_id';
-const sourceDagId = 'source_dag_id';
-const sourceRunId = 'source_run_id';
-const originalDagId = 'og_dag_id';
+const taskId = "task_id";
+const sourceDagId = "source_dag_id";
+const sourceRunId = "source_run_id";
+const originalDagId = "og_dag_id";
 
-describe('Test TaskInstanceLink', () => {
-  test('Replaces __DAG_ID__ url param correctly', async () => {
-    jest.spyOn(utils, 'getMetaValue').mockImplementation(
-      (meta) => {
-        if (meta === 'grid_url') return '/dags/__DAG_ID__/grid';
-        return '';
-      },
-    );
+describe("Test TaskInstanceLink", () => {
+  test("Replaces __DAG_ID__ url param correctly", async () => {
+    jest.spyOn(utils, "getMetaValue").mockImplementation((meta) => {
+      if (meta === "grid_url") return "/dags/__DAG_ID__/grid";
+      return "";
+    });
 
     const { getByText } = render(
       <TaskInstanceLink
@@ -54,22 +52,23 @@ describe('Test TaskInstanceLink', () => {
           },
         }}
       />,
-      { wrapper: ChakraWrapper },
+      { wrapper: ChakraWrapper }
     );
 
     const link = getByText(`${sourceDagId}.${taskId}`);
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', `/dags/${sourceDagId}/grid?dag_run_id=${sourceRunId}&task_id=${taskId}`);
+    expect(link).toHaveAttribute(
+      "href",
+      `/dags/${sourceDagId}/grid?dag_run_id=${sourceRunId}&task_id=${taskId}`
+    );
   });
 
-  test('Replaces existing dag id url param correctly', async () => {
-    jest.spyOn(utils, 'getMetaValue').mockImplementation(
-      (meta) => {
-        if (meta === 'dag_id') return originalDagId;
-        if (meta === 'grid_url') return `/dags/${originalDagId}/grid`;
-        return '';
-      },
-    );
+  test("Replaces existing dag id url param correctly", async () => {
+    jest.spyOn(utils, "getMetaValue").mockImplementation((meta) => {
+      if (meta === "dag_id") return originalDagId;
+      if (meta === "grid_url") return `/dags/${originalDagId}/grid`;
+      return "";
+    });
 
     const { getByText } = render(
       <TaskInstanceLink
@@ -84,11 +83,14 @@ describe('Test TaskInstanceLink', () => {
           },
         }}
       />,
-      { wrapper: ChakraWrapper },
+      { wrapper: ChakraWrapper }
     );
 
     const link = getByText(`${sourceDagId}.${taskId}`);
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', `/dags/${sourceDagId}/grid?dag_run_id=${sourceRunId}&task_id=${taskId}`);
+    expect(link).toHaveAttribute(
+      "href",
+      `/dags/${sourceDagId}/grid?dag_run_id=${sourceRunId}&task_id=${taskId}`
+    );
   });
 });

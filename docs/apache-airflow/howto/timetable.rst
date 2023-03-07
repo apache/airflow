@@ -78,9 +78,9 @@ file:
     with DAG(
         dag_id="example_after_workday_timetable_dag",
         start_date=pendulum.datetime(2021, 3, 10, tz="UTC"),
-        timetable=AfterWorkdayTimetable(),
+        schedule=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
-    ) as dag:
+    ):
         ...
 
 
@@ -123,7 +123,7 @@ Next is the implementation of ``next_dagrun_info``:
     :start-after: [START howto_timetable_next_dagrun_info]
     :end-before: [END howto_timetable_next_dagrun_info]
 
-This method accepts two arguments. ``last_automated_dagrun`` is a
+This method accepts two arguments. ``last_automated_data_interval`` is a
 :class:`~airflow.timetables.base.DataInterval` instance indicating the data
 interval of this DAG's previous non-manually-triggered run, or ``None`` if this
 is the first time ever the DAG is being scheduled. ``restriction`` encapsulates
@@ -200,9 +200,9 @@ For reference, here's our plugin and DAG files in their entirety:
     with DAG(
         dag_id="example_workday_timetable",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        timetable=AfterWorkdayTimetable(),
+        schedule=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
-    ) as dag:
+    ):
         EmptyOperator(task_id="run_this")
 
 
@@ -226,7 +226,7 @@ purpose, we'd want to do something like:
             end = start + timedelta(days=1)
             return DagRunInfo(
                 data_interval=DataInterval(start=start, end=end),
-                run_after=DateTime.combine(end.date(), self._schedule_at),
+                run_after=DateTime.combine(end.date(), self._schedule_at).replace(tzinfo=UTC),
             )
 
 However, since the timetable is a part of the DAG, we need to tell Airflow how
@@ -270,9 +270,9 @@ So for a DAG declared like this:
 .. code-block:: python
 
     with DAG(
-        timetable=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
+        schedule=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
         ...,
-    ) as dag:
+    ):
         ...
 
 The *Schedule* column would say ``after each workday, at 08:00:00``.
@@ -312,9 +312,9 @@ So for a DAG declared like this:
 .. code-block:: python
 
     with DAG(
-        timetable=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
+        schedule=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
         ...,
-    ) as dag:
+    ):
         ...
 
 The *i* icon  would show,  ``Schedule: after each workday, at 08:00:00``.

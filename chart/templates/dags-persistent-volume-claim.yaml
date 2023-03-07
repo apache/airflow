@@ -29,10 +29,10 @@ metadata:
     {{- with .Values.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+  {{- with .Values.dags.persistence.annotations }}
   annotations:
-    {{- if .Values.dags.persistence.annotations}}
-    {{- toYaml .Values.dags.persistence.annotations | nindent 4 }}
-    {{- end }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   accessModes: [{{ .Values.dags.persistence.accessMode | quote }}]
   resources:

@@ -25,6 +25,7 @@ import os
 import pathlib
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import warnings
@@ -338,7 +339,7 @@ class AirflowConfigParser(ConfigParser):
         self._suppress_future_warnings = False
 
     def validate(self):
-        self._validate_config_dependencies()
+        self._validate_sqlite3_version()
         self._validate_enums()
 
         for section, replacement in self.deprecated_values.items():
@@ -427,33 +428,27 @@ class AirflowConfigParser(ConfigParser):
                         f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
 
-    def _validate_config_dependencies(self):
-        """
-        Validate that config based on condition.
+    def _validate_sqlite3_version(self):
+        """Validate SQLite version.
 
-        Values are considered invalid when they conflict with other config values
-        or system-level limitations and requirements.
+        Some features in storing rendered fields require SQLite >= 3.15.0.
         """
-        is_executor_without_sqlite_support = self.get("core", "executor") not in (
-            "DebugExecutor",
-            "SequentialExecutor",
+        if "sqlite" not in self.get("database", "sql_alchemy_conn"):
+            return
+
+        import sqlite3
+
+        min_sqlite_version = (3, 15, 0)
+        if _parse_sqlite_version(sqlite3.sqlite_version) >= min_sqlite_version:
+            return
+
+        from airflow.utils.docs import get_docs_url
+
+        min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
+        raise AirflowConfigException(
+            f"error: SQLite C library too old (< {min_sqlite_version_str}). "
+            f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
         )
-        is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
-        if is_sqlite and is_executor_without_sqlite_support:
-            raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
-        if is_sqlite:
-            import sqlite3
-
-            from airflow.utils.docs import get_docs_url
-
-            # Some features in storing rendered fields require sqlite version >= 3.15.0
-            min_sqlite_version = (3, 15, 0)
-            if _parse_sqlite_version(sqlite3.sqlite_version) < min_sqlite_version:
-                min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
-                raise AirflowConfigException(
-                    f"error: sqlite C library version too old (< {min_sqlite_version_str}). "
-                    f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
-                )
 
     def _using_old_value(self, old: Pattern, current_value: str) -> bool:
         return old.search(current_value) is not None
@@ -1490,6 +1485,7 @@ def initialize_config() -> AirflowConfigParser:
             with open(TEST_CONFIG_FILE, "w") as file:
                 cfg = _parameterized_config_from_template("default_test.cfg")
                 file.write(cfg)
+            make_group_other_inaccessible(TEST_CONFIG_FILE)
 
         local_conf.load_test_config()
     else:
@@ -1504,6 +1500,7 @@ def initialize_config() -> AirflowConfigParser:
 
             with open(AIRFLOW_CONFIG, "w") as file:
                 file.write(default_config)
+            make_group_other_inaccessible(AIRFLOW_CONFIG)
 
         log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
@@ -1544,6 +1541,18 @@ def initialize_config() -> AirflowConfigParser:
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
+
+
+def make_group_other_inaccessible(file_path: str):
+    try:
+        permissions = os.stat(file_path)
+        os.chmod(file_path, permissions.st_mode & (stat.S_IRUSR | stat.S_IWUSR))
+    except Exception as e:
+        log.warning(
+            "Could not change permissions of config file to be group/other inaccessible. "
+            "Continuing with original permissions:",
+            e,
+        )
 
 
 # Historical convenience functions to access config entries

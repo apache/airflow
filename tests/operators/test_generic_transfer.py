@@ -17,12 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from contextlib import closing
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
@@ -36,13 +34,13 @@ TEST_DAG_ID = "unit_test_dag"
 
 
 @pytest.mark.backend("mysql")
-class TestMySql(unittest.TestCase):
-    def setUp(self):
+class TestMySql:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def tearDown(self):
+    def teardown_method(self):
         from airflow.providers.mysql.hooks.mysql import MySqlHook
 
         drop_tables = {"test_mysql_to_mysql", "test_airflow"}
@@ -52,11 +50,12 @@ class TestMySql(unittest.TestCase):
                 with closing(conn.cursor()) as cur:
                     cur.execute(f"DROP TABLE IF EXISTS {table}")
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "client",
         [
-            ("mysqlclient",),
-            ("mysql-connector-python",),
-        ]
+            "mysqlclient",
+            "mysql-connector-python",
+        ],
     )
     def test_mysql_to_mysql(self, client):
         from tests.providers.mysql.hooks.test_mysql import MySqlContext
@@ -100,13 +99,13 @@ class TestMySql(unittest.TestCase):
 
 
 @pytest.mark.backend("postgres")
-class TestPostgres(unittest.TestCase):
-    def setUp(self):
+class TestPostgres:
+    def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def tearDown(self):
+    def teardown_method(self):
         tables_to_drop = ["test_postgres_to_postgres", "test_airflow"]
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:

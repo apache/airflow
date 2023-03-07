@@ -69,7 +69,7 @@ KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
-    _instance = None
+    _instance: ResourceVersion | None = None
     resource_version: dict[str, str] = {}
 
     def __new__(cls):
@@ -370,17 +370,17 @@ class AirflowKubernetesScheduler(LoggingMixin):
             if e.status != 404:
                 raise
 
-    def patch_pod_executor_done(self, *, pod_id: str, namespace: str):
+    def patch_pod_executor_done(self, *, pod_name: str, namespace: str):
         """Add a "done" annotation to ensure we don't continually adopt pods"""
-        self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_id, namespace)
+        self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_name, namespace)
         try:
             self.kube_client.patch_namespaced_pod(
-                name=pod_id,
+                name=pod_name,
                 namespace=namespace,
                 body={"metadata": {"labels": {POD_EXECUTOR_DONE_KEY: "True"}}},
             )
         except ApiException as e:
-            self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_id, e)
+            self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_name, e)
 
     def sync(self) -> None:
         """
@@ -761,7 +761,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.kube_scheduler.delete_pod(pod_id, namespace)
                 self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
         else:
-            self.kube_scheduler.patch_pod_executor_done(pod_id=pod_id, namespace=namespace)
+            self.kube_scheduler.patch_pod_executor_done(pod_name=pod_id, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
 
         try:
@@ -781,14 +781,16 @@ class KubernetesExecutor(BaseExecutor):
             namespace = pod_override.metadata.namespace
         return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
 
-    def get_task_log(self, ti: TaskInstance, log: str = "") -> str | tuple[str, dict[str, bool]]:
-
+    def get_task_log(self, ti: TaskInstance) -> tuple[list[str], list[str]]:
+        messages = []
+        log = []
         try:
+            from airflow.kubernetes.kube_client import get_kube_client
             from airflow.kubernetes.pod_generator import PodGenerator
 
             client = get_kube_client()
 
-            log += f"*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n"
+            messages.append(f"Trying to get logs (last 100 lines) from worker pod {ti.hostname}")
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -816,13 +818,10 @@ class KubernetesExecutor(BaseExecutor):
             )
 
             for line in res:
-                log += line.decode()
-
-            return log
-
-        except Exception as f:
-            log += f"*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n"
-            return log, {"end_of_log": True}
+                log.append(line.decode())
+        except Exception as e:
+            messages.append(f"Reading from k8s pod logs failed: {str(e)}")
+        return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]

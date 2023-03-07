@@ -482,9 +482,9 @@ def run_build_production_image(
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(image_params=prod_image_params, output=output)
     else:
+        env = os.environ.copy()
+        env["DOCKER_BUILDKIT"] = "1"
         if prod_image_params.empty_image:
-            env = os.environ.copy()
-            env["DOCKER_BUILDKIT"] = "1"
             get_console(output=output).print(
                 f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n"
             )
@@ -504,6 +504,7 @@ def run_build_production_image(
                 ),
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
+                env=env,
                 text=True,
                 output=output,
             )
@@ -523,6 +524,7 @@ def run_build_production_image(
                     cwd=AIRFLOW_SOURCES_ROOT,
                     check=False,
                     text=True,
+                    env=env,
                     output=output,
                 )
             if build_command_result.returncode == 0:

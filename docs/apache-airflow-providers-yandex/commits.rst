@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2023-02-22
+
+=================================================================================================  ===========  ==================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================
+`1768872a00 <https://github.com/apache/airflow/commit/1768872a0085ba423d0a34fe6cc4e1e109f3adeb>`_  2023-02-22   ``support Yandex SDK feature "endpoint" (#29635)``
+=================================================================================================  ===========  ==================================================
+
 3.2.0
 .....
 
-Latest change: 2022-11-24
+Latest change: 2022-11-26
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
 `2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
 `12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``

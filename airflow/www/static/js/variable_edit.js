@@ -19,6 +19,6 @@
 
 /* global document, window */
 
-const val = document.getElementById('val');
+const val = document.getElementById("val");
 const height = Math.min(window.innerHeight * 0.5, val.scrollHeight);
 val.style.height = `${height}px`;

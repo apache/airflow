@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+from typing import Sequence
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -29,6 +30,10 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from Microsoft SQL Server to Google Cloud Storage
     in JSON, CSV or Parquet format.
 
+    :param bit_fields: Sequence of fields names of MSSQL "BIT" data type,
+        to be interpreted in the schema as "BOOLEAN". "BIT" fields that won't
+        be included in this sequence, will be interpreted as "INTEGER" by
+        default.
     :param mssql_conn_id: Reference to a specific MSSQL hook.
 
     **Example**:
@@ -39,6 +44,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
             export_customers = MsSqlToGoogleCloudStorageOperator(
                 task_id='export_customers',
                 sql='SELECT * FROM dbo.Customers;',
+                bit_fields=['some_bit_field', 'another_bit_field'],
                 bucket='mssql-export',
                 filename='data/customers/export.json',
                 schema_filename='schemas/export.json',
@@ -55,11 +61,18 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     ui_color = "#e0a98c"
 
-    type_map = {3: "INTEGER", 4: "TIMESTAMP", 5: "NUMERIC"}
+    type_map = {2: "BOOLEAN", 3: "INTEGER", 4: "TIMESTAMP", 5: "NUMERIC"}
 
-    def __init__(self, *, mssql_conn_id="mssql_default", **kwargs):
+    def __init__(
+        self,
+        *,
+        bit_fields: Sequence[str] | None = None,
+        mssql_conn_id="mssql_default",
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
+        self.bit_fields = bit_fields if bit_fields else []
 
     def query(self):
         """
@@ -74,6 +87,9 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         return cursor
 
     def field_to_bigquery(self, field) -> dict[str, str]:
+        if field[0] in self.bit_fields:
+            field = (field[0], 2)
+
         return {
             "name": field[0].replace(" ", "_"),
             "type": self.type_map.get(field[1], "STRING"),

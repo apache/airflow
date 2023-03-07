@@ -33,7 +33,6 @@ from unittest.mock import sentinel
 
 import pendulum
 import pytest
-from parameterized import parameterized
 
 from airflow import DAG
 from airflow.cli import cli_parser
@@ -336,12 +335,13 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "option",
         [
-            ("--ignore-all-dependencies",),
-            ("--ignore-depends-on-past",),
-            ("--ignore-dependencies",),
-            ("--force",),
+            "--ignore-all-dependencies",
+            "--ignore-depends-on-past",
+            "--ignore-dependencies",
+            "--force",
         ],
     )
     def test_cli_run_invalid_raw_option(self, option: str):
