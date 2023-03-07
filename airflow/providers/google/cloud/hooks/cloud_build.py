@@ -21,6 +21,7 @@ from __future__ import annotations
 import warnings
 from typing import Sequence
 
+from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
@@ -100,9 +101,8 @@ class CloudBuildHook(GoogleBaseHook):
         :return: Google Cloud Build client object.
         """
         if location not in self._client:
-            client_options = None if location == "global" else {
-                "api_endpoint": f"{location}-cloudbuild.googleapis.com"
-            }
+            api_endpoint = None if location == "global" else f"{location}-cloudbuild.googleapis.com"
+            client_options = ClientOptions(api_endpoint=api_endpoint)
             self._client[location] = CloudBuildClient(
                 credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
@@ -118,7 +118,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        location: str = "global"
+        location: str = "global",
     ) -> Build:
         """
         Cancels a build in progress.
@@ -635,9 +635,8 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         if not id_:
             raise AirflowException("Google Cloud Build id is required.")
 
-        client_options = None if location == "global" else {
-            "api_endpoint": f"{location}-cloudbuild.googleapis.com"
-        }
+        api_endpoint = None if location == "global" else f"{location}-cloudbuild.googleapis.com"
+        client_options = ClientOptions(api_endpoint=api_endpoint)
         client = CloudBuildAsyncClient(client_options=client_options)
 
         request = GetBuildRequest(
