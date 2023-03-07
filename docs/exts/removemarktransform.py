@@ -28,6 +28,7 @@ from sphinx.transforms.post_transforms.code import TrimDoctestFlagsTransform
 
 docmark_re = re.compile(r"#\s*\[(START|END)\s*[a-z_A-Z]+].*$", re.MULTILINE)
 
+
 class TrimDocMarkerFlagsTransform(SphinxTransform):
     """
     Trim doc marker like ``# [START howto_concept]` from python code-blocks.
