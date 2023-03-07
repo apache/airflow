@@ -28,6 +28,10 @@ Changelog
 .....
 
 * ``Support multiple mount points in Vault backend secret (#29734)``
+* ``Fix empty paths in Vault secrets backend (#29908)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs for 03/2023 wave of Providers (#29878)``
 
 3.2.0
 .....
