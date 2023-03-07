@@ -191,9 +191,7 @@ class TestEmrHook:
             {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
         )
 
-        hook.create_job_flow(
-            {"Name": "test_cluster1", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
-        )
+        hook.create_job_flow({"Name": "test_cluster1", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}})
 
         for i in range(50):
             hook.create_job_flow(
@@ -214,11 +212,17 @@ class TestEmrHook:
             hook.get_cluster_id_by_name("test_cluster1", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
 
         client = boto3.client("emr", region_name="us-east-1")
-        response_marker = client.list_clusters(ClusterStates = ["RUNNING", "WAITING", "BOOTSTRAPPING"])["Marker"]
-        second_page = client.list_clusters(ClusterStates = ["RUNNING", "WAITING", "BOOTSTRAPPING"], Marker = response_marker)
+        response_marker = client.list_clusters(ClusterStates=["RUNNING", "WAITING", "BOOTSTRAPPING"])[
+            "Marker"
+        ]
+        second_page = client.list_clusters(
+            ClusterStates=["RUNNING", "WAITING", "BOOTSTRAPPING"], Marker=response_marker
+        )
         second_page_cluster = second_page["Clusters"][0]["Name"]
 
-        second_page_match = hook.get_cluster_id_by_name(second_page_cluster, ["RUNNING", "WAITING", "BOOTSTRAPPING"])
+        second_page_match = hook.get_cluster_id_by_name(
+            second_page_cluster, ["RUNNING", "WAITING", "BOOTSTRAPPING"]
+        )
 
         assert second_page_match is not None
 
