@@ -1224,6 +1224,7 @@ reqs
 Reserialize
 reserialize
 reserialized
+ReservationServiceClient
 resetdb
 resizable
 ResourceRequirements

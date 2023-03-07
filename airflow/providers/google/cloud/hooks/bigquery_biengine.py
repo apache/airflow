@@ -80,7 +80,7 @@ class BigQueryReservationServiceHook(GoogleBaseHook):
 
         :param project_id: The name of the project where we want to create/update
             the BI Engine reservation.
-        :param size: The BI Engine reservation size in Gb.
+        :param size: The BI Engine reservation size in gigabyte.
         """
         parent = f"projects/{project_id}/locations/{self.location}/biReservation"
         client = self.get_client()
@@ -104,7 +104,7 @@ class BigQueryReservationServiceHook(GoogleBaseHook):
 
         :param project_id: The name of the project where we want to delete/update
             the BI Engine reservation.
-        :param size: The BI Engine reservation size in Gb.
+        :param size: The BI Engine reservation size in gigabyte.
         """
         parent = f"projects/{project_id}/locations/{self.location}/biReservation"
         client = self.get_client()
