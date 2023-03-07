@@ -38,9 +38,9 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   schedule: "{{ .Values.cleanup.schedule }}"
   # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
@@ -60,27 +60,23 @@ spec:
             tier: airflow
             component: airflow-cleanup-pods
             release: {{ .Release.Name }}
-          {{- if or (.Values.labels) (.Values.cleanup.labels) }}
-          {{- mustMerge .Values.cleanup.labels .Values.labels | toYaml | nindent 12 }}
-          {{- end }}
+            {{- if or (.Values.labels) (.Values.cleanup.labels) }}
+              {{- mustMerge .Values.cleanup.labels .Values.labels | toYaml | nindent 12 }}
+            {{- end }}
           annotations:
             sidecar.istio.io/inject: "false"
             {{- if .Values.airflowPodAnnotations }}
-            {{- toYaml .Values.airflowPodAnnotations | nindent 12 }}
+              {{- toYaml .Values.airflowPodAnnotations | nindent 12 }}
             {{- end }}
             {{- if .Values.cleanup.podAnnotations }}
-            {{- toYaml .Values.cleanup.podAnnotations | nindent 12 }}
+              {{- toYaml .Values.cleanup.podAnnotations | nindent 12 }}
             {{- end }}
         spec:
           restartPolicy: Never
-          nodeSelector:
-{{ toYaml $nodeSelector | indent 12 }}
-          affinity:
-{{ toYaml $affinity | indent 12 }}
-          tolerations:
-{{ toYaml $tolerations | indent 12 }}
-          topologySpreadConstraints:
-{{ toYaml $topologySpreadConstraints | indent 12 }}
+          nodeSelector: {{- toYaml $nodeSelector | nindent 12 }}
+          affinity: {{- toYaml $affinity | nindent 12 }}
+          tolerations: {{- toYaml $tolerations | nindent 12 }}
+          topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 12 }}
           serviceAccountName: {{ include "cleanup.serviceAccountName" . }}
           {{- if or .Values.registry.secretName .Values.registry.connection }}
           imagePullSecrets:
@@ -98,12 +94,10 @@ spec:
               args: {{ tpl (toYaml .Values.cleanup.args) . | nindent 16 }}
               {{- end }}
               env:
-              {{- include "standard_airflow_environment" . | indent 12 }}
-              {{- include "container_extra_envs" (list . .Values.cleanup.env) | indent 12 }}
-              volumeMounts:
-{{- include "airflow_config_mount" . | nindent 16 }}
-              resources:
-{{ toYaml .Values.cleanup.resources | indent 16 }}
+                {{- include "standard_airflow_environment" . | indent 12 }}
+                {{- include "container_extra_envs" (list . .Values.cleanup.env) | indent 12 }}
+              volumeMounts: {{- include "airflow_config_mount" . | nindent 16 }}
+              resources: {{- toYaml .Values.cleanup.resources | nindent 16 }}
           volumes:
             - name: config
               configMap:
