@@ -26,8 +26,7 @@ from pygments.lexers import Python3Lexer, PythonLexer, guess_lexer
 from sphinx.transforms import SphinxTransform
 from sphinx.transforms.post_transforms.code import TrimDoctestFlagsTransform
 
-docmark_re = re.compile(r"\s*#\s*\[(START|END)\s*[a-z_A-Z]+].*$", re.MULTILINE)
-
+docmark_re = re.compile(r"#\s*\[(START|END)\s*[a-z_A-Z]+].*$", re.MULTILINE)
 
 class TrimDocMarkerFlagsTransform(SphinxTransform):
     """
