@@ -678,7 +678,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.skip_exit_code is not None:
                 container_statuses = (
                     remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
-                )
+                ) or []
                 base_container_status = next(
                     (x for x in container_statuses if x.name == self.base_container_name), None
                 )

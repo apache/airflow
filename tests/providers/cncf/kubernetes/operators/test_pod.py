@@ -1065,7 +1065,7 @@ class TestKubernetesPodOperator:
     def test_task_skip_when_pod_exit_with_certain_code(
         self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
     ):
-        """ """
+        """Tests that an AirflowSkipException is raised when the container exits with the skip_exit_code"""
         k = KubernetesPodOperator(
             task_id="task", is_delete_operator_pod=True, **(extra_kwargs if extra_kwargs else {})
         )
@@ -1266,7 +1266,7 @@ class TestKubernetesPodOperatorAsync:
         pod_status,
         event_status,
     ):
-        """Tests that an AirflowSkipException is raised when the pod exit with the skip_exit_code"""
+        """Tests that an AirflowSkipException is raised when the container exits with the skip_exit_code"""
 
         k = KubernetesPodOperator(
             task_id=TEST_TASK_ID,
