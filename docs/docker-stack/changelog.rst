@@ -60,7 +60,7 @@ Airflow 2.6
 
 * 2.6
 
-  * Snowflake provider installed by default        
+  * Snowflake provider installed by default
 
 
 Airflow 2.5.1
