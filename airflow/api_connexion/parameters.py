@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from functools import wraps
 from typing import Any, Callable, Container, TypeVar, cast
@@ -27,6 +28,8 @@ from sqlalchemy.orm.query import Query
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
+
+log = logging.getLogger(__name__)
 
 
 def validate_istimezone(value: datetime) -> None:
@@ -64,6 +67,11 @@ def check_limit(value: int) -> int:
     fallback = conf.getint("api", "fallback_page_limit")
 
     if value > max_val:
+        log.warning(
+            "The limit param value %s passed in API exceeds the configured maximum page limit %s",
+            value,
+            max_val,
+        )
         return max_val
     if value == 0:
         return fallback

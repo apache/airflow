@@ -45,8 +45,11 @@ class SequentialExecutor(BaseExecutor):
     """
 
     supports_pickling: bool = False
+
     is_local: bool = True
     is_single_threaded: bool = True
+    is_production: bool = False
+
     serve_logs: bool = True
 
     def __init__(self):

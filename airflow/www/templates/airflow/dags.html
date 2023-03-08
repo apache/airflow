@@ -113,9 +113,9 @@
       <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
-  {% if sequential_executor_warning | default(false) %}
+  {% if production_executor_warning | default(false) %}
     {% call show_message(category='warning', dismissible=false) %}
-      Do not use <b>SequentialExecutor</b> in production.
+      Do not use the <b>{{ production_executor_warning }}</b> in production.
       <a href={{ get_docs_url("executor/index.html") }}><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}

@@ -17,34 +17,35 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import camelcaseKeys from 'camelcase-keys';
+import axios, { AxiosResponse } from "axios";
+import camelcaseKeys from "camelcase-keys";
 
-import useClearRun from './useClearRun';
-import useQueueRun from './useQueueRun';
-import useMarkFailedRun from './useMarkFailedRun';
-import useMarkSuccessRun from './useMarkSuccessRun';
-import useClearTask from './useClearTask';
-import useMarkFailedTask from './useMarkFailedTask';
-import useMarkSuccessTask from './useMarkSuccessTask';
-import useExtraLinks from './useExtraLinks';
-import useConfirmMarkTask from './useConfirmMarkTask';
-import useGridData from './useGridData';
-import useMappedInstances from './useMappedInstances';
-import useDatasets from './useDatasets';
-import useDataset from './useDataset';
-import useDatasetDependencies from './useDatasetDependencies';
-import useDatasetEvents from './useDatasetEvents';
-import useSetDagRunNote from './useSetDagRunNote';
-import useSetTaskInstanceNote from './useSetTaskInstanceNote';
-import useUpstreamDatasetEvents from './useUpstreamDatasetEvents';
-import useTaskInstance from './useTaskInstance';
+import useClearRun from "./useClearRun";
+import useQueueRun from "./useQueueRun";
+import useMarkFailedRun from "./useMarkFailedRun";
+import useMarkSuccessRun from "./useMarkSuccessRun";
+import useClearTask from "./useClearTask";
+import useMarkFailedTask from "./useMarkFailedTask";
+import useMarkSuccessTask from "./useMarkSuccessTask";
+import useExtraLinks from "./useExtraLinks";
+import useConfirmMarkTask from "./useConfirmMarkTask";
+import useGraphData from "./useGraphData";
+import useGridData from "./useGridData";
+import useMappedInstances from "./useMappedInstances";
+import useDatasets from "./useDatasets";
+import useDataset from "./useDataset";
+import useDatasetDependencies from "./useDatasetDependencies";
+import useDatasetEvents from "./useDatasetEvents";
+import useSetDagRunNote from "./useSetDagRunNote";
+import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
+import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
+import useTaskInstance from "./useTaskInstance";
 
-axios.interceptors.response.use(
-  (res: AxiosResponse) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
+axios.interceptors.response.use((res: AxiosResponse) =>
+  res.data ? camelcaseKeys(res.data, { deep: true }) : res
 );
 
-axios.defaults.headers.common.Accept = 'application/json';
+axios.defaults.headers.common.Accept = "application/json";
 
 export {
   useClearRun,
@@ -55,6 +56,7 @@ export {
   useDatasetEvents,
   useDatasets,
   useExtraLinks,
+  useGraphData,
   useGridData,
   useMappedInstances,
   useMarkFailedRun,

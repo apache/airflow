@@ -123,7 +123,7 @@ Next is the implementation of ``next_dagrun_info``:
     :start-after: [START howto_timetable_next_dagrun_info]
     :end-before: [END howto_timetable_next_dagrun_info]
 
-This method accepts two arguments. ``last_automated_dagrun`` is a
+This method accepts two arguments. ``last_automated_data_interval`` is a
 :class:`~airflow.timetables.base.DataInterval` instance indicating the data
 interval of this DAG's previous non-manually-triggered run, or ``None`` if this
 is the first time ever the DAG is being scheduled. ``restriction`` encapsulates
