@@ -92,8 +92,8 @@ images:
     tag: airflow-pgbouncer-exporter-2021.09.22-0.12.0
     pullPolicy: IfNotPresent
   gitSync:
-    repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.4.0
+    repository: registry.k8s.io/git-sync/git-sync
+    tag: v3.6.3
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.

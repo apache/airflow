@@ -675,12 +675,12 @@
                         "repository": {
                             "description": "The gitSync image repository.",
                             "type": "string",
-                            "default": "k8s.gcr.io/git-sync/git-sync"
+                            "default": "registry.k8s.io/git-sync/git-sync"
                         },
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.4.0"
+                            "default": "v3.6.3"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
