@@ -832,6 +832,38 @@ hooks:
     python-modules:
       - airflow.providers.google.cloud.hooks.dataform
 
+triggers:
+  - integration-name: Google BigQuery Data Transfer Service
+    python-modules:
+      - airflow.providers.google.cloud.triggers.bigquery_dts
+  - integration-name: Google BigQuery
+    python-modules:
+      - airflow.providers.google.cloud.triggers.bigquery
+  - integration-name: Google Cloud Build
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_build
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Dataflow
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataflow
+  - integration-name: Google Data Fusion
+    python-modules:
+      - airflow.providers.google.cloud.triggers.datafusion
+  - integration-name: Google Dataproc
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataproc
+  - integration-name: Google Cloud Storage (GCS)
+    python-modules:
+      - airflow.providers.google.cloud.triggers.gcs
+  - integration-name: Google Kubernetes Engine
+    python-modules:
+      - airflow.providers.google.cloud.triggers.kubernetes_engine
+  - integration-name: Google Machine Learning Engine
+    python-modules:
+      - airflow.providers.google.cloud.triggers.mlengine
+
 transfers:
   - source-integration-name: Presto
     target-integration-name: Google Cloud Storage (GCS)

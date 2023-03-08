@@ -92,6 +92,11 @@ hooks:
     python-modules:
       - airflow.providers.databricks.hooks.databricks_sql
 
+triggers:
+  - integration-name: Databricks
+    python-modules:
+      - airflow.providers.databricks.triggers.databricks
+
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
