@@ -96,6 +96,20 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.running is not None
 
 
+def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is terminated.
+    If that container is present and terminated, returns True.  Returns False otherwise.
+    """
+    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if not container_statuses:
+        return False
+    container_status = next((x for x in container_statuses if x.name == container_name), None)
+    if not container_status:
+        return False
+    return container_status.state.terminated is not None
+
+
 def get_container_termination_message(pod: V1Pod, container_name: str):
     with suppress(AttributeError, TypeError):
         container_statuses = pod.status.container_statuses
@@ -380,7 +394,7 @@ class PodManager(LoggingMixin):
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
         """
-        while self.container_is_running(pod=pod, container_name=container_name):
+        while not self.container_is_terminated(pod=pod, container_name=container_name):
             time.sleep(1)
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:
@@ -426,6 +440,11 @@ class PodManager(LoggingMixin):
         """Reads pod and checks if container is running"""
         remote_pod = self.read_pod(pod)
         return container_is_running(pod=remote_pod, container_name=container_name)
+
+    def container_is_terminated(self, pod: V1Pod, container_name: str) -> bool:
+        """Reads pod and checks if container is terminated"""
+        remote_pod = self.read_pod(pod)
+        return container_is_terminated(pod=remote_pod, container_name=container_name)
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_logs(
