@@ -21,6 +21,113 @@
 
 .. towncrier release notes start
 
+Airflow 2.5.2 (2023-03-13)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+The date-time fields passed as API parameters or Params should be RFC3339-compliant (#29395)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+In case of API calls, it was possible that "+" passed as part of the date-time fields were not URL-encoded, and
+such date-time fields could pass validation. Such date-time parameters should now be URL-encoded (as ``%2B``).
+
+In case of parameters, we still allow IS8601-compliant date-time (so for example it is possible that
+' ' was used instead of ``T`` separating date from time and no timezone was specified) but we raise
+deprecation warning.
+
+Default for ``[webserver] expose_hostname`` changed to ``False`` (#29547)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default for ``[webserver] expose_hostname`` has been set to ``False``, instead of ``True``. This means administrators must opt-in to expose webserver hostnames to end users.
+
+Bug Fixes
+^^^^^^^^^
+- Fix validation of date-time field in API and Parameter schemas (#29395)
+- Fix grid logs for large logs (#29390)
+- Fix on_failure_callback when task receives a SIGTERM (#29743)
+- Update min version of python-daemon to fix containerd file limits (#29916)
+- POST ``/dagRuns`` API should 404 if dag not active (#29860)
+- DAG list sorting lost when switching page (#29756)
+- Fix Scheduler crash when clear a previous run of a normal task that is now a mapped task (#29645)
+- Convert moment with timezone to UTC instead of raising an exception (#29606)
+- Fix clear dag run ``openapi`` spec responses by adding additional return type (#29600)
+- Don't display empty rendered attrs in Task Instance Details page (#29545)
+- Remove section check from get-value command (#29541)
+- Do not show version/node in UI traceback for unauthenticated user (#29501)
+- Make ``prev_logical_date`` variable offset-aware (#29454)
+- Fix nested fields rendering in mapped operators (#29451)
+- Datasets, next_run_datasets, remove unnecessary timestamp filter (#29441)
+- ``Edgemodifier`` refactoring w/ labels in TaskGroup edge case (#29410)
+- Fix Rest API update user output (#29409)
+- Ensure Serialized DAG is deleted (#29407)
+- Persist DAG and task doc values in TaskFlow API if explicitly set (#29399)
+- Redirect to the origin page with all the params (#29212)
+- Fixing Task Duration view in case of manual DAG runs only (#22015) (#29195)
+- Remove poke method to fall back to parent implementation (#29146)
+- PR: Introduced fix to run tasks on Windows systems (#29107)
+- Fix warning in migrations about old config. (#29092)
+- Emit dagrun failed duration when timeout (#29076)
+- Handling error on cluster policy itself (#29056)
+- Fix kerberos authentication for the REST API. (#29054)
+- Fix leak sensitive field via V1EnvVar on exception (#29016)
+- Sanitize url_for arguments before they are passed (#29039)
+- Fix dag run trigger with a note. (#29228)
+- Write action log to DB when DAG run is triggered via API (#28998)
+- Resolve all variables in pickled XCom iterator (#28982)
+- Allow URI without authority and host blocks in ``airflow connections add`` (#28922)
+- Be more selective when adopting pods with KubernetesExecutor (#28899)
+- KubenetesExecutor sends state even when successful (#28871)
+- Annotate KubernetesExecutor pods that we don't delete (#28844)
+- Throttle streaming log reads (#28818)
+- Introduce dag processor job (#28799)
+- Fix #28391 manual task trigger from UI fails for k8s executor (#28394)
+- Logging poke info when external dag is not none and task_id and task_ids are none (#28097)
+- Fix inconsistencies in checking edit permissions for a DAG (#20346)
+
+Misc/Internal
+^^^^^^^^^^^^^
+- Add a check for not templateable fields (#29821)
+- Removed continue for not in (#29791)
+- Move extra links position in grid view (#29703)
+- Bump ``undici`` from ``5.9.1`` to ``5.19.1`` (#29583)
+- Change expose_hostname default to false (#29547)
+- Change permissions of config/password files created by airflow (#29495)
+- Use newer setuptools ``v67.2.0`` (#29465)
+- Increase max height for grid view elements (#29367)
+- Clarify description of worker control config (#29247)
+- Bump ``ua-parser-js`` from ``0.7.31`` to ``0.7.33`` in ``/airflow/www`` (#29172)
+- Remove upper bound limitation for ``pytest`` (#29086)
+- Check for ``run_id`` url param when linking to ``graph/gantt`` views (#29066)
+- Clarify graph view dynamic task labels (#29042)
+- Fixing import error for dataset (#29007)
+- Update how PythonSensor returns values from ``python_callable`` (#28932)
+- Add dep context description for better log message (#28875)
+- Bump ``swagger-ui-dist`` from ``3.52.0`` to ``4.1.3`` in ``/airflow/www`` (#28824)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Update pipeline.rst - Fix query in ``merge_data()`` task (#29158)
+- Correct argument name of Workday timetable in timetable.rst (#29896)
+- Update ref anchor for env var link in Connection how-to doc (#29816)
+- Better description for limit in api (#29773)
+- Description of dag_processing.last_duration (#29740)
+- Update docs re: template_fields typing and subclasses (#29725)
+- Fix formatting of Dataset inlet/outlet note in TaskFlow concepts (#29678)
+- Specific use-case: adding packages via requirements.txt in compose (#29598)
+- Detect is 'docker-compose' existing (#29544)
+- Add Landing Times entry to UI docs (#29511)
+- Improve health checks in example docker-compose and clarify usage (#29408)
+- Remove ``notes`` param from TriggerDagRunOperator docstring (#29298)
+- Use ``schedule`` param rather than ``timetable`` in Timetables docs (#29255)
+- Add trigger process to Airflow Docker docs (#29203)
+- Update set-up-database.rst (#29104)
+- Several improvements to the Params doc (#29062)
+- Email Config docs more explicit env var examples (#28845)
+- Listener plugin example added (#27905)
+
+
 Airflow 2.5.1 (2023-01-20)
 --------------------------
 
