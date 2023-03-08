@@ -3851,6 +3851,50 @@ def test_mapped_task_does_not_error_in_mini_scheduler_if_upstreams_are_not_done(
     assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
 
 
+def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, session):
+    """
+    This tests verify that operators with inherits_from_empty_operator are not considered by mini scheduler.
+    Such operators should not run on workers thus the mini scheduler optimization should skip them and not
+    submit them directly to worker.
+    """
+    with dag_maker() as dag:
+
+        @dag.task
+        def first_task():
+            print(2)
+
+        @dag.task
+        def second_task():
+            print(2)
+
+        third_task = EmptyOperator(task_id="third_task")
+        forth_task = EmptyOperator(task_id="forth_task", on_success_callback=lambda x: print("hi"))
+
+        first_task() >> [second_task(), third_task, forth_task]
+        dag_run = dag_maker.create_dagrun()
+        first_ti = dag_run.get_task_instance(task_id="first_task")
+        second_ti = dag_run.get_task_instance(task_id="second_task")
+        third_ti = dag_run.get_task_instance(task_id="third_task")
+        forth_ti = dag_run.get_task_instance(task_id="forth_task")
+        first_ti.state = State.SUCCESS
+        second_ti.state = State.NONE
+        third_ti.state = State.NONE
+        forth_ti.state = State.NONE
+        session.merge(first_ti)
+        session.merge(second_ti)
+        session.merge(third_ti)
+        session.merge(forth_ti)
+        session.commit()
+        first_ti.schedule_downstream_tasks(session=session)
+        second_task = dag_run.get_task_instance(task_id="second_task")
+        third_task = dag_run.get_task_instance(task_id="third_task")
+        forth_task = dag_run.get_task_instance(task_id="forth_task")
+        assert second_task.state == State.SCHEDULED
+        assert third_task.state == State.NONE
+        assert forth_task.state == State.SCHEDULED
+        assert "2 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
 def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
     """Test that mini scheduler expands mapped task"""
     with dag_maker() as dag:
