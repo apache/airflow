@@ -35,7 +35,6 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 # [END import_module]
-
 # [START instantiate_dag]
 with DAG(
     "tutorial_dag",
@@ -62,7 +61,6 @@ with DAG(
         ti.xcom_push("order_data", data_string)
 
     # [END extract_function]
-
     # [START transform_function]
     def transform(**kwargs):
         ti = kwargs["ti"]
@@ -78,7 +76,6 @@ with DAG(
         ti.xcom_push("total_order_value", total_value_json_string)
 
     # [END transform_function]
-
     # [START load_function]
     def load(**kwargs):
         ti = kwargs["ti"]
@@ -88,7 +85,6 @@ with DAG(
         print(total_order_value)
 
     # [END load_function]
-
     # [START main_flow]
     extract_task = PythonOperator(
         task_id="extract",

@@ -26,7 +26,7 @@ from pygments.lexers import Python3Lexer, PythonLexer, guess_lexer
 from sphinx.transforms import SphinxTransform
 from sphinx.transforms.post_transforms.code import TrimDoctestFlagsTransform
 
-docmark_re = re.compile(r"#\s*\[(START|END)\s*[a-z_A-Z]+].*$", re.MULTILINE)
+docmark_re = re.compile(r"#\s*\[(START|END)\s*[a-z_A-Z]+].*\n", re.MULTILINE)
 
 
 class TrimDocMarkerFlagsTransform(SphinxTransform):
@@ -44,7 +44,7 @@ class TrimDocMarkerFlagsTransform(SphinxTransform):
         for node in self.document.traverse(nodes.literal_block):
             if self.is_pycode(node):
                 source = node.rawsource
-                source = docmark_re.sub("", source)
+                source = docmark_re.sub(r"", source)
                 node.rawsource = source
                 node[:] = [nodes.Text(source)]
 

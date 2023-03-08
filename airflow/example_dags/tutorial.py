@@ -34,8 +34,6 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 
 # [END import_module]
-
-
 # [START instantiate_dag]
 with DAG(
     "tutorial",
@@ -70,7 +68,6 @@ with DAG(
     tags=["example"],
 ) as dag:
     # [END instantiate_dag]
-
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     # [START basic_task]
     t1 = BashOperator(
@@ -85,7 +82,6 @@ with DAG(
         retries=3,
     )
     # [END basic_task]
-
     # [START documentation]
     t1.doc_md = dedent(
         """\
@@ -103,7 +99,6 @@ with DAG(
     This is a documentation placed anywhere
     """  # otherwise, type it like this
     # [END documentation]
-
     # [START jinja_template]
     templated_command = dedent(
         """
@@ -120,6 +115,5 @@ with DAG(
         bash_command=templated_command,
     )
     # [END jinja_template]
-
     t1 >> [t2, t3]
 # [END tutorial]

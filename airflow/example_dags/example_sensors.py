@@ -44,8 +44,6 @@ def failure_callable():
 
 
 # [END example_callables]
-
-
 with DAG(
     dag_id="example_sensors",
     schedule=None,

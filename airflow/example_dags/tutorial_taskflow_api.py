@@ -27,8 +27,6 @@ from airflow.decorators import dag, task
 
 
 # [END import_module]
-
-
 # [START instantiate_dag]
 @dag(
     schedule=None,
@@ -45,8 +43,8 @@ def tutorial_taskflow_api():
     located
     [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)
     """
-    # [END instantiate_dag]
 
+    # [END instantiate_dag]
     # [START extract]
     @task()
     def extract():
@@ -62,7 +60,6 @@ def tutorial_taskflow_api():
         return order_data_dict
 
     # [END extract]
-
     # [START transform]
     @task(multiple_outputs=True)
     def transform(order_data_dict: dict):
@@ -79,7 +76,6 @@ def tutorial_taskflow_api():
         return {"total_order_value": total_order_value}
 
     # [END transform]
-
     # [START load]
     @task()
     def load(total_order_value: float):
@@ -92,7 +88,6 @@ def tutorial_taskflow_api():
         print(f"Total order value is: {total_order_value:.2f}")
 
     # [END load]
-
     # [START main_flow]
     order_data = extract()
     order_summary = transform(order_data)

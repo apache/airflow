@@ -29,8 +29,6 @@ from airflow.sensors.base import PokeReturnValue
 
 
 # [END import_module]
-
-
 # [START instantiate_dag]
 @dag(
     schedule=None,
