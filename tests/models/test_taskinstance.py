@@ -3897,9 +3897,9 @@ def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, s
         second_task = dag_run.get_task_instance(task_id="second_task")
         third_task = dag_run.get_task_instance(task_id="third_task")
         forth_task = dag_run.get_task_instance(task_id="forth_task")
-        assert second_task.state != State.NONE
+        assert second_task.state == State.SCHEDULED
         assert third_task.state == State.NONE
-        assert forth_task.state != State.NONE
+        assert forth_task.state == State.SCHEDULED
         assert "2 downstream tasks scheduled from follow-on schedule" in caplog.text
 
 
