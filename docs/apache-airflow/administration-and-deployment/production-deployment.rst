@@ -38,7 +38,7 @@ You can change the backend using the following config
     sql_alchemy_conn = my_conn_string
 
 Once you have changed the backend, airflow needs to create all the tables required for operation.
-Create an empty DB and give airflow's user permission to ``CREATE/ALTER`` it.
+Create an empty DB and give Airflow's user permission to ``CREATE/ALTER`` it.
 Once that is done, you can run -
 
 .. code-block:: bash
