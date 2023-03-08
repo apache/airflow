@@ -44,7 +44,7 @@ class TrimDocMarkerFlagsTransform(SphinxTransform):
         for node in self.document.traverse(nodes.literal_block):
             if self.is_pycode(node):
                 source = node.rawsource
-                source = docmark_re.sub(r"", source)
+                source = docmark_re.sub("", source)
                 node.rawsource = source
                 node[:] = [nodes.Text(source)]
 
