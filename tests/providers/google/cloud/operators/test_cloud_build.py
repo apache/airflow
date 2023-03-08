@@ -422,7 +422,7 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
     mock_hook.return_value.create_build_without_waiting_for_result.assert_called_once_with(
         build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
     )
-    mock_hook.return_value.get_build.assert_called_once_with(id_=BUILD_ID, project_id=None)
+    mock_hook.return_value.get_build.assert_called_once_with(id_=BUILD_ID, project_id=None, location="global")
 
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)

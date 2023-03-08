@@ -232,7 +232,9 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         )
         self.xcom_push(context, key="id", value=self.id_)
         if not self.wait:
-            return Build.to_dict(hook.get_build(id_=self.id_, project_id=self.project_id))
+            return Build.to_dict(
+                hook.get_build(id_=self.id_, project_id=self.project_id, location=self.location)
+            )
 
         if self.deferrable:
             self.defer(
