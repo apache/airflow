@@ -682,6 +682,10 @@
       "common.sql"
     ]
   },
+  "smtp": {
+    "deps": [],
+    "cross-providers-deps": []
+  },
   "snowflake": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
