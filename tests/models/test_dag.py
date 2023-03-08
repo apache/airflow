@@ -471,7 +471,6 @@ class TestDag:
         session.close()
 
     def test_get_task_instances_before(self):
-
         BASE_DATE = timezone.datetime(2022, 7, 20, 20)
 
         test_dag_id = "test_get_task_instances_before"
@@ -503,90 +502,53 @@ class TestDag:
 
         REF_DATE = BASE_DATE
 
-        assert set([dr.run_id for dr in [dr1]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=7, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=9, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
-            ]
-        )  # stays constrained to available ones
+        assert {dr.run_id for dr in [dr1]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+        }
+        assert {dr.run_id for dr in [dr1, dr2, dr3]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
+        }
+        assert {dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
+        }
+        assert {dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=7, session=session)
+        }
+        assert {dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=9, session=session)
+        }
+        assert {dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]} == {
+            ti.run_id
+            for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
+        }  # stays constrained to available ones
 
         REF_DATE = BASE_DATE + timedelta(hours=-3.5)
 
-        assert set([dr.run_id for dr in [dr4]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr4, dr5, dr6]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=6, session=session)
-            ]
-        )  # stays constrained to available ones
+        assert {dr.run_id for dr in [dr4]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+        }
+        assert {dr.run_id for dr in [dr4, dr5, dr6]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
+        }
+        assert {dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
+        }
+        assert {dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=6, session=session)
+        }  # stays constrained to available ones
 
         REF_DATE = BASE_DATE + timedelta(hours=-8)
 
-        assert set([dr.run_id for dr in [dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=0, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
-            ]
-        )
+        assert {dr.run_id for dr in [dr8]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=0, session=session)
+        }
+        assert {dr.run_id for dr in [dr8]} == {
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+        }
+        assert {dr.run_id for dr in [dr8]} == {
+            ti.run_id
+            for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
+        }
 
         session.close()
 
@@ -634,7 +596,6 @@ class TestDag:
         assert isinstance(jinja_env, expected_env)
 
     def test_resolve_template_files_value(self):
-
         with NamedTemporaryFile(suffix=".template") as f:
             f.write(b"{{ ds }}")
             f.flush()
@@ -652,7 +613,6 @@ class TestDag:
         assert task.test_field == "{{ ds }}"
 
     def test_resolve_template_files_list(self):
-
         with NamedTemporaryFile(suffix=".template") as f:
             f.write(b"{{ ds }}")
             f.flush()
@@ -1265,7 +1225,6 @@ class TestDag:
         session.close()
 
     def test_existing_dag_default_view(self):
-
         with create_session() as session:
             session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
             session.commit()

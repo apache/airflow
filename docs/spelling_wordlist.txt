@@ -283,6 +283,7 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+containerd
 ContainerGroup
 containerinstance
 ContainerPort

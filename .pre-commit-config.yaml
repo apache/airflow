@@ -147,7 +147,7 @@ repos:
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
   - repo: https://github.com/PyCQA/isort
-    rev: 5.11.2
+    rev: 5.11.5
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files

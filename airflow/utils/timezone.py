@@ -260,8 +260,8 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
         delta = relativedelta(seconds=int(td_object))
     # relativedelta for timedelta cannot convert days to months
     # so calculate months by assuming 30 day months and normalize
-    months, delta.days = divmod(delta.days, 30)
-    delta = delta.normalized() + relativedelta(months=months)
+    months, delta.days = divmod(delta.days, 30)  # type: ignore[attr-defined]
+    delta = delta.normalized() + relativedelta(months=months)  # type: ignore[attr-defined]
 
     def _format_part(key: str) -> str:
         value = int(getattr(delta, key))
