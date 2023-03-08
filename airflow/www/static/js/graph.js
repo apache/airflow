@@ -275,12 +275,7 @@ function setUpZoomSupport() {
   // Calculate applicable scale for zoom
   const zoomScale = Math.min(
     Math.min(width / graphWidth, height / graphHeight),
-<<<<<<< HEAD
-    1.5 // cap zoom level to 1.5 so nodes are not too large
-  );
-=======
   ) * 0.8;
->>>>>>> fd8b161fa1 (Center clicked node around mouse)
 
   zoom.translate([width / 2 - (graphWidth * zoomScale) / 2 + padding, padding]);
   zoom.scale(zoomScale);
@@ -374,24 +369,7 @@ d3.select("#searchbox").on("keyup", () => {
 
   // This moves the matched node to the center of the graph area
   if (match) {
-<<<<<<< HEAD
-    const transform = d3.transform(d3.select(match).attr("transform"));
-
-    const svgBb = svg.node().getBoundingClientRect();
-    transform.translate = [
-      svgBb.width / 2 - transform.translate[0],
-      svgBb.height / 2 - transform.translate[1],
-    ];
-    transform.scale = [1, 1];
-
-    if (zoom != null) {
-      zoom.translate(transform.translate);
-      zoom.scale(1);
-      zoom.event(innerSvg);
-    }
-=======
     focusGroup(match.id, false);
->>>>>>> fd8b161fa1 (Center clicked node around mouse)
   }
 });
 
