@@ -122,6 +122,7 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -259,6 +260,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                     context=context,
                     task_instance=self,
                     project_id=project_id,
+                    region=self.location,
                     build_id=cloud_build_instance_result.id,
                 )
             return Build.to_dict(cloud_build_instance_result)
@@ -277,6 +279,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                     context=context,
                     task_instance=self,
                     project_id=project_id,
+                    region=self.location,
                     build_id=event["id_"],
                 )
             return event["instance"]
@@ -359,12 +362,14 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
                 trigger_id=result.id,
             )
             CloudBuildTriggersListLink.persist(
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
             )
         return BuildTrigger.to_dict(result)
 
@@ -439,6 +444,7 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
             )
 
 
@@ -512,6 +518,7 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -587,6 +594,7 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
                 trigger_id=result.id,
             )
         return BuildTrigger.to_dict(result)
@@ -667,6 +675,7 @@ class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
             )
         return [BuildTrigger.to_dict(result) for result in results]
 
@@ -742,7 +751,9 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
         )
         project_id = self.project_id or hook.project_id
         if project_id:
-            CloudBuildListLink.persist(context=context, task_instance=self, project_id=project_id)
+            CloudBuildListLink.persist(
+                context=context, task_instance=self, project_id=project_id, region=self.location
+            )
         return [Build.to_dict(result) for result in results]
 
 
@@ -823,6 +834,7 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -908,6 +920,7 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
                 build_id=result.id,
             )
         return Build.to_dict(result)
@@ -989,6 +1002,7 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
+                region=self.location,
                 trigger_id=result.id,
             )
         return BuildTrigger.to_dict(result)
