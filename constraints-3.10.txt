@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-08T05:05:52Z
+# This constraints file was automatically generated on 2023-03-08T19:15:01Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -51,7 +51,7 @@ aiohttp==3.8.4
 aioresponses==0.7.4
 aiosignal==1.3.1
 alabaster==0.7.13
-alembic==1.10.1
+alembic==1.10.2
 aliyun-python-sdk-core==2.13.36
 aliyun-python-sdk-kms==2.16.0
 amqp==5.1.1
@@ -130,7 +130,7 @@ apache-airflow-providers-trino==4.3.2
 apache-airflow-providers-vertica==3.3.1
 apache-airflow-providers-yandex==3.3.0
 apache-airflow-providers-zendesk==4.2.0
-apache-beam==2.45.0
+apache-beam==2.46.0
 apispec==5.2.2
 appdirs==1.4.4
 argcomplete==2.1.1
@@ -214,7 +214,7 @@ croniter==1.3.8
 cryptography==38.0.4
 curlify==2.2.1
 dask==2023.3.0
-databricks-sql-connector==2.2.0
+databricks-sql-connector==2.4.0
 datadog==0.44.0
 db-dtypes==1.0.5
 decorator==5.1.1
@@ -233,6 +233,7 @@ elasticsearch==7.13.4
 email-validator==1.3.1
 entrypoints==0.4
 eralchemy2==1.3.7
+et-xmlfile==1.1.0
 eventlet==0.33.3
 exceptiongroup==1.1.0
 execnet==1.9.0
@@ -317,12 +318,12 @@ hdfs==2.7.0
 hmsclient==0.1.1
 hpack==4.0.0
 httpcore==0.16.3
-httplib2==0.20.4
+httplib2==0.21.0
 httpx==0.23.3
 humanize==4.6.0
 hvac==1.1.0
 hyperframe==6.0.1
-identify==2.5.18
+identify==2.5.19
 idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
@@ -383,7 +384,7 @@ moreorless==0.4.0
 moto==4.1.4
 msal-extensions==1.0.0
 msal==1.21.0
-msgpack==1.0.4
+msgpack==1.0.5
 msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
@@ -400,17 +401,18 @@ nbformat==5.7.3
 neo4j==5.6.0
 networkx==3.0
 nodeenv==1.7.0
-numpy==1.22.4
+numpy==1.23.4
 oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.3
 openapi-spec-validator==0.5.5
+openpyxl==3.1.1
 opsgenie-sdk==2.1.5
 oracledb==1.2.2
 ordered-set==4.1.0
 orjson==3.8.7
 oscrypto==1.3.0
-oss2==2.16.0
+oss2==2.17.0
 packaging==21.3
 pandas-gbq==0.17.9
 pandas==1.5.3
@@ -482,7 +484,7 @@ pytest-timeouts==1.2.1
 pytest-xdist==3.2.0
 pytest==7.2.2
 python-arango==7.5.7
-python-daemon==3.0.0
+python-daemon==3.0.1
 python-dateutil==2.8.2
 python-dotenv==1.0.0
 python-http-client==3.3.7

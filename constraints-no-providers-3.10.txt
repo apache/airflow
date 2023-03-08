@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-08T05:04:01Z
+# This constraints file was automatically generated on 2023-03-08T19:12:10Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -38,7 +38,7 @@ Werkzeug==2.2.3
 adal==1.2.7
 aiohttp==3.8.4
 aiosignal==1.3.1
-alembic==1.10.1
+alembic==1.10.2
 amqp==5.1.1
 anyio==3.6.2
 apispec==5.2.2
@@ -118,7 +118,7 @@ marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
 mdit-py-plugins==0.3.5
 mdurl==0.1.2
-msgpack==1.0.4
+msgpack==1.0.5
 multidict==6.0.4
 numpy==1.24.2
 oauthlib==3.2.2
@@ -145,7 +145,7 @@ pydantic==1.10.5
 pykerberos==1.2.4
 pyrsistent==0.19.3
 pyspnego==0.8.0
-python-daemon==3.0.0
+python-daemon==3.0.1
 python-dateutil==2.8.2
 python-ldap==3.4.3
 python-nvd3==0.15.0
