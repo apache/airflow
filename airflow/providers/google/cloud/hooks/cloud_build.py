@@ -242,6 +242,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> BuildTrigger:
         """
         Creates a new BuildTrigger.
@@ -255,9 +256,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start creating build trigger...")
 
@@ -283,6 +284,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> None:
         """
         Deletes a BuildTrigger by its project ID and trigger ID.
@@ -295,8 +297,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start deleting build trigger: %s.", trigger_id)
 
@@ -355,6 +358,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> BuildTrigger:
         """
         Returns information about a BuildTrigger.
@@ -367,9 +371,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start retrieving build trigger: %s.", trigger_id)
 
@@ -541,6 +545,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> Build:
         """
         Runs a BuildTrigger at a particular source revision.
@@ -556,9 +561,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start running build trigger: %s.", trigger_id)
         operation = client.run_build_trigger(
@@ -587,6 +592,7 @@ class CloudBuildHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        location: str = "global",
     ) -> BuildTrigger:
         """
         Updates a BuildTrigger by its project ID and trigger ID.
@@ -601,9 +607,9 @@ class CloudBuildHook(GoogleBaseHook):
         :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         :param metadata: Optional, additional metadata that is provided to the method.
-
+        :param location: The location of the project.
         """
-        client = self.get_conn()
+        client = self.get_conn(location=location)
 
         self.log.info("Start updating build trigger: %s.", trigger_id)
 

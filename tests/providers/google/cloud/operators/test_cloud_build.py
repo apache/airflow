@@ -174,7 +174,7 @@ class TestCloudBuildOperator:
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.create_build_trigger.assert_called_once_with(
-            trigger=BUILD_TRIGGER, project_id=None, retry=DEFAULT, timeout=None, metadata=()
+            trigger=BUILD_TRIGGER, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
         )
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -186,7 +186,7 @@ class TestCloudBuildOperator:
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.delete_build_trigger.assert_called_once_with(
-            trigger_id=TRIGGER_ID, project_id=None, retry=DEFAULT, timeout=None, metadata=()
+            trigger_id=TRIGGER_ID, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
         )
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -210,7 +210,7 @@ class TestCloudBuildOperator:
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_build_trigger.assert_called_once_with(
-            trigger_id=TRIGGER_ID, project_id=None, retry=DEFAULT, timeout=None, metadata=()
+            trigger_id=TRIGGER_ID, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
         )
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -283,6 +283,7 @@ class TestCloudBuildOperator:
             retry=DEFAULT,
             timeout=None,
             metadata=(),
+            location="global",
         )
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -302,6 +303,7 @@ class TestCloudBuildOperator:
             retry=DEFAULT,
             timeout=None,
             metadata=(),
+            location="global",
         )
 
 
