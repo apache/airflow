@@ -91,6 +91,7 @@ body:
         - sftp
         - singularity
         - slack
+        - smtp
         - snowflake
         - sqlite
         - ssh
