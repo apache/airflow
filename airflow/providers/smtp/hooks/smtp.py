@@ -18,7 +18,7 @@
 """
 This module provides everything to be able to search in mails for a specific attachment
 and also to download it.
-It uses the imaplib library that is already integrated in python 3.
+It uses the smtplib library that is already integrated in python 3.
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ class SmtpHook(BaseHook):
     """
     TODO: add docstring
 
-    :param smtp_conn_id: The :ref:`imap connection id <howto/connection:imap>`
+    :param smtp_conn_id: The :ref:`smtp connection id <howto/connection:smtp>`
         that contains the information used to authenticate the client.
     """
 
