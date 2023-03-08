@@ -2654,7 +2654,13 @@ class TaskInstance(Base, LoggingMixin):
             schedulable_tis = [
                 ti
                 for ti in info.schedulable_tis
-                if ti.task_id not in skippable_task_ids and not ti.task.inherits_from_empty_operator
+                if ti.task_id not in skippable_task_ids
+                and not (
+                    ti.task.inherits_from_empty_operator
+                    and not ti.task.on_execute_callback
+                    and not ti.task.on_success_callback
+                    and not ti.task.outlets
+                )
             ]
             for schedulable_ti in schedulable_tis:
                 if not hasattr(schedulable_ti, "task"):
