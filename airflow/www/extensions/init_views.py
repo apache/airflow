@@ -150,13 +150,6 @@ def init_plugins(app):
         app.register_blueprint(blue_print["blueprint"])
 
 
-def init_connection_form():
-    """Initializes connection form"""
-    from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
-
-    lazy_add_provider_discovered_options_to_connection_form()
-
-
 def init_error_handlers(app: Flask):
     """Add custom errors handlers"""
     from airflow.www import views

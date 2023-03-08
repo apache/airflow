@@ -35,6 +35,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodPhase,
     container_is_running,
+    container_is_terminated,
 )
 from airflow.utils.timezone import utc
 from tests.test_utils.providers import get_provider_version, object_exists
@@ -365,6 +366,24 @@ class TestPodManager:
                 "You must now remove `get_kube_client` from PodManager "
                 "and make kube_client a required argument."
             )
+
+    @pytest.mark.parametrize(
+        "container_state, expected_is_terminated",
+        [("waiting", False), ("running", False), ("terminated", True)],
+    )
+    def test_container_is_terminated_with_waiting_state(self, container_state, expected_is_terminated):
+        container_status = MagicMock()
+        container_status.configure_mock(
+            **{
+                "name": "base",
+                "state.waiting": True if container_state == "waiting" else None,
+                "state.running": True if container_state == "running" else None,
+                "state.terminated": True if container_state == "terminated" else None,
+            }
+        )
+        pod_info = MagicMock()
+        pod_info.status.container_statuses = [container_status]
+        assert container_is_terminated(pod_info, "base") == expected_is_terminated
 
 
 def params_for_test_container_is_running():

@@ -96,7 +96,7 @@ images:
     tag: airflow-pgbouncer-exporter-2023.02.21-0.14.0
     pullPolicy: IfNotPresent
   gitSync:
-    repository: k8s.gcr.io/git-sync/git-sync
+    repository: registry.k8s.io/git-sync/git-sync
     tag: v3.6.3
     pullPolicy: IfNotPresent
 

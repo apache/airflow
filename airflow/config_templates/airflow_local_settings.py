@@ -203,6 +203,7 @@ if REMOTE_LOGGING:
     # WASB buckets should start with "wasb"
     # just to help Airflow select correct handler
     REMOTE_BASE_LOG_FOLDER: str = conf.get_mandatory_value("logging", "REMOTE_BASE_LOG_FOLDER")
+    REMOTE_TASK_HANDLER_KWARGS = conf.getjson("logging", "REMOTE_TASK_HANDLER_KWARGS", fallback={})
 
     if REMOTE_BASE_LOG_FOLDER.startswith("s3://"):
         S3_REMOTE_HANDLERS: dict[str, dict[str, str | None]] = {
@@ -252,7 +253,6 @@ if REMOTE_LOGGING:
                 "wasb_log_folder": REMOTE_BASE_LOG_FOLDER,
                 "wasb_container": "airflow-logs",
                 "filename_template": FILENAME_TEMPLATE,
-                "delete_local_copy": False,
             },
         }
 
@@ -315,3 +315,4 @@ if REMOTE_LOGGING:
             "section 'elasticsearch' if you are using Elasticsearch. In the other case, "
             "'remote_base_log_folder' option in the 'logging' section."
         )
+    DEFAULT_LOGGING_CONFIG["handlers"]["task"].update(REMOTE_TASK_HANDLER_KWARGS)

@@ -15,24 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-######################################
-## Airflow StatsD ServiceAccount
-######################################
-{{- if and .Values.statsd.enabled .Values.statsd.serviceAccount.create }}
-kind: ServiceAccount
-apiVersion: v1
-metadata:
-  name: {{ include "statsd.serviceAccountName" . }}
-  labels:
-    tier: airflow
-    component: statsd
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
-  {{- with .Values.statsd.serviceAccount.annotations }}
-  annotations: {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel as BaseModelPydantic
+
+from airflow.models.pydantic.taskinstance import TaskInstancePydantic
+
+
+class BaseJobPydantic(BaseModelPydantic):
+    """Serializable representation of the BaseJob ORM SqlAlchemyModel used by internal API"""
+
+    id: Optional[int]
+    dag_id: Optional[str]
+    state: Optional[str]
+    job_type: Optional[str]
+    start_date: Optional[datetime]
+    end_date: Optional[datetime]
+    latest_heartbeat: Optional[datetime]
+    executor_class: Optional[str]
+    hostname: Optional[str]
+    unixname: Optional[str]
+    task_instance: TaskInstancePydantic
+
+    class Config:
+        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
+
+        orm_mode = True
