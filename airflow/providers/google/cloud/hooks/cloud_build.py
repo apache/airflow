@@ -576,12 +576,12 @@ class CloudBuildHook(GoogleBaseHook):
         id_ = self._get_build_id_from_operation(operation)
 
         if not wait:
-            return self.get_build(id_=id_, project_id=project_id)
+            return self.get_build(id_=id_, project_id=project_id, location=location)
         operation.result()
 
         self.log.info("Build trigger has been run: %s.", trigger_id)
 
-        return self.get_build(id_=id_, project_id=project_id)
+        return self.get_build(id_=id_, project_id=project_id, location=location)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_build_trigger(
