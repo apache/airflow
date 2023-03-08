@@ -101,8 +101,9 @@ class CloudBuildHook(GoogleBaseHook):
         :return: Google Cloud Build client object.
         """
         if location not in self._client:
-            api_endpoint = None if location == "global" else f"{location}-cloudbuild.googleapis.com:443"
-            client_options = ClientOptions(api_endpoint=api_endpoint)
+            client_options = None
+            if location != "global":
+                client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
             self._client[location] = CloudBuildClient(
                 credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
@@ -635,8 +636,9 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         if not id_:
             raise AirflowException("Google Cloud Build id is required.")
 
-        api_endpoint = None if location == "global" else f"{location}-cloudbuild.googleapis.com:443"
-        client_options = ClientOptions(api_endpoint=api_endpoint)
+        client_options = None
+        if location != "global":
+            client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
         client = CloudBuildAsyncClient(client_options=client_options)
 
         request = GetBuildRequest(
