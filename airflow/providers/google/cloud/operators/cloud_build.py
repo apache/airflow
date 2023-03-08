@@ -316,7 +316,7 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger", "gcp_conn_id", "location")
     operator_extra_links = (
         CloudBuildTriggersListLink(),
         CloudBuildTriggerDetailsLink(),
@@ -402,7 +402,7 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id", "location")
     operator_extra_links = (CloudBuildTriggersListLink(),)
 
     def __init__(
@@ -552,7 +552,7 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id", "location")
     operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
@@ -871,7 +871,7 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id", "location")
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -956,7 +956,7 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "trigger", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "trigger_id", "trigger", "gcp_conn_id", "location")
     operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
