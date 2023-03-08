@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-08T19:12:10Z
+# This constraints file was automatically generated on 2023-03-08T23:21:59Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -70,7 +70,7 @@ colorlog==4.8.0
 connexion==2.14.2
 cron-descriptor==1.2.35
 croniter==1.3.8
-cryptography==38.0.4
+cryptography==39.0.2
 dask==2023.3.0
 decorator==5.1.1
 dill==0.3.2
@@ -86,7 +86,7 @@ flower==1.2.0
 frozenlist==1.3.3
 fsspec==2023.3.0
 future==0.18.3
-gcloud-aio-auth==4.1.5
+gcloud-aio-auth==4.1.6
 gevent==22.10.2
 google-auth==2.16.2
 graphviz==0.20.1
@@ -141,7 +141,7 @@ pyarrow==11.0.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycparser==2.21
-pydantic==1.10.5
+pydantic==1.10.6
 pykerberos==1.2.4
 pyrsistent==0.19.3
 pyspnego==0.8.0
