@@ -203,7 +203,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
     :param return_last: (optional) return the result of only last statement (default: True).
-    :param show_return_value_in_logs: (optional) if true operator output will be print to log.
+    :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
         Use with caution. It's not recommended to dump large datasets to the log. (default: False).
 
     .. seealso::
