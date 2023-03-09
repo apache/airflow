@@ -101,11 +101,13 @@ class DynamoDBToS3Operator(BaseOperator):
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
     :param dest_aws_conn_id: The Airflow connection used for AWS credentials
         to access S3. If this is not set then the source_aws_conn_id connection is used.
-    :param aws_conn_id: The Airflow connection used for AWS credentials (deprecated).
+    :param aws_conn_id: The Airflow connection used for AWS credentials (deprecated; use source_aws_conn_id).
 
     """  # noqa: E501
 
     template_fields: Sequence[str] = (
+        "source_aws_conn_id",
+        "dest_aws_conn_id",
         "s3_bucket_name",
         "s3_key_prefix",
         "dynamodb_table_name",
