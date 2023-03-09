@@ -45,12 +45,12 @@ Here is a different example of using this operator to execute a pipeline but cou
         :start-after: [START howto_operator_adf_run_pipeline_async]
         :end-before: [END howto_operator_adf_run_pipeline_async]
 
-Poll for status of a datafactory pipeline run asynchronously
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Poll for status of a data factory pipeline run asynchronously
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusAsyncSensor`
 (deferrable version) to periodically retrieve the
-status of a datafactory pipeline run asynchronously. This sensor will free up the worker slots since
+status of a data factory pipeline run asynchronously. This sensor will free up the worker slots since
 polling for job status happens on the Airflow triggerer, leading to efficient utilization
 of resources within Airflow.
 
