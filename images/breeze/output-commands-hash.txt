@@ -31,10 +31,10 @@ k8s:status:2b8aa0b9597a1790c184c7b776ebd9c3
 k8s:tests:dc44e907de908d1c4f11cf5d99915da1
 k8s:upload-k8s-image:b012457bb6a98524859ecaf5746b4439
 k8s:a04e7db8fb49c16a0633ac32f14463ec
-prod-image:build:f5b0b26658c6730ae5df95cadc8026ac
+prod-image:build:b2c87adc30320ea70d1b32faf1500959
 prod-image:pull:e3c89dd908fc44adf6e159c2950ebdd0
 prod-image:verify:31bc5efada1d70a0a31990025db1a093
-prod-image:4f98deab35e53ebddbdc9950a50555a4
+prod-image:eb1ef0cf6e139d01ceb26f09ca3deaaa
 release-management:create-minor-branch:6a01066dce15e09fb269a8385626657c
 release-management:generate-constraints:ae30d6ad49a1b2c15b61cb29080fd957
 release-management:generate-issue-content-providers:9b8b5b39e9310b01e6e0fb6b41483063

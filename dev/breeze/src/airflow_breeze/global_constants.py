@@ -280,6 +280,7 @@ DEFAULT_EXTRAS = [
     "sendgrid",
     "sftp",
     "slack",
+    "snowflake",
     "ssh",
     "statsd",
     "virtualenv",
