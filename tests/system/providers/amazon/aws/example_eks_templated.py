@@ -39,20 +39,18 @@ sys_test_context_task = SystemTestContextBuilder().build()
 DAG_ID = "example_eks_templated"
 
 # Example Jinja Template format, substitute your values:
-"""
-{
-    "cluster_name": "templated-cluster",
-    "cluster_role_arn": "arn:aws:iam::123456789012:role/role_name",
-    "resources_vpc_config": {
-        "subnetIds": ["subnet-12345ab", "subnet-67890cd"],
-        "endpointPublicAccess": true,
-        "endpointPrivateAccess": false
-    },
-    "nodegroup_name": "templated-nodegroup",
-    "nodegroup_subnets": "['subnet-12345ab', 'subnet-67890cd']",
-    "nodegroup_role_arn": "arn:aws:iam::123456789012:role/role_name"
-}
-"""
+# {
+#     "cluster_name": "templated-cluster",
+#     "cluster_role_arn": "arn:aws:iam::123456789012:role/role_name",
+#     "resources_vpc_config": {
+#         "subnetIds": ["subnet-12345ab", "subnet-67890cd"],
+#         "endpointPublicAccess": true,
+#         "endpointPrivateAccess": false
+#     },
+#     "nodegroup_name": "templated-nodegroup",
+#     "nodegroup_subnets": "['subnet-12345ab', 'subnet-67890cd']",
+#     "nodegroup_role_arn": "arn:aws:iam::123456789012:role/role_name"
+# }
 
 with DAG(
     dag_id=DAG_ID,
