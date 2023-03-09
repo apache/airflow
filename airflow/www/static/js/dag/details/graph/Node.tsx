@@ -131,7 +131,12 @@ const Node = ({
             }
           }}
         >
-          <Flex justifyContent="space-between" width={width} p={2}>
+          <Flex
+            justifyContent="space-between"
+            width={width}
+            p={2}
+            flexWrap="wrap"
+          >
             <Flex flexDirection="column">
               <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
                 {taskName}
