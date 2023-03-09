@@ -72,11 +72,12 @@ class EmrHook(AwsBaseHook):
         response_iterator = (
             self.get_conn().get_paginator("list_clusters").paginate(ClusterStates=cluster_states)
         )
-        matching_clusters = []
-        for page in response_iterator:
-            matching_clusters.extend(
-                list(filter(lambda cluster: cluster["Name"] == emr_cluster_name, page["Clusters"]))
-            )
+        matching_clusters = [
+            cluster
+            for page in response_iterator
+            for cluster in page["Clusters"]
+            if cluster["Name"] == emr_cluster_name
+        ]
 
         if len(matching_clusters) == 1:
             cluster_id = matching_clusters[0]["Id"]
