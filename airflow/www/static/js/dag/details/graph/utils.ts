@@ -161,7 +161,7 @@ export const buildEdges = ({
         let parentIds =
           sourceIds.length > targetIds.length ? sourceIds : targetIds;
 
-        if (e.target.includes("_join_id") && e.source.includes("_join_id")) {
+        if (e.target.endsWith("_join_id") && e.source.endsWith("_join_id")) {
           /** edges between join ids are positioned absolutely,
            * other edges are positioned relative to their parent */
           parentIds = [];
