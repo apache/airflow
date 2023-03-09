@@ -20,10 +20,11 @@ import logging
 import warnings
 from os import path
 
-from connexion import FlaskApi, ProblemException
+from connexion import FlaskApi, ProblemException, Resolver
 from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
@@ -177,6 +178,28 @@ def set_cors_headers_on_response(response):
     return response
 
 
+class _EndpointReference:
+    """Reference to an endpoint that only loads the real function on first use."""
+
+    def __init__(self, resolve_func, operation_id):
+        self._resolve_func = resolve_func
+        self._operation_id = operation_id
+
+    @cached_property
+    def _resolved_callable(self):
+        return self._resolve_func(self._operation_id)
+
+    def __call__(self, *args, **kwargs):
+        return self._resolved_callable(*args, **kwargs)
+
+
+class _LazyResolver(Resolver):
+    """OpenAPI endpoint resolver that loads lazily on first use."""
+
+    def resolve_function_from_operation_id(self, operation_id):
+        return _EndpointReference(super().resolve_function_from_operation_id, operation_id)
+
+
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
     base_path = "/api/v1"
@@ -205,6 +228,7 @@ def init_api_connexion(app: Flask) -> None:
         specification = safe_load(f)
     api_bp = FlaskApi(
         specification=specification,
+        resolver=_LazyResolver(),
         base_path=base_path,
         options={
             "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
