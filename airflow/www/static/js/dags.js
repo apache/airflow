@@ -61,9 +61,10 @@ $('#tags_filter').select2({
 $('#tags_filter').on('change', (e) => {
   e.preventDefault();
   const query = new URLSearchParams(window.location.search);
-  if (e.val.length) {
+  const tags = $(e.target).select2('val');
+  if (tags.length) {
     if (query.has('tags')) query.delete('tags');
-    e.val.forEach((value) => {
+    tags.forEach((value) => {
       query.append('tags', value);
     });
   } else {
