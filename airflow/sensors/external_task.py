@@ -147,7 +147,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         total_states = set(self.allowed_states + self.skipped_states + self.failed_states)
 
-        if len(total_states) != len(self.allowed_states + self.skipped_states + self.failed_states):
+        if len(total_states) != len(self.allowed_states) + len(self.skipped_states) + len(self.failed_states):
             raise AirflowException(
                 "Duplicate values provided across allowed_states, skipped_states and failed_states."
             )
