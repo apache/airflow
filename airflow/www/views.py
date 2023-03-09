@@ -2874,8 +2874,6 @@ class Airflow(AirflowBaseView):
             "airflow/graph.html",
             dag=dag,
             form=form,
-            width=request.args.get("width", "100%"),
-            height=request.args.get("height", "800"),
             dag_run_id=dag_run_id,
             execution_date=dttm.isoformat(),
             state_token=wwwutils.state_token(dt_nr_dr_data["dr_state"]),
