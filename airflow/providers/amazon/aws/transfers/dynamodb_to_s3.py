@@ -138,7 +138,7 @@ class DynamoDBToS3Operator(BaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
-        if aws_conn_id is not NOTSET:
+        if not isinstance(aws_conn_id, ArgNotSet):
             warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
             self.source_aws_conn_id = aws_conn_id
         else:
