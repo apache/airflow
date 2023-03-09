@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-08T23:25:27Z
+# This constraints file was automatically generated on 2023-03-09T08:00:22Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -166,7 +166,7 @@ azure-nspkg==3.0.2
 azure-servicebus==7.8.2
 azure-storage-blob==12.15.0
 azure-storage-common==2.1.0
-azure-storage-file-datalake==12.10.0
+azure-storage-file-datalake==12.10.1
 azure-storage-file==2.1.0
 azure-synapse-spark==0.7.0
 backcall==0.2.0
@@ -604,7 +604,7 @@ types-python-slugify==8.0.0.1
 types-pytz==2022.7.1.2
 types-redis==4.5.1.4
 types-requests==2.28.11.15
-types-setuptools==67.5.0.0
+types-setuptools==67.6.0.0
 types-tabulate==0.9.0.1
 types-termcolor==1.1.6.1
 types-toml==0.10.8.5
