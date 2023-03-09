@@ -178,26 +178,35 @@ def set_cors_headers_on_response(response):
     return response
 
 
-class _EndpointReference:
-    """Reference to an endpoint that only loads the real function on first use."""
+class _LazyResolution:
+    """OpenAPI endpoint that lazily resolves the function on first use.
+
+    This is a stand-in replacement for ``connexion.Resolution`` that implements
+    its public attributes ``function`` and ``operation_id``, but the function
+    is only resolved when it is first accessed.
+    """
 
     def __init__(self, resolve_func, operation_id):
         self._resolve_func = resolve_func
-        self._operation_id = operation_id
+        self.operation_id = operation_id
 
     @cached_property
-    def _resolved_callable(self):
-        return self._resolve_func(self._operation_id)
-
-    def __call__(self, *args, **kwargs):
-        return self._resolved_callable(*args, **kwargs)
+    def function(self):
+        return self._resolve_func(self.operation_id)
 
 
 class _LazyResolver(Resolver):
-    """OpenAPI endpoint resolver that loads lazily on first use."""
+    """OpenAPI endpoint resolver that loads lazily on first use.
 
-    def resolve_function_from_operation_id(self, operation_id):
-        return _EndpointReference(super().resolve_function_from_operation_id, operation_id)
+    This re-implements ``connexion.Resolver.resolve()`` to not eagerly resolve
+    the endpoint function (and thus avoid importing it in the process), but only
+    return a placeholder that will be actually resolved when the contained
+    function is accessed.
+    """
+
+    def resolve(self, operation):
+        operation_id = self.resolve_operation_id(operation)
+        return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
 def init_api_connexion(app: Flask) -> None:
