@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-09T08:00:31Z
+# This constraints file was automatically generated on 2023-03-09T16:49:29Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -334,7 +334,7 @@ incremental==22.10.0
 inflection==0.5.1
 influxdb-client==1.36.1
 iniconfig==2.0.0
-ipdb==0.13.11
+ipdb==0.13.13
 ipython==7.34.0
 isodate==0.6.1
 itsdangerous==2.1.2
@@ -481,7 +481,7 @@ pytest-capture-warnings==0.0.4
 pytest-cov==4.0.0
 pytest-httpx==0.21.3
 pytest-instafail==0.4.2
-pytest-rerunfailures==11.1.1
+pytest-rerunfailures==11.1.2
 pytest-timeouts==1.2.1
 pytest-xdist==3.2.0
 pytest==7.2.2
