@@ -14,9 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel as BaseModelPydantic
 
@@ -26,19 +25,19 @@ class DagRunPydantic(BaseModelPydantic):
 
     id: int
     dag_id: str
-    queued_at: datetime | None
+    queued_at: Optional[datetime]
     execution_date: datetime
-    start_date: datetime | None
-    end_date: datetime | None
+    start_date: Optional[datetime]
+    end_date: Optional[datetime]
     state: str
-    run_id: str | None
-    creating_job_id: int | None
+    run_id: Optional[str]
+    creating_job_id: Optional[int]
     external_trigger: bool
     run_type: str
-    data_interval_start: datetime | None
-    data_interval_end: datetime | None
-    last_scheduling_decision: datetime | None
-    dag_hash: str | None
+    data_interval_start: Optional[datetime]
+    data_interval_end: Optional[datetime]
+    last_scheduling_decision: Optional[datetime]
+    dag_hash: Optional[str]
     updated_at: datetime
 
     class Config:

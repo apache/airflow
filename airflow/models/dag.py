@@ -81,7 +81,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
-from airflow.models.pydantic.dagrun import DagRunPydantic
+from airflow.models.pydantic.dag_run import DagRunPydantic
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
