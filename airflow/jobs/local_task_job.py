@@ -264,7 +264,7 @@ class LocalTaskJob(BaseJob):
                 same_process = recorded_pid == current_pid
 
             if not IS_WINDOWS and recorded_pid is not None and not same_process:
-                # On windows this sometimes does not work properly as the system seems to change
+                # On Windows this sometimes does not work properly as the system seems to change
                 # PIDs in some situations. Since this prohibits using Windows systems for task
                 # execution, this check is skipped until the cause for this can be determined.
                 self.log.warning(
