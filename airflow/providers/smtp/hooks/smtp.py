@@ -90,7 +90,6 @@ class SmtpHook(BaseHook):
                         continue
                     raise AirflowException("Unable to connect to smtp server")
 
-                self.smtp_client.login(conn.login, conn.password)
                 if smtp_starttls:
                     self.smtp_client.starttls()
                 if smtp_user and smtp_password:
