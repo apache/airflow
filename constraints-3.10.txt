@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-09T16:48:55Z
+# This constraints file was automatically generated on 2023-03-09T23:06:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -163,7 +163,7 @@ azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==22.0.0
 azure-nspkg==3.0.2
-azure-servicebus==7.8.2
+azure-servicebus==7.8.3
 azure-storage-blob==12.15.0
 azure-storage-common==2.1.0
 azure-storage-file-datalake==12.10.1
@@ -178,9 +178,9 @@ bitarray==2.7.3
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.87
+boto3==1.26.88
 boto==2.49.0
-botocore==1.29.87
+botocore==1.29.88
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==5.3.0
@@ -390,7 +390,7 @@ multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.26.78
 mypy-boto3-rds==1.26.72
-mypy-boto3-redshift-data==1.26.30
+mypy-boto3-redshift-data==1.26.88
 mypy-extensions==1.0.0
 mypy==1.0.0
 mysql-connector-python==8.0.32
