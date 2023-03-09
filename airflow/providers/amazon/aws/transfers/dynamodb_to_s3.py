@@ -65,10 +65,7 @@ def _upload_file_to_s3(
     s3_key_prefix: str,
     aws_conn_id: str | None = AwsBaseHook.default_conn_name,
 ) -> None:
-    if isinstance(aws_conn_id, str) or aws_conn_id is None:
-        s3_client = S3Hook(aws_conn_id=aws_conn_id).get_conn()
-    else:
-        s3_client = S3Hook().get_conn()
+    s3_client = S3Hook(aws_conn_id=aws_conn_id).get_conn()
     file_obj.seek(0)
     s3_client.upload_file(
         Filename=file_obj.name,
