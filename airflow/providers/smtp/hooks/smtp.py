@@ -52,6 +52,7 @@ class SmtpHook(BaseHook):
 
     def __init__(self, smtp_conn_id: str = default_conn_name) -> None:
         super().__init__()
+        self.from_email = None
         self.smtp_conn_id = smtp_conn_id
         self.smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | None = None
 
@@ -79,6 +80,7 @@ class SmtpHook(BaseHook):
             smtp_password = conn.password
             smtp_starttls = not bool(conn.extra_dejson.get("disable_tls", False))
             smtp_retry_limit = int(conn.extra_dejson.get("retry_limit", 5))
+            self.from_email = conn.extra_dejson.get("from_email")
 
             for attempt in range(1, smtp_retry_limit + 1):
                 try:
@@ -117,10 +119,11 @@ class SmtpHook(BaseHook):
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, IntegerField
+        from wtforms import BooleanField, IntegerField, StringField
         from wtforms.validators import NumberRange
 
         return {
+            "from_email": StringField(lazy_gettext("From email"), widget=BS3TextFieldWidget()),
             "timeout": IntegerField(
                 lazy_gettext("Connection timeout"),
                 validators=[NumberRange(min=0)],
@@ -152,9 +155,9 @@ class SmtpHook(BaseHook):
     def send_email_smtp(
         self,
         to: str | Iterable[str],
-        from_email: str,
         subject: str,
         html_content: str,
+        from_email: str | None = None,
         files: list[str] | None = None,
         dryrun: bool = False,
         cc: str | Iterable[str] | None = None,
@@ -167,9 +170,10 @@ class SmtpHook(BaseHook):
         """Send an email with html content.
 
         :param to: Recipient email address or list of addresses.
-        :param from_email: Sender email address.
         :param subject: Email subject.
         :param html_content: Email body in HTML format.
+        :param from_email: Sender email address. If it's None, the hook will check if there is an email
+            provided in the connection, and raises an exception if not.
         :param files: List of file paths to attach to the email.
         :param dryrun: If True, the email will not be sent, but all other actions will be performed.
         :param cc: Carbon copy recipient email address or list of addresses.
@@ -179,15 +183,17 @@ class SmtpHook(BaseHook):
         :param custom_headers: Dictionary of custom headers to include in the email.
         :param kwargs: Additional keyword arguments.
 
-        >>> send_email(
-                'test@example.com', 'source@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True
+        >>> send_email_smtp(
+                'test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True
             )
         """
         if not self.smtp_client:
-            raise Exception("The 'smtp_client' should be initialized before!")
+            raise AirflowException("The 'smtp_client' should be initialized before!")
+        if not from_email and not self.from_email:
+            raise AirflowException("You should provide `from_email` or define it in the connection.")
 
         mime_msg, recipients = self._build_mime_message(
-            mail_from=from_email,
+            mail_from=from_email or self.from_email,
             to=to,
             subject=subject,
             html_content=html_content,

@@ -54,6 +54,7 @@ Port
 Extra (optional)
     Specify the extra parameters (as json dictionary)
 
+    * ``from_email``: The email address from which you want to send the email.
     * ``disable_ssl``: If set to true, then a non-ssl connection is being used. Default is false. Also note that changing the ssl option also influences the default port being used.
     * ``timeout``: The SMTP connection creation timeout in seconds. Default is 30.
     * ``disable_tls``: By default the SMTP connection is created in TLS mode. Set to false to disable tls mode.
