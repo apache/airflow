@@ -268,13 +268,12 @@ function setUpZoomSupport() {
   // Get Dagre Graph dimensions
   const graphWidth = g.graph().width;
   const graphHeight = g.graph().height;
-  const {width, height} = svg.node().viewBox.animVal;
+  const { width, height } = svg.node().viewBox.animVal;
   const padding = width * 0.05;
 
   // Calculate applicable scale for zoom
-  const zoomScale = Math.min(
-    Math.min(width / graphWidth, height / graphHeight),
-  ) * 0.8;
+  const zoomScale =
+    Math.min(Math.min(width / graphWidth, height / graphHeight)) * 0.8;
 
   zoom.translate([width / 2 - (graphWidth * zoomScale) / 2 + padding, padding]);
   zoom.scale(zoomScale);
@@ -638,11 +637,11 @@ function focusedGroupKey() {
 }
 
 // Focus the graph on the expanded/collapsed node
-function focusGroup(nodeId, followMouse=true) {  
+function focusGroup(nodeId, followMouse = true) {
   if (nodeId != null && zoom != null) {
     const { x, y } = g.node(nodeId);
     // This is the total canvas size.
-    const {width, height} = svg.node().viewBox.animVal;
+    const { width, height } = svg.node().viewBox.animVal;
 
     // This is the size of the node or the cluster (i.e. group)
     let rect = d3
@@ -664,14 +663,16 @@ function focusGroup(nodeId, followMouse=true) {
     ];
 
     // Calculate zoom scale to fill most of the canvas with the node/cluster in focus.
-    const scale = Math.min(
-      Math.min(width / nodeWidth, height / nodeHeight), 1
-    ) * 0.2;
-    
+    const scale =
+      Math.min(Math.min(width / nodeWidth, height / nodeHeight), 1) * 0.2;
+
     // Move the graph so that the node that was expanded/collapsed is centered around
     // the mouse click.
     const [toX, toY] = followMouse ? [mouseX, mouseY] : [width / 2, height / 5];
-    const [deltaX, deltaY] = [toX - x * scale, toY + (nodeHeight / 2 - y) * scale];
+    const [deltaX, deltaY] = [
+      toX - x * scale,
+      toY + (nodeHeight / 2 - y) * scale,
+    ];
     zoom.translate([deltaX, deltaY]);
     zoom.scale(scale);
     zoom.event(innerSvg);
