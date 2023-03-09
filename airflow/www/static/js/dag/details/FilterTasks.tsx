@@ -18,15 +18,27 @@
  */
 
 import React from "react";
-import { Button, Menu, MenuButton, MenuItem, MenuList } from "@chakra-ui/react";
+import {
+  Flex,
+  Button,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+} from "@chakra-ui/react";
 import useFilters from "src/dag/useFilters";
+import { MdArrowDropDown } from "react-icons/md";
 
 interface Props {
   taskId: string;
 }
 
 const FilterTasks = ({ taskId }: Props) => {
-  const { onFilterTasksChange } = useFilters();
+  const {
+    filters: { root },
+    onFilterTasksChange,
+    resetRoot,
+  } = useFilters();
 
   const onFilterUpstream = () =>
     onFilterTasksChange({
@@ -49,6 +61,8 @@ const FilterTasks = ({ taskId }: Props) => {
       filterDownstream: true,
     });
 
+  const label = "Filter upstream and/or downstream of a task";
+
   return (
     <Menu>
       <MenuButton
@@ -56,13 +70,19 @@ const FilterTasks = ({ taskId }: Props) => {
         variant="outline"
         colorScheme="blue"
         transition="all 0.2s"
+        title={label}
+        aria-label={label}
       >
-        Filter Tasks
+        <Flex>
+          {!root ? "Filter Tasks " : "Clear Task Filter "}
+          <MdArrowDropDown size="16px" />
+        </Flex>
       </MenuButton>
       <MenuList>
         <MenuItem onClick={onFilterUpstream}>Filter Upstream</MenuItem>
         <MenuItem onClick={onFilterDownstream}>Filter Downstream</MenuItem>
         <MenuItem onClick={onFilterAll}>Filter Upstream & Downstream</MenuItem>
+        {!!root && <MenuItem onClick={resetRoot}>Reset Root</MenuItem>}
       </MenuList>
     </Menu>
   );

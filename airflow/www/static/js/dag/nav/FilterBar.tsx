@@ -43,7 +43,6 @@ const FilterBar = () => {
     onRunTypeChange,
     onRunStateChange,
     clearFilters,
-    resetRoot,
   } = useFilters();
 
   const { timezone } = useTimezone();
@@ -123,20 +122,7 @@ const FilterBar = () => {
           </Button>
         </Box>
       </Flex>
-      <Flex>
-        <AutoRefresh />
-        {!!filters.root && (
-          <Button
-            variant="outline"
-            onClick={resetRoot}
-            colorScheme="blue"
-            mx={2}
-            title="Reset root to show the whole DAG"
-          >
-            Reset Root
-          </Button>
-        )}
-      </Flex>
+      <AutoRefresh />
     </Flex>
   );
 };
