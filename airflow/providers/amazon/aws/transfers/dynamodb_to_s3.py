@@ -143,8 +143,9 @@ class DynamoDBToS3Operator(BaseOperator):
             self.source_aws_conn_id = aws_conn_id
         else:
             self.source_aws_conn_id = source_aws_conn_id
-        if dest_aws_conn_id is NOTSET:
-            self.dest_aws_conn_id = self.source_aws_conn_id
+        self.dest_aws_conn_id = (
+            self.source_aws_conn_id if isinstance(dest_aws_conn_id, ArgNotSet) else dest_aws_conn_id
+        )
 
     def execute(self, context: Context) -> None:
         hook = DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
