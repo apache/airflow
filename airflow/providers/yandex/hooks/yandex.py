@@ -78,6 +78,11 @@ class YandexCloudBaseHook(BaseHook):
                 description="Optional. This key will be placed to all created Compute nodes"
                 "to let you have a root shell there",
             ),
+            "endpoint": StringField(
+                lazy_gettext("API endpoint"),
+                widget=BS3TextFieldWidget(),
+                description="Optional. Specify an API endpoint. Leave blank to use default.",
+            ),
         }
 
     @classmethod
@@ -122,7 +127,8 @@ class YandexCloudBaseHook(BaseHook):
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
         credentials = self._get_credentials()
-        self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **credentials)
+        sdk_config = self._get_endpoint()
+        self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **sdk_config, **credentials)
         self.default_folder_id = default_folder_id or self._get_field("folder_id", False)
         self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key", False)
         self.client = self.sdk.client
@@ -144,6 +150,13 @@ class YandexCloudBaseHook(BaseHook):
             return {"service_account_key": service_account_key}
         else:
             return {"token": oauth_token}
+
+    def _get_endpoint(self) -> dict[str, str]:
+        sdk_config = {}
+        endpoint = self._get_field("endpoint", None)
+        if endpoint:
+            sdk_config["endpoint"] = endpoint
+        return sdk_config
 
     def _get_field(self, field_name: str, default: Any = None) -> Any:
         """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""

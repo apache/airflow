@@ -227,6 +227,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-urlparse-usage-in-code                              | Don't use urlparse in code                                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                                 | Run codespell to check for common misspellings in files          |         |
@@ -303,7 +305,7 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| ts-compile-and-lint-javascript                            | TS types generation and ESLint against current UI files          |         |
+| ts-compile-format-lint-www                                | TS types generation and ESLint/Prettier against current UI files |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere                                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+

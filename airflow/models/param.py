@@ -165,7 +165,7 @@ class ParamsDict(MutableMapping[str, Any]):
     __version__: ClassVar[int] = 1
     __slots__ = ["__dict", "suppress_exception"]
 
-    def __init__(self, dict_obj: dict | None = None, suppress_exception: bool = False):
+    def __init__(self, dict_obj: MutableMapping | None = None, suppress_exception: bool = False):
         """
         :param dict_obj: A dict or dict like object to init ParamsDict
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict

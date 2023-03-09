@@ -566,7 +566,15 @@ database:
       type: integer
       example: ~
       default: "3"
-
+    check_migrations:
+      description: |
+        Whether to run alembic migrations during Airflow start up. Sometimes this operation can be expensive,
+        and the users can assert the correct version through other means (e.g. through a Helm chart).
+        Accepts "True" or "False".
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "True"
 logging:
   description: ~
   options:
@@ -598,6 +606,14 @@ logging:
       type: string
       example: ~
       default: ""
+    delete_local_logs:
+      description: |
+        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        they are uploaded to the remote location.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "False"
     google_key_path:
       description: |
         Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
@@ -619,6 +635,16 @@ logging:
       version_added: 2.0.0
       type: string
       example: ~
+      default: ""
+    remote_task_handler_kwargs:
+      description: |
+        The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
+        task handler and it overrides the values provided by Airflow config. For example if you set
+        `delete_local_logs=False` and you provide ``{{"delete_local_copy": true}}``, then the local
+        log files will be deleted after they are uploaded to remote location.
+      version_added: 2.6.0
+      type: string
+      example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
       description: |
@@ -806,6 +832,36 @@ logging:
       type: string
       example: path.to.my_func
       default: ~
+    file_task_handler_new_folder_permissions:
+      description: |
+        Permissions in the form or of octal string as understood by chmod. The permissions are important
+        when you use impersonation, when logs are written by a different user than airflow. The most secure
+        way of configuring it in this case is to add both users to the same group and make it the default
+        group of both users. Group-writeable logs are default in airflow, but you might decide that you are
+        OK with having the logs other-writeable, in which case you should set it to `0o777`. You might
+        decide to add more security if you do not use impersonation and change it to `0o755` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to `0o700` if
+        all the access (read/write) for your logs happens from the same user.
+      version_added: 2.6.0
+      type: string
+      example: "0o775"
+      default: "0o775"
+    file_task_handler_new_file_permissions:
+      description: |
+        Permissions in the form or of octal string as understood by chmod. The permissions are important
+        when you use impersonation, when logs are written by a different user than airflow. The most secure
+        way of configuring it in this case is to add both users to the same group and make it the default
+        group of both users. Group-writeable logs are default in airflow, but you might decide that you are
+        OK with having the logs other-writeable, in which case you should set it to `0o666`. You might
+        decide to add more security if you do not use impersonation and change it to `0o644` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to `0o600` if
+        all the access (read/write) for your logs happens from the same user.
+      version_added: 2.6.0
+      type: string
+      example: "0o664"
+      default: "0o664"
+
+
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -841,6 +897,16 @@ metrics:
         you can configure an allow list of prefixes (comma separated) to send only the metrics that
         start with the elements of the list (e.g: "scheduler,executor,dagrun")
       version_added: 2.0.0
+      type: string
+      example: ~
+      default: ""
+    statsd_block_list:
+      description: |
+        If you want to avoid sending all the available metrics to StatsD,
+        you can configure a block list of prefixes (comma separated) to filter out metrics that
+        start with the elements of the list (e.g: "scheduler,executor,dagrun").
+        If statsd_allow_list and statsd_block_list are both configured, statsd_block_list is ignored
+      version_added: 2.6.0
       type: string
       example: ~
       default: ""
@@ -885,6 +951,22 @@ metrics:
       type: string
       example: ~
       default: ~
+    statsd_disabled_tags:
+      description: |
+        If you want to avoid sending all the available metrics tags to StatsD,
+        you can configure a block list of prefixes (comma separated) to filter out metric tags
+        that start with the elements of the list (e.g: "job_id,run_id")
+      version_added: 2.6.0
+      type: string
+      example: job_id,run_id,dag_id,task_id
+      default: job_id,run_id
+    statsd_influxdb_enabled:
+      description: |
+        To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
@@ -967,17 +1049,18 @@ api:
       default: "airflow.api.auth.backend.session"
     maximum_page_limit:
       description: |
-        Used to set the maximum page limit for API requests
+        Used to set the maximum page limit for API requests. If limit passed as param
+        is greater than maximum page limit, it will be ignored and maximum page limit value
+        will be set as the limit
       version_added: 2.0.0
       type: integer
       example: ~
       default: "100"
     fallback_page_limit:
       description: |
-        Used to set the default page limit when limit is zero. A default limit
-        of 100 is set on OpenApi spec. However, this particular default limit
-        only work when limit is set equal to zero(0) from API requests.
-        If no limit is supplied, the OpenApi spec default is used.
+        Used to set the default page limit when limit param is zero or not provided in API
+        requests. Otherwise if positive integer is passed in the API requests as limit, the
+        smallest number of user given limit or maximum page limit is taken as limit.
       type: integer
       example: ~
       version_added: 2.0.0
@@ -1303,7 +1386,7 @@ webserver:
       version_added: 1.10.8
       type: string
       example: ~
-      default: "True"
+      default: "False"
     expose_stacktrace:
       description: |
         Expose stacktrace in the web server
@@ -1554,6 +1637,20 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    auth_rate_limited:
+      description: |
+        Boolean for enabling rate limiting on authentication endpoints.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
+    auth_rate_limit:
+      description: |
+          Rate limit for authentication endpoints.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "5 per 40 second"
 
 email:
   description: |
@@ -1914,7 +2011,8 @@ celery:
         Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
         and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
         applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
-        also applies to adopted tasks.
+        also applies to adopted tasks. To calculate adoption time, subtract the
+        :ref:`task duration<ui:task-duration>` from the task's :ref:`landing time<ui:landing-times>`.
       version_added: 2.0.0
       type: integer
       example: ~
@@ -2049,6 +2147,18 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    stale_dag_threshold:
+      description: |
+        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
+        DAGs (DAGs which are no longer present in the expected files). The reason why we need
+        this threshold is to account for the time between when the file is parsed and when the
+        DAG is loaded. The absolute maximum that this could take is `dag_file_processor_timeout`,
+        but when you have a long timeout configured, it results in a significant delay in the
+        deactivation of stale dags.
+      version_added: 2.6.0
+      type: integer
+      example: ~
+      default: "50"
     dag_dir_list_interval:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.

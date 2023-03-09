@@ -23,6 +23,60 @@
 Changelog
 ---------
 
+8.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to BigQueryTablePartitionExistenceSensor. (#29735)``
+* ``Add a new param for BigQuery operators to support additional actions when resource exists (#29394)``
+* ``Add deferrable mode to DataprocInstantiateWorkflowTemplateOperator (#28618)``
+* ``Dataproc batches (#29136)``
+* ``Add 'CloudSQLCloneInstanceOperator' (#29726)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'NoneType' object is not subscriptable. (#29820)``
+* ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
+* ``Don't push secret in XCOM in BigQueryCreateDataTransferOperator (#29348)``
+
+Misc
+~~~~
+
+* ``Google Cloud Providers - Introduce GoogleCloudBaseOperator (#29680)``
+* ``Update google cloud dlp package and adjust hook and operators (#29234)``
+* ``Refactor Dataproc Trigger (#29364)``
+* ``Remove <2.0.0 limit on google-cloud-bigtable (#29644)``
+* ``Move help message to the google auth code (#29888)``
+
+8.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add defer mode to GKECreateClusterOperator and GKEDeleteClusterOperator (#28406)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Move cloud_sql_binary_path from connection to Hook (#29499)``
+* ``Check that cloud sql provider version is valid (#29497)``
+* ``'GoogleDriveHook': Add folder_id param to upload_file (#29477)``
+
+Misc
+~~~~
+* ``Add documentation for BigQuery transfer operators (#29466)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade Mypy to 1.0 (#29468)``
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+   * ``Revert "Upgrade mypy to 0.991 (#28926)" (#29470)``
+   * ``Upgrade mypy to 0.991 (#28926)``
+
 8.9.0
 .....
 

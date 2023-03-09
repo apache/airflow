@@ -17,31 +17,33 @@
  * under the License.
  */
 
-import React from 'react';
+import React from "react";
 import {
   Box,
   useTab,
   useMultiStyleConfig,
   Button,
   TabProps,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 
-const TabWithTooltip = React.forwardRef<HTMLDivElement, TabProps>((props, ref) => {
-  const tabProps = useTab({ ...props, ref });
-  const styles = useMultiStyleConfig('Tabs', tabProps);
+const TabWithTooltip = React.forwardRef<HTMLDivElement, TabProps>(
+  (props, ref) => {
+    const tabProps = useTab({ ...props, ref });
+    const styles = useMultiStyleConfig("Tabs", tabProps);
 
-  return (
-    <Box {...tabProps}>
-      <Button
-        __css={styles.tab}
-        {...tabProps}
-        pointerEvents={props.isDisabled ? 'none' : 'auto'}
-        py={3}
-      >
-        {tabProps.children}
-      </Button>
-    </Box>
-  );
-});
+    return (
+      <Box {...tabProps}>
+        <Button
+          __css={styles.tab}
+          {...tabProps}
+          pointerEvents={props.isDisabled ? "none" : "auto"}
+          py={3}
+        >
+          {tabProps.children}
+        </Button>
+      </Box>
+    );
+  }
+);
 
 export default TabWithTooltip;

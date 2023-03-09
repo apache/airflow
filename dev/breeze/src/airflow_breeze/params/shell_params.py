@@ -23,6 +23,7 @@ from pathlib import Path
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
+    ALL_INTEGRATIONS,
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
@@ -31,12 +32,12 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    AVAILABLE_INTEGRATIONS,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
     MOUNT_SKIP,
+    TESTABLE_INTEGRATIONS,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -237,8 +238,10 @@ class ShellParams:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
-        if "all" in self.integration:
-            integrations = AVAILABLE_INTEGRATIONS
+        if "all-testable" in self.integration:
+            integrations = TESTABLE_INTEGRATIONS
+        elif "all" in self.integration:
+            integrations = ALL_INTEGRATIONS
         else:
             integrations = self.integration
         if len(integrations) > 0:

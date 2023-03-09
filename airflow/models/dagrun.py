@@ -43,9 +43,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import joinedload, relationship, synonym
-from sqlalchemy.orm.session import Session
+from sqlalchemy.orm import Session, declared_attr, joinedload, relationship, synonym
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -778,6 +776,14 @@ class DagRun(Base, LoggingMixin):
             """
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
+
+            from airflow.models.mappedoperator import MappedOperator
+
+            if isinstance(ti.task, MappedOperator):
+                # If we get here, it could be that we are moving from non-mapped to mapped
+                # after task instance clearing or this ti is not yet expanded. Safe to clear
+                # the db references.
+                ti.clear_db_references(session=session)
             try:
                 expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
@@ -877,6 +883,11 @@ class DagRun(Base, LoggingMixin):
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay)
+                    Stats.timing(
+                        "dagrun.first_task_scheduling_delay",
+                        true_delay,
+                        tags={"dag_id": dag.dag_id},
+                    )
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
@@ -893,8 +904,10 @@ class DagRun(Base, LoggingMixin):
         duration = self.end_date - self.start_date
         if self.state == State.SUCCESS:
             Stats.timing(f"dagrun.duration.success.{self.dag_id}", duration)
+            Stats.timing("dagrun.duration.success", duration, tags={"dag_id": self.dag_id})
         elif self.state == State.FAILED:
             Stats.timing(f"dagrun.duration.failed.{self.dag_id}", duration)
+            Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": self.dag_id})
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:

@@ -78,6 +78,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    AirflowTermSignal,
     DagRunNotFound,
     RemovedInAirflow3Warning,
     TaskDeferralError,
@@ -1550,8 +1551,7 @@ class TaskInstance(Base, LoggingMixin):
                 os._exit(1)
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
-            self.task.on_kill()
-            raise AirflowException("Task received SIGTERM signal")
+            raise AirflowTermSignal("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -1590,10 +1590,15 @@ class TaskInstance(Base, LoggingMixin):
 
             # Execute the task
             with set_current_context(context):
-                result = self._execute_task(context, task_orig)
-
-            # Run post_execute callback
-            self.task.post_execute(context=context, result=result)
+                try:
+                    result = self._execute_task(context, task_orig)
+                    # Run post_execute callback
+                    self.task.post_execute(context=context, result=result)
+                except AirflowTermSignal:
+                    self.task.on_kill()
+                    if self.task.on_failure_callback:
+                        self._run_finished_callback(self.task.on_failure_callback, context, "on_failure")
+                    raise AirflowException("Task received SIGTERM signal")
 
         Stats.incr(f"operator_successes_{self.task.task_type}", 1, 1)
         Stats.incr(
@@ -2703,7 +2708,17 @@ class TaskInstance(Base, LoggingMixin):
                 task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
             }
 
-            schedulable_tis = [ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids]
+            schedulable_tis = [
+                ti
+                for ti in info.schedulable_tis
+                if ti.task_id not in skippable_task_ids
+                and not (
+                    ti.task.inherits_from_empty_operator
+                    and not ti.task.on_execute_callback
+                    and not ti.task.on_success_callback
+                    and not ti.task.outlets
+                )
+            ]
             for schedulable_ti in schedulable_tis:
                 if not hasattr(schedulable_ti, "task"):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
@@ -2797,6 +2812,25 @@ class TaskInstance(Base, LoggingMixin):
         further_count = ti_count // ancestor_ti_count
         map_index_start = ancestor_map_index * further_count
         return range(map_index_start, map_index_start + further_count)
+
+    def clear_db_references(self, session):
+        """
+        Clear DB references to XCom, TaskFail and RenderedTaskInstanceFields.
+
+        :param session: ORM Session
+
+        :meta private:
+        """
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        tables = [TaskFail, XCom, RenderedTaskInstanceFields]
+        for table in tables:
+            session.query(table).filter(
+                table.dag_id == self.dag_id,
+                table.task_id == self.task_id,
+                table.run_id == self.run_id,
+                table.map_index == self.map_index,
+            ).delete()
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:

@@ -31,8 +31,7 @@ import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.orm.session import Session as SASession
+from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
@@ -41,6 +40,7 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.www.utils import UIAlert
@@ -351,7 +351,7 @@ def dispose_orm():
     global engine
     global Session
 
-    if Session:
+    if Session is not None:  # type: ignore[truthy-function]
         Session.remove()
         Session = None
     if engine:
@@ -518,6 +518,8 @@ def initialize():
     import_local_settings()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
+    State.state_color.update(STATE_COLORS)
+
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
     configure_orm()

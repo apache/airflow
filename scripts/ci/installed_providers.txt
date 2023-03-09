@@ -18,5 +18,6 @@ redis
 sendgrid
 sftp
 slack
+snowflake
 sqlite
 ssh

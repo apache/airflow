@@ -74,6 +74,28 @@ class TestSchedulerCommand:
             with pytest.raises(AssertionError):
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
 
+    @mock.patch("airflow.utils.db.check_and_run_migrations")
+    @mock.patch("airflow.utils.db.synchronize_log_template")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_check_migrations_is_false(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
+        args = self.parser.parse_args(["scheduler"])
+        with conf_vars({("database", "check_migrations"): "False"}):
+            scheduler_command.scheduler(args)
+            mock_run_migration.assert_not_called()
+            mock_log.assert_called_once()
+
+    @mock.patch("airflow.utils.db.check_and_run_migrations")
+    @mock.patch("airflow.utils.db.synchronize_log_template")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_check_migrations_is_true(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
+        args = self.parser.parse_args(["scheduler"])
+        with conf_vars({("database", "check_migrations"): "True"}):
+            scheduler_command.scheduler(args)
+            mock_run_migration.assert_called_once()
+            mock_log.assert_called_once()
+
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])

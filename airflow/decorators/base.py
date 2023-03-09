@@ -333,7 +333,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             multiple_outputs=self.multiple_outputs,
             **self.kwargs,
         )
-        if self.function.__doc__:
+        op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
+        # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
+        if self.function.__doc__ and not any(op_doc_attrs):
             op.doc_md = self.function.__doc__
         return XComArg(op)
 
@@ -507,7 +509,7 @@ class DecoratedMappedOperator(MappedOperator):
         return super()._get_unmap_kwargs(kwargs, strict=False)
 
 
-class Task(Generic[FParams, FReturn]):
+class Task(Protocol, Generic[FParams, FReturn]):
     """Declaration of a @task-decorated callable for type-checking.
 
     An instance of this type inherits the call signature of the decorated

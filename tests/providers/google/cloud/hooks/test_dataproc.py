@@ -23,6 +23,7 @@ from unittest.mock import ANY
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import (
+    Batch,
     BatchControllerAsyncClient,
     ClusterControllerAsyncClient,
     JobControllerAsyncClient,
@@ -419,6 +420,28 @@ class TestDataprocHook:
             timeout=None,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch"))
+    def test_wait_for_batch(self, mock_batch):
+        mock_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        result: Batch = self.hook.wait_for_batch(
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            wait_check_interval=1,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        mock_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        assert result.state == Batch.State.SUCCEEDED
+
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch_client"))
     def test_delete_batch(self, mock_client):
         self.hook.delete_batch(
@@ -728,6 +751,17 @@ class TestDataprocAsyncHook:
             timeout=None,
             metadata=(),
         )
+
+    @pytest.mark.asyncio
+    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
+    async def test_get_operation(self, mock_client):
+        mock_client.return_value = None
+        hook = DataprocAsyncHook(
+            gcp_conn_id="google_cloud_default", delegate_to=None, impersonation_chain=None
+        )
+        await hook.get_operation(region=GCP_LOCATION, operation_name="operation_name")
+        mock_client.assert_called_once()
+        mock_client.assert_called_with(region=GCP_LOCATION, operation_name="operation_name")
 
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     def test_instantiate_workflow_template_missing_region(self, mock_client):
