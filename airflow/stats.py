@@ -182,8 +182,8 @@ class Timer(TimerProtocol):
             self.real_timer.stop()
 
 
-class DummyStatsLogger:
-    """If no StatsLogger is configured, DummyStatsLogger is used as a fallback."""
+class NullStatsLogger:
+    """If no StatsLogger is configured, NullStatsLogger is used as a fallback."""
 
     @classmethod
     def incr(cls, stat, count=1, rate=1, *, tags=None):
@@ -541,8 +541,8 @@ class _Stats(type):
             try:
                 cls.instance = cls.factory()
             except (socket.gaierror, ImportError) as e:
-                log.error("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
-                cls.instance = DummyStatsLogger()
+                log.error("Could not configure StatsClient: %s, using NullStatsLogger instead.", e)
+                cls.instance = NullStatsLogger()
         return getattr(cls.instance, name)
 
     def __init__(cls, *args, **kwargs):
@@ -554,7 +554,7 @@ class _Stats(type):
             elif conf.getboolean("metrics", "statsd_on"):
                 cls.__class__.factory = cls.get_statsd_logger
             else:
-                cls.__class__.factory = DummyStatsLogger
+                cls.__class__.factory = NullStatsLogger
 
     @classmethod
     def get_statsd_logger(cls):
