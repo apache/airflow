@@ -45,7 +45,7 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
-    source_name = f"{env_id}-salesforce"
+    source_name = "salesforce"
     flow_name = f"{env_id}-salesforce-campaign"
 
     # [START howto_operator_appflow_run]
