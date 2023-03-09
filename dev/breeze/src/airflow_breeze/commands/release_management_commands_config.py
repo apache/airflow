@@ -124,4 +124,25 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze release-management start-rc-process": [
+        {
+            "name": "Start RC process flags",
+            "options": [
+                "--version",
+                "--previous-version",
+                "--github-token",
+            ],
+        }
+    ],
+    "breeze release-management create-minor-branch": [
+        {
+            "name": "Create minor branch flags",
+            "options": [
+                "--version-branch",
+            ],
+        }
+    ],
+    "breeze release-management start-release": [
+        {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
+    ],
 }
