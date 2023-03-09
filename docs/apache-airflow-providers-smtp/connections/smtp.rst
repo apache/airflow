@@ -54,9 +54,9 @@ Port
 Extra (optional)
     Specify the extra parameters (as json dictionary)
 
-    * ``use_ssl``: If set to false, then a non-ssl connection is being used. Default is true. Also note that changing the ssl option also influences the default port being used.
+    * ``disable_ssl``: If set to true, then a non-ssl connection is being used. Default is false. Also note that changing the ssl option also influences the default port being used.
     * ``timeout``: The SMTP connection creation timeout in seconds. Default is 30.
-    * ``starttls``: Put the SMTP connection in TLS mode. All SMTP commands that follow will be encrypted. Default is true.
+    * ``disable_tls``: By default the SMTP connection is created in TLS mode. Set to false to disable tls mode.
     * ``retry_limit``: How many attempts to connect to the server before raising an exception. Default is 5.
 
 When specifying the connection in environment variable you should specify
@@ -68,12 +68,12 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_SMTP_DEFAULT='smtp://username:password@smtp.sendgrid.net:587?use_ssl=true'
+   export AIRFLOW_CONN_SMTP_DEFAULT='smtp://username:password@smtp.sendgrid.net:587'
 
 Another example for connecting via a non-SSL connection.
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_SMTP_NOSSL='smtp://username:password@smtp.sendgrid.net:587?use_ssl=false'
+   export AIRFLOW_CONN_SMTP_NOSSL='smtp://username:password@smtp.sendgrid.net:587?disable_ssl=true'
 
 Note that you can set the port regardless of whether you choose to use ssl or not. The above examples show default ports for SSL and Non-SSL connections.

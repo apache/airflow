@@ -77,8 +77,8 @@ class SmtpHook(BaseHook):
                 raise AirflowException("SMTP connection is not found.")
             smtp_user = conn.login
             smtp_password = conn.password
-            smtp_starttls = conn.extra_dejson.get("starttls", True)
-            smtp_retry_limit = conn.extra_dejson.get("retry_limit", 5)
+            smtp_starttls = not bool(conn.extra_dejson.get("disable_tls", False))
+            smtp_retry_limit = int(conn.extra_dejson.get("retry_limit", 5))
 
             for attempt in range(1, smtp_retry_limit + 1):
                 try:
@@ -100,7 +100,7 @@ class SmtpHook(BaseHook):
     def _build_client(self, conn: Connection) -> smtplib.SMTP_SSL | smtplib.SMTP:
 
         SMTP: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
-        if conn.extra_dejson.get("use_ssl", True):
+        if not bool(conn.extra_dejson.get("disable_ssl", False)):
             SMTP = smtplib.SMTP_SSL
         else:
             SMTP = smtplib.SMTP
@@ -108,9 +108,46 @@ class SmtpHook(BaseHook):
         smtp_kwargs = {"host": conn.host}
         if conn.port:
             smtp_kwargs["port"] = conn.port
-        smtp_kwargs["timeout"] = conn.extra_dejson.get("timeout", 30)
+        smtp_kwargs["timeout"] = int(conn.extra_dejson.get("timeout", 30))
 
         return SMTP(**smtp_kwargs)
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, IntegerField
+        from wtforms.validators import NumberRange
+
+        return {
+            "timeout": IntegerField(
+                lazy_gettext("Connection timeout"),
+                validators=[NumberRange(min=0)],
+                widget=BS3TextFieldWidget(),
+                default=30,
+            ),
+            "retry_limit": IntegerField(
+                lazy_gettext("Number of Retries"),
+                validators=[NumberRange(min=0)],
+                widget=BS3TextFieldWidget(),
+                default=5,
+            ),
+            "disable_tls": BooleanField(lazy_gettext("Disable TLS"), default=False),
+            "disable_ssl": BooleanField(lazy_gettext("Disable SSL"), default=False),
+        }
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test SMTP connectivity from UI"""
+        try:
+            smtp_client = self.get_conn().smtp_client
+            if smtp_client:
+                status = smtp_client.noop()[0]
+                if status == 250:
+                    return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)
+        return False, "Failed to establish connection"
 
     def send_email_smtp(
         self,
