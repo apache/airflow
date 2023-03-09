@@ -47,7 +47,6 @@ const getTaskInstanceURL = `${taskInstancesUrl}?dag_id=${encodeURIComponent(
   dagId
 )}&execution_date=${encodeURIComponent(executionDate)}`;
 
-const duration = 500;
 const stateFocusMap = {
   success: false,
   running: false,
