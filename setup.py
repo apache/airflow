@@ -45,7 +45,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.3.4.post5'
+version = '2.3.4.post6'
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 my_dir = dirname(__file__)
@@ -232,7 +232,7 @@ azure = [
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
-    'azure-storage-blob',  # Temporarily remove >=12.7.0,<12.9.0 restriction for lyft-regulatoryintegrations 
+    'azure-storage-blob',  # Temporarily remove >=12.7.0,<12.9.0 restriction for lyft-regulatoryintegrations
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
     # Limited due to https://github.com/Azure/azure-uamqp-python/issues/191
