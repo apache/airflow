@@ -919,3 +919,37 @@ class TestCliImportConnections:
 
         # The existing connection should have been overwritten
         assert current_conns_as_dicts["new3"] == expected_connections["new3"]
+
+
+class TestCliTestConnections:
+    parser = cli_parser.get_parser()
+
+    def setup_class(self):
+        clear_db_connections()
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
+    def test_cli_connections_test_success(self, mock_test_conn):
+        """Check that successful connection test result is displayed properly."""
+        conn_id = "http_default"
+        mock_test_conn.return_value = True, None
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+
+            assert "Connection success!" in stdout.getvalue()
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
+    def test_cli_connections_test_fail(self, mock_test_conn):
+        """Check that failed connection test result is displayed properly."""
+        conn_id = "http_default"
+        mock_test_conn.return_value = False, "Failed."
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+
+            assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
+
+    def test_cli_connections_test_missing_conn(self):
+        """Check a connection test on a non-existent connection raises a "Connection not found" message."""
+        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+
+            assert "Connection not found.\n\n" in stdout.getvalue()

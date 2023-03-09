@@ -836,7 +836,7 @@ ARG_ENV_VARS = Arg(
 )
 
 # connections
-ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete a connection", type=str)
+ARG_CONN_ID = Arg(("conn_id",), help="Connection ID, required to get/add/delete/test a connection", type=str)
 ARG_CONN_ID_FILTER = Arg(
     ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
 )
@@ -1708,6 +1708,12 @@ CONNECTIONS_COMMANDS = (
             ARG_CONN_OVERWRITE,
             ARG_VERBOSE,
         ),
+    ),
+    ActionCommand(
+        name="test",
+        help="Test a connection",
+        func=lazy_load_command("airflow.cli.commands.connection_command.connections_test"),
+        args=(ARG_CONN_ID, ARG_VERBOSE),
     ),
 )
 PROVIDERS_COMMANDS = (
