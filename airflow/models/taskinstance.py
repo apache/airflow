@@ -92,6 +92,7 @@ from airflow.models.base import Base, StringID
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
+from airflow.models.pydantic.taskinstance import TaskInstancePydantic
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -801,7 +802,7 @@ class TaskInstance(Base, LoggingMixin):
         select_columns: bool = False,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
-    ) -> TaskInstance | None:
+    ) -> TaskInstance | TaskInstancePydantic | None:
         query = (
             session.query(*TaskInstance.__table__.columns) if select_columns else session.query(TaskInstance)
         )
@@ -1846,7 +1847,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def fetch_handle_failure_context(
         cls,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstancePydantic,
         error: None | str | Exception | KeyboardInterrupt,
         test_mode: bool | None = None,
         context: Context | None = None,
@@ -1927,7 +1928,7 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def save_to_db(ti: TaskInstance, session: Session = NEW_SESSION):
+    def save_to_db(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION):
         session.merge(ti)
         session.flush()
 

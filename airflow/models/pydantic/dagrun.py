@@ -14,13 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel as BaseModelPydantic
-
-from airflow.models.pydantic.dataset import DatasetEventPydantic
 
 
 class DagRunPydantic(BaseModelPydantic):
@@ -28,21 +26,20 @@ class DagRunPydantic(BaseModelPydantic):
 
     id: int
     dag_id: str
-    queued_at: Optional[datetime]
+    queued_at: datetime | None
     execution_date: datetime
-    start_date: Optional[datetime]
-    end_date: Optional[datetime]
+    start_date: datetime | None
+    end_date: datetime | None
     state: str
-    run_id: Optional[str]
-    creating_job_id: Optional[int]
+    run_id: str | None
+    creating_job_id: int | None
     external_trigger: bool
     run_type: str
-    data_interval_start: Optional[datetime]
-    data_interval_end: Optional[datetime]
-    last_scheduling_decision: Optional[datetime]
-    dag_hash: Optional[str]
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    last_scheduling_decision: datetime | None
+    dag_hash: str | None
     updated_at: datetime
-    consumed_dataset_events: List[DatasetEventPydantic]
 
     class Config:
         """Make sure it deals automatically with ORM classes of SQL Alchemy"""

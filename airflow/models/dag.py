@@ -81,6 +81,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
+from airflow.models.pydantic.dagrun import DagRunPydantic
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
@@ -1301,7 +1302,9 @@ class DAG(LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def fetch_callback(dag: DAG, dagrun: DagRun, success=True, reason=None, session=NEW_SESSION):
+    def fetch_callback(
+        dag: DAG, dagrun: DagRun | DagRunPydantic, success=True, reason=None, session=NEW_SESSION
+    ):
         """
         Fetch the appropriate callbacks depending on the value of success, namely the
         on_failure_callback or on_success_callback. This method gets the context of a
@@ -1410,7 +1413,7 @@ class DAG(LoggingMixin):
         execution_date: datetime | None = None,
         run_id: str | None = None,
         session: Session = NEW_SESSION,
-    ):
+    ) -> DagRun | DagRunPydantic:
         """
         Returns the dag run of a dag for a given execution date or run_id if it exists, otherwise
         none.

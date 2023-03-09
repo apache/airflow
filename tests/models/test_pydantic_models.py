@@ -27,7 +27,7 @@ from airflow.models.dataset import (
     DatasetModel,
     TaskOutletDatasetReference,
 )
-from airflow.models.pydantic.dag_run import DagRunPydantic
+from airflow.models.pydantic.dagrun import DagRunPydantic
 from airflow.models.pydantic.dataset import DatasetEventPydantic
 from airflow.models.pydantic.taskinstance import TaskInstancePydantic
 from airflow.utils import timezone
