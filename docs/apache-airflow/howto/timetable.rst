@@ -24,7 +24,8 @@ process data collected during the work day. The first intuitive answer to this
 would be ``schedule="0 0 * * 1-5"`` (midnight on Monday to Friday), but
 this means data collected on Friday will *not* be processed right after Friday
 ends, but on the next Monday, and that run's interval would be from midnight
-Friday to midnight *Monday*. What we want is:
+Friday to midnight *Monday*. Further, the above schedule string cannot skip
+processing on holidays. What we want is:
 
 * Schedule a run for each Monday, Tuesday, Wednesday, Thursday, and Friday. The
   run's data interval would cover from midnight of each day, to midnight of the
@@ -32,6 +33,7 @@ Friday to midnight *Monday*. What we want is:
 * Each run would be created right after the data interval ends. The run covering
   Monday happens on midnight Tuesday and so on. The run covering Friday happens
   on midnight Saturday. No runs happen on midnights Sunday and Monday.
+* Do not schedule a run on defined holidays.
 
 For simplicity, we will only deal with UTC datetimes in this example.
 
@@ -46,8 +48,8 @@ Timetable Registration
 ----------------------
 
 A timetable must be a subclass of :class:`~airflow.timetables.base.Timetable`,
-and be registered as a part of a :doc:`plugin </authoring-and-scheduling/plugins>`. The following is a
-skeleton for us to implement a new timetable:
+and be registered as a part of a :doc:`plugin </authoring-and-scheduling/plugins>`.
+The following is a skeleton for us to implement a new timetable:
 
 .. code-block:: python
 
@@ -144,10 +146,10 @@ how the DAG and its tasks specify the schedule, and contains three attributes:
     (usually after the end of the data interval).
 
 If there was a run scheduled previously, we should now schedule for the next
-weekday, i.e. plus one day if the previous run was on Monday through Thursday,
-or three days if it was on Friday. If there was not a previous scheduled run,
-however, we pick the next workday's midnight after ``restriction.earliest``
-(unless it *is* a workday's midnight; in which case it's used directly).
+non-holiday weekday by looping through subsequent days to find one that is not
+a Saturday, Sunday, or US holiday. If there was not a previous scheduled run,
+however, we pick the next non-holiday workday's midnight after
+``restriction.earliest``.
 ``restriction.catchup`` also needs to be considered---if it's ``False``, we
 can't schedule before the current time, even if ``start_date`` values are in the
 past. Finally, if our calculated data interval is later than
