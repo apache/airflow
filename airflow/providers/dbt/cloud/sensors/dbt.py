@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from typing import TYPE_CHECKING, Any
 
 from airflow import AirflowException
@@ -49,12 +50,22 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
         account_id: int | None = None,
+        deferrable: bool = False,
+        poll_interval: float = 5,
         **kwargs,
     ) -> None:
+        if deferrable:
+            if "timeout" not in kwargs:
+                kwargs["timeout"] = 60 * 60 * 24 * 7
+
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.run_id = run_id
         self.account_id = account_id
+
+        self.deferrable = deferrable
+        if self.deferrable:
+            self.poll_interval = poll_interval
 
     def poke(self, context: Context) -> bool:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
@@ -67,6 +78,38 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
             raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")
 
         return job_run_status == DbtCloudJobRunStatus.SUCCESS.value
+
+    def execute(self, context: Context) -> None:
+        """
+        Defers to Trigger class to poll for state of the job run until
+        it reaches a failure state or success state
+        """
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            end_time = time.time() + self.timeout
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=DbtCloudRunJobTrigger(
+                    run_id=self.run_id,
+                    conn_id=self.dbt_cloud_conn_id,
+                    account_id=self.account_id,
+                    poll_interval=self.poll_interval,
+                    end_time=end_time,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] in ["error", "cancelled"]:
+            raise AirflowException("Error in dbt: " + event["message"])
+        self.log.info(event["message"])
+        return int(event["run_id"])
 
 
 class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
@@ -84,42 +127,10 @@ class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
     :param timeout: Time in seconds to wait for a job run to reach a terminal status. Defaults to 7 days.
     """
 
-    def __init__(
-        self,
-        *,
-        poll_interval: float = 5,
-        timeout: float = 60 * 60 * 24 * 7,
-        **kwargs: Any,
-    ):
-        self.poll_interval = poll_interval
-        self.timeout = timeout
-        super().__init__(**kwargs)
-
-    def execute(self, context: Context) -> None:
-        """
-        Defers to Trigger class to poll for state of the job run until
-        it reaches a failure state or success state
-        """
-        end_time = time.time() + self.timeout
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=DbtCloudRunJobTrigger(
-                run_id=self.run_id,
-                conn_id=self.dbt_cloud_conn_id,
-                account_id=self.account_id,
-                poll_interval=self.poll_interval,
-                end_time=end_time,
-            ),
-            method_name="execute_complete",
+    def __init__(self, **kwargs: Any) -> None:
+        warnings.warn(
+            "Class `DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. "
+            "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead",
+            DeprecationWarning,
         )
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event["status"] in ["error", "cancelled"]:
-            raise AirflowException("Error in dbt: " + event["message"])
-        self.log.info(event["message"])
-        return int(event["run_id"])
+        super().__init__(deferrable=True, **kwargs)
