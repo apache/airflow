@@ -45,6 +45,7 @@ TEST_BUILD_WORKING = {
 
 TEST_CONN_ID = "google_cloud_default"
 TEST_POLL_INTERVAL = 4.0
+TEST_LOCATION = "global"
 TEST_BUILD_INSTANCE = dict(
     id="test-build-id-9832662",
     status=3,
@@ -98,6 +99,7 @@ def test_async_create_build_trigger_serialization_should_execute_successfully():
         impersonation_chain=None,
         delegate_to=None,
         poll_interval=TEST_POLL_INTERVAL,
+        location=TEST_LOCATION,
     )
     classpath, kwargs = trigger.serialize()
     assert classpath == "airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger"
@@ -108,11 +110,12 @@ def test_async_create_build_trigger_serialization_should_execute_successfully():
         "impersonation_chain": None,
         "delegate_to": None,
         "poll_interval": TEST_POLL_INTERVAL,
+        "location": TEST_LOCATION,
     }
 
 
 @pytest.mark.asyncio
-@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
 @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
 async def test_async_create_build_trigger_triggers_on_success_should_execute_successfully(
     mock_get_build, hook
@@ -131,6 +134,7 @@ async def test_async_create_build_trigger_triggers_on_success_should_execute_suc
         impersonation_chain=None,
         delegate_to=None,
         poll_interval=TEST_POLL_INTERVAL,
+        location=TEST_LOCATION,
     )
 
     generator = trigger.run()
@@ -149,7 +153,7 @@ async def test_async_create_build_trigger_triggers_on_success_should_execute_suc
 
 
 @pytest.mark.asyncio
-@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
 @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
 async def test_async_create_build_trigger_triggers_on_running_should_execute_successfully(
     mock_get_build, hook, caplog
@@ -169,6 +173,7 @@ async def test_async_create_build_trigger_triggers_on_running_should_execute_suc
         impersonation_chain=None,
         delegate_to=None,
         poll_interval=TEST_POLL_INTERVAL,
+        location=TEST_LOCATION,
     )
     task = asyncio.create_task(trigger.run().__anext__())
     await asyncio.sleep(0.5)
@@ -184,7 +189,7 @@ async def test_async_create_build_trigger_triggers_on_running_should_execute_suc
 
 
 @pytest.mark.asyncio
-@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
 @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
 async def test_async_create_build_trigger_triggers_on_error_should_execute_successfully(
     mock_get_build, hook, caplog
@@ -204,6 +209,7 @@ async def test_async_create_build_trigger_triggers_on_error_should_execute_succe
         impersonation_chain=None,
         delegate_to=None,
         poll_interval=TEST_POLL_INTERVAL,
+        location=TEST_LOCATION,
     )
 
     generator = trigger.run()
@@ -226,6 +232,7 @@ async def test_async_create_build_trigger_triggers_on_excp_should_execute_succes
         impersonation_chain=None,
         delegate_to=None,
         poll_interval=TEST_POLL_INTERVAL,
+        location=TEST_LOCATION,
     )
 
     generator = trigger.run()

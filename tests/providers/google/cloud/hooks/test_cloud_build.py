@@ -71,9 +71,13 @@ class TestCloudBuildHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
     def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=None,
+        )
         assert mock_client.return_value == result
-        assert self.hook._client == result
+        assert self.hook._client["global"] == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_cancel_build(self, get_conn):
@@ -325,7 +329,7 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
     @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
     async def test_async_cloud_build_service_client_creation_should_execute_successfully(
         self, mocked_get_build, hook
