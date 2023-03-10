@@ -883,8 +883,8 @@ class TestAzureDataFactoryAsyncHook:
         ],
     )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    async def test_get_async_conn_key_error_tenantId(self, mock_connection, mock_connection_params):
-        """Test get_async_conn function with raising key error"""
+    async def test_get_async_conn_key_error_subscription_id(self, mock_connection, mock_connection_params):
+        """Test get_async_conn function when subscription_id is missing in the connection"""
         mock_conn = Connection(
             conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
             conn_type="azure_data_factory",
@@ -909,8 +909,8 @@ class TestAzureDataFactoryAsyncHook:
         ],
     )
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    async def test_get_async_conn_key_error_subscriptionId(self, mock_connection, mock_connection_params):
-        """Test get_async_conn function with raising key error"""
+    async def test_get_async_conn_key_error_tenant_id(self, mock_connection, mock_connection_params):
+        """Test get_async_conn function when tenant id is missing in the connection"""
         mock_conn = Connection(
             conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
             conn_type="azure_data_factory",

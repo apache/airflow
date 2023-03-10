@@ -1092,15 +1092,17 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
     :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
     """
 
-    def __init__(self, azure_data_factory_conn_id: str):
+    default_conn_name: str = "azure_data_factory_default"
+
+    def __init__(self, azure_data_factory_conn_id: str = default_conn_name):
         self._async_conn: AsyncDataFactoryManagementClient = None
         self.conn_id = azure_data_factory_conn_id
         super().__init__(azure_data_factory_conn_id=azure_data_factory_conn_id)
 
     async def get_async_conn(self) -> AsyncDataFactoryManagementClient:
         """Get async connection and connect to azure data factory"""
-        if self._conn is not None:
-            return self._conn
+        if self._async_conn is not None:
+            return self._async_conn
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extras = conn.extra_dejson
@@ -1141,6 +1143,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param run_id: The pipeline run identifier.
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
         """
         async with await self.get_async_conn() as client:
             try:
