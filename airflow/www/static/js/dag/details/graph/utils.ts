@@ -151,15 +151,24 @@ export const buildEdges = ({
       const targetIds = e.target.split(".");
       const isSelected =
         selectedTaskId &&
-        (e.source === selectedTaskId || e.target === selectedTaskId);
+        (e.source.includes(selectedTaskId) ||
+          e.target.includes(selectedTaskId));
 
       if (
         sourceIds.length === targetIds.length &&
         sourceIds[0] === targetIds[0]
       ) {
-        const parentIds =
+        let parentIds =
           sourceIds.length > targetIds.length ? sourceIds : targetIds;
-        parentIds.pop();
+
+        if (e.target.endsWith("_join_id") && e.source.endsWith("_join_id")) {
+          /** edges between join ids are positioned absolutely,
+           * other edges are positioned relative to their parent */
+          parentIds = [];
+        } else {
+          // remove the last node
+          parentIds.pop();
+        }
         let parentX = 0;
         let parentY = 0;
 
