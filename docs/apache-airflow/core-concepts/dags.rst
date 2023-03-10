@@ -842,39 +842,39 @@ the dependency graph.
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
 :class:`~airflow.serialization.serialized_objects.DependencyDetector`
 
-DAG pausing, deactivation and deletion
---------------------------------------
+Pause, deactivate and delete DAGs
+---------------------------------
 
 The DAGs have several states when it comes to being "not running". DAGs can be paused, deactivated
-and finally all metadata for the DAG can be deleted.
+and finally all metadata of the DAGs can be deleted.
 
-Dag can be paused via UI when it is present in the ``DAGS_FOLDER``, and scheduler stored it in
-the database, but the user chose to disable it via the UI. The "pause" and "unpause" actions are available
-via UI and API. Paused DAG is not scheduled by the Scheduler, but you can trigger them via UI for
-manual runs. In the UI, you can see Paused DAGs (in ``Paused`` tab). The DAGs that are un-paused
+A DAG can be paused via the UI when it is present in the ``DAGS_FOLDER``, and when the scheduler is stored in
+the database. However, the user can choose to disable this functionality via the UI. The "pause" and "unpause" actions are available
+via the UI and the API. Paused DAGs will not be scheduled by the Scheduler, but you can trigger them via the UI for
+manual runs. In the UI, you can see the Paused DAGs in the ``Paused`` tab. The DAGs that are not in the "paused" state
 can be found in the ``Active`` tab.
 
-Dag can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
-``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the DAG that it had seen
-before and stored in the database it will set is as deactivated. The metadata and history of the
-DAG` is kept for deactivated DAGs and when the DAG is re-added to the ``DAGS_FOLDER`` it will be again
-activated and history will be visible. You cannot activate/deactivate DAG via UI or API, this
-can only be done by removing files from the ``DAGS_FOLDER``. Once again - no data for historical runs of the
-DAG are lost when it is deactivated by the scheduler. Note that the ``Active`` tab in Airflow UI
-refers to DAGs that are not both ``Activated`` and ``Not paused`` so this might initially be a
+DAGs can be deactivated (do not confuse it with the ``Active`` tag in the UI) by removing them from the
+``DAGS_FOLDER``. When the scheduler parses the ``DAGS_FOLDER`` and misses a DAG that it had seen
+before and stored in the database, it will set it as deactivated. The metadata and history of the
+DAG is kept for deactivated DAGs and when the DAG is re-added to the ``DAGS_FOLDER`` it will be reactivated
+and the history will be visible. You cannot activate/deactivate DAGs via the UI or the API.
+It can only be done by removing files from the ``DAGS_FOLDER``. Once again, no data for historical runs of the
+DAG are lost when it is deactivated by the scheduler. Note that the ``Active`` tab in the Airflow UI
+refers to the DAGs that are not both ``Activated`` and ``Not paused``. So this might initially be a
 little confusing.
 
-You can't see the deactivated DAGs in the UI - you can sometimes see the historical runs, but when you try to
-see the information about those you will see the error that the DAG is missing.
+You can't see the deactivated DAGs in the UI. You can sometimes see the historical runs, but when you try to
+see the information about those, you will see an error indicating that the DAG is missing.
 
-You can also delete the DAG metadata from the metadata database using UI or API, but it does not
-always result in disappearing of the DAG from the UI - which might be also initially a bit confusing.
+You can also delete the DAG's metadata from the metadata database using the UI or the API, but it does not
+always result in the DAG disappearing from the UI - which might be a bit confusing at first.
 If the DAG is still in ``DAGS_FOLDER`` when you delete the metadata, the DAG will re-appear as
-Scheduler will parse the folder, only historical runs information for the DAG will be removed.
+the Scheduler will parse the folder. Only the information of historical runs for the DAG will be removed.
 
-This all means that if you want to actually delete a DAG and its all historical metadata, you need to do
+This all means that if you want to actually delete a DAG and all of its historical metadata, you need to do
 it in three steps:
 
-* pause the DAG
-* delete the historical metadata from the database, via UI or API
-* delete the DAG file from the ``DAGS_FOLDER`` and wait until it becomes inactive
+* Pause the DAG
+* Delete the historical metadata from the database, via the UI or the API
+* Delete the DAG's source file from the ``DAGS_FOLDER`` and wait until it becomes inactive
