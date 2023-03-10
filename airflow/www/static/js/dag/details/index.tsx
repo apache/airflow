@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   Flex,
   Divider,
@@ -28,12 +28,14 @@ import {
   Tab,
   Text,
 } from "@chakra-ui/react";
+import { useSearchParams } from "react-router-dom";
 
 import useSelection from "src/dag/useSelection";
 import { getTask, getMetaValue } from "src/utils";
 import { useGridData, useTaskInstance } from "src/api";
 import { MdDetails, MdAccountTree, MdReorder } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 import Header from "./Header";
 import TaskInstanceContent from "./taskInstance";
@@ -51,6 +53,39 @@ interface Props {
   onToggleGroups: (groupIds: string[]) => void;
 }
 
+const tabToIndex = (tab?: string) => {
+  switch (tab) {
+    case "graph":
+      return 1;
+    case "logs":
+    case "mapped_tasks":
+      return 2;
+    case "details":
+    default:
+      return 0;
+  }
+};
+
+const indexToTab = (
+  index: number,
+  showLogs: boolean,
+  showMappedTasks: boolean
+) => {
+  switch (index) {
+    case 1:
+      return "graph";
+    case 2:
+      if (showMappedTasks) return "mapped_tasks";
+      if (showLogs) return "logs";
+      return undefined;
+    case 0:
+    default:
+      return undefined;
+  }
+};
+
+const TAB_PARAM = "tab";
+
 const Details = ({ openGroupIds, onToggleGroups }: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
@@ -59,7 +94,6 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
   const isDag = !runId && !taskId;
   const isDagRun = runId && !taskId;
   const isTaskInstance = taskId && runId;
-  const [tabIndex, setTabIndex] = useState(0);
 
   const {
     data: { dagRuns, groups },
@@ -74,11 +108,26 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get(TAB_PARAM) || undefined;
+  const tabIndex = tabToIndex(tab);
+
+  const onChangeTab = useCallback(
+    (index: number) => {
+      const params = new URLSearchParamsWrapper(searchParams);
+      const newTab = indexToTab(index, showLogs, showMappedTasks);
+      if (newTab) params.set(TAB_PARAM, newTab);
+      else params.delete(TAB_PARAM);
+      setSearchParams(params);
+    },
+    [setSearchParams, searchParams, showLogs, showMappedTasks]
+  );
+
   useEffect(() => {
     if ((!taskId || isGroup) && tabIndex > 1) {
-      setTabIndex(1);
+      onChangeTab(1);
     }
-  }, [runId, taskId, tabIndex, setTabIndex, isGroup]);
+  }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({
@@ -103,7 +152,7 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
         isLazy
         height="100%"
         index={tabIndex}
-        onChange={setTabIndex}
+        onChange={onChangeTab}
       >
         <TabList>
           <Tab>
