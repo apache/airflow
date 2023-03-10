@@ -159,6 +159,8 @@ serialized_simple_dag_ground_truth = {
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
+                "_is_setup": False,
+                "_is_teardown": False,
                 "executor_config": {
                     "__type": "dict",
                     "__var": {
@@ -188,6 +190,8 @@ serialized_simple_dag_ground_truth = {
                 "_operator_name": "@custom",
                 "_task_module": "tests.test_utils.mock_operators",
                 "pool": "default_pool",
+                "_is_setup": False,
+                "_is_teardown": False,
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
