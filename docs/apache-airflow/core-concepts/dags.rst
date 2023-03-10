@@ -234,8 +234,8 @@ DAG Assignment
 Note that every single Operator/Task must be assigned to a DAG in order to run. Airflow has several ways of calculating the DAG without you passing it explicitly:
 
 * If you declare your Operator inside a ``with DAG`` block
-* If you declare your Operator inside a ``@dag`` decorator,
-* If you put your Operator upstream or downstream of a Operator that has a DAG
+* If you declare your Operator inside a ``@dag`` decorator
+* If you put your Operator upstream or downstream of an Operator that has a DAG
 
 Otherwise, you must pass it into each Operator with ``dag=``.
 
