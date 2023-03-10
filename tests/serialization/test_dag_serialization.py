@@ -1301,7 +1301,7 @@ class TestStringifiedDAGs:
         check_task_group(serialized_dag.task_group)
 
     @staticmethod
-    def _check_taskgroup_children(se_task_group, dag_task_group, expected_children):
+    def assert_taskgroup_children(se_task_group, dag_task_group, expected_children):
         assert se_task_group.children.keys() == dag_task_group.children.keys() == expected_children
 
     def test_task_group_setup_teardown_tasks(self):
@@ -1332,13 +1332,13 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
-        self._check_taskgroup_children(
+        self.assert_taskgroup_children(
             serialized_dag.task_group, dag.task_group, {"setup", "teardown", "group1"}
         )
 
         se_first_group = serialized_dag.task_group.children["group1"]
         dag_first_group = dag.task_group.children["group1"]
-        self._check_taskgroup_children(
+        self.assert_taskgroup_children(
             se_first_group,
             dag_first_group,
             {"group1.setup1", "group1.task1", "group1.group2", "group1.teardown1"},
@@ -1346,7 +1346,7 @@ class TestStringifiedDAGs:
 
         se_second_group = se_first_group.children["group1.group2"]
         dag_second_group = dag_first_group.children["group1.group2"]
-        self._check_taskgroup_children(
+        self.assert_taskgroup_children(
             se_second_group,
             dag_second_group,
             {"group1.group2.setup2", "group1.group2.task2", "group1.group2.teardown2"},
@@ -1388,25 +1388,25 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
-        self._check_taskgroup_children(
+        self.assert_taskgroup_children(
             serialized_dag.task_group, dag.task_group, {"setup_group", "sometask", "teardown_group"}
         )
 
         se_setup_group = serialized_dag.task_group.children["setup_group"]
         dag_setup_group = dag.task_group.children["setup_group"]
-        self._check_taskgroup_children(
+        self.assert_taskgroup_children(
             se_setup_group, dag_setup_group, {"setup_group.setup1", "setup_group.sub_setup"}
         )
 
         se_sub_setup_group = se_setup_group.children["setup_group.sub_setup"]
         dag_sub_setup_group = dag_setup_group.children["setup_group.sub_setup"]
-        self._check_taskgroup_children(
+        self.assert_taskgroup_children(
             se_sub_setup_group, dag_sub_setup_group, {"setup_group.sub_setup.setup2"}
         )
 
         se_teardown_group = serialized_dag.task_group.children["teardown_group"]
         dag_teardown_group = dag.task_group.children["teardown_group"]
-        self._check_taskgroup_children(se_teardown_group, dag_teardown_group, {"teardown_group.teardown1"})
+        self.assert_taskgroup_children(se_teardown_group, dag_teardown_group, {"teardown_group.teardown1"})
 
     def test_deps_sorted(self):
         """
