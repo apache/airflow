@@ -4718,6 +4718,9 @@ export type BasicDAGRun = CamelCasedPropertiesDeep<
 export type DatasetEventCollection = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEventCollection"]
 >;
+export type ExternalDatasetChange = CamelCasedPropertiesDeep<
+  components["schemas"]["ExternalDatasetChange"]
+>;
 export type ConfigOption = CamelCasedPropertiesDeep<
   components["schemas"]["ConfigOption"]
 >;
@@ -4989,6 +4992,10 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type PostDatasetEventVariables = CamelCasedPropertiesDeep<
+  operations["post_dataset_event"]["parameters"]["query"] &
+    operations["post_dataset_event"]["requestBody"]["content"]["application/json"]
 >;
 export type GetPluginsVariables = CamelCasedPropertiesDeep<
   operations["get_plugins"]["parameters"]["query"]

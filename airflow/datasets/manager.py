@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc
@@ -27,7 +28,6 @@ from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -79,9 +79,9 @@ class DatasetManager(LoggingMixin):
     def register_external_dataset_change(
         self,
         dataset: Dataset,
-        external_source: str,
         timestamp: datetime,
         session: Session,
+        external_source: str | None,
         user_id: int | None,
         extra=None,
         **kwargs,
@@ -91,7 +91,7 @@ class DatasetManager(LoggingMixin):
 
         For local datasets, look them up, record the dataset event, and queue dagruns.
         """
-        dataset_model = self._get_dataset_model(dataset=dataset, session=session) is None
+        dataset_model = self._get_dataset_model(dataset=dataset, session=session)
         if dataset_model is None:
             return None
 

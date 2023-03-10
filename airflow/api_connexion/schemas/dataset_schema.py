@@ -116,7 +116,7 @@ class ExternalDatasetChangeSchema(Schema):
     """External Dataset change/update Schema"""
 
     dataset_uri = fields.String()
-    timestamp = auto_field()
+    timestamp = fields.DateTime()
     extra = JsonObjectField()
 
 
@@ -136,8 +136,8 @@ class DatasetEventSchema(SQLAlchemySchema):
     source_dag_id = auto_field()
     source_run_id = auto_field()
     source_map_index = auto_field()
-    external_service_id = auto_field()
     external_source = fields.String(dump_only=True)
+    user_id = auto_field()
     created_dagruns = fields.List(fields.Nested(BasicDAGRunSchema))
     timestamp = auto_field()
 

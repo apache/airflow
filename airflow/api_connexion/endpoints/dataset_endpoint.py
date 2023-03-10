@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timezone
+
 from flask import request
 from flask_login import current_user
 from marshmallow import ValidationError
@@ -143,7 +145,7 @@ def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     uri = json_body["dataset_uri"]
     external_source = request.remote_addr
     user_id = getattr(current_user, "id", None)
-    timestamp = json_body["timestamp"]
+    timestamp = json_body.get("timestamp").astimezone(timezone.utc)
     extra = json_body["extra"]
     dataset_event = dataset_manager.register_external_dataset_change(
         dataset=Dataset(uri),
