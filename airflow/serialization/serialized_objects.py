@@ -1323,13 +1323,6 @@ class TaskGroupSerialization(BaseSerialization):
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
-            "setup_children": {
-                label: child.serialize_for_task_group() for label, child in task_group.setup_children.items()
-            },
-            "teardown_children": {
-                label: child.serialize_for_task_group()
-                for label, child in task_group.teardown_children.items()
-            },
             "children": {
                 label: child.serialize_for_task_group() for label, child in task_group.children.items()
             },
@@ -1380,18 +1373,6 @@ class TaskGroupSerialization(BaseSerialization):
             task.task_group = weakref.proxy(group)
             return task
 
-        group.setup_children = {
-            label: set_ref(task_dict[val])
-            if _type == DAT.OP
-            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
-            for label, (_type, val) in encoded_group["setup_children"].items()
-        }
-        group.teardown_children = {
-            label: set_ref(task_dict[val])
-            if _type == DAT.OP
-            else cls.deserialize_task_group(val, group, task_dict, dag=dag)
-            for label, (_type, val) in encoded_group["teardown_children"].items()
-        }
         group.children = {
             label: set_ref(task_dict[val])
             if _type == DAT.OP
