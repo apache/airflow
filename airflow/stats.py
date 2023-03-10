@@ -182,31 +182,6 @@ class Timer(TimerProtocol):
             self.real_timer.stop()
 
 
-class DummyStatsLogger:
-    """If no StatsLogger is configured, DummyStatsLogger is used as a fallback."""
-
-    @classmethod
-    def incr(cls, stat, count=1, rate=1, *, tags=None):
-        """Increment stat."""
-
-    @classmethod
-    def decr(cls, stat, count=1, rate=1, *, tags=None):
-        """Decrement stat."""
-
-    @classmethod
-    def gauge(cls, stat, value, rate=1, delta=False, *, tags=None):
-        """Gauge stat."""
-
-    @classmethod
-    def timing(cls, stat, dt, *, tags=None):
-        """Stats timing."""
-
-    @classmethod
-    def timer(cls, *args, **kwargs):
-        """Timer metric that can be cancelled."""
-        return Timer()
-
-
 # Only characters in the character set are considered valid
 # for the stat_name if stat_name_default_handler is used.
 ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + "_.-")
@@ -323,6 +298,31 @@ def prepare_stat_with_tags(fn: T) -> T:
         return fn(self, stat, *args, tags=tags, **kwargs)
 
     return cast(T, wrapper)
+
+
+class NoStatsLogger:
+    """If no StatsLogger is configured, NoStatsLogger is used as a fallback."""
+
+    @classmethod
+    def incr(cls, stat, count=1, rate=1, *, tags=None):
+        """Increment stat."""
+
+    @classmethod
+    def decr(cls, stat, count=1, rate=1, *, tags=None):
+        """Decrement stat."""
+
+    @classmethod
+    def gauge(cls, stat, value, rate=1, delta=False, *, tags=None):
+        """Gauge stat."""
+
+    @classmethod
+    def timing(cls, stat, dt, *, tags=None):
+        """Stats timing."""
+
+    @classmethod
+    def timer(cls, *args, **kwargs):
+        """Timer metric that can be cancelled."""
+        return Timer()
 
 
 class SafeStatsdLogger:
@@ -541,8 +541,8 @@ class _Stats(type):
             try:
                 cls.instance = cls.factory()
             except (socket.gaierror, ImportError) as e:
-                log.error("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
-                cls.instance = DummyStatsLogger()
+                log.error("Could not configure StatsClient: %s, using NoStatsLogger instead.", e)
+                cls.instance = NoStatsLogger()
         return getattr(cls.instance, name)
 
     def __init__(cls, *args, **kwargs):
@@ -554,7 +554,7 @@ class _Stats(type):
             elif conf.getboolean("metrics", "statsd_on"):
                 cls.__class__.factory = cls.get_statsd_logger
             else:
-                cls.__class__.factory = DummyStatsLogger
+                cls.__class__.factory = NoStatsLogger
 
     @classmethod
     def get_statsd_logger(cls):
