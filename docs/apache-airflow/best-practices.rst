@@ -166,7 +166,7 @@ Good example:
       @task()
       def print_array():
           """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
+          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE!
 
           a = np.arange(15).reshape(3, 5)
           print(a)
