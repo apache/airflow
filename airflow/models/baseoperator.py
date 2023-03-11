@@ -248,7 +248,7 @@ def partial(
     )
 
     # Create partial_kwargs from args and kwargs
-    partial_kwargs = {
+    partial_kwargs: dict[str, Any] = {
         **kwargs,
         "dag": dag,
         "task_group": task_group,
@@ -342,21 +342,19 @@ def partial(
         raise TypeError("unexpected argument: task_concurrency")
     if partial_kwargs["wait_for_downstream"]:
         partial_kwargs["depends_on_past"] = True
-    partial_kwargs["start_date"] = timezone.convert_to_utc(partial_kwargs["start_date"])  # type: ignore
-    partial_kwargs["end_date"] = timezone.convert_to_utc(partial_kwargs["end_date"])  # type: ignore
+    partial_kwargs["start_date"] = timezone.convert_to_utc(partial_kwargs["start_date"])
+    partial_kwargs["end_date"] = timezone.convert_to_utc(partial_kwargs["end_date"])
     if partial_kwargs["pool"] is None:
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
-    partial_kwargs["retry_delay"] = coerce_timedelta(
-        partial_kwargs["retry_delay"], key="retry_delay"  # type: ignore
-    )
+    partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
     if partial_kwargs["max_retry_delay"] is not None:
         partial_kwargs["max_retry_delay"] = coerce_timedelta(
-            partial_kwargs["max_retry_delay"],  # type: ignore
+            partial_kwargs["max_retry_delay"],
             key="max_retry_delay",
         )
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
-    partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])  # type: ignore
+    partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
     return OperatorPartial(
         operator_class=operator_class,
