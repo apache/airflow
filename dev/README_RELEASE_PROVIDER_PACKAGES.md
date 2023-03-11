@@ -545,6 +545,8 @@ problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
+
 ## Verify the release by PMC members
 
 ### SVN check
