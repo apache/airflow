@@ -74,6 +74,8 @@ function in_container_fix_ownership() {
             "${AIRFLOW_SOURCES}/dags"
             "${AIRFLOW_SOURCES}/airflow/"
             "${AIRFLOW_SOURCES}/images/"
+            "${AIRFLOW_SOURCES}/.mypy_cache/"
+            "${AIRFLOW_SOURCES}/dev/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
         if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
