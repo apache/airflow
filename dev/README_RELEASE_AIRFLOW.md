@@ -318,6 +318,12 @@ A patch is considered relevant to the clients if it updates the [openapi specifi
 There are other external reasons for which we might want to release a patch version for clients only, but they are not
 tied to an airflow release and therefore out of scope.
 
+To determine if you should also release API clients you can run:
+
+```shell
+./dev/airflow-github api-clients-policy 2.3.2 2.3.3
+```
+
 > The patch version of each API client is not necessarily in sync with the patch that you are releasing. You need to check for
 > each client what is the next patch version to be released.
 

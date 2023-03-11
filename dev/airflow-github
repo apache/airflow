@@ -31,6 +31,7 @@ import rich_click as click
 from github import Github
 from github.Issue import Issue
 from github.PullRequest import PullRequest
+from packaging import version
 
 GIT_COMMIT_FIELDS = ["id", "author_name", "author_email", "date", "subject", "body"]
 GIT_LOG_FORMAT = "%x1f".join(["%h", "%an", "%ae", "%ad", "%s", "%b"]) + "%x1e"
@@ -45,8 +46,16 @@ STATUS_COLOR_MAP = {
 DEFAULT_SECTION_NAME = "Uncategorized"
 
 
-def get_commits_between(repo, previous_version, target_version):
+def get_commits_between(
+    repo,
+    previous_version,
+    target_version,
+    files=None,
+):
     log_args = [f"--format={GIT_LOG_FORMAT}", previous_version + ".." + target_version]
+    if files:
+        log_args.append("--")
+        log_args.append(" ".join(files))
     log = repo.git.log(*log_args)
     log = log.strip("\n\x1e").split("\x1e")
     log = [row.strip().split("\x1f") for row in log]
@@ -341,6 +350,49 @@ def needs_categorization(previous_version, target_version, show_skipped, show_fi
                             print(f"\t{f}")
         else:
             print(f"Commit '{commit['id']}' is missing PR number: {commit['subject']}")
+
+
+@cli.command(
+    name="api-clients-policy",
+    help="Compare two airflow core release tags and determine if API clients need to be released.",
+)
+@click.argument("previous_version")
+@click.argument("target_version")
+def api_clients_policy(previous_version, target_version):
+    p_version = version.parse(previous_version)
+    t_version = version.parse(target_version)
+
+    if p_version.major != t_version.major:
+        print("This is a major release, API clients should also be released.")
+        return
+    if p_version.minor != t_version.minor:
+        print("This is a minor release, API clients should also be released.")
+        return
+    if p_version == t_version:
+        print("Both versions are identical")
+        return
+
+    repo = git.Repo(".", search_parent_directories=True)
+    log = get_commits_between(
+        repo,
+        previous_version,
+        target_version,
+        files=[f"{repo.working_dir}/airflow/api_connexion/openapi/v1.yaml"],
+    )
+
+    clients_need_release = False
+    for commit in log:
+        if "update airflow version to" not in commit["subject"].lower():
+            clients_need_release = True
+            print(f"Commit '{commit['id']}' updated the OpenAPI spec, PR number: {commit['subject']}")
+
+    if clients_need_release:
+        print(f"API clients need to be released because the API spec has changed since '{previous_version}'")
+    else:
+        print(
+            "API clients don't need to be released because the API spec hasn't changed between those two "
+            "patch versions"
+        )
 
 
 if __name__ == "__main__":
