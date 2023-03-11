@@ -201,7 +201,7 @@ Airflow Variables
 As mentioned in the previous chapter, :ref:`best_practices/top_level_code`. you should avoid
 using Airflow Variables at top level Python code of DAGs. You can use the Airflow Variables freely inside the
 ``execute()`` methods of the operators, but you can also pass the Airflow Variables to the existing operators
-via Jinja template, which will delay reading the value until the task execution.
+via Jinja template, which will delay reading the value until the task execution. 
 
 The template syntax to do this is:
 
@@ -215,7 +215,7 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, `Variable.get()` produces a request every time the dag file is parsed by the scheduler. This will lead to suboptimal performance for the scheduler and can cause the dag file to timeout before it is fully parsed.
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, `Variable.get()` produces a request every time the dag file is parsed by the scheduler. Using `Variable.get()` will lead to suboptimal performance for the scheduler and can cause the dag file to timeout before it is fully parsed.
 
 Bad example:
 
