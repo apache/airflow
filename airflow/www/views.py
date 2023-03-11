@@ -5059,7 +5059,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "note",
+        # "note", # todo: maybe figure out how to re-enable this
         "external_trigger",
         "conf",
     ]
