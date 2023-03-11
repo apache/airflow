@@ -117,7 +117,6 @@ def patch_variable(
     for key, val in data.items():
         setattr(variable, key, val)
     session.add(variable)
-    session.commit()
     return variable_schema.dump(variable)
 
 
