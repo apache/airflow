@@ -90,6 +90,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
@@ -190,42 +191,42 @@ def partial(
     task_id: str,
     dag: DAG | None = None,
     task_group: TaskGroup | None = None,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-    owner: str | None = None,
-    email: None | str | Iterable[str] = None,
+    start_date: datetime | None | ArgNotSet = NOTSET,
+    end_date: datetime | None | ArgNotSet = NOTSET,
+    owner: str | None | ArgNotSet = NOTSET,
+    email: None | str | Iterable[str] | ArgNotSet = NOTSET,
     params: dict | None = None,
-    resources: dict[str, Any] | None = None,
-    trigger_rule: str | None = None,
-    depends_on_past: bool | None = None,
-    ignore_first_depends_on_past: bool | None = None,
-    wait_for_past_depends_before_skipping: bool | None = None,
-    wait_for_downstream: bool | None = None,
-    retries: int | None = None,
-    queue: str | None = None,
+    resources: dict[str, Any] | None | ArgNotSet = NOTSET,
+    trigger_rule: str | None | ArgNotSet = NOTSET,
+    depends_on_past: bool | None | ArgNotSet = NOTSET,
+    ignore_first_depends_on_past: bool | None | ArgNotSet = NOTSET,
+    wait_for_past_depends_before_skipping: bool | None | ArgNotSet = NOTSET,
+    wait_for_downstream: bool | None | ArgNotSet = NOTSET,
+    retries: int | None | ArgNotSet = NOTSET,
+    queue: str | None | ArgNotSet = NOTSET,
     pool: str | None = None,
-    pool_slots: int | None = None,
-    execution_timeout: timedelta | None = None,
-    max_retry_delay: None | timedelta | float = None,
-    retry_delay: timedelta | float | None = None,
-    retry_exponential_backoff: bool | None = None,
-    priority_weight: int | None = None,
-    weight_rule: str | None = None,
-    sla: timedelta | None = None,
-    max_active_tis_per_dag: int | None = None,
-    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    run_as_user: str | None = None,
-    executor_config: dict | None = None,
-    inlets: Any | None = None,
-    outlets: Any | None = None,
-    doc: str | None = None,
-    doc_md: str | None = None,
-    doc_json: str | None = None,
-    doc_yaml: str | None = None,
-    doc_rst: str | None = None,
+    pool_slots: int | None | ArgNotSet = NOTSET,
+    execution_timeout: timedelta | None | ArgNotSet = NOTSET,
+    max_retry_delay: None | timedelta | float | ArgNotSet = NOTSET,
+    retry_delay: timedelta | float | None | ArgNotSet = NOTSET,
+    retry_exponential_backoff: bool | None | ArgNotSet = NOTSET,
+    priority_weight: int | None | ArgNotSet = NOTSET,
+    weight_rule: str | None | ArgNotSet = NOTSET,
+    sla: timedelta | None | ArgNotSet = NOTSET,
+    max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
+    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    run_as_user: str | None | ArgNotSet = NOTSET,
+    executor_config: dict | None | ArgNotSet = NOTSET,
+    inlets: Any | None | ArgNotSet = NOTSET,
+    outlets: Any | None | ArgNotSet = NOTSET,
+    doc: str | None | ArgNotSet = NOTSET,
+    doc_md: str | None | ArgNotSet = NOTSET,
+    doc_json: str | None | ArgNotSet = NOTSET,
+    doc_yaml: str | None | ArgNotSet = NOTSET,
+    doc_rst: str | None | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -290,52 +291,53 @@ def partial(
         "doc_yaml": doc_yaml,
     }
 
+    DEFAULT_VALUES: dict[str, Any] = {
+        "task_id": None,
+        "start_date": None,
+        "end_date": None,
+        "owner": DEFAULT_OWNER,
+        "email": None,
+        "trigger_rule": DEFAULT_TRIGGER_RULE,
+        "depends_on_past": False,
+        "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+        "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+        "wait_for_downstream": False,
+        "retries": DEFAULT_RETRIES,
+        "queue": DEFAULT_QUEUE,
+        "pool_slots": DEFAULT_POOL_SLOTS,
+        "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
+        "max_retry_delay": None,
+        "retry_delay": DEFAULT_RETRY_DELAY,
+        "retry_exponential_backoff": False,
+        "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+        "weight_rule": DEFAULT_WEIGHT_RULE,
+        "sla": None,
+        "max_active_tis_per_dag": None,
+        "on_execute_callback": None,
+        "on_failure_callback": None,
+        "on_retry_callback": None,
+        "on_success_callback": None,
+        "run_as_user": None,
+        "executor_config": None,
+        "inlets": [],
+        "outlets": [],
+        "resources": None,
+        "doc": None,
+        "doc_json": None,
+        "doc_md": None,
+        "doc_rst": None,
+        "doc_yaml": None,
+    }
+
     # Override None kwargs by dag default values
     for k, v in default_partial_kwargs.items():
-        if partial_kwargs.get(k) is None:
+        if partial_kwargs.get(k) is NOTSET:
             partial_kwargs[k] = v
 
     # Override None kwargs which don't have a dag default value by Airflow default value
-    partial_kwargs["owner"] = partial_kwargs["owner"] or DEFAULT_OWNER
-    partial_kwargs["trigger_rule"] = partial_kwargs["trigger_rule"] or DEFAULT_TRIGGER_RULE
-    partial_kwargs["depends_on_past"] = (
-        partial_kwargs["depends_on_past"] if partial_kwargs["depends_on_past"] is not None else False
-    )
-    partial_kwargs["ignore_first_depends_on_past"] = (
-        partial_kwargs["ignore_first_depends_on_past"]
-        if partial_kwargs["ignore_first_depends_on_past"] is not None
-        else DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST
-    )
-    partial_kwargs["wait_for_past_depends_before_skipping"] = (
-        partial_kwargs["wait_for_past_depends_before_skipping"]
-        if partial_kwargs["wait_for_past_depends_before_skipping"] is not None
-        else DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING
-    )
-    partial_kwargs["wait_for_downstream"] = (
-        partial_kwargs["wait_for_downstream"] if partial_kwargs["wait_for_downstream"] is not None else False
-    )
-    partial_kwargs["retries"] = (
-        partial_kwargs["retries"] if partial_kwargs["retries"] is not None else DEFAULT_RETRIES
-    )
-    partial_kwargs["queue"] = partial_kwargs["queue"] or DEFAULT_QUEUE
-    partial_kwargs["pool_slots"] = (
-        partial_kwargs["pool_slots"] if partial_kwargs["pool_slots"] is not None else DEFAULT_POOL_SLOTS
-    )
-    partial_kwargs["execution_timeout"] = (
-        partial_kwargs["execution_timeout"] or DEFAULT_TASK_EXECUTION_TIMEOUT
-    )
-    partial_kwargs["retry_delay"] = (
-        partial_kwargs["retry_delay"] if partial_kwargs["retry_delay"] is not None else DEFAULT_RETRY_DELAY
-    )
-    partial_kwargs["retry_exponential_backoff"] = (
-        partial_kwargs["retry_exponential_backoff"] if partial_kwargs["retry_exponential_backoff"] else False
-    )
-    partial_kwargs["priority_weight"] = (
-        partial_kwargs["priority_weight"] if partial_kwargs["priority_weight"] else DEFAULT_PRIORITY_WEIGHT
-    )
-    partial_kwargs["weight_rule"] = partial_kwargs["weight_rule"] or DEFAULT_WEIGHT_RULE
-    partial_kwargs["inlets"] = partial_kwargs["inlets"] or []
-    partial_kwargs["outlets"] = partial_kwargs["outlets"] or []
+    partial_kwargs = {
+        k: v if v is not NOTSET else DEFAULT_VALUES.get(k, v) for k, v in partial_kwargs.items()
+    }
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
