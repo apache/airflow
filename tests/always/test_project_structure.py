@@ -393,6 +393,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.operators.ecs.EcsBaseOperator",
         "airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor",
         "airflow.providers.amazon.aws.sensors.eks.EksBaseSensor",
+        "airflow.providers.amazon.aws.transfers.base.AwsToAwsBaseOperator",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
