@@ -166,13 +166,15 @@ Good example:
       @task()
       def print_array():
           """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
+          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE! 
 
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
 
       print_array()
+
+In the Bad Example, numpy is imported everytime the dag file is parsed. In the Good example, numpy is only imported when the task is running. This reduces CPU load on the scheduler or dag file processor.
 
 Dynamic DAG Generation
 ----------------------
@@ -213,7 +215,7 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-Make sure to use variable with template in operator, not in the top level code.
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, `Variable.get()` produces a request every time the dag file is parsed by the scheduler. This will lead to suboptimal performance for the scheduler and can cause the dag file to timeout before it is fully parsed.
 
 Bad example:
 
