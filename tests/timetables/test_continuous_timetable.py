@@ -21,9 +21,10 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow.timetables.base import TimeRestriction
+from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
 
+BEFORE_DATE = pendulum.datetime(2023, 3, 1, tz="UTC")
 START_DATE = pendulum.datetime(2023, 3, 3, tz="UTC")
 DURING_DATE = pendulum.datetime(2023, 3, 6, tz="UTC")
 END_DATE = pendulum.datetime(2023, 3, 10, tz="UTC")
@@ -49,19 +50,32 @@ def test_no_runs_without_start_date(timetable):
 
 
 @time_machine.travel(DURING_DATE)
-def test_first_run_matches_start_date(timetable, restriction):
+def test_first_run_after_start_date_correct_interval(timetable, restriction):
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=restriction,
+    )
+    assert next_info.run_after == DURING_DATE
+    assert next_info.data_interval.start == START_DATE
+    assert next_info.data_interval.end == DURING_DATE
+
+
+@time_machine.travel(BEFORE_DATE)
+def test_first_run_before_start_date_correct_interval(timetable, restriction):
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=None,
         restriction=restriction,
     )
     assert next_info.run_after == START_DATE
+    assert next_info.data_interval.start == START_DATE
+    assert next_info.data_interval.end == START_DATE
 
 
 @time_machine.travel(DURING_DATE)
 def test_run_uses_utcnow(timetable, restriction):
 
     next_info = timetable.next_dagrun_info(
-        last_automated_data_interval=START_DATE,
+        last_automated_data_interval=DataInterval(START_DATE, DURING_DATE),
         restriction=restriction,
     )
 
@@ -72,7 +86,7 @@ def test_run_uses_utcnow(timetable, restriction):
 def test_no_runs_after_end_date(timetable, restriction):
 
     next_info = timetable.next_dagrun_info(
-        last_automated_data_interval=START_DATE,
+        last_automated_data_interval=DataInterval(START_DATE, DURING_DATE),
         restriction=restriction,
     )
 

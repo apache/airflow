@@ -130,14 +130,16 @@ class ContinuousTimetable(_TrivialTimetable):
         if restriction.earliest is None:  # No start date, won't run.
             return None
         if last_automated_data_interval is not None:  # has already run once
-            run_after = DateTime.utcnow()
-        else:
-            run_after = restriction.earliest
+            start = last_automated_data_interval.end
+            end = DateTime.utcnow()
+        else:  # first run
+            start = restriction.earliest
+            end = max(restriction.earliest, DateTime.utcnow())  # won't run any earlier than start_date
 
-        if restriction.latest is not None and run_after > restriction.latest:
+        if restriction.latest is not None and end > restriction.latest:
             return None
 
-        return DagRunInfo.exact(run_after)
+        return DagRunInfo.interval(start, end)
 
 
 class DatasetTriggeredTimetable(NullTimetable):
