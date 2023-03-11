@@ -39,7 +39,10 @@ from airflow.models.connection import Connection
 
 class SmtpHook(BaseHook):
     """
-    TODO: add docstring
+    This hook connects to a mail server by using the smtp protocol.
+
+    .. note:: Please call this Hook as context manager via `with`
+        to automatically open and close the connection to the mail server.
 
     :param smtp_conn_id: The :ref:`smtp connection id <howto/connection:smtp>`
         that contains the information used to authenticate the client.
