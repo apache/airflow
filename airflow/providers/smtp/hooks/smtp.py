@@ -52,8 +52,8 @@ class SmtpHook(BaseHook):
 
     def __init__(self, smtp_conn_id: str = default_conn_name) -> None:
         super().__init__()
-        self.from_email = None
         self.smtp_conn_id = smtp_conn_id
+        self.smtp_connection: Connection | None = None
         self.smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | None = None
 
     def __enter__(self) -> SmtpHook:
@@ -73,43 +73,38 @@ class SmtpHook(BaseHook):
         """
         if not self.smtp_client:
             try:
-                conn = self.get_connection(self.smtp_conn_id)
+                self.smtp_connection = self.get_connection(self.smtp_conn_id)
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
-            smtp_user = conn.login
-            smtp_password = conn.password
-            smtp_starttls = not bool(conn.extra_dejson.get("disable_tls", False))
-            smtp_retry_limit = int(conn.extra_dejson.get("retry_limit", 5))
-            self.from_email = conn.extra_dejson.get("from_email")
 
-            for attempt in range(1, smtp_retry_limit + 1):
+            for attempt in range(1, self.smtp_retry_limit + 1):
                 try:
-                    self.smtp_client = self._build_client(conn=conn)
+                    self.smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
-                    if attempt < smtp_retry_limit:
+                    if attempt < self.smtp_retry_limit:
                         continue
                     raise AirflowException("Unable to connect to smtp server")
 
-                if smtp_starttls:
+                if self.smtp_starttls:
                     self.smtp_client.starttls()
-                if smtp_user and smtp_password:
-                    self.smtp_client.login(smtp_user, smtp_password)
+                if self.smtp_user and self.smtp_password:
+                    self.smtp_client.login(self.smtp_user, self.smtp_password)
                 break
 
         return self
 
-    def _build_client(self, conn: Connection) -> smtplib.SMTP_SSL | smtplib.SMTP:
+    def _build_client(self) -> smtplib.SMTP_SSL | smtplib.SMTP:
 
         SMTP: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
-        if not bool(conn.extra_dejson.get("disable_ssl", False)):
+        if self.use_ssl:
             SMTP = smtplib.SMTP_SSL
         else:
             SMTP = smtplib.SMTP
 
-        smtp_kwargs = {"host": conn.host}
-        if conn.port:
-            smtp_kwargs["port"] = conn.port
-        smtp_kwargs["timeout"] = int(conn.extra_dejson.get("timeout", 30))
+        smtp_kwargs: dict[str, Any] = {"host": self.host}
+        if self.port:
+            smtp_kwargs["port"] = self.port
+        smtp_kwargs["timeout"] = self.timeout
 
         return SMTP(**smtp_kwargs)
 
@@ -188,11 +183,12 @@ class SmtpHook(BaseHook):
         """
         if not self.smtp_client:
             raise AirflowException("The 'smtp_client' should be initialized before!")
-        if not from_email and not self.from_email:
+        from_email = from_email or self.from_email
+        if not from_email:
             raise AirflowException("You should provide `from_email` or define it in the connection.")
 
         mime_msg, recipients = self._build_mime_message(
-            mail_from=from_email or self.from_email,
+            mail_from=from_email,
             to=to,
             subject=subject,
             html_content=html_content,
@@ -204,7 +200,16 @@ class SmtpHook(BaseHook):
             custom_headers=custom_headers,
         )
         if not dryrun:
-            self.smtp_client.sendmail(from_addr=from_email, to_addrs=recipients, msg=mime_msg.as_string())
+            for attempt in range(1, self.smtp_retry_limit + 1):
+                try:
+                    self.smtp_client.sendmail(
+                        from_addr=from_email, to_addrs=recipients, msg=mime_msg.as_string()
+                    )
+                except smtplib.SMTPServerDisconnected as e:
+                    if attempt < self.smtp_retry_limit:
+                        continue
+                    raise e
+                break
 
     def _build_mime_message(
         self,
@@ -302,3 +307,45 @@ class SmtpHook(BaseHook):
         """
         pattern = r"\s*[,;]\s*"
         return [address for address in re.split(pattern, addresses)]
+
+    @property
+    def conn(self) -> Connection:
+        if not self.smtp_connection:
+            raise AirflowException("The smtp connection should be loaded before!")
+        return self.smtp_connection
+
+    @property
+    def smtp_retry_limit(self) -> int:
+        return int(self.conn.extra_dejson.get("retry_limit", 5))
+
+    @property
+    def from_email(self) -> str | None:
+        return self.conn.extra_dejson.get("from_email")
+
+    @property
+    def smtp_user(self) -> str:
+        return self.conn.login
+
+    @property
+    def smtp_password(self) -> str:
+        return self.conn.password
+
+    @property
+    def smtp_starttls(self) -> bool:
+        return not bool(self.conn.extra_dejson.get("disable_tls", False))
+
+    @property
+    def host(self) -> str:
+        return self.conn.host
+
+    @property
+    def port(self) -> int:
+        return self.conn.port
+
+    @property
+    def timeout(self) -> int:
+        return int(self.conn.extra_dejson.get("timeout", 30))
+
+    @property
+    def use_ssl(self) -> bool:
+        return not bool(self.conn.extra_dejson.get("disable_ssl", False))
