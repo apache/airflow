@@ -263,7 +263,7 @@ function install_local_airflow_with_eager_upgrade() {
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
     # shellcheck disable=SC2086
-    pip install -e ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 }
 
@@ -292,7 +292,7 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 
 }
