@@ -39,6 +39,11 @@ class DatadogHook(BaseHook, LoggingMixin):
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
     """
 
+    conn_name_attr = "datadog_conn_id"
+    default_conn_name = "datadog_default"
+    conn_type = "datadog"
+    hook_name = "DataDog"
+
     def __init__(self, datadog_conn_id: str = "datadog_default") -> None:
         super().__init__()
         conn = self.get_connection(datadog_conn_id)
