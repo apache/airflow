@@ -30,9 +30,9 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     deploymentName: {{ .Release.Name }}-worker
-{{- if or (.Values.labels) (.Values.workers.labels) }}
-{{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
-{{- end }}
+    {{- if or (.Values.labels) (.Values.workers.labels) }}
+      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
 spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
@@ -41,10 +41,9 @@ spec:
   cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
   minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
   maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}
-{{- if .Values.workers.keda.advanced }}
-  advanced:
-{{ toYaml .Values.workers.keda.advanced | indent 4 }}
-{{- end }}
+  {{- if .Values.workers.keda.advanced }}
+  advanced: {{- toYaml .Values.workers.keda.advanced | nindent 4 }}
+  {{- end }}
   triggers:
     - type: postgresql
       metadata:

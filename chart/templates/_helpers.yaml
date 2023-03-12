@@ -21,16 +21,16 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 If release name contains chart name it will be used as a full name.
 */}}
 {{- define "airflow.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+  {{- if .Values.fullnameOverride }}
+    {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+  {{- else }}
+    {{- $name := default .Chart.Name .Values.nameOverride }}
+    {{- if contains $name .Release.Name }}
+      {{- .Release.Name | trunc 63 | trimSuffix "-" }}
+    {{- else }}
+      {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+    {{- end }}
+  {{- end }}
 {{- end }}
 
 
@@ -403,27 +403,27 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{ define "airflow_logs_volume_claim" -}}
-{{- if .Values.logs.persistence.existingClaim -}}
-{{ .Values.logs.persistence.existingClaim }}
-{{- else -}}
-{{ .Release.Name }}-logs
-{{- end -}}
+  {{- if .Values.logs.persistence.existingClaim -}}
+    {{- .Values.logs.persistence.existingClaim }}
+  {{- else -}}
+    {{- .Release.Name }}-logs
+  {{- end -}}
 {{- end -}}
 
 {{ define "airflow_dags" -}}
-{{- if .Values.dags.gitSync.enabled -}}
-{{ (printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath) }}
-{{- else -}}
-{{ (printf "%s/dags" .Values.airflowHome) }}
-{{- end -}}
+  {{- if .Values.dags.gitSync.enabled -}}
+    {{- (printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath) }}
+  {{- else -}}
+    {{- (printf "%s/dags" .Values.airflowHome) }}
+  {{- end -}}
 {{- end -}}
 
 {{ define "airflow_dags_volume_claim" -}}
-{{- if .Values.dags.persistence.existingClaim -}}
-{{ .Values.dags.persistence.existingClaim }}
-{{- else -}}
-{{ .Release.Name }}-dags
-{{- end -}}
+  {{- if .Values.dags.persistence.existingClaim -}}
+    {{- .Values.dags.persistence.existingClaim }}
+  {{- else -}}
+    {{- .Release.Name }}-dags
+  {{- end -}}
 {{- end -}}
 
 {{ define "airflow_dags_mount" -}}
@@ -656,7 +656,6 @@ Create the name of the cleanup service account to use
 {{- end }}
 
 {{define "scheduler_liveness_check_command"}}
-
   {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
   - -c

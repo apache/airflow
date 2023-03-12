@@ -29,9 +29,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- if or (.Values.labels) (.Values.scheduler.labels) }}
-{{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 4 }}
-{{- end }}
+    {{- if or (.Values.labels) (.Values.scheduler.labels) }}
+      {{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
 spec:
   podSelector:
     matchLabels:
@@ -40,7 +40,7 @@ spec:
       release: {{ .Release.Name }}
   policyTypes:
   - Ingress
-{{- if eq .Values.executor "LocalExecutor" }}
+  {{- if eq .Values.executor "LocalExecutor" }}
   ingress:
   - from:
     - podSelector:
@@ -51,5 +51,5 @@ spec:
     ports:
     - protocol: TCP
       port: {{ .Values.ports.workerLogs }}
-{{- end }}
+  {{- end }}
 {{- end }}
