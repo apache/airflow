@@ -34,13 +34,12 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-{{- if .Values.webserver.annotations }}
-  annotations:
-    {{- toYaml .Values.webserver.annotations | nindent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.webserver.annotations }}
+  annotations: {{- toYaml .Values.webserver.annotations | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.webserver.replicas }}
   {{- if $revisionHistoryLimit }}
@@ -77,9 +76,9 @@ spec:
         tier: airflow
         component: webserver
         release: {{ .Release.Name }}
-{{- if or (.Values.labels) (.Values.webserver.labels) }}
-{{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 8 }}
-{{- end }}
+        {{- if or (.Values.labels) (.Values.webserver.labels) }}
+          {{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
@@ -89,10 +88,10 @@ spec:
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if .Values.airflowPodAnnotations }}
-        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.podAnnotations }}
-        {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
+          {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
 {{- if .Values.webserver.hostAliases }}
@@ -103,12 +102,11 @@ spec:
       {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
       {{- end }}
-      nodeSelector:
-{{ toYaml $nodeSelector | indent 8 }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
-{{- if $affinity }}
-{{ toYaml $affinity | indent 8 }}
-{{- else }}
+        {{- if $affinity }}
+          {{- toYaml $affinity | nindent 8 }}
+        {{- else }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - podAffinityTerm:
@@ -117,11 +115,9 @@ spec:
                   component: webserver
               topologyKey: kubernetes.io/hostname
             weight: 100
-{{- end }}
-      tolerations:
-{{ toYaml $tolerations | indent 8 }}
-      topologySpreadConstraints:
-{{ toYaml $topologySpreadConstraints | indent 8 }}
+        {{- end }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       restartPolicy: Always
       securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
@@ -131,37 +127,34 @@ spec:
       initContainers:
         {{- if .Values.webserver.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
-          resources:
-{{ toYaml .Values.webserver.resources | indent 12 }}
+          resources: {{- toYaml .Values.webserver.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
-{{- include "airflow_config_mount" . | nindent 12 }}
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.webserver.extraVolumeMounts }}
-{{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
-{{- end }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-{{ include "airflow_webserver_config_mount" . | indent 12 }}
-{{- end }}
-          args:
-          {{- include "wait-for-migrations-command" . | indent 10 }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.webserver.extraVolumeMounts }}
+              {{- toYaml .Values.webserver.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+          args: {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.webserver.waitForMigrations.env }}
-{{ tpl (toYaml .Values.webserver.waitForMigrations.env) $ | indent 12 }}
-{{- end }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- if .Values.webserver.waitForMigrations.env }}
+              {{- tpl (toYaml .Values.webserver.waitForMigrations.env) $ | nindent 12 }}
+            {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
-        {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraInitContainers }}
-        {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
+          {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
         {{- end }}
       containers:
         - name: webserver
@@ -171,34 +164,33 @@ spec:
           command: {{ tpl (toYaml .Values.webserver.command) . | nindent 12 }}
           {{- end }}
           {{- if .Values.webserver.args }}
-          args: {{ tpl (toYaml .Values.webserver.args) . | nindent 12 }}
+          args: {{- tpl (toYaml .Values.webserver.args) . | nindent 12 }}
           {{- end }}
-          resources:
-{{ toYaml .Values.webserver.resources | indent 12 }}
+          resources: {{- toYaml .Values.webserver.resources | nindent 12 }}
           volumeMounts:
-{{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
+            {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config
               mountPath: {{ include "airflow_pod_template_file" . }}/pod_template_file.yaml
               subPath: pod_template_file.yaml
               readOnly: true
-{{- end }}
-{{- include "airflow_config_mount" . | nindent 12 }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-{{ include "airflow_webserver_config_mount" . | indent 12 }}
-{{- end }}
-{{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
-            {{- include "airflow_dags_mount" . | nindent 12 }}
-{{- end }}
-{{- if .Values.logs.persistence.enabled }}
+            {{- end }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+            {{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
+              {{- include "airflow_dags_mount" . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-{{- end }}
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.webserver.extraVolumeMounts }}
-{{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
-{{- end }}
+            {{- end }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.webserver.extraVolumeMounts }}
+              {{- toYaml .Values.webserver.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           ports:
             - name: airflow-ui
               containerPort: {{ .Values.ports.airflowUI }}
@@ -206,11 +198,11 @@ spec:
             httpGet:
               path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
               port: {{ .Values.ports.airflowUI }}
-{{- if .Values.config.webserver.base_url}}
+              {{- if .Values.config.webserver.base_url}}
               httpHeaders:
                 - name: Host
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
-{{- end }}
+              {{- end }}
               scheme: {{ .Values.webserver.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
@@ -218,30 +210,29 @@ spec:
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds | default 5 }}
           readinessProbe:
             httpGet:
-              path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
               port: {{ .Values.ports.airflowUI }}
-{{- if .Values.config.webserver.base_url}}
+              {{- if .Values.config.webserver.base_url }}
               httpHeaders:
                 - name: Host
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
-{{- end }}
+              {{- end }}
               scheme: {{ .Values.webserver.readinessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold | default 20 }}
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds | default 5 }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
-          {{- include "container_extra_envs" (list . .Values.webserver.env) | indent 10 }}
-{{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
-{{- include "git_sync_container" . | indent 8 }}
-{{- end }}
-{{- if .Values.webserver.extraContainers }}
-{{- toYaml .Values.webserver.extraContainers | nindent 8 }}
-{{- end }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "container_extra_envs" (list . .Values.webserver.env) | indent 10 }}
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
+          {{- include "git_sync_container" . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.webserver.extraContainers }}
+          {{- toYaml .Values.webserver.extraContainers | nindent 8 }}
+        {{- end }}
       volumes:
         - name: config
           configMap:
@@ -260,7 +251,7 @@ spec:
         - name: dags
           emptyDir: {}
         {{- if  .Values.dags.gitSync.sshKeySecret }}
-        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
         {{- end }}
@@ -269,9 +260,9 @@ spec:
           persistentVolumeClaim:
             claimName: {{ template "airflow_logs_volume_claim" . }}
         {{- end }}
-{{- if .Values.volumes }}
-{{- toYaml .Values.volumes | nindent 8 }}
-{{- end }}
-{{- if .Values.webserver.extraVolumes }}
-{{ toYaml .Values.webserver.extraVolumes | indent 8 }}
-{{- end }}
+        {{- if .Values.volumes }}
+          {{- toYaml .Values.volumes | nindent 8 }}
+        {{- end }}
+        {{- if .Values.webserver.extraVolumes }}
+          {{- toYaml .Values.webserver.extraVolumes | nindent 8 }}
+        {{- end }}
