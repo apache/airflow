@@ -197,7 +197,7 @@ class BigQueryToGCSOperator(BaseOperator):
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
-            nowait=True,
+            nowait=self.deferrable,
         )
 
     def execute(self, context: Context):
