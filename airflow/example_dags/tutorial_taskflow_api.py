@@ -43,9 +43,9 @@ def tutorial_taskflow_api():
     located
     [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)
     """
-
     # [END instantiate_dag]
     # [START extract]
+
     @task()
     def extract():
         """
@@ -61,6 +61,7 @@ def tutorial_taskflow_api():
 
     # [END extract]
     # [START transform]
+
     @task(multiple_outputs=True)
     def transform(order_data_dict: dict):
         """
@@ -77,6 +78,7 @@ def tutorial_taskflow_api():
 
     # [END transform]
     # [START load]
+
     @task()
     def load(total_order_value: float):
         """
