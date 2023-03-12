@@ -19,6 +19,7 @@
 ## Airflow Worker Deployment
 #################################
 {{- $persistence := .Values.workers.persistence.enabled }}
+{{- $keda := .Values.workers.keda.enabled }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
@@ -44,10 +45,12 @@ metadata:
     {{- toYaml .Values.workers.annotations | nindent 4 }}
 {{- end }}
 spec:
-{{- if $persistence }}
+  {{- if $persistence }}
   serviceName: {{ .Release.Name }}-worker
-{{- end }}
+  {{- end }}
+  {{- if not $keda }}
   replicas: {{ .Values.workers.replicas }}
+  {{- end }}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}

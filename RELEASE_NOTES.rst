@@ -30,9 +30,9 @@ Significant Changes
 Trigger gevent ``monkeypatching`` via environment variable (#28283)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  If you are using gevent for your webserver deployment and used local settings to ``monkeypatch`` gevent,
-  you might want to replace local settings patching with an ``_AIRFLOW_PATCH_GEVENT`` environment variable
-  set to 1 in your webserver. This ensures gevent patching is done as early as possible. (#8212)
+If you are using gevent for your webserver deployment and used local settings to ``monkeypatch`` gevent,
+you might want to replace local settings patching with an ``_AIRFLOW_PATCH_GEVENT`` environment variable
+set to 1 in your webserver. This ensures gevent patching is done as early as possible.
 
 Bug Fixes
 ^^^^^^^^^
@@ -143,23 +143,26 @@ Significant Changes
 ``airflow dags test`` no longer performs a backfill job (#26400)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  In order to make ``airflow dags test`` more useful as a testing and debugging tool, we no
-  longer run a backfill job and instead run a "local task runner". Users can still backfill
-  their DAGs using the ``airflow dags backfill`` command.
+In order to make ``airflow dags test`` more useful as a testing and debugging tool, we no
+longer run a backfill job and instead run a "local task runner". Users can still backfill
+their DAGs using the ``airflow dags backfill`` command.
 
 Airflow config section ``kubernetes`` renamed to ``kubernetes_executor`` (#26873)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-  KubernetesPodOperator no longer considers any core kubernetes config params, so this section now only applies to kubernetes executor. Renaming it reduces potential for confusion.
+
+KubernetesPodOperator no longer considers any core kubernetes config params, so this section now only applies to kubernetes executor. Renaming it reduces potential for confusion.
 
 ``AirflowException`` is now thrown as soon as any dependent tasks of ExternalTaskSensor fails (#27190)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 ``ExternalTaskSensor`` no longer hangs indefinitely when ``failed_states`` is set, an ``execute_date_fn`` is used, and some but not all of the dependent tasks fail.
-  Instead, an ``AirflowException`` is thrown as soon as any of the dependent tasks fail.
-  Any code handling this failure in addition to timeouts should move to caching the ``AirflowException`` ``BaseClass`` and not only the ``AirflowSensorTimeout`` subclass.
+Instead, an ``AirflowException`` is thrown as soon as any of the dependent tasks fail.
+Any code handling this failure in addition to timeouts should move to caching the ``AirflowException`` ``BaseClass`` and not only the ``AirflowSensorTimeout`` subclass.
 
 The Airflow config option ``scheduler.deactivate_stale_dags_interval`` has been renamed to ``scheduler.parsing_cleanup_interval`` (#27828).
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-  The old option will continue to work but will issue deprecation warnings, and will be removed entirely in Airflow 3.
+
+The old option will continue to work but will issue deprecation warnings, and will be removed entirely in Airflow 3.
 
 New Features
 ^^^^^^^^^^^^
@@ -347,8 +350,8 @@ Significant Changes
 Make ``RotatingFilehandler`` used in ``DagProcessor`` non-caching (#27223)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  In case you want to decrease cache memory when ``CONFIG_PROCESSOR_MANAGER_LOGGER=True``, and you have your local settings created before,
-  you can update ``processor_manager_handler`` to use ``airflow.utils.log.non_caching_file_handler.NonCachingRotatingFileHandler`` handler instead of ``logging.RotatingFileHandler``. (#27065)
+In case you want to decrease cache memory when ``CONFIG_PROCESSOR_MANAGER_LOGGER=True``, and you have your local settings created before,
+you can update ``processor_manager_handler`` to use ``airflow.utils.log.non_caching_file_handler.NonCachingRotatingFileHandler`` handler instead of ``logging.RotatingFileHandler``.
 
 Bug Fixes
 ^^^^^^^^^
@@ -393,7 +396,7 @@ Significant Changes
 Default for ``[webserver] expose_stacktrace`` changed to ``False`` (#27059)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  The default for ``[webserver] expose_stacktrace`` has been set to ``False``, instead of ``True``. This means administrators must opt-in to expose tracebacks to end users.
+The default for ``[webserver] expose_stacktrace`` has been set to ``False``, instead of ``True``. This means administrators must opt-in to expose tracebacks to end users.
 
 Bug Fixes
 ^^^^^^^^^
