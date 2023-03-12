@@ -410,3 +410,11 @@ class VaultHook(BaseHook):
             "hidden_fields": ["extra"],
             "relabeling": {},
         }
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test Vault connectivity from UI"""
+        try:
+            self.get_conn()
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)
