@@ -1254,9 +1254,7 @@ class TestKubernetesExecutor:
         assert not KubernetesExecutor.supports_sentry
 
     def test_annotations_to_str(self):
-        executor = self.kubernetes_executor
-        executor.scheduler_job_id = "modified"
-        annotations = {
+        annotations_test = {
             "dag_id": "dag",
             "run_id": "run_id",
             "task_id": "task",
@@ -1264,7 +1262,7 @@ class TestKubernetesExecutor:
         }
         expected = '{"dag_id": "dag", "run_id": "run_id", "task_id": "task", "try_number": "1"}'
 
-        annotations_str = annotations_to_str(annotations)
+        annotations_str = annotations_to_str(annotations_test)
         assert type(annotations_str) == str
         assert annotations_str == expected
 
