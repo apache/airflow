@@ -1657,7 +1657,7 @@
             "additionalProperties": false,
             "properties": {
                 "hostAliases": {
-                    "description": "hostAliases for the scheduler pod.",
+                    "description": "HostAliases for the scheduler pod.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
@@ -3131,7 +3131,7 @@
             "additionalProperties": false,
             "properties": {
                 "hostAliases": {
-                    "description": "hostAliases for the webserver pod.",
+                    "description": "HostAliases for the webserver pod.",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
