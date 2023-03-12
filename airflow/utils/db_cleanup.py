@@ -153,6 +153,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     bind = session.get_bind()
     dialect_name = bind.dialect.name
     if dialect_name == "mysql":
+        # MySQL with replication needs this split into two queries, so just do it for all MySQL
+        # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
         session.execute(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}")
         metadata = reflect_tables([target_table_name], session)
         target_table = metadata.tables[target_table_name]
