@@ -50,12 +50,14 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     import pathlib
+
+    from airflow.models.dag import DAG
 
 
 class FileLoadStat(NamedTuple):
@@ -602,12 +604,20 @@ class DagBag(LoggingMixin):
         )
         return report
 
+    @classmethod
     @provide_session
-    def sync_to_db(self, processor_subdir: str | None = None, session: Session = None):
+    def _sync_to_db(
+        cls,
+        dags: dict[str, DAG],
+        processor_subdir: str | None = None,
+        session: Session = NEW_SESSION,
+    ):
         """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
+
+        log = cls.logger()
 
         def _serialize_dag_capturing_errors(dag, session):
             """
@@ -625,43 +635,53 @@ class DagBag(LoggingMixin):
                     session=session,
                 )
                 if dag_was_updated:
-                    self._sync_perm_for_dag(dag, session=session)
+                    DagBag._sync_perm_for_dag(dag, session=session)
                 return []
             except OperationalError:
                 raise
             except Exception:
-                self.log.exception("Failed to write serialized DAG: %s", dag.full_filepath)
-                return [(dag.fileloc, traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth))]
+                log.exception("Failed to write serialized DAG: %s", dag.full_filepath)
+                dagbag_import_error_traceback_depth = conf.getint(
+                    "core", "dagbag_import_error_traceback_depth"
+                )
+                return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
         # of any Operational Errors
         # In case of failures, provide_session handles rollback
-        for attempt in run_with_db_retries(logger=self.log):
+        import_errors = {}
+        for attempt in run_with_db_retries(logger=log):
             with attempt:
                 serialize_errors = []
-                self.log.debug(
+                log.debug(
                     "Running dagbag.sync_to_db with retries. Try %d of %d",
                     attempt.retry_state.attempt_number,
                     MAX_DB_RETRIES,
                 )
-                self.log.debug("Calling the DAG.bulk_sync_to_db method")
+                log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:
                     # Write Serialized DAGs to DB, capturing errors
-                    for dag in self.dags.values():
+                    for dag in dags.values():
                         serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
 
-                    DAG.bulk_write_to_db(
-                        self.dags.values(), processor_subdir=processor_subdir, session=session
-                    )
+                    DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                 except OperationalError:
                     session.rollback()
                     raise
                 # Only now we are "complete" do we update import_errors - don't want to record errors from
                 # previous failed attempts
-                self.import_errors.update(dict(serialize_errors))
+                import_errors.update(dict(serialize_errors))
+
+        return import_errors
 
     @provide_session
-    def _sync_perm_for_dag(self, dag, session: Session = None):
+    def sync_to_db(self, processor_subdir: str | None = None, session: Session = NEW_SESSION):
+        import_errors = DagBag._sync_to_db(dags=self.dags, processor_subdir=processor_subdir, session=session)
+        self.import_errors.update(import_errors)
+
+    @classmethod
+    @provide_session
+    def _sync_perm_for_dag(cls, dag: DAG, session: Session = NEW_SESSION):
         """Sync DAG specific permissions, if necessary"""
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
         from airflow.www.fab_security.sqla.models import Action, Permission, Resource
@@ -683,7 +703,7 @@ class DagBag(LoggingMixin):
             return False
 
         if dag.access_control or needs_perms(root_dag_id):
-            self.log.debug("Syncing DAG permissions: %s to the DB", root_dag_id)
+            cls.logger().debug("Syncing DAG permissions: %s to the DB", root_dag_id)
             from airflow.www.security import ApplessAirflowSecurityManager
 
             security_manager = ApplessAirflowSecurityManager(session=session)

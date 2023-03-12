@@ -805,19 +805,13 @@ class DagFileProcessor(LoggingMixin):
         self.execute_callbacks(dagbag, callback_requests, session)
         session.commit()
 
-        # Save individual DAGs in the ORM
-        dagbag.sync_to_db(processor_subdir=self._dag_directory, session=session)
-        session.commit()
+        serialize_errors = DagFileProcessor.save_dag_to_db(
+            dags=dagbag.dags,
+            dag_directory=self._dag_directory,
+            pickle_dags=pickle_dags,
+        )
 
-        if pickle_dags:
-            paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
-
-            unpaused_dags: list[DAG] = [
-                dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids
-            ]
-
-            for dag in unpaused_dags:
-                dag.pickle(session)
+        dagbag.import_errors.update(dict(serialize_errors))
 
         # Record import errors into the ORM
         try:
@@ -836,3 +830,28 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Error logging DAG warnings.")
 
         return len(dagbag.dags), len(dagbag.import_errors)
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def save_dag_to_db(
+        dags: dict[str, DAG],
+        dag_directory: str,
+        pickle_dags: bool = False,
+        session=NEW_SESSION,
+    ):
+
+        import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
+        session.commit()
+
+        dag_ids = list(dags)
+
+        if pickle_dags:
+            paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dag_ids)
+
+            unpaused_dags: list[DAG] = [dag for dag_id, dag in dags.items() if dag_id not in paused_dag_ids]
+
+            for dag in unpaused_dags:
+                dag.pickle(session)
+
+        return import_errors
