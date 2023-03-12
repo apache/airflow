@@ -95,6 +95,10 @@ spec:
         {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+{{- if .Values.webserver.hostAliases }}
+      hostAliases:
+{{ toYaml .Values.webserver.hostAliases | indent 8 }}
+{{- end }}
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
       {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
