@@ -97,7 +97,7 @@ PRE_COMMIT_LIST = [
     "run-mypy",
     "run-shellcheck",
     "trailing-whitespace",
-    "ts-compile-and-lint-javascript",
+    "ts-compile-format-lint-www",
     "update-black-version",
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",

@@ -21,22 +21,25 @@
 
 let jsonForm;
 const objectFields = new Map();
-const recentConfigList = document.getElementById('recent_configs');
+const recentConfigList = document.getElementById("recent_configs");
 
 /**
  * Update the generated JSON DagRun.conf JSON field if any field changed
  */
 function updateJSONconf() {
-  const jsonStart = document.getElementById('json_start').value;
+  const jsonStart = document.getElementById("json_start").value;
   const params = JSON.parse(jsonStart);
-  const elements = document.getElementById('trigger_form');
+  const elements = document.getElementById("trigger_form");
   for (let i = 0; i < elements.length; i += 1) {
-    if (elements[i].name && elements[i].name.startsWith('element_')) {
+    if (elements[i].name && elements[i].name.startsWith("element_")) {
       const keyName = elements[i].name.substr(8);
-      if (elements[i].type === 'checkbox') {
+      if (elements[i].type === "checkbox") {
         params[keyName] = elements[i].checked;
-      } else if (elements[i].attributes.valuetype && elements[i].attributes.valuetype.value === 'array') {
-        const lines = elements[i].value.split('\n');
+      } else if (
+        elements[i].attributes.valuetype &&
+        elements[i].attributes.valuetype.value === "array"
+      ) {
+        const lines = elements[i].value.split("\n");
         const values = [];
         for (let j = 0; j < lines.length; j += 1) {
           if (lines[j].trim().length > 0) {
@@ -46,13 +49,18 @@ function updateJSONconf() {
         params[keyName] = values;
       } else if (elements[i].value.length === 0) {
         params[keyName] = null;
-      } else if (elements[i].attributes.valuetype && elements[i].attributes.valuetype.value === 'object') {
+      } else if (
+        elements[i].attributes.valuetype &&
+        elements[i].attributes.valuetype.value === "object"
+      ) {
         try {
           const textValue = objectFields.get(elements[i].name).getValue();
           if (textValue.length > 0) {
             const objValue = JSON.parse(textValue);
             params[keyName] = objValue;
-            objectFields.get(elements[i].name).setValue(JSON.stringify(objValue, null, 4));
+            objectFields
+              .get(elements[i].name)
+              .setValue(JSON.stringify(objValue, null, 4));
           } else {
             params[keyName] = null;
           }
@@ -62,7 +70,10 @@ function updateJSONconf() {
         }
       } else if (Number.isNaN(elements[i].value)) {
         params[keyName] = elements[i].value;
-      } else if (elements[i].attributes.valuetype && elements[i].attributes.valuetype.value === 'number') {
+      } else if (
+        elements[i].attributes.valuetype &&
+        elements[i].attributes.valuetype.value === "number"
+      ) {
         params[keyName] = Number(elements[i].value);
       } else {
         params[keyName] = elements[i].value;
@@ -76,50 +87,53 @@ function updateJSONconf() {
  * Initialize the form during load of the web page
  */
 function initForm() {
-  const formSectionsElement = document.getElementById('form_sections');
-  const formHasFields = (formSectionsElement != null);
+  const formSectionsElement = document.getElementById("form_sections");
+  const formHasFields = formSectionsElement != null;
 
   // Initialize the Generated JSON form or JSON entry form
   const minHeight = 300;
-  const maxHeight = (formHasFields ? window.innerHeight / 2 : window.innerHeight) - 550;
+  const maxHeight =
+    (formHasFields ? window.innerHeight / 2 : window.innerHeight) - 550;
   const height = maxHeight > minHeight ? maxHeight : minHeight;
-  jsonForm = CodeMirror.fromTextArea(document.getElementById('json'), {
+  jsonForm = CodeMirror.fromTextArea(document.getElementById("json"), {
     lineNumbers: true,
-    mode: { name: 'javascript', json: true },
-    gutters: ['CodeMirror-lint-markers'],
+    mode: { name: "javascript", json: true },
+    gutters: ["CodeMirror-lint-markers"],
     lint: true,
   });
   jsonForm.setSize(null, height);
 
   if (formHasFields) {
     // Apply JSON formatting and linting to all object fields in the form
-    const elements = document.getElementById('trigger_form');
+    const elements = document.getElementById("trigger_form");
     for (let i = 0; i < elements.length; i += 1) {
-      if (elements[i].name && elements[i].name.startsWith('element_')) {
-        if (elements[i].attributes.valuetype
-            && elements[i].attributes.valuetype.value === 'object') {
+      if (elements[i].name && elements[i].name.startsWith("element_")) {
+        if (
+          elements[i].attributes.valuetype &&
+          elements[i].attributes.valuetype.value === "object"
+        ) {
           const field = CodeMirror.fromTextArea(elements[i], {
             lineNumbers: true,
-            mode: { name: 'javascript', json: true },
-            gutters: ['CodeMirror-lint-markers'],
+            mode: { name: "javascript", json: true },
+            gutters: ["CodeMirror-lint-markers"],
             lint: true,
           });
-          field.on('blur', updateJSONconf);
+          field.on("blur", updateJSONconf);
           objectFields.set(elements[i].name, field);
-        } else if (elements[i].type === 'checkbox') {
-          elements[i].addEventListener('change', updateJSONconf);
+        } else if (elements[i].type === "checkbox") {
+          elements[i].addEventListener("change", updateJSONconf);
         } else {
-          elements[i].addEventListener('blur', updateJSONconf);
+          elements[i].addEventListener("blur", updateJSONconf);
         }
       }
     }
 
     // Refreshes JSON entry box sizes when they toggle display
-    const formSections = formSectionsElement.value.split(',');
+    const formSections = formSectionsElement.value.split(",");
     for (let i = 0; i < formSections.length; i += 1) {
       const toggleBlock = document.getElementById(`${formSections[i]}_toggle`);
       if (toggleBlock) {
-        toggleBlock.addEventListener('click', () => {
+        toggleBlock.addEventListener("click", () => {
           setTimeout(() => {
             objectFields.forEach((cm) => {
               cm.refresh();
@@ -130,7 +144,7 @@ function initForm() {
     }
 
     // Validate JSON entry fields before submission
-    elements.addEventListener('submit', (event) => {
+    elements.addEventListener("submit", (event) => {
       updateJSONconf();
       objectFields.forEach((cm) => {
         const textValue = cm.getValue();
@@ -148,11 +162,13 @@ function initForm() {
     });
 
     // Ensure layout is refreshed on generated JSON as well
-    document.getElementById('generated_json_toggle').addEventListener('click', () => {
-      setTimeout(() => {
-        jsonForm.refresh();
-      }, 300);
-    });
+    document
+      .getElementById("generated_json_toggle")
+      .addEventListener("click", () => {
+        setTimeout(() => {
+          jsonForm.refresh();
+        }, 300);
+      });
 
     // Update generated conf once
     setTimeout(updateJSONconf, 100);
@@ -164,8 +180,8 @@ window.updateJSONconf = updateJSONconf;
 
 function setRecentConfig(e) {
   const dropdownValue = e.target.value;
-  let dropdownJson; let
-    value;
+  let dropdownJson;
+  let value;
   try {
     dropdownJson = JSON.parse(dropdownValue);
     value = JSON.stringify(dropdownJson, null, 4);
@@ -180,14 +196,22 @@ function setRecentConfig(e) {
     const element = document.getElementById(`element_${keys[i]}`);
     if (element) {
       const newValue = dropdownJson[keys[i]];
-      if (element.type === 'checkbox') {
+      if (element.type === "checkbox") {
         element.checked = newValue;
-      } else if (newValue === '' || newValue == null) {
-        element.value = '';
-      } else if (element.attributes.valuetype && element.attributes.valuetype.value === 'array') {
-        element.value = newValue.join('\n');
-      } else if (element.attributes.valuetype && element.attributes.valuetype.value === 'object') {
-        objectFields.get(`element_${keys[i]}`).setValue(JSON.stringify(newValue, null, 4));
+      } else if (newValue === "" || newValue == null) {
+        element.value = "";
+      } else if (
+        element.attributes.valuetype &&
+        element.attributes.valuetype.value === "array"
+      ) {
+        element.value = newValue.join("\n");
+      } else if (
+        element.attributes.valuetype &&
+        element.attributes.valuetype.value === "object"
+      ) {
+        objectFields
+          .get(`element_${keys[i]}`)
+          .setValue(JSON.stringify(newValue, null, 4));
       } else {
         element.value = newValue;
       }
@@ -199,5 +223,5 @@ function setRecentConfig(e) {
 }
 
 if (recentConfigList) {
-  recentConfigList.addEventListener('change', setRecentConfig);
+  recentConfigList.addEventListener("change", setRecentConfig);
 }

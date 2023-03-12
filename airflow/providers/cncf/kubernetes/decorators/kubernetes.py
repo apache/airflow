@@ -30,7 +30,7 @@ import dill
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     remove_task_decorator,
     write_python_script,
@@ -73,7 +73,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         super().__init__(
             namespace=namespace,
             name=kwargs.pop("name", f"k8s_airflow_pod_{uuid.uuid4().hex}"),
-            cmds=["dummy-command"],
+            cmds=["placeholder-command"],
             **kwargs,
         )
 

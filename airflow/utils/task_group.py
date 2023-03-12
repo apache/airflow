@@ -38,6 +38,7 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
+from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -137,6 +138,7 @@ class TaskGroup(DAGNode):
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
         self.children: dict[str, DAGNode] = {}
+
         if parent_group:
             parent_group.add(self)
 
@@ -228,6 +230,13 @@ class TaskGroup(DAGNode):
                 task.dag = self.dag
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
+
+        if SetupTeardownContext.is_setup:
+            if isinstance(task, AbstractOperator):
+                setattr(task, "_is_setup", True)
+        elif SetupTeardownContext.is_teardown:
+            if isinstance(task, AbstractOperator):
+                setattr(task, "_is_teardown", True)
 
         self.children[key] = task
 
@@ -375,7 +384,7 @@ class TaskGroup(DAGNode):
     @property
     def upstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate upstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate upstream TaskGroups or tasks, a proxy node called
         upstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
@@ -384,7 +393,7 @@ class TaskGroup(DAGNode):
     @property
     def downstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate downstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate downstream TaskGroups or tasks, a proxy node called
         downstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """

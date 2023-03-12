@@ -348,6 +348,8 @@ EOF
 
 Note, you need to update the `helm gpg verify` output and verify the end of the voting period in the body.
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
+
 # Verify the release candidate by PMCs
 
 The PMCs should verify the releases in order to make sure the release is following the

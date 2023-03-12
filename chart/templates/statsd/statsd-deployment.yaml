@@ -35,9 +35,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   replicas: 1
   {{- if $revisionHistoryLimit }}
@@ -54,28 +54,24 @@ spec:
         tier: airflow
         component: statsd
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
-{{- end }}
-{{- if or .Values.statsd.extraMappings .Values.statsd.podAnnotations }}
+        {{- with .Values.labels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- if or .Values.statsd.extraMappings .Values.statsd.podAnnotations }}
       annotations:
         checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
         {{- if .Values.statsd.podAnnotations }}
-        {{- toYaml .Values.statsd.podAnnotations | nindent 8 }}
+          {{- toYaml .Values.statsd.podAnnotations | nindent 8 }}
         {{- end }}
-{{- end }}
+      {{- end }}
     spec:
       {{- if .Values.statsd.priorityClassName }}
       priorityClassName: {{ .Values.statsd.priorityClassName }}
       {{- end }}
-      nodeSelector:
-{{ toYaml $nodeSelector | indent 8 }}
-      affinity:
-{{ toYaml $affinity | indent 8 }}
-      tolerations:
-{{ toYaml $tolerations | indent 8 }}
-      topologySpreadConstraints:
-{{ toYaml $topologySpreadConstraints | indent 8 }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "statsd.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: Always
@@ -90,8 +86,7 @@ spec:
           {{- if .Values.statsd.args }}
           args: {{ tpl (toYaml .Values.statsd.args) . | nindent 12 }}
           {{- end }}
-          resources:
-{{ toYaml .Values.statsd.resources | indent 12 }}
+          resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
           ports:
             - name: statsd-ingest
               protocol: UDP

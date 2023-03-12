@@ -19,30 +19,36 @@
 
 /* global document */
 
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import createCache from '@emotion/cache';
+import React from "react";
+import { createRoot } from "react-dom/client";
+import createCache from "@emotion/cache";
+import reactFlowStyle from "reactflow/dist/style.css";
 
-import App from 'src/App';
+import App from "src/App";
 
-import Main from './Main';
+import Main from "./Main";
 
 // create shadowRoot
-const root = document.querySelector('#root');
-const shadowRoot = root?.attachShadow({ mode: 'open' });
+const root = document.querySelector("#root");
+const shadowRoot = root?.attachShadow({ mode: "open" });
+
 const cache = createCache({
   container: shadowRoot,
-  key: 'c',
+  key: "c",
 });
-const mainElement = document.getElementById('react-container');
+const mainElement = document.getElementById("react-container");
 
 if (mainElement) {
+  const styleTag = document.createElement("style");
+  const style = reactFlowStyle.toString();
+  styleTag.innerHTML = style;
+  shadowRoot?.appendChild(styleTag);
   shadowRoot?.appendChild(mainElement);
 
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
       <Main />
-    </App>,
+    </App>
   );
 }
