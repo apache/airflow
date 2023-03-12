@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-10T08:13:42Z
+# This constraints file was automatically generated on 2023-03-12T03:10:37Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -81,6 +81,7 @@ apache-airflow-providers-atlassian-jira==2.0.1
 apache-airflow-providers-celery==3.1.0
 apache-airflow-providers-cloudant==3.1.0
 apache-airflow-providers-cncf-kubernetes==5.2.2
+apache-airflow-providers-common-sql==1.3.4
 apache-airflow-providers-databricks==4.0.0
 apache-airflow-providers-datadog==3.1.0
 apache-airflow-providers-dbt-cloud==3.1.0
@@ -90,15 +91,19 @@ apache-airflow-providers-docker==3.5.1
 apache-airflow-providers-elasticsearch==4.4.0
 apache-airflow-providers-exasol==4.1.3
 apache-airflow-providers-facebook==3.1.0
+apache-airflow-providers-ftp==3.3.1
 apache-airflow-providers-github==2.2.1
 apache-airflow-providers-google==8.11.0
 apache-airflow-providers-grpc==3.1.0
-apache-airflow-providers-hashicorp==3.2.0
+apache-airflow-providers-hashicorp==3.3.0
+apache-airflow-providers-http==4.2.0
+apache-airflow-providers-imap==3.1.1
 apache-airflow-providers-influxdb==2.1.0
 apache-airflow-providers-jdbc==3.3.0
 apache-airflow-providers-jenkins==3.2.0
 apache-airflow-providers-microsoft-azure==5.2.1
 apache-airflow-providers-microsoft-mssql==3.3.2
+apache-airflow-providers-microsoft-psrp==2.2.0
 apache-airflow-providers-microsoft-winrm==3.1.1
 apache-airflow-providers-mongo==3.1.1
 apache-airflow-providers-mysql==4.0.2
@@ -122,6 +127,7 @@ apache-airflow-providers-sftp==4.2.4
 apache-airflow-providers-singularity==3.1.0
 apache-airflow-providers-slack==7.2.0
 apache-airflow-providers-snowflake==4.0.4
+apache-airflow-providers-sqlite==3.3.1
 apache-airflow-providers-ssh==3.5.0
 apache-airflow-providers-tableau==4.1.0
 apache-airflow-providers-tabular==1.1.0
@@ -130,7 +136,7 @@ apache-airflow-providers-trino==4.3.2
 apache-airflow-providers-vertica==3.3.1
 apache-airflow-providers-yandex==3.3.0
 apache-airflow-providers-zendesk==4.2.0
-apache-beam==2.45.0
+apache-beam==2.46.0
 apispec==5.2.2
 appdirs==1.4.4
 argcomplete==2.1.1
@@ -138,13 +144,13 @@ arrow==1.2.3
 asana==3.1.1
 asgiref==3.6.0
 asn1crypto==1.5.1
-astroid==2.11.7
+astroid==2.15.0
 async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
 atlassian-python-api==3.34.0
 attrs==22.2.0
-aws-sam-translator==1.60.1
+aws-sam-translator==1.61.0
 aws-xray-sdk==2.11.0
 azure-batch==13.0.0
 azure-common==1.1.28
@@ -178,9 +184,9 @@ bitarray==2.7.3
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.88
+boto3==1.26.89
 boto==2.49.0
-botocore==1.29.88
+botocore==1.29.89
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -318,12 +324,12 @@ hdfs==2.7.0
 hmsclient==0.1.1
 hpack==4.0.0
 httpcore==0.16.3
-httplib2==0.20.4
+httplib2==0.21.0
 httpx==0.23.3
 humanize==4.6.0
 hvac==1.1.0
 hyperframe==6.0.1
-identify==2.5.19
+identify==2.5.20
 idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
@@ -408,7 +414,7 @@ oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.3
 openapi-spec-validator==0.5.5
-openpyxl==3.1.1
+openpyxl==3.1.2
 opsgenie-sdk==2.1.5
 oracledb==1.2.2
 ordered-set==4.1.0
@@ -419,7 +425,7 @@ packaging==21.3
 pandas-gbq==0.17.9
 pandas==1.3.5
 papermill==2.4.0
-paramiko==3.0.0
+paramiko==3.1.0
 parso==0.8.3
 partd==1.3.0
 pathable==0.4.3
@@ -434,7 +440,7 @@ pipdeptree==2.5.2
 pipx==1.1.0
 pkginfo==1.9.6
 pkgutil_resolve_name==1.3.10
-platformdirs==3.1.0
+platformdirs==3.1.1
 pluggy==1.0.0
 ply==3.11
 plyvel==1.5.0
@@ -514,12 +520,12 @@ requests-ntlm==1.2.0
 requests-oauthlib==1.3.1
 requests-toolbelt==0.10.1
 requests==2.28.2
-responses==0.22.0
+responses==0.23.1
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-click==1.6.1
 rich==13.3.2
-rich_argparse==1.0.0
+rich_argparse==1.1.0
 rsa==4.9
 ruff==0.0.254
 s3transfer==0.6.0
@@ -534,7 +540,7 @@ sentry-sdk==1.16.0
 setproctitle==1.3.2
 simple-salesforce==1.12.3
 six==1.16.0
-slack-sdk==3.20.1
+slack-sdk==3.20.2
 smbprotocol==1.10.1
 smmap==5.0.0
 snakebite-py3==3.0.5
@@ -579,7 +585,6 @@ textwrap3==0.9.2
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.9.0
-toml==0.10.2
 tomli==2.0.1
 toolz==0.12.0
 tornado==6.2
@@ -603,7 +608,7 @@ types-pyOpenSSL==23.0.0.4
 types-python-dateutil==2.8.19.10
 types-python-slugify==8.0.0.1
 types-pytz==2022.7.1.2
-types-redis==4.5.1.4
+types-redis==4.5.1.5
 types-requests==2.28.11.15
 types-setuptools==67.6.0.0
 types-tabulate==0.9.0.1
@@ -617,7 +622,7 @@ uamqp==1.6.4
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
-urllib3==1.26.14
+urllib3==1.26.15
 userpath==1.8.0
 vertica-python==1.3.1
 vine==5.0.0
