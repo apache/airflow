@@ -20,10 +20,11 @@ import logging
 import warnings
 from os import path
 
-from connexion import FlaskApi, ProblemException
+from connexion import FlaskApi, ProblemException, Resolver
 from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
@@ -177,6 +178,37 @@ def set_cors_headers_on_response(response):
     return response
 
 
+class _LazyResolution:
+    """OpenAPI endpoint that lazily resolves the function on first use.
+
+    This is a stand-in replacement for ``connexion.Resolution`` that implements
+    its public attributes ``function`` and ``operation_id``, but the function
+    is only resolved when it is first accessed.
+    """
+
+    def __init__(self, resolve_func, operation_id):
+        self._resolve_func = resolve_func
+        self.operation_id = operation_id
+
+    @cached_property
+    def function(self):
+        return self._resolve_func(self.operation_id)
+
+
+class _LazyResolver(Resolver):
+    """OpenAPI endpoint resolver that loads lazily on first use.
+
+    This re-implements ``connexion.Resolver.resolve()`` to not eagerly resolve
+    the endpoint function (and thus avoid importing it in the process), but only
+    return a placeholder that will be actually resolved when the contained
+    function is accessed.
+    """
+
+    def resolve(self, operation):
+        operation_id = self.resolve_operation_id(operation)
+        return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
+
+
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
     base_path = "/api/v1"
@@ -205,6 +237,7 @@ def init_api_connexion(app: Flask) -> None:
         specification = safe_load(f)
     api_bp = FlaskApi(
         specification=specification,
+        resolver=_LazyResolver(),
         base_path=base_path,
         options={
             "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
