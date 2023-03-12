@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-12T11:02:15Z
+# This constraints file was automatically generated on 2023-03-12T20:31:36Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -409,7 +409,7 @@ pytest-httpx==0.21.3
 pytest-instafail==0.4.2
 pytest-rerunfailures==11.1.2
 pytest-timeouts==1.2.1
-pytest-xdist==3.2.0
+pytest-xdist==3.2.1
 pytest==7.2.2
 python-arango==7.5.7
 python-daemon==3.0.1
@@ -545,7 +545,7 @@ urllib3==1.26.15
 userpath==1.8.0
 vertica-python==1.3.1
 vine==5.0.0
-virtualenv==20.20.0
+virtualenv==20.21.0
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.6
