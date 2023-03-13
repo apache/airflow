@@ -26,7 +26,7 @@ The Vault connection type enables integrations with the Hashicorp vault client.
 Default Connection IDs
 ----------------------
 
-Hooks related to Vault use ``vault_conn_id`` by default.
+Hooks related to Vault use ``vault_default`` by default.
 
 Configuring the Connection
 --------------------------
