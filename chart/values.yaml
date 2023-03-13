@@ -636,6 +636,15 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  #  hostAliases for the scheduler pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
+
   # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
@@ -900,6 +909,14 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  #  hostAliases for the webserver pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
   allowPodLogReading: true
   livenessProbe:
     initialDelaySeconds: 15

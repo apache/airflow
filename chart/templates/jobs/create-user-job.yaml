@@ -34,9 +34,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- $annotations := dict }}
   {{- if .Values.createUserJob.useHelmHooks }}
     {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
@@ -44,8 +44,7 @@ metadata:
     {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
   {{- end }}
   {{- with $annotations := merge $annotations .Values.createUserJob.jobAnnotations }}
-  annotations:
-    {{- $annotations | toYaml | nindent 4 }}
+  annotations: {{- $annotations | toYaml | nindent 4 }}
   {{- end }}
 spec:
   {{- if not (kindIs "invalid" .Values.createUserJob.ttlSecondsAfterFinished) }}
@@ -57,29 +56,25 @@ spec:
         tier: airflow
         component: create-user-job
         release: {{ .Release.Name }}
-{{- if or (.Values.labels) (.Values.createUserJob.labels) }}
-{{- mustMerge .Values.createUserJob.labels .Values.labels | toYaml | nindent 8 }}
-{{- end }}
+        {{- if or (.Values.labels) (.Values.createUserJob.labels) }}
+          {{- mustMerge .Values.createUserJob.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.createUserJob.annotations }}
       annotations:
         {{- if .Values.airflowPodAnnotations }}
-        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
         {{- if .Values.createUserJob.annotations }}
-        {{- toYaml .Values.createUserJob.annotations | nindent 8 }}
+          {{- toYaml .Values.createUserJob.annotations | nindent 8 }}
         {{- end }}
       {{- end }}
     spec:
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: OnFailure
-      nodeSelector:
-{{ toYaml $nodeSelector | indent 8 }}
-      affinity:
-{{ toYaml $affinity | indent 8 }}
-      tolerations:
-{{ toYaml $tolerations | indent 8 }}
-      topologySpreadConstraints:
-{{ toYaml $topologySpreadConstraints | indent 8 }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "createUserJob.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -96,36 +91,33 @@ spec:
           args: {{ tpl (toYaml .Values.createUserJob.args) . | nindent 12 }}
           {{- end }}
           {{- if .Values.createUserJob.applyCustomEnv }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
-          env:
-          {{- include "custom_airflow_environment" . | indent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env: {{- include "custom_airflow_environment" . | indent 10 }}
           {{ else }}
           env:
           {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "container_extra_envs" (list . .Values.createUserJob.env) | indent 10 }}
-          resources:
-{{ toYaml .Values.createUserJob.resources | indent 12 }}
+          resources: {{- toYaml .Values.createUserJob.resources | nindent 12 }}
           volumeMounts:
-{{- include "airflow_config_mount" . | nindent 12 }}
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.createUserJob.extraVolumeMounts }}
-{{ toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.createUserJob.extraContainers }}
-{{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
-{{- end }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.createUserJob.extraVolumeMounts }}
+              {{ toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+        {{- if .Values.createUserJob.extraContainers }}
+          {{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
+        {{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-{{- if .Values.volumes }}
-{{- toYaml .Values.volumes | nindent 8 }}
-{{- end }}
-{{- if .Values.createUserJob.extraVolumes }}
-{{ toYaml .Values.createUserJob.extraVolumes | nindent 8 }}
-{{- end }}
+        {{- if .Values.volumes }}
+          {{- toYaml .Values.volumes | nindent 8 }}
+        {{- end }}
+        {{- if .Values.createUserJob.extraVolumes }}
+          {{- toYaml .Values.createUserJob.extraVolumes | nindent 8 }}
+        {{- end }}
 {{- end }}
