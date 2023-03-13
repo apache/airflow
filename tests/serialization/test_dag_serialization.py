@@ -126,8 +126,6 @@ serialized_simple_dag_ground_truth = {
         "_task_group": {
             "_group_id": None,
             "prefix_group_id": True,
-            "setup_children": {},
-            "teardown_children": {},
             "children": {"bash_task": ("operator", "bash_task"), "custom_task": ("operator", "custom_task")},
             "tooltip": "",
             "ui_color": "CornflowerBlue",
@@ -1302,6 +1300,10 @@ class TestStringifiedDAGs:
 
         check_task_group(serialized_dag.task_group)
 
+    @staticmethod
+    def assert_taskgroup_children(se_task_group, dag_task_group, expected_children):
+        assert se_task_group.children.keys() == dag_task_group.children.keys() == expected_children
+
     def test_task_group_setup_teardown_tasks(self):
         """
         Test TaskGroup setup and teardown task serialization/deserialization.
@@ -1330,40 +1332,24 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
-        def _check_taskgroup_children(
-            se_task_group, dag_task_group, expected_setup, expected_children, expected_teardown
-        ):
-            assert list(se_task_group.children.keys()) == expected_children
-            assert list(dag_task_group.children.keys()) == expected_children
-
-            assert list(se_task_group.setup_children.keys()) == expected_setup
-            assert list(dag_task_group.setup_children.keys()) == expected_setup
-
-            assert list(se_task_group.teardown_children.keys()) == expected_teardown
-            assert list(dag_task_group.teardown_children.keys()) == expected_teardown
-
-        _check_taskgroup_children(
-            serialized_dag.task_group, dag.task_group, ["setup"], ["group1"], ["teardown"]
+        self.assert_taskgroup_children(
+            serialized_dag.task_group, dag.task_group, {"setup", "teardown", "group1"}
         )
 
         se_first_group = serialized_dag.task_group.children["group1"]
         dag_first_group = dag.task_group.children["group1"]
-        _check_taskgroup_children(
+        self.assert_taskgroup_children(
             se_first_group,
             dag_first_group,
-            ["group1.setup1"],
-            ["group1.task1", "group1.group2"],
-            ["group1.teardown1"],
+            {"group1.setup1", "group1.task1", "group1.group2", "group1.teardown1"},
         )
 
         se_second_group = se_first_group.children["group1.group2"]
         dag_second_group = dag_first_group.children["group1.group2"]
-        _check_taskgroup_children(
+        self.assert_taskgroup_children(
             se_second_group,
             dag_second_group,
-            ["group1.group2.setup2"],
-            ["group1.group2.task2"],
-            ["group1.group2.teardown2"],
+            {"group1.group2.setup2", "group1.group2.task2", "group1.group2.teardown2"},
         )
 
     def test_task_group_setup_teardown_taskgroups(self):
@@ -1402,51 +1388,25 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
-        def _check_taskgroup_children(
-            se_task_group, dag_task_group, expected_setup, expected_children, expected_teardown
-        ):
-            assert list(se_task_group.children.keys()) == expected_children
-            assert list(dag_task_group.children.keys()) == expected_children
-
-            assert list(se_task_group.setup_children.keys()) == expected_setup
-            assert list(dag_task_group.setup_children.keys()) == expected_setup
-
-            assert list(se_task_group.teardown_children.keys()) == expected_teardown
-            assert list(dag_task_group.teardown_children.keys()) == expected_teardown
-
-        _check_taskgroup_children(
-            serialized_dag.task_group, dag.task_group, ["setup_group"], ["sometask"], ["teardown_group"]
+        self.assert_taskgroup_children(
+            serialized_dag.task_group, dag.task_group, {"setup_group", "sometask", "teardown_group"}
         )
 
-        se_setup_group = serialized_dag.task_group.setup_children["setup_group"]
-        dag_setup_group = dag.task_group.setup_children["setup_group"]
-        _check_taskgroup_children(
-            se_setup_group,
-            dag_setup_group,
-            ["setup_group.setup1", "setup_group.sub_setup"],
-            [],
-            [],
+        se_setup_group = serialized_dag.task_group.children["setup_group"]
+        dag_setup_group = dag.task_group.children["setup_group"]
+        self.assert_taskgroup_children(
+            se_setup_group, dag_setup_group, {"setup_group.setup1", "setup_group.sub_setup"}
         )
 
-        se_sub_setup_group = se_setup_group.setup_children["setup_group.sub_setup"]
-        dag_sub_setup_group = dag_setup_group.setup_children["setup_group.sub_setup"]
-        _check_taskgroup_children(
-            se_sub_setup_group,
-            dag_sub_setup_group,
-            ["setup_group.sub_setup.setup2"],
-            [],
-            [],
+        se_sub_setup_group = se_setup_group.children["setup_group.sub_setup"]
+        dag_sub_setup_group = dag_setup_group.children["setup_group.sub_setup"]
+        self.assert_taskgroup_children(
+            se_sub_setup_group, dag_sub_setup_group, {"setup_group.sub_setup.setup2"}
         )
 
-        se_teardown_group = serialized_dag.task_group.teardown_children["teardown_group"]
-        dag_teardown_group = dag.task_group.teardown_children["teardown_group"]
-        _check_taskgroup_children(
-            se_teardown_group,
-            dag_teardown_group,
-            [],
-            [],
-            ["teardown_group.teardown1"],
-        )
+        se_teardown_group = serialized_dag.task_group.children["teardown_group"]
+        dag_teardown_group = dag.task_group.children["teardown_group"]
+        self.assert_taskgroup_children(se_teardown_group, dag_teardown_group, {"teardown_group.teardown1"})
 
     def test_deps_sorted(self):
         """
@@ -2506,8 +2466,6 @@ def test_mapped_task_group_serde():
         "taskgroup",
         {
             "_group_id": "tg",
-            "setup_children": {},
-            "teardown_children": {},
             "children": {
                 "tg.op1": ("operator", "tg.op1"),
                 # "tg.op2": ("operator", "tg.op2"),

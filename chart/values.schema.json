@@ -675,7 +675,7 @@
                         "repository": {
                             "description": "The gitSync image repository.",
                             "type": "string",
-                            "default": "k8s.gcr.io/git-sync/git-sync"
+                            "default": "registry.k8s.io/git-sync/git-sync"
                         },
                         "tag": {
                             "description": "The gitSync image tag.",
@@ -1656,6 +1656,28 @@
             "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
+                "hostAliases": {
+                    "description": "HostAliases for the scheduler pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for scheduler container.",
                     "type": "object",
@@ -3108,6 +3130,28 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "hostAliases": {
+                    "description": "HostAliases for the webserver pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "allowPodLogReading": {
                     "description": "Allow webserver to read k8s pod logs. Useful when you don't have an external log store.",
                     "type": "boolean",

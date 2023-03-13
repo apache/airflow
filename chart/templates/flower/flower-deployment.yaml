@@ -36,12 +36,11 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- if .Values.flower.annotations }}
-  annotations:
-    {{- toYaml .Values.flower.annotations | nindent 4 }}
+  annotations: {{- toYaml .Values.flower.annotations | nindent 4 }}
   {{- end }}
 spec:
   replicas: 1
@@ -59,24 +58,20 @@ spec:
         tier: airflow
         component: flower
         release: {{ .Release.Name }}
-{{- if or (.Values.labels) (.Values.flower.labels) }}
-{{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 8 }}
-{{- end }}
+        {{- if or (.Values.labels) (.Values.flower.labels) }}
+          {{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
       annotations:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/flower-secret: {{ include (print $.Template.BasePath "/secrets/flower-secret.yaml") . | sha256sum }}
-      {{- if or (.Values.airflowPodAnnotations) (.Values.flower.podAnnotations) }}
-      {{- mustMerge .Values.flower.podAnnotations .Values.airflowPodAnnotations | toYaml | nindent 8 }}
-      {{- end }}
+        {{- if or (.Values.airflowPodAnnotations) (.Values.flower.podAnnotations) }}
+          {{- mustMerge .Values.flower.podAnnotations .Values.airflowPodAnnotations | toYaml | nindent 8 }}
+        {{- end }}
     spec:
-      nodeSelector:
-{{ toYaml $nodeSelector | indent 8 }}
-      affinity:
-{{ toYaml $affinity | indent 8 }}
-      tolerations:
-{{ toYaml $tolerations | indent 8 }}
-      topologySpreadConstraints:
-{{ toYaml $topologySpreadConstraints | indent 8 }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "flower.serviceAccountName" . }}
       {{- if .Values.flower.priorityClassName }}
       priorityClassName: {{ .Values.flower.priorityClassName }}
@@ -97,15 +92,14 @@ spec:
           {{- if .Values.flower.args }}
           args: {{ tpl (toYaml .Values.flower.args) . | nindent 12 }}
           {{- end }}
-          resources:
-{{ toYaml .Values.flower.resources | indent 12 }}
+          resources: {{- toYaml .Values.flower.resources | nindent 12 }}
           volumeMounts:
-{{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
-            {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.flower.extraVolumeMounts }}
-            {{ toYaml .Values.flower.extraVolumeMounts | nindent 12 }}
+              {{- toYaml .Values.flower.extraVolumeMounts | nindent 12 }}
             {{- end }}
           ports:
             - name: flower-ui
@@ -144,21 +138,21 @@ spec:
                   name: {{ template "flower_secret" . }}
                   key: basicAuth
             {{- end }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "container_extra_envs" (list . .Values.flower.env) | indent 10 }}
-{{- if .Values.flower.extraContainers }}
-{{- toYaml .Values.flower.extraContainers | nindent 8 }}
-{{- end }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "container_extra_envs" (list . .Values.flower.env) | indent 10 }}
+        {{- if .Values.flower.extraContainers }}
+          {{- toYaml .Values.flower.extraContainers | nindent 8 }}
+        {{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-{{- if .Values.volumes }}
-{{- toYaml .Values.volumes | nindent 8 }}
-{{- end }}
-{{- if .Values.flower.extraVolumes }}
-{{ toYaml .Values.flower.extraVolumes | indent 8 }}
-{{- end }}
+        {{- if .Values.volumes }}
+          {{- toYaml .Values.volumes | nindent 8 }}
+        {{- end }}
+        {{- if .Values.flower.extraVolumes }}
+          {{- toYaml .Values.flower.extraVolumes | nindent 8 }}
+        {{- end }}
 {{- end }}
 {{- end }}

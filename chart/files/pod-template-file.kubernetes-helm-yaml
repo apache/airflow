@@ -28,72 +28,69 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-{{- if or (.Values.labels) (.Values.workers.labels) }}
-{{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
-{{- end }}
+    {{- if or (.Values.labels) (.Values.workers.labels) }}
+      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
   {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
   annotations:
     {{- if .Values.airflowPodAnnotations }}
-    {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+      {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
     {{- end }}
     {{- if .Values.workers.podAnnotations }}
-    {{- toYaml .Values.workers.podAnnotations | nindent 4 }}
+      {{- toYaml .Values.workers.podAnnotations | nindent 4 }}
     {{- end }}
   {{- end }}
 spec:
   {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}
   initContainers:
     {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
-    {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 4 }}
+      {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 4 }}
     {{- end }}
     {{- if .Values.workers.extraInitContainers }}
-    {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
+      {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
     {{- end }}
   {{- end }}
   containers:
-    - envFrom:
-      {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
+    - envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: LocalExecutor
-{{- include "standard_airflow_environment" . | indent 6}}
-{{- include "custom_airflow_environment" . | indent 6 }}
-{{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
+        {{- include "standard_airflow_environment" . | indent 6}}
+        {{- include "custom_airflow_environment" . | indent 6 }}
+        {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       name: base
-      resources:
-{{ toYaml .Values.workers.resources | indent 8 }}
+      resources: {{- toYaml .Values.workers.resources | nindent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
-{{- include "airflow_config_mount" . | nindent 8 }}
-{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-        {{- include "airflow_dags_mount" . | nindent 8 }}
-{{- end }}
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 8 }}
-{{- end }}
-{{- if .Values.workers.extraVolumeMounts }}
-{{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
-{{- end }}
-{{- if .Values.workers.extraContainers }}
-{{- toYaml .Values.workers.extraContainers | nindent 4 }}
-{{- end }}
+        {{- include "airflow_config_mount" . | nindent 8 }}
+        {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
+          {{- include "airflow_dags_mount" . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.volumeMounts }}
+          {{- toYaml .Values.volumeMounts | nindent 8 }}
+        {{- end }}
+        {{- if .Values.workers.extraVolumeMounts }}
+          {{- toYaml .Values.workers.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+    {{- if .Values.workers.extraContainers }}
+      {{- toYaml .Values.workers.extraContainers | nindent 4 }}
+    {{- end }}
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}
   {{- end }}
-{{- if .Values.workers.hostAliases }}
-  hostAliases:
-{{ toYaml .Values.workers.hostAliases | indent 4 }}
-{{- end }}
+  {{- if .Values.workers.hostAliases }}
+  hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
+  {{- end }}
   restartPolicy: Never
-  securityContext: {{ $securityContext | nindent 4 }}
-  nodeSelector: {{ toYaml $nodeSelector | nindent 4 }}
-  affinity: {{ toYaml $affinity | nindent 4 }}
-  tolerations: {{ toYaml $tolerations | nindent 4 }}
-  topologySpreadConstraints: {{ toYaml $topologySpreadConstraints | nindent 4 }}
+  securityContext: {{- $securityContext | nindent 4 }}
+  nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
+  affinity: {{- toYaml $affinity | nindent 4 }}
+  tolerations: {{- toYaml $tolerations | nindent 4 }}
+  topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}
@@ -113,14 +110,14 @@ spec:
     name: logs
   {{- end }}
   {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
-  {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
+    {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
   {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
   {{- if .Values.volumes }}
-  {{- toYaml .Values.volumes | nindent 2 }}
+    {{- toYaml .Values.volumes | nindent 2 }}
   {{- end }}
   {{- if .Values.workers.extraVolumes }}
-  {{ toYaml .Values.workers.extraVolumes | nindent 2 }}
+    {{- toYaml .Values.workers.extraVolumes | nindent 2 }}
   {{- end }}
