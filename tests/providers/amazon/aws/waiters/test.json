@@ -10,7 +10,7 @@
                     "expected": true,
                     "matcher": "path",
                     "state": "success",
-                    "argument": "'<PARAM_1>' == '<PARAM_2>'"
+                    "argument": "'{{PARAM_1}}' == '{{PARAM_2}}'"
                 }
             ]
         },
@@ -27,7 +27,7 @@
                 }
             ]
         },
-        "unbracketed_wait": {
+        "bad_param_wait": {
             "operation": "GetEnvironment",
             "delay": 15,
             "maxAttempts": 60,
@@ -36,7 +36,7 @@
                     "expected": "blah",
                     "matcher": "path",
                     "state": "success",
-                    "argument": "NO_BRACKETS"
+                    "argument": "{{not a valid jinja template 💀}}"
                 }
             ]
         }

@@ -27,6 +27,7 @@ from unittest.mock import MagicMock, PropertyMock, mock_open
 from uuid import UUID
 
 import boto3
+import jinja2
 import pytest
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
@@ -990,12 +991,11 @@ def test_waiter_config_params_not_provided(waiter_path_mock: MagicMock, caplog):
     waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
     hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
 
-    with caplog.at_level("WARN"):
+    with pytest.raises(AirflowException) as ae:
         hook.get_waiter("wait_for_test")
 
-    # should warn about both missing params
-    assert "<PARAM_1>" in caplog.text
-    assert "<PARAM_2>" in caplog.text
+    # should warn about missing param
+    assert "PARAM_1" in str(ae.value)
 
 
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
@@ -1021,36 +1021,9 @@ def test_waiter_config_with_parameters_specified(waiter_path_mock: MagicMock):
 
 
 @mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
-def test_waiter_config_extra_param(waiter_path_mock: MagicMock, caplog):
-    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
-    hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
-
-    with caplog.at_level("WARN"):
-        hook.get_waiter("wait_for_test", {"PARAM_1": "hello", "PARAM_2": "world", "EXTRA_PARAM": ""})
-
-    # should warn about param not being used
-    assert "EXTRA_PARAM" in caplog.text
-
-
-@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
 def test_waiter_config_param_wrong_format(waiter_path_mock: MagicMock):
     waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
     hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
-    hacky_key = '"delay": 15,'  # this is forbidden, keys should conform to the defined format
 
-    with pytest.raises(AirflowException) as e:
-        hook.get_waiter("wait_for_test", {hacky_key: "some hacky stuff"})
-
-    assert hacky_key in str(e.value)
-
-
-@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
-def test_waiter_config_template_without_brackets(waiter_path_mock: MagicMock, caplog):
-    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
-    hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
-
-    with caplog.at_level("WARN"):
-        hook.get_waiter("unbracketed_wait", {"NO_BRACKETS": "some value"})
-
-    # key NO_BRACKETS is present in the config, but not surrounded by brackets.
-    assert "NO_BRACKETS" in caplog.text
+    with pytest.raises(jinja2.TemplateSyntaxError):
+        hook.get_waiter("bad_param_wait")

@@ -29,7 +29,6 @@ import inspect
 import json
 import logging
 import os
-import re
 import uuid
 import warnings
 from copy import deepcopy
@@ -41,6 +40,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 import boto3
 import botocore
 import botocore.session
+import jinja2
 import requests
 import tenacity
 from botocore.client import ClientMeta
@@ -810,49 +810,29 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:
-                config_text = config_file.read()
+                config = json.loads(config_file.read())
 
-            if parameters:  # expand some variables in the config if needed
-                config_text = self._apply_parameters_value(config_text, parameters)
-            config = json.loads(config_text)
-            self._check_remaining_params(config, waiter_name)
+            config = self._apply_parameters_value(config, waiter_name, parameters)
             return BaseBotoWaiter(client=self.conn, model_config=config).waiter(waiter_name)
         # If there is no custom waiter found for the provided name,
         # then try checking the service's official waiters.
         return self.conn.get_waiter(waiter_name)
 
-    waiter_config_key_placeholder_format = re.compile("<[A-Z0-9_]+>")
-
-    def _apply_parameters_value(self, config: str, parameters: dict[str, str]) -> str:
-        """replaces the given parameters in the config with their value"""
-        for k, v in parameters.items():
-            target = f"<{k}>"
-            if not self.waiter_config_key_placeholder_format.match(target):
+    @staticmethod
+    def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str]) -> dict:
+        """Replaces potential jinja templates in acceptors definition"""
+        # only process the waiter we're going to use to not raise errors for missing params for other waiters.
+        acceptors = config["waiters"][waiter_name]["acceptors"]
+        for a in acceptors:
+            arg = a["argument"]
+            template = jinja2.Template(arg, autoescape=False, undefined=jinja2.StrictUndefined)
+            try:
+                a["argument"] = template.render(parameters or {})
+            except jinja2.UndefinedError as e:
                 raise AirflowException(
-                    f"{k} is not an accepted key for waiter configuration templatization. "
-                    "Use only capitals, digits and underscores."
+                    f"Parameter was not supplied for templated waiter's acceptor '{arg}'", e
                 )
-            if config.find(target) == -1:
-                self.log.warning(
-                    f"trying to use parameter {k} in the waiter config {self.waiter_path}, "
-                    f"but that key cannot be found in the config json"
-                )
-            # append brackets to the key to match the placeholder
-            config = config.replace(target, v)
-
         return config
-
-    def _check_remaining_params(self, config, waiter_name: str):
-        """check if there are variables we didn't replace in the config for the waiter we're going to use"""
-        # extract the config for the specific waiter we're going to use,
-        # and convert it back to a string for convenience
-        our_waiter_config = str(config["waiters"][waiter_name])
-        remaining = self.waiter_config_key_placeholder_format.findall(our_waiter_config)
-        if remaining:
-            self.log.warning(
-                "It looks like the following templated values in the waiter config "
-                f"{self.waiter_path} have not been resolved:\n{remaining}"
-            )
 
     def list_waiters(self) -> list[str]:
         """Returns a list containing the names of all waiters for the service, official and custom."""
