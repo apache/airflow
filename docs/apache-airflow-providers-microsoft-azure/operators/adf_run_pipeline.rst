@@ -27,7 +27,7 @@ AzureDataFactoryRunPipelineOperator
 -----------------------------------
 Use the :class:`~airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator` to execute a pipeline within a data factory.
 By default, the operator will periodically check on the status of the executed pipeline to terminate with a "Succeeded" status.
-This functionality can be disabled for an asynchronous wait -- typically with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunSensor` -- by setting ``wait_for_termination`` to False.
+This functionality can be disabled for an asynchronous wait -- typically with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor` -- by setting ``wait_for_termination`` to False.
 
 Below is an example of using this operator to execute an Azure Data Factory pipeline.
 
@@ -37,13 +37,29 @@ Below is an example of using this operator to execute an Azure Data Factory pipe
       :start-after: [START howto_operator_adf_run_pipeline]
       :end-before: [END howto_operator_adf_run_pipeline]
 
-Here is a different example of using this operator to execute a pipeline but coupled with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunSensor` to perform an asynchronous wait.
+Here is a different example of using this operator to execute a pipeline but coupled with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor` to perform an asynchronous wait.
 
     .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
         :language: python
         :dedent: 0
         :start-after: [START howto_operator_adf_run_pipeline_async]
         :end-before: [END howto_operator_adf_run_pipeline_async]
+
+Poll for status of a data factory pipeline run asynchronously
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusAsyncSensor`
+(deferrable version) to periodically retrieve the
+status of a data factory pipeline run asynchronously. This sensor will free up the worker slots since
+polling for job status happens on the Airflow triggerer, leading to efficient utilization
+of resources within Airflow.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_adf_run_pipeline_async]
+    :end-before: [END howto_operator_adf_run_pipeline_async]
+
 
 Reference
 ---------

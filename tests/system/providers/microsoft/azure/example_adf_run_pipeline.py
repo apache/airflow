@@ -29,7 +29,10 @@ except ModuleNotFoundError:
     from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
-from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
+from airflow.providers.microsoft.azure.sensors.data_factory import (
+    AzureDataFactoryPipelineRunStatusAsyncSensor,
+    AzureDataFactoryPipelineRunStatusSensor,
+)
 from airflow.utils.edgemodifier import Label
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -71,11 +74,17 @@ with DAG(
         task_id="pipeline_run_sensor",
         run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
     )
+
+    # Performs polling on the Airflow Triggerer thus freeing up resources on Airflow Worker
+    pipeline_run_async_sensor = AzureDataFactoryPipelineRunStatusAsyncSensor(
+        task_id="pipeline_run_async_sensor",
+        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+    )
     # [END howto_operator_adf_run_pipeline_async]
 
     begin >> Label("No async wait") >> run_pipeline1
     begin >> Label("Do async wait with sensor") >> run_pipeline2
-    [run_pipeline1, pipeline_run_sensor] >> end
+    [run_pipeline1, pipeline_run_sensor, pipeline_run_async_sensor] >> end
 
     # Task dependency created via `XComArgs`:
     #   run_pipeline2 >> pipeline_run_sensor

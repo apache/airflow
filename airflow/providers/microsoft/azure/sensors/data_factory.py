@@ -16,12 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow import AirflowException
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
+)
+from airflow.providers.microsoft.azure.triggers.data_factory import (
+    ADFPipelineRunStatusSensorTrigger,
 )
 from airflow.sensors.base import BaseSensorOperator
 
@@ -78,3 +83,52 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
             raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} has been cancelled.")
 
         return pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED
+
+
+class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunStatusSensor):
+    """
+    Checks the status of a pipeline run asynchronously.
+
+    :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
+    :param run_id: The pipeline run identifier.
+    :param resource_group_name: The resource group name.
+    :param factory_name: The data factory name.
+    :param poke_interval: polling period in seconds to check for the status
+    """
+
+    def __init__(
+        self,
+        *,
+        poke_interval: float = 60,
+        **kwargs: Any,
+    ):
+        self.poke_interval = poke_interval
+        super().__init__(**kwargs)
+
+    def execute(self, context: Context) -> None:
+        """Defers trigger class to poll for state of the job run until
+        it reaches a failure state or success state
+        """
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=ADFPipelineRunStatusSensorTrigger(
+                run_id=self.run_id,
+                azure_data_factory_conn_id=self.azure_data_factory_conn_id,
+                resource_group_name=self.resource_group_name,
+                factory_name=self.factory_name,
+                poke_interval=self.poke_interval,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event:
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+            self.log.info(event["message"])
+        return None
