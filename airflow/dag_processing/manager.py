@@ -62,6 +62,7 @@ from airflow.utils.process_utils import (
     reap_process_group,
     set_new_process_group,
 )
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
@@ -677,6 +678,7 @@ class DagFileProcessorManager(LoggingMixin):
                 else:
                     poll_time = 0.0
 
+    @retry_db_transaction
     @provide_session
     def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
         """Fetches callbacks from database and add them to the internal queue for execution."""
