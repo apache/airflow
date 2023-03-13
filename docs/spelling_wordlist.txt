@@ -16,6 +16,8 @@ adls
 afterall
 AgentKey
 aio
+aiobotocore
+AioSession
 Airbnb
 airbnb
 Airbyte
@@ -284,12 +286,14 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+containerd
 ContainerGroup
 containerinstance
 ContainerPort
 contentUrl
 contextmgr
 contrib
+coroutine
 coverals
 cp
 cpu

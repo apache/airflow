@@ -38,6 +38,7 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
+from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -137,6 +138,7 @@ class TaskGroup(DAGNode):
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
         self.children: dict[str, DAGNode] = {}
+
         if parent_group:
             parent_group.add(self)
 
@@ -229,6 +231,13 @@ class TaskGroup(DAGNode):
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
+        if SetupTeardownContext.is_setup:
+            if isinstance(task, AbstractOperator):
+                setattr(task, "_is_setup", True)
+        elif SetupTeardownContext.is_teardown:
+            if isinstance(task, AbstractOperator):
+                setattr(task, "_is_teardown", True)
+
         self.children[key] = task
 
     def _remove(self, task: DAGNode) -> None:
@@ -253,7 +262,9 @@ class TaskGroup(DAGNode):
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
-    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
+    def update_relative(
+        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+    ) -> None:
         """
         Overrides TaskMixin.update_relative.
 
@@ -264,8 +275,12 @@ class TaskGroup(DAGNode):
             # Handles setting relationship between a TaskGroup and another TaskGroup
             if upstream:
                 parent, child = (self, other)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, other.downstream_join_id, self.upstream_join_id)
             else:
                 parent, child = (other, self)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, self.downstream_join_id, other.upstream_join_id)
 
             parent.upstream_group_ids.add(child.group_id)
             child.downstream_group_ids.add(parent.group_id)
@@ -278,10 +293,18 @@ class TaskGroup(DAGNode):
                         f"or operators; received {task.__class__.__name__}"
                     )
 
+                # Do not set a relationship between a TaskGroup and a Label's roots
+                if self == task:
+                    continue
+
                 if upstream:
                     self.upstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, task.node_id, self.upstream_join_id)
                 else:
                     self.downstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, self.downstream_join_id, task.node_id)
 
     def _set_relatives(
         self,
@@ -297,7 +320,7 @@ class TaskGroup(DAGNode):
             task_or_task_list = [task_or_task_list]
 
         for task_like in task_or_task_list:
-            self.update_relative(task_like, upstream)
+            self.update_relative(task_like, upstream, edge_modifier=edge_modifier)
 
         if upstream:
             for task in self.get_roots():
@@ -361,7 +384,7 @@ class TaskGroup(DAGNode):
     @property
     def upstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate upstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate upstream TaskGroups or tasks, a proxy node called
         upstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
@@ -370,7 +393,7 @@ class TaskGroup(DAGNode):
     @property
     def downstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate downstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate downstream TaskGroups or tasks, a proxy node called
         downstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """

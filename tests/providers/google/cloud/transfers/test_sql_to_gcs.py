@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
@@ -86,7 +85,7 @@ class DummySQLToGCSOperator(BaseSQLToGCSOperator):
         pass
 
 
-class TestBaseSQLToGCSOperator(unittest.TestCase):
+class TestBaseSQLToGCSOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.NamedTemporaryFile")
     @mock.patch.object(csv.writer, "writerow")
     @mock.patch.object(GCSHook, "upload")

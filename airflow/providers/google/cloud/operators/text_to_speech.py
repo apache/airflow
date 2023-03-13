@@ -26,16 +26,16 @@ from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudTextToSpeechSynthesizeOperator(BaseOperator):
+class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
     """
     Synthesizes text to speech and stores it in Google Cloud Storage
 

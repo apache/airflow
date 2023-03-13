@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix template_fields in the decorator 'task.docker' (#29586)``
+
 3.5.0
 .....
 

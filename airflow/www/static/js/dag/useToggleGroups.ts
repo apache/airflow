@@ -17,29 +17,27 @@
  * under the License.
  */
 
-import React from 'react';
-import { Button, Link } from '@chakra-ui/react';
+/* global localStorage */
 
-import { getMetaValue } from 'src/utils';
+import { useState } from "react";
+import { getMetaValue } from "src/utils";
 
-const root = getMetaValue('root');
-const url = getMetaValue('grid_url_no_root');
+const dagId = getMetaValue("dag_id");
 
-const ResetRoot = () => (
-  root
-    ? (
-      <Button
-        as={Link}
-        variant="outline"
-        href={url}
-        colorScheme="blue"
-        mx={2}
-        title="Reset root to show the whole DAG"
-      >
-        Reset Root
-      </Button>
-    )
-    : null
-);
+const useToggleGroups = () => {
+  const openGroupsKey = `${dagId}/open-groups`;
+  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey) || "[]");
+  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
-export default ResetRoot;
+  const onToggleGroups = (groupIds: string[]) => {
+    localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
+    setOpenGroupIds(groupIds);
+  };
+
+  return {
+    openGroupIds,
+    onToggleGroups,
+  };
+};
+
+export default useToggleGroups;

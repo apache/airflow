@@ -37,11 +37,10 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- with .Values.labels }}
-    {{- toYaml . | nindent 4 }}
+      {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- if .Values.dagProcessor.annotations }}
-  annotations:
-  {{- toYaml .Values.dagProcessor.annotations | nindent 4 }}
+  annotations: {{- toYaml .Values.dagProcessor.annotations | nindent 4 }}
   {{- end }}
 spec:
   replicas: {{ .Values.dagProcessor.replicas }}
@@ -54,8 +53,7 @@ spec:
       component: dag-processor
       release: {{ .Release.Name }}
   {{- if .Values.dagProcessor.strategy }}
-  strategy:
-    {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
+  strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
   {{- end }}
   template:
     metadata:
@@ -64,7 +62,7 @@ spec:
         component: dag-processor
         release: {{ .Release.Name }}
         {{- with .Values.labels }}
-        {{- toYaml . | nindent 8 }}
+          {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -76,17 +74,16 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.podAnnotations }}
-        {{- toYaml .Values.dagProcessor.podAnnotations | nindent 8 }}
+          {{- toYaml .Values.dagProcessor.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.dagProcessor.priorityClassName }}
       priorityClassName: {{ .Values.dagProcessor.priorityClassName }}
       {{- end }}
-      nodeSelector:
-        {{- toYaml $nodeSelector | nindent 8 }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
       {{- if $affinity }}
         {{- toYaml $affinity | nindent 8 }}
@@ -100,10 +97,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 100
       {{- end }}
-      tolerations:
-        {{- toYaml $tolerations | nindent 8 }}
-      topologySpreadConstraints:
-        {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.dagProcessor.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "dagProcessor.serviceAccountName" . }}
@@ -115,28 +110,24 @@ spec:
       initContainers:
         {{- if .Values.dagProcessor.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
-          resources:
-            {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
+          resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          volumeMounts:
-{{- include "airflow_config_mount" . | nindent 12 }}
-          args:
-          {{- include "wait-for-migrations-command" . | nindent 10 }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
+          volumeMounts: {{- include "airflow_config_mount" . | nindent 12 }}
+          args: {{- include "wait-for-migrations-command" . | nindent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
           env:
-          {{- include "custom_airflow_environment" . | nindent 10 }}
-          {{- include "standard_airflow_environment" . | nindent 10 }}
-{{- if .Values.dagProcessor.waitForMigrations.env }}
-{{ tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | indent 12 }}
-{{- end }}
+            {{- include "custom_airflow_environment" . | nindent 10 }}
+            {{- include "standard_airflow_environment" . | nindent 10 }}
+            {{- if .Values.dagProcessor.waitForMigrations.env }}
+              {{- tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | nindent 12 }}
+            {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-        {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraInitContainers }}
-        {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
+          {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
         {{- end }}
       containers:
         - name: dag-processor
@@ -148,27 +139,25 @@ spec:
           {{- if .Values.dagProcessor.args }}
           args: {{ tpl (toYaml .Values.dagProcessor.args) . | nindent 12 }}
           {{- end }}
-          resources:
-            {{ toYaml .Values.dagProcessor.resources | nindent 12 }}
+          resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           volumeMounts:
             {{- if .Values.volumeMounts }}
-            {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
-            {{ toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
+              {{ toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-{{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-            {{- include "airflow_dags_mount" . | nindent 12 }}
+              {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
           env:
-          {{- include "custom_airflow_environment" . | nindent 10 }}
-          {{- include "standard_airflow_environment" . | nindent 10 }}
-          {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
+            {{- include "custom_airflow_environment" . | nindent 10 }}
+            {{- include "standard_airflow_environment" . | nindent 10 }}
+            {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.dagProcessor.livenessProbe.timeoutSeconds }}
@@ -182,10 +171,10 @@ spec:
                   {{- include "dag_processor_liveness_check_command" . | nindent 16 }}
                   {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-        {{- include "git_sync_container" . | indent 8 }}
+          {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
-        {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
+          {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -200,13 +189,13 @@ spec:
           emptyDir: {}
         {{- end }}
         {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret }}
-        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- if .Values.volumes }}
-        {{- toYaml .Values.volumes | nindent 8 }}
+          {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraVolumes }}
-        {{- toYaml .Values.dagProcessor.extraVolumes | nindent 8 }}
+          {{- toYaml .Values.dagProcessor.extraVolumes | nindent 8 }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs

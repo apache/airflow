@@ -27,7 +27,7 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger
+from airflow.stats import AllowListValidator, BlockListValidator, SafeDogStatsdLogger, SafeStatsdLogger
 from tests.test_utils.config import conf_vars
 
 
@@ -124,6 +124,46 @@ class TestStats:
         ):
             importlib.reload(airflow.stats)
             airflow.stats.Stats.incr("empty_key")
+        importlib.reload(airflow.stats)
+
+    def test_load_allow_list_validator(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_allow_list"): "name1,name2",
+            }
+        ):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+        # Avoid side-effects
+        importlib.reload(airflow.stats)
+
+    def test_load_block_list_validator(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_block_list"): "name1,name2",
+            }
+        ):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.metrics_validator, BlockListValidator)
+            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+        # Avoid side-effects
+        importlib.reload(airflow.stats)
+
+    def test_load_allow_and_block_list_validator_loads_only_allow_list_validator(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_allow_list"): "name1,name2",
+                ("metrics", "statsd_block_list"): "name1,name2",
+            }
+        ):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+        # Avoid side-effects
         importlib.reload(airflow.stats)
 
 
@@ -240,6 +280,24 @@ class TestStatsWithAllowList:
         self.statsd_client.assert_not_called()
 
 
+class TestStatsWithBlockList:
+    def setup_method(self):
+        self.statsd_client = Mock(spec=statsd.StatsClient)
+        self.stats = SafeStatsdLogger(self.statsd_client, BlockListValidator("stats_one, stats_two"))
+
+    def test_increment_counter_with_allowed_key(self):
+        self.stats.incr("stats_one")
+        self.statsd_client.assert_not_called()
+
+    def test_increment_counter_with_allowed_prefix(self):
+        self.stats.incr("stats_two.bla")
+        self.statsd_client.assert_not_called()
+
+    def test_not_increment_counter_if_not_allowed(self):
+        self.stats.incr("stats_three")
+        self.statsd_client.incr.assert_called_once_with("stats_three", 1, 1)
+
+
 class TestDogStatsWithAllowList:
     def setup_method(self):
         pytest.importorskip("datadog")
@@ -280,6 +338,25 @@ class TestDogStatsWithMetricsTags:
         )
 
 
+class TestDogStatsWithDisabledMetricsTags:
+    def setup_method(self):
+        pytest.importorskip("datadog")
+        from datadog import DogStatsd
+
+        self.dogstatsd_client = Mock(speck=DogStatsd)
+        self.dogstatsd = SafeDogStatsdLogger(
+            self.dogstatsd_client,
+            metrics_tags=True,
+            metric_tags_validator=BlockListValidator("key1"),
+        )
+
+    def test_does_send_stats_using_dogstatsd_with_tags(self):
+        self.dogstatsd.incr("empty_key", 1, 1, tags={"key1": "value1", "key2": "value2"})
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric="empty_key", sample_rate=1, tags=["key2:value2"], value=1
+        )
+
+
 class TestStatsWithInfluxDBEnabled:
     def setup_method(self):
         with conf_vars(
@@ -289,7 +366,11 @@ class TestStatsWithInfluxDBEnabled:
             }
         ):
             self.statsd_client = Mock(spec=statsd.StatsClient)
-            self.stats = SafeStatsdLogger(self.statsd_client, influxdb_tags_enabled=True)
+            self.stats = SafeStatsdLogger(
+                self.statsd_client,
+                influxdb_tags_enabled=True,
+                metric_tags_validator=BlockListValidator("key2,key3"),
+            )
 
     def test_increment_counter(self):
         self.stats.incr(
@@ -302,16 +383,14 @@ class TestStatsWithInfluxDBEnabled:
             "test_stats_run.delay",
             tags={"key0": "val0", "key1": "val1", "key2": "val2"},
         )
-        self.statsd_client.incr.assert_called_once_with(
-            "test_stats_run.delay,key0=val0,key1=val1,key2=val2", 1, 1
-        )
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=val0,key1=val1", 1, 1)
 
     def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(
             "test_stats_run.delay",
-            tags={"key0,": "val0", "key1": "val1", "key2": "val2"},
+            tags={"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
         )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1,key2=val2", 1, 1)
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1", 1, 1)
 
 
 def always_invalid(stat_name):

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React from "react";
 import {
   Tr,
   Td,
@@ -27,35 +27,66 @@ import {
   TableCellProps,
   Flex,
   BoxProps,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 
-import { useGridData } from 'src/api';
-import { getDuration, formatDuration } from 'src/datetime_utils';
-import useSelection from 'src/dag/useSelection';
-import type { DagRun } from 'src/types';
+import { useGridData } from "src/api";
+import { getDuration, formatDuration } from "src/datetime_utils";
+import useSelection from "src/dag/useSelection";
+import type { DagRun, Task } from "src/types";
 
-import DagRunBar from './Bar';
+import DagRunBar from "./Bar";
+import ToggleGroups from "../ToggleGroups";
 
 const DurationAxis = (props: BoxProps) => (
-  <Box position="absolute" borderBottomWidth={1} zIndex={0} opacity={0.7} width="100%" {...props} />
+  <Box
+    position="absolute"
+    borderBottomWidth={1}
+    zIndex={0}
+    opacity={0.7}
+    width="100%"
+    {...props}
+  />
 );
 
 const DurationTick = ({ children, ...rest }: TextProps) => (
-  <Text fontSize="sm" color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
+  <Text
+    fontSize="sm"
+    color="gray.400"
+    right={1}
+    position="absolute"
+    whiteSpace="nowrap"
+    {...rest}
+  >
     {children}
   </Text>
 );
 
 const Th = (props: TableCellProps) => (
-  <Td position="sticky" top={0} zIndex={1} p={0} height="155px" bg="white" {...props} />
+  <Td
+    position="sticky"
+    top={0}
+    zIndex={1}
+    p={0}
+    height="155px"
+    bg="white"
+    {...props}
+  />
 );
 
 export interface RunWithDuration extends DagRun {
   duration: number;
 }
 
-const DagRuns = () => {
-  const { data: { dagRuns } } = useGridData();
+interface Props {
+  groups?: Task;
+  openGroupIds?: string[];
+  onToggleGroups?: (groupIds: string[]) => void;
+}
+
+const DagRuns = ({ groups, openGroupIds, onToggleGroups }: Props) => {
+  const {
+    data: { dagRuns },
+  } = useGridData();
   const { selected, onSelect } = useSelection();
   const durations: number[] = [];
   const runs: RunWithDuration[] = dagRuns.map((dagRun) => {
@@ -73,25 +104,39 @@ const DagRuns = () => {
   return (
     <Tr>
       <Th left={0} zIndex={2}>
-        <Box borderBottomWidth={3} position="relative" height="100%" width="100%">
+        <Flex
+          borderBottomWidth={3}
+          position="relative"
+          height="100%"
+          width="100%"
+          flexDirection="column-reverse"
+          pb={2}
+        >
           {!!runs.length && (
-          <>
-            <DurationTick bottom="120px">Duration</DurationTick>
-            <DurationTick bottom="96px">
-              {formatDuration(max)}
-            </DurationTick>
-            <DurationTick bottom="46px">
-              {formatDuration(max / 2)}
-            </DurationTick>
-            <DurationTick bottom={0}>
-              00:00:00
-            </DurationTick>
-          </>
+            <>
+              {!!(groups && openGroupIds && onToggleGroups) && (
+                <ToggleGroups
+                  groups={groups}
+                  openGroupIds={openGroupIds}
+                  onToggleGroups={onToggleGroups}
+                />
+              )}
+              <DurationTick bottom="120px">Duration</DurationTick>
+              <DurationTick bottom="96px">{formatDuration(max)}</DurationTick>
+              <DurationTick bottom="46px">
+                {formatDuration(max / 2)}
+              </DurationTick>
+              <DurationTick bottom={0}>00:00:00</DurationTick>
+            </>
           )}
-        </Box>
+        </Flex>
       </Th>
       <Th align="right" verticalAlign="bottom">
-        <Flex justifyContent="flex-end" borderBottomWidth={3} position="relative">
+        <Flex
+          justifyContent="flex-end"
+          borderBottomWidth={3}
+          position="relative"
+        >
           {runs.map((run: RunWithDuration, index) => (
             <DagRunBar
               key={run.runId}
