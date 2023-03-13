@@ -22,17 +22,19 @@ from io import StringIO
 from typing import Any
 
 from google.api_core.retry import exponential_sleep_generator
-
 from airflow import AirflowException
 from airflow.compat.functools import cached_property
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 # Paramiko should be imported after airflow.providers.ssh. Then the import will fail with
 # cannot import "airflow.providers.ssh" and will be correctly discovered as optional feature
 # TODO:(potiuk) We should add test harness detecting such cases shortly
 import paramiko  # isort:skip
+
+CMD_TIMEOUT = 10
 
 
 class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
@@ -174,6 +176,17 @@ class ComputeEngineSSHHook(SSHHook):
                 self._compute_hook._get_field("expire_time"),
                 self.expire_time,
             )
+
+            if conn.extra is not None:
+                extra_options = conn.extra_dejson
+                if "cmd_timeout" in extra_options and self.cmd_timeout is NOTSET:
+                    if extra_options["cmd_timeout"]:
+                        self.cmd_timeout = int(extra_options["cmd_timeout"])
+                    else:
+                        self.cmd_timeout = None
+
+            if self.cmd_timeout is NOTSET:
+                self.cmd_timeout = CMD_TIMEOUT
 
     def get_conn(self) -> paramiko.SSHClient:
         """Return SSH connection."""
