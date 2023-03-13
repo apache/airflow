@@ -26,6 +26,19 @@
                     "argument": "blah"
                 }
             ]
+        },
+        "unbracketed_wait": {
+            "operation": "GetEnvironment",
+            "delay": 15,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "expected": "blah",
+                    "matcher": "path",
+                    "state": "success",
+                    "argument": "NO_BRACKETS"
+                }
+            ]
         }
     }
 }

@@ -1042,3 +1042,15 @@ def test_waiter_config_param_wrong_format(waiter_path_mock: MagicMock):
         hook.get_waiter("wait_for_test", {hacky_key: "some hacky stuff"})
 
     assert hacky_key in str(e.value)
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_waiter_config_template_without_brackets(waiter_path_mock: MagicMock, caplog):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
+
+    with caplog.at_level("WARN"):
+        hook.get_waiter("unbracketed_wait", {"NO_BRACKETS": "some value"})
+
+    # key NO_BRACKETS is present in the config, but not surrounded by brackets.
+    assert "NO_BRACKETS" in caplog.text

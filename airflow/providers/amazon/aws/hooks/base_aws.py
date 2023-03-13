@@ -821,24 +821,24 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # then try checking the service's official waiters.
         return self.conn.get_waiter(waiter_name)
 
-    waiter_config_key_name_format = re.compile("^[A-Z0-9_]+$")
     waiter_config_key_placeholder_format = re.compile("<[A-Z0-9_]+>")
 
     def _apply_parameters_value(self, config: str, parameters: dict[str, str]) -> str:
         """replaces the given parameters in the config with their value"""
         for k, v in parameters.items():
-            if not self.waiter_config_key_name_format.match(k):
+            target = f"<{k}>"
+            if not self.waiter_config_key_placeholder_format.match(target):
                 raise AirflowException(
                     f"{k} is not an accepted key for waiter configuration templatization. "
                     "Use only capitals, digits and underscores."
                 )
-            if config.find(k) == -1:
+            if config.find(target) == -1:
                 self.log.warning(
-                    f"trying use parameter {k} in the waiter config {self.waiter_path}, "
+                    f"trying to use parameter {k} in the waiter config {self.waiter_path}, "
                     f"but that key cannot be found in the config json"
                 )
             # append brackets to the key to match the placeholder
-            config = config.replace(f"<{k}>", v)
+            config = config.replace(target, v)
 
         return config
 
