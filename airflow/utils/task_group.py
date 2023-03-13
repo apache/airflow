@@ -97,6 +97,9 @@ class TaskGroup(DAGNode):
     ):
         from airflow.models.dag import DagContext
 
+        if setup and teardown:
+            raise AirflowException("Cannot set both setup and teardown to True")
+
         self.prefix_group_id = prefix_group_id
         self.default_args = copy.deepcopy(default_args or {})
         self.setup = setup

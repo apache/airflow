@@ -17,6 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+from airflow import AirflowException
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
@@ -134,14 +137,10 @@ class TestSetupTearDownTask:
             with TaskGroup("mygroup", setup=True):
                 BashOperator(task_id="mytask", bash_command='echo "I am a setup task"')
 
-        assert len(dag.task_group.setup_children) == 1
-        assert len(dag.task_group.children) == 0
-        assert len(dag.task_group.teardown_children) == 0
-        setup_task_group = dag.task_group.setup_children["mygroup"]
-        assert len(setup_task_group.setup_children) == 1
-        assert len(setup_task_group.children) == 0
-        assert len(setup_task_group.teardown_children) == 0
-        setup_task = setup_task_group.setup_children["mygroup.mytask"]
+        assert len(dag.task_group.children) == 1
+        setup_task_group = dag.task_group.children["mygroup"]
+        assert len(setup_task_group.children) == 1
+        setup_task = setup_task_group.children["mygroup.mytask"]
         assert setup_task._is_setup
 
     def test_teardown_taskgroup_classic(self, dag_maker):
@@ -149,14 +148,10 @@ class TestSetupTearDownTask:
             with TaskGroup("mygroup", teardown=True):
                 BashOperator(task_id="mytask", bash_command='echo "I am a setup task"')
 
-        assert len(dag.task_group.setup_children) == 0
-        assert len(dag.task_group.children) == 0
-        assert len(dag.task_group.teardown_children) == 1
-        teardown_task_group = dag.task_group.teardown_children["mygroup"]
-        assert len(teardown_task_group.setup_children) == 0
-        assert len(teardown_task_group.children) == 0
-        assert len(teardown_task_group.teardown_children) == 1
-        teardown_task = teardown_task_group.teardown_children["mygroup.mytask"]
+        assert len(dag.task_group.children) == 1
+        teardown_task_group = dag.task_group.children["mygroup"]
+        assert len(teardown_task_group.children) == 1
+        teardown_task = teardown_task_group.children["mygroup.mytask"]
         assert teardown_task._is_teardown
 
     def test_setup_taskgroup_decorator_with_subgroup(self, dag_maker):
@@ -181,20 +176,14 @@ class TestSetupTearDownTask:
         with dag_maker() as dag:
             mygroup()
 
-        assert len(dag.task_group.setup_children) == 1
-        assert len(dag.task_group.children) == 0
-        assert len(dag.task_group.teardown_children) == 0
-        setup_task_group = dag.task_group.setup_children["mygroup"]
-        assert len(setup_task_group.setup_children) == 2
-        assert len(setup_task_group.children) == 0
-        assert len(setup_task_group.teardown_children) == 0
-        setup_task = setup_task_group.setup_children["mygroup.mytask"]
+        assert len(dag.task_group.children) == 1
+        setup_task_group = dag.task_group.children["mygroup"]
+        assert len(setup_task_group.children) == 2
+        setup_task = setup_task_group.children["mygroup.mytask"]
         assert setup_task._is_setup
-        subgroup_task_group = setup_task_group.setup_children["mygroup.subgroup"]
-        assert len(subgroup_task_group.setup_children) == 1
-        assert len(subgroup_task_group.children) == 0
-        assert len(subgroup_task_group.teardown_children) == 0
-        subgroup_task = subgroup_task_group.setup_children["mygroup.subgroup.mytask2"]
+        subgroup_task_group = setup_task_group.children["mygroup.subgroup"]
+        assert len(subgroup_task_group.children) == 1
+        subgroup_task = subgroup_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_setup
 
     def test_teardown_taskgroup_decorator_with_subgroup(self, dag_maker):
@@ -219,20 +208,14 @@ class TestSetupTearDownTask:
         with dag_maker() as dag:
             mygroup()
 
-        assert len(dag.task_group.setup_children) == 0
-        assert len(dag.task_group.children) == 0
-        assert len(dag.task_group.teardown_children) == 1
-        teardown_task_group = dag.task_group.teardown_children["mygroup"]
-        assert len(teardown_task_group.setup_children) == 0
-        assert len(teardown_task_group.children) == 0
-        assert len(teardown_task_group.teardown_children) == 2
-        teardown_task = teardown_task_group.teardown_children["mygroup.mytask"]
+        assert len(dag.task_group.children) == 1
+        teardown_task_group = dag.task_group.children["mygroup"]
+        assert len(teardown_task_group.children) == 2
+        teardown_task = teardown_task_group.children["mygroup.mytask"]
         assert teardown_task._is_teardown
-        subgroup_task_group = teardown_task_group.teardown_children["mygroup.subgroup"]
-        assert len(subgroup_task_group.setup_children) == 0
-        assert len(subgroup_task_group.children) == 0
-        assert len(subgroup_task_group.teardown_children) == 1
-        subgroup_task = subgroup_task_group.teardown_children["mygroup.subgroup.mytask2"]
+        subgroup_task_group = teardown_task_group.children["mygroup.subgroup"]
+        assert len(subgroup_task_group.children) == 1
+        subgroup_task = subgroup_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_teardown
 
     def test_teardown_taskgroup_with_subgroup_classic(self, dag_maker):
@@ -253,20 +236,14 @@ class TestSetupTearDownTask:
 
                 mytask()
 
-        assert len(dag.task_group.setup_children) == 0
-        assert len(dag.task_group.children) == 0
-        assert len(dag.task_group.teardown_children) == 1
-        teardown_task_group = dag.task_group.teardown_children["mygroup"]
-        assert len(teardown_task_group.setup_children) == 0
-        assert len(teardown_task_group.children) == 0
-        assert len(teardown_task_group.teardown_children) == 2
-        teardown_task = teardown_task_group.teardown_children["mygroup.mytask"]
+        assert len(dag.task_group.children) == 1
+        teardown_task_group = dag.task_group.children["mygroup"]
+        assert len(teardown_task_group.children) == 2
+        teardown_task = teardown_task_group.children["mygroup.mytask"]
         assert teardown_task._is_teardown
-        subgroup_task_group = teardown_task_group.teardown_children["mygroup.subgroup"]
-        assert len(subgroup_task_group.setup_children) == 0
-        assert len(subgroup_task_group.children) == 0
-        assert len(subgroup_task_group.teardown_children) == 1
-        subgroup_task = subgroup_task_group.teardown_children["mygroup.subgroup.mytask2"]
+        subgroup_task_group = teardown_task_group.children["mygroup.subgroup"]
+        assert len(subgroup_task_group.children) == 1
+        subgroup_task = subgroup_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_teardown
 
     def test_setup_taskgroup_with_subgroup_classic(self, dag_maker):
@@ -287,20 +264,14 @@ class TestSetupTearDownTask:
 
                 mytask()
 
-        assert len(dag.task_group.setup_children) == 1
-        assert len(dag.task_group.children) == 0
-        assert len(dag.task_group.teardown_children) == 0
-        setup_task_group = dag.task_group.setup_children["mygroup"]
-        assert len(setup_task_group.setup_children) == 2
-        assert len(setup_task_group.children) == 0
-        assert len(setup_task_group.teardown_children) == 0
-        setup_task = setup_task_group.setup_children["mygroup.mytask"]
+        assert len(dag.task_group.children) == 1
+        setup_task_group = dag.task_group.children["mygroup"]
+        assert len(setup_task_group.children) == 2
+        setup_task = setup_task_group.children["mygroup.mytask"]
         assert setup_task._is_setup
-        subgroup_task_group = setup_task_group.setup_children["mygroup.subgroup"]
-        assert len(subgroup_task_group.setup_children) == 1
-        assert len(subgroup_task_group.children) == 0
-        assert len(subgroup_task_group.teardown_children) == 0
-        subgroup_task = subgroup_task_group.setup_children["mygroup.subgroup.mytask2"]
+        subgroup_task_group = setup_task_group.children["mygroup.subgroup"]
+        assert len(subgroup_task_group.children) == 1
+        subgroup_task = subgroup_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_setup
 
     def test_setup_taskgroup_with_subgroup_being_the_setup_decorated(self, dag_maker):
@@ -327,20 +298,14 @@ class TestSetupTearDownTask:
                 mytask()
 
             mygroup()
-        assert len(dag.task_group.setup_children) == 0
         assert len(dag.task_group.children) == 1
-        assert len(dag.task_group.teardown_children) == 0
         normal_task_group = dag.task_group.children["mygroup"]
-        assert len(normal_task_group.setup_children) == 1
-        assert len(normal_task_group.children) == 1
-        assert len(normal_task_group.teardown_children) == 0
+        assert len(normal_task_group.children) == 2
         normal_task = normal_task_group.children["mygroup.mytask"]
         assert not hasattr(normal_task, "_is_setup")
-        setup_task_group = normal_task_group.setup_children["mygroup.subgroup"]
-        assert len(setup_task_group.setup_children) == 1
-        assert len(setup_task_group.children) == 0
-        assert len(setup_task_group.teardown_children) == 0
-        subgroup_task = setup_task_group.setup_children["mygroup.subgroup.mytask2"]
+        setup_task_group = normal_task_group.children["mygroup.subgroup"]
+        assert len(setup_task_group.children) == 1
+        subgroup_task = setup_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_setup
 
     def test_teardown_taskgroup_with_subgroup_being_the_teardown_decorated(self, dag_maker):
@@ -367,20 +332,14 @@ class TestSetupTearDownTask:
         with dag_maker() as dag:
             mygroup()
 
-        assert len(dag.task_group.setup_children) == 0
         assert len(dag.task_group.children) == 1
-        assert len(dag.task_group.teardown_children) == 0
         normal_task_group = dag.task_group.children["mygroup"]
-        assert len(normal_task_group.setup_children) == 0
-        assert len(normal_task_group.children) == 1
-        assert len(normal_task_group.teardown_children) == 1
+        assert len(normal_task_group.children) == 2
         normal_task = normal_task_group.children["mygroup.mytask"]
         assert not hasattr(normal_task, "_is_teardown")
-        teardown_task_group = normal_task_group.teardown_children["mygroup.subgroup"]
-        assert len(teardown_task_group.setup_children) == 0
-        assert len(teardown_task_group.children) == 0
-        assert len(teardown_task_group.teardown_children) == 1
-        subgroup_task = teardown_task_group.teardown_children["mygroup.subgroup.mytask2"]
+        teardown_task_group = normal_task_group.children["mygroup.subgroup"]
+        assert len(teardown_task_group.children) == 1
+        subgroup_task = teardown_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_teardown
 
     def test_setup_taskgroup_with_subgroup_being_the_setup_classic(self, dag_maker):
@@ -402,20 +361,14 @@ class TestSetupTearDownTask:
 
                 mytask()
 
-        assert len(dag.task_group.setup_children) == 0
         assert len(dag.task_group.children) == 1
-        assert len(dag.task_group.teardown_children) == 0
         normal_task_group = dag.task_group.children["mygroup"]
-        assert len(normal_task_group.setup_children) == 1
-        assert len(normal_task_group.children) == 1
-        assert len(normal_task_group.teardown_children) == 0
+        assert len(normal_task_group.children) == 2
         normal_task = normal_task_group.children["mygroup.mytask"]
         assert not hasattr(normal_task, "_is_setup")
-        setup_task_group = normal_task_group.setup_children["mygroup.subgroup"]
-        assert len(setup_task_group.setup_children) == 1
-        assert len(setup_task_group.children) == 0
-        assert len(setup_task_group.teardown_children) == 0
-        subgroup_task = setup_task_group.setup_children["mygroup.subgroup.mytask2"]
+        setup_task_group = normal_task_group.children["mygroup.subgroup"]
+        assert len(setup_task_group.children) == 1
+        subgroup_task = setup_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_setup
 
     def test_teardown_taskgroup_with_subgroup_being_the_teardown_classic(self, dag_maker):
@@ -437,20 +390,14 @@ class TestSetupTearDownTask:
 
                 mytask()
 
-        assert len(dag.task_group.setup_children) == 0
         assert len(dag.task_group.children) == 1
-        assert len(dag.task_group.teardown_children) == 0
         normal_task_group = dag.task_group.children["mygroup"]
-        assert len(normal_task_group.setup_children) == 0
-        assert len(normal_task_group.children) == 1
-        assert len(normal_task_group.teardown_children) == 1
+        assert len(normal_task_group.children) == 2
         normal_task = normal_task_group.children["mygroup.mytask"]
         assert not hasattr(normal_task, "_is_teardown")
-        teardown_task_group = normal_task_group.teardown_children["mygroup.subgroup"]
-        assert len(teardown_task_group.setup_children) == 0
-        assert len(teardown_task_group.children) == 0
-        assert len(teardown_task_group.teardown_children) == 1
-        subgroup_task = teardown_task_group.teardown_children["mygroup.subgroup.mytask2"]
+        teardown_task_group = normal_task_group.children["mygroup.subgroup"]
+        assert len(teardown_task_group.children) == 1
+        subgroup_task = teardown_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_teardown
 
     def test_setup_taskgroup_using_alternative_syntax(self, dag_maker):
@@ -472,18 +419,18 @@ class TestSetupTearDownTask:
 
             mytask()
 
-        assert len(dag.task_group.setup_children) == 0
         assert len(dag.task_group.children) == 1
-        assert len(dag.task_group.teardown_children) == 0
         normal_task_group = dag.task_group.children["mygroup"]
-        assert len(normal_task_group.setup_children) == 1
-        assert len(normal_task_group.children) == 1
-        assert len(normal_task_group.teardown_children) == 0
+        assert len(normal_task_group.children) == 2
         normal_task = normal_task_group.children["mygroup.mytask"]
         assert not hasattr(normal_task, "_is_setup")
-        setup_task_group = normal_task_group.setup_children["mygroup.subgroup"]
-        assert len(setup_task_group.setup_children) == 1
-        assert len(setup_task_group.children) == 0
-        assert len(setup_task_group.teardown_children) == 0
-        subgroup_task = setup_task_group.setup_children["mygroup.subgroup.mytask2"]
+        setup_task_group = normal_task_group.children["mygroup.subgroup"]
+        assert len(setup_task_group.children) == 1
+        subgroup_task = setup_task_group.children["mygroup.subgroup.mytask2"]
         assert subgroup_task._is_setup
+
+    def test_setup_teardown_are_mutually_exclusive_on_taskgroup(self, dag_maker):
+        """Test that setup and teardown are mutually exclusive on TaskGroup"""
+        with dag_maker():
+            with pytest.raises(AirflowException, match="Cannot set both setup and teardown to True"):
+                TaskGroup("mygroup", setup=True, teardown=True)
