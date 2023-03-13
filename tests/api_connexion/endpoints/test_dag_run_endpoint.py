@@ -1593,6 +1593,8 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                     "source_map_index": ti.map_index,
                     "source_run_id": ti.run_id,
                     "source_task_id": ti.task_id,
+                    "user_id": None,
+                    "external_source": None,
                     "created_dagruns": [
                         {
                             "dag_id": "TEST_DAG_ID",
