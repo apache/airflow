@@ -819,7 +819,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return self.conn.get_waiter(waiter_name)
 
     @staticmethod
-    def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str]) -> dict:
+    def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
         """Replaces potential jinja templates in acceptors definition"""
         # only process the waiter we're going to use to not raise errors for missing params for other waiters.
         acceptors = config["waiters"][waiter_name]["acceptors"]
