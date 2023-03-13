@@ -21,10 +21,10 @@ AWS Deferrable Operators
 
 The AWS deferrable operators depends on ``aiobotocore>=2.1.1`` library. Unfortunately, currently we can't add this to
 core AWS provider dependencies because of a conflicting version of ``botocore`` between ``aiobotocore`` and ``boto3``.
-We have added aiobotcore as an addition dependency. So if you want to use AWS deferrable operator then you will have to
+We have added ``aiobotocore`` as an addition dependency. So if you want to use AWS deferrable operator then you will have to
 manage this by yourself.
 
-We have introduced an async hook called AwsBaseAsyncHook to manage authentication between Airflow and AWS. The
+We have introduced an async hook to manage authentication between to the AWS services asynchronously. The
 AwsBaseAsyncHook hook currently support the default botocore authentication mechanism i'e if Airflow connection is
 not provided then provider will try to find the credential param in environment variable. If the Airflow connection is
 provided then basic auth with secret-key/access-key-id/profile/token and arn-method should work.
