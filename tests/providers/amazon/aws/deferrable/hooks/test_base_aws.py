@@ -98,4 +98,5 @@ class TestAwsBaseAsyncHook:
             scoped_config={},
             client_config=ANY,
             api_version=None,
+            auth_token=None,
         )
