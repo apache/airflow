@@ -1531,9 +1531,9 @@ def initialize_config() -> AirflowConfigParser:
         if local_conf.getboolean("core", "unit_test_mode"):
             local_conf.load_test_config()
 
-    old_webserver_config = AIRFLOW_HOME + "/webserver_config.py"
+    old_webserver_config = os.path.join(AIRFLOW_HOME, "webserver_config.py")
     # Prioritise airflow webserver config that is present in the config location
-    webserver_config_in_config = AIRFLOW_HOME + "/config/webserver_config.py"
+    webserver_config_in_config = os.path.join(AIRFLOW_HOME, "config", "webserver_config.py")
 
     global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = webserver_config_in_config
@@ -1552,7 +1552,7 @@ def initialize_config() -> AirflowConfigParser:
         import shutil
 
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
-        os.makedirs(AIRFLOW_HOME + "/config", exist_ok=True)
+        os.makedirs(os.path.join(AIRFLOW_HOME, "config"), exist_ok=True)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
 
