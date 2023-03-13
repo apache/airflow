@@ -2889,8 +2889,8 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            filter_upstream = True if request.args.get("filter_upstream") == "true" else False
-            filter_downstream = True if request.args.get("filter_downstream") == "true" else False
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
             dag = dag.partial_subset(
                 task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
             )
@@ -3611,7 +3611,11 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
+            dag = dag.partial_subset(
+                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            )
 
         num_runs = request.args.get("num_runs", type=int)
         if num_runs is None:
