@@ -25,7 +25,7 @@ We have added ``aiobotocore`` as an addition dependency. So if you want to use A
 manage this by yourself.
 
 We have introduced an async hook to manage authentication between to the AWS services asynchronously. The
-AWS async hook currently support the default botocore authentication mechanism i'e if Airflow connection is
+AWS async hook currently support the default botocore authentication mechanism i.e if Airflow connection is
 not provided then provider will try to find the credential param in environment variable. If the Airflow connection is
 provided then basic auth with secret-key/access-key-id/profile/token and arn-method should work.
 
