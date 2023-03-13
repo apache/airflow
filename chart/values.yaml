@@ -1942,9 +1942,9 @@ dags:
 
     extraVolumeMounts: []
     env: []
-     # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
-     # - name: ""
-     #   value: ""
+    # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
+    # - name: ""
+    #   value: ""
 
     resources: {}
     #  limits:
