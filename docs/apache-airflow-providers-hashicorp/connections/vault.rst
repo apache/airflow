@@ -16,10 +16,9 @@
     under the License.
 
 
-
 .. _howto/connection:vault:
 
-Vaulr Connection
+Vault Connection
 ===============
 
 The Vault connection type enables integrations with the Hashicorp vault client.
