@@ -19,7 +19,7 @@
 .. _howto/connection:vault:
 
 Vault Connection
-===============
+================
 
 The Vault connection type enables integrations with the Hashicorp vault client.
 
