@@ -45,6 +45,7 @@ import Graph from "./graph";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
 import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
+import FilterTasks from "./FilterTasks";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -145,7 +146,10 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Header />
+      <Flex alignItems="center" justifyContent="space-between">
+        <Header />
+        <Flex>{taskId && runId && <FilterTasks taskId={taskId} />}</Flex>
+      </Flex>
       <Divider my={2} />
       <Tabs
         size="lg"
