@@ -1231,7 +1231,7 @@ class TestKubernetesExecutor:
         ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
 
         executor = KubernetesExecutor()
-        messages, logs = executor.get_task_log(ti=ti)
+        messages, logs = executor.get_task_log(ti=ti, try_number=1)
 
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
         assert "Trying to get logs (last 100 lines) from worker pod " in messages
@@ -1240,7 +1240,7 @@ class TestKubernetesExecutor:
         mock_kube_client.reset_mock()
         mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
 
-        messages, logs = executor.get_task_log(ti=ti)
+        messages, logs = executor.get_task_log(ti=ti, try_number=1)
         assert logs == [""]
         assert messages == [
             "Trying to get logs (last 100 lines) from worker pod ",
