@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import urllib
+from unittest.mock import ANY
 
 import pytest
 
@@ -42,6 +43,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -316,11 +318,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         d = self._create_dataset(session)
         common = {
             "dataset_id": 1,
+            "external_source": None,
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
             "source_map_index": -1,
+            "user_id": None,
             "created_dagruns": [],
         }
 
@@ -403,11 +407,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "id": 2,
                     "dataset_id": 2,
                     "dataset_uri": datasets[1].uri,
+                    "external_source": None,
                     "extra": {},
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
                     "source_run_id": "run2",
                     "source_map_index": 2,
+                    "user_id": None,
                     "timestamp": self.default_time,
                     "created_dagruns": [],
                 }
@@ -481,12 +487,14 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                     "id": 1,
                     "dataset_id": 1,
                     "dataset_uri": "s3://bucket/key",
+                    "external_source": None,
                     "extra": {},
                     "source_dag_id": None,
                     "source_task_id": None,
                     "source_run_id": None,
                     "source_map_index": -1,
                     "timestamp": self.default_time,
+                    "user_id": None,
                     "created_dagruns": [
                         {
                             "dag_id": "TEST_DAG_ID",
@@ -598,3 +606,45 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
 
         assert response.status_code == 200
         assert len(response.json["dataset_events"]) == 150
+
+
+class TestPostDatasetEvents(TestDatasetEndpoint):
+    def test_should_respond_200(self, session):
+        self._create_dataset(session)
+
+        response = self.client.post(
+            "/api/v1/datasets/events",
+            json={"dataset_uri": "s3://bucket/key", "timestamp": self.default_time, "extra": {"foo": "bar"}},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "id": ANY,
+            "dataset_id": 1,
+            "dataset_uri": "s3://bucket/key",
+            "external_source": ANY,
+            "extra": {"foo": "bar"},
+            "source_dag_id": None,
+            "source_task_id": None,
+            "source_run_id": None,
+            "source_map_index": -1,
+            "user_id": 2,
+            "timestamp": self.default_time,
+        }
+
+    def test_should_raises_401_unauthenticated(self, session):
+        self._create_dataset(session)
+        response = self.client.post("/api/v1/datasets/events", json={"dataset_uri": "s3://bucket/key"})
+        assert_401(response)
+
+    def test_should_raise_400_missing_dataset(self, session):
+        self._create_dataset(session)
+        response = self.client.post(
+            "/api/v1/datasets/events",
+            json={"dataset_uri": "s3://bucket/missing_key"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        data = response.json
+        assert data["title"] == "Dataset not found"
+        assert data["detail"] == "The Dataset with uri: `s3://bucket/missing_key` was not found"

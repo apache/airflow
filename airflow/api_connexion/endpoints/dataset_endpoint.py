@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 
 from flask import request
 from flask_login import current_user
