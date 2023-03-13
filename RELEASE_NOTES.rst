@@ -105,6 +105,7 @@ Misc/Internal
 - Update how PythonSensor returns values from ``python_callable`` (#28932)
 - Add dep context description for better log message (#28875)
 - Bump ``swagger-ui-dist`` from ``3.52.0`` to ``4.1.3`` in ``/airflow/www`` (#28824)
+- Limit ``importlib-metadata`` backport to ``< 5.0.0`` (#29924, #30069)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
