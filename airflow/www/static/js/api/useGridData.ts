@@ -29,6 +29,9 @@ import useFilters, {
   RUN_STATE_PARAM,
   RUN_TYPE_PARAM,
   now,
+  FILTER_DOWNSTREAM_PARAM,
+  FILTER_UPSTREAM_PARAM,
+  ROOT_PARAM,
 } from "src/dag/useFilters";
 import type { Task, DagRun, RunOrdering } from "src/types";
 import { camelCase } from "lodash";
@@ -38,7 +41,6 @@ const DAG_ID_PARAM = "dag_id";
 // dagId comes from dag.html
 const dagId = getMetaValue(DAG_ID_PARAM);
 const gridDataUrl = getMetaValue("grid_data_url");
-const urlRoot = getMetaValue("root");
 
 export interface GridData {
   dagRuns: DagRun[];
@@ -68,14 +70,33 @@ const useGridData = () => {
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   const errorToast = useErrorToast();
   const {
-    filters: { baseDate, numRuns, runType, runState },
+    filters: {
+      baseDate,
+      numRuns,
+      runType,
+      runState,
+      root,
+      filterDownstream,
+      filterUpstream,
+    },
   } = useFilters();
 
   const query = useQuery(
-    ["gridData", baseDate, numRuns, runType, runState],
+    [
+      "gridData",
+      baseDate,
+      numRuns,
+      runType,
+      runState,
+      root,
+      filterUpstream,
+      filterDownstream,
+    ],
     async () => {
       const params = {
-        root: urlRoot || undefined,
+        [ROOT_PARAM]: root,
+        [FILTER_UPSTREAM_PARAM]: filterUpstream,
+        [FILTER_DOWNSTREAM_PARAM]: filterDownstream,
         [DAG_ID_PARAM]: dagId,
         [BASE_DATE_PARAM]: baseDate === now ? undefined : baseDate,
         [NUM_RUNS_PARAM]: numRuns,

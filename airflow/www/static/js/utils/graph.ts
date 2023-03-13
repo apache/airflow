@@ -22,6 +22,7 @@ import ELK, { ElkExtendedEdge, ElkShape } from "elkjs";
 import type { DepNode } from "src/types";
 import type { NodeType } from "src/datasets/Graph/Node";
 import { useQuery } from "react-query";
+import useFilters from "src/dag/useFilters";
 
 interface GenerateProps {
   nodes: DepNode[];
@@ -194,9 +195,21 @@ export const useGraphLayout = ({
   nodes,
   openGroupIds,
   arrange = "LR",
-}: LayoutProps) =>
-  useQuery(
-    ["graphLayout", !!nodes?.children, openGroupIds, arrange],
+}: LayoutProps) => {
+  const {
+    filters: { root, filterDownstream, filterUpstream },
+  } = useFilters();
+
+  return useQuery(
+    [
+      "graphLayout",
+      !!nodes?.children,
+      openGroupIds,
+      arrange,
+      root,
+      filterUpstream,
+      filterDownstream,
+    ],
     async () => {
       const font = `bold ${16}px ${
         window.getComputedStyle(document.body).fontFamily
@@ -214,3 +227,4 @@ export const useGraphLayout = ({
       return data as Graph;
     }
   );
+};

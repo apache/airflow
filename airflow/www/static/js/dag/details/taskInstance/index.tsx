@@ -92,7 +92,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       {!isGroup && (
         <TaskNav
           taskId={taskId}
-          runId={runId}
           isMapped={isMapped}
           mapIndex={mapIndex}
           executionDate={executionDate}
