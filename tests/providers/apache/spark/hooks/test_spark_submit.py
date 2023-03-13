@@ -461,8 +461,6 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
 
-
-
     def test_resolve_connection_custom_spark_binary_not_allowed_runtime_error(self):
         with pytest.raises(RuntimeError):
             SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
