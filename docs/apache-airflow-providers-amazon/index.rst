@@ -27,6 +27,7 @@ Content
 
     Connection types <connections/index>
     Operators <operators/index>
+    Deferrable Operators <deferrable>
     Secrets backends <secrets-backends/index>
     Logging for Tasks <logging/index>
 

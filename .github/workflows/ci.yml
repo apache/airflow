@@ -799,6 +799,30 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
+  tests-aws-async-provider:
+    timeout-minutes: 50
+    name: "Pytest for AWS Async Provider"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image"
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Run AWS Async Test"
+        run: "breeze shell \
+        'pip install aiobotocore>=2.1.1 && pytest /opt/airflow/tests/providers/amazon/aws/deferrable'"
+      - name: "Post Tests"
+        uses: ./.github/actions/post_tests
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
 
   tests-helm:
     timeout-minutes: 80
