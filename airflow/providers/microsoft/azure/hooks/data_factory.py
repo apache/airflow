@@ -1124,10 +1124,12 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         else:
             credential = AsyncDefaultAzureCredential()
 
-        return AsyncDataFactoryManagementClient(
+        self._async_conn = AsyncDataFactoryManagementClient(
             credential=credential,
             subscription_id=subscription_id,
         )
+
+        return self._async_conn
 
     @provide_targeted_factory_async
     async def get_pipeline_run(
