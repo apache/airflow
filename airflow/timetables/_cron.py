@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
+from pendulum import DateTime, instance
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
@@ -104,8 +105,16 @@ class CronMixin:
         scheduled = cron.get_next(datetime.datetime)
         if not self._should_fix_dst:
             return convert_to_utc(make_aware(scheduled, self._timezone))
+
+        # calculate the delta to the next scheduled time, taking into account
+        # if the next scheduled time is in a different tz
+        current_offset = current.in_timezone(self._timezone).utcoffset()
+        scheduled_offset = instance(scheduled, self._timezone).utcoffset()
+        utc_offset_delta = current_offset - scheduled_offset
         delta = scheduled - naive
-        return convert_to_utc(current.in_timezone(self._timezone) + delta)
+        return convert_to_utc(
+            current.in_timezone(self._timezone) + delta + utc_offset_delta
+        )
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
@@ -115,7 +124,15 @@ class CronMixin:
         if not self._should_fix_dst:
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = naive - scheduled
-        return convert_to_utc(current.in_timezone(self._timezone) - delta)
+        # calculate the delta to the next scheduled time, taking into account
+        # if the next scheduled time is in a different tz
+        current_offset = current.in_timezone(self._timezone).utcoffset()
+        scheduled_offset = instance(scheduled, self._timezone).utcoffset()
+        utc_offset_delta = current_offset - scheduled_offset
+        delta = naive - scheduled
+        return convert_to_utc(
+            current.in_timezone(self._timezone) - delta + utc_offset_delta
+        )
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
