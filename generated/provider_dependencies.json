@@ -683,7 +683,9 @@
     ]
   },
   "smtp": {
-    "deps": [],
+    "deps": [
+      "apache-airflow>=2.3.0"
+    ],
     "cross-providers-deps": []
   },
   "snowflake": {

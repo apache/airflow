@@ -25,7 +25,8 @@ description: |
 versions:
   - 1.0.0
 
-dependencies: []
+dependencies:
+  - apache-airflow>=2.3.0
 
 integrations:
   - integration-name: Simple Mail Transfer Protocol (SMTP)
