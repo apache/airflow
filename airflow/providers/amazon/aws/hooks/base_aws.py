@@ -54,7 +54,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
-    AirflowOptionalProviderFeatureException,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -989,15 +988,6 @@ class AwsBaseAsyncHook(AwsBaseHook):
     :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
     :param config: Configuration for botocore client.
     """
-
-    def __init__(self, **kwargs) -> None:
-        try:
-            import aiobotocore
-        except ImportError:
-            raise AirflowOptionalProviderFeatureException(
-                "AWS deferrable operator feature is disable. To enable it please install aiobotocore>=2.1.1"
-            )
-        super().__init__(**kwargs)
 
     def get_async_session(self) -> AioSession:
         """Get the underlying aiobotocore.session.AioSession(...)."""
