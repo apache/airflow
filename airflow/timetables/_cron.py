@@ -112,9 +112,7 @@ class CronMixin:
         scheduled_offset = instance(scheduled, self._timezone).utcoffset()
         utc_offset_delta = current_offset - scheduled_offset
         delta = scheduled - naive
-        return convert_to_utc(
-            current.in_timezone(self._timezone) + delta + utc_offset_delta
-        )
+        return convert_to_utc(current.in_timezone(self._timezone) + delta + utc_offset_delta)
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
@@ -123,16 +121,14 @@ class CronMixin:
         scheduled = cron.get_prev(datetime.datetime)
         if not self._should_fix_dst:
             return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = naive - scheduled
+
         # calculate the delta to the next scheduled time, taking into account
         # if the next scheduled time is in a different tz
         current_offset = current.in_timezone(self._timezone).utcoffset()
         scheduled_offset = instance(scheduled, self._timezone).utcoffset()
         utc_offset_delta = current_offset - scheduled_offset
         delta = naive - scheduled
-        return convert_to_utc(
-            current.in_timezone(self._timezone) - delta + utc_offset_delta
-        )
+        return convert_to_utc(current.in_timezone(self._timezone) - delta + utc_offset_delta)
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.

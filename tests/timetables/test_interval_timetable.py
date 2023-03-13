@@ -256,19 +256,17 @@ def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expec
 
 
 def test_cron_interval_dst_next():
-    '''
+    """
     This test is composed of several tests targeting an interval
     timetable crossing a timezone change boundary, e.g. DST
-    '''
+    """
     # Interval cron
     cron_interval = CronDataIntervalTimetable(
         "0 9-16 * * 1-5", timezone=pendulum.timezone("America/New_York")
     )
     # Fixed cron
-    cron_fixed = CronDataIntervalTimetable(
-        "0 9 * * 1-5", timezone=pendulum.timezone("America/New_York")
-    )
-    
+    cron_fixed = CronDataIntervalTimetable("0 9 * * 1-5", timezone=pendulum.timezone("America/New_York"))
+
     # last run friday before DST
     last_run = pendulum.datetime(2023, 3, 10, 21, 0)
 
@@ -277,20 +275,19 @@ def test_cron_interval_dst_next():
     # these should match:
     assert cron_interval._get_next(last_run).timestamp() == cron_fixed._get_next(last_run).timestamp()
 
+
 def test_cron_interval_dst_prev():
-    '''
+    """
     This test is composed of several tests targeting an interval
     timetable crossing a timezone change boundary, e.g. DST
-    '''
+    """
     # Interval cron
     cron_interval = CronDataIntervalTimetable(
         "0 9-16 * * 1-5", timezone=pendulum.timezone("America/New_York")
     )
     # Fixed cron
-    cron_fixed = CronDataIntervalTimetable(
-        "0 16 * * 1-5", timezone=pendulum.timezone("America/New_York")
-    )
-    
+    cron_fixed = CronDataIntervalTimetable("0 16 * * 1-5", timezone=pendulum.timezone("America/New_York"))
+
     last_run = pendulum.datetime(2023, 3, 10, 13, 0)
     # last run: 2023-03-13 13:00:00+00:00
     # expected prev run: 2023-03-10 21:00:00+00:00
