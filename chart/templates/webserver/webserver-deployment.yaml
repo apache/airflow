@@ -189,7 +189,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.webserver.extraVolumeMounts }}
-              {{- toYaml .Values.webserver.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.webserver.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           ports:
             - name: airflow-ui
@@ -264,5 +264,5 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraVolumes }}
-          {{- toYaml .Values.webserver.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.webserver.extraVolumes) . | nindent 8 }}
         {{- end }}

@@ -106,7 +106,7 @@ spec:
             {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.migrateDatabaseJob.extraVolumeMounts }}
-              {{ toYaml .Values.migrateDatabaseJob.extraVolumeMounts | nindent 12 }}
+              {{ tpl (toYaml .Values.migrateDatabaseJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.migrateDatabaseJob.extraContainers }}
           {{- toYaml .Values.migrateDatabaseJob.extraContainers | nindent 8 }}
@@ -119,6 +119,6 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.migrateDatabaseJob.extraVolumes }}
-          {{- toYaml .Values.migrateDatabaseJob.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.migrateDatabaseJob.extraVolumes) . | nindent 8 }}
         {{- end }}
 {{- end }}
