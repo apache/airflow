@@ -18,16 +18,20 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow import DAG
+from airflow.models import DagRun, TaskInstance
+from airflow.providers.amazon.aws.transfers.base import _DEPRECATION_MSG
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
-    _DEPRECATION_MSG,
     DynamoDBToS3Operator,
     JSONEncoder,
 )
+from airflow.utils import timezone
 
 
 class TestJSONEncoder:
@@ -288,3 +292,26 @@ class TestDynamodbToS3:
 
         mock_aws_dynamodb_hook.assert_called_with(aws_conn_id="aws_default")
         mock_s3_hook.assert_called_with(aws_conn_id=s3_aws_conn_id)
+
+    def test_render_template(self):
+        dag = DAG("test_render_template_dag_id", start_date=datetime(2020, 1, 1))
+        operator = DynamoDBToS3Operator(
+            task_id="dynamodb_to_s3_test_render",
+            dag=dag,
+            dynamodb_table_name="{{ ds }}",
+            s3_key_prefix="{{ ds }}",
+            s3_bucket_name="{{ ds }}",
+            file_size=4000,
+            source_aws_conn_id="{{ ds }}",
+            dest_aws_conn_id="{{ ds }}",
+        )
+        ti = TaskInstance(operator, run_id="something")
+        ti.dag_run = DagRun(
+            dag_id=dag.dag_id, run_id="something", execution_date=timezone.datetime(2020, 1, 1)
+        )
+        ti.render_templates()
+        assert "2020-01-01" == getattr(operator, "source_aws_conn_id")
+        assert "2020-01-01" == getattr(operator, "dest_aws_conn_id")
+        assert "2020-01-01" == getattr(operator, "s3_bucket_name")
+        assert "2020-01-01" == getattr(operator, "dynamodb_table_name")
+        assert "2020-01-01" == getattr(operator, "s3_key_prefix")
