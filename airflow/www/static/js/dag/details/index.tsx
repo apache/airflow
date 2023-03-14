@@ -52,6 +52,7 @@ const dagId = getMetaValue("dag_id")!;
 interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
+  hoveredTaskState?: string | null;
 }
 
 const tabToIndex = (tab?: string) => {
@@ -87,7 +88,7 @@ const indexToTab = (
 
 const TAB_PARAM = "tab";
 
-const Details = ({ openGroupIds, onToggleGroups }: Props) => {
+const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
     onSelect,
@@ -210,6 +211,7 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
             <Graph
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
+              hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
           {showLogs && run && (

@@ -49,9 +49,10 @@ const edgeTypes = { custom: Edge };
 interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
+  hoveredTaskState?: string | null;
 }
 
-const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
+const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
   const containerRef = useContainerRef();
   const { data } = useGraphData();
@@ -96,6 +97,7 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
       onToggleGroups,
       latestDagRunId,
       groups,
+      hoveredTaskState,
     });
   }
 
@@ -184,9 +186,17 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
   );
 };
 
-const GraphWrapper = ({ openGroupIds, onToggleGroups }: Props) => (
+const GraphWrapper = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+}: Props) => (
   <ReactFlowProvider>
-    <Graph openGroupIds={openGroupIds} onToggleGroups={onToggleGroups} />
+    <Graph
+      openGroupIds={openGroupIds}
+      onToggleGroups={onToggleGroups}
+      hoveredTaskState={hoveredTaskState}
+    />
   </ReactFlowProvider>
 );
 
