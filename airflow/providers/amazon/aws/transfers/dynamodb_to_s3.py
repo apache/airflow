@@ -22,7 +22,6 @@ DynamoDB table to S3.
 from __future__ import annotations
 
 import json
-import warnings
 from copy import copy
 from decimal import Decimal
 from os.path import getsize
@@ -30,19 +29,13 @@ from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-_DEPRECATION_MSG = (
-    "The aws_conn_id parameter has been deprecated. Use the source_aws_conn_id parameter instead."
-)
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -74,7 +67,7 @@ def _upload_file_to_s3(
     )
 
 
-class DynamoDBToS3Operator(BaseOperator):
+class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     """
     Replicates records from a DynamoDB table to S3.
     It scans a DynamoDB table and writes the received records to a file
@@ -89,29 +82,20 @@ class DynamoDBToS3Operator(BaseOperator):
         :ref:`howto/transfer:DynamoDBToS3Operator`
 
     :param dynamodb_table_name: Dynamodb table to replicate data from
-    :param source_aws_conn_id: The Airflow connection used for AWS credentials
-        to access DynamoDB. If this is None or empty then the default boto3
-        behaviour is used. If running Airflow in a distributed manner and
-        source_aws_conn_id is None or empty, then default boto3 configuration
-        would be used (and must be maintained on each worker node).
     :param s3_bucket_name: S3 bucket to replicate data to
     :param file_size: Flush file to s3 if file size >= file_size
     :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
-    :param dest_aws_conn_id: The Airflow connection used for AWS credentials
-        to access S3. If this is not set then the source_aws_conn_id connection is used.
-    :param aws_conn_id: The Airflow connection used for AWS credentials (deprecated; use source_aws_conn_id).
-
     """  # noqa: E501
 
     template_fields: Sequence[str] = (
-        "source_aws_conn_id",
-        "dest_aws_conn_id",
+        *AwsToAwsBaseOperator.template_fields,
         "s3_bucket_name",
         "s3_key_prefix",
         "dynamodb_table_name",
     )
+
     template_fields_renderers = {
         "dynamodb_scan_kwargs": "json",
     }
@@ -120,14 +104,11 @@ class DynamoDBToS3Operator(BaseOperator):
         self,
         *,
         dynamodb_table_name: str,
-        source_aws_conn_id: str | None = AwsBaseHook.default_conn_name,
         s3_bucket_name: str,
         file_size: int,
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
-        dest_aws_conn_id: str | None | ArgNotSet = NOTSET,
-        aws_conn_id: str | None | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -137,14 +118,6 @@ class DynamoDBToS3Operator(BaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
-        if not isinstance(aws_conn_id, ArgNotSet):
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            self.source_aws_conn_id = aws_conn_id
-        else:
-            self.source_aws_conn_id = source_aws_conn_id
-        self.dest_aws_conn_id = (
-            self.source_aws_conn_id if isinstance(dest_aws_conn_id, ArgNotSet) else dest_aws_conn_id
-        )
 
     def execute(self, context: Context) -> None:
         hook = DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
