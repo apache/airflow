@@ -4245,6 +4245,14 @@
                         "type": "string"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the StatsD deployment.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "args": {
                     "description": "Args to use when running statsd-exporter (templated).",
                     "type": [

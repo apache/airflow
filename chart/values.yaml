@@ -1470,6 +1470,9 @@ statsd:
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
 
+  # Annotations to add to the StatsD Deployment.
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
