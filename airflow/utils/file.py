@@ -335,7 +335,23 @@ def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
-def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None):
+def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
+    """
+    Check whether a Python file contains Airflow DAGs
+
+    If might_contain_dag_callable isn't specified, it uses airflow default heuristic
+    """
+    might_contain_dag_callable = conf.getimport(
+        "core",
+        "might_contain_dag_callable",
+        fallback="airflow.utils.file.might_contain_dag_via_default_heuristic",
+    )
+    return might_contain_dag_callable(file_path=file_path, safe_mode=safe_mode, zip_file=zip_file)
+
+
+def might_contain_dag_via_default_heuristic(
+    file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None
+) -> bool:
     """
     Heuristic that guesses whether a Python file contains an Airflow DAG definition.
 
