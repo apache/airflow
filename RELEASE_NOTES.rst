@@ -8919,7 +8919,7 @@ New Webserver UI with Role-Based Access Control
 
 The current webserver UI uses the Flask-Admin extension. The new webserver UI uses the `Flask-AppBuilder (FAB) <https://github.com/dpgaspar/Flask-AppBuilder>`_ extension. FAB has built-in authentication support and Role-Based Access Control (RBAC), which provides configurable roles and permissions for individual users.
 
-To turn on this feature, in your airflow.cfg file (under [webserver]), set the configuration variable ``rbac = True``\ , and then run ``airflow`` command, which will generate the ``webserver_config.py`` file in your $AIRFLOW_HOME/config.
+To turn on this feature, in your airflow.cfg file (under [webserver]), set the configuration variable ``rbac = True``\ , and then run ``airflow`` command, which will generate the ``webserver_config.py`` file in your $AIRFLOW_HOME.
 
 Setting up Authentication
 ~~~~~~~~~~~~~~~~~~~~~~~~~
