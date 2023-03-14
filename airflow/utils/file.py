@@ -219,6 +219,7 @@ def _find_path_from_directory(
 
     # set this rather than import from lyft_etl to avoid any circular import errors
     is_airflow_dev_env = "kyte" in os.environ.get("SERVICE", "") or "tars" in os.environ.get("SERVICE", "")
+    is_loadtest_env = "loadtest" in os.environ.get("SERVICE_FACET", "").lower()
 
     for root, dirs, files in os.walk(base_dir_path, followlinks=True):
         patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
@@ -265,7 +266,7 @@ def _find_path_from_directory(
 
             # only load dag files that are already migrated
             # work around for poor negative look back regex performance
-            if not is_airflow_dev_env and str(abs_file_path) not in migrated_dags_set:
+            if not (is_airflow_dev_env or is_loadtest_env) and str(abs_file_path) not in migrated_dags_set:
                 continue
 
             yield str(abs_file_path)
