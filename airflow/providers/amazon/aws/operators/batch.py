@@ -144,20 +144,21 @@ class BatchOperator(BaseOperator):
         self.job_definition = job_definition
         self.job_queue = job_queue
 
-        self.container_overrides = None
+        self.container_overrides = container_overrides
+        # handle `overrides` deprecation in favor of `container_overrides`
         if overrides:
+            if container_overrides:
+                # disallow setting both old and new params
+                raise AirflowException(
+                    "'container_overrides' replaces the 'overrides' parameter. "
+                    "You cannot specify both. Please remove assignation to the deprecated 'overrides'."
+                )
             self.container_overrides = overrides
             warnings.warn(
                 "Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            if container_overrides:
-                raise AirflowException(
-                    "If providing `container_overrides`, then old parameter 'overrides' should be removed."
-                )
-        else:
-            self.container_overrides = container_overrides
 
         self.node_overrides = node_overrides
         self.array_properties = array_properties
