@@ -978,7 +978,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._file_path_queue = collections.deque(x for x in self._file_path_queue if x in new_file_paths)
         Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
 
-        callback_paths_to_del = list(x for x in self._callback_to_execute.keys() if x not in new_file_paths)
+        callback_paths_to_del = [x for x in self._callback_to_execute if x not in new_file_paths]
         for path_to_del in callback_paths_to_del:
             del self._callback_to_execute[path_to_del]
 
