@@ -17,11 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
-
-from pendulum import DateTime
-from pendulum.tz import timezone
 
 from airflow.utils.module_loading import qualname
 from airflow.utils.timezone import convert_to_utc, is_naive
@@ -31,7 +27,7 @@ if TYPE_CHECKING:
 
 __version__ = 1
 
-serializers = [date, datetime, timedelta, DateTime]
+serializers = ["datetime.date", "datetime.datetime", "datetime.timedelta", "pendulum.datetime.DateTime"]
 deserializers = serializers
 
 TIMESTAMP = "timestamp"
@@ -39,6 +35,9 @@ TIMEZONE = "tz"
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
+    from datetime import date, datetime, timedelta
+    from pendulum import DateTime
+
     if isinstance(o, DateTime) or isinstance(o, datetime):
         qn = qualname(o)
         if is_naive(o):
@@ -57,7 +56,12 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: dict | str) -> datetime | timedelta | date:
+def deserialize(
+    classname: str, version: int, data: dict | str
+) -> "datetime.datetime" | "datetime.timedelta" | "datetime.date":
+    from datetime import date, datetime, timedelta
+    from pendulum import DateTime, timezone
+
     if classname == qualname(datetime) and isinstance(data, dict):
         return datetime.fromtimestamp(float(data[TIMESTAMP]), tz=timezone(data[TIMEZONE]))
 

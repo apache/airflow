@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import enum
 from dataclasses import dataclass
+from importlib import import_module
 from typing import ClassVar
 
 import attr
@@ -30,13 +31,19 @@ from airflow.serialization.serde import (
     DATA,
     SCHEMA_ID,
     VERSION,
-    _compile_patterns,
+    _get_patterns,
     _match,
     deserialize,
     serialize,
+    _serializers,
 )
-from airflow.utils.module_loading import qualname
+from airflow.utils.module_loading import qualname, import_string, iter_namespace
 from tests.test_utils.config import conf_vars
+
+
+@pytest.fixture()
+def recalculate_patterns():
+    _get_patterns.cache_clear()
 
 
 class Z:
@@ -74,12 +81,8 @@ class W:
     x: int
 
 
+@pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
-    @pytest.fixture(autouse=True)
-    def ensure_clean_allow_list(self):
-        _compile_patterns()
-        yield
-
     def test_ser_primitives(self):
         i = 10
         e = serialize(i)
@@ -173,8 +176,8 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "airflow[.].*",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_for_imports(self):
-        _compile_patterns()
         i = Z(10)
         e = serialize(i)
         with pytest.raises(ImportError) as ex:
@@ -187,8 +190,8 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "tests.*",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_replace(self):
-        _compile_patterns()
         assert _match("tests.airflow.deep")
         assert _match("testsfault") is False
 
@@ -232,3 +235,17 @@ class TestSerDe:
         dataset = Dataset("mytest://dataset")
         obj = deserialize(serialize(dataset))
         assert dataset.uri == obj.uri
+
+    def test_serializers_importable_and_str(self):
+        """test if all distributed serializers are lazy loading and can be imported"""
+        import airflow.serialization.serializers
+
+        for _, name, _ in iter_namespace(airflow.serialization.serializers):
+            name = import_module(name)
+            for s in getattr(name, "serializers", list()):
+                if not isinstance(s, str):
+                    raise TypeError(f"{s} is not of type str. This is required for lazy loading")
+                try:
+                    import_string(s)
+                except ImportError as e:
+                    raise AttributeError(f"{s} cannot be imported")
