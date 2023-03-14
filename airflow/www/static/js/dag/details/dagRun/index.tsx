@@ -64,7 +64,9 @@ const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
   const run = dagRuns.find((dr) => dr.runId === runId);
-  const { onCopy, hasCopied } = useClipboard(run?.conf || '');
+  const { onCopy, hasCopied } = useClipboard(
+    JSON.stringify(JSON.parse(run?.conf || ''), null, 4),
+  );
   if (!run) return null;
   const {
     executionDate,
