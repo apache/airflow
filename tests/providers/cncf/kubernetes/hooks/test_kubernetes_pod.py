@@ -358,6 +358,31 @@ class TestKubernetesHook:
             mock_get_client.assert_called_with(cluster_context="test")
             assert kubernetes_hook.get_namespace() == "test"
 
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.client.CustomObjectsApi")
+    def test_delete_custom_object(
+        self, mock_custom_object_api, mock_kube_config_merger, mock_kube_config_loader
+    ):
+        hook = KubernetesHook()
+        hook.delete_custom_object(
+            group="group",
+            version="version",
+            plural="plural",
+            name="name",
+            namespace="namespace",
+            _preload_content="_preload_content",
+        )
+
+        mock_custom_object_api.return_value.delete_namespaced_custom_object.assert_called_once_with(
+            group="group",
+            version="version",
+            plural="plural",
+            name="name",
+            namespace="namespace",
+            _preload_content="_preload_content",
+        )
+
 
 class TestKubernetesHookIncorrectConfiguration:
     @pytest.mark.parametrize(

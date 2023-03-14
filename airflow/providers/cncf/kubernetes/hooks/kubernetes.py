@@ -37,7 +37,7 @@ from airflow.utils import yaml
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
 
-def _load_body_to_dict(body):
+def _load_body_to_dict(body: str) -> dict:
     try:
         body_dict = yaml.safe_load(body)
     except yaml.YAMLError as e:
@@ -272,37 +272,22 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api: client.CustomObjectsApi = self.custom_object_client
-        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
 
         if isinstance(body, str):
             body_dict = _load_body_to_dict(body)
         else:
             body_dict = body
 
-        # Attribute "name" is not mandatory if "generateName" is used instead
-        if "name" in body_dict["metadata"]:
-            try:
-                api.delete_namespaced_custom_object(
-                    group=group,
-                    version=version,
-                    namespace=namespace,
-                    plural=plural,
-                    name=body_dict["metadata"]["name"],
-                )
+        response = api.create_namespaced_custom_object(
+            group=group,
+            version=version,
+            namespace=namespace or self.get_namespace(),
+            plural=plural,
+            body=body_dict,
+        )
 
-                self.log.warning("Deleted SparkApplication with the same name")
-            except client.rest.ApiException:
-                self.log.info("SparkApplication %s not found", body_dict["metadata"]["name"])
-
-        try:
-            response = api.create_namespaced_custom_object(
-                group=group, version=version, namespace=namespace, plural=plural, body=body_dict
-            )
-
-            self.log.debug("Response: %s", response)
-            return response
-        except client.rest.ApiException as e:
-            raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
+        self.log.debug("Response: %s", response)
+        return response
 
     def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None
@@ -317,14 +302,36 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api = client.CustomObjectsApi(self.api_client)
-        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
-        try:
-            response = api.get_namespaced_custom_object(
-                group=group, version=version, namespace=namespace, plural=plural, name=name
-            )
-            return response
-        except client.rest.ApiException as e:
-            raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
+        response = api.get_namespaced_custom_object(
+            group=group,
+            version=version,
+            namespace=namespace or self.get_namespace(),
+            plural=plural,
+            name=name,
+        )
+        return response
+
+    def delete_custom_object(
+        self, group: str, version: str, plural: str, name: str, namespace: str | None = None, **kwargs
+    ):
+        """
+        Delete custom resource definition object from Kubernetes
+
+        :param group: api group
+        :param version: api version
+        :param plural: api plural
+        :param name: crd object name
+        :param namespace: kubernetes namespace
+        """
+        api = client.CustomObjectsApi(self.api_client)
+        return api.delete_namespaced_custom_object(
+            group=group,
+            version=version,
+            namespace=namespace or self.get_namespace(),
+            plural=plural,
+            name=name,
+            **kwargs,
+        )
 
     def get_namespace(self) -> str | None:
         """
