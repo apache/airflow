@@ -41,6 +41,7 @@ export interface CustomNodeProps {
   childCount?: number;
   onToggleCollapse: () => void;
   isOpen?: boolean;
+  isActive?: boolean;
 }
 
 const Node = ({
@@ -57,6 +58,7 @@ const Node = ({
     latestDagRunId,
     onToggleCollapse,
     isOpen,
+    isActive,
   },
 }: NodeProps<CustomNodeProps>) => {
   const { onSelect } = useSelection();
@@ -122,6 +124,8 @@ const Node = ({
           height={`${height}px`}
           width={`${width}px`}
           cursor={latestDagRunId ? "cursor" : "default"}
+          opacity={isActive ? 1 : 0.3}
+          transition="opacity 0.2s"
           onClick={() => {
             if (latestDagRunId) {
               onSelect({
