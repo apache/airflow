@@ -49,6 +49,7 @@ class HttpHook(BaseHook):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
+    :param auth_args: extra arguments used to initialize the auth_type if different than default HTTPBasicAuth
     """
 
     conn_name_attr = "http_conn_id"
@@ -60,22 +61,32 @@ class HttpHook(BaseHook):
         self,
         method: str = "POST",
         http_conn_id: str = default_conn_name,
-        auth_type: Any = HTTPBasicAuth,
+        auth_type: Any = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
+        auth_args: list[Any] | None = None,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
-        self.auth_type: Any = auth_type
+        self._auth_type: Any = auth_type
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
         self.keep_alive_interval = tcp_keep_alive_interval
+        self.auth_args = auth_args
+        
+    @property
+    def auth_type(self):
+        return self._auth_type or HTTPBasicAuth
+
+    @auth_type.setter
+    def auth_type(self, v):
+        self._auth_type = v
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -102,6 +113,10 @@ class HttpHook(BaseHook):
                 self.base_url = self.base_url + ":" + str(conn.port)
             if conn.login:
                 session.auth = self.auth_type(conn.login, conn.password)
+            elif self._auth_type and self.auth_args:
+                    session.auth = self.auth_type(*self.auth_args)
+            elif self._auth_type:
+                session.auth = self.auth_type()
             if conn.extra:
                 try:
                     session.headers.update(conn.extra_dejson)
