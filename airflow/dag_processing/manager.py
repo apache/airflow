@@ -678,9 +678,12 @@ class DagFileProcessorManager(LoggingMixin):
                 else:
                     poll_time = 0.0
 
-    @retry_db_transaction
     @provide_session
     def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
+        self._fetch_callbacks_with_retries(max_callbacks, session)
+
+    @retry_db_transaction
+    def _fetch_callbacks_with_retries(self, max_callbacks: int, session: Session):
         """Fetches callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
