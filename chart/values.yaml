@@ -96,7 +96,7 @@ images:
     tag: airflow-pgbouncer-exporter-2023.02.21-0.14.0
     pullPolicy: IfNotPresent
   gitSync:
-    repository: k8s.gcr.io/git-sync/git-sync
+    repository: registry.k8s.io/git-sync/git-sync
     tag: v3.6.3
     pullPolicy: IfNotPresent
 
@@ -574,7 +574,18 @@ workers:
   # Add additional init containers into workers.
   extraInitContainers: []
 
-  # Mount additional volumes into worker.
+  # Mount additional volumes into worker. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -636,6 +647,15 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  #  hostAliases for the scheduler pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
+
   # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
@@ -704,7 +724,18 @@ scheduler:
   # Add additional init containers into scheduler.
   extraInitContainers: []
 
-  # Mount additional volumes into scheduler.
+  # Mount additional volumes into scheduler. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -885,7 +916,18 @@ migrateDatabaseJob:
   # Launch additional containers into database migration job
   extraContainers: []
 
-  # Mount additional volumes into database migration job
+  # Mount additional volumes into database migration job. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -900,6 +942,14 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  #  hostAliases for the webserver pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
   allowPodLogReading: true
   livenessProbe:
     initialDelaySeconds: 15
@@ -986,7 +1036,18 @@ webserver:
   # Add additional init containers into webserver.
   extraInitContainers: []
 
-  # Mount additional volumes into webserver.
+  # Mount additional volumes into webserver. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -1942,6 +2003,10 @@ dags:
 
     extraVolumeMounts: []
     env: []
+    # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
+    # - name: ""
+    #   value: ""
+
     resources: {}
     #  limits:
     #   cpu: 100m

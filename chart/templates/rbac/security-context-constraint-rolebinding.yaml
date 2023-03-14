@@ -27,18 +27,18 @@ kind: RoleBinding
 {{- end }}
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-{{- if not .Values.multiNamespaceMode }}
+  {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
-{{- end }}
+  {{- end }}
   name: {{ .Release.Name }}-scc-rolebinding
   labels:
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -47,40 +47,40 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "webserver.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- if $hasWorkers }}
+  {{- if $hasWorkers }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- end }}
+  {{- end }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- if and .Values.statsd.enabled }}
+  {{- if and .Values.statsd.enabled }}
   - kind: ServiceAccount
     name: {{ include "statsd.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- end }}
-{{- if and .Values.flower.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+  {{- end }}
+  {{- if and .Values.flower.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
   - kind: ServiceAccount
     name: {{ include "flower.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- end}}
-{{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) }}
+  {{- end}}
+  {{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) }}
   - kind: ServiceAccount
     name: {{ include "triggerer.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- end }}
+  {{- end }}
   - kind: ServiceAccount
     name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- if .Values.webserver.defaultUser.enabled }}
+  {{- if .Values.webserver.defaultUser.enabled }}
   - kind: ServiceAccount
     name: {{ include "createUserJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- end }}
-{{- if and .Values.cleanup.enabled }}
+  {{- end }}
+  {{- if and .Values.cleanup.enabled }}
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-{{- end }}
+  {{- end }}
 {{- end }}

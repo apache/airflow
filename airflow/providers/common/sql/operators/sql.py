@@ -203,6 +203,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
     :param return_last: (optional) return the result of only last statement (default: True).
+    :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
+        Use with caution. It's not recommended to dump large datasets to the log. (default: False).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -223,6 +225,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         handler: Callable[[Any], Any] = fetch_all_handler,
         split_statements: bool | None = None,
         return_last: bool = True,
+        show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -232,6 +235,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.handler = handler
         self.split_statements = split_statements
         self.return_last = return_last
+        self.show_return_value_in_logs = show_return_value_in_logs
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         """
@@ -250,6 +254,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :param results: results in the form of list of rows.
         :param descriptions: list of descriptions returned by ``cur.description`` in the Python DBAPI
         """
+        if self.show_return_value_in_logs:
+            self.log.info("Operator output is: %s", results)
         return results
 
     def execute(self, context):

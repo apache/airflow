@@ -63,6 +63,7 @@ def git_tag(version):
 
 def git_clean():
     if confirm_action("Clean git repo?"):
+        run_command(["breeze", "ci", "fix-ownership"], dry_run_override=DRY_RUN, check=True)
         run_command(["git", "clean", "-fxd"], dry_run_override=DRY_RUN, check=True)
         console_print("Git repo cleaned")
 
@@ -102,9 +103,7 @@ def create_artifacts_with_breeze():
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
         os.chdir(repo_root)
-        run_command(["pushd", "dist"], dry_run_override=DRY_RUN, check=True)
-        run_command(["./dev/sign.sh", "*"], dry_run_override=DRY_RUN, check=True)
-        run_command(["popd"], dry_run_override=DRY_RUN, check=True)
+        run_command("./dev/sign.sh dist/*", dry_run_override=DRY_RUN, check=True, shell=True)
         console_print("Release signed")
 
 
@@ -146,7 +145,7 @@ def move_artifacts_to_svn(version, repo_root):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
         run_command(["svn", "mkdir", f"{version}"], dry_run_override=DRY_RUN, check=True)
-        run_command(["mv", f"{repo_root}/dist/*", f"{version}/"], dry_run_override=DRY_RUN, check=True)
+        run_command(f"mv {repo_root}/dist/* {version}/", dry_run_override=DRY_RUN, check=True, shell=True)
         console_print("Moved artifacts to SVN:")
         run_command(["ls"], dry_run_override=DRY_RUN)
 
@@ -158,7 +157,7 @@ def push_artifacts_to_asf_repo(version, repo_root):
             os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
         run_command(["ls"], dry_run_override=DRY_RUN)
         confirm_action("Do you want to continue?", abort=True)
-        run_command(["svn", "add", "*"], dry_run_override=DRY_RUN, check=True)
+        run_command("svn add *", dry_run_override=DRY_RUN, check=True, shell=True)
         run_command(
             ["svn", "commit", "-m", f"Add artifacts for Airflow {version}"],
             dry_run_override=DRY_RUN,
