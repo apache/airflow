@@ -567,7 +567,9 @@ transfers:
     target-integration-name: Common SQL
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_sql.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_sql
-
+  - source-integration-name: Amazon Web Services
+    target-integration-name: Amazon Web Services
+    python-module: airflow.providers.amazon.aws.transfers.base
 
 extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink
