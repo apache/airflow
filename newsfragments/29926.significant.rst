@@ -1,5 +1,5 @@
 Default installation location of webserver_config.py has been moved to ``$AIRFLOW_HOME/config``
 
-The location of webserver_config.py is hardcoded. This does not allow configuration 
-of that path through the config file. While fixing this, the default location 
+The location of webserver_config.py is hardcoded. This does not allow configuration
+of that path through the config file. While fixing this, the default location
 of the webserver_config.py file has been moved to ``$AIRFLOW_HOME/config`` instead of ``$AIRFLOW_HOME``.
