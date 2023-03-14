@@ -2630,7 +2630,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     :param result_retry: How to retry the `result` call that retrieves rows
     :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
     :param deferrable: Run operator in the deferrable mode
-    :param poll_interval: polling period in seconds to check for the status of job
+    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
