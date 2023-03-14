@@ -169,9 +169,7 @@ class DatadogHook(BaseHook, LoggingMixin):
             "api_host": StringField(lazy_gettext("API endpoint"), widget=BS3TextFieldWidget()),
             "api_key": StringField(lazy_gettext("API key"), widget=BS3TextFieldWidget()),
             "app_key": StringField(lazy_gettext("Application key"), widget=BS3TextFieldWidget()),
-            "source_type_name": StringField(
-                lazy_gettext("Source type name"), widget=BS3TextFieldWidget()
-            ),
+            "source_type_name": StringField(lazy_gettext("Source type name"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
