@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
