@@ -23,11 +23,23 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import HttpResponseError
+from packaging.version import Version
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    TODO: delete this function when min airflow version >= 2.6
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
 
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
@@ -44,9 +56,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         base_log_folder: str,
         wasb_log_folder: str,
         wasb_container: str,
-        delete_local_copy: str,
         *,
         filename_template: str | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container
@@ -55,7 +67,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self._hook = None
         self.closed = False
         self.upload_on_close = True
-        self.delete_local_copy = delete_local_copy
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self):
@@ -107,9 +121,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc) as logfile:
                 log = logfile.read()
-            self.wasb_write(log, remote_loc, append=True)
+            wasb_write = self.wasb_write(log, remote_loc, append=True)
 
-            if self.delete_local_copy:
+            if wasb_write and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -209,7 +223,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 return msg
             return ""
 
-    def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> None:
+    def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
@@ -227,3 +241,5 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
         except Exception:
             self.log.exception("Could not write logs to %s", remote_log_location)
+            return False
+        return True

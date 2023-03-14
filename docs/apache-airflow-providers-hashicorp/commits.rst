@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.3.0
 .....
 
-Latest change: 2023-02-24
+Latest change: 2023-03-04
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`4fa91d7540 <https://github.com/apache/airflow/commit/4fa91d7540b93420a6c7c43737e3ac881b418873>`_  2023-03-04   ``Fix empty paths in Vault secrets backend (#29908)``
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
 `dff425bc3d <https://github.com/apache/airflow/commit/dff425bc3d92697bb447010aa9f3b56519a59f1e>`_  2023-02-24   ``Support multiple mount points in Vault backend secret (#29734)``
 =================================================================================================  ===========  ==================================================================
 

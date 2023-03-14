@@ -248,9 +248,7 @@ deprecated_api = [
     "requests>=2.26.0",
 ]
 doc = [
-    # Astroid 2.12.* breaks documentation building
-    # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
-    "astroid<2.12.0",
+    "astroid>=2.12.3",
     "checksumdir",
     "click>=8.0",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
@@ -278,7 +276,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.1.4",
+    "flask-appbuilder[oauth]==4.3.0",
 ]
 kerberos = [
     "pykerberos>=1.1.13",

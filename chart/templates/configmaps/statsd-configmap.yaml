@@ -38,13 +38,13 @@ metadata:
 {{- end }}
 data:
   mappings.yml: |-
-{{- if .Values.statsd.overrideMappings }}
+    {{- if .Values.statsd.overrideMappings }}
     mappings:
-{{ toYaml .Values.statsd.overrideMappings | indent 6 }}
-{{- else }}
-{{ .Files.Get "files/statsd-mappings.yml" | indent 4 }}
-{{- if .Values.statsd.extraMappings }}
-{{ toYaml .Values.statsd.extraMappings | indent 6 }}
-{{- end }}
-{{- end }}
+      {{- toYaml .Values.statsd.overrideMappings | nindent 6 }}
+    {{- else }}
+      {{- .Files.Get "files/statsd-mappings.yml" | nindent 4 }}
+      {{- if .Values.statsd.extraMappings }}
+        {{- toYaml .Values.statsd.extraMappings | nindent 6 }}
+      {{- end }}
+    {{- end }}
 {{- end }}

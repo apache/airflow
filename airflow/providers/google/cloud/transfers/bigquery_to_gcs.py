@@ -93,6 +93,7 @@ class BigQueryToGCSOperator(BaseOperator):
         "export_format",
         "labels",
         "impersonation_chain",
+        "job_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#e4e6f0"
@@ -197,7 +198,7 @@ class BigQueryToGCSOperator(BaseOperator):
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
-            nowait=True,
+            nowait=self.deferrable,
         )
 
     def execute(self, context: Context):

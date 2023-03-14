@@ -139,6 +139,13 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
+    # This is a workaround because mypy doesn't work with hybrid_property
+    # TODO: remove this hack and move hybrid_property back to main import block
+    # See https://github.com/python/mypy/issues/4430
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
+
 
 PAST_DEPENDS_MET = "past_depends_met"
 
@@ -561,7 +568,7 @@ class TaskInstance(Base, LoggingMixin):
         self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
-    @property
+    @hybrid_property
     def try_number(self):
         """
         Return the try number that this task number will be when it is actually
@@ -2651,7 +2658,17 @@ class TaskInstance(Base, LoggingMixin):
                 task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
             }
 
-            schedulable_tis = [ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids]
+            schedulable_tis = [
+                ti
+                for ti in info.schedulable_tis
+                if ti.task_id not in skippable_task_ids
+                and not (
+                    ti.task.inherits_from_empty_operator
+                    and not ti.task.on_execute_callback
+                    and not ti.task.on_success_callback
+                    and not ti.task.outlets
+                )
+            ]
             for schedulable_ti in schedulable_tis:
                 if not hasattr(schedulable_ti, "task"):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)

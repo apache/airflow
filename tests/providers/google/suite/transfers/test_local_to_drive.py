@@ -48,6 +48,7 @@ class TestLocalFilesystemToGoogleDriveOperator:
                 chunk_size=100 * 1024 * 1024,
                 resumable=False,
                 folder_id="some_folder_id",
+                show_full_target_path=True,
             ),
             mock.call(
                 local_location="test2",
@@ -55,6 +56,7 @@ class TestLocalFilesystemToGoogleDriveOperator:
                 chunk_size=100 * 1024 * 1024,
                 resumable=False,
                 folder_id="some_folder_id",
+                show_full_target_path=True,
             ),
         ]
         mock_hook.return_value.upload_file.assert_has_calls(calls)
