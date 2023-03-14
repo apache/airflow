@@ -63,7 +63,9 @@ const DagRun = ({ runId }: Props) => {
   const offsetTop = useOffsetTop(detailsRef);
 
   const run = dagRuns.find((dr) => dr.runId === runId);
-  const { onCopy, hasCopied } = useClipboard(run?.conf || "");
+  const { onCopy, hasCopied } = useClipboard(
+    JSON.stringify(JSON.parse(run?.conf || ""), null, 4)
+  );
   if (!run) return null;
   const {
     state,
