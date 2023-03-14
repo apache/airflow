@@ -186,10 +186,6 @@ class VaultHook(BaseHook):
             else (None, None)
         )
 
-        key_id = self.connection.extra_dejson.get("key_id")
-        if not key_id:
-            key_id = self.connection.login
-
         if self.connection.conn_type == "vault":
             conn_protocol = "http"
         elif self.connection.conn_type == "vaults":
