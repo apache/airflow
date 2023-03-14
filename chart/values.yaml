@@ -1005,6 +1005,8 @@ webserver:
   #   CSRF_ENABLED = True
   webserverConfigConfigMapName: ~
 
+  configMapAnnotations: {}
+
   service:
     type: ClusterIP
     ## service annotations
@@ -1459,6 +1461,8 @@ statsd:
   overrideMappings: []
 
   podAnnotations: {}
+
+  configMapAnnotations: {}
 
 # PgBouncer settings
 pgbouncer:
