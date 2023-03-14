@@ -35,16 +35,17 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AirbyteTriggerSyncOperator`
 
-    :param airbyte_conn_id: Required. The name of the Airflow connection to get connection
-        information for Airbyte.
+    :param airbyte_conn_id: Optional. The name of the Airflow connection to get connection
+        information for Airbyte. Defaults to "airbyte_default".
     :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination.
     :param asynchronous: Optional. Flag to get job_id after submitting the job to the Airbyte API.
         This is useful for submitting long running jobs and
-        waiting on them asynchronously using the AirbyteJobSensor.
-    :param api_version: Optional. Airbyte API version.
+        waiting on them asynchronously using the AirbyteJobSensor. Defaults to False.
+    :param api_version: Optional. Airbyte API version. Defaults to "v1".
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous`` is False.
+        Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
-        Only used when ``asynchronous`` is False.
+        Only used when ``asynchronous`` is False. Defaults to 3600 seconds (or 1 hour).
     """
 
     template_fields: Sequence[str] = ("connection_id",)
@@ -53,10 +54,10 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self,
         connection_id: str,
         airbyte_conn_id: str = "airbyte_default",
-        asynchronous: bool | None = False,
+        asynchronous: bool = False,
         api_version: str = "v1",
         wait_seconds: float = 3,
-        timeout: float | None = 3600,
+        timeout: float = 3600,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
