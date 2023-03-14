@@ -621,7 +621,7 @@ imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.az
 microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
 opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
 qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
-snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
+smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
 webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
