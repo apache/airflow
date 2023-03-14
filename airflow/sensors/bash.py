@@ -43,8 +43,8 @@ class BashSensor(BaseSensorOperator):
     :param output_encoding: output encoding of bash command.
     :param retry_exit_code: If task exits with this code, treat the sensor
         as not-yet-complete and retry the check later according to the
-        usual retry/timeout settings. Any other return code will be
-        treated as an error, and cause the sensor to file. If set to
+        usual retry/timeout settings. Any other non-zero return code will
+        be treated as an error, and cause the sensor to fail. If set to
         ``None`` (the default), any non-zero exit code will cause a retry
         and the task will never raise an error except on time-out.
 
