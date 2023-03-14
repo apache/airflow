@@ -34,7 +34,7 @@ Host
     Host name to associate with the sent events.
 
 Extra
-    Specify the extra parameters (as json dictionary) that can be used in Datadog
+    Specify the extra parameters (as a JSON dictionary) that can be used in Datadog
     connection.
 
     ``api_host``: Datadog `API endpoint <https://docs.datadoghq.com/getting_started/site/#access-the-datadog-site>`__

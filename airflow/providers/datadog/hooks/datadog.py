@@ -166,11 +166,11 @@ class DatadogHook(BaseHook, LoggingMixin):
         from wtforms import StringField
 
         return {
-            "api_host": StringField(lazy_gettext("Datadog API endpoint"), widget=BS3TextFieldWidget()),
-            "api_key": StringField(lazy_gettext("Datadog API key"), widget=BS3TextFieldWidget()),
-            "app_key": StringField(lazy_gettext("Datadog application key"), widget=BS3TextFieldWidget()),
+            "api_host": StringField(lazy_gettext("API endpoint"), widget=BS3TextFieldWidget()),
+            "api_key": StringField(lazy_gettext("API key"), widget=BS3TextFieldWidget()),
+            "app_key": StringField(lazy_gettext("Application key"), widget=BS3TextFieldWidget()),
             "source_type_name": StringField(
-                lazy_gettext("Datadog source type name"), widget=BS3TextFieldWidget()
+                lazy_gettext("Source type name"), widget=BS3TextFieldWidget()
             ),
         }
 
