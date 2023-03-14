@@ -30,7 +30,7 @@ try:
 
     has_kubernetes = True
 
-    def _get_default_configuration():
+    def _get_default_configuration() -> Configuration:
         if hasattr(Configuration, "get_default_copy"):
             return Configuration.get_default_copy()
         return Configuration()
