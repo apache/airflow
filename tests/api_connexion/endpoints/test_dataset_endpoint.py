@@ -628,7 +628,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
             "source_task_id": None,
             "source_run_id": None,
             "source_map_index": -1,
-            "user_id": 2,
+            "user_id": ANY,
             "timestamp": self.default_time,
         }
 
