@@ -55,7 +55,9 @@ class BashSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ("bash_command", "env")
 
-    def __init__(self, *, bash_command, env=None, output_encoding="utf-8", retry_exit_code: int | None = None, **kwargs):
+    def __init__(
+        self, *, bash_command, env=None, output_encoding="utf-8", retry_exit_code: int | None = None, **kwargs
+    ):
         super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
