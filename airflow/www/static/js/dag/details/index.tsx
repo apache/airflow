@@ -45,12 +45,14 @@ import Graph from "./graph";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
 import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
+import FilterTasks from "./FilterTasks";
 
 const dagId = getMetaValue("dag_id")!;
 
 interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
+  hoveredTaskState?: string | null;
 }
 
 const tabToIndex = (tab?: string) => {
@@ -86,7 +88,7 @@ const indexToTab = (
 
 const TAB_PARAM = "tab";
 
-const Details = ({ openGroupIds, onToggleGroups }: Props) => {
+const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
     onSelect,
@@ -145,7 +147,10 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Header />
+      <Flex alignItems="center" justifyContent="space-between">
+        <Header />
+        <Flex>{taskId && runId && <FilterTasks taskId={taskId} />}</Flex>
+      </Flex>
       <Divider my={2} />
       <Tabs
         size="lg"
@@ -206,6 +211,7 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
             <Graph
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
+              hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
           {showLogs && run && (

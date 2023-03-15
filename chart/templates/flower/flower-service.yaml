@@ -30,13 +30,12 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- if or (.Values.labels) (.Values.flower.labels) }}
-{{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 4 }}
-{{- end }}
-{{- with .Values.flower.service.annotations }}
-  annotations:
-{{- toYaml . | nindent 4 }}
-{{- end }}
+    {{- if or (.Values.labels) (.Values.flower.labels) }}
+      {{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.flower.service.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.flower.service.type }}
   selector:
@@ -54,8 +53,7 @@ spec:
   loadBalancerIP: {{ .Values.flower.service.loadBalancerIP }}
   {{- end }}
   {{- if .Values.flower.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges:
-  {{- toYaml .Values.flower.service.loadBalancerSourceRanges | nindent 4 }}
+  loadBalancerSourceRanges: {{- toYaml .Values.flower.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
 {{- end }}
 {{- end }}
