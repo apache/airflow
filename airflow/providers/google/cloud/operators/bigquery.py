@@ -177,6 +177,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -198,6 +199,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, **kwargs)
@@ -208,6 +210,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
@@ -240,6 +243,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                     conn_id=self.gcp_conn_id,
                     job_id=job.job_id,
                     project_id=hook.project_id,
+                    poll_interval=self.poll_interval
                 ),
                 method_name="execute_complete",
             )
@@ -288,6 +292,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -312,6 +317,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
@@ -321,6 +327,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
@@ -360,6 +367,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     sql=self.sql,
                     pass_value=self.pass_value,
                     tolerance=self.tol,
+                    poll_interval=self.poll_interval
                 ),
                 method_name="execute_complete",
             )
@@ -414,6 +422,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -439,6 +448,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -498,6 +508,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
                     days_back=self.days_back,
                     ratio_formula=self.ratio_formula,
                     ignore_zero=self.ignore_zero,
+                    poll_interval=self.poll_interval
                 ),
                 method_name="execute_complete",
             )
@@ -794,6 +805,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled. Deprecated.
@@ -822,6 +834,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         delegate_to: str | None = None,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -840,6 +853,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.project_id = project_id
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
@@ -915,6 +929,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 project_id=hook.project_id,
+                poll_interval=self.poll_interval
             ),
             method_name="execute_complete",
         )
