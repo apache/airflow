@@ -2805,7 +2805,7 @@ components:
             - dataset_triggered
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: true
+          default: queued
         external_trigger:
           type: boolean
           default: true

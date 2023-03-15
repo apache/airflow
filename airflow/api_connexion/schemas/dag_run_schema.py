@@ -66,7 +66,7 @@ class DAGRunSchema(SQLAlchemySchema):
     execution_date = auto_field(data_key="logical_date", validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
-    state = DagStateField(dump_only=True)
+    state = DagStateField(dump_only=False)
     external_trigger = auto_field(dump_default=True, dump_only=True)
     conf = ConfObject()
     data_interval_start = auto_field(dump_only=True)

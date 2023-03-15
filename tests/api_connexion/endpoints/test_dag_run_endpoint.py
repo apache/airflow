@@ -1034,14 +1034,19 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 class TestPostDagRun(TestDagRunEndpoint):
     @pytest.mark.parametrize("logical_date_field_name", ["execution_date", "logical_date"])
     @pytest.mark.parametrize(
-        "dag_run_id, logical_date, note",
+        "dag_run_id, logical_date, note, state",
         [
-            pytest.param("TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", "test-note", id="all-present"),
-            pytest.param(None, "2020-06-11T18:00:00+00:00", None, id="only-date"),
-            pytest.param(None, None, None, id="all-missing"),
+            pytest.param(
+                "TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", "test-note", "queued", id="all-present"
+            ),
+            pytest.param(None, "2020-06-11T18:00:00+00:00", None, None, id="only-date"),
+            pytest.param(None, None, None, None, id="all-missing"),
+            pytest.param(None, None, None, "failed", id="create-failed"),
         ],
     )
-    def test_should_respond_200(self, session, logical_date_field_name, dag_run_id, logical_date, note):
+    def test_should_respond_200(
+        self, session, logical_date_field_name, dag_run_id, logical_date, note, state
+    ):
         self._create_dag("TEST_DAG_ID")
 
         # We'll patch airflow.utils.timezone.utcnow to always return this so we
@@ -1053,6 +1058,8 @@ class TestPostDagRun(TestDagRunEndpoint):
             request_json[logical_date_field_name] = logical_date
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
+        if state is not None:
+            request_json["state"] = state
         request_json["note"] = note
         with mock.patch("airflow.utils.timezone.utcnow", lambda: fixed_now):
             response = self.client.post(
@@ -1070,16 +1077,24 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_dag_run_id = f"manual__{expected_logical_date}"
         else:
             expected_dag_run_id = dag_run_id
+        if state is None:
+            expected_state = "queued"
+        else:
+            expected_state = state
+        if state in ("success", "failed"):
+            expected_end_date = expected_logical_date
+        else:
+            expected_end_date = None
         assert response.json == {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
-            "end_date": None,
+            "end_date": expected_end_date,
             "execution_date": expected_logical_date,
             "logical_date": expected_logical_date,
             "external_trigger": True,
             "start_date": None,
-            "state": "queued",
+            "state": expected_state,
             "data_interval_end": expected_logical_date,
             "data_interval_start": expected_logical_date,
             "last_scheduling_decision": None,
@@ -1246,9 +1261,12 @@ class TestPostDagRun(TestDagRunEndpoint):
             ),
             pytest.param(
                 "api/v1/dags/TEST_DAG_ID/dagRuns",
-                {"state": "failed", "execution_date": "2020-06-12T18:00:00+00:00"},
                 {
-                    "detail": "Property is read-only - 'state'",
+                    "last_scheduling_decision": "2020-06-12T18:00:00+00:00",
+                    "execution_date": "2020-06-12T18:00:00+00:00",
+                },
+                {
+                    "detail": "Property is read-only - 'last_scheduling_decision'",
                     "status": 400,
                     "title": "Bad Request",
                     "type": EXCEPTIONS_LINK_MAP[400],
