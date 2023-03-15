@@ -93,7 +93,6 @@ from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
@@ -120,7 +119,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
-from airflow.utils.task_group import MappedTaskGroup, task_group_to_dict
+from airflow.utils.task_group import MappedTaskGroup, TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
@@ -298,7 +297,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
     def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
-        if isinstance(item, BaseOperator):
+        if not isinstance(item, TaskGroup):
 
             def _get_summary(task_instance):
                 return {
