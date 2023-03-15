@@ -688,6 +688,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     _is_setup = False
     _is_teardown = False
+    _on_failure_fail_dagrun = False
 
     def __init__(
         self,
@@ -1478,6 +1479,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "params",
                     "_is_setup",
                     "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()
