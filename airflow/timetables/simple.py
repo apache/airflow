@@ -115,7 +115,7 @@ class ContinuousTimetable(_TrivialTimetable):
     This corresponds to ``schedule="@continuous"``.
     """
 
-    description: str = "As frequently as possible while still obeying max_active_runs"
+    description: str = "As frequently as possible, but only one run at a time."
 
     limit_active_runs = 1  # Continuous DAGRuns should be constrained to one run at a time
 
