@@ -186,10 +186,6 @@ class VaultHook(BaseHook):
             else (None, None)
         )
 
-        key_id = self.connection.extra_dejson.get("key_id")
-        if not key_id:
-            key_id = self.connection.login
-
         if self.connection.conn_type == "vault":
             conn_protocol = "http"
         elif self.connection.conn_type == "vaults":
@@ -209,30 +205,28 @@ class VaultHook(BaseHook):
         mount_point = self.connection.schema if self.connection.schema else "secret"
 
         client_kwargs.update(
-            **dict(
-                url=url,
-                auth_type=auth_type,
-                auth_mount_point=auth_mount_point,
-                mount_point=mount_point,
-                kv_engine_version=kv_engine_version,
-                token=self.connection.password,
-                token_path=token_path,
-                username=self.connection.login,
-                password=self.connection.password,
-                key_id=self.connection.login,
-                secret_id=self.connection.password,
-                role_id=role_id,
-                kubernetes_role=kubernetes_role,
-                kubernetes_jwt_path=kubernetes_jwt_path,
-                gcp_key_path=gcp_key_path,
-                gcp_keyfile_dict=gcp_keyfile_dict,
-                gcp_scopes=gcp_scopes,
-                azure_tenant_id=azure_tenant_id,
-                azure_resource=azure_resource,
-                radius_host=radius_host,
-                radius_secret=self.connection.password,
-                radius_port=radius_port,
-            )
+            url=url,
+            auth_type=auth_type,
+            auth_mount_point=auth_mount_point,
+            mount_point=mount_point,
+            kv_engine_version=kv_engine_version,
+            token=self.connection.password,
+            token_path=token_path,
+            username=self.connection.login,
+            password=self.connection.password,
+            key_id=self.connection.login,
+            secret_id=self.connection.password,
+            role_id=role_id,
+            kubernetes_role=kubernetes_role,
+            kubernetes_jwt_path=kubernetes_jwt_path,
+            gcp_key_path=gcp_key_path,
+            gcp_keyfile_dict=gcp_keyfile_dict,
+            gcp_scopes=gcp_scopes,
+            azure_tenant_id=azure_tenant_id,
+            azure_resource=azure_resource,
+            radius_host=radius_host,
+            radius_secret=self.connection.password,
+            radius_port=radius_port,
         )
 
         self.vault_client = _VaultClient(**client_kwargs)

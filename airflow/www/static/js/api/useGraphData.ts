@@ -22,12 +22,16 @@ import axios, { AxiosResponse } from "axios";
 
 import { getMetaValue } from "src/utils";
 import type { DepNode } from "src/types";
+import useFilters, {
+  FILTER_DOWNSTREAM_PARAM,
+  FILTER_UPSTREAM_PARAM,
+  ROOT_PARAM,
+} from "src/dag/useFilters";
 
 const DAG_ID_PARAM = "dag_id";
 
 const dagId = getMetaValue(DAG_ID_PARAM);
 const graphDataUrl = getMetaValue("graph_data_url");
-const urlRoot = getMetaValue("root");
 
 interface GraphData {
   edges: WebserverEdge[];
@@ -40,15 +44,23 @@ export interface WebserverEdge {
   targetId: string;
 }
 
-const useGraphData = () =>
-  useQuery("graphData", async () => {
-    const params = {
-      [DAG_ID_PARAM]: dagId,
-      root: urlRoot || undefined,
-      filter_upstream: true,
-      filter_downstream: true,
-    };
-    return axios.get<AxiosResponse, GraphData>(graphDataUrl, { params });
-  });
+const useGraphData = () => {
+  const {
+    filters: { root, filterDownstream, filterUpstream },
+  } = useFilters();
+
+  return useQuery(
+    ["graphData", root, filterUpstream, filterDownstream],
+    async () => {
+      const params = {
+        [DAG_ID_PARAM]: dagId,
+        [ROOT_PARAM]: root,
+        [FILTER_UPSTREAM_PARAM]: filterUpstream,
+        [FILTER_DOWNSTREAM_PARAM]: filterDownstream,
+      };
+      return axios.get<AxiosResponse, GraphData>(graphDataUrl, { params });
+    }
+  );
+};
 
 export default useGraphData;
