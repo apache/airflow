@@ -29,8 +29,6 @@ try:
 except ImportError:
     pass
 
-pytest.importorskip("aiobotocore")
-
 
 class TestAwsBaseAsyncHook:
     @staticmethod
