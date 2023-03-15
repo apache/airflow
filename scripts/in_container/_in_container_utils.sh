@@ -73,6 +73,7 @@ function in_container_fix_ownership() {
             "${AIRFLOW_SOURCES}/docs"
             "${AIRFLOW_SOURCES}/dags"
             "${AIRFLOW_SOURCES}/airflow/"
+            "${AIRFLOW_SOURCES}/constraints/"
             "${AIRFLOW_SOURCES}/images/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)

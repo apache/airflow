@@ -56,6 +56,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--builder",
                 "--install-providers-from-sources",
                 "--airflow-extras",
+                "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--python-image",

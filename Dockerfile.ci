@@ -1232,6 +1232,7 @@ COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 COPY generated/provider_dependencies.json ${AIRFLOW_SOURCES}/generated/
+COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
