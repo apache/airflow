@@ -93,6 +93,7 @@ from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
@@ -297,7 +298,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
     def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
-        if isinstance(item, AbstractOperator):
+        if isinstance(item, BaseOperator):
 
             def _get_summary(task_instance):
                 return {
@@ -363,6 +364,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "is_mapped": isinstance(item, MappedOperator) or is_parent_mapped,
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
+                "trigger_rule": item.trigger_rule,
             }
 
         # Task Group
