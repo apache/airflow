@@ -2215,10 +2215,21 @@ class DAG(LoggingMixin):
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
-            memo = {id(group.children): {}}
+            # We want to deepcopy _most but not all_ attributes of the task group, so we create a shallow copy
+            # and then manually deep copy the instances. (memo argyment to deepcopy only works for instances
+            # of classes, not "native" properties of an instance, )
+            copied = copy.copy(group)
+
+            memo[id(group.children)] = {}
             if parent_group:
                 memo[id(group.parent_group)] = parent_group
-            copied = copy.deepcopy(group, memo)
+            for attr, value in copied.__dict__.items():
+                if id(value) in memo:
+                    value = memo[id(value)]
+                else:
+                    value = copy.deepcopy(value, memo)
+                copied.__dict__[attr] = value
+
             proxy = weakref.proxy(copied)
 
             for child in group.children.values():
