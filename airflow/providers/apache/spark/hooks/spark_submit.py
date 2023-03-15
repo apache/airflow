@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 with contextlib.suppress(ImportError, NameError):
     from airflow.kubernetes import kube_client
 
-ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit"]
+ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit", "spark3-submit"]
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -78,7 +78,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         supports yarn and k8s mode too.
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
-                         Some distros may use spark2-submit.
+                         Some distros may use spark2-submit or spark3-submit.
     """
 
     conn_name_attr = "conn_id"
@@ -206,15 +206,16 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             spark_binary = self._spark_binary or extra.get("spark-binary", "spark-submit")
             if spark_binary not in ALLOWED_SPARK_BINARIES:
                 raise RuntimeError(
-                    f"The `spark-binary` extra can be on of {ALLOWED_SPARK_BINARIES} and it"
+                    f"The `spark-binary` extra can be one of {ALLOWED_SPARK_BINARIES} and it"
                     f" was `{spark_binary}`. Please make sure your spark binary is one of the"
                     " allowed ones and that it is available on the PATH"
                 )
             conn_spark_home = extra.get("spark-home")
             if conn_spark_home:
                 raise RuntimeError(
-                    "The `spark-home` extra is not allowed any more. Please make sure your `spark-submit` or"
-                    " `spark2-submit` are available on the PATH."
+                    "The `spark-home` extra is not allowed any more. Please make sure one of"
+                    f" {ALLOWED_SPARK_BINARIES} is available on the PATH, and set `spark-binary`"
+                    " if needed."
                 )
             conn_data["spark_binary"] = spark_binary
             conn_data["namespace"] = extra.get("namespace")

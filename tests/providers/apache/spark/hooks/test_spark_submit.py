@@ -104,6 +104,14 @@ class TestSparkSubmitHook:
         )
         db.merge_conn(
             Connection(
+                conn_id="spark_binary_set_spark3_submit",
+                conn_type="spark",
+                host="yarn",
+                extra='{"spark-binary": "spark3-submit"}',
+            )
+        )
+        db.merge_conn(
+            Connection(
                 conn_id="spark_custom_binary_set",
                 conn_type="spark",
                 host="yarn",
@@ -434,6 +442,25 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert cmd[0] == "spark2-submit"
 
+    def test_resolve_connection_spark_binary_spark3_submit_set_connection(self):
+        # Given
+        hook = SparkSubmitHook(conn_id="spark_binary_set_spark3_submit")
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        expected_spark_connection = {
+            "master": "yarn",
+            "spark_binary": "spark3-submit",
+            "deploy_mode": None,
+            "queue": None,
+            "namespace": None,
+        }
+        assert connection == expected_spark_connection
+        assert cmd[0] == "spark3-submit"
+
     def test_resolve_connection_custom_spark_binary_not_allowed_runtime_error(self):
         with pytest.raises(RuntimeError):
             SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
@@ -448,7 +475,7 @@ class TestSparkSubmitHook:
 
     def test_resolve_connection_spark_binary_default_value_override(self):
         # Given
-        hook = SparkSubmitHook(conn_id="spark_binary_set", spark_binary="spark2-submit")
+        hook = SparkSubmitHook(conn_id="spark_binary_set", spark_binary="spark3-submit")
 
         # When
         connection = hook._resolve_connection()
@@ -457,13 +484,13 @@ class TestSparkSubmitHook:
         # Then
         expected_spark_connection = {
             "master": "yarn",
-            "spark_binary": "spark2-submit",
+            "spark_binary": "spark3-submit",
             "deploy_mode": None,
             "queue": None,
             "namespace": None,
         }
         assert connection == expected_spark_connection
-        assert cmd[0] == "spark2-submit"
+        assert cmd[0] == "spark3-submit"
 
     def test_resolve_connection_spark_binary_default_value(self):
         # Given
