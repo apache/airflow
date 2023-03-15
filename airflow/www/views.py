@@ -5036,7 +5036,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "note",
+        "dag_run_note.content",
         "external_trigger",
         "conf",
         "duration",
@@ -5049,10 +5049,11 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
-        # "note",  # todo: maybe figure out how to re-enable this
+        # "dag_run_note.content",  # todo: maybe figure out how to re-enable this
         "external_trigger",
     ]
     label_columns = {
+        "dag_run_note.content": "Note",
         "execution_date": "Logical Date",
     }
     edit_columns = [
@@ -5076,7 +5077,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        # "note", # todo: maybe figure out how to re-enable this
+        # TODO: This would sort by DagRunNote's primary key. How do we sort
+        # alphabetically by the content instead?
+        # "dag_run_note.content",
         "external_trigger",
         "conf",
     ]
