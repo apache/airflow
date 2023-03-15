@@ -475,8 +475,7 @@ class TestSetupTearDownTask:
             mytask()
         teardown_task = dag.task_group.children["mytask"]
         assert teardown_task._is_teardown
-        if on_failure_fail_dagrun:
-            assert teardown_task._on_failure_fail_dagrun is True
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
         assert len(dag.task_group.children) == 1
 
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
@@ -490,8 +489,7 @@ class TestSetupTearDownTask:
 
         teardown_task = dag.task_group.children["mytask"]
         assert teardown_task._is_teardown
-        if on_failure_fail_dagrun:
-            assert teardown_task._on_failure_fail_dagrun is True
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
         assert len(dag.task_group.children) == 1
 
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
