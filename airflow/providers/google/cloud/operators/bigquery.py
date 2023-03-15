@@ -243,7 +243,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                     conn_id=self.gcp_conn_id,
                     job_id=job.job_id,
                     project_id=hook.project_id,
-                    poll_interval=self.poll_interval
+                    poll_interval=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -367,7 +367,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     sql=self.sql,
                     pass_value=self.pass_value,
                     tolerance=self.tol,
-                    poll_interval=self.poll_interval
+                    poll_interval=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -508,7 +508,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
                     days_back=self.days_back,
                     ratio_formula=self.ratio_formula,
                     ignore_zero=self.ignore_zero,
-                    poll_interval=self.poll_interval
+                    poll_interval=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -929,7 +929,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 project_id=hook.project_id,
-                poll_interval=self.poll_interval
+                poll_interval=self.poll_interval,
             ),
             method_name="execute_complete",
         )
