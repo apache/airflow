@@ -465,6 +465,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
