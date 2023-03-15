@@ -47,7 +47,7 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "cloud_tasks_queue"
 
-LOCATION = "europe-west2"
+LOCATION = os.environ.get("GCP_APP_ENGINE_LOCATION", "europe-west2")
 QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
 
 
