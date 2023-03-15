@@ -294,38 +294,44 @@ def dag_next_execution(args):
 
     if dag.get_is_paused():
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
+        with create_session() as session:
+            last_parsed_dag: DagModel = (
+                session.query(DagModel)
+                .filter(DagModel.dag_id == dag.dag_id)
+            ).one_or_none()
+        print(last_parsed_dag.next_dagrun.isoformat())
+    else:
+        with create_session() as session:
+            max_date_subq = (
+                session.query(func.max(DagRun.execution_date).label("max_date"))
+                .filter(DagRun.dag_id == dag.dag_id)
+                .subquery()
+            )
+            max_date_run: DagRun | None = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == max_date_subq.c.max_date)
+                .one_or_none()
+            )
 
-    with create_session() as session:
-        max_date_subq = (
-            session.query(func.max(DagRun.execution_date).label("max_date"))
-            .filter(DagRun.dag_id == dag.dag_id)
-            .subquery()
-        )
-        max_date_run: DagRun | None = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == max_date_subq.c.max_date)
-            .one_or_none()
-        )
+            if max_date_run is None:
+                print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
+                print(None)
+                return
 
-        if max_date_run is None:
-            print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
+        next_info = dag.next_dagrun_info(dag.get_run_data_interval(max_date_run), restricted=False)
+        if next_info is None:
+            print(
+                "[WARN] No following schedule can be found. "
+                "This DAG may have schedule interval '@once' or `None`.",
+                file=sys.stderr,
+            )
             print(None)
             return
 
-    next_info = dag.next_dagrun_info(dag.get_run_data_interval(max_date_run), restricted=False)
-    if next_info is None:
-        print(
-            "[WARN] No following schedule can be found. "
-            "This DAG may have schedule interval '@once' or `None`.",
-            file=sys.stderr,
-        )
-        print(None)
-        return
-
-    print(next_info.logical_date.isoformat())
-    for _ in range(1, args.num_executions):
-        next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
         print(next_info.logical_date.isoformat())
+        for _ in range(1, args.num_executions):
+            next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
+            print(next_info.logical_date.isoformat())
 
 
 @cli_utils.action_cli
