@@ -77,10 +77,11 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             **kwargs,
         )
 
-    def _get_python_source(self):
+    # TODO: Remove me once this provider min supported Airflow version is 2.6
+    def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
         res = dedent(raw_source)
-        res = remove_task_decorator(res, "@task.kubernetes")
+        res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
     def _generate_cmds(self) -> list[str]:
@@ -117,7 +118,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             with open(input_filename, "wb") as file:
                 self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
 
-            py_source = self._get_python_source()
+            py_source = self.get_python_source()
             jinja_context = {
                 "op_args": self.op_args,
                 "op_kwargs": self.op_kwargs,
