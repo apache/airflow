@@ -2630,6 +2630,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     :param result_retry: How to retry the `result` call that retrieves rows
     :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -2660,6 +2661,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
         delegate_to: str | None = None,
         **kwargs,
     ) -> None:
@@ -2682,6 +2684,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         self.result_timeout = result_timeout
         self.hook: BigQueryHook | None = None
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
@@ -2789,6 +2792,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
                 conn_id=self.gcp_conn_id,
                 job_id=self.job_id,
                 project_id=self.project_id,
+                poll_interval=self.poll_interval,
             ),
             method_name="execute_complete",
         )
