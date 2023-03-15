@@ -174,6 +174,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 ), Stats.timer() as timer:
                     _handle_dag_file_processing()
             log.info("Processing %s took %.3f seconds", file_path, timer.duration)
+            Stats.timing("dag.processor.parse.time", dt=timer.duration, tags={"file_path": file_path})
         except Exception:
             # Log exceptions through the logging framework.
             log.exception("Got an exception! Propagating...")
@@ -534,7 +535,9 @@ class DagFileProcessor(LoggingMixin):
                     email_sent = True
                     notification_sent = True
                 except Exception:
-                    Stats.incr("sla_email_notification_failure", tags={"dag_id": dag.dag_id})
+                    Stats.incr(
+                        "sla_email_notification_failure", tags={"dag_id": dag.dag_id, "email": str(emails)}
+                    )
                     cls.logger().exception(
                         "Could not send SLA Miss email notification for DAG %s", dag.dag_id
                     )
@@ -747,7 +750,7 @@ class DagFileProcessor(LoggingMixin):
             return DagBag(file_path, include_examples=False)
         except Exception:
             cls.logger().exception("Failed at reloading the DAG file %s", file_path)
-            Stats.incr("dag_file_refresh_error", 1, 1)
+            Stats.incr("dag_file_refresh_error", tags={"file_path": file_path})
             raise
 
     @provide_session
