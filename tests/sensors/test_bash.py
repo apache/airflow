@@ -21,7 +21,7 @@ import datetime
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.exceptions import AirflowFailException, AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.sensors.bash import BashSensor
 
@@ -78,5 +78,5 @@ class TestBashSensor:
             retry_exit_code=99,
             dag=self.dag,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowFailException):
             op.execute(None)

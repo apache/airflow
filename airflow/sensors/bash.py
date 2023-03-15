@@ -22,7 +22,7 @@ from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
 from typing import Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowFailException
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.context import Context
 
@@ -103,7 +103,7 @@ class BashSensor(BaseSensorOperator):
                             self.log.info("Return code matches retry code, will retry later")
                             return False
                         else:
-                            raise AirflowException(f"Command exited with return code {resp.returncode}")
+                            raise AirflowFailException(f"Command exited with return code {resp.returncode}")
 
                     # backwards compatibility: sensor retries no matter the error code
                     else:
