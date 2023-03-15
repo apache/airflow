@@ -41,27 +41,118 @@ export interface CustomNodeProps {
   childCount?: number;
   onToggleCollapse: () => void;
   isOpen?: boolean;
+  isActive?: boolean;
 }
 
-const Node = ({
+export const BaseNode = ({
   id,
   data: {
     label,
     childCount,
     height,
     width,
-    isJoinNode,
     instance,
     task,
     isSelected,
     latestDagRunId,
     onToggleCollapse,
     isOpen,
+    isActive,
   },
 }: NodeProps<CustomNodeProps>) => {
   const { onSelect } = useSelection();
   const containerRef = useContainerRef();
 
+  if (!task) return null;
+
+  const { isMapped } = task;
+  const mappedStates = instance?.mappedStates;
+
+  const { totalTasks } = getGroupAndMapSummary({ group: task, mappedStates });
+
+  const taskName = isMapped
+    ? `${label} [${instance ? totalTasks : " "}]`
+    : label;
+
+  return (
+    <Tooltip
+      label={
+        instance && task ? (
+          <InstanceTooltip instance={instance} group={task} />
+        ) : null
+      }
+      portalProps={{ containerRef }}
+      hasArrow
+      placement="top"
+      openDelay={hoverDelay}
+    >
+      <Box
+        borderRadius={5}
+        borderWidth={1}
+        borderColor={isSelected ? "blue.400" : "gray.400"}
+        bg={isSelected ? "blue.50" : "white"}
+        height={`${height}px`}
+        width={`${width}px`}
+        cursor={latestDagRunId ? "cursor" : "default"}
+        opacity={isActive ? 1 : 0.3}
+        transition="opacity 0.2s"
+        data-testid="node"
+        onClick={() => {
+          if (latestDagRunId) {
+            onSelect({
+              runId: instance?.runId || latestDagRunId,
+              taskId: isSelected ? undefined : id,
+            });
+          }
+        }}
+      >
+        <Flex
+          justifyContent="space-between"
+          width={width}
+          p={2}
+          flexWrap="wrap"
+        >
+          <Flex flexDirection="column">
+            <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
+              {taskName}
+            </Text>
+            {!!instance && instance.state && (
+              <Flex alignItems="center">
+                <SimpleStatus state={instance.state} />
+                <Text ml={2} color="gray.500" fontSize="sm">
+                  {instance.state}
+                </Text>
+              </Flex>
+            )}
+            {task?.operator && (
+              <Text color="gray.500" fontWeight={400} fontSize="md">
+                {task.operator}
+              </Text>
+            )}
+          </Flex>
+          {!!childCount && (
+            <Text
+              color="blue.600"
+              cursor="pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse();
+              }}
+            >
+              {isOpen ? "- " : "+ "}
+              {childCount} tasks
+            </Text>
+          )}
+        </Flex>
+      </Box>
+    </Tooltip>
+  );
+};
+
+const Node = (props: NodeProps<CustomNodeProps>) => {
+  const {
+    data: { height, width, isJoinNode, task },
+  } = props;
   if (isJoinNode) {
     return (
       <>
@@ -86,16 +177,6 @@ const Node = ({
   }
 
   if (!task) return null;
-
-  const { isMapped } = task;
-  const mappedStates = instance?.mappedStates;
-
-  const { totalTasks } = getGroupAndMapSummary({ group: task, mappedStates });
-
-  const taskName = isMapped
-    ? `${label} [${instance ? totalTasks : " "}]`
-    : label;
-
   return (
     <>
       <Handle
@@ -103,74 +184,7 @@ const Node = ({
         position={Position.Top}
         style={{ visibility: "hidden" }}
       />
-      <Tooltip
-        label={
-          instance && task ? (
-            <InstanceTooltip instance={instance} group={task} />
-          ) : null
-        }
-        portalProps={{ containerRef }}
-        hasArrow
-        placement="top"
-        openDelay={hoverDelay}
-      >
-        <Box
-          borderRadius={5}
-          borderWidth={1}
-          borderColor={isSelected ? "blue.400" : "gray.400"}
-          bg={isSelected ? "blue.50" : "white"}
-          height={`${height}px`}
-          width={`${width}px`}
-          cursor={latestDagRunId ? "cursor" : "default"}
-          onClick={() => {
-            if (latestDagRunId) {
-              onSelect({
-                runId: instance?.runId || latestDagRunId,
-                taskId: isSelected ? undefined : id,
-              });
-            }
-          }}
-        >
-          <Flex
-            justifyContent="space-between"
-            width={width}
-            p={2}
-            flexWrap="wrap"
-          >
-            <Flex flexDirection="column">
-              <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
-                {taskName}
-              </Text>
-              {!!instance && instance.state && (
-                <Flex alignItems="center">
-                  <SimpleStatus state={instance.state} />
-                  <Text ml={2} color="gray.500" fontSize="sm">
-                    {instance.state}
-                  </Text>
-                </Flex>
-              )}
-              {task?.operator && (
-                <Text color="gray.500" fontWeight={400} fontSize="md">
-                  {task.operator}
-                </Text>
-              )}
-            </Flex>
-            {!!childCount && (
-              <Text
-                color="blue.600"
-                cursor="pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleCollapse();
-                }}
-              >
-                {isOpen ? "- " : "+ "}
-                {childCount} tasks
-              </Text>
-            )}
-          </Flex>
-        </Box>
-      </Tooltip>
+      <BaseNode {...props} />
       <Handle
         type="source"
         position={Position.Bottom}

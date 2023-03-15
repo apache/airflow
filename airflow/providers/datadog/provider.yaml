@@ -51,3 +51,7 @@ hooks:
   - integration-name: Datadog
     python-modules:
       - airflow.providers.datadog.hooks.datadog
+
+connection-types:
+  - hook-class-name: airflow.providers.datadog.hooks.datadog.DatadogHook
+    connection-type: datadog

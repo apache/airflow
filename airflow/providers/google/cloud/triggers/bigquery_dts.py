@@ -101,6 +101,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                     project_id=self.project_id,
                     config_id=self.config_id,
                     run_id=self.run_id,
+                    location=self.location,
                 )
                 state = transfer_run.state
                 self.log.info("Current state is %s", state)

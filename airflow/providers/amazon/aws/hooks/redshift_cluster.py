@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import warnings
 from typing import Any, Sequence
 
+import botocore.exceptions
 from botocore.exceptions import ClientError
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook, AwsBaseHook
 
 
 class RedshiftHook(AwsBaseHook):
@@ -200,3 +202,82 @@ class RedshiftHook(AwsBaseHook):
             return snapshot_status
         except self.get_conn().exceptions.ClusterSnapshotNotFoundFault:
             return None
+
+
+class RedshiftAsyncHook(AwsBaseAsyncHook):
+    """Interact with AWS Redshift using aiobotocore library"""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs["client_type"] = "redshift"
+        super().__init__(*args, **kwargs)
+
+    async def cluster_status(self, cluster_identifier: str, delete_operation: bool = False) -> dict[str, Any]:
+        """
+        Connects to the AWS redshift cluster via aiobotocore and get the status
+        and returns the status of the cluster based on the cluster_identifier passed
+
+        :param cluster_identifier: unique identifier of a cluster
+        :param delete_operation: whether the method has been called as part of delete cluster operation
+        """
+        async with await self.get_client_async() as client:
+            try:
+                response = await client.describe_clusters(ClusterIdentifier=cluster_identifier)
+                cluster_state = (
+                    response["Clusters"][0]["ClusterStatus"] if response and response["Clusters"] else None
+                )
+                return {"status": "success", "cluster_state": cluster_state}
+            except botocore.exceptions.ClientError as error:
+                if delete_operation and error.response.get("Error", {}).get("Code", "") == "ClusterNotFound":
+                    return {"status": "success", "cluster_state": "cluster_not_found"}
+                return {"status": "error", "message": str(error)}
+
+    async def pause_cluster(self, cluster_identifier: str, poll_interval: float = 5.0) -> dict[str, Any]:
+        """
+        Connects to the AWS redshift cluster via aiobotocore and
+        pause the cluster based on the cluster_identifier passed
+
+        :param cluster_identifier: unique identifier of a cluster
+        :param poll_interval: polling period in seconds to check for the status
+        """
+        try:
+            async with await self.get_client_async() as client:
+                response = await client.pause_cluster(ClusterIdentifier=cluster_identifier)
+                status = response["Cluster"]["ClusterStatus"] if response and response["Cluster"] else None
+                if status == "pausing":
+                    flag = asyncio.Event()
+                    while True:
+                        expected_response = await asyncio.create_task(
+                            self.get_cluster_status(cluster_identifier, "paused", flag)
+                        )
+                        await asyncio.sleep(poll_interval)
+                        if flag.is_set():
+                            return expected_response
+                return {"status": "error", "cluster_state": status}
+        except botocore.exceptions.ClientError as error:
+            return {"status": "error", "message": str(error)}
+
+    async def get_cluster_status(
+        self,
+        cluster_identifier: str,
+        expected_state: str,
+        flag: asyncio.Event,
+        delete_operation: bool = False,
+    ) -> dict[str, Any]:
+        """
+        check for expected Redshift cluster state
+
+        :param cluster_identifier: unique identifier of a cluster
+        :param expected_state: expected_state example("available", "pausing", "paused"")
+        :param flag: asyncio even flag set true if success and if any error
+        :param delete_operation: whether the method has been called as part of delete cluster operation
+        """
+        try:
+            response = await self.cluster_status(cluster_identifier, delete_operation=delete_operation)
+            if ("cluster_state" in response and response["cluster_state"] == expected_state) or response[
+                "status"
+            ] == "error":
+                flag.set()
+            return response
+        except botocore.exceptions.ClientError as error:
+            flag.set()
+            return {"status": "error", "message": str(error)}
