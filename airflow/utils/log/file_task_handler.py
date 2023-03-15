@@ -441,8 +441,16 @@ class FileTaskHandler(logging.Handler):
         )
         directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
         if directory.stat().st_mode % 0o1000 != new_folder_permissions % 0o1000:
-            print(f"Changing dir permission to {new_folder_permissions}")
-            directory.chmod(new_folder_permissions)
+            print(f"Changing {directory} permission to {new_folder_permissions}")
+            try:
+                directory.chmod(new_folder_permissions)
+            except PermissionError as e:
+                # In some circumstances (depends on user and filesystem) we might not be able to
+                # change the permission for the folder (when the folder was created by another user
+                # before or when the filesystem does not allow to change permission). We should not
+                # fail in this case but rather ignore it.
+                print(f"Failed to change {directory} permission to {new_folder_permissions}: {e}")
+                pass
 
     def _init_file(self, ti):
         """
