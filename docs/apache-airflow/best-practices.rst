@@ -174,7 +174,7 @@ Good example:
 
       print_array()
 
-In the Bad example, numpy is imported everytime the dag file is parsed, which will result in suboptimal performance in the dag file processing. In the Good example, numpy is only imported when the task is running. 
+In the Bad example, NumPy is imported everytime the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running. 
 
 Dynamic DAG Generation
 ----------------------
