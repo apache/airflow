@@ -2215,21 +2215,21 @@ class DAG(LoggingMixin):
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
-            copied = copy.copy(group)
-            copied.used_group_ids = set(copied.used_group_ids)
-            copied._parent_group = parent_group
-
-            copied.children = {}
+            memo = {id(group.children): {}}
+            if parent_group:
+                memo[id(group.parent_group)] = parent_group
+            copied = copy.deepcopy(group, memo)
+            proxy = weakref.proxy(copied)
 
             for child in group.children.values():
                 if isinstance(child, AbstractOperator):
                     if child.task_id in dag.task_dict:
                         task = copied.children[child.task_id] = dag.task_dict[child.task_id]
-                        task.task_group = weakref.proxy(copied)
+                        task.task_group = proxy
                     else:
                         copied.used_group_ids.discard(child.task_id)
                 else:
-                    filtered_child = filter_task_group(child, copied)
+                    filtered_child = filter_task_group(child, proxy)
 
                     # Only include this child TaskGroup if it is non-empty.
                     if filtered_child.children:
@@ -2237,7 +2237,7 @@ class DAG(LoggingMixin):
 
             return copied
 
-        dag._task_group = filter_task_group(self._task_group, None)
+        dag._task_group = filter_task_group(self.task_group, None)
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
         # the cut.
