@@ -2719,6 +2719,13 @@ kubernetes_executor:
       type: integer
       example: ~
       default: "100"
+    ssl_ca_cert:
+      description: |
+        Path to a CA certificate to be used by the Kubernetes client to verify the server's SSL certificate.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
 sensors:
   description: ~
   options:

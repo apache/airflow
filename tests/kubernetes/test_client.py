@@ -42,14 +42,17 @@ class TestClient:
     @mock.patch("airflow.kubernetes.kube_client.conf")
     def test_load_config_disable_ssl(self, conf, config):
         conf.getboolean.return_value = False
-        get_kube_client(in_cluster=False)
+        client = get_kube_client(in_cluster=False)
         conf.getboolean.assert_called_with("kubernetes_executor", "verify_ssl")
-        # Support wide range of kube client libraries
-        if hasattr(Configuration, "get_default_copy"):
-            configuration = Configuration.get_default_copy()
-        else:
-            configuration = Configuration()
-        assert not configuration.verify_ssl
+        assert not client.api_client.configuration.verify_ssl
+
+    @mock.patch("airflow.kubernetes.kube_client.config")
+    @mock.patch("airflow.kubernetes.kube_client.conf")
+    def test_load_config_ssl_ca_cert(self, conf, config):
+        conf.get.return_value = "/path/to/ca.crt"
+        client = get_kube_client(in_cluster=False)
+        conf.get.assert_called_with("kubernetes_executor", "ssl_ca_cert")
+        assert client.api_client.configuration.ssl_ca_cert == "/path/to/ca.crt"
 
     def test_enable_tcp_keepalive(self):
         socket_options = [
