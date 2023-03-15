@@ -222,3 +222,15 @@ class TestStatsd:
         )
 
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == args
+
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
