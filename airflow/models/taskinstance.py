@@ -2655,18 +2655,20 @@ class TaskInstance(Base, LoggingMixin):
         :return: Specific map index or map indexes to pull, or ``None`` if we
             want to "whole" return value (i.e. no mapped task groups involved).
         """
+        # This value should never be None since we already know the current task
+        # is in a mapped task group, and should have been expanded, despite that,
+        # we need to check that it is not None to satisfy Mypy.
+        # But this value can be 0 when we expand an empty list, for that it is
+        # necessary to check that ti_count is not 0 to avoid dividing by 0.
+        if not ti_count:
+            return None
+
         # Find the innermost common mapped task group between the current task
         # If the current task and the referenced task does not have a common
         # mapped task group, the two are in different task mapping contexts
         # (like another_task above), and we should use the "whole" value.
         common_ancestor = _find_common_ancestor_mapped_group(self.task, upstream)
         if common_ancestor is None:
-            return None
-
-        # This value should never be None since we already know the current task
-        # is in a mapped task group, and should have been expanded. The check
-        # exists mainly to satisfy Mypy.
-        if ti_count is None:
             return None
 
         # At this point we know the two tasks share a mapped task group, and we
