@@ -296,8 +296,7 @@ def dag_next_execution(args):
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
         with create_session() as session:
             last_parsed_dag: DagModel = (
-                session.query(DagModel)
-                .filter(DagModel.dag_id == dag.dag_id)
+                session.query(DagModel).filter(DagModel.dag_id == dag.dag_id)
             ).one_or_none()
         print(last_parsed_dag.next_dagrun.isoformat())
     else:
@@ -314,7 +313,10 @@ def dag_next_execution(args):
             )
 
             if max_date_run is None:
-                print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
+                print(
+                    "[WARN] Only applicable when there is execution record found for the DAG.",
+                    file=sys.stderr,
+                )
                 print(None)
                 return
 
