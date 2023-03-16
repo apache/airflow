@@ -25,6 +25,7 @@ import pytest
 from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.www import app as application
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -400,12 +401,20 @@ def test_page_instance_name_xss_prevention(admin_client):
         check_content_not_in_response(xss_string, resp)
 
 
-@conf_vars(
-    {
-        ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
-        ("webserver", "instance_name_has_markup"): "True",
-    }
-)
+instance_name_with_markup_conf = {
+    ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
+    ("webserver", "instance_name_has_markup"): "True",
+}
+
+
+@conf_vars(instance_name_with_markup_conf)
 def test_page_instance_name_with_markup(admin_client):
     resp = admin_client.get("home", follow_redirects=True)
     check_content_in_response("<b>Bold Site Title Test</b>", resp)
+    check_content_not_in_response("&lt;b&gt;Bold Site Title Test&lt;/b&gt;", resp)
+
+
+@conf_vars(instance_name_with_markup_conf)
+def test_page_instance_name_with_markup_title():
+    appbuilder = application.create_app(testing=True).appbuilder
+    assert appbuilder.app_name == "Bold Site Title Test"
