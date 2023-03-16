@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import warnings
+from typing import Any
 
 import hvac
 from hvac.exceptions import VaultError
@@ -186,16 +187,22 @@ class VaultHook(BaseHook):
             else (None, None)
         )
 
-        if self.connection.conn_type == "vault":
-            conn_protocol = "http"
-        elif self.connection.conn_type == "vaults":
-            conn_protocol = "https"
-        elif self.connection.conn_type == "http":
-            conn_protocol = "http"
-        elif self.connection.conn_type == "https":
-            conn_protocol = "https"
+        if self.connection.extra_dejson.get("use_tls") is not None:
+            if bool(self.connection.extra_dejson.get("use_tls")):
+                conn_protocol = "https"
+            else:
+                conn_protocol = "http"
         else:
-            raise VaultError("The url schema must be one of ['http', 'https', 'vault', 'vaults' ]")
+            if self.connection.conn_type == "vault":
+                conn_protocol = "http"
+            elif self.connection.conn_type == "vaults":
+                conn_protocol = "https"
+            elif self.connection.conn_type == "http":
+                conn_protocol = "http"
+            elif self.connection.conn_type == "https":
+                conn_protocol = "https"
+            else:
+                raise VaultError("The url schema must be one of ['http', 'https', 'vault', 'vaults' ]")
 
         url = f"{conn_protocol}://{self.connection.host}"
         if self.connection.port:
@@ -355,3 +362,54 @@ class VaultHook(BaseHook):
         return self.vault_client.create_or_update_secret(
             secret_path=secret_path, secret=secret, method=method, cas=cas
         )
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, IntegerField, StringField
+        from wtforms.validators import NumberRange, any_of
+
+        return {
+            "auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
+            "auth_mount_point": StringField(lazy_gettext("Auth mount point"), widget=BS3TextFieldWidget()),
+            "kv_engine_version": IntegerField(
+                lazy_gettext("KV engine version"),
+                validators=[any_of([1, 2])],
+                widget=BS3TextFieldWidget(),
+            ),
+            "role_id": StringField(lazy_gettext("Role ID (deprecated)"), widget=BS3TextFieldWidget()),
+            "kubernetes_role": StringField(lazy_gettext("Kubernetes role"), widget=BS3TextFieldWidget()),
+            "kubernetes_jwt_path": StringField(
+                lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
+            ),
+            "token_path": StringField(lazy_gettext("Token path"), widget=BS3TextFieldWidget()),
+            "gcp_key_path": StringField(lazy_gettext("GCP key path"), widget=BS3TextFieldWidget()),
+            "gcp_scopes": StringField(lazy_gettext("GCP scopes"), widget=BS3TextFieldWidget()),
+            "azure_tenant_id": StringField(lazy_gettext("Azure tenant ID"), widget=BS3TextFieldWidget()),
+            "azure_resource": StringField(lazy_gettext("Azure resource"), widget=BS3TextFieldWidget()),
+            "radius_host": StringField(lazy_gettext("Radius host"), widget=BS3TextFieldWidget()),
+            "radius_port": IntegerField(
+                lazy_gettext("Radius port"),
+                validators=[NumberRange(min=0)],
+                widget=BS3TextFieldWidget(),
+            ),
+            "use_tls": BooleanField(lazy_gettext("Use TLS"), default=True),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test Vault connectivity from UI"""
+        try:
+            self.get_conn()
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)
