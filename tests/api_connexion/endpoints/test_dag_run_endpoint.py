@@ -1228,6 +1228,27 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 400
         assert response.json["detail"] == expected
 
+    @pytest.mark.parametrize(
+        "data, expected",
+        [
+            (
+                {
+                    "dag_run_id": "TEST_DAG_RUN",
+                    "execution_date": "2020-06-11T18:00:00+00:00",
+                    "state": "queueueued",
+                },
+                "'queueueued' is not one of ['queued', 'running', 'success', 'failed'] - 'state'",
+            )
+        ],
+    )
+    def test_should_response_400_for_invalid_state(self, data, expected):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 400
+        assert response.json["detail"] == expected
+
     def test_response_404(self):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
