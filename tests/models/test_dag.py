@@ -63,7 +63,12 @@ from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import (
+    ContinuousTimetable,
+    DatasetTriggeredTimetable,
+    NullTimetable,
+    OnceTimetable,
+)
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -2406,6 +2411,21 @@ my_postgres_conn:
         with pytest.raises(ValueError, match="At most one"):
             with DAG(dag_id="hello", **kwargs):
                 pass
+
+    def test_continuous_schedule_interval_limits_max_active_runs(self):
+
+        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=1)
+        assert isinstance(dag.timetable, ContinuousTimetable)
+        assert dag.max_active_runs == 1
+
+        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=0)
+        assert isinstance(dag.timetable, ContinuousTimetable)
+        assert dag.max_active_runs == 0
+
+        with pytest.raises(AirflowException):
+            dag = DAG(
+                "continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=25
+            )
 
 
 class TestDagModel:
