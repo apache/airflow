@@ -183,7 +183,7 @@ class TestCliTasks:
             dag = dagbag.get_dag("test_dags_folder")
             dagbag.sync_to_db(session=session)
 
-        execution_date = pendulum.now('UTC')
+        execution_date = pendulum.now("UTC")
         data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
         dag.create_dagrun(
             state=State.NONE,
