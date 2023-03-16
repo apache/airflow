@@ -858,6 +858,10 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
     """
+    # NOTE: SELECT queries in this function are INTENTIONALLY written with the
+    # SQL builder style, not the ORM query API. This avoids configuring the ORM
+    # unless we need to insert something, speeding up CLI in general.
+
     from airflow.models.tasklog import LogTemplate
 
     metadata = reflect_tables([LogTemplate], session)
