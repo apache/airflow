@@ -28,8 +28,7 @@ from pathspec.patterns import GitWildMatchPattern
 from typing_extensions import Protocol
 
 from airflow.configuration import conf
-from airflowinfra.migrated_dag_files import MIGRATED_DAG_FILES
-from airflowinfra.staging_migrated_dag_files import STAGING_MIGRATED_DAG_FILES
+
 
 if TYPE_CHECKING:
     import pathlib
@@ -212,10 +211,15 @@ def _find_path_from_directory(
     :return: a generator of file paths which should not be ignored.
     """
     # A Dict of patterns, keyed using resolved, absolute paths
-    patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
-    migrated_dags_set = MIGRATED_DAG_FILES if os.environ.get("SERVICE_INSTANCE", "").lower() == "production" \
-        else STAGING_MIGRATED_DAG_FILES
+    service_instance = os.environ.get('SERVICE_INSTANCE', '').lower()
+    if service_instance == 'production' or service_instance == 'staging':
+        from airflowinfra.migrated_dag_files import MIGRATED_DAG_FILES
+        from airflowinfra.staging_migrated_dag_files import STAGING_MIGRATED_DAG_FILES
+        migrated_dags_set = MIGRATED_DAG_FILES if service_instance == "production" \
+            else STAGING_MIGRATED_DAG_FILES
+
+    patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
     # set this rather than import from lyft_etl to avoid any circular import errors
     is_airflow_dev_env = "kyte" in os.environ.get("SERVICE", "") or "tars" in os.environ.get("SERVICE", "")
@@ -266,8 +270,9 @@ def _find_path_from_directory(
 
             # only load dag files that are already migrated
             # work around for poor negative look back regex performance
-            if not (is_airflow_dev_env or is_loadtest_env) and str(abs_file_path) not in migrated_dags_set:
-                continue
+            if service_instance == 'production' or service_instance == 'staging':
+                if not (is_airflow_dev_env or is_loadtest_env) and str(abs_file_path) not in migrated_dags_set:
+                    continue
 
             yield str(abs_file_path)
 
