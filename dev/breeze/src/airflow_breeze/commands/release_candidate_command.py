@@ -261,6 +261,33 @@ def create_issue_for_testing(version, previous_version, github_token):
             )
 
 
+def remove_old_releases(version, repo_root):
+    if not confirm_action("Do you want to look for old RCs to remove?"):
+        return
+
+    os.chdir("asf-dist/dev/airflow")
+
+    old_releases = []
+    for entry in os.scandir():
+        if entry.name == version:
+            # Don't remove the current RC
+            continue
+        if entry.is_dir() and entry.name.startswith("2."):
+            old_releases.append(entry.name)
+    old_releases.sort()
+
+    for old_release in old_releases:
+        if confirm_action(f"Remove old RC {old_release}?"):
+            run_command(["svn", "rm", old_release], dry_run_override=DRY_RUN, check=True)
+            run_command(
+                ["svn", "commit", "-m", f"Remove old release: {old_release}"],
+                dry_run_override=DRY_RUN,
+                check=True,
+            )
+
+    os.chdir(repo_root)
+
+
 @click.command(
     name="start-rc-process",
     short_help="Start RC process",
@@ -343,5 +370,9 @@ def publish_release_candidate(version, previous_version, github_token):
     # Create issue for testing
     os.chdir(airflow_repo_root)
     create_issue_for_testing(version, previous_version, github_token)
+
+    # Remove old releases
+    remove_old_releases(version, airflow_repo_root)
+
     console_print()
     console_print("Done!")
