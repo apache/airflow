@@ -31,7 +31,7 @@ CONFIG = {"encryption": "LINEAR16"}
 AUDIO = {"uri": "gs://bucket/object"}
 
 
-class TestTextToSpeechOperator:
+class TestCloudSpeechToTextHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
             CloudSpeechToTextHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")

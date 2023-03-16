@@ -59,5 +59,5 @@ class TestTextToSpeechHook:
             input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG
         )
         synthesize_method.assert_called_once_with(
-            input_=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=DEFAULT, timeout=None
+            input=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=DEFAULT, timeout=None
         )
