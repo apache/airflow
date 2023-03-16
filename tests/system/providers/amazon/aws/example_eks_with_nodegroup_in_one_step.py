@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.operators.bash import BashOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -86,8 +87,21 @@ with DAG(
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
         get_logs=True,
-        # Delete the pod when it reaches its final state, or the execution is interrupted.
-        is_delete_operator_pod=True,
+        # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
+        is_delete_operator_pod=False,
+    )
+
+    describe_pod = BashOperator(
+        task_id="describe_pod",
+        bash_command=""
+        # using reinstall option so that it doesn't fail if already present
+        "install_aws.sh --reinstall " "&& install_kubectl.sh --reinstall "
+        # configure kubectl to hit the cluster created
+        f"&& aws eks update-kubeconfig --name {cluster_name} "
+        # once all this setup is done, actually describe the pod
+        "&& kubectl describe pod {{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}",
+        # only describe the pod if the task above failed, to help diagnose
+        trigger_rule=TriggerRule.ONE_FAILED,
     )
 
     # [START howto_operator_eks_force_delete_cluster]
@@ -116,6 +130,8 @@ with DAG(
         create_cluster_and_nodegroup,
         await_create_nodegroup,
         start_pod,
+        # TEST TEARDOWN
+        describe_pod,
         delete_nodegroup_and_cluster,
         await_delete_cluster,
     )
