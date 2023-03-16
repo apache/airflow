@@ -20,6 +20,7 @@ import inspect
 import re
 import warnings
 from itertools import chain
+from textwrap import dedent
 from typing import (
     Any,
     Callable,
@@ -66,6 +67,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
+from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.types import NOTSET
@@ -266,6 +268,12 @@ class DecoratedOperator(BaseOperator):
                 op_kwargs[arg] = default_args[arg]
         kwargs["op_kwargs"] = op_kwargs
         return args, kwargs
+
+    def get_python_source(self):
+        raw_source = inspect.getsource(self.python_callable)
+        res = dedent(raw_source)
+        res = remove_task_decorator(res, self.custom_operator_name)
+        return res
 
 
 FParams = ParamSpec("FParams")
