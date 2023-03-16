@@ -29,9 +29,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   podSelector:
     matchLabels:
@@ -46,21 +46,20 @@ spec:
         matchLabels:
           tier: airflow
           release: {{ .Release.Name }}
-{{- if .Values.workers.keda.enabled }}
-{{- if .Values.workers.keda.namespaceLabels }}
+    {{- if .Values.workers.keda.enabled }}
+    {{- if .Values.workers.keda.namespaceLabels }}
     - namespaceSelector:
-       matchLabels:
-{{ toYaml .Values.workers.keda.namespaceLabels | indent 10}}
+       matchLabels: {{- toYaml .Values.workers.keda.namespaceLabels | nindent 10 }}
       podSelector:
-{{- else }}
+    {{- else }}
     - podSelector:
-{{- end }}
+    {{- end }}
         matchLabels:
           app: keda-operator
-{{- end}}
-{{- if .Values.pgbouncer.extraNetworkPolicies}}
-{{ toYaml .Values.pgbouncer.extraNetworkPolicies | indent 4}}
-{{- end}}
+    {{- end}}
+    {{- if .Values.pgbouncer.extraNetworkPolicies}}
+      {{- toYaml .Values.pgbouncer.extraNetworkPolicies | nindent 4 }}
+    {{- end}}
     ports:
     - protocol: TCP
       port: {{ .Values.ports.pgbouncer }}

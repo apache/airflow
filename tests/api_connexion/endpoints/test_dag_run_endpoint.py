@@ -120,6 +120,7 @@ class TestDagRunEndpoint:
 
     def _create_dag(self, dag_id):
         dag_instance = DagModel(dag_id=dag_id)
+        dag_instance.is_active = True
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None)
@@ -132,7 +133,7 @@ class TestDagRunEndpoint:
 
         for i in range(idx_start, idx_start + 2):
             if i == 1:
-                dags.append(DagModel(dag_id="TEST_DAG_ID"))
+                dags.append(DagModel(dag_id="TEST_DAG_ID", is_active=True))
             dagrun_model = DagRun(
                 dag_id="TEST_DAG_ID",
                 run_id="TEST_DAG_RUN_ID_" + str(i),
@@ -1086,6 +1087,18 @@ class TestPostDagRun(TestDagRunEndpoint):
             "note": note,
         }
         _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
+
+    def test_should_respond_404_if_a_dag_is_inactive(self, session):
+        dm = self._create_dag("TEST_INACTIVE_DAG_ID")
+        dm.is_active = False
+        session.add(dm)
+        session.flush()
+        response = self.client.post(
+            "api/v1/dags/TEST_INACTIVE_DAG_ID/dagRuns",
+            json={},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, session):
         """Test that if a dagmodel has import errors, dags won't be triggered"""

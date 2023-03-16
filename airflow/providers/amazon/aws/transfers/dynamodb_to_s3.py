@@ -29,9 +29,10 @@ from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
-from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -52,7 +53,10 @@ def _convert_item_to_json_bytes(item: dict[str, Any]) -> bytes:
 
 
 def _upload_file_to_s3(
-    file_obj: IO, bucket_name: str, s3_key_prefix: str, aws_conn_id: str = "aws_default"
+    file_obj: IO,
+    bucket_name: str,
+    s3_key_prefix: str,
+    aws_conn_id: str | None = AwsBaseHook.default_conn_name,
 ) -> None:
     s3_client = S3Hook(aws_conn_id=aws_conn_id).get_conn()
     file_obj.seek(0)
@@ -63,7 +67,7 @@ def _upload_file_to_s3(
     )
 
 
-class DynamoDBToS3Operator(BaseOperator):
+class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     """
     Replicates records from a DynamoDB table to S3.
     It scans a DynamoDB table and writes the received records to a file
@@ -83,18 +87,15 @@ class DynamoDBToS3Operator(BaseOperator):
     :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
     """  # noqa: E501
 
     template_fields: Sequence[str] = (
+        *AwsToAwsBaseOperator.template_fields,
         "s3_bucket_name",
         "s3_key_prefix",
         "dynamodb_table_name",
     )
+
     template_fields_renderers = {
         "dynamodb_scan_kwargs": "json",
     }
@@ -108,7 +109,6 @@ class DynamoDBToS3Operator(BaseOperator):
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
-        aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -118,10 +118,9 @@ class DynamoDBToS3Operator(BaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> None:
-        hook = DynamoDBHook(aws_conn_id=self.aws_conn_id)
+        hook = DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
         table = hook.get_conn().Table(self.dynamodb_table_name)
 
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
@@ -135,7 +134,7 @@ class DynamoDBToS3Operator(BaseOperator):
                 raise e
             finally:
                 if err is None:
-                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix, self.aws_conn_id)
+                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix, self.dest_aws_conn_id)
 
     def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
@@ -153,7 +152,7 @@ class DynamoDBToS3Operator(BaseOperator):
 
             # Upload the file to S3 if reach file size limit
             if getsize(temp_file.name) >= self.file_size:
-                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix, self.aws_conn_id)
+                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix, self.dest_aws_conn_id)
                 temp_file.close()
 
                 temp_file = NamedTemporaryFile()

@@ -149,7 +149,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
 def get_merged_defaults(
     dag: DAG | None,
     task_group: TaskGroup | None,
-    task_params: dict | None,
+    task_params: collections.abc.MutableMapping | None,
     task_default_args: dict | None,
 ) -> tuple[dict, ParamsDict]:
     args, params = _get_parent_defaults(dag, task_group)
@@ -194,7 +194,7 @@ def partial(
     end_date: datetime | None = None,
     owner: str = DEFAULT_OWNER,
     email: None | str | Iterable[str] = None,
-    params: dict | None = None,
+    params: collections.abc.MutableMapping | None = None,
     resources: dict[str, Any] | None = None,
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
@@ -686,6 +686,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    _is_setup = False
+    _is_teardown = False
+
     def __init__(
         self,
         task_id: str,
@@ -704,7 +707,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
-        params: dict | None = None,
+        params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str = DEFAULT_WEIGHT_RULE,
@@ -1472,6 +1475,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "template_fields",
                     "template_fields_renderers",
                     "params",
+                    "_is_setup",
+                    "_is_teardown",
                 }
             )
             DagContext.pop_context_managed_dag()

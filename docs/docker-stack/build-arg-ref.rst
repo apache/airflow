@@ -103,6 +103,7 @@ List of default extras in the production Dockerfile:
 * sendgrid
 * sftp
 * slack
+* snowflake
 * ssh
 * statsd
 * virtualenv

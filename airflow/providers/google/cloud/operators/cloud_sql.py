@@ -524,6 +524,98 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             return hook.delete_instance(project_id=self.project_id, instance=self.instance)
 
 
+class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
+    """
+    Clones an instance to a target instance
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSQLCloneInstanceOperator`
+
+    :param instance: Database instance ID to be cloned. This does not include the
+            project ID.
+    :param destination_instance_name: Database instance ID to be created. This does not include the
+        project ID.
+    :param clone_context: additional clone_context parameters as described in
+        https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param api_version: API version used (e.g. v1beta4).
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    # [START gcp_sql_clone_template_fields]
+    template_fields: Sequence[str] = (
+        "project_id",
+        "instance",
+        "destination_instance_name",
+        "gcp_conn_id",
+        "api_version",
+    )
+    # [END gcp_sql_clone_template_fields]
+
+    def __init__(
+        self,
+        *,
+        instance: str,
+        destination_instance_name: str,
+        clone_context: dict | None = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        self.destination_instance_name = destination_instance_name
+        self.clone_context = clone_context or {}
+        super().__init__(
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.destination_instance_name:
+            raise AirflowException("The required parameter 'destination_instance_name' is empty or None")
+
+    def execute(self, context: Context):
+        hook = CloudSQLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        if not self._check_if_instance_exists(self.instance, hook):
+            raise AirflowException(
+                f"Cloud SQL instance with ID {self.instance} does not exist. "
+                "Please specify another instance to patch."
+            )
+        else:
+            body = {
+                "cloneContext": {
+                    "kind": "sql#cloneContext",
+                    "destinationInstanceName": self.destination_instance_name,
+                    **self.clone_context,
+                }
+            }
+            return hook.clone_instance(
+                project_id=self.project_id,
+                body=body,
+                instance=self.instance,
+            )
+
+
 class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
     Creates a new database inside a Cloud SQL instance.

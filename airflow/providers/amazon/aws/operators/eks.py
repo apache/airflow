@@ -26,7 +26,12 @@ from botocore.exceptions import ClientError, WaiterError
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+except ImportError:
+    # preserve backward compatibility for older versions of cncf.kubernetes provider
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

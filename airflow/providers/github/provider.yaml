@@ -29,6 +29,7 @@ dependencies:
   - PyGithub!=1.58
 
 versions:
+  - 2.2.1
   - 2.2.0
   - 2.1.0
   - 2.0.0
