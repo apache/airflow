@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
+    import decimal
+
     from airflow.serialization.serde import U
 
 
@@ -45,7 +47,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return float(o), name, __version__, True
 
 
-def deserialize(classname: str, version: int, data: object) -> "decimal.Decimal":
+def deserialize(classname: str, version: int, data: object) -> decimal.Decimal:
     from decimal import Decimal
 
     if version > __version__:

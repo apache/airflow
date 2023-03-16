@@ -41,7 +41,7 @@ serializers = [
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
 
-deserializers: list = serializers
+deserializers = serializers
 
 __version__ = 1
 

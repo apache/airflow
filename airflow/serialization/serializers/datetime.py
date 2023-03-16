@@ -23,6 +23,8 @@ from airflow.utils.module_loading import qualname
 from airflow.utils.timezone import convert_to_utc, is_naive
 
 if TYPE_CHECKING:
+    import datetime
+
     from airflow.serialization.serde import U
 
 __version__ = 1
@@ -36,9 +38,8 @@ TIMEZONE = "tz"
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
     from datetime import date, datetime, timedelta
-    from pendulum import DateTime
 
-    if isinstance(o, DateTime) or isinstance(o, datetime):
+    if isinstance(o, datetime):
         qn = qualname(o)
         if is_naive(o):
             o = convert_to_utc(o)
@@ -56,22 +57,22 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(
-    classname: str, version: int, data: dict | str
-) -> "datetime.datetime" | "datetime.timedelta" | "datetime.date":
-    from datetime import date, datetime, timedelta
-    from pendulum import DateTime, timezone
+def deserialize(classname: str, version: int, data: dict | str) -> datetime.date | datetime.timedelta:
+    import datetime
 
-    if classname == qualname(datetime) and isinstance(data, dict):
-        return datetime.fromtimestamp(float(data[TIMESTAMP]), tz=timezone(data[TIMEZONE]))
+    from pendulum import DateTime
+    from pendulum.tz import timezone
+
+    if classname == qualname(datetime.datetime) and isinstance(data, dict):
+        return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=timezone(data[TIMEZONE]))
 
     if classname == qualname(DateTime) and isinstance(data, dict):
         return DateTime.fromtimestamp(float(data[TIMESTAMP]), tz=timezone(data[TIMEZONE]))
 
-    if classname == qualname(timedelta) and isinstance(data, (str, float)):
-        return timedelta(seconds=float(data))
+    if classname == qualname(datetime.timedelta) and isinstance(data, (str, float)):
+        return datetime.timedelta(seconds=float(data))
 
-    if classname == qualname(date) and isinstance(data, str):
-        return date.fromisoformat(data)
+    if classname == qualname(datetime.date) and isinstance(data, str):
+        return datetime.date.fromisoformat(data)
 
     raise TypeError(f"unknown date/time format {classname}")

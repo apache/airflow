@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
+    from pendulum.tz.timezone import Timezone
+
     from airflow.serialization.serde import U
 
 
@@ -55,7 +57,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: object) -> "pendulum.tz.timezone.Timezone":
+def deserialize(classname: str, version: int, data: object) -> Timezone:
     from pendulum.tz import fixed_timezone, timezone
 
     if not isinstance(data, (str, int)):
