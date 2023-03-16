@@ -79,12 +79,18 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement run()")
         yield  # To convince Mypy this is an async iterator.
 
-    def cleanup(self) -> None:
+    async def cleanup(self) -> None:
         """
         Cleanup the trigger.
 
         Called when the trigger is no longer needed, and it's being removed
         from the active triggerer process.
+
+        This method follows the async/await pattern to allow to run the cleanup
+        in triggerer main event loop. Exceptions raised by the cleanup method
+        are ignored, so if you would like to be able to debug them and be notified
+        that cleanup method failed, you should wrap your code with try/except block
+        and handle it appropriately (in async-compatible way).
         """
 
     def __repr__(self) -> str:
