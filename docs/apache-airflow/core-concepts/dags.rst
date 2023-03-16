@@ -170,7 +170,7 @@ Note, this callable will replace the default Airflow heuristic, i.e. checking if
 
 .. code-block::
 
-    def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
+    def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool:
         # Your logic to check if there are DAGs defined in the file_path
         # Return True if the file_path needs to be parsed, otherwise False
 

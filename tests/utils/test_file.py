@@ -31,7 +31,7 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 
 
-def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None):
+def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
     return False
 
 
@@ -185,3 +185,6 @@ class TestListPyFilesPath:
         # returns False no matter what, which is used to test might_contain_dag_callable actually
         # overrides the default function
         assert not file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+
+        # With safe_mode is False, the user defined callable won't be invoked
+        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)

@@ -45,7 +45,7 @@ core:
     might_contain_dag_callable:
       description: |
          A callable to check if a python file has airflow dags defined or not
-         with argument as: `(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None)`
+         with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
          return True if it has dags otherwise False
          If this is not provided, Airflow uses its own heuristic rules.
       version_added: ~
