@@ -369,7 +369,7 @@ class VaultHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
-        from wtforms.validators import NumberRange, any_of
+        from wtforms.validators import NumberRange, Optional, any_of
 
         return {
             "auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
@@ -378,6 +378,8 @@ class VaultHook(BaseHook):
                 lazy_gettext("KV engine version"),
                 validators=[any_of([1, 2])],
                 widget=BS3TextFieldWidget(),
+                description="Must be 1 or 2.",
+                default=DEFAULT_KV_ENGINE_VERSION,
             ),
             "role_id": StringField(lazy_gettext("Role ID (deprecated)"), widget=BS3TextFieldWidget()),
             "kubernetes_role": StringField(lazy_gettext("Kubernetes role"), widget=BS3TextFieldWidget()),
@@ -392,8 +394,8 @@ class VaultHook(BaseHook):
             "radius_host": StringField(lazy_gettext("Radius host"), widget=BS3TextFieldWidget()),
             "radius_port": IntegerField(
                 lazy_gettext("Radius port"),
-                validators=[NumberRange(min=0)],
                 widget=BS3TextFieldWidget(),
+                validators=[Optional(), NumberRange(min=0)],
             ),
             "use_tls": BooleanField(lazy_gettext("Use TLS"), default=True),
         }
