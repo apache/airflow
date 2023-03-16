@@ -600,6 +600,9 @@ additional-extras:
   - name: pandas
     dependencies:
       - pandas>=0.17.1
+  # There is conflict between boto3 and aiobotocore dependency botocore.
+  # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+  # boto3 have native aync support and we move away from aio aiobotocore
   - name: aiobotocore
     dependencies:
       - aiobotocore>=2.1.1

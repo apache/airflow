@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import importlib.util
-
 import pytest
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
@@ -30,7 +28,6 @@ TASK_ID = "redshift_trigger_check"
 POLLING_PERIOD_SECONDS = 1.0
 
 
-@pytest.mark.skipif(not bool(importlib.util.find_spec("aiobotocore")), reason="aiobotocore require")
 class TestRedshiftClusterTrigger:
     def test_pause_serialization(self):
         """
