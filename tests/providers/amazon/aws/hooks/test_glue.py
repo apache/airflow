@@ -118,6 +118,7 @@ class TestGlueJobHook:
             iam_role_name=role_name,
             create_job_kwargs={"Command": {}},
             region_name=self.some_aws_region,
+            update_config=True,
         )
 
         result = hook.create_or_update_glue_job()
@@ -167,6 +168,7 @@ class TestGlueJobHook:
             iam_role_name=role_name,
             create_job_kwargs={"Command": {}},
             region_name=self.some_aws_region,
+            update_config=True,
         )
 
         result = hook.create_or_update_glue_job()
@@ -214,6 +216,7 @@ class TestGlueJobHook:
             iam_role_name=role_name,
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
+            update_config=True,
         )
 
         result = hook.create_or_update_glue_job()
@@ -249,6 +252,7 @@ class TestGlueJobHook:
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
             create_job_kwargs={"WorkerType": "G.2X", "NumberOfWorkers": 60},
+            update_config=True,
         )
 
         result = glue_job.create_or_update_glue_job()
@@ -272,19 +276,18 @@ class TestGlueJobHook:
                 region_name=self.some_aws_region,
                 num_of_dpus=20,
                 create_job_kwargs={"WorkerType": "G.2X", "NumberOfWorkers": 60},
+                update_config=True,
             )
 
     @mock.patch.object(GlueJobHook, "get_job_state")
-    @mock.patch.object(GlueJobHook, "create_or_update_glue_job")
     @mock.patch.object(GlueJobHook, "get_conn")
-    def test_initialize_job(self, mock_get_conn, mock_create_or_update_glue_job, mock_get_job_state):
+    def test_initialize_job(self, mock_get_conn, mock_get_job_state):
         some_data_path = "s3://glue-datasets/examples/medicare/SampleData.csv"
         some_script_arguments = {"--s3_input_data_path": some_data_path}
         some_run_kwargs = {"NumberOfWorkers": 5}
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
-        mock_create_or_update_glue_job.Name = mock.Mock(Name="aws_test_glue_job")
         mock_get_conn.return_value.start_job_run()
 
         mock_job_run_state = mock_get_job_state.return_value
@@ -295,6 +298,7 @@ class TestGlueJobHook:
             script_location=some_script,
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
+            update_config=False,
         )
         glue_job_run = glue_job_hook.initialize_job(some_script_arguments, some_run_kwargs)
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run["JobName"], glue_job_run["JobRunId"])

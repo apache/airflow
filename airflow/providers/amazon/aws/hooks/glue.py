@@ -47,6 +47,7 @@ class GlueJobHook(AwsBaseHook):
     :param region_name: aws region name (example: us-east-1)
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :param create_job_kwargs: Extra arguments for Glue Job Creation
+    :param update_config: Update job configuration on Glue (default: False)
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -68,6 +69,7 @@ class GlueJobHook(AwsBaseHook):
         num_of_dpus: int | float | None = None,
         iam_role_name: str | None = None,
         create_job_kwargs: dict | None = None,
+        update_config: bool = False,
         *args,
         **kwargs,
     ):
@@ -80,6 +82,7 @@ class GlueJobHook(AwsBaseHook):
         self.role_name = iam_role_name
         self.s3_glue_logs = "logs/glue-logs/"
         self.create_job_kwargs = create_job_kwargs or {}
+        self.update_config = update_config
 
         worker_type_exists = "WorkerType" in self.create_job_kwargs
         num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
@@ -162,8 +165,11 @@ class GlueJobHook(AwsBaseHook):
         run_kwargs = run_kwargs or {}
 
         try:
-            job_name = self.create_or_update_glue_job()
-            return self.get_conn().start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
+            if self.update_config:
+                self.create_or_update_glue_job()
+            return self.get_conn().start_job_run(
+                JobName=self.job_name, Arguments=script_arguments, **run_kwargs
+            )
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
