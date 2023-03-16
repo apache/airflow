@@ -87,7 +87,12 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import (
+    ContinuousTimetable,
+    DatasetTriggeredTimetable,
+    NullTimetable,
+    OnceTimetable,
+)
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -181,6 +186,8 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return NullTimetable()
     if interval == "@once":
         return OnceTimetable()
+    if interval == "@continuous":
+        return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
@@ -546,6 +553,12 @@ class DAG(LoggingMixin):
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
+        if self.timetable.active_runs_limit is not None:
+            if self.timetable.active_runs_limit < self.max_active_runs:
+                raise AirflowException(
+                    f"Invalid max_active_runs: {type(self.timetable)} "
+                    f"requires max_active_runs <= {self.timetable.active_runs_limit}"
+                )
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
