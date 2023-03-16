@@ -1476,6 +1476,7 @@ jobs:
           breeze prod-image build
           --builder airflow_cache
           --install-packages-from-context
+          --run-in-parallel
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
       - name: "Push PROD latest image ${{ matrix.platform }}"
