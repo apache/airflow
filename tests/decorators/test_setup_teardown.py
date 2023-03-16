@@ -65,6 +65,7 @@ class TestSetupTearDownTask:
         assert setup_task._is_setup
 
     def test_marking_operator_as_setup_task(self, dag_maker):
+
         with dag_maker() as dag:
             BashOperator.as_setup(task_id="mytask", bash_command='echo "I am a setup task"')
 
@@ -86,7 +87,6 @@ class TestSetupTearDownTask:
         assert teardown_task._is_teardown
 
     def test_marking_operator_as_teardown_task(self, dag_maker):
-        from airflow.operators.bash import BashOperator
 
         with dag_maker() as dag:
             BashOperator.as_teardown(task_id="mytask", bash_command='echo "I am a setup task"')
@@ -454,3 +454,71 @@ class TestSetupTearDownTask:
         with dag_maker():
             with pytest.raises(AirflowException, match="Cannot set both setup and teardown to True"):
                 TaskGroup("mygroup", setup=True, teardown=True)
+
+    def test_cannot_use_on_failure_fail_dagrun_without_teardown(self, dag_maker):
+        """Test that on_failure_fail_dagrun can only be used with teardown"""
+        with dag_maker():
+            with pytest.raises(
+                AirflowException, match="on_failure_fail_dagrun can only be set to True if teardown is True"
+            ):
+                TaskGroup("mygroup", on_failure_fail_dagrun=True)
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_teardown_task_decorators_works_with_on_failure_fail_dagrun(
+        self, on_failure_fail_dagrun, dag_maker
+    ):
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        def mytask():
+            print("I am a teardown task")
+
+        with dag_maker() as dag:
+            mytask()
+        teardown_task = dag.task_group.children["mytask"]
+        assert teardown_task._is_teardown
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert len(dag.task_group.children) == 1
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_classic_teardown_task_works_with_on_failure_fail_dagrun(self, on_failure_fail_dagrun, dag_maker):
+        with dag_maker() as dag:
+            BashOperator.as_teardown(
+                task_id="mytask",
+                bash_command='echo "I am a teardown task"',
+                on_failure_fail_dagrun=on_failure_fail_dagrun,
+            )
+
+        teardown_task = dag.task_group.children["mytask"]
+        assert teardown_task._is_teardown
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert len(dag.task_group.children) == 1
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_teardown_taskgroup_classic_works_with_on_failure_fail_dagrun(
+        self, on_failure_fail_dagrun, dag_maker
+    ):
+        with dag_maker() as dag:
+            with TaskGroup("mygroup", teardown=True, on_failure_fail_dagrun=on_failure_fail_dagrun):
+                BashOperator(task_id="mytask", bash_command="echo 1")
+
+        teardown_task = dag.task_group.children["mygroup"].children["mygroup.mytask"]
+        assert teardown_task._is_teardown
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_teardown_taskgroup_decorator_works_with_on_failure_fail_dagrun(
+        self, on_failure_fail_dagrun, dag_maker
+    ):
+        with dag_maker() as dag:
+
+            @task_group(teardown=True, on_failure_fail_dagrun=on_failure_fail_dagrun)
+            def mygroup():
+                @task
+                def mytask():
+                    print(1)
+
+                mytask()
+
+            mygroup()
+        teardown_task = dag.task_group.children["mygroup"].children["mygroup.mytask"]
+        assert teardown_task._is_teardown
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
