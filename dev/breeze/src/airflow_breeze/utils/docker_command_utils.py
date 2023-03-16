@@ -618,6 +618,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
     set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
+    set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
     set_value_to_default_if_not_set(env, "UPGRADE_TO_NEWER_DEPENDENCIES", "false")
     set_value_to_default_if_not_set(env, "USE_PACKAGES_FROM_DIST", "false")
     set_value_to_default_if_not_set(env, "VERBOSE", "false")
@@ -660,6 +661,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "SKIP_PROVIDER_TESTS": "skip_provider_tests",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
+    "UPGRADE_BOTO": "upgrade_boto",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",

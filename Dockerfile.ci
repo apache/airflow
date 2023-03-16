@@ -1016,6 +1016,13 @@ else
         exit 1
     fi
 fi
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall aiobotocore -y || true
+    pip install --upgrade boto3 botocore
+fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
 

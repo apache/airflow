@@ -24,6 +24,8 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 from airflow.triggers.base import TriggerEvent
 from tests.providers.amazon.aws.utils.compat import async_mock
 
+pytest.importorskip("aiobotocore")
+
 TASK_ID = "redshift_trigger_check"
 POLLING_PERIOD_SECONDS = 1.0
 

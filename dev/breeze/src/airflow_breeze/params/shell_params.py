@@ -112,6 +112,7 @@ class ShellParams:
     version_suffix_for_pypi: str = ""
     dry_run: bool = False
     verbose: bool = False
+    upgrade_boto: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
