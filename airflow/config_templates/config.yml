@@ -42,6 +42,16 @@ core:
       type: string
       example: ~
       default: "airflow.utils.net.getfqdn"
+    might_contain_dag_callable:
+      description: |
+         A callable to check if a python file has airflow dags defined or not
+         with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
+         return True if it has dags otherwise False
+         If this is not provided, Airflow uses its own heuristic rules.
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.utils.file.might_contain_dag_via_default_heuristic"
     default_timezone:
       description: |
         Default timezone in case supplied date times are naive
