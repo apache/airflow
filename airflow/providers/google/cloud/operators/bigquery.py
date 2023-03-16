@@ -177,7 +177,8 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
-    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -292,7 +293,8 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
-    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -422,7 +424,8 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
-    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -806,7 +809,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode
-    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled. Deprecated.
@@ -2646,7 +2650,8 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     :param result_retry: How to retry the `result` call that retrieves rows
     :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
     :param deferrable: Run operator in the deferrable mode
-    :param poll_interval: polling period in seconds to check for the status of job. Defaults to 4 seconds.
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
