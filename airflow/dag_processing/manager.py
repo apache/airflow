@@ -1187,7 +1187,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file_path in files_paths_to_queue:
             self._file_stats.setdefault(file_path, DagFileProcessorManager.DEFAULT_FILE_STAT)
-        self._add_paths_to_queue(files_paths_to_queue)
+        self._add_paths_to_queue(files_paths_to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
 
     def _kill_timed_out_processors(self):
@@ -1226,7 +1226,7 @@ class DagFileProcessorManager(LoggingMixin):
         for proc in processors_to_remove:
             self._processors.pop(proc)
 
-    def _add_paths_to_queue(self, file_paths_to_enqueue: list[str], add_at_front: bool = False):
+    def _add_paths_to_queue(self, file_paths_to_enqueue: list[str], add_at_front: bool):
         """Adds stuff to the back or front of the file queue, unless it's already present"""
         new_file_paths = list(p for p in file_paths_to_enqueue if p not in self._file_path_queue)
         if add_at_front:
