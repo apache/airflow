@@ -332,8 +332,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
-    :param accept_none: whether or not to accept None values returned by the query. If true, converts None
-        to 0.
+    :param accept_none: whether or not to accept None values returned by the query
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -389,7 +388,11 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         records = hook.get_records(self.sql)
 
         if not records:
-            self._raise_exception(f"The following query returned zero rows: {self.sql}")
+            self.log.info(f"No records returned from table. Marking all tests: {self.accept_none}.")
+            for column, checks in self.column_mapping.items():
+                for check, _ in checks.items():
+                    self.column_mapping[column][check]["result"] = None
+                    self.column_mapping[column][check]["success"] = self.accept_none
 
         self.log.info("Record: %s", records)
 
@@ -440,8 +443,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         return checks_sql
 
     def _get_match(self, check_values, record, tolerance=None) -> bool:
-        if record is None and self.accept_none:
-            record = 0
+        if record is None:
+            return self.accept_none
         match_boolean = True
         if "geq_to" in check_values:
             if tolerance is not None:
@@ -561,6 +564,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
+    :param accept_none: whether or not to accept None values returned by the query
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -572,9 +576,12 @@ class SQLTableCheckOperator(BaseSQLOperator):
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
-    SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
-    FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name}
-          FROM {table} {partition_clause}) AS sq
+    SELECT TOP 1
+        '{check_name}' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({check_statement}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM {table} {partition_clause}
     """
 
     def __init__(
@@ -585,6 +592,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         partition_clause: str | None = None,
         conn_id: str | None = None,
         database: str | None = None,
+        accept_none: bool = True,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -592,20 +600,36 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.table = table
         self.checks = checks
         self.partition_clause = partition_clause
-        self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) AS check_table"
+        self.accept_none = accept_none
+        self.sql = f"""
+            SELECT check_name, check_result, num_subquery_rows
+            FROM ({self._generate_sql_query()}) AS check_table
+        """
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
         records = hook.get_records(self.sql)
 
         if not records:
-            self._raise_exception(f"The following query returned zero rows: {self.sql}")
+            self.log.info(f"No records returned from table. Marking all tests: {self.accept_none}.")
+            for check in self.checks:
+                self.checks[check]["success"] = self.accept_none
 
         self.log.info("Record:\n%s", records)
 
-        for row in records:
-            check, result = row
-            self.checks[check]["success"] = _parse_boolean(str(result))
+        check_keys = list(self.checks.keys())
+        for i, row in enumerate(records):
+            # There can be a case where the row itself is None, if the partition clause causes no results
+            if row is None:
+                self.checks[check_keys[i]]["success"] = self.accept_none
+            else:
+                check, result, num_subquery_rows = row
+                # Due to an aggregate function in the check_statement,
+                # a row can be return which should actually be None
+                if num_subquery_rows == 0:
+                    self.checks[check]["success"] = self.accept_none
+                else:
+                    self.checks[check]["success"] = _parse_boolean(str(result))
 
         failed_tests = [
             f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
