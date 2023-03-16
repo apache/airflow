@@ -42,7 +42,7 @@ const Details = ({ instance, group, dagId }: Props) => {
   const { taskId, runId, startDate, endDate, state, mappedStates, mapIndex } =
     instance;
 
-  const { isMapped, tooltip, operator, hasOutletDatasets } = group;
+  const { isMapped, tooltip, operator, hasOutletDatasets, triggerRule } = group;
 
   const { data: apiTI } = useTaskInstance({
     dagId,
@@ -166,6 +166,12 @@ const Details = ({ instance, group, dagId }: Props) => {
             <Tr>
               <Td>Operator</Td>
               <Td>{operator}</Td>
+            </Tr>
+          )}
+          {triggerRule && (
+            <Tr>
+              <Td>Trigger Rule</Td>
+              <Td>{triggerRule}</Td>
             </Tr>
           )}
           {startDate && (
