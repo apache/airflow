@@ -256,6 +256,35 @@ class RedshiftAsyncHook(AwsBaseAsyncHook):
         except botocore.exceptions.ClientError as error:
             return {"status": "error", "message": str(error)}
 
+    async def resume_cluster(
+        self,
+        cluster_identifier: str,
+        polling_period_seconds: float = 5.0,
+    ) -> dict[str, Any]:
+        """
+        Connects to the AWS redshift cluster via aiobotocore and
+        resume the cluster for the cluster_identifier passed
+
+        :param cluster_identifier: unique identifier of a cluster
+        :param polling_period_seconds: polling period in seconds to check for the status
+        """
+        async with await self.get_client_async() as client:
+            try:
+                response = await client.resume_cluster(ClusterIdentifier=cluster_identifier)
+                status = response["Cluster"]["ClusterStatus"] if response and response["Cluster"] else None
+                if status == "resuming":
+                    flag = asyncio.Event()
+                    while True:
+                        expected_response = await asyncio.create_task(
+                            self.get_cluster_status(cluster_identifier, "available", flag)
+                        )
+                        await asyncio.sleep(polling_period_seconds)
+                        if flag.is_set():
+                            return expected_response
+                return {"status": "error", "cluster_state": status}
+            except botocore.exceptions.ClientError as error:
+                return {"status": "error", "message": str(error)}
+
     async def get_cluster_status(
         self,
         cluster_identifier: str,

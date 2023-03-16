@@ -261,11 +261,9 @@ class TestResumeClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async")
-    def test_resume_cluster(
-        self, mock_async_client, mock_async_resume_cluster, mock_sync_cluster_statue, context
-    ):
+    def test_resume_cluster(self, mock_async_client, mock_async_resume_cluster, mock_sync_cluster_status):
         """Test Resume cluster operator run"""
-        mock_sync_cluster_statue.return_value = "paused"
+        mock_sync_cluster_status.return_value = "paused"
         mock_async_client.return_value.resume_cluster.return_value = {
             "Cluster": {"ClusterIdentifier": "test_cluster", "ClusterStatus": "resuming"}
         }
@@ -279,7 +277,7 @@ class TestResumeClusterOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            redshift_operator.execute(context)
+            redshift_operator.execute({})
 
         assert isinstance(
             exc.value.trigger, RedshiftClusterTrigger
