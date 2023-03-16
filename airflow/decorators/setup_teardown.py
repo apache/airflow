@@ -45,7 +45,7 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool | None = None) -> 
 
         @functools.wraps(python_callable)
         def wrapper(*args, **kwargs) -> Callable:
-            with SetupTeardownContext.teardown(on_failure_fail_dagrun):
+            with SetupTeardownContext.teardown(on_failure_fail_dagrun=on_failure_fail_dagrun):
                 return python_callable(*args, **kwargs)
 
         return wrapper
