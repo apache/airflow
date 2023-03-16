@@ -182,9 +182,6 @@ def task_group(
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
-    setup: bool = False,
-    teardown: bool = False,
-    on_failure_fail_dagrun: bool = False,
 ) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]:
     ...
 

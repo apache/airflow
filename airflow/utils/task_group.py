@@ -92,22 +92,11 @@ class TaskGroup(DAGNode):
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
         add_suffix_on_collision: bool = False,
-        setup: bool = False,
-        teardown: bool = False,
-        on_failure_fail_dagrun: bool = False,
     ):
         from airflow.models.dag import DagContext
 
-        if setup and teardown:
-            raise AirflowException("Cannot set both setup and teardown to True")
-        if on_failure_fail_dagrun and not teardown:
-            raise AirflowException("on_failure_fail_dagrun can only be set to True if teardown is True")
-
         self.prefix_group_id = prefix_group_id
         self.default_args = copy.deepcopy(default_args or {})
-        self.setup = setup
-        self.teardown = teardown
-        self.on_failure_fail_dagrun = on_failure_fail_dagrun
 
         dag = dag or DagContext.get_current_dag()
 
@@ -168,6 +157,10 @@ class TaskGroup(DAGNode):
         self.downstream_group_ids: set[str | None] = set()
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
+
+        if SetupTeardownContext.is_setup or SetupTeardownContext.is_teardown:
+            # TODO: This might not be the ideal place to check this.
+            raise AirflowException("Task groups cannot be marked as setup or teardown.")
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
@@ -242,38 +235,7 @@ class TaskGroup(DAGNode):
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
-        is_setup, is_teardown = self._check_is_setup_teardown(task)
-
-        if SetupTeardownContext.is_setup or is_setup:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_setup", True)
-        elif SetupTeardownContext.is_teardown or is_teardown:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_teardown", True)
-                if SetupTeardownContext.on_failure_fail_dagrun or self.on_failure_fail_dagrun:
-                    setattr(task, "_on_failure_fail_dagrun", True)
-
         self.children[key] = task
-
-    def _check_is_setup_teardown(self, task_):
-        """Check if setup or teardown is set for the task"""
-        from airflow.models.abstractoperator import AbstractOperator
-
-        def _find_setup_teardown(tg):
-            setup, teardown = tg.setup, tg.teardown
-            while tg and tg.parent_group:
-                if setup or teardown:
-                    break
-                tg = tg.parent_group
-                setup, teardown = tg.setup, tg.teardown
-            return setup, teardown
-
-        if isinstance(task_, TaskGroup):
-            return _find_setup_teardown(task_)
-        if isinstance(task_, AbstractOperator):
-            tg = task_.task_group
-            return _find_setup_teardown(tg)
-        return False, False
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
