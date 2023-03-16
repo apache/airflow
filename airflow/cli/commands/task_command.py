@@ -18,7 +18,6 @@
 """Task sub-commands."""
 from __future__ import annotations
 
-import datetime
 import importlib
 import json
 import logging
@@ -27,6 +26,7 @@ import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from typing import Generator, Union
 
+import pendulum
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
@@ -97,7 +97,7 @@ def _get_dag_run(
     """
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    execution_date: datetime.datetime | None = None
+    execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
         dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
         if dag_run:
@@ -122,7 +122,7 @@ def _get_dag_run(
     if execution_date is not None:
         dag_run_execution_date = execution_date
     else:
-        dag_run_execution_date = timezone.utcnow()
+        dag_run_execution_date = pendulum.instance(timezone.utcnow())
 
     if create_if_necessary == "memory":
         dag_run = DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=dag_run_execution_date)
@@ -132,6 +132,7 @@ def _get_dag_run(
             state=DagRunState.QUEUED,
             execution_date=dag_run_execution_date,
             run_id=_generate_temporary_run_id(),
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
             session=session,
         )
         return dag_run, True
