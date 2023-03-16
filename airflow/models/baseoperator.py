@@ -931,7 +931,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         from airflow.utils.setup_teardown import SetupTeardownContext
 
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        with SetupTeardownContext.teardown(on_failure_fail_dagrun):
+        with SetupTeardownContext.teardown(on_failure_fail_dagrun=on_failure_fail_dagrun):
             return cls(*args, **kwargs)
 
     def __eq__(self, other):
