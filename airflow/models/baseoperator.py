@@ -688,6 +688,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     _is_setup = False
     _is_teardown = False
+    _on_failure_fail_dagrun = False
 
     def __init__(
         self,
@@ -929,7 +930,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def as_teardown(cls, *args, **kwargs):
         from airflow.utils.setup_teardown import SetupTeardownContext
 
-        with SetupTeardownContext.teardown():
+        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        with SetupTeardownContext.teardown(on_failure_fail_dagrun=on_failure_fail_dagrun):
             return cls(*args, **kwargs)
 
     def __eq__(self, other):
@@ -1477,6 +1479,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "params",
                     "_is_setup",
                     "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()

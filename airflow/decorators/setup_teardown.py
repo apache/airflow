@@ -37,14 +37,19 @@ def setup_task(python_callable: Callable) -> Callable:
     return wrapper
 
 
-def teardown_task(python_callable: Callable) -> Callable:
-    # Using FunctionType here since _TaskDecorator is also a callable
-    if isinstance(python_callable, types.FunctionType):
-        python_callable = python_task(python_callable)
+def teardown_task(_func=None, *, on_failure_fail_dagrun: bool | None = None) -> Callable:
+    def teardown(python_callable: Callable) -> Callable:
+        # Using FunctionType here since _TaskDecorator is also a callable
+        if isinstance(python_callable, types.FunctionType):
+            python_callable = python_task(python_callable)
 
-    @functools.wraps(python_callable)
-    def wrapper(*args, **kwargs) -> Callable:
-        with SetupTeardownContext.teardown():
-            return python_callable(*args, **kwargs)
+        @functools.wraps(python_callable)
+        def wrapper(*args, **kwargs) -> Callable:
+            with SetupTeardownContext.teardown(on_failure_fail_dagrun=on_failure_fail_dagrun):
+                return python_callable(*args, **kwargs)
 
-    return wrapper
+        return wrapper
+
+    if _func is None:
+        return teardown
+    return teardown(_func)

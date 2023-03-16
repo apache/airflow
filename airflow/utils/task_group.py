@@ -94,16 +94,20 @@ class TaskGroup(DAGNode):
         add_suffix_on_collision: bool = False,
         setup: bool = False,
         teardown: bool = False,
+        on_failure_fail_dagrun: bool = False,
     ):
         from airflow.models.dag import DagContext
 
         if setup and teardown:
             raise AirflowException("Cannot set both setup and teardown to True")
+        if on_failure_fail_dagrun and not teardown:
+            raise AirflowException("on_failure_fail_dagrun can only be set to True if teardown is True")
 
         self.prefix_group_id = prefix_group_id
         self.default_args = copy.deepcopy(default_args or {})
         self.setup = setup
         self.teardown = teardown
+        self.on_failure_fail_dagrun = on_failure_fail_dagrun
 
         dag = dag or DagContext.get_current_dag()
 
@@ -246,6 +250,8 @@ class TaskGroup(DAGNode):
         elif SetupTeardownContext.is_teardown or is_teardown:
             if isinstance(task, AbstractOperator):
                 setattr(task, "_is_teardown", True)
+                if SetupTeardownContext.on_failure_fail_dagrun or self.on_failure_fail_dagrun:
+                    setattr(task, "_on_failure_fail_dagrun", True)
 
         self.children[key] = task
 

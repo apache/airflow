@@ -38,6 +38,7 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow.datasets import Dataset
+from airflow.decorators import teardown
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -48,6 +49,7 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -161,6 +163,7 @@ serialized_simple_dag_ground_truth = {
                 "pool": "default_pool",
                 "_is_setup": False,
                 "_is_teardown": False,
+                "_on_failure_fail_dagrun": False,
                 "executor_config": {
                     "__type": "dict",
                     "__var": {
@@ -192,6 +195,7 @@ serialized_simple_dag_ground_truth = {
                 "pool": "default_pool",
                 "_is_setup": False,
                 "_is_teardown": False,
+                "_on_failure_fail_dagrun": False,
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -1260,7 +1264,6 @@ class TestStringifiedDAGs:
         """
         Test TaskGroup serialization/deserialization.
         """
-        from airflow.operators.empty import EmptyOperator
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", start_date=execution_date) as dag:
@@ -1317,7 +1320,6 @@ class TestStringifiedDAGs:
         """
         Test TaskGroup setup and teardown task serialization/deserialization.
         """
-        from airflow.operators.empty import EmptyOperator
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_setup_teardown_tasks", start_date=execution_date) as dag:
@@ -1376,7 +1378,6 @@ class TestStringifiedDAGs:
         Test TaskGroup setup and teardown taskgroup serialization/deserialization.
         """
         from airflow.decorators import setup, task_group, teardown
-        from airflow.operators.empty import EmptyOperator
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_setup_teardown_task_groups", start_date=execution_date) as dag:
@@ -1434,6 +1435,43 @@ class TestStringifiedDAGs:
         self.assert_task_is_setup_teardown(
             se_teardown_group.children["teardown_group.teardown1"], is_teardown=True
         )
+
+    def test_teardown_task_on_failure_fail_dagrun_serialization(self, dag_maker):
+        with dag_maker() as dag:
+
+            @teardown(on_failure_fail_dagrun=True)
+            def mytask():
+                print(1)
+
+            mytask()
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+        task = serialized_dag.task_group.children["mytask"]
+        assert task._is_teardown
+        assert task._on_failure_fail_dagrun
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_teardown_task_on_failure_fail_dagrun_serialization_taskgroup(
+        self, dag_maker, on_failure_fail_dagrun
+    ):
+        with dag_maker() as dag:
+            with TaskGroup("mygroup", teardown=True, on_failure_fail_dagrun=on_failure_fail_dagrun):
+                EmptyOperator(task_id="mytask")
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+        task = serialized_dag.task_group.children["mygroup"].children["mygroup.mytask"]
+        assert task._is_teardown
+        assert task._on_failure_fail_dagrun is on_failure_fail_dagrun
 
     def test_deps_sorted(self):
         """
