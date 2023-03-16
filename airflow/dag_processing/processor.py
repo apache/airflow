@@ -50,6 +50,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.file import get_airflow_modules_in
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -187,6 +188,12 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def start(self) -> None:
         """Launch the process and start processing the DAG."""
+        import importlib
+
+        modules = get_airflow_modules_in(self.file_path)
+        for module in modules:
+            importlib.import_module(module)
+
         context = self._get_multiprocessing_context()
 
         _parent_channel, _child_channel = context.Pipe(duplex=False)
