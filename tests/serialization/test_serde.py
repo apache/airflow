@@ -35,9 +35,8 @@ from airflow.serialization.serde import (
     _match,
     deserialize,
     serialize,
-    _serializers,
 )
-from airflow.utils.module_loading import qualname, import_string, iter_namespace
+from airflow.utils.module_loading import import_string, iter_namespace, qualname
 from tests.test_utils.config import conf_vars
 
 
@@ -241,11 +240,11 @@ class TestSerDe:
         import airflow.serialization.serializers
 
         for _, name, _ in iter_namespace(airflow.serialization.serializers):
-            name = import_module(name)
-            for s in getattr(name, "serializers", list()):
+            mod = import_module(name)
+            for s in getattr(mod, "serializers", list()):
                 if not isinstance(s, str):
                     raise TypeError(f"{s} is not of type str. This is required for lazy loading")
                 try:
                     import_string(s)
-                except ImportError as e:
-                    raise AttributeError(f"{s} cannot be imported")
+                except ImportError:
+                    raise AttributeError(f"{s} cannot be imported (located in {name})")
