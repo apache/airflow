@@ -399,6 +399,11 @@ devel_only = [
     "wheel",
     "yamllint",
     "aioresponses",
+    # This required for AWS deferrable operators.
+    # There is conflict between boto3 and aiobotocore dependency botocore.
+    # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+    # boto3 have native aync support and we move away from aio aiobotocore
+    "aiobotocore>=2.1.1",
 ]
 
 
