@@ -338,7 +338,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 run_id=run_id,
                 execution_date=logical_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
-                state=post_body.get("state"),
+                state=post_body.get("state", DagRunState.QUEUED),
                 conf=post_body.get("conf"),
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
