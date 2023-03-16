@@ -151,6 +151,7 @@ jobs:
       providers-package-format-exclude: ${{ steps.selective-checks.outputs.providers-package-format-exclude }}
       skip-provider-tests: ${{ steps.source-run-info.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
@@ -904,6 +905,50 @@ jobs:
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
         run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+        uses: ./.github/actions/post_tests
+
+  tests-postgres-boto:
+    timeout-minutes: 130
+    name: >
+      LatestBotoPostgres${{needs.build-info.outputs.default-postgres-version}},
+      Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.test-types}}
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, test-pytest-collection]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      UPGRADE_BOTO: "true"
+      JOB_ID: >
+        postgres-${{needs.build-info.outputs.default-python-version}}-
+        ${{needs.build-info.outputs.default-postgres-version}}
+      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Tests: ${{needs.build-info.outputs.default-python-version}}:${{needs.build-info.outputs.test-types}}
+        run: breeze testing tests --run-in-parallel
+      - name: >
+          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
+          ${{needs.build-info.outputs.test-types}}
         uses: ./.github/actions/post_tests
 
   tests-mysql:

@@ -24,6 +24,8 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook
 from tests.providers.amazon.aws.utils.compat import async_mock
 
+pytest.importorskip("aiobotocore")
+
 
 class TestRedshiftAsyncHook:
     @pytest.mark.asyncio
