@@ -41,8 +41,8 @@ metadata:
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- if .Values.cleanup.jobAnnotations }}
-  annotations: {{- .Values.cleanup.jobAnnotations | toYaml | nindent 4 }}
+  {{- with .Values.cleanup.jobAnnotations }}
+  annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   schedule: "{{ .Values.cleanup.schedule }}"
