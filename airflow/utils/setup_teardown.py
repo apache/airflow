@@ -32,9 +32,7 @@ class SetupTeardownContext:
     @contextmanager
     def setup(cls):
         if cls.is_setup or cls.is_teardown:
-            raise AirflowException(
-                "A setup task or taskgroup cannot be nested inside another setup/teardown task or taskgroup"
-            )
+            raise AirflowException("You cannot mark a setup or teardown task as setup or teardown again.")
 
         cls.is_setup = True
         try:
@@ -46,10 +44,7 @@ class SetupTeardownContext:
     @contextmanager
     def teardown(cls, *, on_failure_fail_dagrun=False):
         if cls.is_setup or cls.is_teardown:
-            raise AirflowException(
-                "A teardown task or taskgroup cannot be nested inside another"
-                " setup/teardown task or taskgroup"
-            )
+            raise AirflowException("You cannot mark a setup or teardown task as setup or teardown again.")
 
         cls.is_teardown = True
         cls.on_failure_fail_dagrun = on_failure_fail_dagrun
