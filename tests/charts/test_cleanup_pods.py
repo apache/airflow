@@ -200,6 +200,33 @@ class TestCleanupPods:
             == "test_label_value"
         )
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "jobAnnotations": {"test_cronjob_annotation": "test_cronjob_annotation_value"},
+                    "podAnnotations": {"test_pod_annotation": "test_pod_annotation_value"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert "test_cronjob_annotation" in jmespath.search("metadata.annotations", docs[0])
+        assert (
+            "test_cronjob_annotation_value"
+            == jmespath.search("metadata.annotations", docs[0])["test_cronjob_annotation"]
+        )
+        assert "test_pod_annotation" in jmespath.search(
+            "spec.jobTemplate.spec.template.metadata.annotations", docs[0]
+        )
+        assert (
+            "test_pod_annotation_value"
+            == jmespath.search("spec.jobTemplate.spec.template.metadata.annotations", docs[0])[
+                "test_pod_annotation"
+            ]
+        )
+
     def test_cleanup_resources_are_configurable(self):
         resources = {
             "requests": {
