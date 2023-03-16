@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import html.parser
 import warnings
 from datetime import timedelta
 from tempfile import gettempdir
@@ -26,6 +25,7 @@ from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
+from markupsafe import Markup
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
@@ -75,18 +75,6 @@ def sync_appbuilder_roles(flask_app):
         flask_app.appbuilder.sm.sync_roles()
 
 
-def _strip_tags(input_html: str) -> str:
-    """Strips tags from HTML"""
-    parts: list[str] = []
-
-    class TagStripParser(html.parser.HTMLParser):
-        def handle_data(self, d: str) -> None:
-            parts.append(d)
-
-    TagStripParser().feed(input_html)
-    return "".join(parts)
-
-
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app"""
     flask_app = Flask(__name__)
@@ -102,7 +90,7 @@ def create_app(config=None, testing=False):
         section="webserver", key="instance_name_has_markup", fallback=False
     )
     if instance_name_has_markup:
-        instance_name = _strip_tags(instance_name)
+        instance_name = Markup(instance_name).striptags()
 
     flask_app.config["APP_NAME"] = instance_name
 
