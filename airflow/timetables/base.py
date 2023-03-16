@@ -135,7 +135,7 @@ class Timetable(Protocol):
     This should be a list of field names on the DAG run object.
     """
 
-    limit_active_runs: int | None = None
+    active_runs_limit: int | None = None
     """Override the max_active_runs parameter of any DAGs using this timetable.
     
     This is called during DAG initializing, and will set the max_active_runs if 

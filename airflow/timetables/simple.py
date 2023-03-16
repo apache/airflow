@@ -117,7 +117,7 @@ class ContinuousTimetable(_TrivialTimetable):
 
     description: str = "As frequently as possible, but only one run at a time."
 
-    limit_active_runs = 1  # Continuous DAGRuns should be constrained to one run at a time
+    active_runs_limit = 1  # Continuous DAGRuns should be constrained to one run at a time
 
     @property
     def summary(self) -> str:

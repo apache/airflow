@@ -553,9 +553,9 @@ class DAG(LoggingMixin):
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
-        if self.timetable.limit_active_runs is not None:
-            if self.timetable.limit_active_runs < self.max_active_runs:
-                self.max_active_runs = self.timetable.limit_active_runs
+        if self.timetable.active_runs_limit is not None:
+            if self.timetable.active_runs_limit < self.max_active_runs:
+                self.max_active_runs = self.timetable.active_runs_limit
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
