@@ -345,43 +345,67 @@ class TestTableCheckOperator:
     }
 
     correct_generate_sql_query_no_partitions = f"""
-    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
-    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
-          FROM test_table ) AS sq
+    SELECT TOP 1
+        'row_count_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({count_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table
     UNION ALL
-    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
-    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
-          FROM test_table ) AS sq
+    SELECT TOP 1
+        'column_sum_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table
     """
 
     correct_generate_sql_query_with_partition = f"""
-    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
-    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
-          FROM test_table WHERE col_a > 10) AS sq
+    SELECT TOP 1
+        'row_count_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({count_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table WHERE col_a > 10
     UNION ALL
-    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
-    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
-          FROM test_table WHERE col_a > 10) AS sq
+    SELECT TOP 1
+        'column_sum_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table WHERE col_a > 10
     """
 
     correct_generate_sql_query_with_partition_and_where = f"""
-    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
-    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
-          FROM test_table WHERE col_a > 10 AND id = 100) AS sq
+    SELECT TOP 1
+        'row_count_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({count_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table WHERE col_a > 10 AND id = 100
     UNION ALL
-    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
-    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
-          FROM test_table WHERE col_a > 10) AS sq
+    SELECT TOP 1
+        'column_sum_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table WHERE col_a > 10
     """
 
     correct_generate_sql_query_with_where = f"""
-    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
-    FROM (SELECT CASE WHEN {count_check} THEN 1 ELSE 0 END AS row_count_check
-          FROM test_table ) AS sq
+    SELECT TOP 1
+        'row_count_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({count_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table
     UNION ALL
-    SELECT 'column_sum_check' AS check_name, MIN(column_sum_check) AS check_result
-    FROM (SELECT CASE WHEN {sum_check} THEN 1 ELSE 0 END AS column_sum_check
-          FROM test_table WHERE id = 100) AS sq
+    SELECT TOP 1
+        'column_sum_check' AS check_name,
+        COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1) = 0 AS check_result,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
+    FROM test_table WHERE id = 100
     """
 
     def _construct_operator(self, monkeypatch, checks, records):
@@ -473,13 +497,13 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     def test_pass_all_checks_check(self, monkeypatch):
-        records = [("row_count_check", 1), ("column_sum_check", "y")]
+        records = [("row_count_check", 1, 1), ("column_sum_check", "y", 1)]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
         assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
 
     def test_fail_all_checks_check(self, monkeypatch):
-        records = [("row_count_check", 0), ("column_sum_check", "n")]
+        records = [("row_count_check", 0, 0), ("column_sum_check", "n", 1)]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())

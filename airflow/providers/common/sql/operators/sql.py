@@ -581,7 +581,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         COUNT_IF(NOT CASE WHEN COALESCE({check_statement}, 1) THEN 1 ELSE 0 END)
             OVER (PARTITION BY 1) = 0 AS check_result,
         COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
-    FROM {table} {partition_clause}
+    FROM {table}{partition_clause}
     """
 
     def __init__(
@@ -650,11 +650,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:
-                return f"WHERE {self.partition_clause}"
+                return f" WHERE {self.partition_clause}"
             elif not self.partition_clause and "partition_clause" in self.checks[check_name]:
-                return f"WHERE {self.checks[check_name]['partition_clause']}"
+                return f" WHERE {self.checks[check_name]['partition_clause']}"
             elif self.partition_clause and "partition_clause" in self.checks[check_name]:
-                return f"WHERE {self.partition_clause} AND {self.checks[check_name]['partition_clause']}"
+                return f" WHERE {self.partition_clause} AND {self.checks[check_name]['partition_clause']}"
             else:
                 return ""
 
