@@ -176,6 +176,8 @@ Good example:
 
 In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
 
+.. _best_practices/dynamic_dag_generation:
+
 Dynamic DAG Generation
 ----------------------
 Sometimes writing DAGs manually isn't practical.
@@ -430,6 +432,14 @@ want to optimize your DAGs there are the following actions you can take:
   consider splitting them if you observe it takes a long time to reflect changes in your DAG files in the
   UI of Airflow.
 
+* Write efficient Python code. A balance must be struck between fewer DAGs per file, as stated above, and
+  writing less code overall. Creating the Python files that describe DAGs should follow best programming
+  practices and not be treated like configurations. If your DAGs share similar code you should not copy
+  them over and over again to a large number of nearly identical source files, as this will cause a
+  number of unnecessary repeated imports of the same resources. Rather, you should aim to minimize
+  repeated code across all of your DAGs so that the application can run efficiently and can be easily
+  debugged. See :ref:`best_practices/dynamic_dag_generation` on how to create multiple DAGs with similar
+  code.
 
 Testing a DAG
 ^^^^^^^^^^^^^
