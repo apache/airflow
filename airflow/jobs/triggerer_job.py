@@ -25,6 +25,7 @@ import threading
 import time
 import warnings
 from collections import deque
+from contextlib import suppress
 from copy import copy
 from queue import SimpleQueue
 from typing import TYPE_CHECKING, Deque
@@ -601,8 +602,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # CancelledError will get injected when we're stopped - which is
             # fine, the cleanup process will understand that, but we want to
             # allow triggers a chance to cleanup, either in that case or if
-            # they exit cleanly.
-            trigger.cleanup()
+            # they exit cleanly. Exception from cleanup methods are ignored.
+            with suppress(Exception):
+                await trigger.cleanup()
             if SEND_TRIGGER_END_MARKER:
                 self.mark_trigger_end(trigger)
 
