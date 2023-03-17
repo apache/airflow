@@ -448,7 +448,7 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
 
-    def test_task_sigterm_calls_on_failure_callack(self, dag_maker, caplog):
+    def test_task_sigterm_calls_on_failure_callback(self, dag_maker, caplog):
         """
         Test that ensures that tasks call on_failure_callback when they receive sigterm
         """
