@@ -1031,6 +1031,7 @@ os
 OSS
 oss
 ot
+otel
 overridable
 oversubscription
 Pagerduty

@@ -33,6 +33,6 @@ scrape_configs:
       tls_config:
           insecure_skip_verify: true
 
-    - job_name: 'opentelemetry-collector'
+    - job_name: 'otel-collector'
       static_configs:
-          - targets: ['breeze-opentelemetry-collector:8888']
+          - targets: ['breeze-otel-collector:8889']

@@ -64,6 +64,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | leveldb             | ``pip install 'apache-airflow[leveldb]'``           | Required for use leveldb extra in google provider                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| otel                | ``pip install 'apache-airflow[otel]'``              | Required for OpenTelemetry metrics                                         |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | pandas              | ``pip install 'apache-airflow[pandas]'``            | Install Pandas library compatible with Airflow                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                          |

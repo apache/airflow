@@ -621,22 +621,22 @@ change by the time Airflow fully supports emitting metrics via OpenTelemetry.
 
 ----
 
-You can launch an instance of Breeze pre-configured to emit OTel metrics using
-``breeze start-airflow --integration otel``.  This will launch an Airflow webserver
-within the Breeze environment as well as containers running OpenTelemetry-Collector,
-Prometheus, and Grafana.  The integration configures the "Targets" in Prometheus,
-the "Datasources" in Grafana, and includes a default dashboard in Grafana.
+You can launch an instance of Breeze pre-configured to emit OpenTelemetry metrics
+using ``breeze start-airflow --integration otel``.  This will launch Airflow within
+the Breeze environment as well as containers running OpenTelemetry-Collector,
+Prometheus, and Grafana.  The integration handles all configuration of the
+"Targets" in Prometheus and the "Datasources" in Grafana, so it is ready to use.
 
 When you run Airflow Breeze with this integration, in addition to the standard ports
 (See "Port Forwarding" below), the following are also automatically forwarded:
 
-* 28888 -> forwarded to OpenTelemetry Collector -> breeze-otel_collector:8888
+* 28889 -> forwarded to OpenTelemetry Collector -> breeze-otel-collector:8889
 * 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
 * 23000 -> forwarded to Grafana -> breeze-grafana:3000
 
-You can connect to these ports/databases using:
+You can connect to these ports using:
 
-* OpenTelemetry Collector: http://127.0.0.1:28888/metrics
+* OpenTelemetry Collector: http://127.0.0.1:28889/metrics
 * Prometheus Targets: http://127.0.0.1:29090/targets
 * Grafana Dashboards: http://127.0.0.1:23000/dashboards
 

@@ -15,40 +15,33 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-extensions:
-  memory_ballast:
-    size_mib: 512
-  zpages:
-    endpoint: 0.0.0.0:55679
+# Based on the default config found here:
+# https://github.com/open-telemetry/opentelemetry-collector-releases/blob/main/configs/otelcol-contrib.yaml
 
 receivers:
   otlp:
     protocols:
-      grpc:
       http:
 
 processors:
   batch:
-  memory_limiter:
-    limit_mib: 1536
-    spike_limit_mib: 512
-    check_interval: 5s
 
 exporters:
   logging:
-    logLevel: debug
+    verbosity: detailed
   prometheus:
-    metrics:
-      endpoint: "http://localhost:29090"
+    endpoint: 0.0.0.0:8889
 
 service:
-  extensions: [memory_ballast, zpages]
+
   pipelines:
+
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [batch]
       exporters: [logging]
+
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [batch]
       exporters: [logging, prometheus]
