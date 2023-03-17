@@ -61,7 +61,7 @@ class HDFSHook(BaseHook):
                 "snakebite is not compatible with Python 3 "
                 "(as of August 2015). Please help by submitting a PR!"
             )
-        self.hdfs_conn_id = [hdfs_conn_id] if isinstance(hdfs_conn_id, str) else hdfs_conn_id
+        self.hdfs_conn_id = {hdfs_conn_id} if isinstance(hdfs_conn_id, str) else hdfs_conn_id
         self.proxy_user = proxy_user
         self.autoconfig = autoconfig
 
