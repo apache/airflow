@@ -382,6 +382,7 @@ devel_only = [
     "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
+    "pytest-mock",
     "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
