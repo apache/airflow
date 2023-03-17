@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import functools
 import logging
 import re
 import sys
@@ -30,6 +31,7 @@ import attr
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
+from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
 log = logging.getLogger(__name__)
@@ -58,7 +60,6 @@ _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
 _builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
-_patterns: list[re.Pattern] = []
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
@@ -253,7 +254,7 @@ def _convert(old: dict) -> dict:
 
 
 def _match(classname: str) -> bool:
-    return any(p.match(classname) is not None for p in _patterns)
+    return any(p.match(classname) is not None for p in _get_patterns())
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
@@ -275,33 +276,32 @@ def _register():
     _serializers.clear()
     _deserializers.clear()
 
-    for _, name, _ in iter_namespace(airflow.serialization.serializers):
-        name = import_module(name)
-        for s in getattr(name, "serializers", list()):
-            if not isinstance(s, str):
-                s = qualname(s)
-            if s in _serializers and _serializers[s] != name:
-                raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
-            log.debug("registering %s for serialization")
-            _serializers[s] = name
-        for d in getattr(name, "deserializers", list()):
-            if not isinstance(d, str):
-                d = qualname(d)
-            if d in _deserializers and _deserializers[d] != name:
-                raise AttributeError(f"duplicate {d} for deserialization in {name} and {_serializers[d]}")
-            log.debug("registering %s for deserialization", d)
-            _deserializers[d] = name
-            _extra_allowed.add(d)
+    with Stats.timer("serde.load_serializers") as timer:
+        for _, name, _ in iter_namespace(airflow.serialization.serializers):
+            name = import_module(name)
+            for s in getattr(name, "serializers", list()):
+                if not isinstance(s, str):
+                    s = qualname(s)
+                if s in _serializers and _serializers[s] != name:
+                    raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
+                log.debug("registering %s for serialization", s)
+                _serializers[s] = name
+            for d in getattr(name, "deserializers", list()):
+                if not isinstance(d, str):
+                    d = qualname(d)
+                if d in _deserializers and _deserializers[d] != name:
+                    raise AttributeError(f"duplicate {d} for deserialization in {name} and {_serializers[d]}")
+                log.debug("registering %s for deserialization", d)
+                _deserializers[d] = name
+                _extra_allowed.add(d)
+
+    log.info("loading serializers took %.3f seconds", timer.duration)
 
 
-def _compile_patterns():
+@functools.lru_cache(maxsize=None)
+def _get_patterns() -> list[re.Pattern]:
     patterns = conf.get("core", "allowed_deserialization_classes").split()
-
-    _patterns.clear()  # ensure to reinit
-    for p in patterns:
-        p = re.sub(r"(\w)\.", r"\1\..", p)
-        _patterns.append(re.compile(p))
+    return [re.compile(re.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
 
 
 _register()
-_compile_patterns()
