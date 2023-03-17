@@ -1888,7 +1888,7 @@ config:
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
   celery_kubernetes_executor:
     kubernetes_queue: 'kubernetes'
-  # The `kubernetes` section is deprecated in Airflow >= 2.5.0 due to an airflow.cfg schema change. 
+  # The `kubernetes` section is deprecated in Airflow >= 2.5.0 due to an airflow.cfg schema change.
   # The `kubernetes` section can be removed once the helm chart no longer supports Airflow < 2.5.0.
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
