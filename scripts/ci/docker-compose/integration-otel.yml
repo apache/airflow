@@ -57,7 +57,7 @@ services:
       - AIRFLOW__METRICS__OTEL_ON=True
       - AIRFLOW__METRICS__OTEL_HOST=breeze-otel-collector
       - AIRFLOW__METRICS__OTEL_PORT=4318
-      - AIRFLOW__METRICS__OTEL_INTERVAL_MILLIS=30000
+      - AIRFLOW__METRICS__OTEL_INTERVAL_MILLISECONDS=30000
 
     depends_on:
       - otel-collector

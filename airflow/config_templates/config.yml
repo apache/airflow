@@ -1002,7 +1002,7 @@ metrics:
       type: string
       example: ~
       default: "airflow"
-    otel_interval_millis:
+    otel_interval_milliseconds:
       description: ~
       version_added: 2.0.0
       type: integer
