@@ -393,31 +393,51 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 for check, _ in checks.items():
                     self.column_mapping[column][check]["result"] = None
                     self.column_mapping[column][check]["success"] = self.accept_none
+            if self.accept_none:
+                self.log.info("All tests have passed")
+                return
+            else:
+                failed_checks = self._get_failed_checks()
+                self._raise_failed_check_exception(records, failed_checks)
 
         self.log.info("Record: %s", records)
 
-        for column, check, result in records:
-            tolerance = self.column_mapping[column][check].get("tolerance")
+        # Set default values for result and success in case the row is None
+        for column, checks in self.column_mapping.items():
+            for check, _ in checks.items():
+                self.column_mapping[column][check]["result"] = None
+                self.column_mapping[column][check]["success"] = self.accept_none
 
-            self.column_mapping[column][check]["result"] = result
-            self.column_mapping[column][check]["success"] = self._get_match(
-                self.column_mapping[column][check], result, tolerance
-            )
+        # Skip rows that didn't return results for now
+        for row in records:
+            if row is not None:
+                column, check, result = row
+                tolerance = self.column_mapping[column][check].get("tolerance")
+                self.column_mapping[column][check]["result"] = result
+                self.column_mapping[column][check]["success"] = self._get_match(
+                    self.column_mapping[column][check], result, tolerance
+                )
 
-        failed_tests = [
+        failed_checks = self._get_failed_checks()
+        if failed_checks:
+            self._raise_failed_check_exception(records, failed_checks)
+
+        self.log.info("All tests have passed")
+
+    def _raise_failed_check_exception(self, records, failed_checks):
+        exception_string = (
+            f"Test failed.\nResults:\n{records!s}\n"
+            f"The following tests have failed:\n{''.join(failed_checks)}"
+        )
+        self._raise_exception(exception_string)
+
+    def _get_failed_checks(self):
+        return [
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for col, checks in self.column_mapping.items()
             for check, check_values in checks.items()
             if not check_values["success"]
         ]
-        if failed_tests:
-            exception_string = (
-                f"Test failed.\nResults:\n{records!s}\n"
-                f"The following tests have failed:\n{''.join(failed_tests)}"
-            )
-            self._raise_exception(exception_string)
-
-        self.log.info("All tests have passed")
 
     def _generate_sql_query(self, column, checks):
         def _generate_partition_clause(check):
@@ -614,6 +634,12 @@ class SQLTableCheckOperator(BaseSQLOperator):
             self.log.info(f"No records returned from table. Marking all tests: {self.accept_none}.")
             for check in self.checks:
                 self.checks[check]["success"] = self.accept_none
+            if self.accept_none:
+                self.log.info("All tests have passed")
+                return
+            else:
+                failed_checks = self._get_failed_checks()
+                self._raise_failed_check_exception(records, failed_checks)
 
         self.log.info("Record:\n%s", records)
 
@@ -631,19 +657,25 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 else:
                     self.checks[check]["success"] = _parse_boolean(str(result))
 
-        failed_tests = [
+        failed_checks = self._get_failed_checks()
+        if failed_checks:
+            self._raise_failed_check_exception(records, failed_checks)
+
+        self.log.info("All tests have passed")
+
+    def _get_failed_checks(self):
+        return [
             f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for check, check_values in self.checks.items()
             if not check_values["success"]
         ]
-        if failed_tests:
-            exception_string = (
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
-                f"The following tests have failed:\n{', '.join(failed_tests)}"
-            )
-            self._raise_exception(exception_string)
 
-        self.log.info("All tests have passed")
+    def _raise_failed_check_exception(self, records, failed_checks):
+        exception_string = (
+            f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+            f"The following tests have failed:\n{', '.join(failed_checks)}"
+        )
+        self._raise_exception(exception_string)
 
     def _generate_sql_query(self):
         self.log.info("Partition clause: %s", self.partition_clause)

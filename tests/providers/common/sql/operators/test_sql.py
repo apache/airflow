@@ -169,6 +169,38 @@ class TestColumnCheckOperator:
         with pytest.raises(AirflowException, match="Invalid column check: invalid_check_name."):
             self._construct_operator(monkeypatch, self.invalid_column_mapping, ())
 
+    def test_accept_none_pass_all_checks_check(self, monkeypatch):
+        records = [None, None, None, None, None]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
+
+    def test_accept_none_fail_all_checks_check(self, monkeypatch):
+        records = [None, None, None, None, None]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator.accept_none = False
+        with pytest.raises(AirflowException):
+            operator.execute(context=MagicMock())
+
+    def test_records_none_pass_all_checks_check(self, monkeypatch):
+        records = None
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator.execute(context=MagicMock())
+        assert [
+            operator.column_mapping["X"][check]["success"] is True
+            for check in [*operator.column_mapping["X"]]
+        ]
+
+    def test_records_none_fail_all_checks_check(self, monkeypatch):
+        records = None
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator.accept_none = False
+        with pytest.raises(AirflowException):
+            operator.execute(context=MagicMock())
+
     def test_pass_all_checks_exact_check(self, monkeypatch):
         records = [
             ("X", "null_check", 0),
@@ -505,6 +537,32 @@ class TestTableCheckOperator:
     def test_fail_all_checks_check(self, monkeypatch):
         records = [("row_count_check", 0, 0), ("column_sum_check", "n", 1)]
         operator = self._construct_operator(monkeypatch, self.checks, records)
+        with pytest.raises(AirflowException):
+            operator.execute(context=MagicMock())
+
+    def test_accept_none_pass_all_checks_check(self, monkeypatch):
+        records = [None, None]
+        operator = self._construct_operator(monkeypatch, self.checks, records)
+        operator.execute(context=MagicMock())
+        assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
+
+    def test_accept_none_fail_all_checks_check(self, monkeypatch):
+        records = [None, None]
+        operator = self._construct_operator(monkeypatch, self.checks, records)
+        operator.accept_none = False
+        with pytest.raises(AirflowException):
+            operator.execute(context=MagicMock())
+
+    def test_records_none_pass_all_checks_check(self, monkeypatch):
+        records = None
+        operator = self._construct_operator(monkeypatch, self.checks, records)
+        operator.execute(context=MagicMock())
+        assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
+
+    def test_records_none_fail_all_checks_check(self, monkeypatch):
+        records = None
+        operator = self._construct_operator(monkeypatch, self.checks, records)
+        operator.accept_none = False
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
