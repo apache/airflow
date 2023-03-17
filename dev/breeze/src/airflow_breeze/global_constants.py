@@ -257,6 +257,7 @@ AIRFLOW_SOURCES_TO = "/opt/airflow"
 
 DEFAULT_EXTRAS = [
     # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+    "aiobotocore",
     "amazon",
     "async",
     "celery",
