@@ -23,8 +23,11 @@ from typing import Sequence
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
-from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
-from google.cloud.videointelligence_v1.types import VideoContext
+from google.cloud.videointelligence_v1 import (
+    Feature,
+    VideoContext,
+    VideoIntelligenceServiceClient,
+)
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -78,7 +81,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         self,
         input_uri: str | None = None,
         input_content: bytes | None = None,
-        features: list[VideoIntelligenceServiceClient.enums.Feature] | None = None,
+        features: Sequence[Feature] | None = None,
         video_context: dict | VideoContext = None,
         output_uri: str | None = None,
         location: str | None = None,
@@ -109,13 +112,16 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         :param metadata: Optional, Additional metadata that is provided to the method.
         """
         client = self.get_conn()
+
         return client.annotate_video(
-            input_uri=input_uri,
-            input_content=input_content,
-            features=features,
-            video_context=video_context,
-            output_uri=output_uri,
-            location_id=location,
+            request={
+                "input_uri": input_uri,
+                "features": features,
+                "input_content": input_content,
+                "video_context": video_context,
+                "output_uri": output_uri,
+                "location_id": location,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
