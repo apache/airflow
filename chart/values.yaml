@@ -49,10 +49,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.5.1"
+defaultAirflowTag: "2.5.2"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.5.1"
+airflowVersion: "2.5.2"
 
 # Images
 images:
@@ -1470,6 +1470,9 @@ statsd:
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
 
+  # Annotations to add to the StatsD Deployment.
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1772,6 +1775,8 @@ cleanup:
   # Args to use when running the cleanup cronjob (templated).
   args: ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"]
 
+  # jobAnnotations are annotations on the cleanup CronJob
+  jobAnnotations: {}
 
   # Select certain nodes for airflow cleanup pods.
   nodeSelector: {}

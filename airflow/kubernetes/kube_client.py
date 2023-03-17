@@ -33,11 +33,13 @@ try:
 
     has_kubernetes = True
 
-    def _disable_verify_ssl() -> None:
+    def _get_default_configuration() -> Configuration:
         if hasattr(Configuration, "get_default_copy"):
-            configuration = Configuration.get_default_copy()
-        else:
-            configuration = Configuration()
+            return Configuration.get_default_copy()
+        return Configuration()
+
+    def _disable_verify_ssl() -> None:
+        configuration = _get_default_configuration()
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
 
@@ -108,7 +110,7 @@ def get_kube_client(
     if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
         _enable_tcp_keepalive()
 
-    new_client_config = Configuration.get_default_copy()
+    new_client_config = _get_default_configuration()
     api_client_retry_configuration = conf.getjson("kubernetes", "api_client_retry_configuration", fallback={})
 
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
@@ -132,4 +134,12 @@ def get_kube_client(
             config_file=config_file, context=cluster_context, client_configuration=new_client_config
         )
 
-    return client.CoreV1Api(api_client=ApiClient(new_client_config))
+    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+        new_client_config.verify_ssl = False
+
+    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
+    if ssl_ca_cert:
+        new_client_config.ssl_ca_cert = ssl_ca_cert
+
+    api_client = client.ApiClient(configuration=new_client_config)
+    return client.CoreV1Api(api_client)
