@@ -357,3 +357,78 @@ class RedshiftResumeClusterTrigger(BaseTrigger):
             )
         else:
             yield TriggerEvent({"status": "success", "message": "Cluster resumed"})
+
+
+class RedshiftDeleteClusterTrigger(BaseTrigger):
+    """
+    Trigger for RedshiftDeleteClusterOperator
+
+    :param cluster_identifier:  A unique identifier for the cluster.
+    :param max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param poll_interval: The amount of time in seconds to wait between attempts.
+    """
+
+    def __init__(
+        self,
+        cluster_identifier: str,
+        max_attempts: int = 30,
+        aws_conn_id: str = "aws_default",
+        poll_interval: int = 30,
+    ):
+        super().__init__()
+        self.cluster_identifier = cluster_identifier
+        self.max_attempts = max_attempts
+        self.aws_conn_id = aws_conn_id
+        self.poll_interval = poll_interval
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftDeleteClusterTrigger",
+            {
+                "cluster_identifier": self.cluster_identifier,
+                "max_attempts": self.max_attempts,
+                "aws_conn_id": self.aws_conn_id,
+                "poll_interval": self.poll_interval,
+            },
+        )
+
+    @cached_property
+    def hook(self):
+        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        async with self.hook.async_conn as client:
+            attempt = 0
+            waiter = client.get_waiter("cluster_deleted")
+            while attempt < self.max_attempts:
+                attempt = attempt + 1
+                try:
+                    await waiter.wait(
+                        ClusterIdentifier=self.cluster_identifier,
+                        WaiterConfig={
+                            "Delay": self.poll_interval,
+                            "MaxAttempts": 1,
+                        },
+                    )
+                    break
+                except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        yield TriggerEvent(
+                            {"status": "failure", "message": f"Delete Cluster Failed: {error}"}
+                        )
+                        break
+                    self.log.info(
+                        "Cluster status is %s. Retrying attempt %s/%s",
+                        error.last_response["Clusters"][0]["ClusterStatus"],
+                        attempt,
+                        self.max_attempts,
+                    )
+                    await asyncio.sleep(int(self.poll_interval))
+
+        if attempt >= self.max_attempts:
+            yield TriggerEvent(
+                {"status": "failure", "message": "Delete Cluster Failed - max attempts reached."}
+            )
+        else:
+            yield TriggerEvent({"status": "success", "message": "Cluster deleted."})
