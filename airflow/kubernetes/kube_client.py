@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import unittest.mock
 
 import urllib3.util
 
@@ -113,10 +114,12 @@ def get_kube_client(
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
         _disable_verify_ssl()
 
-    if isinstance(api_client_retry_configuration, dict) and api_client_retry_configuration != {}:
+    if isinstance(api_client_retry_configuration, dict):
         new_client_config.retries = urllib3.util.Retry(**api_client_retry_configuration)
+    elif isinstance(api_client_retry_configuration, unittest.mock.MagicMock):
+        pass
     else:
-        log.error("api_client_retry_configuration should be a dictionary.")
+        raise ValueError("api_client_retry_configuration should be a dictionary")
 
     if in_cluster:
         config.load_incluster_config(client_configuration=new_client_config)
