@@ -399,6 +399,9 @@ devel_only = [
     "wheel",
     "yamllint",
     "aioresponses",
+]
+
+aiobotocore = [
     # This required for AWS deferrable operators.
     # There is conflict between boto3 and aiobotocore dependency botocore.
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
@@ -421,6 +424,7 @@ def get_unique_dependency_list(req_list_iterable: Iterable[list[str]]):
 
 devel = get_unique_dependency_list(
     [
+        aiobotocore,
         cgroups,
         devel_only,
         doc,
@@ -458,6 +462,7 @@ ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
 # Those are extras that are extensions of the 'core' Airflow. They provide additional features
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
+    "aiobotocore": aiobotocore,
     "async": async_packages,
     "celery": celery,
     "cgroups": cgroups,
