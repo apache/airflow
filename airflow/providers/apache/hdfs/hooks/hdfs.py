@@ -18,7 +18,7 @@
 """Hook for HDFS operations"""
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any, Set
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -51,7 +51,7 @@ class HDFSHook(BaseHook):
     hook_name = "HDFS"
 
     def __init__(
-        self, hdfs_conn_id: str | List[str] = "hdfs_default", proxy_user: str | None = None,
+        self, hdfs_conn_id: str | Set[str] = "hdfs_default", proxy_user: str | None = None,
         autoconfig: bool = False
     ):
         super().__init__()
