@@ -55,7 +55,7 @@ def test_is_production_default_value():
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=BaseOperator(task_id="dummy"))
-    assert executor.get_task_log(ti=ti) == ([], [])
+    assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 
 def test_serve_logs_default_value():

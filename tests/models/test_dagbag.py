@@ -872,7 +872,8 @@ class TestDagBag:
         )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    def test_sync_to_db_syncs_dag_specific_perms_on_update(self):
+    @patch("airflow.models.dagbag.DagBag._sync_perm_for_dag")
+    def test_sync_to_db_syncs_dag_specific_perms_on_update(self, mock_sync_perm_for_dag):
         """
         Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
         new or updated
@@ -884,8 +885,6 @@ class TestDagBag:
                 dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
                 include_examples=False,
             )
-            mock_sync_perm_for_dag = mock.MagicMock()
-            dagbag._sync_perm_for_dag = mock_sync_perm_for_dag
 
             def _sync_to_db():
                 mock_sync_perm_for_dag.reset_mock()
@@ -925,7 +924,7 @@ class TestDagBag:
 
             def _sync_perms():
                 mock_sync_perm_for_dag.reset_mock()
-                dagbag._sync_perm_for_dag(dag, session=session)
+                DagBag._sync_perm_for_dag(dag, session=session)
 
             # perms dont exist
             _sync_perms()

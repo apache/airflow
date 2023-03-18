@@ -42,6 +42,16 @@ core:
       type: string
       example: ~
       default: "airflow.utils.net.getfqdn"
+    might_contain_dag_callable:
+      description: |
+         A callable to check if a python file has airflow dags defined or not
+         with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
+         return True if it has dags otherwise False
+         If this is not provided, Airflow uses its own heuristic rules.
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.utils.file.might_contain_dag_via_default_heuristic"
     default_timezone:
       description: |
         Default timezone in case supplied date times are naive
@@ -606,6 +616,14 @@ logging:
       type: string
       example: ~
       default: ""
+    delete_local_logs:
+      description: |
+        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        they are uploaded to the remote location.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "False"
     google_key_path:
       description: |
         Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
@@ -627,6 +645,16 @@ logging:
       version_added: 2.0.0
       type: string
       example: ~
+      default: ""
+    remote_task_handler_kwargs:
+      description: |
+        The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
+        task handler and it overrides the values provided by Airflow config. For example if you set
+        `delete_local_logs=False` and you provide ``{{"delete_local_copy": true}}``, then the local
+        log files will be deleted after they are uploaded to remote location.
+      version_added: 2.6.0
+      type: string
+      example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
       description: |
@@ -949,6 +977,37 @@ metrics:
       type: boolean
       example: ~
       default: "False"
+    otel_on:
+      description: |
+        Enables sending metrics to OpenTelemetry.
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "False"
+    otel_host:
+      description: ~
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "localhost"
+    otel_port:
+      description: ~
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "8889"
+    otel_prefix:
+      description: ~
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: "airflow"
+    otel_interval_milliseconds:
+      description: ~
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "60000"
 secrets:
   description: ~
   options:
@@ -2701,6 +2760,13 @@ kubernetes_executor:
       type: integer
       example: ~
       default: "100"
+    ssl_ca_cert:
+      description: |
+        Path to a CA certificate to be used by the Kubernetes client to verify the server's SSL certificate.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
 sensors:
   description: ~
   options:

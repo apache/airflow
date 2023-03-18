@@ -108,6 +108,7 @@ def test_no_runs(admin_client, dag_without_runs):
                     "is_mapped": False,
                     "label": "task1",
                     "operator": "EmptyOperator",
+                    "trigger_rule": "all_success",
                 },
                 {
                     "children": [
@@ -119,6 +120,7 @@ def test_no_runs(admin_client, dag_without_runs):
                             "is_mapped": True,
                             "label": "subtask2",
                             "operator": "MockOperator",
+                            "trigger_rule": "all_success",
                         }
                     ],
                     "is_mapped": True,
@@ -137,6 +139,7 @@ def test_no_runs(admin_client, dag_without_runs):
                             "is_mapped": True,
                             "label": "mapped",
                             "operator": "MockOperator",
+                            "trigger_rule": "all_success",
                         }
                     ],
                     "id": "group",
@@ -255,6 +258,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                     "is_mapped": False,
                     "label": "task1",
                     "operator": "EmptyOperator",
+                    "trigger_rule": "all_success",
                 },
                 {
                     "children": [
@@ -283,6 +287,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "is_mapped": True,
                             "label": "subtask2",
                             "operator": "MockOperator",
+                            "trigger_rule": "all_success",
                         }
                     ],
                     "is_mapped": True,
@@ -335,6 +340,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "is_mapped": True,
                             "label": "mapped",
                             "operator": "MockOperator",
+                            "trigger_rule": "all_success",
                         },
                     ],
                     "id": "group",
@@ -398,6 +404,7 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             "is_mapped": False,
             "label": task_id,
             "operator": "EmptyOperator",
+            "trigger_rule": "all_success",
         }
 
     assert resp.status_code == 200, resp.json

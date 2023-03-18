@@ -16,16 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
-from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
+from airflow.providers.microsoft.azure.sensors.data_factory import (
+    AzureDataFactoryPipelineRunStatusAsyncSensor,
+    AzureDataFactoryPipelineRunStatusSensor,
+)
+from airflow.providers.microsoft.azure.triggers.data_factory import ADFPipelineRunStatusSensorTrigger
 
 
 class TestPipelineRunStatusSensor:
@@ -74,3 +80,34 @@ class TestPipelineRunStatusSensor:
 
             with pytest.raises(AzureDataFactoryPipelineRunException, match=error_message):
                 self.sensor.poke({})
+
+
+class TestAzureDataFactoryPipelineRunStatusAsyncSensor:
+    RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
+    SENSOR = AzureDataFactoryPipelineRunStatusAsyncSensor(
+        task_id="pipeline_run_sensor_async",
+        run_id=RUN_ID,
+    )
+
+    def test_adf_pipeline_status_sensor_async(self):
+        """Assert execute method defer for Azure Data factory pipeline run status sensor"""
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.SENSOR.execute({})
+        assert isinstance(
+            exc.value.trigger, ADFPipelineRunStatusSensorTrigger
+        ), "Trigger is not a ADFPipelineRunStatusSensorTrigger"
+
+    def test_adf_pipeline_status_sensor_execute_complete_success(self):
+        """Assert execute_complete log success message when trigger fire with target status"""
+
+        msg = f"Pipeline run {self.RUN_ID} has been succeeded."
+        with mock.patch.object(self.SENSOR.log, "info") as mock_log_info:
+            self.SENSOR.execute_complete(context={}, event={"status": "success", "message": msg})
+        mock_log_info.assert_called_with(msg)
+
+    def test_adf_pipeline_status_sensor_execute_complete_failure(self):
+        """Assert execute_complete method fail"""
+
+        with pytest.raises(AirflowException):
+            self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
