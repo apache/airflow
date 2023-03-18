@@ -1542,6 +1542,8 @@ pgbouncer:
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
+  extraAnnotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created

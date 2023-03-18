@@ -518,6 +518,17 @@ class TestPgbouncerConfig:
         assert "server_round_robin = 1" in ini
         assert "stats_period = 30" in ini
 
+    def test_pgbouncer_deployment_extra_annotations(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True, "extraAnnotations":{"foo": "bar"}}},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "checksum/pgbouncer-certificates-secret": "ce3e24dbf7b695a6cc5be7270ab37c50011f8d35898e1d023165106f6248ce0b",
+            "checksum/pgbouncer-config-secret": "f2aee4e66cd282693ffe89963baf0604ee80bef16da1a570e4cf2749f6cc0438",
+            "foo": "bar",
+        } == jmespath.search("spec.template.metadata.annotations", docs[0])
 
 class TestPgbouncerExporter:
     def test_secret_not_created_by_default(self):

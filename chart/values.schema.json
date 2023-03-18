@@ -4385,6 +4385,14 @@
                     ],
                     "default": null
                 },
+                "extraAnnotations": {
+                    "description": "Extra annotations for the PgBouncer Pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "podDisruptionBudget": {
                     "description": "PgBouncer PodDisruptionBudget.",
                     "type": "object",
