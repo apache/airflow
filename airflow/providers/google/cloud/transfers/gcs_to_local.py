@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.xcom import MAX_XCOM_SIZE
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

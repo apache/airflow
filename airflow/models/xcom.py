@@ -57,7 +57,10 @@ from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.xcom import XCOM_RETURN_KEY
+from airflow.utils.xcom import (
+    MAX_XCOM_SIZE,  # noqa: F401 (#30180 - leaving it for providers backward compatibility)
+    XCOM_RETURN_KEY,
+)
 
 log = logging.getLogger(__name__)
 
