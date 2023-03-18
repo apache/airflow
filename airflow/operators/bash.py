@@ -21,14 +21,16 @@ import os
 import shutil
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence
+from typing import TYPE_CHECKING, Container, Sequence, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
 
 
@@ -44,7 +46,7 @@ class BashOperator(BaseOperator):
     will also be pushed to an XCom when the bash command completes
 
     :param bash_command: The command, set of commands or reference to a
-        bash script (must be '.sh') to be executed. (templated)
+        Bash script (must be '.sh' or '.bash') to be executed. (templated)
     :param env: If env is not None, it must be a dict that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
@@ -53,14 +55,14 @@ class BashOperator(BaseOperator):
         and does not inherit the current process environment. If True, inherits the environment variables
         from current passes and then environment variable passed by the user will either update the existing
         inherited environment variables or the new variables gets appended to it
-    :param output_encoding: Output encoding of bash command
+    :param output_encoding: Output encoding of Bash command
     :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: 99). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     :param cwd: Working directory to execute the command in.
         If None (default), the command is run in a temporary directory.
 
-    Airflow will evaluate the exit code of the bash command. In general, a non-zero exit code will result in
+    Airflow will evaluate the exit code of the Bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success.
     Exit code ``99`` (or another set in ``skip_on_exit_code``)
     will throw an :class:`airflow.exceptions.AirflowSkipException`, which will leave the task in ``skipped``
@@ -85,7 +87,6 @@ class BashOperator(BaseOperator):
         code.  This can be an issue if the non-zero exit arises from a sub-command.  The easiest way of
         addressing this is to prefix the command with ``set -e;``
 
-        Example:
         .. code-block:: python
 
             bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
@@ -131,16 +132,13 @@ class BashOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("bash_command", "env")
     template_fields_renderers = {"bash_command": "bash", "env": "json"}
-    template_ext: Sequence[str] = (
-        ".sh",
-        ".bash",
-    )
+    template_ext: Sequence[str] = (".sh", ".bash")
     ui_color = "#f0ede4"
 
     def __init__(
         self,
         *,
-        bash_command: str,
+        bash_command: str | ArgNotSet,
         env: dict[str, str] | None = None,
         append_env: bool = False,
         output_encoding: str = "utf-8",
@@ -168,10 +166,32 @@ class BashOperator(BaseOperator):
         self.cwd = cwd
         self.append_env = append_env
 
+        # When using the @task.bash decorator, the bash_command is not known until the underlying Python
+        # callable is executed and therefore set to NOTSET. This flag is useful during execution to
+        # determine whether the bash_command value needs to re-rendered for the Rendered Template view in the
+        # UI. Without re-rendering, the bash_command value in this UI view will display as an ArgNotSet type.
+        self._init_bash_command_not_set = isinstance(self.bash_command, ArgNotSet)
+
     @cached_property
     def subprocess_hook(self):
         """Returns hook for running the bash command."""
         return SubprocessHook()
+
+    def update_bash_command_rendered_ti_field(self, ti: TaskInstance) -> None:
+        """Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
+
+        This is useful to ensure the bash_command in the Rendered Template view in the UI displays the
+        executed Bash command for the task. We cannot call TaskInstance.get_rendered_template_fields() here to
+        apply to the task because this will retrieve the RenderedTaskInstanceFields from the metadatabase
+        which doesn't have the runtime-evaluated bash_command value.
+
+        :meta private:
+        """
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        rtif = RenderedTaskInstanceFields(ti, render_templates=False)
+        RenderedTaskInstanceFields.write(rtif)
+        RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
     def get_env(self, context):
         """Build the set of environment variables to be exposed for the bash command."""
@@ -200,18 +220,35 @@ class BashOperator(BaseOperator):
             if not os.path.isdir(self.cwd):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
-        result = self.subprocess_hook.run_command(
-            command=[bash_path, "-c", self.bash_command],
-            env=env,
-            output_encoding=self.output_encoding,
-            cwd=self.cwd,
-        )
-        if self.skip_on_exit_code is not None and result.exit_code in self.skip_on_exit_code:
-            raise AirflowSkipException(f"Bash command returned exit code {self.skip_on_exit_code}. Skipping.")
-        elif result.exit_code != 0:
-            raise AirflowException(
-                f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
+        ti = cast("TaskInstance", context["ti"])
+
+        # Because the bash_command value is reevaluated at runtime using the @tash.bash decorator, the
+        # returned string from the decorated callable could be a string that contains a Jinja expression.
+        # To account for this, the templated string need to be rendered again.
+        if self._init_bash_command_not_set:
+            ti.render_templates()
+
+        try:
+            result = self.subprocess_hook.run_command(
+                command=[bash_path, "-c", self.bash_command],
+                env=env,
+                output_encoding=self.output_encoding,
+                cwd=self.cwd,
             )
+            if self.skip_on_exit_code is not None and result.exit_code in self.skip_on_exit_code:
+                raise AirflowSkipException(
+                    f"Bash command returned exit code {self.skip_on_exit_code}. Skipping."
+                )
+            elif result.exit_code != 0:
+                raise AirflowException(
+                    f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
+                )
+        finally:
+            # Assuming use of the @task.bash decorator, regardless of the outcome of executing the Bash
+            # command, update the bash_command value for the Rendered Template view in the UI.
+            if self._init_bash_command_not_set:
+                self.update_bash_command_rendered_ti_field(ti)
+
         return result.output
 
     def on_kill(self) -> None:
