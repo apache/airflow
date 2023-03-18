@@ -58,7 +58,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-# XCom constants below are needed for providers backward compatibility, 
+# XCom constants below are needed for providers backward compatibility,
 # which should import the constants directly after apache-airflow>=2.6.0
 from airflow.utils.xcom import (
     MAX_XCOM_SIZE,  # noqa: F401
