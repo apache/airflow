@@ -366,7 +366,7 @@ class BaseXCom(Base, LoggingMixin):
     ) -> Any | None:
         """:sphinx-autoapi-skip:"""
         if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
+            raise ValueError("Exactly one of run_id or execution_date must be passed")
 
         if run_id:
             query = BaseXCom.get_many(
