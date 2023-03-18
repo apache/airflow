@@ -52,8 +52,8 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_python]
+
     @task(task_id="print_the_context")
     def print_context(ds=None, **kwargs):
         """Print the Airflow context and ds variable from the context."""
@@ -63,8 +63,8 @@ with DAG(
 
     run_this = print_context()
     # [END howto_operator_python]
-
     # [START howto_operator_python_render_sql]
+
     @task(task_id="log_sql_query", templates_dict={"query": "sql/sample.sql"}, templates_exts=[".sql"])
     def log_sql(**kwargs):
         logging.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
@@ -90,6 +90,7 @@ with DAG(
         log.warning("The virtalenv_python example task requires virtualenv, please install it.")
     else:
         # [START howto_operator_python_venv]
+
         @task.virtualenv(
             task_id="virtualenv_python", requirements=["colorama==0.4.0"], system_site_packages=False
         )
@@ -117,8 +118,8 @@ with DAG(
         # [END howto_operator_python_venv]
 
         sleeping_task >> virtualenv_task
-
         # [START howto_operator_external_python]
+
         @task.external_python(task_id="external_python", python=PATH_TO_PYTHON_BINARY)
         def callable_external_python():
             """

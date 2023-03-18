@@ -46,8 +46,8 @@ def example_sensor_decorator():
         return PokeReturnValue(is_done=True, xcom_value="xcom_value")
 
     # [END wait_function]
-
     # [START dummy_function]
+
     @task
     def dummy_operator() -> None:
         pass
