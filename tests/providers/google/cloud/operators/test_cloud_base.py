@@ -45,7 +45,7 @@ class TestGoogleCloudBaseOperator:
         copied_op = copy.deepcopy(op)
 
         assert copied_op.retry == DEFAULT
-        assert copied_op.config == None
+        assert copied_op.config is None
 
     def test_handles_deepcopy_with_non_default_retry(self):
         op = GoogleSampleOperator(task_id=TASK_ID, retry=Retry(deadline=30), config={"config": "value"})
