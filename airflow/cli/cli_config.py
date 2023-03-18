@@ -23,22 +23,37 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import textwrap
 from argparse import ArgumentError
-from typing import Callable, Iterable, NamedTuple, Union
+from typing import Any, Callable, Iterable, NamedTuple, Union
 
+import jsonschema
 import lazy_object_proxy
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import XCOM_RETURN_KEY
 from airflow.utils.cli import ColorMode
+from airflow.utils.helpers import validate_key
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
 
+if sys.version_info >= (3, 9):
+    from importlib.resources import files as resource_files
+else:
+    from importlib_resources import files as resource_files
+
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+
+XCOMS_ARG_EXAMPLE = [
+    {"task_id": "my_task", "value": "foo"},
+    {"task_id": "another_task", "key": "custom_key", "value": 42},
+]
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -52,6 +67,39 @@ def lazy_load_command(import_path: str) -> Callable:
     command.__name__ = name
 
     return command
+
+
+def _xcoms(val) -> list[dict[str, Any]]:
+    try:
+        parsed_value = json.loads(val)
+    except json.JSONDecodeError as e:
+        raise argparse.ArgumentTypeError(f"Failed to parse JSON from the passed value {val!r}: {e}")
+
+    format_checker = jsonschema.FormatChecker()
+
+    @format_checker.checks("airflow-key", raises=(AirflowException, TypeError))
+    def airflow_key(value):
+        validate_key(value)
+        return True
+
+    with resource_files("airflow").joinpath("cli", "xcoms_arg.schema.json").open("rb") as f:
+        schema = json.load(f)
+    try:
+        jsonschema.validate(parsed_value, schema, format_checker=format_checker)
+    except jsonschema.ValidationError as e:
+        raise argparse.ArgumentTypeError(f"Error when validating schema of the xcoms JSON: {e.message}")
+
+    task_and_keys = set()
+    for xcom in parsed_value:
+        task_and_key = xcom["task_id"], xcom.get("key", XCOM_RETURN_KEY)
+        if task_and_key in task_and_keys:
+            raise argparse.ArgumentTypeError(
+                "(task_id, key) pairs should be unique across passed XCom objects, "
+                f"but {task_and_key} is encountered at least twice."
+            )
+        task_and_keys.add(task_and_key)
+
+    return parsed_value
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
@@ -823,6 +871,16 @@ ARG_FLOWER_BASIC_AUTH = Arg(
     ),
 )
 ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to the task")
+ARG_XCOMS = Arg(
+    ("--xcoms",),
+    help=(
+        "Passes a JSON list of XCom objects, which the task depends on. "
+        f"For example: {json.dumps(XCOMS_ARG_EXAMPLE)}). "
+        f'If "key" isn\'t provided, "{XCOM_RETURN_KEY}" is used by default, which '
+        f"is the XCom key used by default by Task Flow to pass values returned by operators."
+    ),
+    type=_xcoms,
+)
 ARG_POST_MORTEM = Arg(
     ("-m", "--post-mortem"), action="store_true", help="Open debugger on uncaught exception"
 )
@@ -1444,6 +1502,7 @@ TASKS_COMMANDS = (
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
+            ARG_XCOMS,
             ARG_POST_MORTEM,
             ARG_ENV_VARS,
             ARG_MAP_INDEX,

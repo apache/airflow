@@ -401,6 +401,6 @@ class TestCli:
                 "example_passing_xcoms_via_test_command",
                 "python_echo",
                 "--xcoms",
-                json.dumps(cli_parser.XCOMS_ARG_EXAMPLE),
+                json.dumps(cli_config.XCOMS_ARG_EXAMPLE),
             ]
         )
