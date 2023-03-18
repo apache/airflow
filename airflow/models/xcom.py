@@ -57,13 +57,9 @@ from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 log = logging.getLogger(__name__)
-
-# MAX XCOM Size is 48KB
-# https://github.com/apache/airflow/pull/1618#discussion_r68249677
-MAX_XCOM_SIZE = 49344
-XCOM_RETURN_KEY = "return_value"
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey

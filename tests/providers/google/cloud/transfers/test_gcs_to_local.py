@@ -22,8 +22,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow import AirflowException
-from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
+from airflow.utils.xcom import MAX_XCOM_SIZE
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
