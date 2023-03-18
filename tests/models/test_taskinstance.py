@@ -1484,7 +1484,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=models.XCOM_RETURN_KEY) is None
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
 
     def test_post_execute_hook(self, dag_maker):
         """
