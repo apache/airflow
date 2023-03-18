@@ -28,7 +28,6 @@ from argparse import Action
 from functools import lru_cache
 from typing import Iterable
 
-import jsonschema
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
@@ -42,6 +41,7 @@ from airflow.cli.cli_config import (
     core_commands,
 )
 from airflow.exceptions import AirflowException
+from airflow.utils.helpers import partition
 
 airflow_commands = core_commands
 
