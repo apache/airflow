@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from requests.auth import AuthBase, HTTPBasicAuth
+from requests.auth import AuthBase
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

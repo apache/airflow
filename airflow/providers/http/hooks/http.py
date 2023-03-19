@@ -66,7 +66,6 @@ class HttpHook(BaseHook):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
-        auth_args: list[Any] | None = None,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
@@ -78,8 +77,7 @@ class HttpHook(BaseHook):
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
         self.keep_alive_interval = tcp_keep_alive_interval
-        self.auth_args = auth_args
-        
+
     @property
     def auth_type(self):
         return self._auth_type or HTTPBasicAuth
@@ -113,8 +111,6 @@ class HttpHook(BaseHook):
                 self.base_url = self.base_url + ":" + str(conn.port)
             if conn.login:
                 session.auth = self.auth_type(conn.login, conn.password)
-            elif self._auth_type and self.auth_args:
-                    session.auth = self.auth_type(*self.auth_args)
             elif self._auth_type:
                 session.auth = self.auth_type()
             if conn.extra:
