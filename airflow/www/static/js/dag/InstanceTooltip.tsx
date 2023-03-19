@@ -83,6 +83,7 @@ const InstanceTooltip = ({
           </Text>
         </>
       )}
+      {group.triggerRule && <Text>Trigger Rule: {group.triggerRule}</Text>}
       {note && <Text>Contains a note</Text>}
     </Box>
   );
