@@ -362,6 +362,9 @@ class TestDagBag:
         found = dagbag.process_file(str(TEST_DAGS_FOLDER / "test_invalid_dup_task.py"))
         assert [] == found
 
+        found = dagbag.process_file(str(TEST_DAGS_FOLDER / "test_invalid_dup_dependency.py"))
+        assert [] == found
+
     @pytest.fixture()
     def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> Iterator[str]:
         failing_dag_file = TEST_DAGS_FOLDER / "test_invalid_dup_task.py"

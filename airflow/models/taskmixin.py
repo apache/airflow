@@ -205,9 +205,11 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             # If this task does not yet have a dag, add it to the same dag as the other task.
             self.dag = dag
 
-        def add_only_new(obj, item_set: set[str], item: str) -> None:
+        def add_only_new(obj, item_set: set[str], item: str, unique_dependency: bool) -> None:
             """Adds only new items to item set"""
             if item in item_set:
+                if unique_dependency:
+                    raise ValueError(f"Dependency {obj}, {item} already registered for DAG: {dag.dag_id}")
                 self.log.warning("Dependency %s, %s already registered for DAG: %s", obj, item, dag.dag_id)
             else:
                 item_set.add(item)
@@ -216,14 +218,16 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             if dag and not task.has_dag():
                 # If the other task does not yet have a dag, add it to the same dag as this task and
                 dag.add_task(task)
+
+            unique_dependencies = dag.unique_dependencies if dag else False
             if upstream:
-                add_only_new(task, task.downstream_task_ids, self.node_id)
-                add_only_new(self, self.upstream_task_ids, task.node_id)
+                add_only_new(task, task.downstream_task_ids, self.node_id, unique_dependencies)
+                add_only_new(self, self.upstream_task_ids, task.node_id, unique_dependencies)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, task.node_id, self.node_id)
             else:
-                add_only_new(self, self.downstream_task_ids, task.node_id)
-                add_only_new(task, task.upstream_task_ids, self.node_id)
+                add_only_new(self, self.downstream_task_ids, task.node_id, unique_dependencies)
+                add_only_new(task, task.upstream_task_ids, self.node_id, unique_dependencies)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, self.node_id, task.node_id)
 
