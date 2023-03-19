@@ -471,11 +471,11 @@ class SSHHook(BaseHook):
         command: str,
         get_pty: bool,
         environment: dict | None,
-        timeout: int | None = None,
+        timeout: int | ArgNotSet | None = NOTSET,
     ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
 
-        if timeout is None:
+        if timeout is NOTSET:
             timeout = self.cmd_timeout  # type: ignore[assignment]
 
         # set timeout taken as params
