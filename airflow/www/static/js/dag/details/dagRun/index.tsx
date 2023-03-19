@@ -60,13 +60,18 @@ interface Props {
   runId: DagRunType['runId'];
 }
 
+const formatConf = (conf: string | null | undefined): string => {
+  if (!conf) {
+    return '';
+  }
+  return JSON.stringify(JSON.parse(conf), null, 4);
+};
+
 const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
   const run = dagRuns.find((dr) => dr.runId === runId);
-  const { onCopy, hasCopied } = useClipboard(
-    JSON.stringify(JSON.parse(run?.conf || ''), null, 4),
-  );
+  const { onCopy, hasCopied } = useClipboard(formatConf(run?.conf));
   if (!run) return null;
   const {
     executionDate,
