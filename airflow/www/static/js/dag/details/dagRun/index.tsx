@@ -55,6 +55,13 @@ interface Props {
   runId: DagRunType["runId"];
 }
 
+const formatConf = (conf: string | null | undefined): string => {
+  if (!conf) {
+    return "";
+  }
+  return JSON.stringify(JSON.parse(conf), null, 4);
+};
+
 const DagRun = ({ runId }: Props) => {
   const {
     data: { dagRuns },
@@ -63,9 +70,7 @@ const DagRun = ({ runId }: Props) => {
   const offsetTop = useOffsetTop(detailsRef);
 
   const run = dagRuns.find((dr) => dr.runId === runId);
-  const { onCopy, hasCopied } = useClipboard(
-    JSON.stringify(JSON.parse(run?.conf || ""), null, 4)
-  );
+  const { onCopy, hasCopied } = useClipboard(formatConf(run?.conf));
   if (!run) return null;
   const {
     state,
