@@ -21,6 +21,7 @@
 {{- if and .Values.rbac.create .Values.allowPodLaunching }}
 {{- $schedulerLaunchExecutors := list "LocalExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
 {{- $workerLaunchExecutors := list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $webserverLaunchExecutors := list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}
@@ -57,6 +58,11 @@ subjects:
 {{- if has .Values.executor $workerLaunchExecutors }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+{{- end }}
+{{- if has .Values.executor $webserverLaunchExecutors }}
+  - kind: ServiceAccount
+    name: {{ include "webserver.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
 {{- end }}
 {{- end }}
