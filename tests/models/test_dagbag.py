@@ -1007,12 +1007,14 @@ class TestDagBag:
         obey cluster policy.
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
+        dag_id = "test_missing_owner"
+        err_cls_name = "AirflowClusterPolicyViolation"
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
-                f"""AirflowClusterPolicyViolation: DAG policy violation (DAG ID: test_missing_owner, Path: {dag_file}):\n"""
+                f"""{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"""
                 """Notices:\n"""
                 """ * Task must have non-None non-default owner. Current value: airflow"""
             )
@@ -1027,12 +1029,14 @@ class TestDagBag:
         """
         TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name("dags_corrupted")
         dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
+        dag_id = "test_nonstring_owner"
+        err_cls_name = "AirflowClusterPolicyViolation"
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
-                f"""DAG policy violation (DAG ID: test_nonstring_owner, Path: {dag_file}):\n"""
+                f"""{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"""
                 """Notices:\n"""
                 """ * owner should be a string. Current value: ['a']"""
             )
@@ -1061,7 +1065,6 @@ class TestDagBag:
         assert "has no tags" in dagbag.import_errors[dag_file]
 
     def test_dagbag_dag_collection(self):
-
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, collect_dags=False)
         # since collect_dags is False, dagbag.dags should be empty
         assert not dagbag.dags
