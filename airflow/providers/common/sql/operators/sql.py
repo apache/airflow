@@ -596,12 +596,18 @@ class SQLTableCheckOperator(BaseSQLOperator):
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
-    SELECT TOP 1
-        '{check_name}' AS check_name,
-        COUNT_IF(NOT CASE WHEN COALESCE({check_statement}, 1) THEN 1 ELSE 0 END)
-            OVER (PARTITION BY 1) = 0 AS check_result,
-        COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
-    FROM {table}{partition_clause}
+    SELECT
+        check_name,
+        COALESCE(MIN(result), 1) AS result,
+        COALESCE(MIN(num_rows), 0) AS num_rows
+    FROM (
+        SELECT
+            '{check_name}' AS check_name,
+            COUNT_IF(NOT CASE WHEN COALESCE({check_statement}, 1) THEN 1 ELSE 0 END)
+                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
+        FROM {table}{partition_clause}
+    )
     """
 
     def __init__(
