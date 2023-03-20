@@ -84,7 +84,7 @@ class W:
 class V:
     __version__: ClassVar[int] = 1
     w: W
-    l: list
+    s: list
     t: tuple
     c: int
 

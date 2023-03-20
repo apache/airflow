@@ -68,8 +68,13 @@ def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
     return {CLASSNAME: cls, VERSION: version, DATA: data}
 
 
-def decode(d: dict[str, str | int | T]) -> tuple:
-    return d[CLASSNAME], d[VERSION], d.get(DATA, None)
+def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
+    classname = d[CLASSNAME]
+    version = d[VERSION]
+    if not isinstance(classname, str) or not isinstance(version, int):
+        raise ValueError(f"can not decode {d!r}")
+    data = d.get(DATA, None)
+    return classname, version, data
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
@@ -201,7 +206,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     cls: Any
     version = 0
     value: Any = None
-    classname: str = ""
+    classname = ""
 
     if type_hint:
         cls = type_hint
@@ -212,7 +217,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if CLASSNAME in o and VERSION in o:
         classname, version, value = decode(o)
 
-    if classname == "":
+    if not classname:
         raise TypeError("classname cannot be empty")
 
     # only return string representation
