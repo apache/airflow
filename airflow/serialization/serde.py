@@ -200,8 +200,8 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     # custom deserialization starts here
     cls: Any
     version = 0
-    value: Any
-    classname: str
+    value: Any = None
+    classname: str = ""
 
     if type_hint:
         cls = type_hint
@@ -211,6 +211,9 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     if CLASSNAME in o and VERSION in o:
         classname, version, value = decode(o)
+
+    if classname == "":
+        raise TypeError("classname cannot be empty")
 
     # only return string representation
     if not full:
@@ -271,10 +274,12 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
 
     s = f"{classname}@version={version}("
     if isinstance(value, _primitives):
+        print("PRIMITIVE")
         s += f"{value})"
     elif isinstance(value, _builtin_collections):
         s += ",".join(str(deserialize(value, full=False)))
     elif isinstance(value, dict):
+        print(f"DICT {value}")
         for k, v in value.items():
             s += f"{k}={deserialize(v, full=False)},"
         s = s[:-1] + ")"
