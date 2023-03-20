@@ -274,12 +274,11 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
 
     s = f"{classname}@version={version}("
     if isinstance(value, _primitives):
-        print("PRIMITIVE")
         s += f"{value})"
     elif isinstance(value, _builtin_collections):
+        # deserialized values can be != str
         s += ",".join(str(deserialize(value, full=False)))
     elif isinstance(value, dict):
-        print(f"DICT {value}")
         for k, v in value.items():
             s += f"{k}={deserialize(v, full=False)},"
         s = s[:-1] + ")"
