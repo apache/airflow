@@ -109,34 +109,34 @@ def get_kube_client(
     if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
         _enable_tcp_keepalive()
 
-    new_client_config = _get_default_configuration()
+    configuration = _get_default_configuration()
     api_client_retry_configuration = conf.getjson("kubernetes", "api_client_retry_configuration", fallback={})
 
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
         _disable_verify_ssl()
 
     if isinstance(api_client_retry_configuration, dict):
-        new_client_config.retries = urllib3.util.Retry(**api_client_retry_configuration)
+        configuration.retries = urllib3.util.Retry(**api_client_retry_configuration)
     else:
         raise ValueError("api_client_retry_configuration should be a dictionary")
 
     if in_cluster:
-        config.load_incluster_config(client_configuration=new_client_config)
+        config.load_incluster_config(client_configuration=configuration)
     else:
         if cluster_context is None:
             cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
         if config_file is None:
             config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
         config.load_kube_config(
-            config_file=config_file, context=cluster_context, client_configuration=new_client_config
+            config_file=config_file, context=cluster_context, client_configuration=configuration
         )
 
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
-        new_client_config.verify_ssl = False
+        configuration.verify_ssl = False
 
     ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
     if ssl_ca_cert:
-        new_client_config.ssl_ca_cert = ssl_ca_cert
+        configuration.ssl_ca_cert = ssl_ca_cert
 
-    api_client = client.ApiClient(configuration=new_client_config)
+    api_client = client.ApiClient(configuration)
     return client.CoreV1Api(api_client)
