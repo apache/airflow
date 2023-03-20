@@ -283,7 +283,7 @@ class TestSerDe:
         assert f"{qualname(V)}@version={V.__version__}" in s
         # asdict from dataclasses removes class information
         assert "w={'x': 10}" in s
-        assert "l=['l1', 'l2']" in s
+        assert "s=['l1', 'l2']" in s
         assert "t=(1,2)" in s
         assert "c=10" in s
         e["__data__"]["t"] = (1, 2)
