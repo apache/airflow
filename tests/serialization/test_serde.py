@@ -280,7 +280,6 @@ class TestSerDe:
         e = serialize(i)
         s = deserialize(e, full=False)
 
-        print(s)
         assert f"{qualname(V)}@version={V.__version__}" in s
         # asdict from dataclasses removes class information
         assert "w={'x': 10}" in s
@@ -288,10 +287,8 @@ class TestSerDe:
         assert "t=(1,2)" in s
         assert "c=10" in s
         e["__data__"]["t"] = (1, 2)
-        print(f"XXXX: {e}")
 
         s = deserialize(e, full=False)
-        print(f"XXX: {s}")
 
     @pytest.mark.parametrize(
         "obj, expected",
