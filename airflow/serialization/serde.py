@@ -56,6 +56,7 @@ S = Union[list, tuple, set]
 
 _serializers: dict[str, ModuleType] = {}
 _deserializers: dict[str, ModuleType] = {}
+_stringifiers: dict[str, ModuleType] = {}
 _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
@@ -142,6 +143,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     # dataclasses
     if dataclasses.is_dataclass(cls):
+        # fixme: unfortunately using asdict with nested dataclasses it looses information
         data = dataclasses.asdict(o)
         dct[DATA] = serialize(data, depth + 1)
         return dct
@@ -209,18 +211,18 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     if CLASSNAME in o and VERSION in o:
         classname, version, value = decode(o)
-        if not _match(classname) and classname not in _extra_allowed:
-            raise ImportError(
-                f"{classname} was not found in allow list for deserialization imports. "
-                f"To allow it, add it to allowed_deserialization_classes in the configuration"
-            )
-
-        if full:
-            cls = import_string(classname)
 
     # only return string representation
     if not full:
         return _stringify(classname, version, value)
+
+    if not _match(classname) and classname not in _extra_allowed:
+        raise ImportError(
+            f"{classname} was not found in allow list for deserialization imports. "
+            f"To allow it, add it to allowed_deserialization_classes in the configuration"
+        )
+
+    cls = import_string(classname)
 
     # registered deserializer
     if classname in _deserializers:
@@ -260,14 +262,21 @@ def _match(classname: str) -> bool:
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
+    """
+    Returns a previously serialized object in a somewhat human-readable format. It is not designed to
+    be exact and will not extensively traverse the whole tree of an object.
+    """
+    if classname in _stringifiers:
+        return _stringifiers[classname].stringify(classname, version, value)
+
     s = f"{classname}@version={version}("
     if isinstance(value, _primitives):
         s += f"{value})"
     elif isinstance(value, _builtin_collections):
-        s += ",".join(str(serialize(value)))
+        s += ",".join(str(deserialize(value, full=False)))
     elif isinstance(value, dict):
         for k, v in value.items():
-            s += f"{k}={serialize(v)},"
+            s += f"{k}={deserialize(v, full=False)},"
         s = s[:-1] + ")"
 
     return s
@@ -277,6 +286,7 @@ def _register():
     """Register builtin serializers and deserializers for types that don't have any themselves"""
     _serializers.clear()
     _deserializers.clear()
+    _stringifiers.clear()
 
     with Stats.timer("serde.load_serializers") as timer:
         for _, name, _ in iter_namespace(airflow.serialization.serializers):
@@ -296,6 +306,13 @@ def _register():
                 log.debug("registering %s for deserialization", d)
                 _deserializers[d] = name
                 _extra_allowed.add(d)
+            for c in getattr(name, "stringifiers", list()):
+                if not isinstance(c, str):
+                    c = qualname(c)
+                if c in _deserializers and _deserializers[c] != name:
+                    raise AttributeError(f"duplicate {c} for stringifiers in {name} and {_stringifiers[c]}")
+                log.debug("registering %s for stringifying", c)
+                _stringifiers[c] = name
 
     log.info("loading serializers took %.3f seconds", timer.duration)
 

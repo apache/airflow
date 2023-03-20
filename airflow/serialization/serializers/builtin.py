@@ -26,8 +26,9 @@ if TYPE_CHECKING:
 
 __version__ = 1
 
-serializers = [frozenset, set, tuple]
+serializers = ["builtins.frozenset", "builtins.set", "builtins.tuple"]
 deserializers = serializers
+stringifiers = serializers
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
@@ -48,3 +49,11 @@ def deserialize(classname: str, version: int, data: list) -> tuple | set | froze
         return frozenset(data)
 
     raise TypeError(f"do not know how to deserialize {classname}")
+
+
+def stringify(classname: str, version: int, data: list) -> str:
+    if classname not in stringifiers:
+        return TypeError(f"do not know how to stringify {classname}")
+
+    s = ",".join(str(d) for d in data)
+    return f"({s})"

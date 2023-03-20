@@ -80,6 +80,15 @@ class W:
     x: int
 
 
+@dataclass
+class V:
+    __version__: ClassVar[int] = 1
+    w: W
+    l: list
+    t: tuple
+    c: int
+
+
 @pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
@@ -265,3 +274,35 @@ class TestSerDe:
                     import_string(s)
                 except ImportError:
                     raise AttributeError(f"{s} cannot be imported (located in {name})")
+
+    def test_stringify(self):
+        i = V(W(10), ["l1", "l2"], (1, 2), 10)
+        e = serialize(i)
+        s = deserialize(e, full=False)
+
+        assert f"{qualname(V)}@version={V.__version__}" in s
+        # asdict from dataclasses removes class information
+        assert "w={'x': 10}" in s
+        assert "l=['l1', 'l2']" in s
+        assert "t=(1,2)" in s
+        assert "c=10" in s
+
+    @pytest.mark.parametrize(
+        "obj, expected",
+        [
+            (
+                Z(10),
+                {
+                    "__classname__": "tests.serialization.test_serde.Z",
+                    "__version__": 1,
+                    "__data__": {"x": 10},
+                },
+            ),
+            (
+                W(2),
+                {"__classname__": "tests.serialization.test_serde.W", "__version__": 2, "__data__": {"x": 2}},
+            ),
+        ],
+    )
+    def test_serialized_data(self, obj, expected):
+        assert expected == serialize(obj)
