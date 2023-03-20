@@ -474,6 +474,14 @@ option_airflow_constraints_reference = click.option(
     default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
+option_airflow_constraints_location = click.option(
+    "--airflow-constraints-location",
+    type=str,
+    default="",
+    help="If specified, it is used instead of calculating reference to the constraint file. "
+    "It could be full remote URL to the location file, or local file placed in `docker-context-files` "
+    "(in this case it has to start with /opt/airflow/docker-context-files).",
+)
 option_airflow_constraints_reference_build = click.option(
     "--airflow-constraints-reference",
     default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,

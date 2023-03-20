@@ -189,16 +189,16 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
         console_print("PyPI packages prepared")
 
 
-def push_packages_to_test_pypi():
+def push_packages_to_test_pypi(version):
     if confirm_action("Do you want to push packages to test PyPI?"):
         run_command(["twine", "upload", "-r", "pypitest", "dist/*"], dry_run_override=DRY_RUN, check=True)
         console_print("Packages pushed to test PyPI")
         console_print(
             "Verify that the test package looks good by downloading it and installing it into a virtual "
             "environment. The package download link is available at: "
-            "https://test.pypi.org/project/apache-airflow/#files"
-            "Install it with the appropriate constraint file, for instance: "
-            "pip install <download_link> --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.2.1rc1/constraints-3.8.txt"  # noqa: 501
+            "https://test.pypi.org/project/apache-airflow/#files "
+            "Install it with the appropriate constraint file, adapt python version: "
+            f"pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ apache-airflow=={version} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{version}/constraints-3.8.txt"  # noqa: 501
         )
 
 
@@ -222,8 +222,8 @@ def push_packages_to_pypi():
         )
 
 
-def push_release_candidate_to_github(version):
-    if confirm_action("Do you want to push release candidate to GitHub?"):
+def push_release_candidate_tag_to_github(version):
+    if confirm_action("Do you want to push release candidate tag to GitHub?"):
         console_print(
             """
         This step should only be done now and not before, because it triggers an automated
@@ -233,7 +233,7 @@ def push_release_candidate_to_github(version):
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
         run_command(["git", "push", "origin", "tag", f"{version}"], dry_run_override=DRY_RUN, check=True)
-        console_print("Release candidate pushed to GitHub")
+        console_print("Release candidate tag pushed to GitHub")
 
 
 def create_issue_for_testing(version, previous_version, github_token):
@@ -259,6 +259,33 @@ def create_issue_for_testing(version, previous_version, github_token):
                 ],
                 check=True,
             )
+
+
+def remove_old_releases(version, repo_root):
+    if not confirm_action("Do you want to look for old RCs to remove?"):
+        return
+
+    os.chdir("asf-dist/dev/airflow")
+
+    old_releases = []
+    for entry in os.scandir():
+        if entry.name == version:
+            # Don't remove the current RC
+            continue
+        if entry.is_dir() and entry.name.startswith("2."):
+            old_releases.append(entry.name)
+    old_releases.sort()
+
+    for old_release in old_releases:
+        if confirm_action(f"Remove old RC {old_release}?"):
+            run_command(["svn", "rm", old_release], dry_run_override=DRY_RUN, check=True)
+            run_command(
+                ["svn", "commit", "-m", f"Remove old release: {old_release}"],
+                dry_run_override=DRY_RUN,
+                check=True,
+            )
+
+    os.chdir(repo_root)
 
 
 @click.command(
@@ -333,15 +360,19 @@ def publish_release_candidate(version, previous_version, github_token):
     # Prepare the pypi packages
     prepare_pypi_packages(version, version_suffix, airflow_repo_root)
     # Push the packages to test pypi
-    push_packages_to_test_pypi()
+    push_packages_to_test_pypi(version)
 
     # Push the packages to pypi
     push_packages_to_pypi()
-    # Push the release candidate to gitHub
 
-    push_release_candidate_to_github(version)
+    # Push the release candidate tag to gitHub
+    push_release_candidate_tag_to_github(version)
     # Create issue for testing
     os.chdir(airflow_repo_root)
     create_issue_for_testing(version, previous_version, github_token)
+
+    # Remove old releases
+    remove_old_releases(version, airflow_repo_root)
+
     console_print()
     console_print("Done!")
