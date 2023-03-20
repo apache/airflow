@@ -73,7 +73,7 @@ def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     version = d[VERSION]
     if not isinstance(classname, str) or not isinstance(version, int):
         raise ValueError(f"can not decode {d!r}")
-    data = d.get(DATA, None)
+    data = d.get(DATA)
     return classname, version, data
 
 
