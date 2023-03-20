@@ -37,6 +37,15 @@ Below is an example of using this operator to execute an Azure Data Factory pipe
       :start-after: [START howto_operator_adf_run_pipeline]
       :end-before: [END howto_operator_adf_run_pipeline]
 
+Below is an example of using this operator to execute an Azure Data Factory pipeline with a deferrable flag
+so that polling for the status of the pipeline run occurs on the Airflow Triggerer.
+
+  .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_adf_run_pipeline_with_deferrable_flag]
+      :end-before: [END howto_operator_adf_run_pipeline_with_deferrable_flag]
+
 Here is a different example of using this operator to execute a pipeline but coupled with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor` to perform an asynchronous wait.
 
     .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
