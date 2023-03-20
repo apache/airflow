@@ -104,7 +104,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
-        if self.deferrable is False:
+        if not self.deferrable:
             super().execute(context)
         else:
             self.defer(
