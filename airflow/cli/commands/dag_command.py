@@ -27,7 +27,6 @@ import sys
 
 from graphviz.dot import Dot
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.functions import func
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
