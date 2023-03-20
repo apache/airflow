@@ -525,8 +525,10 @@ class TestPgbouncerConfig:
         )
 
         assert {
-            "checksum/pgbouncer-certificates-secret": "ce3e24dbf7b695a6cc5be7270ab37c50011f8d35898e1d023165106f6248ce0b",
-            "checksum/pgbouncer-config-secret": "f2aee4e66cd282693ffe89963baf0604ee80bef16da1a570e4cf2749f6cc0438",
+            "checksum/pgbouncer-certificates-secret":
+            "ce3e24dbf7b695a6cc5be7270ab37c50011f8d35898e1d023165106f6248ce0b",
+            "checksum/pgbouncer-config-secret":
+            "f2aee4e66cd282693ffe89963baf0604ee80bef16da1a570e4cf2749f6cc0438",
             "foo": "bar",
         } == jmespath.search("spec.template.metadata.annotations", docs[0])
 
