@@ -14,34 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-# Based on the default config found here:
-# https://github.com/open-telemetry/opentelemetry-collector-releases/blob/main/configs/otelcol-contrib.yaml
+from __future__ import annotations
 
-receivers:
-  otlp:
-    protocols:
-      http:
+from typing import Any, Mapping, Sequence
 
-processors:
-  batch:
+from airflow.api_connexion.exceptions import BadRequest
 
-exporters:
-  logging:
-    verbosity: detailed
-  prometheus:
-    endpoint: 0.0.0.0:8889
 
-service:
-
-  pipelines:
-
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [logging]
-
-    metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [logging, prometheus]
+def extract_update_mask_data(
+    update_mask: Sequence[str], non_update_fields: list[str], data: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    extracted_data = {}
+    for field in update_mask:
+        field = field.strip()
+        if field in data and field not in non_update_fields:
+            extracted_data[field] = data[field]
+        else:
+            raise BadRequest(detail=f"'{field}' is unknown or cannot be updated.")
+    return extracted_data
