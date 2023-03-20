@@ -30,7 +30,6 @@ import os
 from functools import wraps
 from typing import Any, Union
 
-from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import (
@@ -533,37 +532,38 @@ class WasbAsyncHook(WasbHook):
         """Initialize the hook instance."""
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        # self.blob_service_client: AsyncBlobServiceClient = None  # type: ignore
-        self._async_conn: AsyncBlobServiceClient = None  # type: ignore
+        self.blob_service_client: AsyncBlobServiceClient = self.get_conn()
 
-    async def get_async_conn(self) -> AsyncBlobServiceClient:
+    def get_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
-        if self._async_conn is not None:
-            return self._async_conn
+        if self.blob_service_client is not None:
+            return self.blob_service_client
 
-        conn = await sync_to_async(self.get_connection)(self.conn_id)
+        conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
 
         if self.public_read:
             # Here we use anonymous public read
             # more info
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            self._async_conn = AsyncBlobServiceClient(account_url=conn.host, **extra)
-            return self._async_conn
+            self.blob_service_client = AsyncBlobServiceClient(account_url=conn.host, **extra)
+            return self.blob_service_client
 
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
-            self._async_conn = AsyncBlobServiceClient.from_connection_string(connection_string, **extra)
-            return self._async_conn
+            self.blob_service_client = AsyncBlobServiceClient.from_connection_string(
+                connection_string, **extra
+            )
+            return self.blob_service_client
 
         shared_access_key = self._get_field(extra, "shared_access_key")
         if shared_access_key:
             # using shared access key
-            self._async_conn = AsyncBlobServiceClient(
+            self.blob_service_client = AsyncBlobServiceClient(
                 account_url=conn.host, credential=shared_access_key, **extra
             )
-            return self._async_conn
+            return self.blob_service_client
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
@@ -571,10 +571,10 @@ class WasbAsyncHook(WasbHook):
             app_id = conn.login
             app_secret = conn.password
             token_credential = AsyncClientSecretCredential(tenant, app_id, app_secret)
-            self._async_conn = AsyncBlobServiceClient(
+            self.blob_service_client = AsyncBlobServiceClient(
                 account_url=conn.host, credential=token_credential, **extra  # type:ignore[arg-type]
             )
-            return self._async_conn
+            return self.blob_service_client
 
         sas_token = self._get_field(extra, "sas_token")
         if sas_token:
@@ -591,13 +591,13 @@ class WasbAsyncHook(WasbHook):
         if not credential:
             credential = AsyncDefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
-        self._async_conn = AsyncBlobServiceClient(
+        self.blob_service_client = AsyncBlobServiceClient(
             account_url=f"https://{conn.login}.blob.core.windows.net/",
             credential=credential,
             **extra,
         )
 
-        return self._async_conn
+        return self.blob_service_client
 
     def _get_blob_client(self, container_name: str, blob_name: str) -> AsyncBlobClient:
         """
@@ -606,7 +606,7 @@ class WasbAsyncHook(WasbHook):
         :param container_name: the name of the blob container
         :param blob_name: the name of the blob. This needs not be existing
         """
-        return self._async_conn.get_blob_client(container=container_name, blob=blob_name)
+        return self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
     async def check_for_blob_async(self, container_name: str, blob_name: str, **kwargs: Any) -> bool:
         """
@@ -628,7 +628,7 @@ class WasbAsyncHook(WasbHook):
 
         :param container_name: the name of the container
         """
-        return self._async_conn.get_container_client(container_name)
+        return self.blob_service_client.get_container_client(container_name)
 
     async def get_blobs_list_async(
         self,

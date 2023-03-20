@@ -53,7 +53,7 @@ class WasbBlobSensorTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes WasbBlobSensorTrigger arguments and classpath."""
         return (
-            "astronomer.providers.microsoft.azure.triggers.wasb.WasbBlobSensorTrigger",
+            "airflow.providers.microsoft.azure.triggers.wasb.WasbBlobSensorTrigger",
             {
                 "container_name": self.container_name,
                 "blob_name": self.blob_name,
