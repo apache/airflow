@@ -67,7 +67,7 @@ following CLI commands to create an account:
         --email spiderman@superhero.org
 
 To deactivate the authentication and allow users to be identified as Anonymous, the following entry
-in ``$AIRFLOW_HOME/config/webserver_config.py`` needs to be set with the desired role that the Anonymous
+in ``$AIRFLOW_HOME/webserver_config.py`` needs to be set with the desired role that the Anonymous
 user will have by default:
 
 .. code-block:: ini
@@ -98,14 +98,14 @@ is automatically generated and can be used to configure the Airflow to support a
 methods like OAuth, OpenID, LDAP, REMOTE_USER.
 
 The default authentication option described in the :ref:`Web Authentication <web-authentication>` section is related
-with the following entry in the ``$AIRFLOW_HOME/config/webserver_config.py``.
+with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
 
 .. code-block:: ini
 
     AUTH_TYPE = AUTH_DB
 
 Another way to create users is in the UI login page, allowing user self registration through a "Register" button.
-The following entries in the ``$AIRFLOW_HOME/config/webserver_config.py`` can be edited to make it possible:
+The following entries in the ``$AIRFLOW_HOME/webserver_config.py`` can be edited to make it possible:
 
 .. code-block:: ini
 
@@ -125,7 +125,7 @@ feature provided by the framework Flask-AppBuilder.
 
 To support authentication through a third-party provider, the ``AUTH_TYPE`` entry needs to be updated with the
 desired option like OAuth, OpenID, LDAP, and the lines with references for the chosen option need to have
-the comments removed and configured in the ``$AIRFLOW_HOME/config/webserver_config.py``.
+the comments removed and configured in the ``$AIRFLOW_HOME/webserver_config.py``.
 
 For more details, please refer to
 `Security section of FAB documentation <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.

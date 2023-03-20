@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import os
 import re
-import unittest
 from typing import Callable
 from unittest import mock
 
 import pytest
 
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, get_airflow_home, initialize_config
+from airflow.configuration import WEBSERVER_CONFIG, get_airflow_home, initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
 from airflow.www.views import (
@@ -63,21 +62,11 @@ def test_configuration_expose_config(admin_client):
     check_content_in_response(["Airflow Configuration"], resp)
 
 
-@unittest.skipIf(
-    os.path.isfile(AIRFLOW_HOME + "/webserver_config.py"),
-    "skip test if default webserver_config.py file is present",
-)
-@mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"})
-def test_configuration_webserver():
-    config_file_path = get_airflow_home() + "/config/webserver_config.py"
-    with open(config_file_path, "w"):
-        pass
-
+@mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER_CONFIG_FILE": "{AIRFLOW_HOME}/config/webserver_config.py"})
+def test_webserver_configuration_config_file(admin_client):
     initialize_config()
-    assert WEBSERVER_CONFIG == config_file_path
 
-    if os.path.exists(config_file_path):
-        os.remove(config_file_path)
+    assert WEBSERVER_CONFIG == os.path.join(get_airflow_home(), "webserver_config.py")
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):

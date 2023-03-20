@@ -1531,28 +1531,14 @@ def initialize_config() -> AirflowConfigParser:
         if local_conf.getboolean("core", "unit_test_mode"):
             local_conf.load_test_config()
 
-    old_webserver_config = os.path.join(AIRFLOW_HOME, "webserver_config.py")
-    # Prioritise airflow webserver config that is present in the config location
-    webserver_config_in_config = os.path.join(AIRFLOW_HOME, "config", "webserver_config.py")
-
+    # The conf.get should provide the default_config in case the value is not set in webserver configs
     global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = webserver_config_in_config
-
-    msg = (
-        "webserver_config.py is still present in {}, this location is deprecated. You should move your "
-        "webserver_config.py to {} "
-    )
-
-    msg = msg.format(old_webserver_config, webserver_config_in_config)
-
-    if os.path.isfile(old_webserver_config):
-        warnings.warn(msg, category=DeprecationWarning)
+    WEBSERVER_CONFIG = local_conf.get("webserver", "config_file")
 
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
 
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
-        os.makedirs(os.path.join(AIRFLOW_HOME, "config"), exist_ok=True)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
 
@@ -1783,7 +1769,6 @@ def __getattr__(name):
 AIRFLOW_HOME = get_airflow_home()
 AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
 
-
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
 _TEST_DAGS_FOLDER = os.path.join(
@@ -1802,7 +1787,6 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
-
 
 TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
