@@ -88,6 +88,10 @@ class XComEncoder(json.JSONEncoder):
         if isinstance(o, dict) and (CLASSNAME in o or SCHEMA_ID in o):
             raise AttributeError(f"reserved key {CLASSNAME} found in dict to serialize")
 
+        # tuples are not preserved by std python serializer
+        if isinstance(o, tuple):
+            o = self.default(o)
+
         return super().encode(o)
 
 

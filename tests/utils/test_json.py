@@ -78,3 +78,20 @@ class TestXComEncoder:
         s = json.dumps(u, cls=utils_json.XComEncoder)
         o = json.loads(s, cls=utils_json.XComDecoder, object_hook=utils_json.XComDecoder.orm_object_hook)
         assert o == f"{U.__module__}.{U.__qualname__}@version={U.__version__}(x={x})"
+
+    def test_collections(self):
+        i = [1, 2]
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e
+
+        i = ("a", "b", "a", "c")
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e
+
+        i = {2, 3}
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e
+
+        i = frozenset({6, 7})
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e
