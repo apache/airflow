@@ -388,7 +388,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table
-    )
+    ) AS sq
     UNION ALL
     SELECT
         check_name,
@@ -401,7 +401,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table
-    )
+    ) AS sq
     """
 
     correct_generate_sql_query_with_partition = f"""
@@ -416,7 +416,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10
-    )
+    ) AS sq
     UNION ALL
     SELECT
         check_name,
@@ -429,7 +429,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10
-    )
+    ) AS sq
     """
 
     correct_generate_sql_query_with_partition_and_where = f"""
@@ -444,7 +444,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10 AND id = 100
-    )
+    ) AS sq
     UNION ALL
     SELECT
         check_name,
@@ -457,7 +457,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10
-    )
+    ) AS sq
     """
 
     correct_generate_sql_query_with_where = f"""
@@ -472,7 +472,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table
-    )
+    ) AS sq
     UNION ALL
     SELECT
         check_name,
@@ -485,7 +485,7 @@ class TestTableCheckOperator:
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE id = 100
-    )
+    ) AS sq
     """
 
     def _construct_operator(self, monkeypatch, checks, records):

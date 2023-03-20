@@ -607,7 +607,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 OVER (PARTITION BY 1) = 0 AS check_result,
             COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM {table}{partition_clause}
-    )
+    ) AS sq
     """
 
     def __init__(
