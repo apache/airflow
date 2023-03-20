@@ -304,11 +304,16 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         sync_hook = await self.get_sync_hook()
         return sync_hook.project_id
 
+    async def _get_project_location(self) -> str:
+        sync_hook = await self.get_sync_hook()
+        return sync_hook.location
+
     async def get_transfer_run(
         self,
         config_id: str,
         run_id: str,
         project_id: str | None,
+        location: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -321,6 +326,7 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         :param project_id: The BigQuery project id where the transfer configuration should be
             created. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
+        :param location: BigQuery Transfer Service location for regional transfers.
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
         :param timeout: The amount of time, in seconds, to wait for the request to
@@ -330,8 +336,13 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
         project_id = project_id or (await self._get_project_id())
+        location = location or (await self._get_project_location())
+        name = f"projects/{project_id}"
+        if location:
+            name += f"/locations/{location}"
+        name += f"/transferConfigs/{config_id}/runs/{run_id}"
+
         client = await self._get_conn()
-        name = f"projects/{project_id}/transferConfigs/{config_id}/runs/{run_id}"
         transfer_run = await client.get_transfer_run(
             name=name,
             retry=retry,

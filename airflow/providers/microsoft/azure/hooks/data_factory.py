@@ -117,8 +117,9 @@ class AzureDataFactoryPipelineRunStatus:
     FAILED = "Failed"
     CANCELING = "Canceling"
     CANCELLED = "Cancelled"
-
     TERMINAL_STATUSES = {CANCELLED, FAILED, SUCCEEDED}
+    INTERMEDIATE_STATES = {QUEUED, IN_PROGRESS, CANCELING}
+    FAILURE_STATES = {FAILED, CANCELLED}
 
 
 class AzureDataFactoryPipelineRunException(AirflowException):
