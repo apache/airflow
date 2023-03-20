@@ -184,7 +184,7 @@ class TestDagBag:
 
             found_2 = dagbag.process_file(tf_2.name)
             assert len(found_2) == 0
-            assert dagbag.import_errors[tf_2.name].startswith("Ignoring DAG")
+            assert dagbag.import_errors[tf_2.name].startswith("AirflowDagDuplicatedIdException: Ignoring DAG")
             assert dagbag.dags == dags_in_bag  # Should not change.
 
     def test_zip_skip_log(self, caplog):
@@ -1012,7 +1012,7 @@ class TestDagBag:
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
-                f"""DAG policy violation (DAG ID: test_missing_owner, Path: {dag_file}):\n"""
+                f"""AirflowClusterPolicyViolation: DAG policy violation (DAG ID: test_missing_owner, Path: {dag_file}):\n"""
                 """Notices:\n"""
                 """ * Task must have non-None non-default owner. Current value: airflow"""
             )
