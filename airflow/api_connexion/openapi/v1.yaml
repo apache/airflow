@@ -2159,6 +2159,34 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /roles/{role_name}/actions/revoke:
+    parameters:
+      - $ref: '#/components/parameters/RoleName'
+    post:
+      summary: Revoke permissions assigned to a role.
+      description: |
+        Revoke permissions (i.e., (action, resource) pairs) assigned to a role.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: post_revoke_role_permissions
+      tags: [Role]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleActions'
+      responses:
+        '204':
+          description: Success.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /permissions:
     get:
       summary: List permissions
@@ -3720,6 +3748,18 @@ components:
               items:
                 $ref: '#/components/schemas/Role'
         - $ref: '#/components/schemas/CollectionInfo'
+
+    RoleActions:
+      description: |
+        A list of (action, resource) pairs for a role.
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionResource'
+      required:
+        - actions
 
     Action:
       description: |

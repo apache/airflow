@@ -47,6 +47,7 @@ from tests.test_utils.api_connexion_utils import (
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
+from tests.test_utils.security import assert_db_permissions_equal_to_pairs
 
 READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
 READ_ONLY = {permissions.ACTION_CAN_READ}
@@ -955,3 +956,148 @@ def test_users_can_be_found(app, security_manager, session, caplog):
     assert len(users) == 1
     delete_user(app, "Test")
     assert "Error adding new user to database" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        {
+            "name": "MyRole3",
+            "permissions": [("can_some_action", "SomeBaseView"), ("can_another_action", "AnotherView")],
+        }
+    ],
+    indirect=True,
+)
+def test_get_role_permissions_from_db(security_manager, role):
+    _role, params = role
+    expected_permission_pairs = params["permissions"]
+
+    with assert_queries_count(1):
+        # Only single query should be used since related action and resources to be loaded eagerly
+        db_permissions = security_manager.get_role_permissions_from_db(_role.id)
+        assert_db_permissions_equal_to_pairs(db_permissions, expected_permission_pairs)
+
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        {
+            "name": "MyRole3",
+            "permissions": [("can_some_action", "SomeBaseView"), ("can_another_action", "AnotherView")],
+        }
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize(
+    "permission_pairs,expected_permission_pairs",
+    [
+        (
+            # Remove 1 permission out of 2
+            [("can_some_action", "SomeBaseView")],
+            [("can_another_action", "AnotherView")],
+        ),
+        (
+            # Remove 2 permissions out of 2
+            [("can_some_action", "SomeBaseView"), ("can_another_action", "AnotherView")],
+            [],
+        ),
+        (
+            # Empty list of permissions to remove
+            [],
+            [("can_some_action", "SomeBaseView"), ("can_another_action", "AnotherView")],
+        ),
+    ],
+)
+def test_remove_permissions_from_role(security_manager, role, permission_pairs, expected_permission_pairs):
+    _role, _ = role
+    permissions_to_remove = [
+        security_manager.get_permission(action, resource) for action, resource in permission_pairs
+    ]
+
+    with assert_queries_count(1):
+        security_manager.remove_permissions_from_role(_role, permissions_to_remove)
+
+    result_db_permissions = security_manager.get_role_permissions_from_db(_role.id)
+    assert_db_permissions_equal_to_pairs(result_db_permissions, expected_permission_pairs)
+
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        {
+            "name": "MyRole3",
+            "permissions": [("can_some_action", "SomeBaseView")],
+        }
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize(
+    "permission_pairs,expected_errors",
+    [
+        (
+            [(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
+            ["can read on DAGs"],
+        ),
+        (
+            [
+                ("can_some_action", "SomeBaseView"),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
+            ],
+            [
+                "can read on DAGs",
+                "can edit on My Profile",
+            ],
+        ),
+    ],
+)
+def test_remove_non_assigned_permissions_from_role_should_raise(
+    security_manager, role, permission_pairs, expected_errors
+):
+    _role, params = role
+    permissions_to_remove = [
+        security_manager.get_permission(action, resource) for action, resource in permission_pairs
+    ]
+    expected_permission_pairs = params["permissions"]
+
+    with assert_queries_count(0):
+        with pytest.raises(ValueError) as ctx:
+            security_manager.remove_permissions_from_role(_role, permissions_to_remove)
+
+    error_message = str(ctx.value)
+    assert error_message.startswith("Permissions")
+    for expected_error in expected_errors:
+        assert expected_error in error_message
+    assert error_message.endswith("are not assigned to role MyRole3, so cannot be removed from it.")
+
+    # Check permissions are unchanged
+    db_permissions = security_manager.get_role_permissions_from_db(_role.id)
+    assert_db_permissions_equal_to_pairs(db_permissions, expected_permission_pairs)
+
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        {
+            "name": "MyRole3",
+            "permissions": [("can_some_action", "SomeBaseView")],
+        }
+    ],
+    indirect=True,
+)
+def test_remove_permissions_should_not_suppress_exception(security_manager, role):
+    _role, params = role
+    expected_permission_pairs = params["permissions"]
+    permissions_to_remove = [security_manager.get_permission("can_some_action", "SomeBaseView")]
+
+    raised_exc = Exception("Test exception")
+    with mock.patch("sqlalchemy.orm.session.Session.commit", side_effect=raised_exc):
+        with assert_queries_count(0):
+            with pytest.raises(Exception) as ctx:
+                security_manager.remove_permissions_from_role(_role, permissions_to_remove)
+
+    assert ctx.value is raised_exc
+
+    # Check permissions are unchanged
+    db_permissions = security_manager.get_role_permissions_from_db(_role.id)
+    assert_db_permissions_equal_to_pairs(db_permissions, expected_permission_pairs)

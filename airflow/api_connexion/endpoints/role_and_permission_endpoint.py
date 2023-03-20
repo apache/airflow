@@ -24,12 +24,14 @@ from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
     RoleCollection,
     action_collection_schema,
+    permissions_schema,
     role_collection_schema,
     role_schema,
 )
@@ -51,6 +53,39 @@ def _check_action_and_resource(sm: AirflowSecurityManager, perms: list[tuple[str
             raise BadRequest(detail=f"The specified action: {action!r} was not found")
         if not sm.get_resource(resource):
             raise BadRequest(detail=f"The specified resource: {resource!r} was not found")
+
+
+def _check_permissions_to_revoke(
+    *,
+    sm: AirflowSecurityManager,
+    role_permissions: set[tuple[str, str]],
+    permission_pairs_to_revoke: list[tuple[str, str]],
+    role_name: str,
+) -> None:
+    """
+    Firstly, checks if all the actions and resources exist and otherwise raise 400.
+    Secondly, checks if all the permissions (i.e., action + resource pairs) are assigned to the role,
+    otherwise raises 409.
+
+    This function is intended for use in the REST API, because it raises 400 and 409.
+    """
+    _check_action_and_resource(sm, permission_pairs_to_revoke)
+
+    non_assigned_permissions = sorted(
+        [permission for permission in permission_pairs_to_revoke if permission not in role_permissions]
+    )
+    if non_assigned_permissions:
+        raise Conflict(
+            title="Permissions are not assigned",
+            detail=(
+                f"The provided permissions ({non_assigned_permissions!r} are not assigned "
+                f"to the role {role_name!r}, so cannot be revoked."
+            ),
+        )
+
+
+def _get_action_resource_pairs_from_permissions_in_body(permissions: list[dict]):
+    return [(item["action"]["name"], item["resource"]["name"]) for item in permissions if item]
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
@@ -134,7 +169,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
                 raise BadRequest(detail=f"'{field}' in update_mask is unknown")
         data = data_
     if "permissions" in data:
-        perms = [(item["action"]["name"], item["resource"]["name"]) for item in data["permissions"] if item]
+        perms = _get_action_resource_pairs_from_permissions_in_body(data["permissions"])
         _check_action_and_resource(security_manager, perms)
         security_manager.bulk_sync_roles([{"role": role_name, "perms": perms}])
     new_name = data.get("name")
@@ -155,9 +190,45 @@ def post_role() -> APIResponse:
         raise BadRequest(detail=str(err.messages))
     role = security_manager.find_role(name=data["name"])
     if not role:
-        perms = [(item["action"]["name"], item["resource"]["name"]) for item in data["permissions"] if item]
+        perms = _get_action_resource_pairs_from_permissions_in_body(data["permissions"])
         _check_action_and_resource(security_manager, perms)
         security_manager.bulk_sync_roles([{"role": data["name"], "perms": perms}])
         return role_schema.dump(role)
     detail = f"Role with name {role.name!r} already exists; please update with the PATCH endpoint"
     raise AlreadyExists(detail=detail)
+
+
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)])
+def post_revoke_role_permissions(*, role_name: str) -> APIResponse:
+    """Revoke permissions assigned to a role."""
+    appbuilder = get_airflow_app().appbuilder
+    security_manager = appbuilder.sm
+    try:
+        data = permissions_schema.load(get_json_request_dict())
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+
+    role = security_manager.find_role(name=role_name)
+    if not role:
+        raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
+
+    permission_pairs_to_revoke = _get_action_resource_pairs_from_permissions_in_body(data["permissions"])
+    if not permission_pairs_to_revoke:
+        raise BadRequest(detail="No permissions provided")
+    db_role_permissions = security_manager.get_role_permissions_from_db(role.id)
+    grouped_db_role_permissions = {
+        (permission.action.name, permission.resource.name): permission for permission in db_role_permissions
+    }
+    _check_permissions_to_revoke(
+        sm=security_manager,
+        role_permissions=set(grouped_db_role_permissions),
+        permission_pairs_to_revoke=permission_pairs_to_revoke,
+        role_name=role.name,
+    )
+
+    permissions_to_revoke = [
+        grouped_db_role_permissions[permission_pair] for permission_pair in permission_pairs_to_revoke
+    ]
+    security_manager.remove_permissions_from_role(role, permissions_to_revoke)
+
+    return NoContent, HTTPStatus.NO_CONTENT

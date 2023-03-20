@@ -32,7 +32,7 @@ EXCEPTIONS_LINK_MAP = {
     404: f"{doc_link}#section/Errors/NotFound",
     405: f"{doc_link}#section/Errors/MethodNotAllowed",
     401: f"{doc_link}#section/Errors/Unauthenticated",
-    409: f"{doc_link}#section/Errors/AlreadyExists",
+    409: f"{doc_link}#section/Errors/Conflict",
     403: f"{doc_link}#section/Errors/PermissionDenied",
     500: f"{doc_link}#section/Errors/Unknown",
 }
@@ -152,8 +152,8 @@ class PermissionDenied(ProblemException):
         )
 
 
-class AlreadyExists(ProblemException):
-    """Raise when the object already exists."""
+class Conflict(ProblemException):
+    """Raise when the object is in a conflicting state with the request."""
 
     def __init__(
         self,
@@ -170,6 +170,10 @@ class AlreadyExists(ProblemException):
             headers=headers,
             **kwargs,
         )
+
+
+class AlreadyExists(Conflict):
+    """Raise when the object already exists."""
 
 
 class Unknown(ProblemException):

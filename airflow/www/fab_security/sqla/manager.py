@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Iterable
 
 from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, inspect, literal
+from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
@@ -183,6 +185,19 @@ class SecurityManager(BaseSecurityManager):
 
     def get_all_users(self):
         return self.get_session.query(self.user_model).all()
+
+    def get_role_permissions_from_db(self, role_id: int) -> list[Permission]:
+        """Get all DB permissions from a role id"""
+        return (
+            self.appbuilder.get_session.query(Permission)
+            .join(Action)
+            .join(Resource)
+            .join(Permission.role)
+            .filter(Role.id == role_id)
+            .options(contains_eager(Permission.action))
+            .options(contains_eager(Permission.resource))
+            .all()
+        )
 
     def add_user(
         self,
@@ -580,3 +595,32 @@ class SecurityManager(BaseSecurityManager):
             except Exception as e:
                 log.error(c.LOGMSG_ERR_SEC_DEL_PERMROLE.format(str(e)))
                 self.get_session.rollback()
+
+    def remove_permissions_from_role(self, role: Role, permissions: Iterable[Permission]) -> None:
+        """
+        Atomically remove multiple permission pairs from a role in a single transaction.
+
+        :param role: User role containing permissions.
+        :param permissions: Object representing multiple resource->action pairs
+        """
+        role_permissions = set(role.permissions)
+        non_assigned_permissions = []
+        for permission in permissions:
+            if permission not in role_permissions:
+                non_assigned_permissions.append(permission)
+        if non_assigned_permissions:
+            raise ValueError(
+                f"Permissions {non_assigned_permissions} are not assigned to role {role.name}, "
+                "so cannot be removed from it."
+            )
+
+        for permission in permissions:
+            role.permissions.remove(permission)
+        try:
+            self.get_session.merge(role)
+            self.get_session.commit()
+            log.info(c.LOGMSG_INF_SEC_DEL_PERMROLE.format(str(permissions), role.name))
+        except Exception as e:
+            log.error(c.LOGMSG_ERR_SEC_DEL_PERMROLE.format(str(e)))
+            self.get_session.rollback()
+            raise e

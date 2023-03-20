@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.www.fab_security.sqla.models import Action, Permission, Resource, Role
@@ -84,6 +84,17 @@ class RoleSchema(SQLAlchemySchema):
     permissions = fields.List(fields.Nested(ActionResourceSchema), data_key="actions")
 
 
+class PermissionsSchema(Schema):
+    """List of permissions schema."""
+
+    permissions = fields.List(
+        fields.Nested(ActionResourceSchema),
+        data_key="actions",
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
 class RoleCollection(NamedTuple):
     """List of roles."""
 
@@ -101,3 +112,4 @@ class RoleCollectionSchema(Schema):
 role_schema = RoleSchema()
 role_collection_schema = RoleCollectionSchema()
 action_collection_schema = ActionCollectionSchema()
+permissions_schema = PermissionsSchema()

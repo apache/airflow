@@ -29,6 +29,7 @@ from tests.test_utils.api_connexion_utils import (
     delete_role,
     delete_user,
 )
+from tests.test_utils.security import assert_db_permissions_equal_to_pairs
 
 
 @pytest.fixture(scope="module")
@@ -505,6 +506,271 @@ class TestPatchRole(TestRoleEndpoint):
                 "name": "mytest2",
                 "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
             },
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+
+class TestPostRevokeRolePermissions(TestRoleEndpoint):
+    @pytest.mark.parametrize(
+        "permissions_to_revoke,expected_permissions",
+        [
+            (
+                [
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_CREATE},
+                    },
+                ],  # Single revoked permission
+                [
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+                    (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+                    (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                ],
+            ),
+            (
+                [
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_CREATE},
+                    },
+                    {
+                        "resource": {"name": permissions.RESOURCE_DAG},
+                        "action": {"name": permissions.ACTION_CAN_EDIT},
+                    },
+                ],  # Multiple revoked permissions
+                [
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+                    (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+                ],
+            ),
+            [
+                # A weird empty permission object case, which is added for backward compatibility,
+                # but should be removed at some point.
+                [
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_CREATE},
+                    },
+                    {},
+                ],
+                [
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+                    (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+                    (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                ],
+            ],
+        ],
+    )
+    def test_post_should_revoke_permissions_and_respond_204(
+        self, permissions_to_revoke, expected_permissions
+    ):
+        security_manager = self.app.appbuilder.sm
+        initial_permissions = [
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        ]
+        role = create_role(self.app, "mytestrole", initial_permissions)
+
+        db_permissions = security_manager.get_role_permissions_from_db(role.id)
+        assert_db_permissions_equal_to_pairs(db_permissions, initial_permissions)
+
+        response = self.client.post(
+            f"/api/v1/roles/{role.name}/actions/revoke",
+            json={"actions": permissions_to_revoke},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 204
+
+        result_db_permissions = security_manager.get_role_permissions_from_db(role.id)
+        assert_db_permissions_equal_to_pairs(result_db_permissions, expected_permissions)
+
+    @pytest.mark.parametrize(
+        "payload,expected_error",
+        [
+            (
+                {
+                    "permissions": [  # Using permissions instead of actions should raise
+                        {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+                    ],
+                },
+                "'actions' is a required property",
+            ),
+            (
+                {
+                    "actions": [
+                        {
+                            "view_menu": {"name": "Connections"},  # Using view_menu instead of resource
+                            "action": {"name": "can_create"},
+                        }
+                    ],
+                },
+                "{'actions': {0: {'view_menu': ['Unknown field.']}}}",
+            ),
+            (
+                {
+                    "actions": [
+                        {
+                            "resource": {"name": "FooBars"},  # Using wrong resource name
+                            "action": {"name": "can_create"},
+                        }
+                    ],
+                },
+                "The specified resource: 'FooBars' was not found",
+            ),
+            (
+                {
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},  # Using wrong action name
+                            "action": {"name": "can_invalid"},
+                        }
+                    ],
+                },
+                "The specified action: 'can_invalid' was not found",
+            ),
+            (
+                {
+                    "actions": [],  # Empty actions list
+                },
+                "{'actions': ['Shorter than minimum length 1.']}",
+            ),
+            (
+                {},  # Empty body
+                "'actions' is a required property",
+            ),
+            (
+                {
+                    "actions": [None],  # null in actions
+                },
+                "None is not of type 'object' - 'actions.0'",
+            ),
+            (
+                {
+                    "actions": [{}, {}],  # Only empty objects in the actions list.
+                },
+                "No permissions provided",
+            ),
+        ],
+    )
+    def test_post_should_respond_400_for_invalid_request(self, payload, expected_error):
+        initial_permissions = [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+        ]
+        role = create_role(self.app, "mytestrole", initial_permissions)
+
+        response = self.client.post(
+            f"/api/v1/roles/{role.name}/actions/revoke",
+            json=payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 400
+        assert response.json["detail"] == expected_error
+
+        # Check permissions are unchanged
+        result_db_permissions = self.app.appbuilder.sm.get_role_permissions_from_db(role.id)
+        assert_db_permissions_equal_to_pairs(result_db_permissions, initial_permissions)
+
+    def test_post_should_respond_404_for_non_existent_role(self):
+        response = self.client.post(
+            "/api/v1/roles/invalidrolename/actions/revoke",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}]},
+        )
+        assert response.status_code == 404
+        assert response.json == {
+            "detail": "Role with name 'invalidrolename' was not found",
+            "status": 404,
+            "title": "Role not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        }
+
+    @pytest.mark.parametrize(
+        "permissions_to_revoke,expected_error",
+        [
+            (
+                [
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_CREATE},
+                    },
+                ],  # Single non assigned permission
+                "The provided permissions ([('can_create', 'Roles')] are not "
+                "assigned to the role 'mytestrole', so cannot be revoked.",
+            ),
+            (
+                [
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_READ},
+                    },
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_CREATE},
+                    },
+                ],  # One permission is assigned, another one - not
+                "The provided permissions ([('can_create', 'Roles')] are not "
+                "assigned to the role 'mytestrole', so cannot be revoked.",
+            ),
+            (
+                [
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_READ},
+                    },
+                    {
+                        "resource": {"name": permissions.RESOURCE_ROLE},
+                        "action": {"name": permissions.ACTION_CAN_CREATE},
+                    },
+                    {
+                        "resource": {"name": permissions.RESOURCE_DAG},
+                        "action": {"name": permissions.ACTION_CAN_EDIT},
+                    },
+                ],  # One permission is assigned, two - not
+                "The provided permissions ([('can_create', 'Roles'), ('can_edit', 'DAGs')] are not "
+                "assigned to the role 'mytestrole', so cannot be revoked.",
+            ),
+        ],
+    )
+    def test_post_should_respond_409_for_non_assigned_permission(self, permissions_to_revoke, expected_error):
+        initial_permissions = [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+        ]
+        role = create_role(self.app, "mytestrole", initial_permissions)
+
+        response = self.client.post(
+            f"/api/v1/roles/{role.name}/actions/revoke",
+            json={"actions": permissions_to_revoke},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 409
+        assert response.json == {
+            "detail": expected_error,
+            "status": 409,
+            "title": "Permissions are not assigned",
+            "type": EXCEPTIONS_LINK_MAP[409],
+        }
+
+        # Check permissions are unchanged
+        result_db_permissions = self.app.appbuilder.sm.get_role_permissions_from_db(role.id)
+        assert_db_permissions_equal_to_pairs(result_db_permissions, initial_permissions)
+
+    def test_post_should_raise_401_unauthenticated(self):
+        response = self.client.post(
+            "/api/v1/roles/test/actions/revoke",
+            json={"actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}]},
+        )
+
+        assert_401(response)
+
+    def test_post_should_raise_403_forbidden(self):
+        response = self.client.post(
+            "/api/v1/roles/test/actions/revoke",
+            json={"actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}]},
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
