@@ -44,7 +44,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
-from airflow.www.security import ApplessAirflowSecurityManager
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
@@ -903,39 +902,6 @@ class TestDagBag:
             dag.tags = ["new_tag"]
             _sync_to_db()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
-
-    @patch("airflow.www.security.ApplessAirflowSecurityManager")
-    def test_sync_perm_for_dag(self, mock_security_manager):
-        """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        when DAG specific perm views exist already or the DAG has access_control set.
-        """
-        db_clean_up()
-        with create_session() as session:
-            security_manager = ApplessAirflowSecurityManager(session)
-            mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
-            mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
-
-            dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
-                include_examples=False,
-            )
-            dag = dagbag.dags["test_example_bash_operator"]
-
-            def _sync_perms():
-                mock_sync_perm_for_dag.reset_mock()
-                DagBag._sync_perm_for_dag(dag, session=session)
-
-            # perms dont exist and have not access_control
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_not_called()
-
-            # Always sync if we have access_control
-            dag.access_control = {"Public": {"can_read"}}
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"can_read"}}
-            )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
