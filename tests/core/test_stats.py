@@ -139,36 +139,6 @@ class TestStats:
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
-    @pytest.mark.parametrize(
-        ("list_name", "validator"), [("allow", AllowListValidator), ("block", BlockListValidator)]
-    )
-    @mock.patch("warnings.warn")
-    def test_statsd_allow_and_block_list_renames(self, mock_warnings, list_name, validator):
-        class AnyStringContainingAll(list):
-            def __eq__(self, other):
-                for s in self:
-                    if s not in other:
-                        return False
-                return True
-
-        old_name = f"statsd_{list_name}_list"
-        new_name = f"metrics_{list_name}_list"
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", old_name): "name1,name2",
-            }
-        ):
-            importlib.reload(airflow.stats)
-            assert isinstance(airflow.stats.Stats.metrics_validator, validator)
-            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
-
-            mock_warnings.assert_called_with(
-                AnyStringContainingAll([old_name, f"renamed to {new_name}"]), mock.ANY, stacklevel=mock.ANY
-            )
-        # Avoid side-effects
-        importlib.reload(airflow.stats)
-
     def test_load_block_list_validator(self):
         with conf_vars(
             {
@@ -186,8 +156,8 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_allow_list"): "name1,name2",
-                ("metrics", "statsd_block_list"): "name1,name2",
+                ("metrics", "metrics_allow_list"): "name1,name2",
+                ("metrics", "metrics_block_list"): "name1,name2",
             }
         ):
             importlib.reload(airflow.stats)
