@@ -920,20 +920,6 @@ metrics:
       type: string
       example: ~
       default: "airflow"
-    statsd_allow_list:
-      description: |
-        Deprecated, see metrics_allow_list
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ""
-    statsd_block_list:
-      description: |
-        Deprecated, see metrics_allow_list
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: ""
     stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
