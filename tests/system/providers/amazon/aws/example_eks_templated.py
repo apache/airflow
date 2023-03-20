@@ -143,6 +143,7 @@ with DAG(
         create_nodegroup,
         await_create_nodegroup,
         start_pod,
+        # TEST TEARDOWN
         delete_nodegroup,
         await_delete_nodegroup,
         delete_cluster,
