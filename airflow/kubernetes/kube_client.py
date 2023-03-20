@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import unittest.mock
 
 import urllib3.util
 
@@ -28,7 +27,7 @@ log = logging.getLogger(__name__)
 
 try:
     from kubernetes import client, config
-    from kubernetes.client import ApiClient, Configuration
+    from kubernetes.client import Configuration
     from kubernetes.client.rest import ApiException
 
     has_kubernetes = True
@@ -118,8 +117,6 @@ def get_kube_client(
 
     if isinstance(api_client_retry_configuration, dict):
         new_client_config.retries = urllib3.util.Retry(**api_client_retry_configuration)
-    elif isinstance(api_client_retry_configuration, unittest.mock.MagicMock):
-        pass
     else:
         raise ValueError("api_client_retry_configuration should be a dictionary")
 
