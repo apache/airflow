@@ -397,8 +397,11 @@ class RedshiftResumeClusterOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:RedshiftResumeClusterOperator`
 
-    :param cluster_identifier: id of the AWS Redshift Cluster
-    :param aws_conn_id: aws connection to use
+    :param cluster_identifier:  Unique identifier of the AWS Redshift cluster
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        The default connection id is ``aws_default``
+    :param deferrable: Run operator in deferrable mode
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
