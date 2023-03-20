@@ -24,14 +24,14 @@ from typing import TYPE_CHECKING, Any, Sequence, Tuple
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.vision_v1.types import (
+from google.cloud.vision_v1 import (
     AnnotateImageRequest,
-    FieldMask,
     Image,
     Product,
     ProductSet,
     ReferenceImage,
 )
+from google.protobuf import field_mask_pb2 as FieldMask
 
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

@@ -23,15 +23,16 @@ from typing import Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.vision_v1 import ImageAnnotatorClient, ProductSearchClient
-from google.cloud.vision_v1.types import (
+from google.cloud.vision_v1 import (
     AnnotateImageRequest,
-    FieldMask,
     Image,
+    ImageAnnotatorClient,
     Product,
+    ProductSearchClient,
     ProductSet,
     ReferenceImage,
 )
+from google.protobuf import field_mask_pb2 as FieldMask
 from google.protobuf.json_format import MessageToDict
 
 from airflow.compat.functools import cached_property
@@ -180,7 +181,7 @@ class CloudVisionHook(GoogleBaseHook):
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`
         """
         client = self.get_conn()
-        parent = ProductSearchClient.location_path(project_id, location)
+        parent = f"projects/{project_id}/locations/{location}"
         self.log.info("Creating a new ProductSet under the parent: %s", parent)
         response = client.create_product_set(
             parent=parent,
@@ -220,7 +221,7 @@ class CloudVisionHook(GoogleBaseHook):
         response = client.get_product_set(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info("ProductSet retrieved.")
         self.log.debug("ProductSet retrieved:\n%s", response)
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_product_set(
@@ -248,7 +249,7 @@ class CloudVisionHook(GoogleBaseHook):
         )
         self.log.info("ProductSet updated: %s", response.name if response else "")
         self.log.debug("ProductSet updated:\n%s", response)
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_product_set(
@@ -286,7 +287,7 @@ class CloudVisionHook(GoogleBaseHook):
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`
         """
         client = self.get_conn()
-        parent = ProductSearchClient.location_path(project_id, location)
+        parent = f"projects/{project_id}/locations/{location}"
         self.log.info("Creating a new Product under the parent: %s", parent)
         response = client.create_product(
             parent=parent,
@@ -326,7 +327,7 @@ class CloudVisionHook(GoogleBaseHook):
         response = client.get_product(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info("Product retrieved.")
         self.log.debug("Product retrieved:\n%s", response)
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_product(
@@ -352,7 +353,7 @@ class CloudVisionHook(GoogleBaseHook):
         )
         self.log.info("Product updated: %s", response.name if response else "")
         self.log.debug("Product updated:\n%s", response)
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_product(
@@ -519,7 +520,7 @@ class CloudVisionHook(GoogleBaseHook):
 
         self.log.info("Image annotated")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
     @GoogleBaseHook.quota_retry()
     def batch_annotate_images(
@@ -540,7 +541,7 @@ class CloudVisionHook(GoogleBaseHook):
 
         self.log.info("Images annotated")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
     @GoogleBaseHook.quota_retry()
     def text_detection(
@@ -565,7 +566,7 @@ class CloudVisionHook(GoogleBaseHook):
         response = client.text_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
-        response = MessageToDict(response)
+        response = MessageToDict(response._pb)
         self._check_for_error(response)
 
         self.log.info("Text detection finished")
@@ -595,7 +596,7 @@ class CloudVisionHook(GoogleBaseHook):
         response = client.document_text_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
-        response = MessageToDict(response)
+        response = MessageToDict(response._pb)
         self._check_for_error(response)
 
         self.log.info("Document text detection finished")
@@ -625,7 +626,7 @@ class CloudVisionHook(GoogleBaseHook):
         response = client.label_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
-        response = MessageToDict(response)
+        response = MessageToDict(response._pb)
         self._check_for_error(response)
 
         self.log.info("Labels detection finished")
@@ -655,7 +656,7 @@ class CloudVisionHook(GoogleBaseHook):
         response = client.safe_search_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
-        response = MessageToDict(response)
+        response = MessageToDict(response._pb)
         self._check_for_error(response)
 
         self.log.info("Safe search detection finished")
