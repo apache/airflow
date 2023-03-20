@@ -80,6 +80,15 @@ class W:
     x: int
 
 
+@dataclass
+class V:
+    __version__: ClassVar[int] = 1
+    w: W
+    s: list
+    t: tuple
+    c: int
+
+
 @pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
@@ -104,17 +113,34 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
-    def test_ser_iterables(self):
+    def test_ser_collections(self):
         i = [1, 2]
-        e = serialize(i)
+        e = deserialize(serialize(i))
         assert i == e
 
         i = ("a", "b", "a", "c")
-        e = serialize(i)
+        e = deserialize(serialize(i))
         assert i == e
 
         i = {2, 3}
-        e = serialize(i)
+        e = deserialize(serialize(i))
+        assert i == e
+
+        i = frozenset({6, 7})
+        e = deserialize(serialize(i))
+        assert i == e
+
+    def test_der_collections_compat(self):
+        i = [1, 2]
+        e = deserialize(i)
+        assert i == e
+
+        i = ("a", "b", "a", "c")
+        e = deserialize(i)
+        assert i == e
+
+        i = {2, 3}
+        e = deserialize(i)
         assert i == e
 
     def test_ser_plain_dict(self):
@@ -248,3 +274,38 @@ class TestSerDe:
                     import_string(s)
                 except ImportError:
                     raise AttributeError(f"{s} cannot be imported (located in {name})")
+
+    def test_stringify(self):
+        i = V(W(10), ["l1", "l2"], (1, 2), 10)
+        e = serialize(i)
+        s = deserialize(e, full=False)
+
+        assert f"{qualname(V)}@version={V.__version__}" in s
+        # asdict from dataclasses removes class information
+        assert "w={'x': 10}" in s
+        assert "s=['l1', 'l2']" in s
+        assert "t=(1,2)" in s
+        assert "c=10" in s
+        e["__data__"]["t"] = (1, 2)
+
+        s = deserialize(e, full=False)
+
+    @pytest.mark.parametrize(
+        "obj, expected",
+        [
+            (
+                Z(10),
+                {
+                    "__classname__": "tests.serialization.test_serde.Z",
+                    "__version__": 1,
+                    "__data__": {"x": 10},
+                },
+            ),
+            (
+                W(2),
+                {"__classname__": "tests.serialization.test_serde.W", "__version__": 2, "__data__": {"x": 2}},
+            ),
+        ],
+    )
+    def test_serialized_data(self, obj, expected):
+        assert expected == serialize(obj)

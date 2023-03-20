@@ -179,7 +179,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
 
         assert res.operator.multiple_outputs is False
-        assert ti.xcom_pull() == [8, 4]
+        assert ti.xcom_pull() == (8, 4)
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
@@ -197,7 +197,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
 
         assert not ident.operator.multiple_outputs
-        assert ti.xcom_pull() == [35, 36]
+        assert ti.xcom_pull() == (35, 36)
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
