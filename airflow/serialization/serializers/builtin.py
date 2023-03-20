@@ -53,7 +53,7 @@ def deserialize(classname: str, version: int, data: list) -> tuple | set | froze
 
 def stringify(classname: str, version: int, data: list) -> str:
     if classname not in stringifiers:
-        return TypeError(f"do not know how to stringify {classname}")
+        raise TypeError(f"do not know how to stringify {classname}")
 
     s = ",".join(str(d) for d in data)
     return f"({s})"
