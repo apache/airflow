@@ -270,9 +270,10 @@ def _match(classname: str) -> bool:
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
-    """
-    Returns a previously serialized object in a somewhat human-readable format. It is not designed to
-    be exact and will not extensively traverse the whole tree of an object.
+    """Convert a previously serialized object in a somewhat human-readable format.
+
+    This function is not designed to be exact, and will not extensively traverse
+    the whole tree of an object.
     """
     if classname in _stringifiers:
         return _stringifiers[classname].stringify(classname, version, value)
@@ -292,7 +293,7 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
 
 
 def _register():
-    """Register builtin serializers and deserializers for types that don't have any themselves"""
+    """Register builtin serializers and deserializers for types that don't have any themselves."""
     _serializers.clear()
     _deserializers.clear()
     _stringifiers.clear()
@@ -300,14 +301,14 @@ def _register():
     with Stats.timer("serde.load_serializers") as timer:
         for _, name, _ in iter_namespace(airflow.serialization.serializers):
             name = import_module(name)
-            for s in getattr(name, "serializers", list()):
+            for s in getattr(name, "serializers", ()):
                 if not isinstance(s, str):
                     s = qualname(s)
                 if s in _serializers and _serializers[s] != name:
                     raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
                 log.debug("registering %s for serialization", s)
                 _serializers[s] = name
-            for d in getattr(name, "deserializers", list()):
+            for d in getattr(name, "deserializers", ()):
                 if not isinstance(d, str):
                     d = qualname(d)
                 if d in _deserializers and _deserializers[d] != name:
@@ -315,7 +316,7 @@ def _register():
                 log.debug("registering %s for deserialization", d)
                 _deserializers[d] = name
                 _extra_allowed.add(d)
-            for c in getattr(name, "stringifiers", list()):
+            for c in getattr(name, "stringifiers", ()):
                 if not isinstance(c, str):
                     c = qualname(c)
                 if c in _deserializers and _deserializers[c] != name:
