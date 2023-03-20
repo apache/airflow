@@ -93,6 +93,7 @@ class BigQueryToGCSOperator(BaseOperator):
         "export_format",
         "labels",
         "impersonation_chain",
+        "job_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#e4e6f0"
@@ -192,7 +193,7 @@ class BigQueryToGCSOperator(BaseOperator):
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=configuration["extract"]["sourceTable"]["projectId"],
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,

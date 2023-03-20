@@ -21,20 +21,23 @@ import time
 from enum import Enum
 from functools import wraps
 from inspect import signature
-from typing import Any, Callable, Sequence, Set, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Sequence, Set, TypeVar, cast
 
 import aiohttp
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
-from requests import PreparedRequest, Session
 from requests.auth import AuthBase
-from requests.models import Response
+from requests.sessions import Session
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.typing_compat import TypedDict
+
+if TYPE_CHECKING:
+    from requests.models import PreparedRequest, Response
+
+    from airflow.models import Connection
 
 
 def fallback_to_default_account(func: Callable) -> Callable:

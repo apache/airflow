@@ -169,7 +169,7 @@ class TestExternalTaskSensor:
                 dag=self.dag,
             )
         assert (
-            str(ctx.value) == "Only one of `external_task_group_id` or `external_task_id` may "
+            str(ctx.value) == "Only one of `external_task_group_id` or `external_task_ids` may "
             "be provided to ExternalTaskSensor; "
             "use external_task_id or external_task_ids or external_task_group_id."
         )
@@ -302,6 +302,26 @@ class TestExternalTaskSensor:
 
         # then
         session = settings.Session()
+        TI = TaskInstance
+        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        assert len(task_instances) == 1, "Unexpected number of task instances"
+        assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
+
+    def test_external_task_sensor_skipped_states_as_skipped(self, session):
+        self.add_time_sensor()
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            allowed_states=[State.FAILED],
+            skipped_states=[State.SUCCESS],
+            dag=self.dag,
+        )
+
+        # when
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # then
         TI = TaskInstance
         task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"

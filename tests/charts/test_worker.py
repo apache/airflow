@@ -608,6 +608,19 @@ class TestWorkerKedaAutoScaler:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
 
 class TestWorkerNetworkPolicy:
     def test_should_add_component_specific_labels(self):
