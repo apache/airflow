@@ -22,7 +22,7 @@ from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.language_v1 import LanguageServiceClient, enums
+from google.cloud.language_v1 import EncodingType, LanguageServiceClient
 from google.cloud.language_v1.types import (
     AnalyzeEntitiesResponse,
     AnalyzeEntitySentimentResponse,
@@ -84,7 +84,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_entities(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -112,7 +112,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_entity_sentiment(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -140,7 +140,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_sentiment(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -167,7 +167,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_syntax(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -196,7 +196,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: dict | Document,
         features: dict | AnnotateTextRequest.Features,
-        encoding_type: enums.EncodingType = None,
+        encoding_type: EncodingType = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),

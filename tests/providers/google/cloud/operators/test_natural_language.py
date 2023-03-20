@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from google.cloud.language_v1.proto.language_service_pb2 import (
+from google.cloud.language_v1 import (
     AnalyzeEntitiesResponse,
     AnalyzeEntitySentimentResponse,
     AnalyzeSentimentResponse,
