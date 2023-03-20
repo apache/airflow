@@ -37,6 +37,7 @@ import { useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
+import useFilters from "src/dag/useFilters";
 
 import Edge from "./Edge";
 import Node, { CustomNodeProps } from "./Node";
@@ -56,6 +57,10 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
 
+  const {
+    filters: { root, filterDownstream, filterUpstream },
+  } = useFilters();
+
   useEffect(() => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
@@ -71,8 +76,13 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
     data: { dagRuns, groups },
   } = useGridData();
   const { colors } = useTheme();
-  const { setCenter } = useReactFlow();
+  const { setCenter, setViewport } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
+
+  // Reset viewport when tasks are filtered
+  useEffect(() => {
+    setViewport({ x: 0, y: 0, zoom: 1 });
+  }, [root, filterDownstream, filterUpstream, setViewport]);
 
   const offsetTop = useOffsetTop(graphRef);
 

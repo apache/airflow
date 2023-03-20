@@ -51,7 +51,6 @@ from airflow.www.extensions.init_views import (
     init_api_experimental,
     init_api_internal,
     init_appbuilder_views,
-    init_connection_form,
     init_error_handlers,
     init_flash_views,
     init_plugins,
@@ -150,7 +149,6 @@ def create_app(config=None, testing=False):
         init_appbuilder_views(flask_app)
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)
-        init_connection_form()
         init_error_handlers(flask_app)
         init_api_connexion(flask_app)
         if conf.getboolean("webserver", "run_internal_api", fallback=False):
