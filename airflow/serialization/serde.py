@@ -91,6 +91,11 @@ def serialize(o: object, depth: int = 0) -> U | None:
     2. A registered serializer in the namespace of ``airflow.serialization.serializers``
     3. Annotations from attr or dataclass.
 
+    Limitations: attr and dataclass objects can lose type information for nested objects
+    as they do not store this when calling ``asdict``. This means that at deserialization values
+    will be deserialized as a dict as opposed to reinstating the object. Provide
+    your own serializer to work around this.
+
     :param o: The object to serialize.
     :param depth: Private tracker for nested serialization.
     :raise TypeError: A serializer cannot be found.
