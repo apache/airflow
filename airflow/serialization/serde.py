@@ -71,9 +71,12 @@ def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
 def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     classname = d[CLASSNAME]
     version = d[VERSION]
+
     if not isinstance(classname, str) or not isinstance(version, int):
-        raise ValueError(f"can not decode {d!r}")
+        raise ValueError(f"cannot decode {d!r}")
+
     data = d.get(DATA)
+
     return classname, version, data
 
 
