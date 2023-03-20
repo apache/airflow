@@ -448,6 +448,28 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
 
+    def test_task_sigterm_calls_on_failure_callback(self, dag_maker, caplog):
+        """
+        Test that ensures that tasks call on_failure_callback when they receive sigterm
+        """
+
+        def task_function(ti):
+            os.kill(ti.pid, signal.SIGTERM)
+
+        with dag_maker():
+            task_ = PythonOperator(
+                task_id="test_on_failure",
+                python_callable=task_function,
+                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task_
+        with pytest.raises(AirflowException):
+            ti.run()
+        assert "on_failure_callback called" in caplog.text
+
     def test_task_sigterm_works_with_retries(self, dag_maker):
         """
         Test that ensures that tasks are retried when they receive sigterm
@@ -471,28 +493,6 @@ class TestTaskInstance:
             ti.run()
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
-
-    def test_task_sigterm_calls_on_failure_callack(self, dag_maker, caplog):
-        """
-        Test that ensures that tasks call on_failure_callback when they receive sigterm
-        """
-
-        def task_function(ti):
-            os.kill(ti.pid, signal.SIGTERM)
-
-        with dag_maker():
-            task_ = PythonOperator(
-                task_id="test_on_failure",
-                python_callable=task_function,
-                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
-            )
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        ti.task = task_
-        with pytest.raises(AirflowException):
-            ti.run()
-        assert "on_failure_callback called" in caplog.text
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
     def test_task_sigterm_doesnt_change_state_of_finished_tasks(self, state, dag_maker):
