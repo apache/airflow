@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from requests.auth import AuthBase, HTTPBasicAuth
+from requests.auth import AuthBase
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -84,7 +84,7 @@ class SimpleHttpOperator(BaseOperator):
         extra_options: dict[str, Any] | None = None,
         http_conn_id: str = "http_default",
         log_response: bool = False,
-        auth_type: type[AuthBase] = HTTPBasicAuth,
+        auth_type: type[AuthBase] | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
