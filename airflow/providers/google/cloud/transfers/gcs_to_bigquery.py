@@ -227,6 +227,7 @@ class GCSToBigQueryOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
+        project_id: str | None = None,
         **kwargs,
     ) -> None:
 
@@ -249,6 +250,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         # BQ config
         self.destination_project_dataset_table = destination_project_dataset_table
+        self.project_id = project_id
         self.schema_fields = schema_fields
         if source_format.upper() not in ALLOWED_FORMATS:
             raise ValueError(
@@ -306,7 +308,7 @@ class GCSToBigQueryOperator(BaseOperator):
         # Submit a new job without waiting for it to complete.
         return hook.insert_job(
             configuration=self.configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
@@ -507,9 +509,9 @@ class GCSToBigQueryOperator(BaseOperator):
                 raise RuntimeError(f"The {select_command} returned no rows!")
 
     def _create_empty_table(self):
-        project_id, dataset_id, table_id = self.hook.split_tablename(
+        self.project_id, dataset_id, table_id = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
-            default_project_id=self.hook.project_id or "",
+            default_project_id=self.project_id or self.hook.project_id,
         )
 
         external_config_api_repr = {
@@ -556,7 +558,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         # build table definition
         table = Table(
-            table_ref=TableReference.from_string(self.destination_project_dataset_table, project_id)
+            table_ref=TableReference.from_string(self.destination_project_dataset_table, self.project_id)
         )
         table.external_data_configuration = external_config
         if self.labels:
@@ -573,15 +575,18 @@ class GCSToBigQueryOperator(BaseOperator):
 
         self.log.info("Creating external table: %s", self.destination_project_dataset_table)
         self.hook.create_empty_table(
-            table_resource=table_obj_api_repr, project_id=project_id, location=self.location, exists_ok=True
+            table_resource=table_obj_api_repr,
+            project_id=self.project_id,
+            location=self.location,
+            exists_ok=True,
         )
         self.log.info("External table created successfully: %s", self.destination_project_dataset_table)
         return table_obj_api_repr
 
     def _use_existing_table(self):
-        destination_project, destination_dataset, destination_table = self.hook.split_tablename(
+        self.project_id, destination_dataset, destination_table = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
-            default_project_id=self.hook.project_id or "",
+            default_project_id=self.project_id or self.hook.project_id,
             var_name="destination_project_dataset_table",
         )
 
@@ -601,7 +606,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "createDisposition": self.create_disposition,
                 "destinationTable": {
-                    "projectId": destination_project,
+                    "projectId": self.project_id,
                     "datasetId": destination_dataset,
                     "tableId": destination_table,
                 },
