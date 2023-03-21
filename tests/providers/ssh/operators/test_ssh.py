@@ -28,8 +28,8 @@ from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
-from tests.test_utils.config import conf_vars
 from airflow.utils.types import NOTSET
+from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = "unit_tests_ssh_test_op"
 TEST_CONN_ID = "conn_id_for_testing"
