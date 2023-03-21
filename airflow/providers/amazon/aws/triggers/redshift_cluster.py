@@ -70,6 +70,16 @@ class RedshiftClusterTrigger(BaseTrigger):
                     else:
                         if self.attempts < 1:
                             yield TriggerEvent({"status": "error", "message": f"{self.task_id} failed"})
+                elif self.operation_type == "resume_cluster":
+                    response = await hook.resume_cluster(
+                        cluster_identifier=self.cluster_identifier,
+                        poll_interval=self.poll_interval,
+                    )
+                    if response.get("status") == "success":
+                        yield TriggerEvent(response)
+                    else:
+                        if self.attempts < 1:
+                            yield TriggerEvent({"status": "error", "message": f"{self.task_id} failed"})
                 else:
                     yield TriggerEvent(f"{self.operation_type} is not supported")
             except Exception as e:
