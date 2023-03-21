@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
@@ -31,32 +32,37 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksN
 
 # mypy ignore arg types (for templated fields)
 # type: ignore[arg-type]
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
+sys_test_context_task = SystemTestContextBuilder().build()
+
+DAG_ID = "example_eks_templated"
 
 # Example Jinja Template format, substitute your values:
-"""
-{
-    "cluster_name": "templated-cluster",
-    "cluster_role_arn": "arn:aws:iam::123456789012:role/role_name",
-    "resources_vpc_config": {
-        "subnetIds": ["subnet-12345ab", "subnet-67890cd"],
-        "endpointPublicAccess": true,
-        "endpointPrivateAccess": false
-    },
-    "nodegroup_name": "templated-nodegroup",
-    "nodegroup_subnets": "['subnet-12345ab', 'subnet-67890cd']",
-    "nodegroup_role_arn": "arn:aws:iam::123456789012:role/role_name"
-}
-"""
+# {
+#     "cluster_name": "templated-cluster",
+#     "cluster_role_arn": "arn:aws:iam::123456789012:role/role_name",
+#     "resources_vpc_config": {
+#         "subnetIds": ["subnet-12345ab", "subnet-67890cd"],
+#         "endpointPublicAccess": true,
+#         "endpointPrivateAccess": false
+#     },
+#     "nodegroup_name": "templated-nodegroup",
+#     "nodegroup_subnets": "['subnet-12345ab', 'subnet-67890cd']",
+#     "nodegroup_role_arn": "arn:aws:iam::123456789012:role/role_name"
+# }
 
 with DAG(
-    dag_id="example_eks_templated",
+    dag_id=DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     tags=["example", "templated"],
     catchup=False,
     # render_template_as_native_obj=True is what converts the Jinja to Python objects, instead of a string.
     render_template_as_native_obj=True,
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context["ENV_ID"]
 
     CLUSTER_NAME = "{{ dag_run.conf['cluster_name'] }}"
     NODEGROUP_NAME = "{{ dag_run.conf['nodegroup_name'] }}"
@@ -128,14 +134,29 @@ with DAG(
         target_state=ClusterStates.NONEXISTENT,
     )
 
-    (
-        create_cluster
-        >> await_create_cluster
-        >> create_nodegroup
-        >> await_create_nodegroup
-        >> start_pod
-        >> delete_nodegroup
-        >> await_delete_nodegroup
-        >> delete_cluster
-        >> await_delete_cluster
+    chain(
+        # TEST SETUP
+        test_context,
+        # TEST BODY
+        create_cluster,
+        await_create_cluster,
+        create_nodegroup,
+        await_create_nodegroup,
+        start_pod,
+        # TEST TEARDOWN
+        delete_nodegroup,
+        await_delete_nodegroup,
+        delete_cluster,
+        await_delete_cluster,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
