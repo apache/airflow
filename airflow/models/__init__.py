@@ -22,7 +22,6 @@ from __future__ import annotations
 __all__ = [
     "DAG",
     "ID_LEN",
-    "XCOM_RETURN_KEY",
     "Base",
     "BaseOperator",
     "BaseOperatorLink",
@@ -89,7 +88,6 @@ def __getattr__(name):
 __lazy_imports = {
     "DAG": "airflow.models.dag",
     "ID_LEN": "airflow.models.base",
-    "XCOM_RETURN_KEY": "airflow.models.xcom",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
     "BaseOperatorLink": "airflow.models.baseoperator",
@@ -143,4 +141,4 @@ if TYPE_CHECKING:
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
-    from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+    from airflow.models.xcom import XCom

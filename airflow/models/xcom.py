@@ -58,12 +58,14 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-log = logging.getLogger(__name__)
+# XCom constants below are needed for providers backward compatibility,
+# which should import the constants directly after apache-airflow>=2.6.0
+from airflow.utils.xcom import (
+    MAX_XCOM_SIZE,  # noqa: F401
+    XCOM_RETURN_KEY,
+)
 
-# MAX XCOM Size is 48KB
-# https://github.com/apache/airflow/pull/1618#discussion_r68249677
-MAX_XCOM_SIZE = 49344
-XCOM_RETURN_KEY = "return_value"
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
