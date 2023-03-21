@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-21T06:25:55Z
+# This constraints file was automatically generated on 2023-03-21T19:10:06Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -258,6 +258,7 @@ idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
 importlib-metadata==6.1.0
+importlib-resources==5.12.0
 impyla==0.18.0
 incremental==22.10.0
 inflection==0.5.1
@@ -292,7 +293,7 @@ kubernetes==23.6.0
 kylinpy==2.8.4
 lazy-object-proxy==1.9.0
 ldap3==2.9.1
-limits==3.2.0
+limits==3.3.0
 linkify-it-py==2.0.0
 locket==1.0.0
 lockfile==0.12.2
