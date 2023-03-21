@@ -476,6 +476,14 @@
                             ],
                             "default": null
                         },
+			"digest": {
+                            "description": "The airflow image digest. If set, it will override the tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "pullPolicy": {
                             "description": "The airflow image pull policy.",
                             "type": "string",
