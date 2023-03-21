@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-21T19:10:05Z
+# This constraints file was automatically generated on 2023-03-21T21:43:51Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -144,7 +144,7 @@ croniter==1.3.8
 cryptography==39.0.2
 curlify==2.2.1
 dask==2023.3.1
-databricks-sql-connector==2.4.0
+databricks-sql-connector==2.4.1
 datadog==0.45.0
 db-dtypes==1.0.5
 decorator==5.1.1
@@ -178,9 +178,9 @@ flower==1.2.0
 frozenlist==1.3.3
 fsspec==2023.3.0
 future==0.18.3
-gcloud-aio-auth==4.1.6
-gcloud-aio-bigquery==6.2.0
-gcloud-aio-storage==8.0.0
+gcloud-aio-auth==4.2.0
+gcloud-aio-bigquery==6.3.0
+gcloud-aio-storage==8.1.0
 gcsfs==2023.3.0
 geomet==0.2.1.post1
 gevent==22.10.2
@@ -332,7 +332,7 @@ nbformat==5.8.0
 neo4j==5.6.0
 networkx==3.0
 nodeenv==1.7.0
-numpy==1.23.4
+numpy==1.24.2
 oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.4
@@ -477,7 +477,7 @@ smmap==5.0.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
 snowflake-connector-python==3.0.1
-snowflake-sqlalchemy==1.4.6
+snowflake-sqlalchemy==1.4.7
 sortedcontainers==2.4.0
 soupsieve==2.4
 sphinx-airflow-theme==0.0.11
