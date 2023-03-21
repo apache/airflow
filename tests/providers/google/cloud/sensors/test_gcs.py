@@ -98,42 +98,91 @@ class TestGoogleCloudStorageObjectSensor:
         )
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY)
 
+    def test_gcs_object_existence_sensor_deferred(self):
+        """
+        Asserts that a task is deferred and a GCSBlobTrigger will be fired
+        when the GCSObjectExistenceSensor is executed and deferrable is set to True.
+        """
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context)
+        assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
+
+    def test_gcs_object_existence_sensor_deferred_execute_failure(self):
+        """Tests that an AirflowException is raised in case of error event when deferrable is set to True"""
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
+
+    def test_gcs_object_existence_sensor_async_execute_complete(self):
+        """Asserts that logging occurs as expected when deferrable is set to True"""
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        with mock.patch.object(task.log, "info") as mock_log_info:
+            task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
+        mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
+
 
 class TestGoogleCloudStorageObjectSensorAsync:
+    depcrecation_message = (
+        "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
+        "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead"
+    )
+
     def test_gcs_object_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
         when the GCSObjectExistenceAsyncSensor is executed.
         """
-        task = GCSObjectExistenceAsyncSensor(
-            task_id="task-id",
-            bucket=TEST_BUCKET,
-            object=TEST_OBJECT,
-            google_cloud_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+            task = GCSObjectExistenceAsyncSensor(
+                task_id="task-id",
+                bucket=TEST_BUCKET,
+                object=TEST_OBJECT,
+                google_cloud_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context)
         assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
 
     def test_gcs_object_existence_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
-        task = GCSObjectExistenceAsyncSensor(
-            task_id="task-id",
-            bucket=TEST_BUCKET,
-            object=TEST_OBJECT,
-            google_cloud_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+            task = GCSObjectExistenceAsyncSensor(
+                task_id="task-id",
+                bucket=TEST_BUCKET,
+                object=TEST_OBJECT,
+                google_cloud_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
 
     def test_gcs_object_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        task = GCSObjectExistenceAsyncSensor(
-            task_id="task-id",
-            bucket=TEST_BUCKET,
-            object=TEST_OBJECT,
-            google_cloud_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+            task = GCSObjectExistenceAsyncSensor(
+                task_id="task-id",
+                bucket=TEST_BUCKET,
+                object=TEST_OBJECT,
+                google_cloud_conn_id=TEST_GCP_CONN_ID,
+            )
         with mock.patch.object(task.log, "info") as mock_log_info:
             task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
