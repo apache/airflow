@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Sequence, Union, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
@@ -77,7 +77,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         http_headers: list[tuple[str, str]] | None = None,
         catalog: str = "",
         schema: str = "default",
-        sql: Union[str, Iterable[str]] | None = None,
+        sql: str | Iterable[str],
         handler: Callable[[Any], Any] = fetch_all_handler,
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
