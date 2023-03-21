@@ -39,7 +39,7 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEnginePodLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEPodTrigger
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
@@ -515,7 +515,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         """Method to easily redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         self.defer(
-            trigger=GKEPodTrigger(
+            trigger=GKEStartPodTrigger(
                 pod_name=self.pod.metadata.name,
                 pod_namespace=self.pod.metadata.namespace,
                 trigger_start_time=trigger_start_time,

@@ -26,7 +26,7 @@ from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.kubernetes_engine import AsyncGKEHook, AsyncGKEPodHook, GKEHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEHook, GKEPodAsyncHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -45,7 +45,7 @@ CLUSTER_URL = "https://path.to.cluster"
 SSL_CA_CERT = "test-ssl-ca-cert"
 POD_NAME = "test-pod-name"
 POD_NAMESPACE = "test"
-ASYNC_HOOK_STRING = GKE_STRING.format("AsyncGKEHook")
+ASYNC_HOOK_STRING = GKE_STRING.format("GKEAsyncHook")
 GCP_CONN_ID = "test-gcp-conn-id"
 DELEGATE_TO = "test-delegate-to"
 IMPERSONATE_CHAIN = ["impersonate", "this", "test"]
@@ -296,7 +296,7 @@ class TestGKEHook:
         assert operation_mock.call_count == 2
 
 
-class TestAsyncGKEPodHook:
+class TestGKEPodAsyncHook:
     @staticmethod
     def make_mock_awaitable(mock_obj, result=None):
         f = Future()
@@ -306,14 +306,14 @@ class TestAsyncGKEPodHook:
 
     @pytest.fixture()
     def async_hook(self):
-        return AsyncGKEPodHook(
+        return GKEPodAsyncHook(
             cluster_url=CLUSTER_URL,
             ssl_ca_cert=SSL_CA_CERT,
         )
 
     @pytest.mark.asyncio
     @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
-    @mock.patch(GKE_STRING.format("AsyncGKEPodHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
     async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, async_hook):
         self.make_mock_awaitable(read_namespace_pod_mock)
@@ -328,7 +328,7 @@ class TestAsyncGKEPodHook:
 
     @pytest.mark.asyncio
     @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
-    @mock.patch(GKE_STRING.format("AsyncGKEPodHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
     async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, async_hook):
         self.make_mock_awaitable(delete_namespaced_pod)
@@ -344,7 +344,7 @@ class TestAsyncGKEPodHook:
 
     @pytest.mark.asyncio
     @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
-    @mock.patch(GKE_STRING.format("AsyncGKEPodHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
     async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
@@ -364,7 +364,7 @@ class TestAsyncGKEPodHook:
 
 @pytest.fixture()
 def async_gke_hook():
-    return AsyncGKEHook(
+    return GKEAsyncHook(
         gcp_conn_id=GCP_CONN_ID,
         delegate_to=DELEGATE_TO,
         location=GKE_ZONE,
@@ -381,7 +381,7 @@ def mock_async_gke_cluster_client():
     return client
 
 
-class TestAsyncGKEHook:
+class TestGKEAsyncHook:
     @staticmethod
     def make_get_client_awaitable(mock_obj, result):
         if sys.version_info < (3, 8):

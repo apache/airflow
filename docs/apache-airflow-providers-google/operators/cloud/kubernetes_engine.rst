@@ -59,7 +59,10 @@ definition, is required when creating a cluster with
     :start-after: [START howto_operator_gke_create_cluster]
     :end-before: [END howto_operator_gke_create_cluster]
 
-You can use deferrable mode for this action in order to run the operator asynchronously:
+You can use deferrable mode for this action in order to run the operator asynchronously. It will give you a
+possibility to free up the worker when it knows it has to wait, and hand off the job of resuming Operator to a Trigger.
+As a result, while it is suspended (deferred), it is not taking up a worker slot and your cluster will have a
+lot less resources wasted on idle Operators or Sensors:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py
     :language: python
@@ -83,7 +86,10 @@ This would also delete all the nodes allocated to the cluster.
     :start-after: [START howto_operator_gke_delete_cluster]
     :end-before: [END howto_operator_gke_delete_cluster]
 
-You can use deferrable mode for this action in order to run the operator asynchronously:
+You can use deferrable mode for this action in order to run the operator asynchronously. It will give you a
+possibility to free up the worker when it knows it has to wait, and hand off the job of resuming Operator to a Trigger.
+As a result, while it is suspended (deferred), it is not taking up a worker slot and your cluster will have a
+lot less resources wasted on idle Operators or Sensors:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py
     :language: python
@@ -148,7 +154,10 @@ And then use it in other operators:
     :start-after: [START howto_operator_gke_xcom_result]
     :end-before: [END howto_operator_gke_xcom_result]
 
-You can use deferrable mode for this action in order to run the operator asynchronously:
+You can use deferrable mode for this action in order to run the operator asynchronously. It will give you a
+possibility to free up the worker when it knows it has to wait, and hand off the job of resuming Operator to a Trigger.
+As a result, while it is suspended (deferred), it is not taking up a worker slot and your cluster will have a
+lot less resources wasted on idle Operators or Sensors:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py
     :language: python

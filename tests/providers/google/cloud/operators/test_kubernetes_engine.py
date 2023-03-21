@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteClusterOperator,
     GKEStartPodOperator,
 )
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEPodTrigger
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEStartPodTrigger
 
 TEST_GCP_PROJECT_ID = "test-id"
 PROJECT_LOCATION = "test-location"
@@ -326,7 +326,7 @@ class TestGKEPodOperatorAsync:
         self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj, mocked_config
     ):
         """
-        Asserts that a task is deferred and the GKEPodTrigger will be fired
+        Asserts that a task is deferred and the GKEStartPodTrigger will be fired
         when the GKEStartPodOperator is executed in deferrable mode when deferrable=True.
         """
         with pytest.raises(TaskDeferred) as exc:
@@ -334,4 +334,4 @@ class TestGKEPodOperatorAsync:
             self.gke_op._ssl_ca_cert = SSL_CA_CERT
             self.gke_op.execute(context=mock.MagicMock())
             fetch_cluster_info_mock.assert_called_once()
-        assert isinstance(exc.value.trigger, GKEPodTrigger)
+        assert isinstance(exc.value.trigger, GKEStartPodTrigger)

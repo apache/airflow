@@ -73,7 +73,7 @@ with models.DAG(
 
     # [START howto_operator_gke_start_pod_xcom_async]
     pod_task_xcom_async = GKEStartPodOperator(
-        task_id="pod_task_xcom",
+        task_id="pod_task_xcom_async",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,

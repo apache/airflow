@@ -295,7 +295,7 @@ class GKEHook(GoogleBaseHook):
         )
 
 
-class AsyncGKEHook(GoogleBaseAsyncHook):
+class GKEAsyncHook(GoogleBaseAsyncHook):
     """Hook implemented with usage of asynchronous client of GKE."""
 
     sync_hook_class = GKEHook
@@ -414,7 +414,7 @@ class GKEPodHook(GoogleBaseHook):
         )
 
 
-class AsyncGKEPodHook(GoogleBaseAsyncHook):
+class GKEPodAsyncHook(GoogleBaseAsyncHook):
     """
     Hook for managing Google Kubernetes Engine pods APIs in asynchronous way.
 

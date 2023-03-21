@@ -28,11 +28,11 @@ try:
 except ImportError:
     # preserve backward compatibility for older versions of cncf.kubernetes provider
     from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
-from airflow.providers.google.cloud.hooks.kubernetes_engine import AsyncGKEHook, AsyncGKEPodHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEPodAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class GKEPodTrigger(KubernetesPodTrigger):
+class GKEStartPodTrigger(KubernetesPodTrigger):
     """
     Trigger for checking pod status until it finishes its job.
 
@@ -96,7 +96,7 @@ class GKEPodTrigger(KubernetesPodTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEPodTrigger",
+            "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger",
             {
                 "pod_name": self.pod_name,
                 "pod_namespace": self.pod_namespace,
@@ -113,8 +113,8 @@ class GKEPodTrigger(KubernetesPodTrigger):
             },
         )
 
-    def _get_async_hook(self) -> AsyncGKEPodHook:  # type: ignore[override]
-        return AsyncGKEPodHook(
+    def _get_async_hook(self) -> GKEPodAsyncHook:  # type: ignore[override]
+        return GKEPodAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
         )
@@ -143,7 +143,7 @@ class GKEOperationTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
 
-        self._hook: AsyncGKEHook | None = None
+        self._hook: GKEAsyncHook | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes GKEOperationTrigger arguments and classpath."""
@@ -204,9 +204,9 @@ class GKEOperationTrigger(BaseTrigger):
                 )
                 return
 
-    def _get_hook(self) -> AsyncGKEHook:
+    def _get_hook(self) -> GKEAsyncHook:
         if self._hook is None:
-            self._hook = AsyncGKEHook(
+            self._hook = GKEAsyncHook(
                 gcp_conn_id=self.gcp_conn_id,
                 location=self.location,
                 delegate_to=self.delegate_to,

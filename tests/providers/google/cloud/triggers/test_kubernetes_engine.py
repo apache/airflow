@@ -29,7 +29,7 @@ from google.cloud.container_v1.types import Operation
 from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEPodTrigger
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.triggers.base import TriggerEvent
 
 if sys.version_info < (3, 8):
@@ -37,9 +37,9 @@ if sys.version_info < (3, 8):
 else:
     from unittest import mock
 
-TRIGGER_GKE_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEPodTrigger"
+TRIGGER_GKE_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger"
 TRIGGER_KUB_PATH = "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod.KubernetesPodTrigger"
-HOOK_PATH = "airflow.providers.google.cloud.hooks.kubernetes_engine.AsyncGKEPodHook"
+HOOK_PATH = "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEPodAsyncHook"
 POD_NAME = "test-pod-name"
 NAMESPACE = "default"
 POLL_INTERVAL = 2
@@ -66,7 +66,7 @@ EXC_MSG = "test error msg"
 
 @pytest.fixture
 def trigger():
-    return GKEPodTrigger(
+    return GKEStartPodTrigger(
         pod_name=POD_NAME,
         pod_namespace=NAMESPACE,
         poll_interval=POLL_INTERVAL,
@@ -82,7 +82,7 @@ def trigger():
     )
 
 
-class TestGKEPodTrigger:
+class TestGKEStartPodTrigger:
     @staticmethod
     def _mock_pod_result(result_to_mock):
         f = Future()
@@ -198,7 +198,7 @@ class TestGKEPodTrigger:
         self, mock_hook, trigger, caplog
     ):
         """
-        Test that GKEPodTrigger fires the correct event in case of an error.
+        Test that GKEStartPodTrigger fires the correct event in case of an error.
         """
         mock_hook.return_value.get_pod.side_effect = Exception("Test exception")
 
@@ -218,7 +218,7 @@ class TestGKEPodTrigger:
         self, mock_hook, mock_method, trigger, caplog
     ):
         """
-        Test that GKEPodTrigger fires the correct event in case of fail.
+        Test that GKEStartPodTrigger fires the correct event in case of fail.
         """
         mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.FAILED
@@ -234,7 +234,7 @@ class TestGKEPodTrigger:
         self, mock_hook, trigger, caplog
     ):
         """
-        Test that GKEPodTrigger fires the correct event in case if the task was cancelled.
+        Test that GKEStartPodTrigger fires the correct event in case if the task was cancelled.
         """
         mock_hook.return_value.get_pod.side_effect = CancelledError()
         mock_hook.return_value.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
