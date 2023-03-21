@@ -59,6 +59,7 @@ images:
   airflow:
     repository: ~
     tag: ~
+    # Specifying digest takes precedence over tag.
     digest: ~
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
