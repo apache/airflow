@@ -59,6 +59,7 @@ images:
   airflow:
     repository: ~
     tag: ~
+    digest: ~
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
