@@ -52,7 +52,7 @@ GCP_AUTOML_LOCATION = "us-central1"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 RESOURCE_DATA_BUCKET = "system-tests-resources"
 
-DATASET_NAME = f"ds_{DAG_ID}_{ENV_ID}"
+DATASET_NAME = "test_dataset_tabular"
 DATASET = {
     "display_name": DATASET_NAME,
     "tables_dataset_metadata": {"target_column_spec_id": ""},
@@ -164,7 +164,7 @@ with models.DAG(
     # [START howto_operator_delete_dataset]
     delete_dataset = AutoMLDeleteDatasetOperator(
         task_id="delete_dataset",
-        dataset_id="{{ task_instance.xcom_pull('list_datasets_task', key='dataset_id_list') | list }}",
+        dataset_id=dataset_id,
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
