@@ -86,7 +86,7 @@
                 "string",
                 "null"
             ],
-            "default": null
+            "default": null,
             "x-docsSection": "Common"
         },
         "airflowVersion": {
