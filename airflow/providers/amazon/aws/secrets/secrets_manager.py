@@ -25,6 +25,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from airflow.compat.functools import cached_property
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -178,7 +179,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     def client(self):
         """Create a Secrets Manager client"""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
-        from airflow.providers.amazon.aws.utils import trim_none_values
         from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
         conn_id = f"{self.__class__.__name__}__connection"
