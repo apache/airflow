@@ -251,7 +251,7 @@ If release name contains chart name it will be used as a full name.
 {{- define "airflow_image" -}}
 {{- $repository := .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
 {{- $tag := .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
-{{- $digest := .Values.images.airflow.digest -}}
+{{- $digest := .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
 {{- if $digest }}
 {{- printf "%s@%s" $repository $digest -}}
 {{- else }}
