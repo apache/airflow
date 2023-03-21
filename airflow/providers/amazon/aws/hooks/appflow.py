@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from time import sleep
 from typing import TYPE_CHECKING
 
 from airflow.compat.functools import cached_property
@@ -64,23 +62,19 @@ class AppflowHook(AwsBaseHook):
         self.log.info("executionId: %s", execution_id)
 
         if wait_for_completion:
-            last_execs: dict = {}
-            self.log.info("Waiting for flow run to complete...")
-            while (
-                execution_id not in last_execs or last_execs[execution_id]["executionStatus"] == "InProgress"
-            ):
-                sleep(poll_interval)
-                # queries the last 20 runs, which should contain ours.
-                response_desc = self.conn.describe_flow_execution_records(flowName=flow_name)
-                last_execs = {fe["executionId"]: fe for fe in response_desc["flowExecutions"]}
-
-            exec_details = last_execs[execution_id]
-            self.log.info("Run complete, execution details: %s", exec_details)
-
-            if exec_details["executionStatus"] == "Error":
-                raise Exception(f"Flow error:\n{json.dumps(exec_details, default=str)}")
+            self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}).wait(
+                flowName=flow_name,
+                WaiterConfig={"Delay": poll_interval},
+            )
+            self._log_execution_description(flow_name, execution_id)
 
         return execution_id
+
+    def _log_execution_description(self, flow_name: str, execution_id: str):
+        response_desc = self.conn.describe_flow_execution_records(flowName=flow_name)
+        last_execs = {fe["executionId"]: fe for fe in response_desc["flowExecutions"]}
+        exec_details = last_execs[execution_id]
+        self.log.info("Run complete, execution details: %s", exec_details)
 
     def update_flow_filter(
         self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
