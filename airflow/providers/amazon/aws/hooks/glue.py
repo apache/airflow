@@ -135,7 +135,7 @@ class GlueJobHook(AwsBaseHook):
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_jobs`
         """
-        return self.get_conn().get_jobs()
+        return self.conn.get_jobs()
 
     def get_iam_execution_role(self) -> dict:
         """Get IAM Role for job execution."""
@@ -166,10 +166,11 @@ class GlueJobHook(AwsBaseHook):
 
         try:
             if self.update_config:
-                self.create_or_update_glue_job()
-            return self.get_conn().start_job_run(
-                JobName=self.job_name, Arguments=script_arguments, **run_kwargs
-            )
+                job_name = self.create_or_update_glue_job()
+            else:
+                job_name = self.get_or_create_glue_job()
+
+            return self.conn.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -186,7 +187,7 @@ class GlueJobHook(AwsBaseHook):
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
         """
-        job_run = self.get_conn().get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
+        job_run = self.conn.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
         return job_run["JobRun"]["JobRunState"]
 
     def print_job_logs(
@@ -289,9 +290,9 @@ class GlueJobHook(AwsBaseHook):
         self.log.info("Checking if job already exists: %s", job_name)
 
         try:
-            self.get_conn().get_job(JobName=job_name)
+            self.conn.get_job(JobName=job_name)
             return True
-        except self.get_conn().exceptions.EntityNotFoundException:
+        except self.conn.exceptions.EntityNotFoundException:
             return False
 
     def update_job(self, **job_kwargs) -> bool:
@@ -305,18 +306,36 @@ class GlueJobHook(AwsBaseHook):
         :return: True if job was updated and false otherwise
         """
         job_name = job_kwargs.pop("Name")
-        current_job = self.get_conn().get_job(JobName=job_name)["Job"]
+        current_job = self.conn.get_job(JobName=job_name)["Job"]
 
         update_config = {
             key: value for key, value in job_kwargs.items() if current_job.get(key) != job_kwargs[key]
         }
         if update_config != {}:
             self.log.info("Updating job: %s", job_name)
-            self.get_conn().update_job(JobName=job_name, JobUpdate=job_kwargs)
+            self.conn.update_job(JobName=job_name, JobUpdate=job_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
         else:
             return False
+
+    def get_or_create_glue_job(self) -> str | None:
+        """
+        Get (or creates) and returns the Job name.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.create_job`
+
+        :return:Name of the Job
+        """
+        if self.has_job(self.job_name):
+            return self.job_name
+
+        config = self.create_glue_job_config()
+        self.log.info("Creating job: %s", self.job_name)
+        self.conn.create_job(**config)
+
+        return self.job_name
 
     def create_or_update_glue_job(self) -> str | None:
         """
@@ -334,6 +353,6 @@ class GlueJobHook(AwsBaseHook):
             self.update_job(**config)
         else:
             self.log.info("Creating job: %s", self.job_name)
-            self.get_conn().create_job(**config)
+            self.conn.create_job(**config)
 
         return self.job_name
