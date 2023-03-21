@@ -73,7 +73,7 @@ class RedshiftClusterTrigger(BaseTrigger):
                 elif self.operation_type == "resume_cluster":
                     response = await hook.resume_cluster(
                         cluster_identifier=self.cluster_identifier,
-                        poll_interval=self.poll_interval,
+                        polling_period_seconds=self.poll_interval,
                     )
                     if response.get("status") == "success":
                         yield TriggerEvent(response)
