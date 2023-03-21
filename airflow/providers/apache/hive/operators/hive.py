@@ -56,6 +56,8 @@ class HiveOperator(BaseOperator):
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
     :param mapred_job_name: This name will appear in the jobtracker.
         This can make monitoring easier.
+    :param hive_cli_params: parameters passed to hive CLO
+    :param auth: optional authentication option passed for the Hive connection
     """
 
     template_fields: Sequence[str] = (
@@ -88,6 +90,7 @@ class HiveOperator(BaseOperator):
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
+        auth: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -104,6 +107,7 @@ class HiveOperator(BaseOperator):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
         self.hive_cli_params = hive_cli_params
+        self.auth = auth
 
         job_name_template = conf.get_mandatory_value(
             "hive",
@@ -127,6 +131,7 @@ class HiveOperator(BaseOperator):
             mapred_queue_priority=self.mapred_queue_priority,
             mapred_job_name=self.mapred_job_name,
             hive_cli_params=self.hive_cli_params,
+            auth=self.auth,
         )
 
     def prepare_template(self) -> None:
