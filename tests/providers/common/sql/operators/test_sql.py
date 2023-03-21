@@ -384,8 +384,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'row_count_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table
     ) AS sq
@@ -397,8 +397,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'column_sum_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table
     ) AS sq
@@ -412,8 +412,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'row_count_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10
     ) AS sq
@@ -425,8 +425,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'column_sum_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10
     ) AS sq
@@ -440,8 +440,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'row_count_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10 AND id = 100
     ) AS sq
@@ -453,8 +453,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'column_sum_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE col_a > 10
     ) AS sq
@@ -468,8 +468,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'row_count_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table
     ) AS sq
@@ -481,8 +481,8 @@ class TestTableCheckOperator:
     FROM (
         SELECT
             'column_sum_check' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM test_table WHERE id = 100
     ) AS sq

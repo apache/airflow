@@ -603,8 +603,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
     FROM (
         SELECT
             '{check_name}' AS check_name,
-            COUNT_IF(NOT CASE WHEN COALESCE({check_statement}, TRUE) THEN 1 ELSE 0 END)
-                OVER (PARTITION BY 1) = 0 AS check_result,
+            COUNT_IF(NOT CASE WHEN COALESCE({check_statement}, TRUE) THEN TRUE ELSE FALSE END)
+                OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM {table}{partition_clause}
     ) AS sq
