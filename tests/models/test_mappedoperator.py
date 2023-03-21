@@ -28,10 +28,10 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
