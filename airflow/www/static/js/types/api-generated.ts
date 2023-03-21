@@ -671,6 +671,16 @@ export interface paths {
       };
     };
   };
+  "/roles/{role_name}/actions/revoke": {
+    /** Revoke permissions (i.e., (action, resource) pairs) assigned to a role. */
+    post: operations["post_revoke_role_permissions"];
+    parameters: {
+      path: {
+        /** The role name */
+        role_name: components["parameters"]["RoleName"];
+      };
+    };
+  };
   "/permissions": {
     /**
      * Get a list of permissions.
@@ -1545,6 +1555,10 @@ export interface components {
     RoleCollection: {
       roles?: components["schemas"]["Role"][];
     } & components["schemas"]["CollectionInfo"];
+    /** @description A list of (action, resource) pairs for a role. */
+    RoleActions: {
+      actions: components["schemas"]["ActionResource"][];
+    };
     /**
      * @description An action Item.
      *
@@ -4319,6 +4333,28 @@ export interface operations {
       };
     };
   };
+  /** Revoke permissions (i.e., (action, resource) pairs) assigned to a role. */
+  post_revoke_role_permissions: {
+    parameters: {
+      path: {
+        /** The role name */
+        role_name: components["parameters"]["RoleName"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RoleActions"];
+      };
+    };
+  };
   /**
    * Get a list of permissions.
    *
@@ -4629,6 +4665,9 @@ export type PluginCollection = CamelCasedPropertiesDeep<
 export type Role = CamelCasedPropertiesDeep<components["schemas"]["Role"]>;
 export type RoleCollection = CamelCasedPropertiesDeep<
   components["schemas"]["RoleCollection"]
+>;
+export type RoleActions = CamelCasedPropertiesDeep<
+  components["schemas"]["RoleActions"]
 >;
 export type Action = CamelCasedPropertiesDeep<components["schemas"]["Action"]>;
 export type ActionCollection = CamelCasedPropertiesDeep<
@@ -4952,6 +4991,10 @@ export type PatchRoleVariables = CamelCasedPropertiesDeep<
   operations["patch_role"]["parameters"]["path"] &
     operations["patch_role"]["parameters"]["query"] &
     operations["patch_role"]["requestBody"]["content"]["application/json"]
+>;
+export type PostRevokeRolePermissionsVariables = CamelCasedPropertiesDeep<
+  operations["post_revoke_role_permissions"]["parameters"]["path"] &
+    operations["post_revoke_role_permissions"]["requestBody"]["content"]["application/json"]
 >;
 export type GetPermissionsVariables = CamelCasedPropertiesDeep<
   operations["get_permissions"]["parameters"]["query"]
