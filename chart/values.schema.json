@@ -82,8 +82,11 @@
         },
         "defaultAirflowDigest": {
             "description": "Default airflow digest to deploy. Overrides tag.",
-            "type": "string",
-            "default": "",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null
             "x-docsSection": "Common"
         },
         "airflowVersion": {
