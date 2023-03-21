@@ -176,6 +176,7 @@ with DAG(
         task_id="resume_cluster",
         cluster_identifier=redshift_cluster_identifier,
     )
+    # [END howto_operator_redshift_resume_cluster]
 
     wait_cluster_available_after_resume = RedshiftClusterSensor(
         task_id="wait_cluster_available_after_resume",

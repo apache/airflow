@@ -75,11 +75,11 @@ class RedshiftClusterTrigger(BaseTrigger):
                         cluster_identifier=self.cluster_identifier,
                         polling_period_seconds=self.poll_interval,
                     )
-                    if response.get("status") == "success":
+                    if response:
                         yield TriggerEvent(response)
                     else:
-                        if self.attempts < 1:
-                            yield TriggerEvent({"status": "error", "message": f"{self.task_id} failed"})
+                        error_message = f"{self.task_id} failed"
+                        yield TriggerEvent({"status": "error", "message": error_message})
                 else:
                     yield TriggerEvent(f"{self.operation_type} is not supported")
             except Exception as e:
