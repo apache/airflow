@@ -476,7 +476,7 @@
                             ],
                             "default": null
                         },
-			"digest": {
+                        "digest": {
                             "description": "The airflow image digest. If set, it will override the tag.",
                             "type": [
                                 "string",
