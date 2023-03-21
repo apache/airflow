@@ -43,7 +43,7 @@ To get more information about this operator visit:
 
 Example usage:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_sftp.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3_to_sftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_sftp]

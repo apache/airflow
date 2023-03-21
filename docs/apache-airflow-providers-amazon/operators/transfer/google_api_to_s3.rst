@@ -38,7 +38,7 @@ Google Sheets to Amazon S3 transfer operator
 
 This example loads data from Google Sheets and save it to an Amazon S3 file.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_google_api_sheets_to_s3.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_google_api_sheets_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_google_api_sheets_to_s3]

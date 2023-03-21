@@ -29,38 +29,46 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunFullOperator,
     AppflowRunOperator,
 )
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-SOURCE_NAME = "salesforce"
-FLOW_NAME = "salesforce-campaign"
+sys_test_context_task = SystemTestContextBuilder().build()
+
+DAG_ID = "example_appflow"
 
 with DAG(
-    "example_appflow",
+    DAG_ID,
+    schedule="@once",
     start_date=datetime(2022, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context["ENV_ID"]
+
+    source_name = "salesforce"
+    flow_name = f"{env_id}-salesforce-campaign"
 
     # [START howto_operator_appflow_run]
     campaign_dump = AppflowRunOperator(
         task_id="campaign_dump",
-        source=SOURCE_NAME,
-        flow_name=FLOW_NAME,
+        source=source_name,
+        flow_name=flow_name,
     )
     # [END howto_operator_appflow_run]
 
     # [START howto_operator_appflow_run_full]
     campaign_dump_full = AppflowRunFullOperator(
         task_id="campaign_dump_full",
-        source=SOURCE_NAME,
-        flow_name=FLOW_NAME,
+        source=source_name,
+        flow_name=flow_name,
     )
     # [END howto_operator_appflow_run_full]
 
     # [START howto_operator_appflow_run_daily]
     campaign_dump_daily = AppflowRunDailyOperator(
         task_id="campaign_dump_daily",
-        source=SOURCE_NAME,
-        flow_name=FLOW_NAME,
+        source=source_name,
+        flow_name=flow_name,
         source_field="LastModifiedDate",
         filter_date="{{ ds }}",
     )
@@ -69,8 +77,8 @@ with DAG(
     # [START howto_operator_appflow_run_before]
     campaign_dump_before = AppflowRunBeforeOperator(
         task_id="campaign_dump_before",
-        source=SOURCE_NAME,
-        flow_name=FLOW_NAME,
+        source=source_name,
+        flow_name=flow_name,
         source_field="LastModifiedDate",
         filter_date="{{ ds }}",
     )
@@ -79,8 +87,8 @@ with DAG(
     # [START howto_operator_appflow_run_after]
     campaign_dump_after = AppflowRunAfterOperator(
         task_id="campaign_dump_after",
-        source=SOURCE_NAME,
-        flow_name=FLOW_NAME,
+        source=source_name,
+        flow_name=flow_name,
         source_field="LastModifiedDate",
         filter_date="3000-01-01",  # Future date, so no records to dump
     )
@@ -89,7 +97,7 @@ with DAG(
     # [START howto_operator_appflow_shortcircuit]
     campaign_dump_short_circuit = AppflowRecordsShortCircuitOperator(
         task_id="campaign_dump_short_circuit",
-        flow_name=FLOW_NAME,
+        flow_name=flow_name,
         appflow_run_task_id="campaign_dump_after",  # Should shortcircuit, no records expected
     )
     # [END howto_operator_appflow_shortcircuit]
@@ -100,6 +108,9 @@ with DAG(
     )
 
     chain(
+        # TEST SETUP
+        test_context,
+        # TEST BODY
         campaign_dump,
         campaign_dump_full,
         campaign_dump_daily,
@@ -108,3 +119,14 @@ with DAG(
         campaign_dump_short_circuit,
         should_be_skipped,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
