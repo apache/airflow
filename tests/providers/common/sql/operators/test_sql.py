@@ -378,113 +378,97 @@ class TestTableCheckOperator:
 
     correct_generate_sql_query_no_partitions = f"""
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'row_count_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'row_count_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table
+      SELECT
+        {count_check} AS is_valid,
+        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table
     ) AS sq
     UNION ALL
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'column_sum_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'column_sum_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table
+      SELECT
+        {sum_check} AS is_valid,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table
     ) AS sq
     """
 
     correct_generate_sql_query_with_partition = f"""
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'row_count_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'row_count_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table WHERE col_a > 10
+      SELECT
+        {count_check} AS is_valid,
+        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table WHERE col_a > 10
     ) AS sq
     UNION ALL
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'column_sum_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'column_sum_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table WHERE col_a > 10
+      SELECT
+        {sum_check} AS is_valid,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table WHERE col_a > 10
     ) AS sq
     """
 
     correct_generate_sql_query_with_partition_and_where = f"""
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'row_count_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'row_count_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table WHERE col_a > 10 AND id = 100
+      SELECT
+        {count_check} AS is_valid,
+        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table WHERE col_a > 10 AND id = 100
     ) AS sq
     UNION ALL
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'column_sum_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'column_sum_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table WHERE col_a > 10
+      SELECT
+        {sum_check} AS is_valid,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table WHERE col_a > 10
     ) AS sq
     """
 
     correct_generate_sql_query_with_where = f"""
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'row_count_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'row_count_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({count_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT(COUNT(*) == 1000) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table
+      SELECT
+        {count_check} AS is_valid,
+        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table
     ) AS sq
     UNION ALL
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      'column_sum_check' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            'column_sum_check' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({sum_check}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT({sum_check}) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM test_table WHERE id = 100
+      SELECT
+        {sum_check} AS is_valid,
+        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
+      FROM test_table WHERE id = 100
     ) AS sq
     """
 

@@ -597,16 +597,14 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     sql_check_template = """
     SELECT
-        check_name,
-        COALESCE(MIN(result), 1) AS result,
-        COALESCE(MIN(num_rows), 0) AS num_rows
+      '{check_name}' AS check_name,
+      COALESCE(MIN(is_valid), True) AS check_result,
+      COALESCE(MIN(num_rows), False) AS num_subquery_rows
     FROM (
-        SELECT
-            '{check_name}' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({check_statement}, TRUE) THEN TRUE ELSE FALSE END))
-                OVER (PARTITION BY 1) = FALSE AS check_result,
-            COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
-        FROM {table}{partition_clause}
+      SELECT
+        {check_statement} AS is_valid,
+        COUNT({check_statement}) OVER (PARTITION BY 1) AS num_rows
+      FROM {table}{partition_clause}
     ) AS sq
     """
 
