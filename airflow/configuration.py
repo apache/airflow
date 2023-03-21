@@ -199,6 +199,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.5.3"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.5.3"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
