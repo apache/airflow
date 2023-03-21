@@ -425,14 +425,18 @@ def webserver(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        gunicorn_master_proc: psutil.Process | None = None
+        gunicorn_master_proc: psutil.Process | subprocess.Popen
 
         def kill_proc(signum, _):
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
                 gunicorn_master_proc.wait(timeout=30)
-            if gunicorn_master_proc.is_running():
+            if isinstance(gunicorn_master_proc, subprocess.Popen):
+                still_running = gunicorn_master_proc.poll() is not None
+            else:
+                still_running = gunicorn_master_proc.is_running()
+            if still_running:
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
