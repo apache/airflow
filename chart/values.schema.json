@@ -459,6 +459,7 @@
                 "airflow": {
                     "description": "Configuration of the airflow image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The airflow image repository.",
@@ -503,6 +504,7 @@
                 "pod_template": {
                     "description": "Configuration of the pod_template image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The pod_template image repository. If ``config.kubernetes.worker_container_repository`` is set, k8s executor will use config value instead.",
@@ -535,6 +537,7 @@
                 "flower": {
                     "description": "Configuration of the flower image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The flower image repository.",
@@ -567,6 +570,7 @@
                 "statsd": {
                     "description": "Configuration of the StatsD image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The StatsD image repository.",
@@ -593,6 +597,7 @@
                 "redis": {
                     "description": "Configuration of the redis image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The redis image repository.",
@@ -619,6 +624,7 @@
                 "pgbouncer": {
                     "description": "Configuration of the PgBouncer image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The PgBouncer image repository.",
@@ -645,6 +651,7 @@
                 "pgbouncerExporter": {
                     "description": "Configuration of the PgBouncer exporter image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The PgBouncer exporter image repository.",
@@ -671,6 +678,7 @@
                 "gitSync": {
                     "description": "Configuration of the gitSync image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The gitSync image repository.",
