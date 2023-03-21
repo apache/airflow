@@ -603,7 +603,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
     FROM (
         SELECT
             '{check_name}' AS check_name,
-            COUNT(IFF(NOT CASE WHEN COALESCE({check_statement}, TRUE) THEN TRUE ELSE FALSE END)
+            COUNT(IFF(NOT CASE WHEN COALESCE({check_statement}, TRUE) THEN TRUE ELSE FALSE END))
                 OVER (PARTITION BY 1) = FALSE AS check_result,
             COUNT({check_statement}) OVER (PARTITION BY 1) AS num_subquery_rows
         FROM {table}{partition_clause}
