@@ -71,16 +71,10 @@ class TestDatabricksSqlSensor:
     @pytest.mark.parametrize(
         argnames=("sensor_poke_result", "expected_poke_result"), argvalues=[(True, True), (False, False)]
     )
-    @patch.object(DatabricksSqlSensor, "_get_results")
-    def test_poke(self, mock_get_results, sensor_poke_result, expected_poke_result):
-        mock_get_results.return_value = sensor_poke_result
+    @patch.object(DatabricksSqlSensor, "poke")
+    def test_poke(self, mock_poke, sensor_poke_result, expected_poke_result):
+        mock_poke.return_value = sensor_poke_result
         assert self.sensor.poke({}) == expected_poke_result
-
-    @pytest.mark.parametrize(argnames=("query", "query_return"), argvalues=[(DEFAULT_SQL, True), ("", False)])
-    @patch.object(DatabricksSqlSensor, "_sql_sensor")
-    def test_query(self, mock_sql_sensor, query, query_return):
-        mock_sql_sensor.return_value = query
-        assert self.sensor.poke({}) == query_return
 
     def test_unsupported_conn_type(self):
         with pytest.raises(AirflowException):

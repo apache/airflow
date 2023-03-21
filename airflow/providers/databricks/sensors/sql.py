@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -74,7 +75,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         sql_endpoint_name: str | None = None,
         session_configuration=None,
         http_headers: list[tuple[str, str]] | None = None,
-        catalog: str = "hive_metastore",
+        catalog: str = "",
         schema: str = "default",
         sql: str | None = None,
         handler: Callable[[Any], Any] = fetch_all_handler,
@@ -109,6 +110,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
             **self.hook_params,
         )
 
+    @cached_property
     def _get_results(self) -> bool:
         hook = self._get_hook()
         sql_result = hook.run(
@@ -119,4 +121,4 @@ class DatabricksSqlSensor(BaseSensorOperator):
         return bool(sql_result)
 
     def poke(self, context: Context) -> bool:
-        return self._get_results()
+        return self._get_results
