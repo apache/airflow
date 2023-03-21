@@ -25,6 +25,7 @@ import subprocess
 import sys
 import textwrap
 import time
+import types
 from contextlib import suppress
 from time import sleep
 from typing import NoReturn
@@ -427,7 +428,7 @@ def webserver(args):
 
         gunicorn_master_proc: psutil.Process | subprocess.Popen
 
-        def kill_proc(signum, _):
+        def kill_proc(signum: int, frame: types.FrameType | None) -> NoReturn:
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
@@ -440,7 +441,7 @@ def webserver(args):
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_pid: int):
+        def monitor_gunicorn(gunicorn_master_pid: int) -> NoReturn:
             # Register signal handlers
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
