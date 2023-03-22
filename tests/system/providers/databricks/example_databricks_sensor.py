@@ -28,9 +28,6 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
 
-# [docs]
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-# [docs]
 DAG_ID = "example_databricks_sensor"
 
 with DAG(
@@ -40,9 +37,11 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-    # [docs]
+    # [START howto_sensor_databricks_connection_create]
+    # Example of creating a connection for Databricks
     connection_id = "databricks_default"
     sql_endpoint_name = "Starter Warehouse"
+    # [END howto_sensor_databricks_connection_create]
 
     # [START howto_sensor_databricks_sql]
     # Example of using the Databricks SQL Sensor to detect generic data presence for Delta tables.
