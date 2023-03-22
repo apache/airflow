@@ -116,13 +116,13 @@ PIP package                              Version required
 ``google-cloud-build``                   ``>=3.0.0``
 ``google-cloud-compute``                 ``>=0.1.0,<2.0.0``
 ``google-cloud-container``               ``>=2.2.0,<3.0.0``
-``google-cloud-dataflow-client``         ``>=0.5.2,<0.5.5``
+``google-cloud-dataflow-client``         ``>=0.5.2``
 ``google-cloud-dataform``                ``>=0.2.0``
 ``google-cloud-datacatalog``             ``>=3.0.0``
 ``google-cloud-dataplex``                ``>=0.1.0``
 ``google-cloud-dataproc``                ``>=3.1.0``
 ``google-cloud-dataproc-metastore``      ``>=1.2.0,<2.0.0``
-``google-cloud-dlp``                     ``>=3.0.0,<3.8.0``
+``google-cloud-dlp``                     ``>=3.0.0``
 ``google-cloud-kms``                     ``>=2.0.0``
 ``google-cloud-language``                ``>=1.1.1,<2.0.0``
 ``google-cloud-logging``                 ``>=2.1.1``

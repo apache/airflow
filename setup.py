@@ -248,9 +248,7 @@ deprecated_api = [
     "requests>=2.26.0",
 ]
 doc = [
-    # Astroid 2.12.* breaks documentation building
-    # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
-    "astroid<2.12.0",
+    "astroid>=2.12.3",
     "checksumdir",
     "click>=8.0",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
@@ -278,7 +276,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.1.4",
+    "flask-appbuilder[oauth]==4.3.0",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -302,6 +300,7 @@ ldap = [
     "python-ldap",
 ]
 leveldb = ["plyvel"]
+otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
 pandas = [
     "pandas>=0.17.1",
 ]
@@ -329,7 +328,7 @@ webhdfs = [
 
 # Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
 # manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
-# for details. Wy want to install them explicitly because we want to eventually move to
+# for details. We want to install them explicitly because we want to eventually move to
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
@@ -403,6 +402,14 @@ devel_only = [
     "aioresponses",
 ]
 
+aiobotocore = [
+    # This required for AWS deferrable operators.
+    # There is conflict between boto3 and aiobotocore dependency botocore.
+    # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+    # boto3 have native aync support and we move away from aio aiobotocore
+    "aiobotocore>=2.1.1",
+]
+
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
     return PROVIDER_DEPENDENCIES[provider_name][DEPS]
@@ -418,6 +425,7 @@ def get_unique_dependency_list(req_list_iterable: Iterable[list[str]]):
 
 devel = get_unique_dependency_list(
     [
+        aiobotocore,
         cgroups,
         devel_only,
         doc,
@@ -455,6 +463,7 @@ ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
 # Those are extras that are extensions of the 'core' Airflow. They provide additional features
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
+    "aiobotocore": aiobotocore,
     "async": async_packages,
     "celery": celery,
     "cgroups": cgroups,
@@ -466,6 +475,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "kerberos": kerberos,
     "ldap": ldap,
     "leveldb": leveldb,
+    "otel": otel,
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,

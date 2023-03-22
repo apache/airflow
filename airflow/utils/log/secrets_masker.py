@@ -22,6 +22,7 @@ import logging
 import re
 import sys
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -36,15 +37,12 @@ from typing import (
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
+from airflow.typing_compat import TypeGuard
 
-try:
-    # kubernetes provider may not be installed
+if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
-except ImportError:
-    V1EnvVar = type("V1EnvVar", (), {})  # keep mypy happy about the V1EnvVar check
 
-
-Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
+Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)
@@ -126,6 +124,19 @@ def _secrets_masker() -> SecretsMasker:
         "https://airflow.apache.org/docs/apache-airflow/stable/logging-monitoring/logging-tasks.html"
         "#advanced-configuration"
     )
+
+
+@cache
+def _get_v1_env_var_type() -> type:
+    try:
+        from kubernetes.client import V1EnvVar
+    except ImportError:
+        return type("V1EnvVar", (), {})
+    return V1EnvVar
+
+
+def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
+    return isinstance(v, _get_v1_env_var_type())
 
 
 class SecretsMasker(logging.Filter):
@@ -223,7 +234,7 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            elif isinstance(item, V1EnvVar):
+            elif _is_v1_env_var(item):
                 tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"

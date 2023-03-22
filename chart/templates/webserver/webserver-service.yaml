@@ -28,13 +28,12 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- if or (.Values.labels) (.Values.webserver.labels) }}
-{{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
-{{- end }}
-{{- with .Values.webserver.service.annotations }}
-  annotations:
-{{- toYaml . | nindent 4 }}
-{{- end }}
+    {{- if or (.Values.labels) (.Values.webserver.labels) }}
+      {{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.webserver.service.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.webserver.service.type }}
   selector:
@@ -51,6 +50,5 @@ spec:
   loadBalancerIP: {{ .Values.webserver.service.loadBalancerIP }}
   {{- end }}
   {{- if .Values.webserver.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges:
-  {{- toYaml .Values.webserver.service.loadBalancerSourceRanges | nindent 4 }}
+  loadBalancerSourceRanges: {{- toYaml .Values.webserver.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}

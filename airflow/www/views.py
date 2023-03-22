@@ -32,7 +32,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
-from operator import itemgetter
 from typing import Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urljoin, urlsplit
 
@@ -49,6 +48,7 @@ from flask import (
     before_render_template,
     flash,
     g,
+    has_request_context,
     make_response,
     redirect,
     render_template,
@@ -59,7 +59,6 @@ from flask import (
 )
 from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
-from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_appbuilder.security.decorators import has_access
 from flask_appbuilder.urltools import get_order_args, get_page_args, get_page_size_args
@@ -75,7 +74,6 @@ from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
-from wtforms.validators import InputRequired
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -89,6 +87,7 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
@@ -120,18 +119,18 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
-from airflow.utils.task_group import MappedTaskGroup, task_group_to_dict
+from airflow.utils.task_group import MappedTaskGroup, TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
-    ConnectionForm,
     DagRunEditForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
+    create_connection_form_class,
 )
 from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
 
@@ -298,7 +297,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
     def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
-        if isinstance(item, AbstractOperator):
+        if not isinstance(item, TaskGroup):
 
             def _get_summary(task_instance):
                 return {
@@ -364,6 +363,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "is_mapped": isinstance(item, MappedOperator) or is_parent_mapped,
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
+                "trigger_rule": item.trigger_rule,
             }
 
         # Task Group
@@ -623,8 +623,11 @@ class AirflowBaseView(BaseView):
     }
 
     if not conf.getboolean("core", "unit_test_mode"):
+        executor, _ = ExecutorLoader.import_default_executor_cls()
         extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
-        extra_args["sequential_executor_warning"] = conf.get("core", "executor") == "SequentialExecutor"
+        if not executor.is_production:
+            extra_args["production_executor_warning"] = executor.__name__
+        extra_args["otel_on"] = conf.getboolean("metrics", "otel_on")
 
     line_chart_attr = {
         "legend.maxKeyLength": 200,
@@ -2888,8 +2891,8 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            filter_upstream = True if request.args.get("filter_upstream") == "true" else False
-            filter_downstream = True if request.args.get("filter_downstream") == "true" else False
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
             dag = dag.partial_subset(
                 task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
             )
@@ -2952,8 +2955,6 @@ class Airflow(AirflowBaseView):
             "airflow/graph.html",
             dag=dag,
             form=form,
-            width=request.args.get("width", "100%"),
-            height=request.args.get("height", "800"),
             dag_run_id=dag_run_id,
             execution_date=dttm.isoformat(),
             state_token=wwwutils.state_token(dt_nr_dr_data["dr_state"]),
@@ -3612,7 +3613,11 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
+            dag = dag.partial_subset(
+                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            )
 
         num_runs = request.args.get("num_runs", type=int)
         if num_runs is None:
@@ -3900,7 +3905,10 @@ class Airflow(AirflowBaseView):
             audit_logs_count=audit_logs_count,
             page_size=PAGE_SIZE,
             paging=wwwutils.generate_pages(
-                current_page, num_of_pages, arg_sorting_key, arg_sorting_direction
+                current_page,
+                num_of_pages,
+                sorting_key=arg_sorting_key if arg_sorting_key else None,
+                sorting_direction=arg_sorting_direction if arg_sorting_direction else None,
             ),
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
@@ -4272,41 +4280,6 @@ class XComModelView(AirflowModelView):
         )
 
 
-def lazy_add_provider_discovered_options_to_connection_form():
-    """Adds provider-discovered connection parameters as late as possible"""
-
-    def _get_connection_types() -> list[tuple[str, str]]:
-        """Returns connection types available."""
-        _connection_types = [
-            ("fs", "File (path)"),
-            ("mesos_framework-id", "Mesos Framework ID"),
-            ("email", "Email"),
-            ("generic", "Generic"),
-        ]
-        providers_manager = ProvidersManager()
-        for connection_type, provider_info in providers_manager.hooks.items():
-            if provider_info:
-                _connection_types.append((connection_type, provider_info.hook_name))
-        return _connection_types
-
-    ConnectionForm.conn_type = SelectField(
-        lazy_gettext("Connection Type"),
-        choices=sorted(_get_connection_types(), key=itemgetter(1)),
-        widget=Select2Widget(),
-        validators=[InputRequired()],
-        description="""
-            Connection Type missing?
-            Make sure you've installed the corresponding Airflow Provider Package.
-        """,
-    )
-    for key, value in ProvidersManager().connection_form_widgets.items():
-        setattr(ConnectionForm, key, value.field)
-        ConnectionModelView.extra_field_name_mapping[key] = value.field_name
-        ConnectionModelView.add_columns.append(key)
-        ConnectionModelView.edit_columns.append(key)
-        ConnectionModelView.extra_fields.append(key)
-
-
 # Used to store a dictionary of field behaviours used to dynamically change available
 # fields in ConnectionForm based on type of connection chosen
 # See airflow.hooks.base_hook.DiscoverableHook for details on how to customize your Hooks.
@@ -4330,6 +4303,19 @@ class ConnectionFormWidget(FormWidget):
             for connection_type, hook_info in ProvidersManager().hooks.items()
             if hook_info and hook_info.connection_testable
         ]
+
+
+class ConnectionFormProxy:
+    """A stand-in for the connection form class.
+
+    Flask-Appbuilder model views only ever call the ``refresh()`` function on
+    the form class, so this is the perfect place to make the form generation
+    dynamic. See docstring of ``create_connection_form_class`` for rationales.
+    """
+
+    @staticmethod
+    def refresh(obj=None):
+        return create_connection_form_class().refresh(obj)
 
 
 class ConnectionModelView(AirflowModelView):
@@ -4366,7 +4352,11 @@ class ConnectionModelView(AirflowModelView):
         "is_encrypted",
         "is_extra_encrypted",
     ]
-    add_columns = [
+
+    # The real add_columns and edit_columns are dynamically generated at runtime
+    # so we can delay calculating entries relying on providers to make webserver
+    # start up faster.
+    _add_columns = _edit_columns = [
         "conn_id",
         "conn_type",
         "description",
@@ -4377,12 +4367,11 @@ class ConnectionModelView(AirflowModelView):
         "port",
         "extra",
     ]
-    edit_columns = add_columns.copy()
 
-    # Initialized later by lazy_add_provider_discovered_options_to_connection_form
-    extra_fields: list[str] = []
+    # We will generate the actual ConnectionForm when it is actually needed,
+    # i.e. when the web form views are displayed and submitted.
+    add_form = edit_form = ConnectionFormProxy
 
-    add_form = edit_form = ConnectionForm
     add_template = "airflow/conn_create.html"
     edit_template = "airflow/conn_edit.html"
 
@@ -4391,7 +4380,42 @@ class ConnectionModelView(AirflowModelView):
 
     base_order = ("conn_id", "asc")
 
-    extra_field_name_mapping: dict[str, str] = {}
+    def _iter_extra_field_names(self) -> Iterator[tuple[str, str]]:
+        """Iterate through provider-backed connection fields.
+
+        Note that this cannot be a property (including a cached property)
+        because Flask-Appbuilder attempts to access all members on startup, and
+        using a property would initialize the providers manager too eagerly.
+        """
+        return ((k, v.field_name) for k, v in ProvidersManager().connection_form_widgets.items())
+
+    @property
+    def add_columns(self) -> list[str]:
+        """A list of columns to show in the Add form.
+
+        This dynamically calculates additional fields from providers and add
+        them to the backing list. This calculation is done exactly once (by
+        checking we're referencing the class-level variable instead of the
+        instance-level), and only after we enter the request context (to skip
+        superfuluous checks done by Flask-Appbuilder on startup).
+        """
+        if self._add_columns is type(self)._add_columns and has_request_context():
+            self._add_columns = [*self._add_columns, *(k for k, _ in self._iter_extra_field_names())]
+        return self._add_columns
+
+    @property
+    def edit_columns(self) -> list[str]:
+        """A list of columns to show in the Edit form.
+
+        This dynamically calculates additional fields from providers and add
+        them to the backing list. This calculation is done exactly once (by
+        checking we're referencing the class-level variable instead of the
+        instance-level), and only after we enter the request context (to skip
+        superfuluous checks done by Flask-Appbuilder on startup).
+        """
+        if self._edit_columns is type(self)._edit_columns and has_request_context():
+            self._edit_columns = [*self._edit_columns, *(k for k, _ in self._iter_extra_field_names())]
+        return self._edit_columns
 
     @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
     @auth.has_access(
@@ -4506,17 +4530,14 @@ class ConnectionModelView(AirflowModelView):
                 del form.extra
         del extra_json
 
-        for key in self.extra_fields:
+        for key, field_name in self._iter_extra_field_names():
             if key in form.data and key.startswith("extra__"):
-                # Check to ensure the extra field corresponds to the connection type of the form submission
-                # before adding to extra_field_name_mapping.
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
                     value = form.data[key]
                     # Some extra fields have a default value of False so we need to explicitly check the
                     # value isn't an empty string.
                     if value != "":
-                        field_name = self.extra_field_name_mapping[key]
                         extra[field_name] = value
 
         if extra.keys():
@@ -4537,8 +4558,7 @@ class ConnectionModelView(AirflowModelView):
             logging.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
             return
 
-        for field_key in self.extra_fields:
-            field_name = self.extra_field_name_mapping[field_key]
+        for field_key, field_name in self._iter_extra_field_names():
             value = extra_dictionary.get(field_name, "")
 
             if not value:
@@ -5045,7 +5065,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "note",
+        # "note", # todo: maybe figure out how to re-enable this
         "external_trigger",
         "conf",
     ]
