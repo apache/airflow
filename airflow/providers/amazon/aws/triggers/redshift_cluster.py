@@ -21,7 +21,6 @@ from typing import Any, AsyncIterator
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from typing import Any
 
 class RedshiftClusterTrigger(BaseTrigger):
     """AWS Redshift trigger"""
@@ -137,3 +136,52 @@ class RedshiftCreateClusterTrigger(BaseTrigger):
                 },
             )
         yield TriggerEvent({"status": "success", "message": "Cluster Created"})
+
+
+class RedshiftPauseClusterTrigger(BaseTrigger):
+    """
+    Trigger for RedshiftPauseClusterOperator.
+    The trigger will asynchronously poll the boto3 API and wait for the
+    Redshift cluster to be in the `paused` state.
+
+    :param cluster_identifier:  A unique identifier for the cluster.
+    :param poll_interval: The amount of time in seconds to wait between attempts.
+    :param max_attempt: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        cluster_identifier: str,
+        poll_interval: int,
+        max_attempt: int,
+        aws_conn_id: str,
+    ):
+        self.cluster_identifier = cluster_identifier
+        self.poll_interval = poll_interval
+        self.max_attempt = max_attempt
+        self.aws_conn_id = aws_conn_id
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftPauseClusterTrigger",
+            {
+                "cluster_identifier": str(self.cluster_identifier),
+                "poll_interval": str(self.poll_interval),
+                "max_attempt": str(self.max_attempt),
+                "aws_conn_id": str(self.aws_conn_id),
+            },
+        )
+
+    async def run(self):
+        self.redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
+        async with self.redshift_hook.async_conn as client:
+            waiter = self.redshift_hook.get_waiter("cluster_paused", deferrable=True, client=client)
+            await waiter.wait(
+                ClusterIdentifier=self.cluster_identifier,
+                WaiterConfig={
+                    "Delay": int(self.poll_interval),
+                    "MaxAttempts": int(self.max_attempt),
+                },
+            )
+        yield TriggerEvent({"status": "success", "message": "Cluster paused"})

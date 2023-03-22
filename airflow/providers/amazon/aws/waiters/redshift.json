@@ -1,0 +1,29 @@
+{
+    "version": 2,
+    "waiters": {
+        "cluster_paused": {
+            "operation": "DescribeClusters",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "paused",
+                    "state": "success"
+                },
+                {
+                    "expected": "ClusterNotFound",
+                    "matcher": "error",
+                    "state": "retry"
+                },
+                {
+                    "expected": "deleting",
+                    "matcher": "pathAny",
+                    "state": "failure",
+                    "argument": "Clusters[].ClusterStatus"
+                }
+            ]
+        }
+    }
+}

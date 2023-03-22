@@ -20,7 +20,10 @@ import sys
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftCreateClusterTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftCreateClusterTrigger,
+    RedshiftPauseClusterTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 if sys.version_info < (3, 8):
@@ -72,3 +75,42 @@ class TestRedshiftCreateClusterTrigger:
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "success", "message": "Cluster Created"})
+
+
+class TestRedshiftPauseClusterTrigger:
+    def test_redshift_resume_cluster_trigger_serialize(self):
+        redshift_resume_cluster_trigger = RedshiftPauseClusterTrigger(
+            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_attempt=TEST_MAX_ATTEMPT,
+            aws_conn_id=TEST_AWS_CONN_ID,
+        )
+        class_path, args = redshift_resume_cluster_trigger.serialize()
+        assert (
+            class_path == "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftPauseClusterTrigger"
+        )
+        assert args["cluster_identifier"] == TEST_CLUSTER_IDENTIFIER
+        assert args["poll_interval"] == str(TEST_POLL_INTERVAL)
+        assert args["max_attempt"] == str(TEST_MAX_ATTEMPT)
+        assert args["aws_conn_id"] == TEST_AWS_CONN_ID
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_waiter")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
+    async def test_redshift_resume_cluster_trigger_run(self, mock_async_conn, mock_get_waiter):
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+
+        mock_get_waiter().wait = AsyncMock()
+
+        redshift_resume_cluster_trigger = RedshiftPauseClusterTrigger(
+            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_attempt=TEST_MAX_ATTEMPT,
+            aws_conn_id=TEST_AWS_CONN_ID,
+        )
+
+        generator = redshift_resume_cluster_trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent({"status": "success", "message": "Cluster paused"})

@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftClusterTrigger,
     RedshiftCreateClusterTrigger,
+    RedshiftPauseClusterTrigger,
 )
 
 if TYPE_CHECKING:
@@ -520,64 +521,49 @@ class RedshiftPauseClusterOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         deferrable: bool = False,
         poll_interval: int = 10,
+        max_attempts: int = 15,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
         self.deferrable = deferrable
-        self.poll_interval = poll_interval
-        # These parameters are added to address an issue with the boto3 API where the API
+        self.max_attempts = max_attempts
+        # These parameters are used to address an issue with the boto3 API where the API
         # prematurely reports the cluster as available to receive requests. This causes the cluster
         # to reject initial attempts to pause the cluster despite reporting the correct state.
-        self._attempts = 10
-        self._attempt_interval = 15
+        self.poll_interval = poll_interval
+        self._attempts = max_attempts
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
+        while self._attempts >= 1:
+            try:
+                redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
+                break
+            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
+                self._attempts = self._attempts - 1
 
+                if self._attempts > 0:
+                    self.log.error("Unable to pause cluster. %d attempts remaining.", self._attempts)
+                    time.sleep(self._attempt_interval)
+                else:
+                    raise error
         if self.deferrable:
             self.defer(
-                timeout=self.execution_timeout,
-                trigger=RedshiftClusterTrigger(
-                    task_id=self.task_id,
-                    poll_interval=self.poll_interval,
-                    aws_conn_id=self.aws_conn_id,
+                trigger=RedshiftPauseClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    attempts=self._attempts,
-                    operation_type="pause_cluster",
+                    poll_interval=self.poll_interval,
+                    max_attempt=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
             )
-        else:
-            while self._attempts >= 1:
-                try:
-                    redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
-                    return
-                except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                    self._attempts = self._attempts - 1
 
-                    if self._attempts > 0:
-                        self.log.error("Unable to pause cluster. %d attempts remaining.", self._attempts)
-                        time.sleep(self._attempt_interval)
-                    else:
-                        raise error
-
-    def execute_complete(self, context: Context, event: Any = None) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event:
-            if "status" in event and event["status"] == "error":
-                msg = f"{event['status']}: {event['message']}"
-                raise AirflowException(msg)
-            elif "status" in event and event["status"] == "success":
-                self.log.info("%s completed successfully.", self.task_id)
-                self.log.info("Paused cluster successfully")
-        else:
-            raise AirflowException("No event received from trigger")
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error resuming cluster: {event}")
+        return
 
 
 class RedshiftDeleteClusterOperator(BaseOperator):
