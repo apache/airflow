@@ -47,8 +47,8 @@ class TestClearTasks:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            task0 = EmptyOperator(task_id="0")
-            task1 = EmptyOperator(task_id="1", retries=2)
+            task0 = EmptyOperator(task_id="0", queue="test_queue")
+            task1 = EmptyOperator(task_id="1", retries=2, queue="test_queue")
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -75,9 +75,11 @@ class TestClearTasks:
         assert ti0.state is None
         assert ti0.try_number == 2
         assert ti0.max_tries == 1
+        assert ti0.queue == "test_queue"
         assert ti1.state is None
         assert ti1.try_number == 2
         assert ti1.max_tries == 3
+        assert ti1.queue == "test_queue"
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
         with dag_maker(

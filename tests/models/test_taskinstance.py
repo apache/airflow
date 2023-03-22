@@ -2896,7 +2896,8 @@ class TestTaskInstance:
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
-def test_refresh_from_task(pool_override):
+@pytest.mark.parametrize("queue_override", [None, "test_queue2"])
+def test_refresh_from_task(pool_override, queue_override):
     task = EmptyOperator(
         task_id="empty",
         queue="test_queue",
@@ -2908,9 +2909,12 @@ def test_refresh_from_task(pool_override):
         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}},
     )
     ti = TI(task, run_id=None)
-    ti.refresh_from_task(task, pool_override=pool_override)
+    ti.refresh_from_task(task, pool_override=pool_override, queue_override=queue_override)
 
-    assert ti.queue == task.queue
+    if queue_override:
+        assert ti.queue == queue_override
+    else:
+        assert ti.queue == task.queue
 
     if pool_override:
         assert ti.pool == pool_override
