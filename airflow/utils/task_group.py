@@ -158,6 +158,10 @@ class TaskGroup(DAGNode):
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
 
+        if SetupTeardownContext.is_setup or SetupTeardownContext.is_teardown:
+            # TODO: This might not be the ideal place to check this.
+            raise AirflowException("Task groups cannot be marked as setup or teardown.")
+
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
             return
@@ -230,13 +234,6 @@ class TaskGroup(DAGNode):
                 task.dag = self.dag
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
-
-        if SetupTeardownContext.is_setup:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_setup", True)
-        elif SetupTeardownContext.is_teardown:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_teardown", True)
 
         self.children[key] = task
 

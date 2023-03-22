@@ -39,6 +39,11 @@ class DatadogHook(BaseHook, LoggingMixin):
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
     """
 
+    conn_name_attr = "datadog_conn_id"
+    default_conn_name = "datadog_default"
+    conn_type = "datadog"
+    hook_name = "Datadog"
+
     def __init__(self, datadog_conn_id: str = "datadog_default") -> None:
         super().__init__()
         conn = self.get_connection(datadog_conn_id)
@@ -72,7 +77,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         interval: int | None = None,
     ) -> dict[str, Any]:
         """
-        Sends a single datapoint metric to DataDog
+        Sends a single datapoint metric to Datadog
 
         :param metric_name: The name of the metric
         :param datapoint: A single integer or float related to the metric
@@ -152,3 +157,25 @@ class DatadogHook(BaseHook, LoggingMixin):
 
         self.validate_response(response)
         return response
+
+    @staticmethod
+    def get_connection_form_widgets() -> dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "api_host": StringField(lazy_gettext("API endpoint"), widget=BS3TextFieldWidget()),
+            "api_key": StringField(lazy_gettext("API key"), widget=BS3TextFieldWidget()),
+            "app_key": StringField(lazy_gettext("Application key"), widget=BS3TextFieldWidget()),
+            "source_type_name": StringField(lazy_gettext("Source type name"), widget=BS3TextFieldWidget()),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ["schema", "login", "password", "port", "extra"],
+            "relabeling": {"host": "Events host name"},
+        }

@@ -36,6 +36,7 @@ interface FlattenNodesProps {
   parent?: ReactFlowNode<CustomNodeProps>;
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
+  hoveredTaskState?: string | null;
 }
 
 // Generate a flattened list of nodes for react-flow to render
@@ -47,6 +48,7 @@ export const flattenNodes = ({
   onToggleGroups,
   openGroupIds,
   parent,
+  hoveredTaskState,
 }: FlattenNodesProps) => {
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
   const parentNode = parent ? { parentNode: parent.id } : undefined;
@@ -57,6 +59,10 @@ export const flattenNodes = ({
       instance = group?.instances.find((ti) => ti.runId === selected.runId);
     }
     const isSelected = node.id === selected.taskId && !!instance;
+    const isActive =
+      instance && hoveredTaskState !== undefined
+        ? hoveredTaskState === instance.state
+        : true;
 
     const newNode = {
       id: node.id,
@@ -67,6 +73,7 @@ export const flattenNodes = ({
         instance,
         isSelected,
         latestDagRunId,
+        isActive,
         onToggleCollapse: () => {
           let newGroupIds = [];
           if (!node.value.isOpen) {
@@ -101,6 +108,7 @@ export const flattenNodes = ({
         onToggleGroups,
         openGroupIds,
         parent: newNode,
+        hoveredTaskState,
       });
       nodes = [...nodes, ...childNodes];
     }
@@ -109,16 +117,17 @@ export const flattenNodes = ({
 };
 
 export const nodeColor = ({
-  data: { height, width, instance },
+  data: { height, width, instance, childCount, isActive },
 }: ReactFlowNode<CustomNodeProps>) => {
+  let opacity = "90";
+  let color = "#cccccc";
   if (!height || !width) return "";
-  if (width > 200 || height > 60) {
-    return "#cccccc50";
-  }
-  if (instance?.state) {
-    return `${Color(stateColors[instance.state]).hex()}90`;
-  }
-  return "#cccccc90";
+  if (instance?.state && !childCount)
+    color = Color(stateColors[instance.state]).hex();
+  if (childCount) opacity = "50";
+  if (!isActive) opacity = "21";
+
+  return `${color}${opacity}`;
 };
 
 export const nodeStrokeColor = (

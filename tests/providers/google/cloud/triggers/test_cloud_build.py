@@ -87,47 +87,9 @@ def hook():
     )
 
 
-def test_async_create_build_trigger_serialization_should_execute_successfully():
-    """
-    Asserts that the CloudBuildCreateBuildTrigger correctly serializes its arguments
-    and classpath.
-    """
-    trigger = CloudBuildCreateBuildTrigger(
-        id_=TEST_BUILD_ID,
-        project_id=TEST_PROJECT_ID,
-        gcp_conn_id=TEST_CONN_ID,
-        impersonation_chain=None,
-        delegate_to=None,
-        poll_interval=TEST_POLL_INTERVAL,
-        location=TEST_LOCATION,
-    )
-    classpath, kwargs = trigger.serialize()
-    assert classpath == "airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger"
-    assert kwargs == {
-        "id_": TEST_BUILD_ID,
-        "project_id": TEST_PROJECT_ID,
-        "gcp_conn_id": TEST_CONN_ID,
-        "impersonation_chain": None,
-        "delegate_to": None,
-        "poll_interval": TEST_POLL_INTERVAL,
-        "location": TEST_LOCATION,
-    }
-
-
-@pytest.mark.asyncio
-@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
-@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
-async def test_async_create_build_trigger_triggers_on_success_should_execute_successfully(
-    mock_get_build, hook
-):
-    """
-    Tests the CloudBuildCreateBuildTrigger only fires once the job execution reaches a successful state.
-    """
-    mock_get_build.return_value = Build(
-        id=TEST_BUILD_ID, status=Build.Status.SUCCESS, steps=[BuildStep(name="ubuntu")]
-    )
-
-    trigger = CloudBuildCreateBuildTrigger(
+@pytest.fixture
+def trigger():
+    return CloudBuildCreateBuildTrigger(
         id_=TEST_BUILD_ID,
         project_id=TEST_PROJECT_ID,
         gcp_conn_id=TEST_CONN_ID,
@@ -137,104 +99,102 @@ async def test_async_create_build_trigger_triggers_on_success_should_execute_suc
         location=TEST_LOCATION,
     )
 
-    generator = trigger.run()
-    actual = await generator.asend(None)
-    assert (
-        TriggerEvent(
-            {
-                "instance": TEST_BUILD_INSTANCE,
-                "id_": TEST_BUILD_ID,
-                "status": "success",
-                "message": "Build completed",
-            }
+
+class TestCloudBuildCreateBuildTrigger:
+    def test_serialization(self, trigger):
+        """
+        Asserts that the CloudBuildCreateBuildTrigger correctly serializes its arguments
+        and classpath.
+        """
+
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger"
+        assert kwargs == {
+            "id_": TEST_BUILD_ID,
+            "project_id": TEST_PROJECT_ID,
+            "gcp_conn_id": TEST_CONN_ID,
+            "impersonation_chain": None,
+            "delegate_to": None,
+            "poll_interval": TEST_POLL_INTERVAL,
+            "location": TEST_LOCATION,
+        }
+
+    @pytest.mark.asyncio
+    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+    async def test_trigger_on_success_yield_successfully(self, mock_get_build, hook, trigger):
+        """
+        Tests the CloudBuildCreateBuildTrigger only fires once the job execution reaches a successful state.
+        """
+        mock_get_build.return_value = Build(
+            id=TEST_BUILD_ID, status=Build.Status.SUCCESS, steps=[BuildStep(name="ubuntu")]
         )
-        == actual
-    )
 
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert (
+            TriggerEvent(
+                {
+                    "instance": TEST_BUILD_INSTANCE,
+                    "id_": TEST_BUILD_ID,
+                    "status": "success",
+                    "message": "Build completed",
+                }
+            )
+            == actual
+        )
 
-@pytest.mark.asyncio
-@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
-@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
-async def test_async_create_build_trigger_triggers_on_running_should_execute_successfully(
-    mock_get_build, hook, caplog
-):
-    """
-    Test that CloudBuildCreateBuildTrigger does not fire while a build is still running.
-    """
-    mock_get_build.return_value = Build(
-        id=TEST_BUILD_ID, status=Build.Status.WORKING, steps=[BuildStep(name="ubuntu")]
-    )
-    caplog.set_level(logging.INFO)
+    @pytest.mark.asyncio
+    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+    async def test_trigger_on_running_wait_successfully(self, mock_get_build, hook, caplog, trigger):
+        """
+        Test that CloudBuildCreateBuildTrigger does not fire while a build is still running.
+        """
+        mock_get_build.return_value = Build(
+            id=TEST_BUILD_ID, status=Build.Status.WORKING, steps=[BuildStep(name="ubuntu")]
+        )
+        caplog.set_level(logging.INFO)
 
-    trigger = CloudBuildCreateBuildTrigger(
-        id_=TEST_BUILD_ID,
-        project_id=TEST_PROJECT_ID,
-        gcp_conn_id=TEST_CONN_ID,
-        impersonation_chain=None,
-        delegate_to=None,
-        poll_interval=TEST_POLL_INTERVAL,
-        location=TEST_LOCATION,
-    )
-    task = asyncio.create_task(trigger.run().__anext__())
-    await asyncio.sleep(0.5)
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
 
-    # TriggerEvent was not returned
-    assert task.done() is False
+        # TriggerEvent was not returned
+        assert task.done() is False
 
-    assert "Build is still running..." in caplog.text
-    assert f"Sleeping for {TEST_POLL_INTERVAL} seconds." in caplog.text
+        assert "Build is still running..." in caplog.text
+        assert f"Sleeping for {TEST_POLL_INTERVAL} seconds." in caplog.text
 
-    # Prevents error when task is destroyed while in "pending" state
-    asyncio.get_event_loop().stop()
+        # Prevents error when task is destroyed while in "pending" state
+        asyncio.get_event_loop().stop()
 
+    @pytest.mark.asyncio
+    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+    async def test_trigger_on_error_yield_successfully(self, mock_get_build, hook, caplog, trigger):
+        """
+        Test that CloudBuildCreateBuildTrigger fires the correct event in case of an error.
+        """
+        mock_get_build.return_value = Build(
+            id=TEST_BUILD_ID,
+            status=Build.Status.FAILURE,
+            steps=[BuildStep(name="ubuntu")],
+            status_detail="error",
+        )
+        caplog.set_level(logging.INFO)
 
-@pytest.mark.asyncio
-@async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
-@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
-async def test_async_create_build_trigger_triggers_on_error_should_execute_successfully(
-    mock_get_build, hook, caplog
-):
-    """
-    Test that CloudBuildCreateBuildTrigger fires the correct event in case of an error.
-    """
-    mock_get_build.return_value = Build(
-        id=TEST_BUILD_ID, status=Build.Status.FAILURE, steps=[BuildStep(name="ubuntu")], status_detail="error"
-    )
-    caplog.set_level(logging.INFO)
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
-    trigger = CloudBuildCreateBuildTrigger(
-        id_=TEST_BUILD_ID,
-        project_id=TEST_PROJECT_ID,
-        gcp_conn_id=TEST_CONN_ID,
-        impersonation_chain=None,
-        delegate_to=None,
-        poll_interval=TEST_POLL_INTERVAL,
-        location=TEST_LOCATION,
-    )
+    @pytest.mark.asyncio
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_cloud_build"))
+    async def test_trigger_on_exec_yield_successfully(self, mock_build_inst, trigger):
+        """
+        Test that CloudBuildCreateBuildTrigger fires the correct event in case of an error.
+        """
+        mock_build_inst.side_effect = Exception("Test exception")
 
-    generator = trigger.run()
-    actual = await generator.asend(None)
-    assert TriggerEvent({"status": "error", "message": "error"}) == actual
-
-
-@pytest.mark.asyncio
-@async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_cloud_build"))
-async def test_async_create_build_trigger_triggers_on_excp_should_execute_successfully(mock_build_inst):
-    """
-    Test that CloudBuildCreateBuildTrigger fires the correct event in case of an error.
-    """
-    mock_build_inst.side_effect = Exception("Test exception")
-
-    trigger = CloudBuildCreateBuildTrigger(
-        id_=TEST_BUILD_ID,
-        project_id=TEST_PROJECT_ID,
-        gcp_conn_id=TEST_CONN_ID,
-        impersonation_chain=None,
-        delegate_to=None,
-        poll_interval=TEST_POLL_INTERVAL,
-        location=TEST_LOCATION,
-    )
-
-    generator = trigger.run()
-    actual = await generator.asend(None)
-    assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual

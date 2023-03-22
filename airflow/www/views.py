@@ -119,7 +119,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
-from airflow.utils.task_group import MappedTaskGroup, task_group_to_dict
+from airflow.utils.task_group import MappedTaskGroup, TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
@@ -297,7 +297,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
     def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
-        if isinstance(item, AbstractOperator):
+        if not isinstance(item, TaskGroup):
 
             def _get_summary(task_instance):
                 return {
@@ -363,6 +363,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "is_mapped": isinstance(item, MappedOperator) or is_parent_mapped,
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
+                "trigger_rule": item.trigger_rule,
             }
 
         # Task Group
@@ -626,6 +627,7 @@ class AirflowBaseView(BaseView):
         extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
         if not executor.is_production:
             extra_args["production_executor_warning"] = executor.__name__
+        extra_args["otel_on"] = conf.getboolean("metrics", "otel_on")
 
     line_chart_attr = {
         "legend.maxKeyLength": 200,
@@ -2889,8 +2891,8 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            filter_upstream = True if request.args.get("filter_upstream") == "true" else False
-            filter_downstream = True if request.args.get("filter_downstream") == "true" else False
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
             dag = dag.partial_subset(
                 task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
             )
@@ -3611,7 +3613,11 @@ class Airflow(AirflowBaseView):
 
         root = request.args.get("root")
         if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+            filter_upstream = request.args.get("filter_upstream") == "true"
+            filter_downstream = request.args.get("filter_downstream") == "true"
+            dag = dag.partial_subset(
+                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            )
 
         num_runs = request.args.get("num_runs", type=int)
         if num_runs is None:
@@ -5059,7 +5065,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        "note",
+        # "note", # todo: maybe figure out how to re-enable this
         "external_trigger",
         "conf",
     ]

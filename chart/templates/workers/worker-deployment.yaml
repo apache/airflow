@@ -37,13 +37,12 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-{{- if .Values.workers.annotations }}
-  annotations:
-    {{- toYaml .Values.workers.annotations | nindent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.workers.annotations }}
+  annotations: {{- toYaml .Values.workers.annotations | nindent 4 }}
+  {{- end }}
 spec:
   {{- if $persistence }}
   serviceName: {{ .Release.Name }}-worker
@@ -60,12 +59,10 @@ spec:
       component: worker
       release: {{ .Release.Name }}
   {{- if and $persistence .Values.workers.updateStrategy }}
-  updateStrategy:
-    {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
+  updateStrategy: {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
   {{- end }}
   {{- if and (not $persistence) (.Values.workers.strategy) }}
-  strategy:
-    {{- toYaml .Values.workers.strategy | nindent 4 }}
+  strategy: {{- toYaml .Values.workers.strategy | nindent 4 }}
   {{- end }}
   template:
     metadata:
@@ -73,9 +70,9 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
-{{- if or (.Values.labels) (.Values.workers.labels) }}
-{{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
-{{- end }}
+        {{- if or (.Values.labels) (.Values.workers.labels) }}
+          {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
@@ -89,21 +86,20 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.podAnnotations }}
-        {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
+          {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.workers.priorityClassName }}
       priorityClassName: {{ .Values.workers.priorityClassName }}
       {{- end }}
-      nodeSelector:
-{{ toYaml $nodeSelector | indent 8 }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
-{{- if $affinity }}
-{{ toYaml $affinity | indent 8 }}
-{{- else }}
+        {{- if $affinity }}
+          {{- toYaml $affinity | nindent 8 }}
+        {{- else }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - podAffinityTerm:
@@ -112,15 +108,12 @@ spec:
                   component: worker
               topologyKey: kubernetes.io/hostname
             weight: 100
-{{- end }}
-      tolerations:
-{{ toYaml $tolerations | indent 8 }}
-      topologySpreadConstraints:
-{{ toYaml $topologySpreadConstraints | indent 8 }}
-{{- if .Values.workers.hostAliases }}
-      hostAliases:
-{{ toYaml .Values.workers.hostAliases | indent 8 }}
-{{- end }}
+        {{- end }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      {{- if .Values.workers.hostAliases }}
+      hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 8 }}
+      {{- end }}
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
@@ -130,10 +123,9 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-      {{- if and $persistence .Values.workers.persistence.fixPermissions }}
+        {{- if and $persistence .Values.workers.persistence.fixPermissions }}
         - name: volume-permissions
-          resources:
-{{ toYaml .Values.workers.resources | indent 12 }}
+          resources: {{- toYaml .Values.workers.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           command:
@@ -146,38 +138,35 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-      {{- end }}
+        {{- end }}
         - name: wait-for-airflow-migrations
-          resources:
-{{ toYaml .Values.workers.resources | indent 12 }}
+          resources: {{- toYaml .Values.workers.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts:
-{{- include "airflow_config_mount" . | nindent 12 }}
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.workers.extraVolumeMounts }}
-{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
-{{- end }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-{{ include "airflow_webserver_config_mount" . | indent 12 }}
-{{- end }}
-          args:
-          {{- include "wait-for-migrations-command" . | indent 10 }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.workers.extraVolumeMounts }}
+              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+          args: {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.workers.waitForMigrations.env }}
-{{ tpl (toYaml .Values.workers.waitForMigrations.env) $ | indent 12 }}
-{{- end }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- if .Values.workers.waitForMigrations.env }}
+              {{- tpl (toYaml .Values.workers.waitForMigrations.env) $ | nindent 12 }}
+            {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-        {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
-        {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
+          {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
         {{- end }}
       containers:
         - name: worker
@@ -189,8 +178,7 @@ spec:
           {{- if .Values.workers.args }}
           args: {{ tpl (toYaml .Values.workers.args) . | nindent 12 }}
           {{- end }}
-          resources:
-{{ toYaml .Values.workers.resources | indent 12 }}
+          resources: {{- toYaml .Values.workers.resources | nindent 12 }}
           {{- if .Values.workers.livenessProbe.enabled }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.workers.livenessProbe.initialDelaySeconds }}
@@ -211,15 +199,15 @@ spec:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.workers.extraVolumeMounts }}
-{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
-{{- end }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.workers.extraVolumeMounts }}
+              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-{{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.kerberos.enabled }}
             - name: kerberos-keytab
               subPath: "kerberos.keytab"
@@ -234,30 +222,29 @@ spec:
               readOnly: true
             {{- end }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-            {{- include "airflow_dags_mount" . | nindent 12 }}
+              {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-{{ include "airflow_webserver_config_mount" . | indent 12 }}
-{{- end }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             # Only signal the main process, not the process group, to make Warm Shutdown work properly
             - name: DUMB_INIT_SETSID
               value: "0"
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
-          {{- include "container_extra_envs" (list . .Values.workers.env) | indent 10 }}
-          {{- if .Values.workers.kerberosSidecar.enabled }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "container_extra_envs" (list . .Values.workers.env) | indent 10 }}
+            {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
-          {{- end }}
+            {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-        {{- include "git_sync_container" . | indent 8 }}
+          {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
-{{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
+        {{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -272,32 +259,30 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          resources:
-{{ toYaml .Values.workers.logGroomerSidecar.resources | indent 12 }}
+          resources: {{- toYaml .Values.workers.logGroomerSidecar.resources | nindent 12 }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.workers.extraVolumeMounts }}
-{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
-{{- end }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-{{ include "airflow_webserver_config_mount" . | indent 12 }}
-{{- end }}
-{{- end }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.workers.extraVolumeMounts }}
+              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+        {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
         - name: worker-kerberos
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["kerberos"]
-          resources:
-{{ toYaml .Values.workers.kerberosSidecar.resources | indent 12 }}
+          resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 12 }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-{{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
             - name: config
               mountPath: {{ .Values.kerberos.configPath | quote }}
               subPath: krb5.conf
@@ -309,35 +294,34 @@ spec:
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: false
-{{- if .Values.volumeMounts }}
-{{- toYaml .Values.volumeMounts | nindent 12 }}
-{{- end }}
-{{- if .Values.workers.extraVolumeMounts }}
-{{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}
-{{- end }}
-{{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-{{ include "airflow_webserver_config_mount" . | indent 12 }}
-{{- end }}
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.workers.extraVolumeMounts }}
+              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
           env:
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
-{{- if .Values.workers.extraContainers }}
-{{- toYaml .Values.workers.extraContainers | nindent 8 }}
-{{- end }}
+        {{- if .Values.workers.extraContainers }}
+          {{- toYaml .Values.workers.extraContainers | nindent 8 }}
+        {{- end }}
       volumes:
-{{- if .Values.volumes }}
-{{- toYaml .Values.volumes | nindent 8 }}
-{{- end }}
-{{- if .Values.workers.extraVolumes }}
-{{ toYaml .Values.workers.extraVolumes | indent 8 }}
-{{- end }}
+        {{- if .Values.volumes }}
+          {{- toYaml .Values.volumes | nindent 8 }}
+        {{- end }}
+        {{- if .Values.workers.extraVolumes }}
+          {{- toYaml .Values.workers.extraVolumes | nindent 8 }}
+        {{- end }}
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
@@ -361,31 +345,30 @@ spec:
         - name: dags
           emptyDir: {}
         {{- if  .Values.dags.gitSync.sshKeySecret }}
-        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
-{{- if .Values.logs.persistence.enabled }}
+  {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:
             claimName: {{ template "airflow_logs_volume_claim" . }}
-{{- else if not $persistence }}
+  {{- else if not $persistence }}
         - name: logs
           emptyDir: {}
-{{- else }}
+  {{- else }}
   volumeClaimTemplates:
     - metadata:
         name: logs
         {{- if .Values.workers.persistence.annotations }}
-        annotations:
-          {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
+        annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
         {{- end }}
       spec:
-      {{- if .Values.workers.persistence.storageClassName }}
+        {{- if .Values.workers.persistence.storageClassName }}
         storageClassName: {{ .Values.workers.persistence.storageClassName }}
-      {{- end }}
+        {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
-{{- end }}
+  {{- end }}
 {{- end }}

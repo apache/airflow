@@ -32,12 +32,12 @@ from airflow.models.expandinput import DictOfListsExpandInput
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import PlainXComArg, XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -179,7 +179,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
 
         assert res.operator.multiple_outputs is False
-        assert ti.xcom_pull() == [8, 4]
+        assert ti.xcom_pull() == (8, 4)
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
@@ -197,7 +197,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
 
         assert not ident.operator.multiple_outputs
-        assert ti.xcom_pull() == [35, 36]
+        assert ti.xcom_pull() == (35, 36)
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
