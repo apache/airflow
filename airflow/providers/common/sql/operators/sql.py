@@ -596,16 +596,12 @@ class SQLTableCheckOperator(BaseSQLOperator):
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
-    SELECT
-      '{check_name}' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {check_statement} AS is_valid,
-        COUNT({check_statement}) OVER (PARTITION BY 1) AS num_rows
-      FROM {table}{partition_clause}
-    ) AS sq
+    SELECT DISTINCT
+        '{check_name}' AS check_name,
+        COALESCE(MIN(CASE WHEN COALESCE({check_statement}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1), 1) AS check_result,
+        COALESCE(COUNT({check_statement}) OVER (PARTITION BY 1), 0) AS num_subquery_rows
+    FROM {table} {partition_clause}
     """
 
     def __init__(
@@ -686,11 +682,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:
-                return f" WHERE {self.partition_clause}"
+                return f"WHERE {self.partition_clause}"
             elif not self.partition_clause and "partition_clause" in self.checks[check_name]:
-                return f" WHERE {self.checks[check_name]['partition_clause']}"
+                return f"WHERE {self.checks[check_name]['partition_clause']}"
             elif self.partition_clause and "partition_clause" in self.checks[check_name]:
-                return f" WHERE {self.partition_clause} AND {self.checks[check_name]['partition_clause']}"
+                return f"WHERE {self.partition_clause} AND {self.checks[check_name]['partition_clause']}"
             else:
                 return ""
 

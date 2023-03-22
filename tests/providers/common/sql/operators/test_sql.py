@@ -376,101 +376,50 @@ class TestTableCheckOperator:
         "column_sum_check": {"check_statement": f"{sum_check}"},
     }
 
+    row_count_check_base = f"""
+    SELECT DISTINCT
+        'row_count_check' AS check_name,
+        COALESCE(MIN(CASE WHEN COALESCE({count_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1), 1) AS check_result,
+        COALESCE(COUNT({count_check}) OVER (PARTITION BY 1), 0) AS num_subquery_rows
+    FROM test_table
+    """
+
+    column_sum_check_base = f"""
+    SELECT DISTINCT
+        'column_sum_check' AS check_name,
+        COALESCE(MIN(CASE WHEN COALESCE({sum_check}, 1) THEN 1 ELSE 0 END)
+            OVER (PARTITION BY 1), 1) AS check_result,
+        COALESCE(COUNT({sum_check}) OVER (PARTITION BY 1), 0) AS num_subquery_rows
+    FROM test_table
+    """
+
     correct_generate_sql_query_no_partitions = f"""
-    SELECT
-      'row_count_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {count_check} AS is_valid,
-        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table
-    ) AS sq
+    {row_count_check_base}
     UNION ALL
-    SELECT
-      'column_sum_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {sum_check} AS is_valid,
-        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table
-    ) AS sq
+    {column_sum_check_base}
     """
 
     correct_generate_sql_query_with_partition = f"""
-    SELECT
-      'row_count_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {count_check} AS is_valid,
-        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table WHERE col_a > 10
-    ) AS sq
+    {row_count_check_base} WHERE col_a > 10
     UNION ALL
-    SELECT
-      'column_sum_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {sum_check} AS is_valid,
-        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table WHERE col_a > 10
-    ) AS sq
+    {column_sum_check_base} WHERE col_a > 10
     """
 
     correct_generate_sql_query_with_partition_and_where = f"""
-    SELECT
-      'row_count_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {count_check} AS is_valid,
-        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table WHERE col_a > 10 AND id = 100
-    ) AS sq
+    {row_count_check_base} WHERE col_a > 10 AND id = 100
     UNION ALL
-    SELECT
-      'column_sum_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {sum_check} AS is_valid,
-        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table WHERE col_a > 10
-    ) AS sq
+    {column_sum_check_base} WHERE col_a > 10
     """
 
     correct_generate_sql_query_with_where = f"""
-    SELECT
-      'row_count_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {count_check} AS is_valid,
-        COUNT({count_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table
-    ) AS sq
+    {row_count_check_base}
     UNION ALL
-    SELECT
-      'column_sum_check' AS check_name,
-      COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
-    FROM (
-      SELECT
-        {sum_check} AS is_valid,
-        COUNT({sum_check}) OVER (PARTITION BY 1) AS num_rows
-      FROM test_table WHERE id = 100
-    ) AS sq
+    {column_sum_check_base} WHERE id = 100
     """
+
+    def _strip_string(self, string):
+        return "".join(["".join([s.strip() for s in substr]) for substr in string.strip().splitlines()])
 
     def _construct_operator(self, monkeypatch, checks, records):
         def get_records(*arg):
@@ -600,47 +549,48 @@ class TestTableCheckOperator:
 
     def test_generate_sql_query_no_partitions(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
-        assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+        assert self._strip_string(operator._generate_sql_query()) == self._strip_string(
+            self.correct_generate_sql_query_no_partitions
         )
 
     def test_generate_sql_query_with_partitions(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.partition_clause = "col_a > 10"
-        assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+        assert self._strip_string(operator._generate_sql_query()) == self._strip_string(
+            self.correct_generate_sql_query_with_partition
         )
 
     def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.partition_clause = "{{ params.col }} > 10"
         operator.render_template_fields({"params": {"col": "col_a"}})
-        assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+        assert self._strip_string(operator._generate_sql_query()) == self._strip_string(
+            self.correct_generate_sql_query_with_partition
         )
 
     def test_generate_sql_query_with_templated_table(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.table = "{{ params.table }}"
         operator.render_template_fields({"params": {"table": "test_table"}})
-        assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+        assert self._strip_string(operator._generate_sql_query()) == self._strip_string(
+            self.correct_generate_sql_query_no_partitions
         )
 
     def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
         self.checks["row_count_check"]["partition_clause"] = "id = 100"
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.partition_clause = "col_a > 10"
-        assert (
-            operator._generate_sql_query().lstrip()
-            == self.correct_generate_sql_query_with_partition_and_where.lstrip()
+        assert self._strip_string(operator._generate_sql_query()) == self._strip_string(
+            self.correct_generate_sql_query_with_partition_and_where
         )
         del self.checks["row_count_check"]["partition_clause"]
 
     def test_generate_sql_query_with_check_partition(self, monkeypatch):
         self.checks["column_sum_check"]["partition_clause"] = "id = 100"
         operator = self._construct_operator(monkeypatch, self.checks, ())
-        assert operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_where.lstrip()
+        assert self._strip_string(operator._generate_sql_query()) == self._strip_string(
+            self.correct_generate_sql_query_with_where
+        )
         del self.checks["column_sum_check"]["partition_clause"]
 
 
