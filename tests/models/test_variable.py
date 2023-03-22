@@ -26,6 +26,7 @@ from cryptography.fernet import Fernet
 
 from airflow import settings
 from airflow.models import Variable, crypto, variable
+from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
@@ -36,6 +37,7 @@ class TestVariable:
     def setup_test_cases(self):
         crypto._fernet = None
         db.clear_db_variables()
+        SecretCache.reset()
         with mock.patch("airflow.models.variable.mask_secret", autospec=True) as m:
             self.mask_secret = m
             yield
@@ -98,6 +100,7 @@ class TestVariable:
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
 
+    @conf_vars({("secrets", "use_cache"): "0"})
     def test_variable_set_with_env_variable(self, caplog):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         Variable.set("key", "db-value")

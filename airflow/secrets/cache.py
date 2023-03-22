@@ -81,4 +81,9 @@ class SecretCache:
     def invalidate_key(cls, key: str):
         """invalidates (actually removes) the value stored in the cache for that key."""
         if cls._cache is not None:
-            cls._cache.pop(key)
+            cls._cache.pop(key, None)  # second arg ensures no exception if key is absent
+
+    @classmethod
+    def reset(cls):
+        """for dev purposes only"""
+        cls._cache = None

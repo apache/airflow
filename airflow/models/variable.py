@@ -223,7 +223,9 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param session: SQL Alchemy Sessions
         """
-        return session.query(Variable).filter(Variable.key == key).delete()
+        rows = session.query(Variable).filter(Variable.key == key).delete()
+        SecretCache.invalidate_key(key)
+        return rows
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key"""
