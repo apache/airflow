@@ -382,6 +382,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Build docs                      | Builds documentation                                     | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Test Pytest collection          | Tests if pytest collection works                         | Yes      | Yes      | Yes       | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests                           | Run the Pytest unit tests (Backend/Python matrix)        | Yes      | Yes      | Yes       | Yes (8)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Integration tests               | Runs integration tests (Postgres/Mysql)                  | Yes      | Yes      | Yes       | Yes (9)           |

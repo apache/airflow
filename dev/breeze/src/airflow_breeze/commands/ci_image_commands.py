@@ -464,9 +464,9 @@ def run_build_ci_image(
             output=output,
         )
     else:
+        env = os.environ.copy()
+        env["DOCKER_BUILDKIT"] = "1"
         if ci_image_params.empty_image:
-            env = os.environ.copy()
-            env["DOCKER_BUILDKIT"] = "1"
             get_console(output=output).print(
                 f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n"
             )
@@ -502,6 +502,7 @@ def run_build_ci_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 check=False,
+                env=env,
                 output=output,
             )
             if build_command_result.returncode != 0 and not ci_image_params.upgrade_to_newer_dependencies:
@@ -515,6 +516,7 @@ def run_build_ci_image(
                             image_params=ci_image_params,
                         ),
                         cwd=AIRFLOW_SOURCES_ROOT,
+                        env=env,
                         text=True,
                         check=False,
                         output=output,

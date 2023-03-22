@@ -545,6 +545,8 @@ problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
+
 ## Verify the release by PMC members
 
 ### SVN check
@@ -569,12 +571,22 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
+script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
+may help with verifying installation of the packages.
 
 ```shell script
 # Copy the list of packages (pypi urls) into `packages.txt` then run:
 python check_files.py providers -p {PATH_TO_SVN}
+```
+
+After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
+package and verify the correct versions are installed:
+
+```shell script
+docker build -f Dockerfile.pmc --tag local/airflow .
+docker run --rm --entrypoint "airflow" local/airflow info
+docker image rm local/airflow
 ```
 
 ### Licences check

@@ -191,19 +191,30 @@ Passwords cannot be manipulated or read without the key. For information on conf
 Testing Connections
 ^^^^^^^^^^^^^^^^^^^
 
-Airflow Web UI & API allows to test connections. The test connection feature can be used from
-:ref:`create <creating_connection_ui>` or :ref:`edit <editing_connection_ui>` connection page, or through calling
-:doc:`Connections REST API </stable-rest-api-ref/>`.
+Airflow Web UI, REST API, and CLI allow you to test connections. The test connection feature can be used from
+:ref:`create <creating_connection_ui>` or :ref:`edit <editing_connection_ui>` connection page in the UI, through calling
+:doc:`Connections REST API </stable-rest-api-ref/>`, or running the ``airflow connections test`` :ref:`CLI command <cli>`.
 
-To test a connection Airflow calls out the ``test_connection`` method from the associated hook class and reports the
-results of it. It may happen that the connection type does not have any associated hook or the hook doesn't have the
-``test_connection`` method implementation, in either case the error message will throw the proper error message.
+.. warning::
 
-One important point to note is that the connections will be tested from the webserver only, so this feature is
-subject to network egress rules setup for your webserver. Also, if webserver & worker machines have different libs or
-provider packages installed then the test results might differ.
+    This feature won't be available for the connections residing in external secrets backends when using the
+    Airflow UI or REST API.
 
-Last caveat is that this feature won't be available for the connections coming out of the secrets backends.
+To test a connection, Airflow calls the ``test_connection`` method from the associated hook class and reports the
+results. It may happen that the connection type does not have any associated hook or the hook doesn't have the
+``test_connection`` method implementation, in either case an error message will be displayed or functionality
+will be disabled (if you are testing in the UI).
+
+.. note::
+
+    When testing in the Airflow UI, the test executes from the webserver so this feature is subject to network
+    egress rules setup for your webserver.
+
+.. note::
+
+    If webserver & worker machines (if testing via the Airflow UI) or machines/pods (if testing via the
+    Airflow CLI) have different libs or provider packages installed, test results *might* differ.
+
 
 Custom connection types
 ^^^^^^^^^^^^^^^^^^^^^^^

@@ -34,9 +34,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   serviceName: {{ .Release.Name }}-redis
   selector:
@@ -50,27 +50,23 @@ spec:
         tier: airflow
         component: redis
         release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 8 }}
-{{- end }}
-{{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
+        {{- with .Values.labels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
       annotations:
-{{- if .Values.redis.podAnnotations }}
-{{- toYaml .Values.redis.podAnnotations | nindent 8 }}
-{{- end }}
+        {{- if .Values.redis.podAnnotations }}
+          {{- toYaml .Values.redis.podAnnotations | nindent 8 }}
+        {{- end }}
         {{- if .Values.redis.safeToEvict }}
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
-{{- end }}
+      {{- end }}
     spec:
-      nodeSelector:
-{{ toYaml $nodeSelector | indent 8 }}
-      affinity:
-{{ toYaml $affinity | indent 8 }}
-      tolerations:
-{{ toYaml $tolerations | indent 8 }}
-      topologySpreadConstraints:
-{{ toYaml $topologySpreadConstraints | indent 8 }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity: {{- toYaml $affinity | nindent 8 }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "redis.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -82,8 +78,7 @@ spec:
           image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
           command: ["/bin/sh"]
-          resources:
-{{ toYaml .Values.redis.resources | indent 12 }}
+          resources: {{- toYaml .Values.redis.resources | nindent 12 }}
           args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
           ports:
             - name: redis-db
@@ -97,25 +92,24 @@ spec:
                 secretKeyRef:
                   name: {{ template "redis_password_secret" . }}
                   key: password
-{{- if not .Values.redis.persistence.enabled }}
+  {{- if not .Values.redis.persistence.enabled }}
       volumes:
         - name: redis-db
           emptyDir: {}
-{{- else }}
+  {{- else }}
   volumeClaimTemplates:
     - metadata:
         name: redis-db
         {{- if .Values.redis.persistence.annotations }}
-        annotations:
-          {{- toYaml .Values.redis.persistence.annotations | nindent 10 }}
+        annotations: {{- toYaml .Values.redis.persistence.annotations | nindent 10 }}
         {{- end }}
       spec:
-      {{- if .Values.redis.persistence.storageClassName }}
+        {{- if .Values.redis.persistence.storageClassName }}
         storageClassName: {{ .Values.redis.persistence.storageClassName }}
-      {{- end }}
+        {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: {{ .Values.redis.persistence.size }}
-{{- end }}
+  {{- end }}
 {{- end }}

@@ -37,6 +37,6 @@ metadata:
 {{- toYaml . | nindent 4 }}
 {{- end }}
 data:
-  webserver_config.py: |
+  webserver_config.py: |-
     {{- tpl .Values.webserver.webserverConfig . | nindent 4 }}
 {{- end }}
