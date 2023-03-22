@@ -77,8 +77,8 @@ class TestHDFSHook:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_HDFS1": "hdfs://localhost1:8020",
-            "AIRFLOW_CONN_HDFS2": "hdfs://localhost2:8020",
+            "AIRFLOW_CONN_HDFS1": "hdfs://host1:8020",
+            "AIRFLOW_CONN_HDFS2": "hdfs://host2:8020",
         },
     )
     def test_get_ha_client(self):
