@@ -218,19 +218,31 @@ class BaseJob(Base, LoggingMixin):
                         # This will cause it to load from the db
                         session.merge(self)
                         previous_heartbeat = self.latest_heartbeat
+                except OperationalError:
+                    Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+                    self.log.exception(
+                        "%s heartbeat got an exception(retry:%d)",
+                        self.__class__.__name__,
+                        attempt.retry_state.attempt_number,
+                    )
+                    # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+                    self.latest_heartbeat = previous_heartbeat
 
-                    if self.state in State.terminating_states:
-                        self.kill()
+        if self.state in State.terminating_states:
+            self.kill()
 
-                    # Figure out how long to sleep for
-                    sleep_for = 0
-                    if self.latest_heartbeat:
-                        seconds_remaining = (
-                            self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-                        )
-                        sleep_for = max(0, seconds_remaining)
-                    sleep(sleep_for)
+        # Figure out how long to sleep for
+        sleep_for = 0
+        if self.latest_heartbeat:
+            seconds_remaining = (
+                self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+            )
+            sleep_for = max(0, seconds_remaining)
+        sleep(sleep_for)
 
+        for attempt in run_with_db_retries():
+            with attempt:
+                try:
                     # Update last heartbeat time
                     with create_session() as session:
                         # Make the session aware of this object
