@@ -120,7 +120,7 @@ with models.DAG(
 
     # [START howto_sensor_bigquery_table_partition_defered]
     check_table_partition_exists: BaseSensorOperator = BigQueryTablePartitionExistenceSensor(
-        task_id="check_table_partition_exists",
+        task_id="check_table_partition_exists_defered",
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
