@@ -251,14 +251,15 @@ class BaseJob(Base, LoggingMixin):
             self.latest_heartbeat = timezone.utcnow()
             session.commit()
             # At this point, the DB has updated.
-            nonlocal previous_heartbeat
             previous_heartbeat = self.latest_heartbeat
 
             self.heartbeat_callback(session=session)
             self.log.debug("[heartbeat]")
+            
+            return previous_heartbeat
 
         try:
-            self.handle_db_task(task_function = session_merge_and_commit)
+            previous_heartbeat = self.handle_db_task(task_function = session_merge_and_commit)
         except OperationalError:
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
@@ -277,8 +278,7 @@ class BaseJob(Base, LoggingMixin):
             make_transient(self)
 
             try:
-                nonlocal ret
-                ret = self._execute()
+                local_ret = self._execute()
                 # In case of max runs or max duration
                 self.state = State.SUCCESS
             except SystemExit:
@@ -292,8 +292,9 @@ class BaseJob(Base, LoggingMixin):
                 self.end_date = timezone.utcnow()
                 session.merge(self)
                 session.commit()
+            return local_ret
 
-        self.handle_db_task(create_db_entry)
+        ret = self.handle_db_task(create_db_entry)
 
         Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
         return ret
