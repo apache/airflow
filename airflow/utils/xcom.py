@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,27 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# MAX XCOM Size is 48KB
+# https://github.com/apache/airflow/pull/1618#discussion_r68249677
 from __future__ import annotations
 
-import os
-from datetime import datetime
-
-from airflow import models
-from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
-
-S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
-S3_KEY = os.environ.get("S3_KEY", "key")
-
-with models.DAG(
-    "example_s3_to_sftp",
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-) as dag:
-    # [START howto_transfer_s3_to_sftp]
-    create_s3_to_sftp_job = S3ToSFTPOperator(
-        task_id="create_s3_to_sftp_job",
-        sftp_path="sftp_path",
-        s3_bucket=S3_BUCKET,
-        s3_key=S3_KEY,
-    )
-    # [END howto_transfer_s3_to_sftp]
+MAX_XCOM_SIZE = 49344
+XCOM_RETURN_KEY = "return_value"

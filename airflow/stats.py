@@ -600,14 +600,15 @@ class _Stats(type):
             port=conf.getint("metrics", "statsd_port"),
             prefix=conf.get("metrics", "statsd_prefix"),
         )
-        if conf.get("metrics", "statsd_allow_list", fallback=None):
-            metrics_validator = AllowListValidator(conf.get("metrics", "statsd_allow_list"))
-            if conf.get("metrics", "statsd_block_list", fallback=None):
+        if conf.get("metrics", "metrics_allow_list", fallback=None):
+            metrics_validator = AllowListValidator(conf.get("metrics", "metrics_allow_list"))
+            if conf.get("metrics", "metrics_block_list", fallback=None):
                 log.warning(
-                    "Ignoring statsd_block_list as both statsd_allow_list and statsd_block_list have been set"
+                    "Ignoring metrics_block_list as both metrics_allow_list "
+                    "and metrics_block_list have been set"
                 )
-        elif conf.get("metrics", "statsd_block_list", fallback=None):
-            metrics_validator = BlockListValidator(conf.get("metrics", "statsd_block_list"))
+        elif conf.get("metrics", "metrics_block_list", fallback=None):
+            metrics_validator = BlockListValidator(conf.get("metrics", "metrics_block_list"))
         else:
             metrics_validator = AllowListValidator()
         influxdb_tags_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
@@ -627,14 +628,15 @@ class _Stats(type):
             namespace=conf.get("metrics", "statsd_prefix"),
             constant_tags=cls.get_constant_tags(),
         )
-        if conf.get("metrics", "statsd_allow_list", fallback=None):
-            metrics_validator = AllowListValidator(conf.get("metrics", "statsd_allow_list"))
-            if conf.get("metrics", "statsd_block_list", fallback=None):
+        if conf.get("metrics", "metrics_allow_list", fallback=None):
+            metrics_validator = AllowListValidator(conf.get("metrics", "metrics_allow_list"))
+            if conf.get("metrics", "metrics_block_list", fallback=None):
                 log.warning(
-                    "Ignoring statsd_block_list as both statsd_allow_list and statsd_block_list have been set"
+                    "Ignoring metrics_block_list as both metrics_allow_list "
+                    "and metrics_block_list have been set"
                 )
-        elif conf.get("metrics", "statsd_block_list", fallback=None):
-            metrics_validator = BlockListValidator(conf.get("metrics", "statsd_block_list"))
+        elif conf.get("metrics", "metrics_block_list", fallback=None):
+            metrics_validator = BlockListValidator(conf.get("metrics", "metrics_block_list"))
         else:
             metrics_validator = AllowListValidator()
         datadog_metrics_tags = conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True)

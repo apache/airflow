@@ -1081,6 +1081,12 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
+        dag3_sla1 = SlaCallbackRequest(
+            full_filepath="/green_eggs/ham/file3.py",
+            dag_id="dag3",
+            processor_subdir=tmpdir,
+        )
+
         # when
         manager._add_callback_to_queue(dag1_req1)
         manager._add_callback_to_queue(dag1_sla1)
@@ -1096,12 +1102,15 @@ class TestDagFileProcessorManager:
 
         # when
         manager._add_callback_to_queue(dag1_sla2)
+        manager._add_callback_to_queue(dag3_sla1)
 
-        # then - since sla2 == sla1, should not have brought dag1 to the fore
+        # then - since sla2 == sla1, should not have brought dag1 to the fore, and an SLA on dag3 doesn't
+        # update the queue, although the callback is registered
         assert manager._file_path_queue == collections.deque(
             [dag2_req1.full_filepath, dag1_req1.full_filepath]
         )
         assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
+        assert manager._callback_to_execute[dag3_sla1.full_filepath] == [dag3_sla1]
 
         # when
         manager._add_callback_to_queue(dag1_req2)

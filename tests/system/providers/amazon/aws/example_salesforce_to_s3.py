@@ -21,28 +21,68 @@ data and upload it to an Amazon S3 bucket.
 from __future__ import annotations
 
 from datetime import datetime
-from os import getenv
 
 from airflow import DAG
+from airflow.models.baseoperator import chain
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-S3_BUCKET_NAME = getenv("S3_BUCKET_NAME", "s3_bucket_name")
-S3_KEY = getenv("S3_KEY", "s3_filename")
+sys_test_context_task = SystemTestContextBuilder().build()
 
+DAG_ID = "example_salesforce_to_s3"
 
 with DAG(
-    dag_id="example_salesforce_to_s3",
+    dag_id=DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 7, 8),
     catchup=False,
     tags=["example"],
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context["ENV_ID"]
+
+    s3_bucket = f"{env_id}-salesforce-to-s3-bucket"
+    s3_key = f"{env_id}-salesforce-to-s3-key"
+
+    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+
     # [START howto_transfer_salesforce_to_s3]
     upload_salesforce_data_to_s3 = SalesforceToS3Operator(
         task_id="upload_salesforce_to_s3",
         salesforce_query="SELECT AccountNumber, Name FROM Account",
-        s3_bucket_name=S3_BUCKET_NAME,
-        s3_key=S3_KEY,
+        s3_bucket_name=s3_bucket,
+        s3_key=s3_key,
         salesforce_conn_id="salesforce",
         replace=True,
     )
     # [END howto_transfer_salesforce_to_s3]
+
+    delete_s3_bucket = S3DeleteBucketOperator(
+        task_id="delete_s3_bucket",
+        bucket_name=s3_bucket,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    chain(
+        # TEST SETUP
+        test_context,
+        create_s3_bucket,
+        # TEST BODY
+        upload_salesforce_data_to_s3,
+        # TEST TEARDOWN
+        delete_s3_bucket,
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
