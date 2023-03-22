@@ -536,9 +536,6 @@ class WasbAsyncHook(WasbHook):
 
     def get_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
-        if self.blob_service_client is not None:
-            return self.blob_service_client
-
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
 
