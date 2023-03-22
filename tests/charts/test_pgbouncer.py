@@ -520,19 +520,16 @@ class TestPgbouncerConfig:
 
     def test_pgbouncer_deployment_extra_annotations(self):
         docs = render_chart(
-            values={"pgbouncer": {"enabled": True, "extraAnnotations":{"foo": "bar"}}},
+            values={"pgbouncer": {"enabled": True, "extraAnnotations": {"foo": "bar"}}},
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
         assert {
-            # Forward slash fix 'E501 Line too long (121 > 110 characters)' in Static checks job
-            "checksum/pgbouncer-certificates-secret": \
-            "ce3e24dbf7b695a6cc5be7270ab37c50011f8d35898e1d023165106f6248ce0b",
-            # Forward slash fix 'E501 Line too long (115 > 110 characters)' in Static checks job
-            "checksum/pgbouncer-config-secret": \
-            "f2aee4e66cd282693ffe89963baf0604ee80bef16da1a570e4cf2749f6cc0438",
+            "checksum/pgbouncer-certificates-secret": "ce3e24dbf7b695a6cc5be7270ab37c50011f8d35898e1d023165106f6248ce0b",  # noqa: E501
+            "checksum/pgbouncer-config-secret": "f2aee4e66cd282693ffe89963baf0604ee80bef16da1a570e4cf2749f6cc0438",  # noqa: E501
             "foo": "bar",
         } == jmespath.search("spec.template.metadata.annotations", docs[0])
+
 
 class TestPgbouncerExporter:
     def test_secret_not_created_by_default(self):
