@@ -16,34 +16,59 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
+import boto3
+
 from airflow import DAG
+from airflow.models.baseoperator import chain
+from airflow.operators.python import task
 from airflow.providers.amazon.aws.operators.glacier import (
     GlacierCreateJobOperator,
     GlacierUploadArchiveOperator,
 )
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-VAULT_NAME = "airflow"
-BUCKET_NAME = os.environ.get("GLACIER_GCS_BUCKET_NAME", "gs://INVALID BUCKET NAME")
-OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
+sys_test_context_task = SystemTestContextBuilder().build()
+
+DAG_ID = "example_glacier_to_gcs"
+
+
+@task
+def create_vault(vault_name):
+    boto3.client("glacier").create_vault(vaultName=vault_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_vault(vault_name):
+    boto3.client("glacier").delete_vault(vaultName=vault_name)
+
 
 with DAG(
-    "example_glacier_to_gcs",
+    DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
+    tags=["example"],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+    env_id = test_context["ENV_ID"]
+
+    vault_name = f"{env_id}-vault"
+    gcs_bucket_name = f"{env_id}-bucket"
+    gcs_object_name = f"{env_id}-object"
+
     # [START howto_operator_glacier_create_job]
-    create_glacier_job = GlacierCreateJobOperator(task_id="create_glacier_job", vault_name=VAULT_NAME)
+    create_glacier_job = GlacierCreateJobOperator(task_id="create_glacier_job", vault_name=vault_name)
     JOB_ID = '{{ task_instance.xcom_pull("create_glacier_job")["jobId"] }}'
     # [END howto_operator_glacier_create_job]
 
     # [START howto_sensor_glacier_job_operation]
     wait_for_operation_complete = GlacierJobOperationSensor(
-        vault_name=VAULT_NAME,
+        vault_name=vault_name,
         job_id=JOB_ID,
         task_id="wait_for_operation_complete",
     )
@@ -51,16 +76,16 @@ with DAG(
 
     # [START howto_operator_glacier_upload_archive]
     upload_archive_to_glacier = GlacierUploadArchiveOperator(
-        vault_name=VAULT_NAME, body=b"Test Data", task_id="upload_data_to_glacier"
+        task_id="upload_data_to_glacier", vault_name=vault_name, body=b"Test Data"
     )
     # [END howto_operator_glacier_upload_archive]
 
     # [START howto_transfer_glacier_to_gcs]
     transfer_archive_to_gcs = GlacierToGCSOperator(
         task_id="transfer_archive_to_gcs",
-        vault_name=VAULT_NAME,
-        bucket_name=BUCKET_NAME,
-        object_name=OBJECT_NAME,
+        vault_name=vault_name,
+        bucket_name=gcs_bucket_name,
+        object_name=gcs_object_name,
         gzip=False,
         # Override to match your needs
         # If chunk size is bigger than actual file size
@@ -69,4 +94,26 @@ with DAG(
     )
     # [END howto_transfer_glacier_to_gcs]
 
-    create_glacier_job >> wait_for_operation_complete >> upload_archive_to_glacier >> transfer_archive_to_gcs
+    chain(
+        # TEST SETUP
+        test_context,
+        create_vault(vault_name),
+        # TEST BODY
+        create_glacier_job,
+        wait_for_operation_complete,
+        upload_archive_to_glacier,
+        transfer_archive_to_gcs,
+        # TEST TEARDOWN
+        delete_vault(vault_name),
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

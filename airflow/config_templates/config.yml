@@ -876,6 +876,25 @@ metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
   options:
+    metrics_allow_list:
+      description: |
+        If you want to avoid emitting all the available metrics, you can configure an
+        allow list of prefixes (comma separated) to send only the metrics that start
+        with the elements of the list (e.g: "scheduler,executor,dagrun")
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: ""
+    metrics_block_list:
+      description: |
+        If you want to avoid emitting all the available metrics, you can configure a
+        block list of prefixes (comma separated) to filter out metrics that start with
+        the elements of the list (e.g: "scheduler,executor,dagrun").
+        If metrics_allow_list and metrics_block_list are both configured, metrics_block_list is ignored.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -901,25 +920,6 @@ metrics:
       type: string
       example: ~
       default: "airflow"
-    statsd_allow_list:
-      description: |
-        If you want to avoid sending all the available metrics to StatsD,
-        you can configure an allow list of prefixes (comma separated) to send only the metrics that
-        start with the elements of the list (e.g: "scheduler,executor,dagrun")
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ""
-    statsd_block_list:
-      description: |
-        If you want to avoid sending all the available metrics to StatsD,
-        you can configure a block list of prefixes (comma separated) to filter out metrics that
-        start with the elements of the list (e.g: "scheduler,executor,dagrun").
-        If statsd_allow_list and statsd_block_list are both configured, statsd_block_list is ignored
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: ""
     stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return

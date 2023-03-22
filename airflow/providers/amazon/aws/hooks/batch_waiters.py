@@ -138,7 +138,7 @@ class BatchWaitersHook(BatchClientHook):
         """
         return self._waiter_model
 
-    def get_waiter(self, waiter_name: str) -> botocore.waiter.Waiter:
+    def get_waiter(self, waiter_name: str, _: dict[str, str] | None = None) -> botocore.waiter.Waiter:
         """
         Get an AWS Batch service waiter, using the configured ``.waiter_model``.
 
@@ -167,6 +167,8 @@ class BatchWaitersHook(BatchClientHook):
         :param waiter_name: The name of the waiter. The name should match
             the name (including the casing) of the key name in the waiter
             model file (typically this is CamelCasing); see ``.list_waiters``.
+
+        :param _: unused, just here to match the method signature in base_aws
 
         :return: a waiter object for the named AWS Batch service
         """
