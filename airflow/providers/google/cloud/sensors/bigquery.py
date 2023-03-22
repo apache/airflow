@@ -166,7 +166,8 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
         self.deferrable = deferrable
-        self.poke_interval = poke_interval
+        if self.deferrable:
+            self.poke_interval = kwargs.get("poke_interval", 5)
 
     def poke(self, context: Context) -> bool:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
@@ -184,7 +185,10 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         )
 
     def execute(self, context: Context) -> None:
-        """Airflow runs this method on the worker and defers using the trigger."""
+        """
+        Airflow runs this method on the worker and defers using the triggers
+        if deferrable is set to True.
+        """
         if not self.deferrable:
             super().execute(context)
         else:
