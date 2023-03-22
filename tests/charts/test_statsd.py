@@ -223,7 +223,6 @@ class TestStatsd:
 
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == args
 
-
     def test_should_add_statsd_configmap_annotations(self):
         docs = render_chart(
             values={
@@ -252,4 +251,3 @@ class TestStatsd:
             jmespath.search("spec.template.metadata.annotations", docs[0])["test_pod_annotation"]
             == "test_pod_annotation_value"
         )
-
