@@ -17,48 +17,30 @@
 
 from __future__ import annotations
 
-import os
-from datetime import timedelta
-
 from airflow.dag_processing.manager import DagFileProcessorManager
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job_runner import BaseJobRunner
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class DagProcessorJob(BaseJob):
+class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     """
-    :param dag_directory: Directory where DAG definitions are kept. All
-        files in file_paths should be under this directory
-    :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
-    :param processor_timeout: How long to wait before timing out a DAG file processor
-    :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
-    :param async_mode: Whether to start agent in async mode
+    DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
+
+    :param processor: DagFileProcessorManager instance to use
     """
 
-    __mapper_args__ = {"polymorphic_identity": "DagProcessorJob"}
+    job_type = "DagProcessorJob"
 
     def __init__(
         self,
-        dag_directory: os.PathLike,
-        max_runs: int,
-        processor_timeout: timedelta,
-        dag_ids: list[str] | None,
-        pickle_dags: bool,
+        processor: DagFileProcessorManager,
         *args,
         **kwargs,
     ):
-        self.processor = DagFileProcessorManager(
-            dag_directory=dag_directory,
-            max_runs=max_runs,
-            processor_timeout=processor_timeout,
-            dag_ids=dag_ids,
-            pickle_dags=pickle_dags,
-            job=self,
-        )
+        self.processor = processor
         super().__init__(*args, **kwargs)
 
-    def _execute(self) -> None:
+    def _execute(self) -> int | None:
         self.log.info("Starting the Dag Processor Job")
         try:
             self.processor.start()
@@ -68,3 +50,4 @@ class DagProcessorJob(BaseJob):
         finally:
             self.processor.terminate()
             self.processor.end()
+        return None

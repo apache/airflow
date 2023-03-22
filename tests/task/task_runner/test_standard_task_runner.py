@@ -28,7 +28,8 @@ from unittest.mock import patch
 import psutil
 import pytest
 
-from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
@@ -104,6 +105,7 @@ class TestStandardTaskRunner:
             "task1",
             "2016-01-01",
         ]
+        local_task_job.job_runner = LocalTaskJobRunner(local_task_job.task_instance)
 
         runner = StandardTaskRunner(local_task_job)
         runner.start()
@@ -148,7 +150,9 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
+        )
         runner = StandardTaskRunner(job1)
         runner.start()
 
@@ -191,7 +195,9 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
+        )
         runner = StandardTaskRunner(job1)
         runner.start()
 
@@ -227,7 +233,7 @@ class TestStandardTaskRunner:
             "task1",
             "2016-01-01",
         ]
-
+        local_task_job.job_runner = LocalTaskJobRunner(local_task_job.task_instance)
         runner = StandardTaskRunner(local_task_job)
 
         runner.start()
@@ -268,6 +274,7 @@ class TestStandardTaskRunner:
             "task1",
             "2016-01-01",
         ]
+        local_task_job.job_runner = LocalTaskJobRunner(local_task_job.task_instance)
 
         # Kick off the runner
         runner = StandardTaskRunner(local_task_job)
@@ -316,7 +323,9 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
+        )
         runner = StandardTaskRunner(job1)
         runner.start()
 
@@ -374,7 +383,9 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
+        )
         runner = StandardTaskRunner(job1)
         runner.start()
 

@@ -89,8 +89,8 @@ from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.scheduler_job import SchedulerJobRunner
+from airflow.jobs.triggerer_job import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
@@ -635,12 +635,12 @@ class AirflowBaseView(BaseView):
 
     def render_template(self, *args, **kwargs):
         # Add triggerer_job only if we need it
-        if TriggererJob.is_needed():
-            kwargs["triggerer_job"] = lazy_object_proxy.Proxy(TriggererJob.most_recent_job)
+        if TriggererJobRunner.is_needed():
+            kwargs["triggerer_job"] = lazy_object_proxy.Proxy(TriggererJobRunner.most_recent_job)
         return super().render_template(
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
-            scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
+            scheduler_job=lazy_object_proxy.Proxy(SchedulerJobRunner.most_recent_job),
             **kwargs,
         )
 
@@ -660,7 +660,7 @@ class Airflow(AirflowBaseView):
         scheduler_status = "unhealthy"
         payload["metadatabase"] = {"status": "healthy"}
         try:
-            scheduler_job = SchedulerJob.most_recent_job()
+            scheduler_job = SchedulerJobRunner.most_recent_job()
 
             if scheduler_job:
                 latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
