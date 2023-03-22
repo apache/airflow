@@ -599,7 +599,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
     SELECT
       '{check_name}' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {check_statement} AS is_valid,
