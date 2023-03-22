@@ -112,7 +112,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         )
 
     def _get_results(self) -> bool:
-        hook = self._get_hook()
+        hook = self._get_hook
         sql_result = hook.run(
             self.sql,
             handler=self.handler if self.do_xcom_push else None,
@@ -121,4 +121,4 @@ class DatabricksSqlSensor(BaseSensorOperator):
         return bool(sql_result)
 
     def poke(self, context: Context) -> bool:
-        return self._get_results
+        return self._get_results()

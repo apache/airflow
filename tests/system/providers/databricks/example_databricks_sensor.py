@@ -28,7 +28,7 @@ file_location passed into Delta table.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
