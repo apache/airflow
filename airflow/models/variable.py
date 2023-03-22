@@ -180,6 +180,10 @@ class Variable(Base, LoggingMixin):
         Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value, description=description))
         session.flush()
+        # invalidate key in cache for faster propagation
+        # we cannot save the value set because it's possible that it's shadowed by a custom backend
+        # (see call to check_for_write_conflict above)
+        SecretCache.invalidate_key(key)
 
     @staticmethod
     @provide_session
