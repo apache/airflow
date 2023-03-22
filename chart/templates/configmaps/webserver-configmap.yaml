@@ -32,9 +32,9 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
-{{- if .Values.webserver.configMapAnnotations }}
+{{- with .Values.webserver.configMapAnnotations }}
   annotations:
-{{- toYaml .Values.webserver.configMapAnnotations | nindent 4 }}
+{{- toYaml . | nindent 4 }}
 {{- end }}
 data:
   webserver_config.py: |
