@@ -148,9 +148,10 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
-        poke_interval: int = 5,
         **kwargs,
     ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            kwargs["poke_interval"] = 5
         super().__init__(**kwargs)
 
         self.project_id = project_id
@@ -166,8 +167,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
         self.deferrable = deferrable
-        if self.deferrable:
-            self.poke_interval = kwargs.get("poke_interval", 5)
 
     def poke(self, context: Context) -> bool:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
