@@ -43,7 +43,7 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
-from aiobotocore.session import AioSession, get_session as async_get_session
+from aiobotocore.session import get_session as async_get_session
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
@@ -180,9 +180,7 @@ class BaseSessionFactory(LoggingMixin):
 
         session = async_get_session() if deferrable else botocore.session.get_session()
 
-        session.set_credentials(
-            access_key=credentials.access_key, secret_key=credentials.secret_key, token=credentials.token
-        )
+        session._credentials = credentials
         session.set_config_variable("region", self.basic_session.region_name)
 
         return boto3.session.Session(botocore_session=session, **session_kwargs)
@@ -653,7 +651,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @cached_property
     def async_conn(self):
-        """Get an Aiobotocore client to use for async operations (cached)."""
+        """Get an aiobotocore client to use for async operations (cached)."""
         if not self.client_type:
             raise ValueError("client_type must be specified.")
 
@@ -822,7 +820,13 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         path = Path(__file__).parents[1].joinpath(f"waiters/{self.client_type}.json").resolve()
         return path if path.exists() else None
 
-    def get_waiter(self, waiter_name: str, parameters: dict[str, str] | None = None, deferrable: bool = False, client=None) -> Waiter:
+    def get_waiter(
+        self,
+        waiter_name: str,
+        parameters: dict[str, str] | None = None,
+        deferrable: bool = False,
+        client=None,
+    ) -> Waiter:
         """
         First checks if there is a custom waiter with the provided waiter_name and
         uses that if it exists, otherwise it will check the service client for a
@@ -851,8 +855,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
             config = self._apply_parameters_value(config, waiter_name, parameters)
             return BaseBotoWaiter(client=client, model_config=config, deferrable=deferrable).waiter(
-                    waiter_name
-                )
+                waiter_name
+            )
         # If there is no custom waiter found for the provided name,
         # then try checking the service's official waiters.
         return self.conn.get_waiter(waiter_name)
