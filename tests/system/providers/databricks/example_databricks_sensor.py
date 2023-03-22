@@ -16,17 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is an example DAG which uses the DatabricksSqlSensor.
-The task checks for a generic SQL statement against a Delta table,
-and if a result is returned, the task succeeds, else it times out.
+This is an example DAG which uses the DatabricksSqlOperator
+and DatabricksCopyIntoOperator. The first task creates the table
+and inserts values into it. The second task uses DatabricksSqlOperator
+to select the data. The third task selects the data and stores the
+output of selected data in file path and format specified. The fourth
+task runs the select SQL statement written in the test.sql file. The
+final task using DatabricksCopyIntoOperator loads the data from the
+file_location passed into Delta table.
 """
 from __future__ import annotations
 
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
 
+# [Env variable to be used from the OS]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+# [DAG name to be shown on Airflow UI]
 DAG_ID = "example_databricks_sensor"
 
 with DAG(
@@ -36,14 +45,14 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-    # [START howto_sensor_databricks_connection_create]
-    # Example of creating a connection for Databricks
+    # [START howto_sensor_databricks_connection_setup]
+    # Connection string setup for Databricks workspace.
     connection_id = "databricks_default"
     sql_endpoint_name = "Starter Warehouse"
-    # [END howto_sensor_databricks_connection_create]
+    # [END howto_sensor_databricks_connection_setup]
 
-    # [START howto_sensor_databricks_sql]
-    # Example of using the Databricks SQL Sensor to detect generic data presence for Delta tables.
+    # [START howto_sensor_databricks_sql_multiple]
+    # Example of using the Databricks SQL Operator to perform multiple operations.
     sql_sensor = DatabricksSqlSensor(
         databricks_conn_id=connection_id,
         sql_endpoint_name=sql_endpoint_name,
@@ -52,7 +61,7 @@ with DAG(
         sql="select * from hive_metastore.temp.sample_table_3 limit 1",
         timeout=60 * 2,
     )
-    # [END howto_sensor_databricks_sql]
+    # [START howto_sensor_databricks_sql_multiple]
 
     (sql_sensor)
 
@@ -61,7 +70,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 

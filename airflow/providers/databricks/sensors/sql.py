@@ -96,6 +96,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         self.handler = handler
         super().__init__(**kwargs)
 
+    @cached_property
     def _get_hook(self) -> DatabricksSqlHook:
         return DatabricksSqlHook(
             self.databricks_conn_id,
@@ -110,7 +111,6 @@ class DatabricksSqlSensor(BaseSensorOperator):
             **self.hook_params,
         )
 
-    @cached_property
     def _get_results(self) -> bool:
         hook = self._get_hook()
         sql_result = hook.run(
