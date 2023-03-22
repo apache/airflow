@@ -89,6 +89,16 @@ with models.DAG(
     )
     # [END howto_sensor_bigquery_table]
 
+    # [START howto_sensor_bigquery_table_defered]
+    check_table_exists: BaseOperator = BigQueryTableExistenceSensor(
+        task_id="check_table_exists_defered",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        deferrable=True,
+    )
+    # [END howto_sensor_bigquery_table_defered]
+
     # [START howto_sensor_async_bigquery_table]
     check_table_exists_async = BigQueryTableExistenceAsyncSensor(
         task_id="check_table_exists_async",
