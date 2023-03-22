@@ -567,7 +567,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
 
-            self.sync_perm_for_dag(dag_resource_name, dag.access_control)
+            if dag.access_control:
+                self.sync_perm_for_dag(dag_resource_name, dag.access_control)
 
     def update_admin_permission(self):
         """
@@ -635,7 +636,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for dag_action_name in self.DAG_ACTIONS:
             self.create_permission(dag_action_name, dag_resource_name)
 
-        self._sync_dag_view_permissions(dag_resource_name, access_control)
+        if access_control:
+            self._sync_dag_view_permissions(dag_resource_name, access_control)
 
     def _sync_dag_view_permissions(self, dag_id, access_control):
         """
@@ -674,7 +676,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if resource:
             _revoke_stale_permissions(resource)
 
-        if access_control:
             for rolename, action_names in access_control.items():
                 role = self.find_role(rolename)
                 if not role:
