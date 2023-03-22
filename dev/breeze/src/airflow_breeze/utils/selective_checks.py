@@ -154,14 +154,14 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"\.py$",
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
-            "^.pre-commit-config.yaml$",
-            "^airflow",
-            "^chart",
-            "^tests",
-            "^kubernetes_tests",
+            r"^.pre-commit-config.yaml$",
+            r"^airflow",
+            r"^chart",
+            r"^tests",
+            r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
-            "^tests/system/",
+            r"^tests/system/",
         ],
     }
 )
@@ -180,10 +180,11 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/cli",
         ],
         SelectiveUnitTestTypes.PROVIDERS: [
-            "^airflow/providers/",
-            "^tests/providers/",
+            r"^airflow/providers/",
+            r"^tests/system/providers/",
+            r"^tests/providers/",
         ],
-        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www"],
+        SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
 
@@ -478,6 +479,10 @@ class SelectiveChecks:
     @cached_property
     def run_www_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.WWW_FILES)
+
+    @cached_property
+    def run_amazon_tests(self) -> bool:
+        return "amazon" in self.test_types or "Providers" in self.test_types.split(" ")
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:

@@ -16,26 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from datetime import datetime
+from typing import Any, Mapping, Sequence
 
-from airflow import DAG
-from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
+from airflow.api_connexion.exceptions import BadRequest
 
-BUCKET = os.getenv("BUCKET", "bucket")
-S3_KEY = os.getenv("S3_KEY", "s3://<bucket>/<prefix>")
 
-with DAG(
-    dag_id="example_gcs_to_s3",
-    start_date=datetime(2021, 1, 1),
-    tags=["example"],
-    catchup=False,
-) as dag:
-    # [START howto_transfer_gcs_to_s3]
-    gcs_to_s3 = GCSToS3Operator(
-        task_id="gcs_to_s3",
-        bucket=BUCKET,
-        dest_s3_key=S3_KEY,
-        replace=True,
-    )
-    # [END howto_transfer_gcs_to_s3]
+def extract_update_mask_data(
+    update_mask: Sequence[str], non_update_fields: list[str], data: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    extracted_data = {}
+    for field in update_mask:
+        field = field.strip()
+        if field in data and field not in non_update_fields:
+            extracted_data[field] = data[field]
+        else:
+            raise BadRequest(detail=f"'{field}' is unknown or cannot be updated.")
+    return extracted_data

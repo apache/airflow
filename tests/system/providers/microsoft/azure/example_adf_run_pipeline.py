@@ -82,8 +82,16 @@ with DAG(
     )
     # [END howto_operator_adf_run_pipeline_async]
 
+    # [START howto_operator_adf_run_pipeline_with_deferrable_flag]
+    run_pipeline3 = AzureDataFactoryRunPipelineOperator(
+        task_id="run_pipeline3", pipeline_name="pipeline1", parameters={"myParam": "value"}, deferrable=True
+    )
+    # [END howto_operator_adf_run_pipeline_with_deferrable_flag]
+
     begin >> Label("No async wait") >> run_pipeline1
     begin >> Label("Do async wait with sensor") >> run_pipeline2
+    begin >> Label("Do async wait with deferrable operator") >> run_pipeline3
+    [run_pipeline1, pipeline_run_sensor, pipeline_run_async_sensor, run_pipeline3] >> end
     [run_pipeline1, pipeline_run_sensor, pipeline_run_async_sensor] >> end
 
     # Task dependency created via `XComArgs`:

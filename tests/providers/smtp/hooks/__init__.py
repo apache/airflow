@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,28 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import os
-from datetime import datetime
-
-from airflow import models
-from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
-
-S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
-S3_KEY = os.environ.get("S3_KEY", "key")
-
-with models.DAG(
-    "example_ftp_to_s3",
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-) as dag:
-    # [START howto_transfer_ftp_to_s3]
-    ftp_to_s3_task = FTPToS3Operator(
-        task_id="ftp_to_s3_task",
-        ftp_path="/tmp/ftp_path",
-        s3_bucket=S3_BUCKET,
-        s3_key=S3_KEY,
-        replace=True,
-    )
-    # [END howto_transfer_ftp_to_s3]

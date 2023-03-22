@@ -77,7 +77,6 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
-    AirflowTermSignal,
     DagRunNotFound,
     RemovedInAirflow3Warning,
     TaskDeferralError,
@@ -94,7 +93,7 @@ from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
+from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
@@ -123,6 +122,7 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
 
@@ -1535,7 +1535,8 @@ class TaskInstance(Base, LoggingMixin):
                 os._exit(1)
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
-            raise AirflowTermSignal("Task received SIGTERM signal")
+            self.task.on_kill()
+            raise AirflowException("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -1574,15 +1575,9 @@ class TaskInstance(Base, LoggingMixin):
 
             # Execute the task
             with set_current_context(context):
-                try:
-                    result = self._execute_task(context, task_orig)
-                    # Run post_execute callback
-                    self.task.post_execute(context=context, result=result)
-                except AirflowTermSignal:
-                    self.task.on_kill()
-                    if self.task.on_failure_callback:
-                        self._run_finished_callback(self.task.on_failure_callback, context, "on_failure")
-                    raise AirflowException("Task received SIGTERM signal")
+                result = self._execute_task(context, task_orig)
+            # Run post_execute callback
+            self.task.post_execute(context=context, result=result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", 1, 1)
         Stats.incr(
@@ -2730,18 +2725,20 @@ class TaskInstance(Base, LoggingMixin):
         :return: Specific map index or map indexes to pull, or ``None`` if we
             want to "whole" return value (i.e. no mapped task groups involved).
         """
+        # This value should never be None since we already know the current task
+        # is in a mapped task group, and should have been expanded, despite that,
+        # we need to check that it is not None to satisfy Mypy.
+        # But this value can be 0 when we expand an empty list, for that it is
+        # necessary to check that ti_count is not 0 to avoid dividing by 0.
+        if not ti_count:
+            return None
+
         # Find the innermost common mapped task group between the current task
         # If the current task and the referenced task does not have a common
         # mapped task group, the two are in different task mapping contexts
         # (like another_task above), and we should use the "whole" value.
         common_ancestor = _find_common_ancestor_mapped_group(self.task, upstream)
         if common_ancestor is None:
-            return None
-
-        # This value should never be None since we already know the current task
-        # is in a mapped task group, and should have been expanded. The check
-        # exists mainly to satisfy Mypy.
-        if ti_count is None:
             return None
 
         # At this point we know the two tasks share a mapped task group, and we

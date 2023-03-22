@@ -90,6 +90,12 @@ def appflow_conn():
         yield mock_conn
 
 
+@pytest.fixture
+def waiter_mock():
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter") as waiter:
+        yield waiter
+
+
 def run_assertions_base(appflow_conn, tasks):
     appflow_conn.describe_flow.assert_called_with(flowName=FLOW_NAME)
     assert appflow_conn.describe_flow.call_count == 2
@@ -105,7 +111,7 @@ def run_assertions_base(appflow_conn, tasks):
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
 
 
-def test_run(appflow_conn, ctx):
+def test_run(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)  # type: ignore
     appflow_conn.describe_flow.assert_called_once_with(flowName=FLOW_NAME)
@@ -113,13 +119,13 @@ def test_run(appflow_conn, ctx):
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
 
 
-def test_run_full(appflow_conn, ctx):
+def test_run_full(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunFullOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)  # type: ignore
     run_assertions_base(appflow_conn, [])
 
 
-def test_run_after(appflow_conn, ctx):
+def test_run_after(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunAfterOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
     )
@@ -137,7 +143,7 @@ def test_run_after(appflow_conn, ctx):
     )
 
 
-def test_run_before(appflow_conn, ctx):
+def test_run_before(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunBeforeOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
     )
@@ -155,7 +161,7 @@ def test_run_before(appflow_conn, ctx):
     )
 
 
-def test_run_daily(appflow_conn, ctx):
+def test_run_daily(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunDailyOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
     )

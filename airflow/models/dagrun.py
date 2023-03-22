@@ -843,20 +843,25 @@ class DagRun(Base, LoggingMixin):
         )
 
     def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: list[TI]) -> None:
+        """Emit the true scheduling delay stats.
+
+        The true scheduling delay stats is defined as the time when the first
+        task in DAG starts minus the expected DAG run datetime.
+
+        This helper method is used in ``update_state`` when the state of the
+        DAG run is updated to a completed status (either success or failure).
+        It finds the first started task within the DAG, calculates the run's
+        expected start time based on the logical date and timetable, and gets
+        the delay from the difference of these two values.
+
+        The emitted data may contain outliers (e.g. when the first task was
+        cleared, so the second task's start date will be used), but we can get
+        rid of the outliers on the stats side through dashboards tooling.
+
+        Note that the stat will only be emitted for scheduler-triggered DAG runs
+        (i.e. when ``external_trigger`` is *False*).
         """
-        This is a helper method to emit the true scheduling delay stats, which is defined as
-        the time when the first task in DAG starts minus the expected DAG run datetime.
-        This method will be used in the update_state method when the state of the DagRun
-        is updated to a completed status (either success or failure). The method will find the first
-        started task within the DAG and calculate the expected DagRun start time (based on
-        dag.execution_date & dag.timetable), and minus these two values to get the delay.
-        The emitted data may contain outlier (e.g. when the first task was cleared, so
-        the second task's start_date will be used), but we can get rid of the outliers
-        on the stats side through the dashboards tooling built.
-        Note, the stat will only be emitted if the DagRun is a scheduler triggered one
-        (i.e. external_trigger is False).
-        """
-        if self.state == State.RUNNING:
+        if self.state == TaskInstanceState.RUNNING:
             return
         if self.external_trigger:
             return
@@ -870,10 +875,11 @@ class DagRun(Base, LoggingMixin):
                 # We can't emit this metric if there is no following schedule to calculate from!
                 return
 
-            ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
-            ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
-            first_start_date = ordered_tis_by_start_date[0].start_date if ordered_tis_by_start_date else None
-            if first_start_date:
+            try:
+                first_start_date = min(ti.start_date for ti in finished_tis if ti.start_date)
+            except ValueError:  # No start dates at all.
+                pass
+            else:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
                 # execution on DagModel.next_dagrun_create_after. We should add

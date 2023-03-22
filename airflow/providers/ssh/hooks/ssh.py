@@ -471,18 +471,24 @@ class SSHHook(BaseHook):
         command: str,
         get_pty: bool,
         environment: dict | None,
-        timeout: int | None = None,
+        timeout: int | ArgNotSet | None = NOTSET,
     ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
 
-        if timeout is None:
-            timeout = self.cmd_timeout  # type: ignore[assignment]
+        cmd_timeout: int | None
+        if not isinstance(timeout, ArgNotSet):
+            cmd_timeout = timeout
+        elif not isinstance(self.cmd_timeout, ArgNotSet):
+            cmd_timeout = self.cmd_timeout
+        else:
+            cmd_timeout = CMD_TIMEOUT
+        del timeout  # Too easy to confuse with "timedout" below.
 
         # set timeout taken as params
         stdin, stdout, stderr = ssh_client.exec_command(
             command=command,
             get_pty=get_pty,
-            timeout=timeout,
+            timeout=cmd_timeout,
             environment=environment,
         )
         # get channels
@@ -505,8 +511,8 @@ class SSHHook(BaseHook):
 
         # read from both stdout and stderr
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-            readq, _, _ = select([channel], [], [], timeout)
-            if timeout is not None:
+            readq, _, _ = select([channel], [], [], cmd_timeout)
+            if cmd_timeout is not None:
                 timedout = len(readq) == 0
             for recv in readq:
                 if recv.recv_ready():

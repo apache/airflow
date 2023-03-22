@@ -24,12 +24,12 @@ from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook
 from tests.providers.amazon.aws.utils.compat import async_mock
 
+pytest.importorskip("aiobotocore")
+
 try:
     from aiobotocore.credentials import AioCredentials
 except ImportError:
     pass
-
-pytest.importorskip("aiobotocore")
 
 
 class TestAwsBaseAsyncHook:
