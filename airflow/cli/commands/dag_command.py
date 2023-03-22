@@ -37,6 +37,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.timetables.base import DataInterval
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
@@ -297,12 +298,8 @@ def dag_next_execution(args):
     with create_session() as session:
         last_parsed_dag: DagModel = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
 
-    next_interval = dag.get_next_data_interval(last_parsed_dag)
-    for i in range(args.num_executions):
-        if i != 0:
-            next_info = dag.next_dagrun_info(next_interval, restricted=False)
-            next_interval = None if next_info is None else next_info.data_interval
-        if next_interval is None:
+    def print_execution_interval(interval: DataInterval | None):
+        if interval is None:
             print(
                 "[WARN] No following schedule can be found. "
                 "This DAG may have schedule interval '@once' or `None`.",
@@ -310,7 +307,15 @@ def dag_next_execution(args):
             )
             print(None)
             return
-        print(next_interval.start.isoformat())
+        print(interval.start.isoformat())
+
+    next_interval = dag.get_next_data_interval(last_parsed_dag)
+    print_execution_interval(next_interval)
+
+    for i in range(1, args.num_executions):
+        next_info = dag.next_dagrun_info(next_interval, restricted=False)
+        next_interval = None if next_info is None else next_info.data_interval
+        print_execution_interval(next_interval)
 
 
 @cli_utils.action_cli
