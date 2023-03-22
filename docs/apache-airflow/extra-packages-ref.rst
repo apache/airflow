@@ -40,6 +40,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | extra               | install command                                     | enables                                                                    |
 +=====================+=====================================================+============================================================================+
+| aiobotocore         | ``pip install 'apache-airflow[aiobotocore]'``       | Support for asynchronous (deferrable) operators for Amazon integration     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | celery              | ``pip install 'apache-airflow[celery]'``            | CeleryExecutor (also installs the celery provider package!)                |
@@ -61,6 +63,8 @@ python dependencies for the provided package.
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | leveldb             | ``pip install 'apache-airflow[leveldb]'``           | Required for use leveldb extra in google provider                          |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| otel                | ``pip install 'apache-airflow[otel]'``              | Required for OpenTelemetry metrics                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | pandas              | ``pip install 'apache-airflow[pandas]'``            | Install Pandas library compatible with Airflow                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
