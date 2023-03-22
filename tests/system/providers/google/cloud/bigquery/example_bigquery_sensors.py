@@ -118,6 +118,17 @@ with models.DAG(
     )
     # [END howto_sensor_bigquery_table_partition]
 
+    # [START howto_sensor_bigquery_table_partition_defered]
+    check_table_partition_exists: BaseSensorOperator = BigQueryTablePartitionExistenceSensor(
+        task_id="check_table_partition_exists_defered",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        partition_id=PARTITION_NAME,
+        deferrable=True,
+    )
+    # [END howto_sensor_bigquery_table_partition_defered]
+
     # [START howto_sensor_bigquery_table_partition_async]
     check_table_partition_exists_async: BaseSensorOperator = BigQueryTableExistencePartitionAsyncSensor(
         task_id="check_table_partition_exists_async",
