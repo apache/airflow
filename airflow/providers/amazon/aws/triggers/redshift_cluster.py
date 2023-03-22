@@ -139,3 +139,39 @@ class RedshiftCreateClusterTrigger(BaseTrigger):
                 },
             )
         yield TriggerEvent({"status": "success", "message": "Cluster Created"})
+
+class RedshiftDeleteClusterTrigger(BaseTrigger):
+    def __init__(
+        self,
+        cluster_identifier: str,
+        poll_interval: int,
+        max_attempts: int,
+        aws_conn_id: str,
+    ):
+        self.cluster_identifier = cluster_identifier
+        self.poll_interval = poll_interval
+        self.max_attempts = max_attempts
+        self.aws_conn_id = aws_conn_id
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftDeleteClusterTrigger",
+            {
+                "cluster_identifier": str(self.cluster_identifier),
+                "poll_interval": str(self.poll_interval),
+                "max_attempts": str(self.max_attempts),
+                "aws_conn_id": str(self.aws_conn_id),
+            },
+        )
+
+    async def run(self):
+        self.redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
+        async with self.redshift_hook.async_conn as client:
+            await client.get_waiter("cluster_deleted").wait(
+                ClusterIdentifier=self.cluster_identifier,
+                WaiterConfig={
+                    "Delay": int(self.poll_interval),
+                    "MaxAttempts": int(self.max_attempts),
+                },
+            )
+        yield TriggerEvent({"status": "success", "message": "Cluster deleted"})
