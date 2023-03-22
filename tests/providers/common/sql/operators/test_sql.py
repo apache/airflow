@@ -380,7 +380,7 @@ class TestTableCheckOperator:
     SELECT
       'row_count_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {count_check} AS is_valid,
@@ -391,7 +391,7 @@ class TestTableCheckOperator:
     SELECT
       'column_sum_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {sum_check} AS is_valid,
@@ -404,7 +404,7 @@ class TestTableCheckOperator:
     SELECT
       'row_count_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {count_check} AS is_valid,
@@ -415,7 +415,7 @@ class TestTableCheckOperator:
     SELECT
       'column_sum_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {sum_check} AS is_valid,
@@ -428,7 +428,7 @@ class TestTableCheckOperator:
     SELECT
       'row_count_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {count_check} AS is_valid,
@@ -439,7 +439,7 @@ class TestTableCheckOperator:
     SELECT
       'column_sum_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {sum_check} AS is_valid,
@@ -452,7 +452,7 @@ class TestTableCheckOperator:
     SELECT
       'row_count_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {count_check} AS is_valid,
@@ -463,7 +463,7 @@ class TestTableCheckOperator:
     SELECT
       'column_sum_check' AS check_name,
       COALESCE(MIN(is_valid), True) AS check_result,
-      COALESCE(MIN(num_rows), False) AS num_subquery_rows
+      COALESCE(MIN(num_rows), 0) AS num_subquery_rows
     FROM (
       SELECT
         {sum_check} AS is_valid,
