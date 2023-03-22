@@ -22,7 +22,6 @@ and if a result is returned, the task succeeds, else it times out.
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 from airflow import DAG
