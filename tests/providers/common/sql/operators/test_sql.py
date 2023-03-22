@@ -379,7 +379,7 @@ class TestTableCheckOperator:
     row_count_check_base = f"""
     SELECT DISTINCT
         'row_count_check' AS check_name,
-        COALESCE(MIN(CASE WHEN COALESCE({count_check}, 1) THEN 1 ELSE 0 END)
+        COALESCE(MIN(CASE WHEN COALESCE({count_check}, TRUE) THEN 1 ELSE 0 END)
             OVER (PARTITION BY 1), 1) AS check_result,
         COALESCE(COUNT({count_check}) OVER (PARTITION BY 1), 0) AS num_subquery_rows
     FROM test_table
@@ -388,7 +388,7 @@ class TestTableCheckOperator:
     column_sum_check_base = f"""
     SELECT DISTINCT
         'column_sum_check' AS check_name,
-        COALESCE(MIN(CASE WHEN COALESCE({sum_check}, 1) THEN 1 ELSE 0 END)
+        COALESCE(MIN(CASE WHEN COALESCE({sum_check}, TRUE) THEN 1 ELSE 0 END)
             OVER (PARTITION BY 1), 1) AS check_result,
         COALESCE(COUNT({sum_check}) OVER (PARTITION BY 1), 0) AS num_subquery_rows
     FROM test_table
