@@ -36,7 +36,7 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
-from airflow.utils.retries import run_with_db_retries
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
@@ -176,6 +176,14 @@ class BaseJob(Base, LoggingMixin):
     def on_kill(self):
         """Will be called when an external kill command is received."""
 
+    @retry_db_transaction
+    def handle_db_task(self, task_function):
+        try:
+            with create_session() as session:
+                return task_function(session)
+        except OperationalError:
+            raise
+
     @provide_session
     def heartbeat_callback(self, session=None) -> None:
         """Callback that is called during heartbeat. This method should be overwritten."""
@@ -211,22 +219,16 @@ class BaseJob(Base, LoggingMixin):
 
         previous_heartbeat = self.latest_heartbeat
 
-        for attempt in run_with_db_retries():
-            with attempt:
-                try:
-                    with create_session() as session:
-                        # This will cause it to load from the db
-                        session.merge(self)
-                        previous_heartbeat = self.latest_heartbeat
-                except OperationalError:
-                    Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-                    self.log.exception(
-                        "%s heartbeat got an exception(retry:%d)",
-                        self.__class__.__name__,
-                        attempt.retry_state.attempt_number,
-                    )
-                    # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
-                    self.latest_heartbeat = previous_heartbeat
+        def session_merge(session):
+            session.merge(self)
+
+        try:
+            self.handle_db_task(task_function = session_merge)
+        except OperationalError:
+            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+            self.latest_heartbeat = previous_heartbeat
+
+        previous_heartbeat = self.latest_heartbeat
 
         if self.state in State.terminating_states:
             self.kill()
@@ -240,42 +242,39 @@ class BaseJob(Base, LoggingMixin):
             sleep_for = max(0, seconds_remaining)
         sleep(sleep_for)
 
-        for attempt in run_with_db_retries():
-            with attempt:
-                try:
-                    # Update last heartbeat time
-                    with create_session() as session:
-                        # Make the session aware of this object
-                        session.merge(self)
-                        self.latest_heartbeat = timezone.utcnow()
-                        session.commit()
-                        # At this point, the DB has updated.
-                        previous_heartbeat = self.latest_heartbeat
+        def session_merge_and_commit(session):
+            # Make the session aware of this object
+            session.merge(self)
+            self.latest_heartbeat = timezone.utcnow()
+            session.commit()
+            # At this point, the DB has updated.
+            nonlocal previous_heartbeat
+            previous_heartbeat = self.latest_heartbeat
 
-                        self.heartbeat_callback(session=session)
-                        self.log.debug("[heartbeat]")
-                except OperationalError:
-                    Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-                    self.log.exception(
-                        "%s heartbeat got an exception(retry:%d)",
-                        self.__class__.__name__,
-                        attempt.retry_state.attempt_number,
-                    )
-                    # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
-                    self.latest_heartbeat = previous_heartbeat
+            self.heartbeat_callback(session=session)
+            self.log.debug("[heartbeat]")
+
+        try:
+            self.handle_db_task(task_function = session_merge_and_commit)
+        except OperationalError:
+            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+            self.latest_heartbeat = previous_heartbeat
+        
 
     def run(self):
         """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         # Adding an entry in the DB
         ret = None
-        with create_session() as session:
+
+        def create_db_entry(session):
             self.state = State.RUNNING
             session.add(self)
             session.commit()
             make_transient(self)
 
             try:
+                nonlocal ret
                 ret = self._execute()
                 # In case of max runs or max duration
                 self.state = State.SUCCESS
@@ -290,6 +289,8 @@ class BaseJob(Base, LoggingMixin):
                 self.end_date = timezone.utcnow()
                 session.merge(self)
                 session.commit()
+
+        self.handle_db_task(create_db_entry)
 
         Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
         return ret

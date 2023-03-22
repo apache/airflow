@@ -895,25 +895,15 @@ class SchedulerJob(BaseJob):
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
                 
-                for attempt in run_with_db_retries():
-                    with attempt:
-                        start_time = time.monotonic()
-                        try:
-                            with create_session() as session:
-                                num_queued_tis = self._do_scheduling(session)
+                def do_work(session):
+                    num_queued_tis = self._do_scheduling(session)
 
-                                self.executor.heartbeat()
-                                session.expunge_all()
-                                num_finished_events = self._process_executor_events(session=session)
-                        except OperationalError:
-                            total_time = time.monotonic() - start_time
-                            self.log.error(
-                                "%s got a DB exception (retry:%d, total time in seconds: %d)",
-                                self.__class__.__name__,
-                                attempt.retry_state.attempt_number,
-                                total_time,
-                            )
-                            raise
+                    self.executor.heartbeat()
+                    session.expunge_all()
+                    num_finished_events = self._process_executor_events(session=session)
+                    return num_queued_tis, num_finished_events
+
+                num_queued_tis, num_finished_events = self.handle_db_task(task_function = do_work)
                 
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
