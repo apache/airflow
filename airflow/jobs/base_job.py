@@ -177,10 +177,13 @@ class BaseJob(Base, LoggingMixin):
         """Will be called when an external kill command is received."""
 
     @retry_db_transaction
+    def handle_db_transaction_with_session(self, task_function, session):
+        return task_function(session)
+  
     def handle_db_task(self, task_function):
         try:
             with create_session() as session:
-                return task_function(session)
+                return self.handle_db_transaction_with_session(task_function, session)
         except OperationalError:
             raise
 
