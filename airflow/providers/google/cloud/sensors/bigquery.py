@@ -76,9 +76,21 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
-        polling_interval: float = 5.0,
         **kwargs,
     ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            # TODO: Remove once deprecated
+            if "polling_interval" in kwargs:
+                kwargs["poke_interval"] = kwargs["polling_interval"]
+                warnings.warn(
+                    "Argument `poll_interval` is deprecated and will be removed "
+                    "in a future release.  Please use `poke_interval` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                kwargs["poke_interval"] = 5
+
         super().__init__(**kwargs)
 
         self.project_id = project_id
@@ -93,8 +105,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
         self.deferrable = deferrable
-        if self.deferrable:
-            self.polling_interval = polling_interval
 
     def poke(self, context: Context) -> bool:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
@@ -116,7 +126,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 project_id=self.project_id,
-                poll_interval=self.polling_interval,
+                poll_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 hook_params={
                     "delegate_to": self.delegate_to,
