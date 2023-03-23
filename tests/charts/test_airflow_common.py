@@ -234,21 +234,25 @@ class TestAirflowCommon:
             assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
 
     @pytest.mark.parametrize(
-        "use_default_image,expected_image",
+        "use_default_image,expected_image,tag,digest",
         [
-            (True, "apache/airflow:2.1.0"),
-            (False, "apache/airflow:user-image"),
+            (True, "apache/airflow:2.1.0", None, None),
+            (False, "apache/airflow:user-tag", "user-tag", None),
+            (False, "apache/airflow@user-digest", None, "user-digest"),
+            (False, "apache/airflow@user-digest", "user-tag", "user-digest"),
         ],
     )
-    def test_should_use_correct_image(self, use_default_image, expected_image):
+    def test_should_use_correct_image(self, use_default_image, expected_image, tag, digest):
         docs = render_chart(
             values={
                 "defaultAirflowRepository": "apache/airflow",
                 "defaultAirflowTag": "2.1.0",
+                "defaultAirflowDigest": None,
                 "images": {
                     "airflow": {
                         "repository": "apache/airflow",
-                        "tag": "user-image",
+                        "tag": tag,
+                        "digest": digest,
                     },
                     "useDefaultImageForMigration": use_default_image,
                 },
