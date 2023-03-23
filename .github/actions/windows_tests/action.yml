@@ -15,16 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
----
+
 name: 'Running Tests on Windows'
 description: 'Verification that tests run on Windows.'
-
+on: [push]
 jobs:
   test:
     runs-on: windows-latest
     steps:
       - name: Check out repository code
-        users: actions/checkout@v2
+        uses: actions/checkout@v2
 
       - name: Setup Python
         uses: actions/setup-python@v2
@@ -33,11 +33,20 @@ jobs:
 
       - name: Setup venv
         run: |
-        python -m venv venv
-        .\venv\Scripts\Activate
+          python -m venv venv
+          .\venv\Scripts\activate
 
       - name: Install dependencies
         run: |
-        pip install pytest
-      
-      #WHATS NEXT?
+          pip install .
+          celery
+          psycopg2
+          boto3
+          distributed
+          statsd
+          sentry_sdk
+
+      - name: Run tests
+        run: |
+          pytest --verbosity=0 --strict-markers --maxfail=50 --color=yes --junitxml=/files/test_result-Always-sqlite.xml --output=/files/warnings-Always-sqlite.txt --disable-warnings -rfEX --with-db-init --ignore tests/system/providers --ignore tests/providers --ignore tests/integration/providers --ignore tests/charts tests --ignore tests/utils/test_serve_logs.py --ignore tests/utils/test_dataform.py --ignore tests/kubernetes --ignore tests/integration/cli/commands/test_celery_command.py --ignore tests/integration/api/auth/backend/test_kerberos_auth.py --ignore tests/api_connexion/endpoints/test_extra_link_endpoint.py --ignore tests/cli/commands/test_internal_api_command.py --ignore tests/cli/commands/test_kerberos_command.py --ignore tests/cli/commands/test_scheduler_command.py --ignore tests/cli/commands/test_task_command.py --ignore tests/sensors/test_python.py --ignore tests/executors/test_kubernetes_executor.py --ignore tests/executors/test_dask_executor.py --ignore tests/executors/test_celery_executor.py --ignore tests/dag_processing/test_manager.py --ignore tests/core/test_impersonation_tests.py --ignore tests/operators/test_python.py --ignore tests/decorators/test_python.py --ignore tests/jobs/test_local_task_job.py --ignore tests/cli/commands/test_webserver_command.py
+
