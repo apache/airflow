@@ -72,6 +72,12 @@ class ExternalTaskSensor(BaseSensorOperator):
     until the sensor times out (thus giving you time to retry the external task
     without also having to clear the sensor).
 
+    By default, the ExternalTaskSensor will not skip if the external task skips.
+    To change this, simply set ``skipped_states=[State.SKIPPED]``. Note that if
+    you are monitoring multiple tasks, and one enters error state and the other
+    enters a skipped state, then the external task will react to whichever one
+    it sees first. If both happen together, then the failed state takes priority.
+
     It is possible to alter the default behavior by setting states which
     cause the sensor to fail, e.g. by setting ``allowed_states=[State.FAILED]``
     and ``failed_states=[State.SUCCESS]`` you will flip the behaviour to get a
@@ -82,7 +88,11 @@ class ExternalTaskSensor(BaseSensorOperator):
     if the external task enters a failed state and ``soft_fail == True`` the
     sensor will _skip_ rather than fail. As a result, setting ``soft_fail=True``
     and ``failed_states=[State.SKIPPED]`` will result in the sensor skipping if
-    the external task skips.
+    the external task skips. However, this is a contrived example - consider
+    using ``skipped_states`` if you would like this behaviour. Using
+    ``skipped_states`` allows the sensor to skip if the target fails, but still
+    enter failed state on timeout. Using ``soft_fail == True`` as above will
+    cause the sensor to skip if the target fails, but also if it times out.
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
@@ -93,6 +103,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_id or external_task_ids can be passed to
         ExternalTaskSensor, but not both.
     :param allowed_states: Iterable of allowed states, default is ``['success']``
+    :param skipped_states: Iterable of states to make this task mark as skipped, default is ``None``
     :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
     :param execution_delta: time difference with the previous execution to
         look at, the default is the same logical date as the current task or DAG.
@@ -122,6 +133,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_ids: Collection[str] | None = None,
         external_task_group_id: str | None = None,
         allowed_states: Iterable[str] | None = None,
+        skipped_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
@@ -130,16 +142,21 @@ class ExternalTaskSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
         self.allowed_states = list(allowed_states) if allowed_states else [State.SUCCESS]
+        self.skipped_states = list(skipped_states) if skipped_states else []
         self.failed_states = list(failed_states) if failed_states else []
 
-        total_states = set(self.allowed_states + self.failed_states)
+        total_states = set(self.allowed_states + self.skipped_states + self.failed_states)
 
-        if set(self.failed_states).intersection(set(self.allowed_states)):
+        if len(total_states) != len(self.allowed_states) + len(self.skipped_states) + len(self.failed_states):
             raise AirflowException(
-                f"Duplicate values provided as allowed "
-                f"`{self.allowed_states}` and failed states `{self.failed_states}`"
+                "Duplicate values provided across allowed_states, skipped_states and failed_states."
             )
 
+        # convert [] to None
+        if not external_task_ids:
+            external_task_ids = None
+
+        # can't set both single task id and a list of task ids
         if external_task_id is not None and external_task_ids is not None:
             raise ValueError(
                 "Only one of `external_task_id` or `external_task_ids` may "
@@ -147,12 +164,9 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "use external_task_id or external_task_ids or external_task_group_id."
             )
 
-        if external_task_group_id is not None and external_task_id is not None:
-            raise ValueError(
-                "Only one of `external_task_group_id` or `external_task_id` may "
-                "be provided to ExternalTaskSensor; "
-                "use external_task_id or external_task_ids or external_task_group_id."
-            )
+        # since both not set, convert the single id to a 1-elt list - from here on, we only consider the list
+        if external_task_id is not None:
+            external_task_ids = [external_task_id]
 
         if external_task_group_id is not None and external_task_ids is not None:
             raise ValueError(
@@ -161,20 +175,18 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "use external_task_id or external_task_ids or external_task_group_id."
             )
 
-        if external_task_id is not None:
-            external_task_ids = [external_task_id]
-
+        # check the requested states are all valid states for the target type, be it dag or task
         if external_task_ids or external_task_group_id:
             if not total_states <= set(State.task_states):
                 raise ValueError(
-                    f"Valid values for `allowed_states` and `failed_states` "
-                    f"when `external_task_id` or `external_task_ids` or `external_task_group_id` "
+                    "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
+                    "when `external_task_id` or `external_task_ids` or `external_task_group_id` "
                     f"is not `None`: {State.task_states}"
                 )
 
         elif not total_states <= set(State.dag_states):
             raise ValueError(
-                f"Valid values for `allowed_states` and `failed_states` "
+                "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
                 f"when `external_task_id` and `external_task_group_id` is `None`: {State.dag_states}"
             )
 
@@ -204,6 +216,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     @provide_session
     def poke(self, context, session=None):
+        # delay check to poke rather than __init__ in case it was supplied as XComArgs
         if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
             raise ValueError("Duplicate task_ids passed in external_task_ids parameter")
 
@@ -236,8 +249,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         # In poke mode this will check dag existence only once
         if self.check_existence and not self._has_checked_existence:
             self._check_for_existence(session=session)
-
-        count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
 
         count_failed = -1
         if self.failed_states:
@@ -273,6 +284,31 @@ class ExternalTaskSensor(BaseSensorOperator):
                     )
                 raise AirflowException(f"The external DAG {self.external_dag_id} failed.")
 
+        count_skipped = -1
+        if self.skipped_states:
+            count_skipped = self.get_count(dttm_filter, session, self.skipped_states)
+
+        # Skip if anything in the list has skipped. Note if we are checking multiple tasks and one skips
+        # before another errors, we'll skip first.
+        if count_skipped > 0:
+            if self.external_task_ids:
+                raise AirflowSkipException(
+                    f"Some of the external tasks {self.external_task_ids} "
+                    f"in DAG {self.external_dag_id} reached a state in our states-to-skip-on list. Skipping."
+                )
+            elif self.external_task_group_id:
+                raise AirflowSkipException(
+                    f"The external task_group '{self.external_task_group_id}' "
+                    f"in DAG {self.external_dag_id} reached a state in our states-to-skip-on list. Skipping."
+                )
+            else:
+                raise AirflowSkipException(
+                    f"The external DAG {self.external_dag_id} reached a state in our states-to-skip-on list. "
+                    "Skipping."
+                )
+
+        # only go green if every single task has reached an allowed state
+        count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
         return count_allowed == len(dttm_filter)
 
     def _check_for_existence(self, session) -> None:

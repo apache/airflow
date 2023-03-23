@@ -29,7 +29,7 @@ from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, T
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)  # This is a Saturday.
 
 WEEK_1_WEEKDAYS = [
-    pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),
+    pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),  # This is a US holiday
     pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE),
     pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),
     pendulum.DateTime(2021, 9, 9, tzinfo=TIMEZONE),
@@ -62,9 +62,10 @@ def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime)
 
 
 def test_first_schedule(timetable: Timetable, restriction: TimeRestriction):
-    """Since DAG starts on Saturday, the first ever run covers the next Monday and schedules on Tuesday."""
+    """Since DAG starts on Saturday, and the first Monday is a holiday,
+    the first ever run covers the next Tuesday and schedules on Wednesday."""
     next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
-    assert next_info == DagRunInfo.interval(WEEK_1_WEEKDAYS[0], WEEK_1_WEEKDAYS[1])
+    assert next_info == DagRunInfo.interval(WEEK_1_WEEKDAYS[1], WEEK_1_WEEKDAYS[2])
 
 
 @pytest.mark.parametrize(

@@ -73,6 +73,7 @@ function in_container_fix_ownership() {
             "${AIRFLOW_SOURCES}/docs"
             "${AIRFLOW_SOURCES}/dags"
             "${AIRFLOW_SOURCES}/airflow/"
+            "${AIRFLOW_SOURCES}/constraints/"
             "${AIRFLOW_SOURCES}/images/"
             "${AIRFLOW_SOURCES}/.mypy_cache/"
             "${AIRFLOW_SOURCES}/dev/"

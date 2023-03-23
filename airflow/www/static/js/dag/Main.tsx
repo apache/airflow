@@ -182,6 +182,7 @@ const Main = () => {
                   <Details
                     openGroupIds={openGroupIds}
                     onToggleGroups={onToggleGroups}
+                    hoveredTaskState={hoveredTaskState}
                   />
                 </Box>
               </>

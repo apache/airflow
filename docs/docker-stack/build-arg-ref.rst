@@ -80,6 +80,7 @@ List of default extras in the production Dockerfile:
 
 .. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
 
+* aiobotocore
 * amazon
 * async
 * celery
