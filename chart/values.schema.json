@@ -77,13 +77,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.5.1",
+            "default": "2.5.2",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.5.1",
+            "default": "2.5.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -1656,6 +1656,28 @@
             "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
+                "hostAliases": {
+                    "description": "HostAliases for the scheduler pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for scheduler container.",
                     "type": "object",
@@ -3108,6 +3130,28 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "hostAliases": {
+                    "description": "HostAliases for the webserver pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "allowPodLogReading": {
                     "description": "Allow webserver to read k8s pod logs. Useful when you don't have an external log store.",
                     "type": "boolean",
@@ -4201,6 +4245,14 @@
                         "type": "string"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the StatsD deployment.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "args": {
                     "description": "Args to use when running statsd-exporter (templated).",
                     "type": [
@@ -5045,6 +5097,14 @@
                         "-c",
                         "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"
                     ]
+                },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the cleanup cronjob.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for cleanup pods.",

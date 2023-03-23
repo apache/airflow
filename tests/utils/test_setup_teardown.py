@@ -68,10 +68,7 @@ class TestSetupTearDownContext:
         with SetupTeardownContext.setup():
             with pytest.raises(
                 AirflowException,
-                match=(
-                    "A setup task or taskgroup cannot be nested inside another"
-                    " setup/teardown task or taskgroup"
-                ),
+                match=("You cannot mark a setup or teardown task as setup or teardown again."),
             ):
                 with SetupTeardownContext.setup():
                     raise Exception("This should not be reached")
@@ -83,10 +80,7 @@ class TestSetupTearDownContext:
         with SetupTeardownContext.teardown():
             with pytest.raises(
                 AirflowException,
-                match=(
-                    "A teardown task or taskgroup cannot be nested inside another"
-                    " setup/teardown task or taskgroup"
-                ),
+                match=("You cannot mark a setup or teardown task as setup or teardown again."),
             ):
                 with SetupTeardownContext.teardown():
                     raise Exception("This should not be reached")
@@ -98,10 +92,7 @@ class TestSetupTearDownContext:
         with SetupTeardownContext.setup():
             with pytest.raises(
                 AirflowException,
-                match=(
-                    "A teardown task or taskgroup cannot be nested inside another"
-                    " setup/teardown task or taskgroup"
-                ),
+                match=("You cannot mark a setup or teardown task as setup or teardown again."),
             ):
                 with SetupTeardownContext.teardown():
                     raise Exception("This should not be reached")
@@ -113,10 +104,7 @@ class TestSetupTearDownContext:
         with SetupTeardownContext.teardown():
             with pytest.raises(
                 AirflowException,
-                match=(
-                    "A setup task or taskgroup cannot be nested inside another"
-                    " setup/teardown task or taskgroup"
-                ),
+                match=("You cannot mark a setup or teardown task as setup or teardown again."),
             ):
                 with SetupTeardownContext.setup():
                     raise Exception("This should not be reached")
