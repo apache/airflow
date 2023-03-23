@@ -15,19 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example DAG which uses the DatabricksSqlOperator
-and DatabricksCopyIntoOperator. The first task creates the table
-and inserts values into it. The second task uses DatabricksSqlOperator
-to select the data. The third task selects the data and stores the
-output of selected data in file path and format specified. The fourth
-task runs the select SQL statement written in the test.sql file. The
-final task using DatabricksCopyIntoOperator loads the data from the
-file_location passed into Delta table.
-"""
 from __future__ import annotations
 
 import os
+import textwrap
 from datetime import datetime
 
 from airflow import DAG
@@ -45,6 +36,18 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
+    dag.doc_md = textwrap.dedent(
+        """
+
+        This is an example DAG which uses the DatabricksSqlSensor
+        sensor. The example task in the DAG executes the provided
+        SQL query against the Databricks SQL warehouse and if a 
+        result is returned, the sensor returns True/succeeds. 
+        If no results are returned, the sensor returns False/
+        fails.
+
+        """
+    )
     # [START howto_sensor_databricks_connection_setup]
     # Connection string setup for Databricks workspace.
     connection_id = "databricks_default"
