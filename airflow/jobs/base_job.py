@@ -175,17 +175,15 @@ class BaseJob(Base, LoggingMixin):
 
     def on_kill(self):
         """Will be called when an external kill command is received."""
-
-    @retry_db_transaction
-    def handle_db_transaction_with_session(self, task_function, session):
-        return task_function(session)
   
     def handle_db_task(self, task_function):
-        try:
-            with create_session() as session:
-                return self.handle_db_transaction_with_session(task_function, session)
-        except OperationalError:
-            raise
+        """Should be called to perform a task with db connection."""
+        @retry_db_transaction
+        def handle_db_transaction_with_session(self, task_function, session):
+            return task_function(session)
+
+        with create_session() as session:
+            return handle_db_transaction_with_session(task_function, session)
 
     @provide_session
     def heartbeat_callback(self, session=None) -> None:
