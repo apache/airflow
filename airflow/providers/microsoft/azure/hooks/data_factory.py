@@ -1102,9 +1102,6 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
 
     async def get_async_conn(self) -> AsyncDataFactoryManagementClient:
         """Get async connection and connect to azure data factory"""
-        if self._async_conn is not None:
-            return self._async_conn
-
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extras = conn.extra_dejson
         tenant = get_field(extras, "tenantId")
