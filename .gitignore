@@ -235,4 +235,4 @@ licenses/LICENSES-ui.txt
 /target-airflow
 
 # Dask Executor tests generate this directory
-!/tests/executors/dask-worker-space/
+/tests/executors/dask-worker-space/
