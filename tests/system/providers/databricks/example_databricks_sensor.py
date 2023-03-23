@@ -61,7 +61,7 @@ with DAG(
         sql="select * from hive_metastore.temp.sample_table_3 limit 1",
         timeout=60 * 2,
     )
-    # [START howto_sensor_databricks_sql_multiple]
+    # [END howto_sensor_databricks_sql_multiple]
 
     (sql_sensor)
 
