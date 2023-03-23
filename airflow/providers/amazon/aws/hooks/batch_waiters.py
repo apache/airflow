@@ -138,7 +138,9 @@ class BatchWaitersHook(BatchClientHook):
         """
         return self._waiter_model
 
-    def get_waiter(self, waiter_name: str, _: dict[str, str] | None = None) -> botocore.waiter.Waiter:
+    def get_waiter(
+        self, waiter_name: str, _: dict[str, str] | None = None, deferrable: bool = False, client=None
+    ) -> botocore.waiter.Waiter:
         """
         Get an AWS Batch service waiter, using the configured ``.waiter_model``.
 

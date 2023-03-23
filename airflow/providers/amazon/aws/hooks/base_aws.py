@@ -1025,7 +1025,7 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
             aio_session.set_config_variable("region", region_name)
         return aio_session
 
-    def create_session(self) -> AioSession:
+    def create_session(self, deferrable: bool = False) -> AioSession:
         """Create aiobotocore Session from connection and config."""
         if not self._conn:
             self.log.info("No connection ID provided. Fallback on boto3 credential strategy")

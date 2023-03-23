@@ -22,7 +22,10 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger, RedshiftCreateClusterTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterTrigger,
+    RedshiftCreateClusterTrigger,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
