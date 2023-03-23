@@ -377,45 +377,63 @@ class TestTableCheckOperator:
     }
 
     row_count_check_base = f"""
-    SELECT DISTINCT
+    SELECT
         'row_count_check' AS check_name,
-        COALESCE(MIN(CASE WHEN COALESCE({count_check}, TRUE) THEN 1 ELSE 0 END)
-            OVER (PARTITION BY 1), 1) AS check_result,
-        COALESCE(COUNT({count_check}) OVER (PARTITION BY 1), 0) AS num_subquery_rows
-    FROM test_table
+        COALESCE(MIN(check_result), 1) AS check_result,
+        CASE
+            WHEN MIN(statement) IS NULL THEN 0
+            ELSE COUNT(check_result)
+        END AS num_subquery_rows
+    FROM (
+        SELECT
+            {count_check} AS statement,
+            CASE
+                WHEN COALESCE({count_check}, 1) THEN 1
+                ELSE 0
+            END AS check_result
+        FROM test_table
     """
 
     column_sum_check_base = f"""
-    SELECT DISTINCT
+    SELECT
         'column_sum_check' AS check_name,
-        COALESCE(MIN(CASE WHEN COALESCE({sum_check}, TRUE) THEN 1 ELSE 0 END)
-            OVER (PARTITION BY 1), 1) AS check_result,
-        COALESCE(COUNT({sum_check}) OVER (PARTITION BY 1), 0) AS num_subquery_rows
-    FROM test_table
+        COALESCE(MIN(check_result), 1) AS check_result,
+        CASE
+            WHEN MIN(statement) IS NULL THEN 0
+            ELSE COUNT(check_result)
+        END AS num_subquery_rows
+    FROM (
+        SELECT
+            {sum_check} AS statement,
+            CASE
+                WHEN COALESCE({sum_check}, 1) THEN 1
+                ELSE 0
+            END AS check_result
+        FROM test_table
     """
 
     correct_generate_sql_query_no_partitions = f"""
-    {row_count_check_base}
+    {row_count_check_base})
     UNION ALL
-    {column_sum_check_base}
+    {column_sum_check_base})
     """
 
     correct_generate_sql_query_with_partition = f"""
-    {row_count_check_base} WHERE col_a > 10
+    {row_count_check_base} WHERE col_a > 10)
     UNION ALL
-    {column_sum_check_base} WHERE col_a > 10
+    {column_sum_check_base} WHERE col_a > 10)
     """
 
     correct_generate_sql_query_with_partition_and_where = f"""
-    {row_count_check_base} WHERE col_a > 10 AND id = 100
+    {row_count_check_base} WHERE col_a > 10 AND id = 100)
     UNION ALL
-    {column_sum_check_base} WHERE col_a > 10
+    {column_sum_check_base} WHERE col_a > 10)
     """
 
     correct_generate_sql_query_with_where = f"""
-    {row_count_check_base}
+    {row_count_check_base})
     UNION ALL
-    {column_sum_check_base} WHERE id = 100
+    {column_sum_check_base} WHERE id = 100)
     """
 
     def _strip_string(self, string):
