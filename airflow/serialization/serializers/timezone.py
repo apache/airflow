@@ -19,16 +19,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pendulum
-from pendulum.tz.timezone import FixedTimezone, Timezone
-
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
+    from pendulum.tz.timezone import Timezone
+
     from airflow.serialization.serde import U
 
 
-serializers = [FixedTimezone, Timezone]
+serializers = ["pendulum.tz.timezone.FixedTimezone", "pendulum.tz.timezone.Timezone"]
 deserializers = serializers
 
 __version__ = 1
@@ -44,6 +43,8 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     0 without the special case), but passing 0 into ``pendulum.timezone`` does
     not give us UTC (but ``+00:00``).
     """
+    from pendulum.tz.timezone import FixedTimezone, Timezone
+
     name = qualname(o)
     if isinstance(o, FixedTimezone):
         if o.offset == 0:
@@ -57,6 +58,8 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 
 
 def deserialize(classname: str, version: int, data: object) -> Timezone:
+    from pendulum.tz import fixed_timezone, timezone
+
     if not isinstance(data, (str, int)):
         raise TypeError(f"{data} is not of type int or str but of {type(data)}")
 
@@ -64,6 +67,6 @@ def deserialize(classname: str, version: int, data: object) -> Timezone:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
 
     if isinstance(data, int):
-        return pendulum.tz.fixed_timezone(data)
+        return fixed_timezone(data)
 
-    return pendulum.tz.timezone(data)
+    return timezone(data)

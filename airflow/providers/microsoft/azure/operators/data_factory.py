@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import time
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.microsoft.azure.hooks.data_factory import (
@@ -26,6 +29,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunStatus,
     get_field,
 )
+from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -102,6 +106,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
+    :param deferrable: Run operator in deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -133,6 +138,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -148,6 +154,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.parameters = parameters
         self.timeout = timeout
         self.check_interval = check_interval
+        self.deferrable = deferrable
 
     def execute(self, context: Context) -> None:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
@@ -169,21 +176,54 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
         if self.wait_for_termination:
-            self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
+            if self.deferrable is False:
+                self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
 
-            if self.hook.wait_for_pipeline_run_status(
-                run_id=self.run_id,
-                expected_statuses=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
-                check_interval=self.check_interval,
-                timeout=self.timeout,
-                resource_group_name=self.resource_group_name,
-                factory_name=self.factory_name,
-            ):
-                self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                if self.hook.wait_for_pipeline_run_status(
+                    run_id=self.run_id,
+                    expected_statuses=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+                    check_interval=self.check_interval,
+                    timeout=self.timeout,
+                    resource_group_name=self.resource_group_name,
+                    factory_name=self.factory_name,
+                ):
+                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                else:
+                    raise AzureDataFactoryPipelineRunException(
+                        f"Pipeline run {self.run_id} has failed or has been cancelled."
+                    )
             else:
-                raise AzureDataFactoryPipelineRunException(
-                    f"Pipeline run {self.run_id} has failed or has been cancelled."
+                end_time = time.time() + self.timeout
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=AzureDataFactoryTrigger(
+                        azure_data_factory_conn_id=self.azure_data_factory_conn_id,
+                        run_id=self.run_id,
+                        wait_for_termination=self.wait_for_termination,
+                        resource_group_name=self.resource_group_name,
+                        factory_name=self.factory_name,
+                        check_interval=self.check_interval,
+                        end_time=end_time,
+                    ),
+                    method_name="execute_complete",
                 )
+        else:
+            if self.deferrable is True:
+                warnings.warn(
+                    "Argument `wait_for_termination` is False and `deferrable` is True , hence "
+                    "`deferrable` parameter doesn't have any effect",
+                )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event:
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+            self.log.info(event["message"])
 
     def on_kill(self) -> None:
         if self.run_id:

@@ -37,6 +37,7 @@ import { useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
+import useFilters from "src/dag/useFilters";
 
 import Edge from "./Edge";
 import Node, { CustomNodeProps } from "./Node";
@@ -48,13 +49,18 @@ const edgeTypes = { custom: Edge };
 interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
+  hoveredTaskState?: string | null;
 }
 
-const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
+const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
   const containerRef = useContainerRef();
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
+
+  const {
+    filters: { root, filterDownstream, filterUpstream },
+  } = useFilters();
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
@@ -71,8 +77,13 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
     data: { dagRuns, groups },
   } = useGridData();
   const { colors } = useTheme();
-  const { setCenter } = useReactFlow();
+  const { setCenter, setViewport } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
+
+  // Reset viewport when tasks are filtered
+  useEffect(() => {
+    setViewport({ x: 0, y: 0, zoom: 1 });
+  }, [root, filterDownstream, filterUpstream, setViewport]);
 
   const offsetTop = useOffsetTop(graphRef);
 
@@ -86,6 +97,7 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
       onToggleGroups,
       latestDagRunId,
       groups,
+      hoveredTaskState,
     });
   }
 
@@ -174,9 +186,17 @@ const Graph = ({ openGroupIds, onToggleGroups }: Props) => {
   );
 };
 
-const GraphWrapper = ({ openGroupIds, onToggleGroups }: Props) => (
+const GraphWrapper = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+}: Props) => (
   <ReactFlowProvider>
-    <Graph openGroupIds={openGroupIds} onToggleGroups={onToggleGroups} />
+    <Graph
+      openGroupIds={openGroupIds}
+      onToggleGroups={onToggleGroups}
+      hoveredTaskState={hoveredTaskState}
+    />
   </ReactFlowProvider>
 );
 
