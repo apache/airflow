@@ -1225,8 +1225,7 @@ webserver:
   options:
     config_file:
       description: |
-        Path of webserver_config.py file used for configuring the webserver parameters with
-        respect to the AIRFLOW_HOME
+        Path of webserver config file used for configuring the webserver parameters
       version_added: 2.6.0
       type: string
       example: ~

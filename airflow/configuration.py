@@ -1531,7 +1531,6 @@ def initialize_config() -> AirflowConfigParser:
         if local_conf.getboolean("core", "unit_test_mode"):
             local_conf.load_test_config()
 
-    # The conf.get should provide the default_config in case the value is not set in webserver configs
     global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = local_conf.get("webserver", "config_file")
 
