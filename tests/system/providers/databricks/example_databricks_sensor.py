@@ -41,8 +41,8 @@ with DAG(
 
         This is an example DAG which uses the DatabricksSqlSensor
         sensor. The example task in the DAG executes the provided
-        SQL query against the Databricks SQL warehouse and if a 
-        result is returned, the sensor returns True/succeeds. 
+        SQL query against the Databricks SQL warehouse and if a
+        result is returned, the sensor returns True/succeeds.
         If no results are returned, the sensor returns False/
         fails.
 
