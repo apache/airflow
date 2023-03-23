@@ -40,6 +40,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
     :param dbt_cloud_conn_id: The connection identifier for connecting to dbt Cloud.
     :param run_id: The job run identifier.
     :param account_id: The dbt Cloud account identifier.
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     template_fields = ("dbt_cloud_conn_id", "run_id", "account_id")
@@ -51,12 +52,21 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         run_id: int,
         account_id: int | None = None,
         deferrable: bool = False,
-        poll_interval: float = 5,
         **kwargs,
     ) -> None:
-        if deferrable:
-            if "timeout" not in kwargs:
+        if deferrable and "poke_interval" not in kwargs:
+            # TODO: Remove once deprecated
+            if "polling_interval" in kwargs:
+                kwargs["poke_interval"] = kwargs["polling_interval"]
+                warnings.warn(
+                    "Argument `poll_interval` is deprecated and will be removed "
+                    "in a future release.  Please use `poke_interval` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
                 kwargs["timeout"] = 60 * 60 * 24 * 7
+                kwargs["poke_interval"] = 5
 
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
@@ -64,8 +74,6 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         self.account_id = account_id
 
         self.deferrable = deferrable
-        if self.deferrable:
-            self.poll_interval = poll_interval
 
     def poke(self, context: Context) -> bool:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
@@ -94,7 +102,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
                     run_id=self.run_id,
                     conn_id=self.dbt_cloud_conn_id,
                     account_id=self.account_id,
-                    poll_interval=self.poll_interval,
+                    poll_interval=self.poke_interval,
                     end_time=end_time,
                 ),
                 method_name="execute_complete",
@@ -132,5 +140,6 @@ class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
             "Class `DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. "
             "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead",
             DeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(deferrable=True, **kwargs)
