@@ -17,15 +17,18 @@
 # under the License.
 """Celery command."""
 from __future__ import annotations
-
 from contextlib import contextmanager
 from multiprocessing import Process
+from airflow.utils.platform import IS_WINDOWS
 
-import daemon
+if not IS_WINDOWS:
+    import daemon
+    from daemon.pidfile import TimeoutPIDLockFile
+    from airflow.utils.serve_logs import serve_logs
+
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
-from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
@@ -33,7 +36,6 @@ from airflow.configuration import conf
 from airflow.executors.celery_executor import app as celery_app
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
-from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
@@ -60,7 +62,7 @@ def flower(args):
     if args.flower_conf:
         options.append(f"--conf={args.flower_conf}")
 
-    if args.daemon:
+    if args.daemon and not IS_WINDOWS:
         pidfile, stdout, stderr, _ = setup_locations(
             process="flower",
             pid=args.pid,
@@ -88,7 +90,7 @@ def flower(args):
 def _serve_logs(skip_serve_logs: bool = False):
     """Starts serve_logs sub-process."""
     sub_proc = None
-    if skip_serve_logs is False:
+    if skip_serve_logs is False and not IS_WINDOWS:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
     yield

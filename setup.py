@@ -257,7 +257,7 @@ doc = [
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
     "docutils<0.17.0",
-    "eralchemy2",
+    'eralchemy2>=1.3.7; platform_system!="Windows"',
     # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
     # even though Sphinx 4.4.0 has this but with python_version<3.10.
     'importlib-metadata>=4.4; python_version < "3.8"',
@@ -373,7 +373,7 @@ devel_only = [
     "jira",
     "jsondiff",
     "mongomock",
-    "moto[cloudformation, glue]>=4.0",
+    'moto[cloudformation, glue]>=4.0; platform_system!="Windows"',
     "paramiko",
     "pipdeptree",
     "pre-commit",
@@ -385,7 +385,7 @@ devel_only = [
     "pytest-cov",
     "pytest-instafail",
     "pytest-rerunfailures",
-    "pytest-timeouts",
+    'pytest-timeouts>=1.2.1; platform_system!="Windows"',
     "pytest-xdist",
     "python-jose",
     "pywinrm",

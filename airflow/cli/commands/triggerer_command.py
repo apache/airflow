@@ -22,16 +22,18 @@ from contextlib import contextmanager
 from functools import partial
 from multiprocessing import Process
 from typing import Generator
+from airflow.utils.platform import IS_WINDOWS
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
+if not IS_WINDOWS:
+    import daemon
+    from daemon.pidfile import TimeoutPIDLockFile
+    from airflow.utils.serve_logs import serve_logs
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
-from airflow.utils.serve_logs import serve_logs
 
 
 @contextmanager
@@ -56,7 +58,7 @@ def triggerer(args):
     print(settings.HEADER)
     job = TriggererJob(capacity=args.capacity)
 
-    if args.daemon:
+    if args.daemon and not IS_WINDOWS:
         pid, stdout, stderr, log_file = setup_locations(
             "triggerer", args.pid, args.stdout, args.stderr, args.log_file
         )
@@ -77,6 +79,10 @@ def triggerer(args):
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
-        signal.signal(signal.SIGQUIT, sigquit_handler)
-        with _serve_logs(args.skip_serve_logs):
+
+        if not IS_WINDOWS:
+            signal.signal(signal.SIGQUIT, sigquit_handler)
+            with _serve_logs(args.skip_serve_logs):
+                job.run()
+        else:
             job.run()

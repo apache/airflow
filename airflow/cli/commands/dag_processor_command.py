@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from airflow.utils.platform import IS_WINDOWS
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
+if not IS_WINDOWS:
+    import daemon
+    from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.configuration import conf
@@ -57,7 +59,7 @@ def dag_processor(args):
 
     job = _create_dag_processor_job(args)
 
-    if args.daemon:
+    if args.daemon and not IS_WINDOWS:
         pid, stdout, stderr, log_file = setup_locations(
             "dag-processor", args.pid, args.stdout, args.stderr, args.log_file
         )
