@@ -261,3 +261,32 @@ class TestVariable:
             ]
         finally:
             session.rollback()
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_caching_caches(self, mock_ensure_secrets: mock.Mock):
+        mock_backend = mock.Mock()
+        mock_backend.get_variable.return_value = "secret_val"
+        mock_backend.__class__.__name__ = "MockSecretsBackend"
+        mock_ensure_secrets.return_value = [mock_backend, MetastoreBackend]
+
+        key = "doesn't matter"
+        first = Variable.get(key)
+        second = Variable.get(key)
+
+        mock_backend.get_variable.assert_called_once()
+        assert first == second
+        assert key in SecretCache._cache
+
+    def test_cache_invalidation_on_set(self):
+        with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env"):
+            a = Variable.get("key")  # value is saved in cache
+        with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env_two"):
+            b = Variable.get("key")  # value from cache is used
+        assert a == b
+
+        # setting a new value invalidates the cache
+        Variable.set("key", "new_value")
+
+        c = Variable.get("key")  # cache should not be used
+
+        assert c != b

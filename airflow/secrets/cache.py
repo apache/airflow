@@ -26,17 +26,18 @@ from airflow.configuration import conf
 class SecretCache:
     """A static class to manage the global secret cache"""
 
-    CACHED_NONE_VALUE = object()  # Sentinel object to distinguish between None and expired value
-
+    __manager: multiprocessing.managers.SyncManager | None = None
     _cache: dict[str, _CacheValue] | None = None
     _ttl: datetime.timedelta
 
+    class NotPresent(Exception):
+        """raised when a key is not present in the cache"""
+
+        ...
+
     class _CacheValue:
         def __init__(self, value: str | None) -> None:
-            if value is None:
-                self.value = SecretCache.CACHED_NONE_VALUE
-            else:
-                self.value = value
+            self.value = value
             self.date = datetime.datetime.utcnow()
 
         def is_expired(self, ttl: datetime.timedelta) -> bool:
@@ -50,9 +51,18 @@ class SecretCache:
         use_cache = conf.getboolean(section="secrets", key="use_cache", fallback=True)
         if not use_cache:
             return
-        cls._cache = multiprocessing.Manager().dict()
+        if cls.__manager is None:
+            # it is not really necessary to save the manager, but doing so allows to reuse it between tests,
+            # making them run a lot faster because this operation takes ~300ms each time
+            cls.__manager = multiprocessing.Manager()
+        cls._cache = cls.__manager.dict()
         ttl_seconds = conf.getint(section="secrets", key="cache_ttl_seconds", fallback=15 * 60)
         cls._ttl = datetime.timedelta(seconds=ttl_seconds)
+
+    @classmethod
+    def reset(cls):
+        """for test purposes only"""
+        cls._cache = None
 
     @classmethod
     def get_variable(cls, key: str) -> str | None:
@@ -63,12 +73,12 @@ class SecretCache:
             The CACHED_NONE_VALUE sentinel is returned if None was the saved value.
         """
         if cls._cache is None:
-            return None
+            raise cls.NotPresent
 
         val = cls._cache.get(key)
         if val and not val.is_expired(cls._ttl):
             return val.value
-        return None
+        raise cls.NotPresent
 
     @classmethod
     def save_variable(cls, key: str, value: str | None):
@@ -82,8 +92,3 @@ class SecretCache:
         """invalidates (actually removes) the value stored in the cache for that key."""
         if cls._cache is not None:
             cls._cache.pop(key, None)  # second arg ensures no exception if key is absent
-
-    @classmethod
-    def reset(cls):
-        """for dev purposes only"""
-        cls._cache = None
