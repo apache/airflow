@@ -636,8 +636,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for dag_action_name in self.DAG_ACTIONS:
             self.create_permission(dag_action_name, dag_resource_name)
 
-        if access_control:
-            self._sync_dag_view_permissions(dag_resource_name, access_control)
+        self._sync_dag_view_permissions(dag_resource_name, access_control)
 
     def _sync_dag_view_permissions(self, dag_id, access_control):
         """
@@ -662,8 +661,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             for perm in existing_dag_perms:
                 non_admin_roles = [role for role in perm.role if role.name != "Admin"]
                 for role in non_admin_roles:
-                    target_perms_for_role = access_control.get(role.name, {})
-                    if perm.action.name not in target_perms_for_role:
+                    if access_control:
+                        target_perms_for_role = access_control.get(role.name, {})
+                        if perm.action.name not in target_perms_for_role:
+                            self.log.info(
+                                "Revoking '%s' on DAG '%s' for role '%s'",
+                                perm.action,
+                                dag_resource_name,
+                                role.name,
+                            )
+                            self.remove_permission_from_role(role, perm)
+                    else:
                         self.log.info(
                             "Revoking '%s' on DAG '%s' for role '%s'",
                             perm.action,
@@ -676,27 +684,28 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if resource:
             _revoke_stale_permissions(resource)
 
-        for rolename, action_names in access_control.items():
-            role = self.find_role(rolename)
-            if not role:
-                raise AirflowException(
-                    f"The access_control mapping for DAG '{dag_id}' includes a role named "
-                    f"'{rolename}', but that role does not exist"
-                )
+        if access_control:
+            for rolename, action_names in access_control.items():
+                role = self.find_role(rolename)
+                if not role:
+                    raise AirflowException(
+                        f"The access_control mapping for DAG '{dag_id}' includes a role named "
+                        f"'{rolename}', but that role does not exist"
+                    )
 
-            action_names = set(action_names)
-            invalid_action_names = action_names - self.DAG_ACTIONS
-            if invalid_action_names:
-                raise AirflowException(
-                    f"The access_control map for DAG '{dag_resource_name}' includes "
-                    f"the following invalid permissions: {invalid_action_names}; "
-                    f"The set of valid permissions is: {self.DAG_ACTIONS}"
-                )
+                action_names = set(action_names)
+                invalid_action_names = action_names - self.DAG_ACTIONS
+                if invalid_action_names:
+                    raise AirflowException(
+                        f"The access_control map for DAG '{dag_resource_name}' includes "
+                        f"the following invalid permissions: {invalid_action_names}; "
+                        f"The set of valid permissions is: {self.DAG_ACTIONS}"
+                    )
 
-            for action_name in action_names:
-                dag_perm = _get_or_create_dag_permission(action_name)
-                if dag_perm:
-                    self.add_permission_to_role(role, dag_perm)
+                for action_name in action_names:
+                    dag_perm = _get_or_create_dag_permission(action_name)
+                    if dag_perm:
+                        self.add_permission_to_role(role, dag_perm)
 
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
