@@ -440,7 +440,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     cluster_identifier=self.cluster_identifier,
                     attempts=self._attempts,
-                    operation_type="resume_cluster",
+                    operation_type="pause_cluster",
                 ),
                 method_name="execute_complete",
             )
