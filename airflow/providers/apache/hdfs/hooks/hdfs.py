@@ -54,7 +54,7 @@ class HDFSHook(BaseHook):
         self,
         hdfs_conn_id: str | set[str] = "hdfs_default",
         proxy_user: str | None = None,
-        autoconfig: bool = False
+        autoconfig: bool = False,
     ):
         super().__init__()
         if not snakebite_loaded:
