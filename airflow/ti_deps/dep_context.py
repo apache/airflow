@@ -92,6 +92,10 @@ class DepContext:
         """
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
+            dag = dag_run.dag
+            if dag:
+                for ti in finished_tis:
+                    ti.task = dag.get_task(ti.task_id)
             self.finished_tis = finished_tis
         else:
             finished_tis = self.finished_tis

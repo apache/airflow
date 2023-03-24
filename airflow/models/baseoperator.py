@@ -924,6 +924,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self._is_setup = True
         elif SetupTeardownContext.is_teardown:
             self._is_teardown = True
+            self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
             if SetupTeardownContext.on_failure_fail_dagrun:
                 self._on_failure_fail_dagrun = True
 

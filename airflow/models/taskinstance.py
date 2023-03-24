@@ -41,7 +41,6 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
     Float,
@@ -425,8 +424,6 @@ class TaskInstance(Base, LoggingMixin):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
-    is_setup = Column(Boolean)
-
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -562,7 +559,6 @@ class TaskInstance(Base, LoggingMixin):
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "map_index": map_index,
-            "is_setup": task._is_setup,
         }
 
     @reconstructor
@@ -857,7 +853,6 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
-            self.is_setup = ti.is_setup
         else:
             self.state = None
 
@@ -878,7 +873,6 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
-        self.is_setup = task._is_setup
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -1210,12 +1204,13 @@ class TaskInstance(Base, LoggingMixin):
         """
         info = inspect(self)
         if info.attrs.dag_run.loaded_value is not NO_VALUE:
+            self.dag_run.dag = self.task.dag
             return self.dag_run
 
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
-
+        dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.execution_date` will work correctly
         set_committed_value(self, "dag_run", dr)
 

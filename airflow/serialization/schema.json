@@ -268,8 +268,6 @@
       "$comment": "A TaskGroup containing tasks",
       "type": "object",
       "required": [
-          "is_setup",
-          "is_teardown",
         "_group_id",
         "prefix_group_id",
         "children",
@@ -284,8 +282,6 @@
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
         "is_mapped": { "type": "boolean" },
-        "is_setup": { "type": "boolean" },
-        "is_teardown": { "type": "boolean" },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },

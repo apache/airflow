@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Iterator, NamedTuple
 
 from sqlalchemy import and_, func, or_
 
+from airflow.models import MappedOperator
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep, TIDepStatus
@@ -59,12 +60,13 @@ class _UpstreamTIStates(NamedTuple):
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
         """
-        counter = collections.Counter()
-        setup_counter = collections.Counter()
+        counter: dict[str, int] = collections.Counter()
+        setup_counter: dict[str, int] = collections.Counter()
         for ti in finished_upstreams:
             curr_state = {ti.state: 1}
             counter.update(curr_state)
-            if ti.is_setup:
+            # setup task cannot be mapped
+            if not isinstance(ti.task, MappedOperator) and ti.task._is_setup:
                 setup_counter.update(curr_state)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
@@ -226,7 +228,9 @@ class TriggerRuleDep(BaseTIDep):
         # "simple" tasks (no task or task group mapping involved).
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
-            upstream_setup = len([x for x in upstream_tasks.values() if x._is_setup])
+            upstream_setup = len(
+                [x for x in upstream_tasks.values() if not isinstance(x, MappedOperator) and x._is_setup]
+            )
         else:
             upstream = (
                 session.query(func.count())

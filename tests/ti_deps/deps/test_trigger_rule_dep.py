@@ -46,6 +46,8 @@ def get_task_instance(monkeypatch, session, dag_maker):
         upstream_failed: int | list[str] = 0,
         removed: int | list[str] = 0,
         done: int = 0,
+        skipped_setup: int = 0,
+        success_setup: int = 0,
     ):
         with dag_maker(session=session):
             task = BaseOperator(
@@ -67,6 +69,8 @@ def get_task_instance(monkeypatch, session, dag_maker):
             upstream_failed=(upstream_failed if isinstance(upstream_failed, int) else len(upstream_failed)),
             removed=(removed if isinstance(removed, int) else len(removed)),
             done=done,
+            skipped_setup=skipped_setup,
+            success_setup=success_setup,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: fake_upstream_states)
 
@@ -846,9 +850,9 @@ class TestTriggerRuleDep:
             return (ti for ti in tis.values() if ti.task_id in tis[task_id].task.upstream_task_ids)
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op2")) == (1, 0, 0, 0, 0, 1)
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op4")) == (1, 0, 1, 0, 0, 2)
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op5")) == (2, 0, 1, 0, 0, 3)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op2")) == (1, 0, 0, 0, 0, 1, 0, 0)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op4")) == (1, 0, 1, 0, 0, 2, 0, 0)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op5")) == (2, 0, 1, 0, 0, 3, 0, 0)
 
         dr.update_state(session=session)
         assert dr.state == DagRunState.SUCCESS
@@ -875,6 +879,8 @@ class TestTriggerRuleDep:
             removed=2,
             upstream_failed=0,
             done=5,
+            skipped_setup=0,
+            success_setup=0,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
@@ -912,6 +918,8 @@ class TestTriggerRuleDep:
             removed=2,
             upstream_failed=0,
             done=5,
+            skipped_setup=0,
+            success_setup=0,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
@@ -952,6 +960,8 @@ class TestTriggerRuleDep:
             removed=2,
             upstream_failed=0,
             done=5,
+            skipped_setup=0,
+            success_setup=0,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
