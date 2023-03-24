@@ -63,7 +63,8 @@ MODEL_DISPLAY_NAME = f"auto-ml-image-model-{ENV_ID}"
 
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/image-dataset.csv"
-IMAGE_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "image-dataset.csv.zip")
+RESOURCES_PATH = Path(__file__).parent / "resources"
+IMAGE_ZIP_CSV_FILE_LOCAL_PATH = str(RESOURCES_PATH / "image-dataset.csv.zip")
 IMAGE_CSV_FILE_LOCAL_PATH = "/endpoint/image-dataset.csv"
 
 IMAGE_DATASET = {
@@ -143,12 +144,7 @@ with models.DAG(
         # format: 'projects/{project}/locations/{location}/models/{model}'
         "model": "{{ti.xcom_pull('auto_ml_image_task')['name']}}",
         "display_name": f"temp_endpoint_test_{ENV_ID}",
-        "dedicated_resources": {
-            "machine_spec": {
-                "machine_type": "n1-standard-2",
-                "accelerator_type": aiplatform.gapic.AcceleratorType.NVIDIA_TESLA_K80,
-                "accelerator_count": 1,
-            },
+        "automatic_resources": {
             "min_replica_count": 1,
             "max_replica_count": 1,
         },
