@@ -176,12 +176,6 @@ with DAG(
         task_id="resume_cluster",
         cluster_identifier=redshift_cluster_identifier,
     )
-
-    resume_cluster_in_deferred_mode = RedshiftResumeClusterOperator(
-        task_id="resume_cluster_in_deferred_mode",
-        cluster_identifier=redshift_cluster_identifier,
-        deferrable=True,
-    )
     # [END howto_operator_redshift_resume_cluster]
 
     wait_cluster_available_after_resume = RedshiftClusterSensor(
@@ -285,7 +279,6 @@ with DAG(
         pause_cluster,
         wait_cluster_paused,
         resume_cluster,
-        resume_cluster_in_deferred_mode,
         wait_cluster_available_after_resume,
         set_up_connection,
         create_table_redshift_data,
