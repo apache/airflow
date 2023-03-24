@@ -20,7 +20,6 @@ from __future__ import annotations
 import collections
 import collections.abc
 import functools
-import logging
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
 from sqlalchemy import and_, func, or_
@@ -281,27 +280,14 @@ class TriggerRuleDep(BaseTIDep):
                 if success or failed:
                     new_state = TaskInstanceState.SKIPPED
             elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
-                # when there is an upstream setup and they have all skipped, then skip
                 if upstream_done and upstream_setup and skipped_setup >= upstream_setup:
+                    # when there is an upstream setup and they have all skipped, then skip
                     new_state = TaskInstanceState.SKIPPED
-                    logging.warning(
-                        "ti=%s skipped_setup >= upstream_setup (%s >= %s), marking skipped",
-                        ti.task_id,
-                        skipped_setup,
-                        upstream_setup,
-                    )
-                elif upstream_done and upstream_setup > success_setup:
-                    # when there is an upstream setup, they must all succeed
-                    # otherwise, behave same as all done.
+                elif upstream_done and upstream_setup and success_setup == 0:
+                    # when there is an upstream setup, if none succeeded, mark upstream failed
+                    # if at least one setup ran, we'll let it run
                     new_state = TaskInstanceState.UPSTREAM_FAILED
-                    logging.warning(
-                        "ti=%s upstream_setup >= success_setup (%s >= %s), marking failed",
-                        ti.task_id,
-                        upstream_setup,
-                        success_setup,
-                    )
         if new_state is not None:
-            logging.warning("ti=%s new_state=%s", ti.task_id, new_state)
             if new_state == TaskInstanceState.SKIPPED and dep_context.wait_for_past_depends_before_skipping:
                 past_depends_met = ti.xcom_pull(
                     task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
@@ -311,7 +297,6 @@ class TriggerRuleDep(BaseTIDep):
                         reason=("Task should be skipped but the the past depends are not met")
                     )
                     return
-            logging.warning("ti=%s changing state to %s", ti.task_id, new_state)
             changed = ti.set_state(new_state, session)
 
         if changed:
@@ -447,10 +432,10 @@ class TriggerRuleDep(BaseTIDep):
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
-            elif not success_setup >= upstream_setup:
+            elif upstream_setup and not success_setup >= 1:
                 status = self._failing_status(
                     reason=(
-                        f"Task's trigger rule '{trigger_rule}' requires all upstream setup tasks be "
+                        f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup tasks be "
                         f"successful, but found {upstream_setup - success_setup} task(s) that were not. "
                         f"upstream_states={upstream_states}, "
                         f"upstream_task_ids={task.upstream_task_ids}"
