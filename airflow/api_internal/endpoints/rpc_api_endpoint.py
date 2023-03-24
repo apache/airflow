@@ -92,7 +92,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     log.debug("Calling method %.", {method_name})
     try:
         output = handler(**params)
-        output_json = BaseSerialization.serialize(output)
+        output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
         log.debug("Returning response")
         return Response(
             response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}

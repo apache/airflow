@@ -38,6 +38,8 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
+from airflow.jobs.base_job import BaseJob
+from airflow.jobs.pydantic.base_job import BaseJobPydantic
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -467,7 +469,12 @@ class BaseSerialization:
         elif isinstance(var, Dataset):
             return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
         elif isinstance(var, SimpleTaskInstance):
-            return cls._encode(cls.serialize(var.__dict__, strict=strict), type_=DAT.SIMPLE_TASK_INSTANCE)
+            return cls._encode(
+                cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
+                type_=DAT.SIMPLE_TASK_INSTANCE,
+            )
+        elif use_pydantic_models and isinstance(var, BaseJob):
+            return cls._encode(BaseJobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
         elif use_pydantic_models and isinstance(var, TaskInstance):
             return cls._encode(TaskInstancePydantic.from_orm(var).dict(), type_=DAT.TASK_INSTANCE)
         elif use_pydantic_models and isinstance(var, DagRun):
@@ -528,11 +535,13 @@ class BaseSerialization:
             return Dataset(**var)
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
-        elif use_pydantic_models and type == DAT.TASK_INSTANCE:
+        elif use_pydantic_models and type_ == DAT.BASE_JOB:
+            return BaseJobPydantic.parse_obj(var)
+        elif use_pydantic_models and type_ == DAT.TASK_INSTANCE:
             return TaskInstancePydantic.parse_obj(var)
-        elif use_pydantic_models and type == DAT.DAG_RUN:
+        elif use_pydantic_models and type_ == DAT.DAG_RUN:
             return DagRunPydantic.parse_obj(var)
-        elif use_pydantic_models and type == DAT.DATA_SET:
+        elif use_pydantic_models and type_ == DAT.DATA_SET:
             return DatasetPydantic.parse_obj(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")

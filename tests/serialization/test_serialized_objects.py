@@ -20,6 +20,10 @@ from __future__ import annotations
 import pytest
 
 from airflow.exceptions import SerializationError
+from airflow.models.pydantic.taskinstance import TaskInstancePydantic
+from airflow.models.taskinstance import TaskInstance
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.state import State
 from tests import REPO_ROOT
 
 
@@ -76,3 +80,17 @@ def test_strict_mode():
     BaseSerialization.serialize(obj)  # does not raise
     with pytest.raises(SerializationError, match="Encountered unexpected type"):
         BaseSerialization.serialize(obj, strict=True)  # now raises
+
+
+def test_use_pydantic_models():
+    """If use_pydantic_models=True the TaskInstance object should be serialized to TaskInstancePydantic."""
+
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    ti = TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING)
+    obj = [[ti]]  # nested to verify recursive behavior
+
+    serialized = BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
+    deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)  # does not raise
+
+    assert isinstance(deserialized[0][0], TaskInstancePydantic)
