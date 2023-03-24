@@ -21,6 +21,58 @@
 
 .. towncrier release notes start
 
+Airflow 2.5.3 (2023-03-30)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+- Fix DagProcessorJob integration for standalone dag-processor (#30278)
+- Fix proper termination of gunicorn when it hangs (#30188)
+- Fix XCom.get_one exactly one exception text (#30183)
+- Correct the VARCHAR size to 250. (#30178)
+- Revert fix for on_failure_callback when task receives a SIGTERM (#30165)
+- Move readOnly property to DagState to fix generated docs (#30149)
+- Ensure that ``dag.partial_subset`` doesn't mutate task group properties (#30129)
+- Fix inconsistent returned value of ``airflow dags next-execution`` cli command (#30117)
+- Fix wwwutils.dag_run_link redirection (#30098)
+- Fix ``TriggerRuleDep`` when the mapped tasks count is 0 (#30084)
+- Dag processor manager, add retry_db_transcation to _fetch_callbacks (#30079)
+- Fix db clean command for mysql db (#29999)
+- Avoid considering EmptyOperator in mini scheduler (#29979)
+- Fix some long known Graph View UI problems (#29971)
+- Fix dag docs toggle icon initial angle (#29970)
+- Fix tags selection in DAGs UI (#29944)
+- Including airflow/example_dags/sql/sample.sql in MANIFEST.in (#29883)
+- Fixing broken filter in /taskinstance/list view (#29850)
+- Allow generic param dicts (#29782)
+- Fix update_mask in patch variable route (#29711)
+- Strip markup from app_name if instance_name_has_markup = True (#28894)
+
+Misc/Internal
+^^^^^^^^^^^^^
+- Revert "Also limit importlib on Python 3.9 (#30069)" (#30209)
+- Add custom_operator_name to @task.sensor tasks (#30131)
+- Bump webpack from 5.73.0 to 5.76.0 in /airflow/www (#30112)
+- Formatted config (#30103)
+- Remove upper bound limit of astroid (#30033)
+- Remove accidentally merged vendor daemon patch code (#29895)
+- Fix warning in airflow tasks test command regarding absence of data_interval (#27106)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Adding more information regarding top level code (#30040)
+- Update workday example (#30026)
+- Fix some typos in the DAGs docs (#30015)
+- Update set-up-database.rst (#29991)
+- Fix some typos on the kubernetes documentation (#29936)
+- Fixup some punctuation and grammar (#29342)
+
+
 Airflow 2.5.2 (2023-03-15)
 --------------------------
 
@@ -107,7 +159,7 @@ Misc/Internal
 - Bump ``swagger-ui-dist`` from ``3.52.0`` to ``4.1.3`` in ``/airflow/www`` (#28824)
 - Limit ``importlib-metadata`` backport to ``< 5.0.0`` (#29924, #30069)
 
-Doc Only Changes
+Doc only changes
 ^^^^^^^^^^^^^^^^
 - Update pipeline.rst - Fix query in ``merge_data()`` task (#29158)
 - Correct argument name of Workday timetable in timetable.rst (#29896)
@@ -225,7 +277,7 @@ Misc/Internal
 - Order TIs by ``map_index`` (#27904)
 - Additional info about Segmentation Fault in ``LocalTaskJob`` (#27381)
 
-Doc Only Changes
+Doc only changes
 ^^^^^^^^^^^^^^^^
 - Mention mapped operator in cluster policy doc (#28885)
 - Slightly improve description of Dynamic DAG generation preamble (#28650)
@@ -1238,7 +1290,7 @@ Misc/Internal
 Airflow 2.3.2 (2022-06-04)
 --------------------------
 
-No significant changes
+No significant changes.
 
 Bug Fixes
 ^^^^^^^^^
