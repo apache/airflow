@@ -1318,6 +1318,8 @@ class TaskGroupSerialization(BaseSerialization):
         # when converting set to list, the order is uncertain.
         # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
         encoded = {
+            "is_setup": task_group.is_setup,
+            "is_teardown": task_group.is_teardown,
             "_group_id": task_group._group_id,
             "prefix_group_id": task_group.prefix_group_id,
             "tooltip": task_group.tooltip,
@@ -1354,7 +1356,7 @@ class TaskGroupSerialization(BaseSerialization):
         group_id = cls.deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls.deserialize(encoded_group[key])
-            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor", "is_setup", "is_teardown"]
         }
 
         if not encoded_group.get("is_mapped"):
