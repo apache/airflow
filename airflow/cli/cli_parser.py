@@ -919,7 +919,7 @@ ARG_MIN_PENDING_MINUTES = Arg(
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ("--job-type",),
-    choices=("BackfillJob", "LocalTaskJob", "SchedulerJob", "TriggererJob"),
+    choices=("BackfillJob", "LocalTaskJob", "SchedulerJob", "TriggererJob", "DagProcessorJob"),
     action="store",
     help="The type of job(s) that will be checked.",
 )
@@ -2113,7 +2113,6 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 
     def _format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
-
             parts = []
             action_header = self._format_action_invocation(action)
             action_header = "%*s%s\n" % (self._current_indent, "", action_header)

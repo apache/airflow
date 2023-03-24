@@ -45,6 +45,7 @@ import airflow.models
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
+from airflow.jobs.base_job import BaseJob
 from airflow.models import errors
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
@@ -379,6 +380,7 @@ class DagFileProcessorManager(LoggingMixin):
         pickle_dags: bool,
         signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
+        job: BaseJob | None = None,
     ):
         super().__init__()
         self._file_paths: list[str] = []
@@ -391,6 +393,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._async_mode = async_mode
         self._parsing_start_time: int | None = None
         self._dag_directory = dag_directory
+        self._job = job
 
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
@@ -555,6 +558,8 @@ class DagFileProcessorManager(LoggingMixin):
         while True:
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
+            if self._job:
+                self._job.heartbeat()
             if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
                 agent_signal = self._direct_scheduler_conn.recv()
 
