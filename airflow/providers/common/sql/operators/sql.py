@@ -607,7 +607,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         SELECT
             {check_statement} AS statement,
             CASE
-                WHEN COALESCE({check_statement}, 1) THEN 1
+                WHEN COALESCE({check_statement}, TRUE) THEN 1
                 ELSE 0
             END AS check_result
         FROM {table} {partition_clause}

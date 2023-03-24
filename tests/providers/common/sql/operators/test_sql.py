@@ -388,7 +388,7 @@ class TestTableCheckOperator:
         SELECT
             {count_check} AS statement,
             CASE
-                WHEN COALESCE({count_check}, 1) THEN 1
+                WHEN COALESCE({count_check}, TRUE) THEN 1
                 ELSE 0
             END AS check_result
         FROM test_table
@@ -406,7 +406,7 @@ class TestTableCheckOperator:
         SELECT
             {sum_check} AS statement,
             CASE
-                WHEN COALESCE({sum_check}, 1) THEN 1
+                WHEN COALESCE({sum_check}, TRUE) THEN 1
                 ELSE 0
             END AS check_result
         FROM test_table
