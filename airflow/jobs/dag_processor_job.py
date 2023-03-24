@@ -54,6 +54,7 @@ class DagProcessorJob(BaseJob):
             processor_timeout=processor_timeout,
             dag_ids=dag_ids,
             pickle_dags=pickle_dags,
+            job=self,
         )
         super().__init__(*args, **kwargs)
 
