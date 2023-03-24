@@ -381,7 +381,7 @@ class TestTableCheckOperator:
         'row_count_check' AS check_name,
         COALESCE(MIN(check_result), 1) AS check_result,
         CASE
-            WHEN MIN(statement) IS NULL THEN 0
+            WHEN COUNT(statement) = 0 THEN 0
             ELSE COUNT(check_result)
         END AS num_subquery_rows
     FROM (
@@ -399,7 +399,7 @@ class TestTableCheckOperator:
         'column_sum_check' AS check_name,
         COALESCE(MIN(check_result), 1) AS check_result,
         CASE
-            WHEN MIN(statement) IS NULL THEN 0
+            WHEN COUNT(statement) = 0 THEN 0
             ELSE COUNT(check_result)
         END AS num_subquery_rows
     FROM (
