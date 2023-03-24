@@ -404,6 +404,7 @@ devel_only = [
     "requests_mock",
     "rich-click>=1.5",
     "semver",
+    "time-machine",
     "towncrier",
     "twine",
     "wheel",
