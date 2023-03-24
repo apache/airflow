@@ -180,11 +180,11 @@ class TestPythonVirtualenvDecorator:
     def test_marking_virtualenv_python_task_as_setup(self, dag_maker):
         @setup
         @task.virtualenv
-        def f(_):
+        def f():
             return 1
 
         with dag_maker() as dag:
-            ret = f(datetime.datetime.utcnow())
+            ret = f()
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
@@ -194,11 +194,11 @@ class TestPythonVirtualenvDecorator:
     def test_marking_virtualenv_python_task_as_teardown(self, dag_maker):
         @teardown
         @task.virtualenv
-        def f(_):
+        def f():
             return 1
 
         with dag_maker() as dag:
-            ret = f(datetime.datetime.utcnow())
+            ret = f()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
@@ -211,11 +211,11 @@ class TestPythonVirtualenvDecorator:
     ):
         @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
         @task.virtualenv
-        def f(_):
+        def f():
             return 1
 
         with dag_maker() as dag:
-            ret = f(datetime.datetime.utcnow())
+            ret = f()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]

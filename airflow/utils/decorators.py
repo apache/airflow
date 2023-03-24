@@ -58,9 +58,10 @@ def apply_defaults(func: T) -> T:
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removed @task.
+    Removes @task or similar decorators as well as @setup and @teardown
 
-    :param python_source:
+    :param python_source: The python source code
+    :param task_decorator_name: the decorator name
     """
 
     def _remove_task_decorator(py_source, decorator_name):

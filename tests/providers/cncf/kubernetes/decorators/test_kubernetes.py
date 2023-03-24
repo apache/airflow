@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import setup, task
+from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
@@ -173,11 +173,33 @@ def test_kubernetes_with_marked_as_setup(
             cluster_context="default",
             config_file="/tmp/fake_file",
         )
-        def f(arg1, arg2, kwarg1=None, kwarg2=None):
+        def f():
             return {"key1": "value1", "key2": "value2"}
 
-        f("arg1", "arg2", kwarg1="kwarg1")
+        f()
 
     assert len(dag.task_group.children) == 1
     setup_task = dag.task_group.children["f"]
     assert setup_task._is_setup
+
+
+def test_kubernetes_with_marked_as_teardown(
+    dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
+) -> None:
+    with dag_maker(session=session) as dag:
+
+        @teardown
+        @task.kubernetes(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        def f():
+            return {"key1": "value1", "key2": "value2"}
+
+        f()
+
+    assert len(dag.task_group.children) == 1
+    teardown_task = dag.task_group.children["f"]
+    assert teardown_task._is_teardown

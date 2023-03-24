@@ -39,9 +39,10 @@ def _balance_parens(after_decorator):
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removed @kubernetes_task
+    Removes @task.kubernetes or similar as well as @setup and @teardown
 
-    :param python_source:
+    :param python_source: python source code
+    :param task_decorator_name: the task decorator name
     """
 
     def _remove_task_decorator(py_source, decorator_name):

@@ -129,11 +129,11 @@ class TestExternalPythonDecorator:
     def test_marking_external_python_task_as_setup(self, dag_maker, venv_python):
         @setup
         @task.external_python(python=venv_python)
-        def f(_):
+        def f():
             return 1
 
         with dag_maker() as dag:
-            ret = f(datetime.datetime.utcnow())
+            ret = f()
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
@@ -143,11 +143,11 @@ class TestExternalPythonDecorator:
     def test_marking_external_python_task_as_teardown(self, dag_maker, venv_python):
         @teardown
         @task.external_python(python=venv_python)
-        def f(_):
+        def f():
             return 1
 
         with dag_maker() as dag:
-            ret = f(datetime.datetime.utcnow())
+            ret = f()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
@@ -160,11 +160,11 @@ class TestExternalPythonDecorator:
     ):
         @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
         @task.external_python(python=venv_python)
-        def f(_):
+        def f():
             return 1
 
         with dag_maker() as dag:
-            ret = f(datetime.datetime.utcnow())
+            ret = f()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
