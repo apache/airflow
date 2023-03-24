@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
+from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
@@ -159,3 +159,47 @@ def test_kubernetes_with_input_output(
     # Second container is xcom image
     assert containers[1].image == XCOM_IMAGE
     assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
+
+
+def test_kubernetes_with_marked_as_setup(
+    dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
+) -> None:
+    with dag_maker(session=session) as dag:
+
+        @setup
+        @task.kubernetes(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        def f():
+            return {"key1": "value1", "key2": "value2"}
+
+        f()
+
+    assert len(dag.task_group.children) == 1
+    setup_task = dag.task_group.children["f"]
+    assert setup_task._is_setup
+
+
+def test_kubernetes_with_marked_as_teardown(
+    dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
+) -> None:
+    with dag_maker(session=session) as dag:
+
+        @teardown
+        @task.kubernetes(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        def f():
+            return {"key1": "value1", "key2": "value2"}
+
+        f()
+
+    assert len(dag.task_group.children) == 1
+    teardown_task = dag.task_group.children["f"]
+    assert teardown_task._is_teardown

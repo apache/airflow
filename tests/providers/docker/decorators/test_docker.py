@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.decorators import task
+from airflow.decorators import setup, task, teardown
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
@@ -144,3 +144,46 @@ class TestDockerDecorator:
             ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
             ti = dr.get_task_instances()[0]
             assert ti.state == expected_state
+
+    def test_setup_decorator_with_decorated_docker_task(self, dag_maker):
+        @setup
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker() as dag:
+            f()
+
+        assert len(dag.task_group.children) == 1
+        setup_task = dag.task_group.children["f"]
+        assert setup_task._is_setup
+
+    def test_teardown_decorator_with_decorated_docker_task(self, dag_maker):
+        @teardown
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker() as dag:
+            f()
+
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["f"]
+        assert teardown_task._is_teardown
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_teardown_decorator_with_decorated_docker_task_and_on_failure_fail_arg(
+        self, dag_maker, on_failure_fail_dagrun
+    ):
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker() as dag:
+            f()
+
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["f"]
+        assert teardown_task._is_teardown
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
