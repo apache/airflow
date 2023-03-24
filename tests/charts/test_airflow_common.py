@@ -240,6 +240,7 @@ class TestAirflowCommon:
             (False, "apache/airflow:user-tag", "user-tag", None),
             (False, "apache/airflow@user-digest", None, "user-digest"),
             (False, "apache/airflow@user-digest", "user-tag", "user-digest"),
+            (True, "apache/airflow@2.1.0", "user-tag", "user-digest"),
         ],
     )
     def test_should_use_correct_image(self, use_default_image, expected_image, tag, digest):
