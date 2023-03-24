@@ -203,7 +203,7 @@ They match, right? Good. Now, add the public key to your values. It'll look some
     dags:
       gitSync:
         knownHosts: |
-          github.com ssh-rsa AAAA...FAaQ==
+          github.com ssh-rsa AAAA...1/wsjk=
 
 
 Accessing the Airflow UI
