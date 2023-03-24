@@ -78,6 +78,7 @@ REVISION_HEADS_MAP = {
     "2.5.0": "290244fb8b83",
     "2.5.1": "290244fb8b83",
     "2.5.2": "290244fb8b83",
+    "2.5.3": "290244fb8b83",
 }
 
 
@@ -769,7 +770,6 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
         config,
         script,
     ) as env, settings.engine.connect() as connection:
-
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
         alembic_logger.setLevel(logging.WARNING)
@@ -1168,7 +1168,6 @@ def _create_table_as(
 def _move_dangling_data_to_new_table(
     session, source_table: Table, source_query: Query, target_table_name: str
 ):
-
     bind = session.get_bind()
     dialect_name = bind.dialect.name
 
