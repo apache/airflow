@@ -204,6 +204,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
+    def create_db(self):
+        if not self.appbuilder.update_perms:
+            self.log.debug("Skipping db since appbuilder disables update_perms")
+            return
+        super().create_db()
+
     def _get_root_dag_id(self, dag_id):
         if "." in dag_id:
             dm = (
