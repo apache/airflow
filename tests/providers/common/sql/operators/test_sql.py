@@ -413,27 +413,27 @@ class TestTableCheckOperator:
     """
 
     correct_generate_sql_query_no_partitions = f"""
-    {row_count_check_base})
+    {row_count_check_base}) as sq
     UNION ALL
-    {column_sum_check_base})
+    {column_sum_check_base}) as sq
     """
 
     correct_generate_sql_query_with_partition = f"""
-    {row_count_check_base} WHERE col_a > 10)
+    {row_count_check_base} WHERE col_a > 10) as sq
     UNION ALL
-    {column_sum_check_base} WHERE col_a > 10)
+    {column_sum_check_base} WHERE col_a > 10) as sq
     """
 
     correct_generate_sql_query_with_partition_and_where = f"""
-    {row_count_check_base} WHERE col_a > 10 AND id = 100)
+    {row_count_check_base} WHERE col_a > 10 AND id = 100) as sq
     UNION ALL
-    {column_sum_check_base} WHERE col_a > 10)
+    {column_sum_check_base} WHERE col_a > 10) as sq
     """
 
     correct_generate_sql_query_with_where = f"""
-    {row_count_check_base})
+    {row_count_check_base}) as sq
     UNION ALL
-    {column_sum_check_base} WHERE id = 100)
+    {column_sum_check_base} WHERE id = 100) as sq
     """
 
     def _strip_string(self, string):

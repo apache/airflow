@@ -611,7 +611,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 ELSE 0
             END AS check_result
         FROM {table} {partition_clause}
-    )
+    ) as sq
     """
 
     def __init__(
