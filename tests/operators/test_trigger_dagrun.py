@@ -382,7 +382,7 @@ class TestDagRunOperator:
             wait_for_completion=True,
             poke_interval=10,
             allowed_states=[State.QUEUED],
-            deferrable==False,
+            deferrable=False,
             dag=self.dag,
         )
         task.run(start_date=execution_date, end_date=execution_date)
@@ -401,7 +401,7 @@ class TestDagRunOperator:
             wait_for_completion=True,
             poke_interval=10,
             allowed_states=[State.QUEUED],
-            deferrable==True,
+            deferrable=True,
             dag=self.dag,
         )
 
@@ -423,7 +423,7 @@ class TestDagRunOperator:
             wait_for_completion=True,
             poke_interval=10,
             allowed_states=[State.SUCCESS],
-            deferrable==True,
+            deferrable=True,
             dag=self.dag,
         )
 
@@ -447,7 +447,7 @@ class TestDagRunOperator:
             poke_interval=10,
             allowed_states=[State.SUCCESS],
             failed_states=[State.QUEUED],
-            deferrable==True,
+            deferrable=True,
             dag=self.dag,
         )
 
