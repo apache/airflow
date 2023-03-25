@@ -89,15 +89,15 @@ An example usage of the DatabricksSqlOperator to perform statements from a file 
 DatabricksSqlSensor
 ===================
 
-Use the :class: `~airflow.providers.databricks.sensors.sql.DatabricksSqlSensor` to run the sensor 
-for a specific Delta table on a Databricks SQL workspace. 
+Use the :class: `~airflow.providers.databricks.sensors.sql.DatabricksSqlSensor` to run the sensor
+for a specific Delta table on a Databricks SQL workspace.
 
 Using the Sensor
 ----------------
 
 The sensor executes the SQL statement supplied by the user. The only required parameters are:
 
-* ``sql`` - SQL query to execute for the sensor. 
+* ``sql`` - SQL query to execute for the sensor.
 
 * One of ``sql_endpoint_name`` (name of Databricks SQL endpoint to use) or ``http_path`` (HTTP path for Databricks SQL endpoint or Databricks cluster).
 
