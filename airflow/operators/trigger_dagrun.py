@@ -236,8 +236,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         if not dag_run:
             raise AirflowException(
-                f"{self.trigger_dag_id} with execution_data of {self.execution_date} doesn't"
-                " appear to exist"
+                No DAG run found for DAG f"{self.trigger_dag_id} and execution date {self.execution_date}"
             )
 
         state = dag_run.state
