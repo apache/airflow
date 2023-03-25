@@ -228,8 +228,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         if len(dag_run) > 1:
             raise AirflowException(
-                f"{self.trigger_dag_id} with execution_data of {self.execution_date} appears too"
-                " many times, {len(dag_run)}"
+                f"Detected duplicate DAG run ({self.trigger_dag_id}) and execution date "
+                f"({self.execution_date}), found {len(dag_run)} records"
             )
 
         dag_run = dag_run[0]
