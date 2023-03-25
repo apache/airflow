@@ -26,14 +26,14 @@ from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 
 log = logging.getLogger(__name__)
 
 
-def _create_dag_processor_job(args: Any) -> BaseJob:
+def _create_dag_processor_job(args: Any) -> Job:
     """Creates DagFileProcessorProcess instance."""
     from airflow.dag_processing.manager import DagFileProcessorManager
 
@@ -47,7 +47,7 @@ def _create_dag_processor_job(args: Any) -> BaseJob:
         dag_ids=[],
         pickle_dags=args.do_pickle,
     )
-    return BaseJob(
+    return Job(
         job_runner=processor.job_runner,
     )
 

@@ -265,9 +265,9 @@ def clear_task_instances(
         session.execute(delete_qry)
 
     if job_ids:
-        from airflow.jobs.base_job import BaseJob
+        from airflow.jobs.job import Job
 
-        for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
+        for job in session.query(Job).filter(Job.id.in_(job_ids)).all():
             job.state = TaskInstanceState.RESTARTING
 
     if activate_dag_runs is not None:
@@ -2955,6 +2955,6 @@ class TaskInstanceNote(Base):
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.jobs.base_job import BaseJob
+    from airflow.jobs.job import Job
 
-    TaskInstance.queued_by_job = relationship(BaseJob)
+    TaskInstance.queued_by_job = relationship(Job)

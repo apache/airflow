@@ -88,9 +88,9 @@ from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.scheduler_job import SchedulerJobRunner
-from airflow.jobs.triggerer_job import TriggererJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
@@ -4945,7 +4945,7 @@ class JobModelView(AirflowModelView):
 
     route_base = "/job"
 
-    datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)  # type: ignore
+    datamodel = AirflowModelView.CustomSQLAInterface(Job)  # type: ignore
 
     class_permission_name = permissions.RESOURCE_JOB
     method_permission_name = {

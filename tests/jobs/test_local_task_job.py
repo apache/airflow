@@ -36,9 +36,9 @@ import pytest
 from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import SIGSEGV_MESSAGE, LocalTaskJobRunner
-from airflow.jobs.scheduler_job import SchedulerJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.local_task_job_runner import SIGSEGV_MESSAGE, LocalTaskJobRunner
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -91,7 +91,7 @@ class TestLocalTaskJob:
     @pytest.fixture(autouse=True)
     def set_instance_attrs(self, dagbag):
         self.dagbag = dagbag
-        with patch("airflow.jobs.base_job.sleep") as self.mock_base_job_sleep:
+        with patch("airflow.jobs.job.sleep") as self.mock_base_job_sleep:
             yield
 
     def validate_ti_states(self, dag_run, ti_state_mapping, error_message):
@@ -113,7 +113,7 @@ class TestLocalTaskJob:
 
         ti = dr.get_task_instance(task_id=op1.task_id)
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
             dag_id=ti.dag_id,
             executor=SequentialExecutor(),
@@ -138,7 +138,7 @@ class TestLocalTaskJob:
         ti.hostname = "blablabla"
         session.commit()
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
             dag_id=ti.dag_id,
             executor=SequentialExecutor(),
@@ -177,7 +177,7 @@ class TestLocalTaskJob:
         job1.job_runner.heartbeat_callback()
 
     @mock.patch("subprocess.check_call")
-    @mock.patch("airflow.jobs.local_task_job.psutil")
+    @mock.patch("airflow.jobs.local_task_job_runner.psutil")
     def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker("test_localtaskjob_heartbeat"):
@@ -189,7 +189,7 @@ class TestLocalTaskJob:
         ti.hostname = get_hostname()
         session.commit()
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
             dag_id=ti.dag_id,
             executor=SequentialExecutor(),
@@ -235,7 +235,7 @@ class TestLocalTaskJob:
 
     @conf_vars({("core", "default_impersonation"): "testuser"})
     @mock.patch("subprocess.check_call")
-    @mock.patch("airflow.jobs.local_task_job.psutil")
+    @mock.patch("airflow.jobs.local_task_job_runner.psutil")
     def test_localtaskjob_heartbeat_with_default_impersonation(self, psutil_mock, _, dag_maker):
         session = settings.Session()
         with dag_maker("test_localtaskjob_heartbeat"):
@@ -247,7 +247,7 @@ class TestLocalTaskJob:
         ti.hostname = get_hostname()
         session.commit()
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
             dag_id=ti.dag_id,
             executor=SequentialExecutor(),
@@ -320,7 +320,7 @@ class TestLocalTaskJob:
             ti.pid = 1
             session.commit()
 
-            job = BaseJob(
+            job = Job(
                 job_runner=LocalTaskJobRunner(task_instance=ti),
                 dag_id=ti.dag_id,
                 executor=MockExecutor(do_update=False),
@@ -354,9 +354,7 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job1 = BaseJob(
-            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
-        )
+        job1 = Job(job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id)
 
         with timeout(30):
             job1.run()
@@ -391,7 +389,7 @@ class TestLocalTaskJob:
 
         ti_run = TaskInstance(task=task, run_id=dr.run_id)
         ti_run.refresh_from_db()
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti_run),
             dag_id=ti_run.dag_id,
             executor=SequentialExecutor(),
@@ -407,14 +405,14 @@ class TestLocalTaskJob:
         session.close()
 
     @patch.object(StandardTaskRunner, "return_code")
-    @mock.patch("airflow.jobs.scheduler_job.Stats.incr", autospec=True)
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr", autospec=True)
     def test_local_task_return_code_metric(self, mock_stats_incr, mock_return_code, create_dummy_dag):
 
         _, task = create_dummy_dag("test_localtaskjob_code")
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti_run),
             dag_id=ti_run.dag_id,
             executor=SequentialExecutor(),
@@ -439,7 +437,7 @@ class TestLocalTaskJob:
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti_run),
             dag_id=ti_run.dag_id,
             executor=SequentialExecutor(),
@@ -485,7 +483,7 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(
                 task_instance=ti,
                 ignore_ti_state=True,
@@ -523,7 +521,7 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(
                 task_instance=ti,
                 ignore_ti_state=True,
@@ -559,7 +557,7 @@ class TestLocalTaskJob:
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
             executor=SequentialExecutor(),
             dag_id=ti.dag_id,
@@ -594,7 +592,7 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job = BaseJob(
+        job = Job(
             job_runner=LocalTaskJobRunner(
                 task_instance=ti,
                 ignore_ti_state=True,
@@ -672,7 +670,7 @@ class TestLocalTaskJob:
         thread.daemon = True
         thread.start()
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(
                 task_instance=ti,
                 ignore_ti_state=True,
@@ -760,7 +758,7 @@ class TestLocalTaskJob:
                 "test_dagrun_fast_follow",
             )
 
-            scheduler_job = BaseJob(job_runner=SchedulerJobRunner(subdir=os.devnull))
+            scheduler_job = Job(job_runner=SchedulerJobRunner(subdir=os.devnull))
             scheduler_job.job_runner.dagbag.bag_dag(dag, root_dag=dag)
 
             dag_run = dag.create_dagrun(run_id="test_dagrun_fast_follow", state=State.RUNNING)
@@ -774,7 +772,7 @@ class TestLocalTaskJob:
 
             ti = TaskInstance(task=dag.get_task(task_ids_to_run[0]), execution_date=dag_run.execution_date)
             ti.refresh_from_db()
-            job1 = BaseJob(
+            job1 = Job(
                 job_runner=LocalTaskJobRunner(
                     task_instance=ti,
                     ignore_ti_state=True,
@@ -791,7 +789,7 @@ class TestLocalTaskJob:
                     task=dag.get_task(task_ids_to_run[1]), execution_date=dag_run.execution_date
                 )
                 ti.refresh_from_db()
-                job2 = BaseJob(
+                job2 = Job(
                     job_runner=LocalTaskJobRunner(
                         task_instance=ti,
                         ignore_ti_state=True,
@@ -830,7 +828,7 @@ class TestLocalTaskJob:
             session.merge(ti2_k)
             session.merge(ti2_l)
 
-        job1 = BaseJob(
+        job1 = Job(
             job_runner=LocalTaskJobRunner(
                 task_instance=ti2_k,
                 ignore_ti_state=True,
@@ -878,7 +876,7 @@ class TestLocalTaskJob:
         dag_run = dag_maker.create_dagrun()
         ti = TaskInstance(task=task, run_id=dag_run.run_id)
         ti.refresh_from_db()
-        job = BaseJob(
+        job = Job(
             job_runner=LocalTaskJobRunner(
                 task_instance=ti,
                 ignore_ti_state=True,
@@ -915,7 +913,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
     ti = dr.task_instances[0]
     ti.refresh_from_task(task)
 
-    job = BaseJob(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id, executor=MockExecutor())
+    job = Job(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id, executor=MockExecutor())
     with assert_queries_count(18):
         job.run()
 
@@ -1030,7 +1028,7 @@ class TestSigtermOnRunner:
         dag.create_dagrun(state=State.RUNNING, run_id=run_id, execution_date=execution_date)
         ti = TaskInstance(task=task, execution_date=execution_date)
         ti.refresh_from_db()
-        job = BaseJob(
+        job = Job(
             job_runner=LocalTaskJobRunner(
                 task_instance=ti,
                 ignore_ti_state=True,

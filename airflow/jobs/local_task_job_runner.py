@@ -24,8 +24,8 @@ from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.jobs.base_job import perform_heartbeat
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import perform_heartbeat
 from airflow.models.taskinstance import TaskInstance, TaskReturnCode
 from airflow.stats import Stats
 from airflow.utils import timezone

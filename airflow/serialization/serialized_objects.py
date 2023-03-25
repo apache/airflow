@@ -38,7 +38,7 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -54,9 +54,9 @@ from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
-from airflow.serialization.pydantic.base_job import BaseJobPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetPydantic
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.settings import _ENABLE_AIP_44, DAGS_FOLDER, json
 from airflow.timetables.base import Timetable
@@ -479,8 +479,8 @@ class BaseSerialization:
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
         elif use_pydantic_models and _ENABLE_AIP_44:
-            if isinstance(var, BaseJob):
-                return cls._encode(BaseJobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
+            if isinstance(var, Job):
+                return cls._encode(JobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
             elif isinstance(var, TaskInstance):
                 return cls._encode(TaskInstancePydantic.from_orm(var).dict(), type_=DAT.TASK_INSTANCE)
             elif isinstance(var, DagRun):
@@ -554,7 +554,7 @@ class BaseSerialization:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
-                return BaseJobPydantic.parse_obj(var)
+                return JobPydantic.parse_obj(var)
             elif type_ == DAT.TASK_INSTANCE:
                 return TaskInstancePydantic.parse_obj(var)
             elif type_ == DAT.DAG_RUN:

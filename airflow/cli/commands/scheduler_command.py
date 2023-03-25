@@ -28,14 +28,14 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.scheduler_job import SchedulerJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
 from airflow.utils.scheduler_health import serve_health_check
 
 
-def _run_scheduler_job(job: BaseJob, *, skip_serve_logs: bool) -> None:
+def _run_scheduler_job(job: Job, *, skip_serve_logs: bool) -> None:
     InternalApiConfig.force_database_direct_access()
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(skip_serve_logs), _serve_health_check(enable_health_check):
@@ -47,7 +47,7 @@ def scheduler(args):
     """Starts Airflow Scheduler."""
     print(settings.HEADER)
 
-    job = BaseJob(
+    job = Job(
         job_runner=SchedulerJobRunner(
             subdir=process_subdir(args.subdir),
             num_runs=args.num_runs,

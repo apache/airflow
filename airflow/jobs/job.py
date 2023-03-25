@@ -29,10 +29,10 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.serialization.pydantic.base_job import BaseJobPydantic
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
@@ -50,9 +50,9 @@ def _resolve_dagrun_model():
     return DagRun
 
 
-class BaseJob(Base, LoggingMixin):
+class Job(Base, LoggingMixin):
     """
-    Abstract class to be derived for jobs.
+    The ORM class representing Job stored in the database.
 
     Jobs are processing items with state and duration that aren't task instances.
     For instance a BackfillJob is a collection of task instance runs,
@@ -82,13 +82,13 @@ class BaseJob(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         "TaskInstance",
-        primaryjoin="BaseJob.id == foreign(TaskInstance.queued_by_job_id)",
+        primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
         backref=backref("queued_by_job", uselist=False),
     )
 
     dag_runs = relationship(
         "DagRun",
-        primaryjoin=lambda: BaseJob.id == foreign(_resolve_dagrun_model().creating_job_id),
+        primaryjoin=lambda: Job.id == foreign(_resolve_dagrun_model().creating_job_id),
         backref="creating_job",
     )
 
@@ -143,7 +143,7 @@ class BaseJob(Base, LoggingMixin):
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
-        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+        job = session.query(Job).filter(Job.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
@@ -257,24 +257,22 @@ class BaseJob(Base, LoggingMixin):
         return self._job_runner
 
     @provide_session
-    def most_recent_job(self, session: Session = NEW_SESSION) -> BaseJob | None:
+    def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
         """Returns the most recent job of this type, if any, based on last heartbeat received."""
         return most_recent_job(self.job_type, session=session)
 
 
 @provide_session
-def perform_heartbeat(
-    job: BaseJob | BaseJobPydantic, only_if_necessary: bool, session: Session = NEW_SESSION
-):
-    if isinstance(job, BaseJob):
+def perform_heartbeat(job: Job | JobPydantic, only_if_necessary: bool, session: Session = NEW_SESSION):
+    if isinstance(job, Job):
         job.heartbeat()
     else:
         # TODO (potiuk): Make it works over internal API as a follow up
-        BaseJob.get(job.id, session=session).heartbeat(only_if_necessary=only_if_necessary)
+        Job.get(job.id, session=session).heartbeat(only_if_necessary=only_if_necessary)
 
 
 @provide_session
-def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> BaseJob | None:
+def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None:
     """
     Return the most recent job of this type, if any, based on last heartbeat received.
 
@@ -285,12 +283,12 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> BaseJob | 
     :param session: Database session
     """
     return (
-        session.query(BaseJob)
-        .filter(BaseJob.job_type == job_type)
+        session.query(Job)
+        .filter(Job.job_type == job_type)
         .order_by(
             # Put "running" jobs at the front.
-            case({State.RUNNING: 0}, value=BaseJob.state, else_=1),
-            BaseJob.latest_heartbeat.desc(),
+            case({State.RUNNING: 0}, value=Job.state, else_=1),
+            Job.latest_heartbeat.desc(),
         )
         .first()
     )
