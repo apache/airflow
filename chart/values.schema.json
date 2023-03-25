@@ -891,6 +891,14 @@
                             "type": "string"
                         }
                     },
+                    "annotations": {
+                        "description": "Annotations for the secret",
+                        "type": "object",
+                        "default": null,
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
@@ -923,6 +931,14 @@
                 "properties": {
                     "labels": {
                         "description": "Labels for the configmap",
+                        "type": "object",
+                        "default": null,
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "annotations": {
+                        "description": "Annotations for the configmap",
                         "type": "object",
                         "default": null,
                         "additionalProperties": {
