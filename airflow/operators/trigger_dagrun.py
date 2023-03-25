@@ -250,5 +250,5 @@ class TriggerDagRunOperator(BaseOperator):
 
         raise AirflowException(
             f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
-            " or {self.allowed_states}"
+            f" or {self.allowed_states}"
         )
