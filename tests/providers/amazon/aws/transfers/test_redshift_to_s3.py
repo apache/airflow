@@ -395,3 +395,26 @@ class TestRedshiftToS3Transfer:
         )
         # test sql arg
         assert_equal_ignore_multiple_spaces(self, mock_rs.execute_statement.call_args[1]["Sql"], unload_query)
+
+    @pytest.mark.parametrize(
+        "select_query, expected_unload_query",
+        [
+            ("SELECT * FROM schema.table", "UNLOAD ($$\nSELECT * FROM schema.table$$\n)"),
+            (
+                "SELECT * FROM schema.table WHERE foo='boo'",
+                "UNLOAD ($$\nSELECT * FROM schema.table WHERE foo='boo'$$\n)",
+            ),
+        ],
+    )
+    @mock.patch("boto3.session.Session")
+    def test_build_unload_query_single_quotes(self, mock_session, select_query, expected_unload_query):
+        op = RedshiftToS3Operator(
+            s3_bucket="s3_bucket",
+            s3_key="s3_key",
+            select_query="select_query",
+            task_id="task_id",
+            dag=None,
+        )
+        credentials_block = build_credentials_block(mock_session.return_value)
+        unload_query = op._build_unload_query(credentials_block, select_query, "s3_key", "HEADER")
+        assert expected_unload_query in unload_query
