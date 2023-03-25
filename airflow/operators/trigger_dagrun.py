@@ -33,6 +33,7 @@ from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -41,7 +42,25 @@ XCOM_RUN_ID = "trigger_run_id"
 
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.models.taskinstance import TaskInstanceKey
+
+
+def _parse_execution_date(date):
+    if isinstance(date, datetime.datetime):
+        return date
+    elif isinstance(date, str):
+        return timezone.parse(date)
+    else:
+        return timezone.utcnow()
+
+
+def _get_run_id(run_id, parsed_execution_date):
+    if run_id:
+        return run_id
+    else:
+        return DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -80,6 +99,8 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :param defer: If waiting for completion, whether or not to defer the task until done,
+        default is ``False``.
     """
 
     template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
@@ -113,7 +134,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.failed_states = failed_states or [State.FAILED]
         self._defer = defer
 
-
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
                 f"Expected str or datetime.datetime type for execution_date.Got {type(execution_date)}"
@@ -122,22 +142,16 @@ class TriggerDagRunOperator(BaseOperator):
         self.execution_date = execution_date
 
     def execute(self, context: Context):
-        if isinstance(self.execution_date, datetime.datetime):
-            parsed_execution_date = self.execution_date
-        elif isinstance(self.execution_date, str):
-            parsed_execution_date = timezone.parse(self.execution_date)
-        else:
-            parsed_execution_date = timezone.utcnow()
+
+        parsed_execution_date = _parse_execution_date(self.execution_date)
 
         try:
             json.dumps(self.conf)
         except TypeError:
             raise AirflowException("conf parameter should be JSON Serializable")
 
-        if self.trigger_run_id:
-            run_id = self.trigger_run_id
-        else:
-            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
+        run_id = _get_run_id(self.trigger_run_id, parsed_execution_date)
+
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
@@ -172,15 +186,17 @@ class TriggerDagRunOperator(BaseOperator):
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
+
+            # Kick of the deferral process
             if self._defer:
                 self.defer(
                     trigger=DagStateTrigger(
-                        dag_id= self.trigger_dag_id, 
-                        states = self.allowed_states + self.failed_states,
-                        execution_dates=parsed_execution_date,
-                        poll_interval=self.poke_interval
+                        dag_id=self.trigger_dag_id,
+                        states=self.allowed_states + self.failed_states,
+                        execution_dates=[parsed_execution_date],
+                        poll_interval=self.poke_interval,
                     ),
-                    method_name="execute_complete"
+                    method_name="execute_complete",
                 )
             # wait for dag to complete
             while True:
@@ -200,14 +216,39 @@ class TriggerDagRunOperator(BaseOperator):
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
 
-    def execute_complete(self, context: Context, **kwargs):
-        
-        dag_run = DagRun.find(run_id=self.trigger_run_id)
-        state = dag_run[0].state
+    @provide_session
+    def execute_complete(self, context: Context, session: "Session", **kwargs):
+        parsed_execution_date = _parse_execution_date(self.execution_date)
+
+        dag_run = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == parsed_execution_date)
+            .all()
+        )
+
+        if len(dag_run) > 1:
+            raise AirflowException(
+                f"{self.trigger_dag_id} with execution_data of {self.execution_date} appears too"
+                " many times, {len(dag_run)}"
+            )
+
+        dag_run = dag_run[0]
+
+        if not dag_run:
+            raise AirflowException(
+                f"{self.trigger_dag_id} with execution_data of {self.execution_date} doesn't"
+                " appear to exist"
+            )
+
+        state = dag_run.state
 
         if state in self.failed_states:
-                raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
+            raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
         if state in self.allowed_states:
-                self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
-                return
-        
+            self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
+            return
+
+        raise AirflowException(
+            f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
+            " or {self.allowed_states}"
+        )
