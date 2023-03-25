@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
 
-def _parse_execution_date(date):
+def _parse_execution_date(date: datetime.datetime | str) -> datetime.datetime:
     if isinstance(date, datetime.datetime):
         return date
     elif isinstance(date, str):
@@ -56,7 +56,7 @@ def _parse_execution_date(date):
         return timezone.utcnow()
 
 
-def _get_run_id(run_id, parsed_execution_date):
+def _get_run_id(run_id: str | None, parsed_execution_date: datetime.datetime) -> str:
     if run_id:
         return run_id
     else:
@@ -99,7 +99,7 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
-    :param defer: If waiting for completion, whether or not to defer the task until done,
+    :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
     """
 
@@ -120,7 +120,7 @@ class TriggerDagRunOperator(BaseOperator):
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
-        defer: bool = False,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -132,7 +132,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.poke_interval = poke_interval
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
-        self._defer = defer
+        self._defer = deferrable
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
