@@ -410,3 +410,5 @@ class TestDagRunOperator:
             with create_session() as session:
                 dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
                 assert len(dagruns) == 1
+
+            task.execute_complete( context = {"execution_date": execution_date, "logical_date": execution_date})
