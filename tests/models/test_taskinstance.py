@@ -2557,18 +2557,19 @@ class TestTaskInstance:
         ti.handle_failure("test ti.task undefined")
 
     @provide_session
-    def test_handle_failure_fail_fast(self, create_dummy_dag, session=None):
+    def test_handle_failure_fail_stop(self, create_dummy_dag, session=None):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
         dag, task1 = create_dummy_dag(
-            dag_id="test_handle_failure_fail_fast",
+            dag_id="test_handle_failure_fail_stop",
             schedule=None,
             start_date=start_date,
             task_id="task1",
+            trigger_rule="all_success",
             with_dagrun_type=DagRunType.MANUAL,
             session=session,
-            fail_fast=True,
+            fail_stop=True,
         )
         dr = dag.create_dagrun(
             run_id="test_ff",

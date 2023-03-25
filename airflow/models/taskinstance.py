@@ -1912,7 +1912,7 @@ class TaskInstance(Base, LoggingMixin):
             callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
 
-            if task and task.dag and task.dag.fail_fast:
+            if task and task.dag and task.dag.fail_stop:
                 tis = self.get_dagrun(session).get_task_instances()
                 stop_all_tasks_in_dag(tis, session, self.task_id)
         else:
