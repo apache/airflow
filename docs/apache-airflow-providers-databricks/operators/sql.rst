@@ -89,7 +89,7 @@ An example usage of the DatabricksSqlOperator to perform statements from a file 
 DatabricksSqlSensor
 ===================
 
-Use the :class: `~airflow.providers.databricks.sensors.sql.DatabricksSqlSensor` to run the sensor
+Use the :class:`~airflow.providers.databricks.sensors.sql.DatabricksSqlSensor` to run the sensor
 for a specific Delta table on a Databricks SQL workspace.
 
 Using the Sensor
