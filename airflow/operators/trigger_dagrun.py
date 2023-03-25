@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
 
-def _parse_execution_date(date: datetime.datetime | str) -> datetime.datetime:
+def _parse_execution_date(date: datetime.datetime | str | None) -> datetime.datetime:
     if isinstance(date, datetime.datetime):
         return date
     elif isinstance(date, str):
@@ -236,7 +236,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         if not dag_run:
             raise AirflowException(
-                No DAG run found for DAG f"{self.trigger_dag_id} and execution date {self.execution_date}"
+                f"No DAG run found for DAG {self.trigger_dag_id} and execution date {self.execution_date}"
             )
 
         state = dag_run.state
