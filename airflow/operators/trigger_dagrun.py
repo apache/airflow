@@ -228,27 +228,26 @@ class TriggerDagRunOperator(BaseOperator):
 
         if len(dag_run) > 1:
             raise AirflowException(
-                f"{self.trigger_dag_id} with execution_data of {self.execution_date} appears too"
-                " many times, {len(dag_run)}"
+                f"Detected duplicate DAG run ({self.trigger_dag_id}) and execution date "
+                f"({self.execution_date}), found {len(dag_run)} records"
             )
 
         dag_run = dag_run[0]
 
         if not dag_run:
             raise AirflowException(
-                f"{self.trigger_dag_id} with execution_data of {self.execution_date} doesn't"
-                " appear to exist"
+                No DAG run found for DAG f"{self.trigger_dag_id} and execution date {self.execution_date}"
             )
 
         state = dag_run.state
 
         if state in self.failed_states:
-            raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
+            raise AirflowException(f"{self.trigger_dag_id} failed with failed state {state}")
         if state in self.allowed_states:
             self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
             return
 
         raise AirflowException(
             f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
-            " or {self.allowed_states}"
+            f" or {self.allowed_states}"
         )
