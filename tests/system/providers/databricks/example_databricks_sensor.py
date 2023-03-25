@@ -54,8 +54,8 @@ with DAG(
     sql_endpoint_name = "Starter Warehouse"
     # [END howto_sensor_databricks_connection_setup]
 
-    # [START howto_sensor_databricks_sql_multiple]
-    # Example of using the Databricks SQL Operator to perform multiple operations.
+    # [START howto_sensor_databricks_sql]
+    # Example of using the Databricks SQL Sensor to check existence of data/partitions for a Delta table.
     sql_sensor = DatabricksSqlSensor(
         databricks_conn_id=connection_id,
         sql_endpoint_name=sql_endpoint_name,
@@ -64,7 +64,7 @@ with DAG(
         sql="select * from hive_metastore.temp.sample_table_3 limit 1",
         timeout=60 * 2,
     )
-    # [END howto_sensor_databricks_sql_multiple]
+    # [END howto_sensor_databricks_sql]
 
     (sql_sensor)
 
