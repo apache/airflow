@@ -371,3 +371,42 @@ class TestDagRunOperator:
         )
         with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=execution_date, end_date=execution_date)
+
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_false(self):
+            """Test TriggerDagRunOperator with wait_for_completion."""
+            execution_date = DEFAULT_DATE
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                execution_date=execution_date,
+                wait_for_completion=True,
+                poke_interval=10,
+                allowed_states=[State.QUEUED],
+                defer=False,
+                dag=self.dag,
+            )
+            task.run(start_date=execution_date, end_date=execution_date)
+
+            with create_session() as session:
+                dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+                assert len(dagruns) == 1
+
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_true(self):
+            """Test TriggerDagRunOperator with wait_for_completion."""
+            execution_date = DEFAULT_DATE
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                execution_date=execution_date,
+                wait_for_completion=True,
+                poke_interval=10,
+                allowed_states=[State.QUEUED],
+                defer=True,
+                dag=self.dag,
+            )
+
+            task.run(start_date=execution_date, end_date=execution_date)
+            
+            with create_session() as session:
+                dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+                assert len(dagruns) == 1

@@ -29,6 +29,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
+from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
@@ -98,6 +99,7 @@ class TriggerDagRunOperator(BaseOperator):
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
+        defer: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -109,6 +111,8 @@ class TriggerDagRunOperator(BaseOperator):
         self.poke_interval = poke_interval
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
+        self._defer = defer
+
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
@@ -168,6 +172,16 @@ class TriggerDagRunOperator(BaseOperator):
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
+            if self._defer:
+                self.defer(
+                    trigger=DagStateTrigger(
+                        dag_id= self.trigger_dag_id, 
+                        states = self.allowed_states + self.failed_states,
+                        execution_dates=parsed_execution_date,
+                        poll_interval=self.poke_interval
+                    ),
+                    method_name="execute_complete"
+                )
             # wait for dag to complete
             while True:
                 self.log.info(
@@ -185,3 +199,15 @@ class TriggerDagRunOperator(BaseOperator):
                 if state in self.allowed_states:
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
+
+    def execute_complete(self, context: Context, **kwargs):
+        
+        dag_run = DagRun.find(run_id=self.trigger_run_id)
+        state = dag_run[0].state
+
+        if state in self.failed_states:
+                raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
+        if state in self.allowed_states:
+                self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
+                return
+        
