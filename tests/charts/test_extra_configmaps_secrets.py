@@ -210,6 +210,7 @@ class TestExtraConfigMapsSecrets:
             "helm.sh/hook": "pre-install,pre-upgrade",
             "helm.sh/hook-delete-policy": "before-hook-creation",
             "helm.sh/hook-weight": "0",
+            "test_annotation": "test_annotation_value",
         }
 
         for k8s_object in k8s_objects:
