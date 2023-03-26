@@ -21,6 +21,8 @@ import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
+from tempfile import mkdtemp
 
 import pytest
 
@@ -58,14 +60,18 @@ def check_original_docker_image():
 
 @pytest.fixture
 def set_permissions(check_original_docker_image):
-    airflow_home = os.environ["AIRFLOW_HOME"]
+    # create a temporary directory for airflow home
+    old_airflow_home = os.environ["AIRFLOW_HOME"]
+    new_airflow_home = mkdtemp()
+    new_airflow_home_path = Path(new_airflow_home)
+    (new_airflow_home_path / "logs").mkdir(parents=True, exist_ok=True)
+    (new_airflow_home_path / "dags").mkdir(parents=True, exist_ok=True)
+    os.environ["AIRFLOW_HOME"] = new_airflow_home
     subprocess.check_call(
-        'find "%s" -exec sudo chmod og+w {} +; sudo chmod og+rx /root' % airflow_home, shell=True
+        'find "%s" -exec sudo chmod og+w {} +; sudo chmod og+rx /root' % new_airflow_home, shell=True
     )
     yield
-    subprocess.check_call(
-        'find "%s" -exec sudo chmod og-w {} +; sudo chmod og-rx /root' % airflow_home, shell=True
-    )
+    os.environ["AIRFLOW_HOME"] = old_airflow_home
 
 
 @pytest.fixture
