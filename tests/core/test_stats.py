@@ -130,7 +130,7 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_allow_list"): "name1,name2",
+                ("metrics", "metrics_allow_list"): "name1,name2",
             }
         ):
             importlib.reload(airflow.stats)
@@ -143,7 +143,7 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_block_list"): "name1,name2",
+                ("metrics", "metrics_block_list"): "name1,name2",
             }
         ):
             importlib.reload(airflow.stats)
@@ -156,8 +156,8 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_allow_list"): "name1,name2",
-                ("metrics", "statsd_block_list"): "name1,name2",
+                ("metrics", "metrics_allow_list"): "name1,name2",
+                ("metrics", "metrics_block_list"): "name1,name2",
             }
         ):
             importlib.reload(airflow.stats)

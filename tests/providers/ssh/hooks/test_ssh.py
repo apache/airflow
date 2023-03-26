@@ -975,24 +975,6 @@ class TestSSHHook:
             assert ret == (0, b"airflow\n", b"")
 
     @pytest.mark.flaky(reruns=5)
-    def test_command_timeout_default(self):
-        hook = SSHHook(
-            ssh_conn_id="ssh_default",
-            conn_timeout=30,
-            banner_timeout=100,
-        )
-
-        with hook.get_conn() as client:
-            with pytest.raises(AirflowException):
-                hook.exec_ssh_client_command(
-                    client,
-                    "sleep 10",
-                    False,
-                    None,
-                    1,
-                )
-
-    @pytest.mark.flaky(reruns=5)
     def test_command_timeout_success(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
@@ -1027,6 +1009,24 @@ class TestSSHHook:
                     False,
                     None,
                 )
+
+    def test_command_timeout_not_set(self):
+        hook = SSHHook(
+            ssh_conn_id="ssh_default",
+            conn_timeout=30,
+            cmd_timeout=None,
+            banner_timeout=100,
+        )
+
+        with hook.get_conn() as client:
+            # sleeping for 20 sec which is longer than default timeout of 10 seconds
+            # to validate that no timeout is applied
+            hook.exec_ssh_client_command(
+                client,
+                "sleep 20",
+                environment=False,
+                get_pty=None,
+            )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_no_host_key_check_true_and_allow_host_key_changes_true(self, ssh_mock):

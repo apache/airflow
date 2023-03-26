@@ -46,6 +46,7 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
+from airflow.jobs.base_job import BaseJob
 from airflow.models import errors
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
@@ -62,6 +63,7 @@ from airflow.utils.process_utils import (
     reap_process_group,
     set_new_process_group,
 )
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
@@ -379,6 +381,7 @@ class DagFileProcessorManager(LoggingMixin):
         pickle_dags: bool,
         signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
+        job: BaseJob | None = None,
     ):
         super().__init__()
         # known files; this will be updated every `dag_dir_list_interval` and stuff added/removed accordingly
@@ -392,6 +395,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._async_mode = async_mode
         self._parsing_start_time: int | None = None
         self._dag_directory = dag_directory
+        self._job = job
 
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
@@ -572,6 +576,8 @@ class DagFileProcessorManager(LoggingMixin):
         while True:
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
+            if self._job:
+                self._job.heartbeat()
             if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
                 agent_signal = self._direct_scheduler_conn.recv()
 
@@ -687,6 +693,10 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
+        self._fetch_callbacks_with_retries(max_callbacks, session)
+
+    @retry_db_transaction
+    def _fetch_callbacks_with_retries(self, max_callbacks: int, session: Session):
         """Fetches callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
