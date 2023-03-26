@@ -42,5 +42,5 @@ spec:
       tier: airflow
       component: scheduler
       release: {{ .Release.Name }}
-{{ toYaml .Values.scheduler.podDisruptionBudget.config | indent 2 }}
+  {{- toYaml .Values.scheduler.podDisruptionBudget.config | nindent 2 }}
 {{- end }}
