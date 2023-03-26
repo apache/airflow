@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -25,7 +26,11 @@ import click
 from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
-from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES, all_selective_test_types
+from airflow_breeze.global_constants import (
+    ALLOWED_TEST_TYPE_CHOICES,
+    PROVIDER_PACKAGE_JSON_FILE,
+    all_selective_test_types,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -56,6 +61,7 @@ from airflow_breeze.utils.docker_command_utils import (
     DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
+    remove_docker_networks,
 )
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
@@ -129,7 +135,6 @@ def _run_test(
         env_variables["TEST_TIMEOUT"] = str(test_timeout)
     if db_reset:
         env_variables["DB_RESET"] = "true"
-    perform_environment_checks()
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
     env_variables["SKIP_PROVIDER_TESTS"] = str(exec_shell_params.skip_provider_tests).lower()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
@@ -158,6 +163,7 @@ def _run_test(
     ]
     run_cmd.extend(list(extra_pytest_args))
     try:
+        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
         result = run_command(
             run_cmd,
             env=env_variables,
@@ -198,6 +204,7 @@ def _run_test(
             check=False,
             verbose_override=False,
         )
+        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
@@ -217,8 +224,9 @@ def _run_tests_in_pool(
     debug_resources: bool,
     skip_cleanup: bool,
 ):
-    with ci_group(f"Testing {' '.join(tests_to_run)}"):
-        all_params = [f"Test {test_type}" for test_type in tests_to_run]
+    escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
+    with ci_group(f"Testing {' '.join(escaped_tests)}"):
+        all_params = [f"{test_type}" for test_type in tests_to_run]
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
@@ -242,9 +250,10 @@ def _run_tests_in_pool(
                 )
                 for index, test_type in enumerate(tests_to_run)
             ]
+    escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
     check_async_run_results(
         results=results,
-        success=f"Tests {' '.join(tests_to_run)} completed successfully",
+        success=f"Tests {' '.join(escaped_tests)} completed successfully",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -270,7 +279,7 @@ def run_tests_in_parallel(
     memory_available = psutil.virtual_memory()
     if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
         # Run heavy tests sequentially
-        heavy_test_types_to_run = {"Core", "Providers"} & set(test_types_list)
+        heavy_test_types_to_run = {"Core"} & set(test_types_list)
         if heavy_test_types_to_run:
             # some of those are requested
             get_console().print(
@@ -405,10 +414,18 @@ def tests(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
+    perform_environment_checks()
+    split_provider_test = False
     if run_in_parallel:
+        if parallelism > 4:
+            get_console().print(
+                "The parallelism is bigger than 4, we want to split "
+                "providers into separate test types to gain on parallelism"
+            )
+            split_provider_test = True
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
-            test_types_list=test_types.split(" "),
+            test_types_list=generate_list_of_tests(test_types, split_provider_tests=split_provider_test),
             extra_pytest_args=extra_pytest_args,
             db_reset=db_reset,
             # Allow to pass information on whether to use full tests in the parallel execution mode
@@ -430,6 +447,42 @@ def tests(
             test_timeout=test_timeout,
         )
         sys.exit(returncode)
+
+
+def generate_list_of_tests(test_types: str, split_provider_tests: bool) -> list[str]:
+    """
+    Generates list of tests to run based on test types and whether we want to split providers or not.
+    :param test_types: Test types in a form of space-separated string
+    :param split_provider_tests: whether to split providers to separate tests per provider. For small number
+        of cpus we do not want to split provider tests as the overhead with initializing multiple docker
+        compose/DB instances is too high vs. gain from running multiple providers in parallel.
+    :return: list of test types to run
+    """
+    split_test_types = test_types.split(" ")
+    if split_provider_tests:
+        final_list = split_test_types
+    else:
+        final_list = []
+        for test_type in split_test_types:
+            if test_type.startswith("Providers"):
+                if test_type == "Providers" or test_types == "Providers[all]":
+                    final_list.extend(
+                        [
+                            f"Providers[{key}]"
+                            for key in json.loads(PROVIDER_PACKAGE_JSON_FILE.read_text()).keys()
+                        ]
+                    )
+                else:
+                    provider_keys = test_type.replace("Providers[", "").replace("]", "").split(",")
+                    final_list.extend([f"Providers[{provider}]" for provider in provider_keys])
+            else:
+                final_list.append(test_type)
+    # Make "Providers", "Providers[amazon]" "WWW tests first as they are the longest test types to run and
+    # should start early in the process. This is to make sure that last tests to run are small. In case
+    # last tests to run are long then the parallelism is not fully utilized because the long last test
+    # will only use single CPU while it is running alone.
+    final_list.sort(key=lambda x: x in ["Providers", "Providers[amazon]", "WWW"], reverse=True)
+    return final_list
 
 
 @testing.command(
@@ -495,6 +548,7 @@ def integration_tests(
         skip_provider_tests=skip_provider_tests,
     )
     cleanup_python_generated_files()
+    perform_environment_checks()
     returncode, _ = _run_test(
         exec_shell_params=exec_shell_params,
         extra_pytest_args=extra_pytest_args,
