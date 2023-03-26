@@ -36,7 +36,7 @@ import pytest
 from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import SIGSEGV_MESSAGE, LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.dagbag import DagBag
@@ -328,7 +328,7 @@ class TestLocalTaskJob:
             job.heartrate = 2
             heartbeat_records = []
             job.job_runner.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
-            job.run()
+            run_job(job)
             assert len(heartbeat_records) > 2
             for i in range(1, len(heartbeat_records)):
                 time1 = heartbeat_records[i - 1]
@@ -357,7 +357,7 @@ class TestLocalTaskJob:
         job1 = Job(job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id)
 
         with timeout(30):
-            job1.run()
+            run_job(job1)
         ti.refresh_from_db()
         assert State.SUCCESS == ti.state
         assert (
@@ -395,7 +395,7 @@ class TestLocalTaskJob:
             executor=SequentialExecutor(),
         )
         with patch.object(StandardTaskRunner, "start", return_value=None) as mock_method:
-            job1.run()
+            run_job(job1)
             mock_method.assert_not_called()
 
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
@@ -422,7 +422,7 @@ class TestLocalTaskJob:
         mock_return_code.side_effect = [None, -9, None]
 
         with timeout(10):
-            job1.run()
+            run_job(job1)
 
         mock_stats_incr.assert_has_calls(
             [
@@ -452,7 +452,7 @@ class TestLocalTaskJob:
         mock_return_code.side_effect = [None, 0, None]
 
         with timeout(10):
-            job1.run()
+            run_job(job1)
         assert mock_return_code.call_count == 3
         time_end = time.time()
 
@@ -494,7 +494,7 @@ class TestLocalTaskJob:
         with timeout(30):
             # This should be _much_ shorter to run.
             # If you change this limit, make the timeout in the callable above bigger
-            job1.run()
+            run_job(job1)
 
         ti.refresh_from_db()
         assert ti.state == State.FAILED
@@ -532,7 +532,7 @@ class TestLocalTaskJob:
         with timeout(30):
             # This should be _much_ shorter to run.
             # If you change this limit, make the timeout in the callable above bigger
-            job1.run()
+            run_job(job1)
 
         ti.refresh_from_db()
         assert ti.state == State.SKIPPED
@@ -562,7 +562,7 @@ class TestLocalTaskJob:
             executor=SequentialExecutor(),
             dag_id=ti.dag_id,
         )
-        job1.run()
+        run_job(job1)
 
         ti.refresh_from_db()
         assert ti.state == State.FAILED  # task exits with failure state
@@ -602,7 +602,7 @@ class TestLocalTaskJob:
         )
 
         with timeout(30):
-            job.run()  # This should run fast because of the return_code=None
+            run_job(job)  # This should run fast because of the return_code=None
         ti.refresh_from_db()
         assert (
             "State of this instance has been externally set to success. Terminating instance." in caplog.text
@@ -678,7 +678,7 @@ class TestLocalTaskJob:
             dag_id=ti.dag_id,
             executor=SequentialExecutor(),
         )
-        job1.run()
+        run_job(job1)
 
         ti.refresh_from_db()
 
@@ -782,7 +782,7 @@ class TestLocalTaskJob:
             )
             job1.task_runner = StandardTaskRunner(job1)
 
-            job1.run()
+            run_job(job1)
             self.validate_ti_states(dag_run, first_run_state, error_message)
             if second_run_state:
                 ti = TaskInstance(
@@ -798,7 +798,7 @@ class TestLocalTaskJob:
                     executor=SequentialExecutor(),
                 )
                 job2.task_runner = StandardTaskRunner(job2)
-                job2.run()
+                run_job(job2)
                 self.validate_ti_states(dag_run, second_run_state, error_message)
             if scheduler_job.job_runner.processor_agent:
                 scheduler_job.job_runner.processor_agent.end()
@@ -837,7 +837,7 @@ class TestLocalTaskJob:
             dag_id=ti2_k.dag_id,
         )
         job1.task_runner = StandardTaskRunner(job1)
-        job1.run()
+        run_job(job1)
 
         ti2_k.refresh_from_db()
         ti2_l.refresh_from_db()
@@ -887,7 +887,7 @@ class TestLocalTaskJob:
         settings.engine.dispose()
         with timeout(10):
             with pytest.raises(AirflowException, match=r"Segmentation Fault detected"):
-                job.run()
+                run_job(job)
         assert SIGSEGV_MESSAGE in caplog.messages
 
 
@@ -915,7 +915,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
 
     job = Job(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id, executor=MockExecutor())
     with assert_queries_count(18):
-        job.run()
+        run_job(job)
 
 
 class TestSigtermOnRunner:
@@ -1036,4 +1036,4 @@ class TestSigtermOnRunner:
             executor=SequentialExecutor(),
             dag_id=ti.dag_id,
         )
-        job.run()
+        run_job(job)
