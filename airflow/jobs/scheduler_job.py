@@ -26,6 +26,7 @@ import sys
 import time
 import warnings
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
@@ -81,6 +82,17 @@ if TYPE_CHECKING:
 TI = TaskInstance
 DR = DagRun
 DM = DagModel
+
+
+@dataclass
+class ConcurrencyMap:
+    """Dataclass to represent concurrency maps"""
+
+    dag_active_tasks_map: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    task_concurrency_map: DefaultDict[tuple[str, str], int] = field(default_factory=lambda: defaultdict(int))
+    task_dagrun_concurrency_map: DefaultDict[tuple[str, str, str], int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
 
 
 def _is_parent_process() -> bool:
@@ -219,11 +231,7 @@ class SchedulerJob(BaseJob):
             and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < scheduler_health_check_threshold
         )
 
-    def __get_concurrency_maps(
-        self, states: list[TaskInstanceState], session: Session
-    ) -> tuple[
-        DefaultDict[str, int], DefaultDict[tuple[str, str], int], DefaultDict[tuple[str, str, str], int]
-    ]:
+    def __get_concurrency_maps(self, states: list[TaskInstanceState], session: Session) -> ConcurrencyMap:
         """
         Get the concurrency maps.
 
@@ -237,15 +245,13 @@ class SchedulerJob(BaseJob):
             .filter(TI.state.in_(states))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         ).all()
-        dag_map: DefaultDict[str, int] = defaultdict(int)
-        task_map: DefaultDict[tuple[str, str], int] = defaultdict(int)
-        task_dagrun_map: DefaultDict[tuple[str, str, str], int] = defaultdict(int)
+        concurrency_map = ConcurrencyMap()
         for result in ti_concurrency_query:
             task_id, run_id, dag_id, count = result
-            dag_map[dag_id] += count
-            task_map[(dag_id, task_id)] += count
-            task_dagrun_map[(dag_id, run_id, task_id)] = count
-        return dag_map, task_map, task_dagrun_map
+            concurrency_map.dag_active_tasks_map[dag_id] += count
+            concurrency_map.task_concurrency_map[(dag_id, task_id)] += count
+            concurrency_map.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] = count
+        return concurrency_map
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
@@ -299,12 +305,7 @@ class SchedulerJob(BaseJob):
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        dag_active_tasks_map: DefaultDict[str, int]
-        task_concurrency_map: DefaultDict[tuple[str, str], int]
-        task_dagrun_concurrency_map: DefaultDict[tuple[str, str, str], int]
-        dag_active_tasks_map, task_concurrency_map, task_dagrun_concurrency_map = self.__get_concurrency_maps(
-            states=list(EXECUTION_STATES), session=session
-        )
+        concurrency_map = self.__get_concurrency_maps(states=list(EXECUTION_STATES), session=session)
 
         num_tasks_in_executor = 0
         # Number of tasks that cannot be scheduled because of no open slot in pool
@@ -445,7 +446,7 @@ class SchedulerJob(BaseJob):
                 # reached.
                 dag_id = task_instance.dag_id
 
-                current_active_tasks_per_dag = dag_active_tasks_map[dag_id]
+                current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
                 self.log.info(
                     "DAG %s has %s/%s running and queued tasks",
@@ -487,7 +488,7 @@ class SchedulerJob(BaseJob):
                         ).max_active_tis_per_dag
 
                     if task_concurrency_limit is not None:
-                        current_task_concurrency = task_concurrency_map[
+                        current_task_concurrency = concurrency_map.task_concurrency_map[
                             (task_instance.dag_id, task_instance.task_id)
                         ]
 
@@ -507,7 +508,7 @@ class SchedulerJob(BaseJob):
                         ).max_active_tis_per_dagrun
 
                     if task_dagrun_concurrency_limit is not None:
-                        current_task_dagrun_concurrency = task_dagrun_concurrency_map[
+                        current_task_dagrun_concurrency = concurrency_map.task_dagrun_concurrency_map[
                             (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
                         ]
 
@@ -524,9 +525,9 @@ class SchedulerJob(BaseJob):
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
-                dag_active_tasks_map[dag_id] += 1
-                task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
-                task_dagrun_concurrency_map[
+                concurrency_map.dag_active_tasks_map[dag_id] += 1
+                concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
+                concurrency_map.task_dagrun_concurrency_map[
                     (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
                 ] += 1
 
