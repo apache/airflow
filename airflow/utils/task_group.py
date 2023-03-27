@@ -38,7 +38,6 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
-from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -157,10 +156,6 @@ class TaskGroup(DAGNode):
         self.downstream_group_ids: set[str | None] = set()
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
-
-        if SetupTeardownContext.is_setup or SetupTeardownContext.is_teardown:
-            # TODO: This might not be the ideal place to check this.
-            raise AirflowException("Task groups cannot be marked as setup or teardown.")
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
