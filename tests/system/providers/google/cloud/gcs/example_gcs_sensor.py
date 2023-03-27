@@ -124,6 +124,12 @@ with models.DAG(
     )
     # [END howto_sensor_object_exists_task_async]
 
+    # [START howto_sensor_object_exists_task_defered]
+    gcs_object_exists_defered = GCSObjectExistenceSensor(
+        bucket=BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_exists_defered", deferrable=True
+    )
+    # [END howto_sensor_object_exists_task_defered]
+
     # [START howto_sensor_object_with_prefix_exists_task]
     gcs_object_with_prefix_exists = GCSObjectsWithPrefixExistenceSensor(
         bucket=BUCKET_NAME,
@@ -144,7 +150,12 @@ with models.DAG(
         sleep,
         upload_file,
         # TEST BODY
-        [gcs_object_exists, gcs_object_exists_async, gcs_object_with_prefix_exists],
+        [
+            gcs_object_exists,
+            gcs_object_exists_defered,
+            gcs_object_exists_async,
+            gcs_object_with_prefix_exists,
+        ],
         # TEST TEARDOWN
         delete_bucket,
     )

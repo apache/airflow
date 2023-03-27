@@ -63,7 +63,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
+from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -84,6 +84,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
@@ -448,6 +449,28 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
 
+    def test_task_sigterm_calls_on_failure_callback(self, dag_maker, caplog):
+        """
+        Test that ensures that tasks call on_failure_callback when they receive sigterm
+        """
+
+        def task_function(ti):
+            os.kill(ti.pid, signal.SIGTERM)
+
+        with dag_maker():
+            task_ = PythonOperator(
+                task_id="test_on_failure",
+                python_callable=task_function,
+                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task_
+        with pytest.raises(AirflowException):
+            ti.run()
+        assert "on_failure_callback called" in caplog.text
+
     def test_task_sigterm_works_with_retries(self, dag_maker):
         """
         Test that ensures that tasks are retried when they receive sigterm
@@ -471,28 +494,6 @@ class TestTaskInstance:
             ti.run()
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
-
-    def test_task_sigterm_calls_on_failure_callack(self, dag_maker, caplog):
-        """
-        Test that ensures that tasks call on_failure_callback when they receive sigterm
-        """
-
-        def task_function(ti):
-            os.kill(ti.pid, signal.SIGTERM)
-
-        with dag_maker():
-            task_ = PythonOperator(
-                task_id="test_on_failure",
-                python_callable=task_function,
-                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
-            )
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        ti.task = task_
-        with pytest.raises(AirflowException):
-            ti.run()
-        assert "on_failure_callback called" in caplog.text
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
     def test_task_sigterm_doesnt_change_state_of_finished_tasks(self, state, dag_maker):
@@ -1483,7 +1484,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=models.XCOM_RETURN_KEY) is None
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
 
     def test_post_execute_hook(self, dag_maker):
         """

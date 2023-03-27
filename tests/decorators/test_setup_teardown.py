@@ -17,7 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+from airflow import AirflowException
 from airflow.decorators import setup, task, task_group, teardown
+from airflow.operators.bash import BashOperator
 
 
 class TestSetupTearDownTask:
@@ -59,8 +63,6 @@ class TestSetupTearDownTask:
         assert setup_task._is_setup
 
     def test_marking_operator_as_setup_task(self, dag_maker):
-        from airflow.operators.bash import BashOperator
-
         with dag_maker() as dag:
             BashOperator.as_setup(task_id="mytask", bash_command='echo "I am a setup task"')
 
@@ -82,8 +84,6 @@ class TestSetupTearDownTask:
         assert teardown_task._is_teardown
 
     def test_marking_operator_as_teardown_task(self, dag_maker):
-        from airflow.operators.bash import BashOperator
-
         with dag_maker() as dag:
             BashOperator.as_teardown(task_id="mytask", bash_command='echo "I am a setup task"')
 
@@ -91,7 +91,7 @@ class TestSetupTearDownTask:
         teardown_task = dag.task_group.children["mytask"]
         assert teardown_task._is_teardown
 
-    def test_setup_taskgroup(self, dag_maker):
+    def test_setup_taskgroup_decorator(self, dag_maker):
         @setup
         @task_group
         def mygroup():
@@ -101,16 +101,14 @@ class TestSetupTearDownTask:
 
             mytask()
 
-        with dag_maker() as dag:
-            mygroup()
+        with dag_maker():
+            with pytest.raises(
+                expected_exception=AirflowException,
+                match="Task groups cannot be marked as setup or teardown.",
+            ):
+                mygroup()
 
-        assert len(dag.task_group.children) == 1
-        setup_task_group = dag.task_group.children["mygroup"]
-        assert len(setup_task_group.children) == 1
-        setup_task = setup_task_group.children["mygroup.mytask"]
-        assert setup_task._is_setup
-
-    def test_teardown_taskgroup(self, dag_maker):
+    def test_teardown_taskgroup_decorator(self, dag_maker):
         @teardown
         @task_group
         def mygroup():
@@ -120,11 +118,38 @@ class TestSetupTearDownTask:
 
             mytask()
 
-        with dag_maker() as dag:
-            mygroup()
+        with dag_maker():
+            with pytest.raises(
+                expected_exception=AirflowException,
+                match="Task groups cannot be marked as setup or teardown.",
+            ):
+                mygroup()
 
-        assert len(dag.task_group.children) == 1
-        teardown_task_group = dag.task_group.children["mygroup"]
-        assert len(teardown_task_group.children) == 1
-        teardown_task = teardown_task_group.children["mygroup.mytask"]
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_teardown_task_decorators_works_with_on_failure_fail_dagrun(
+        self, on_failure_fail_dagrun, dag_maker
+    ):
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        def mytask():
+            print("I am a teardown task")
+
+        with dag_maker() as dag:
+            mytask()
+        teardown_task = dag.task_group.children["mytask"]
         assert teardown_task._is_teardown
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert len(dag.task_group.children) == 1
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_classic_teardown_task_works_with_on_failure_fail_dagrun(self, on_failure_fail_dagrun, dag_maker):
+        with dag_maker() as dag:
+            BashOperator.as_teardown(
+                task_id="mytask",
+                bash_command='echo "I am a teardown task"',
+                on_failure_fail_dagrun=on_failure_fail_dagrun,
+            )
+
+        teardown_task = dag.task_group.children["mytask"]
+        assert teardown_task._is_teardown
+        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert len(dag.task_group.children) == 1

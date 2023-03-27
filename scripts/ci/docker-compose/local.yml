@@ -70,6 +70,9 @@ services:
         source: ../../../airflow
         target: /opt/airflow/airflow
       - type: bind
+        source: ../../../constraints
+        target: /opt/airflow/constraints
+      - type: bind
         source: ../../../provider_packages
         target: /opt/airflow/provider_packages
       - type: bind
