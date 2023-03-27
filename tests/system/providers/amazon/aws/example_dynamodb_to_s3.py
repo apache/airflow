@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
 
 import boto3
+from pytest import importorskip
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Op
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
+importorskip("aiobotocore")
 DAG_ID = "example_dynamodb_to_s3"
 
 sys_test_context_task = SystemTestContextBuilder().build()

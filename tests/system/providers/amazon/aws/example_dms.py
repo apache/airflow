@@ -21,13 +21,13 @@ https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Security.html#CHAP_Securit
 """
 
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 import json
 from datetime import datetime
 from typing import cast
 
 import boto3
+from pytest import importorskip
 from sqlalchemy import Column, MetaData, String, Table, create_engine
 
 from airflow import DAG
@@ -50,6 +50,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 
+importorskip("aiobotocore")
 DAG_ID = "example_dms"
 ROLE_ARN_KEY = "ROLE_ARN"
 

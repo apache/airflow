@@ -15,13 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 import json
 import subprocess
 from datetime import datetime
 
 import boto3
+from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
+importorskip("aiobotocore")
 DAG_ID = "example_emr_eks"
 
 # Externally fetched variables
