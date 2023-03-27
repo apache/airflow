@@ -164,7 +164,7 @@ Timers
 Name                                                Description
 =================================================== ========================================================================
 ``dagrun.dependency-check.<dag_id>``                Milliseconds taken to check DAG dependencies
-``dag.<dag_id>.<task_id>.duration``                 Milliseconds taken to finish a task
+``dag.<dag_id>.<task_id>.duration``                 Seconds taken to finish a task
 ``dag_processing.last_duration.<dag_file>``         Seconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
