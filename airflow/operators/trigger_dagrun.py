@@ -43,24 +43,10 @@ XCOM_RUN_ID = "trigger_run_id"
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
-
     from airflow.models.taskinstance import TaskInstanceKey
 
 
-def _parse_execution_date(date: datetime.datetime | str | None) -> datetime.datetime:
-    if isinstance(date, datetime.datetime):
-        return date
-    elif isinstance(date, str):
-        return timezone.parse(date)
-    else:
-        return timezone.utcnow()
 
-
-def _get_run_id(run_id: str | None, parsed_execution_date: datetime.datetime) -> str:
-    if run_id:
-        return run_id
-    else:
-        return DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -142,15 +128,23 @@ class TriggerDagRunOperator(BaseOperator):
         self.execution_date = execution_date
 
     def execute(self, context: Context):
-
-        parsed_execution_date = _parse_execution_date(self.execution_date)
+        
+        if isinstance(self.execution_date, datetime.datetime):
+            parsed_execution_date = self.execution_date
+        elif isinstance(self.execution_date, str):
+            parsed_execution_date = timezone.parse(self.execution_date)
+        else:
+            parsed_execution_date = timezone.utcnow()
 
         try:
             json.dumps(self.conf)
         except TypeError:
             raise AirflowException("conf parameter should be JSON Serializable")
 
-        run_id = _get_run_id(self.trigger_run_id, parsed_execution_date)
+        if self.trigger_run_id:
+            run_id = self.trigger_run_id
+        else:
+            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
 
         try:
             dag_run = trigger_dag(
@@ -187,7 +181,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         if self.wait_for_completion:
 
-            # Kick of the deferral process
+            # Kick off the deferral process
             if self._defer:
                 self.defer(
                     trigger=DagStateTrigger(
@@ -217,24 +211,17 @@ class TriggerDagRunOperator(BaseOperator):
                     return
 
     @provide_session
-    def execute_complete(self, context: Context, session: "Session", **kwargs):
-        parsed_execution_date = _parse_execution_date(self.execution_date)
+    def execute_complete(self, context: Context, session: Session, **kwargs):
+        parsed_execution_date =  context["execution_date"]
 
-        dag_run = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == parsed_execution_date)
-            .all()
-        )
-
-        if len(dag_run) > 1:
-            raise AirflowException(
-                f"Detected duplicate DAG run ({self.trigger_dag_id}) and execution date "
-                f"({self.execution_date}), found {len(dag_run)} records"
+        try:
+            dag_run = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == parsed_execution_date)
+                .one()
             )
 
-        dag_run = dag_run[0]
-
-        if not dag_run:
+        except NoResultFound:
             raise AirflowException(
                 f"No DAG run found for DAG {self.trigger_dag_id} and execution date {self.execution_date}"
             )
