@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import WEBSERVER_CONFIG, get_airflow_home, initialize_config, AIRFLOW_HOME
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
 from airflow.www.views import (
