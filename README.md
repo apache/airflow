@@ -34,6 +34,8 @@
 [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors)
 [![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/6)](https://ossrank.com/p/6)
 
+[![Coverage Status](https://coveralls.io/repos/github/socratess/airflow/badge.svg?branch=main)](https://coveralls.io/github/socratess/airflow?branch=main)
+
 [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
