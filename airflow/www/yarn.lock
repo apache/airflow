@@ -3936,15 +3936,13 @@ babel-jest@^27.5.1:
     graceful-fs "^4.2.9"
     slash "^3.0.0"
 
-babel-loader@^8.1.0:
-  version "8.2.2"
-  resolved "https://registry.yarnpkg.com/babel-loader/-/babel-loader-8.2.2.tgz#9363ce84c10c9a40e6c753748e1441b60c8a0b81"
-  integrity sha512-JvTd0/D889PQBtUXJ2PXaKU/pjZDMtHA9V2ecm+eNRmmBCMR09a+fmpGTNwnJtFmFl5Ei7Vy47LjBb+L0wQ99g==
+babel-loader@^9.1.0:
+  version "9.1.2"
+  resolved "https://registry.yarnpkg.com/babel-loader/-/babel-loader-9.1.2.tgz#a16a080de52d08854ee14570469905a5fc00d39c"
+  integrity sha512-mN14niXW43tddohGl8HPu5yfQq70iUThvFL/4QzESA7GcZoC0eVOhvWdQ8+3UlSjaDE9MVtsW9mxDY07W7VpVA==
   dependencies:
-    find-cache-dir "^3.3.1"
-    loader-utils "^1.4.0"
-    make-dir "^3.1.0"
-    schema-utils "^2.6.5"
+    find-cache-dir "^3.3.2"
+    schema-utils "^4.0.0"
 
 babel-plugin-dynamic-import-node@^2.3.3:
   version "2.3.3"
@@ -6322,6 +6320,15 @@ find-cache-dir@^3.3.1:
     make-dir "^3.0.2"
     pkg-dir "^4.1.0"
 
+find-cache-dir@^3.3.2:
+  version "3.3.2"
+  resolved "https://registry.yarnpkg.com/find-cache-dir/-/find-cache-dir-3.3.2.tgz#b30c5b6eff0730731aea9bbd9dbecbd80256d64b"
+  integrity sha512-wXZV5emFEjrridIgED11OoUKLxiYjAcqot/NJdAkOhlJ+vGzwhOAfcG5OX1jP+S0PcjEn8bdMJv+g2jwQ3Onig==
+  dependencies:
+    commondir "^1.0.1"
+    make-dir "^3.0.2"
+    pkg-dir "^4.1.0"
+
 find-root@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/find-root/-/find-root-1.1.0.tgz#abcfc8ba76f708c42a97b3d685b7e9450bfb9ce4"
@@ -7940,15 +7947,6 @@ loader-runner@^4.2.0:
   resolved "https://registry.yarnpkg.com/loader-runner/-/loader-runner-4.3.0.tgz#c1b4a163b99f614830353b16755e7149ac2314e1"
   integrity sha512-3R/1M+yS3j5ou80Me59j7F9IMs4PXs3VqRrm0TU3AbKPxlmpoY1TNscJV/oGJXo8qCatFGTfDbY6W6ipGOYXfg==
 
-loader-utils@^1.4.0:
-  version "1.4.2"
-  resolved "https://registry.yarnpkg.com/loader-utils/-/loader-utils-1.4.2.tgz#29a957f3a63973883eb684f10ffd3d151fec01a3"
-  integrity sha512-I5d00Pd/jwMD2QCduo657+YM/6L3KZu++pmX9VFncxaxvHcru9jx1lBaFft+r4Mt2jK0Yhp41XlRAihzPxHNCg==
-  dependencies:
-    big.js "^5.2.2"
-    emojis-list "^3.0.0"
-    json5 "^1.0.1"
-
 loader-utils@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/loader-utils/-/loader-utils-2.0.0.tgz#e4cace5b816d425a166b5f097e10cd12b36064b0"
@@ -8075,7 +8073,7 @@ lz-string@^1.4.4:
   resolved "https://registry.yarnpkg.com/lz-string/-/lz-string-1.4.4.tgz#c0d8eaf36059f705796e1e344811cf4c498d3a26"
   integrity sha1-wNjq82BZ9wV5bh40SBHPTEmNOiY=
 
-make-dir@^3.0.0, make-dir@^3.0.2, make-dir@^3.1.0:
+make-dir@^3.0.0, make-dir@^3.0.2:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-3.1.0.tgz#415e967046b3a7f1d185277d84aa58203726a13f"
   integrity sha512-g3FeP20LNwhALb/6Cz6Dd4F2ngze0jz7tbzrD2wAV+o9FeNHe4rL+yK2md0J/fiSf1sa1ADhXqi5+oVwOM/eGw==
