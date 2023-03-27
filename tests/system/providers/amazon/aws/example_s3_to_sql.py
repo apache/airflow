@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
 
 import boto3
+from pytest import importorskip
 
 from airflow import DAG, settings
 from airflow.decorators import task
@@ -44,7 +44,7 @@ from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContex
 from tests.system.utils.watcher import watcher
 
 sys_test_context_task = SystemTestContextBuilder().build()
-
+importorskip("aiobotocore")
 DAG_ID = "example_s3_to_sql"
 
 DB_LOGIN = "adminuser"

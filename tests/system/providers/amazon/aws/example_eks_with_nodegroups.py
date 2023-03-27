@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
 
 import boto3
@@ -39,7 +38,7 @@ from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContex
 
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
-
+importorskip("aiobotocore")
 DAG_ID = "example_eks_with_nodegroups"
 
 # Externally fetched variables:

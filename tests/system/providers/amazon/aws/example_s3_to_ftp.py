@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
+
+from pytest import importorskip
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -27,7 +28,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
-
+importorskip("aiobotocore")
 DAG_ID = "example_s3_to_ftp"
 
 with models.DAG(

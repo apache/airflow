@@ -19,10 +19,11 @@ This is a basic example dag for using `GoogleApiToS3Operator` to retrieve Google
 You need to set all env variables to request the data.
 """
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
 from os import getenv
+
+from pytest import importorskip
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
@@ -32,7 +33,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
-
+importorskip("aiobotocore")
 DAG_ID = "example_google_api_sheets_to_s3"
 
 GOOGLE_SHEET_ID = getenv("GOOGLE_SHEET_ID", "test-google-sheet-id")

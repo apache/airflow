@@ -17,9 +17,10 @@
 # under the License.
 
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
+
+from pytest import importorskip
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
@@ -30,6 +31,7 @@ from airflow.providers.amazon.aws.operators.emr import (
 from airflow.providers.amazon.aws.sensors.emr import EmrNotebookExecutionSensor
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
+importorskip("aiobotocore")
 DAG_ID = "example_emr_notebook"
 # Externally fetched variables:
 EDITOR_ID_KEY = "EDITOR_ID"

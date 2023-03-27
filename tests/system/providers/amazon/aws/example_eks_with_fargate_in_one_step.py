@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
+
+from pytest import importorskip
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -32,6 +33,7 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksF
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
+importorskip("aiobotocore")
 DAG_ID = "example_eks_with_fargate_in_one_step"
 
 # Externally fetched variables

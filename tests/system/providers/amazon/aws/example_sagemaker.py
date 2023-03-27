@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 import json
 import logging
 import subprocess
@@ -24,6 +23,7 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 import boto3
+from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -58,6 +58,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
+importorskip("aiobotocore")
 DAG_ID = "example_sagemaker"
 
 # Externally fetched variables:

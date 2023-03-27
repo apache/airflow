@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 import json
 from datetime import datetime
 
 import boto3
+from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -48,7 +48,7 @@ NOTES:  If Create Ingestion fails for any reason, that ingestion name will remai
  into this behavior, changing the template for the ingestion name or the ENV_ID and re-running
  the test should resolve the issue.
 """
-
+importorskip("aiobotocore")
 DAG_ID = "example_quicksight"
 
 sys_test_context_task = SystemTestContextBuilder().build()

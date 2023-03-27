@@ -20,9 +20,10 @@
    https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EMRforDynamoDB.Tutorial.html
 """
 from __future__ import annotations
-from pytest import importorskip
-importorskip("aiobotocore")
+
 from datetime import datetime
+
+from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -34,6 +35,7 @@ from airflow.utils import db
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
+importorskip("aiobotocore")
 DAG_ID = "example_hive_to_dynamodb"
 
 # Externally fetched variables:
