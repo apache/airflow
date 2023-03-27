@@ -22,6 +22,8 @@ import json
 import time
 from typing import TYPE_CHECKING, Sequence, cast
 
+from sqlalchemy.orm.exc import NoResultFound
+
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
@@ -43,10 +45,8 @@ XCOM_RUN_ID = "trigger_run_id"
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
     from airflow.models.taskinstance import TaskInstanceKey
-
-
-
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -128,7 +128,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.execution_date = execution_date
 
     def execute(self, context: Context):
-        
+
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
@@ -212,7 +212,7 @@ class TriggerDagRunOperator(BaseOperator):
 
     @provide_session
     def execute_complete(self, context: Context, session: Session, **kwargs):
-        parsed_execution_date =  context["execution_date"]
+        parsed_execution_date = context["execution_date"]
 
         try:
             dag_run = (
