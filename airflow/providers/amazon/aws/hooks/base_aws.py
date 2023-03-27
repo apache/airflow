@@ -43,7 +43,6 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
-from aiobotocore.session import get_session as async_get_session
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
@@ -59,7 +58,6 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
-from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -130,6 +128,9 @@ class BaseSessionFactory(LoggingMixin):
 
     def create_session(self, deferrable: bool = False) -> boto3.session.Session:
         """Create boto3 or aiobotocore Session from connection config."""
+        from aiobotocore.session import get_session as async_get_session
+        from pdb import set_trace
+        #set_trace()
         if not self.conn:
             self.log.info(
                 "No connection ID provided. Fallback on boto3 credential strategy (region_name=%r). "
@@ -844,6 +845,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         :param deferrable: If True, the waiter is going to be an async custom waiter.
 
         """
+        from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
         if deferrable and not client:
             raise ValueError("client must be provided for a deferrable waiter.")
         client = client or self.conn

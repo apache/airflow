@@ -17,7 +17,8 @@
 # under the License.
 
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 import json
 from datetime import datetime
 

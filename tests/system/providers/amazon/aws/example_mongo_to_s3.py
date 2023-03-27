@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
