@@ -87,7 +87,7 @@ class DockerHook(BaseHook):
         ca_cert: str | None = None,
         client_cert: str | None = None,
         client_key: str | None = None,
-        verify: bool | None = None,
+        verify: bool = True,
         assert_hostname: str | bool | None = None,
         ssl_version: str | None = None,
     ) -> TLSConfig | bool:

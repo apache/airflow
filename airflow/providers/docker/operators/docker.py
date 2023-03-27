@@ -187,7 +187,7 @@ class DockerOperator(BaseOperator):
         tls_ca_cert: str | None = None,
         tls_client_cert: str | None = None,
         tls_client_key: str | None = None,
-        tls_verify: bool | None = None,
+        tls_verify: bool = True,
         tls_hostname: str | bool | None = None,
         tls_ssl_version: str | None = None,
         mount_tmp_dir: bool = True,
