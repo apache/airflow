@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import WEBSERVER_CONFIG, get_airflow_home, initialize_config
+from airflow.configuration import WEBSERVER_CONFIG, get_airflow_home, initialize_config, AIRFLOW_HOME
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
 from airflow.www.views import (
@@ -62,14 +62,15 @@ def test_configuration_expose_config(admin_client):
     check_content_in_response(["Airflow Configuration"], resp)
 
 
-@mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": "/tmp/webserver_config.py"})
+@mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": "/tmp/my_custom_webserver_config.py"})
 def test_webserver_configuration_config_file(admin_client):
     conf = initialize_config()
     conf.validate()
 
-    assert WEBSERVER_CONFIG == os.path.join(get_airflow_home(), "webserver_config.py")
+    assert WEBSERVER_CONFIG == os.path.join(AIRFLOW_HOME, "webserver_config.py")
 
-    config_path = os.path.join("/tmp", "webserver_config.py")
+    # new webserver config is created in this path
+    config_path = os.path.join("/tmp", "my_custom_webserver_config.py")
 
     assert os.path.isfile(config_path)
 
