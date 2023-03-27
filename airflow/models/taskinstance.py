@@ -215,7 +215,7 @@ def clear_task_instances(
             if dag and dag.has_task(task_id):
                 task = dag.get_task(task_id)
                 # Preserve original assigned queue when clearing a task
-                ti.refresh_from_task(task, queue_override=task.queue)
+                ti.refresh_from_task(task, queue_override=ti.queue)
                 task_retries = task.retries
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
@@ -859,7 +859,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def refresh_from_task(
         self, task: Operator, pool_override: str | None = None, queue_override: str | None = None
-        ) -> None:
+    ) -> None:
         """
         Copy common attributes from the given task.
 
