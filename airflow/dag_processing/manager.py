@@ -393,7 +393,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
-        self._parsing_start_time: int | None = None
+        self._parsing_start_time: float | None = None
         self._dag_directory = dag_directory
         self._job = job
 
