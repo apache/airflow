@@ -19,7 +19,8 @@ This is a basic example dag for using `GoogleApiToS3Operator` to retrieve Google
 You need to set all env variables to request the data.
 """
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 from datetime import datetime
 from os import getenv
 

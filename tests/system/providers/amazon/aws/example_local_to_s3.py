@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 import os
 from datetime import datetime
 

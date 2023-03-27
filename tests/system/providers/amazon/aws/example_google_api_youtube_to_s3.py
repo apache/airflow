@@ -46,7 +46,8 @@ This can be set via the environment variable AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT,
 or by creating a custom connection.
 """
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 import json
 from datetime import datetime
 

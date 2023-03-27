@@ -19,7 +19,8 @@ This is a basic example DAG for using `SalesforceToS3Operator` to retrieve Sales
 data and upload it to an Amazon S3 bucket.
 """
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 from datetime import datetime
 
 from airflow import DAG

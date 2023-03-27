@@ -19,7 +19,8 @@ This is an example dag for using `ImapAttachmentToS3Operator` to transfer an ema
 protocol from a mail server to S3 Bucket.
 """
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 from datetime import datetime
 
 from airflow import DAG

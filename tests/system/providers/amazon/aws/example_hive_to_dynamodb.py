@@ -20,7 +20,8 @@
    https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EMRforDynamoDB.Tutorial.html
 """
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 from datetime import datetime
 
 from airflow import DAG

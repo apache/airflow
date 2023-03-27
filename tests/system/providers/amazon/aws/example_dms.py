@@ -21,7 +21,8 @@ https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Security.html#CHAP_Securit
 """
 
 from __future__ import annotations
-
+from pytest import importorskip
+importorskip("aiobotocore")
 import json
 from datetime import datetime
 from typing import cast
