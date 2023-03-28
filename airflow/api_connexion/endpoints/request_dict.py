@@ -18,9 +18,14 @@ from __future__ import annotations
 
 from typing import Any, Mapping, cast
 
+from airflow.api_connexion.exceptions import BadRequest
+
 
 def get_json_request_dict() -> Mapping[str, Any]:
     """Cast request dictionary to JSON."""
     from flask import request
 
+    if not request.data:
+        raise BadRequest(detail="POST Body must not be None")
     return cast(Mapping[str, Any], request.get_json())
+    

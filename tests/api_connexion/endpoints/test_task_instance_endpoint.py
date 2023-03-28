@@ -876,6 +876,20 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         "payload, expected",
         [
+            ({}, "POST Body must not be None"),
+        ],
+    )
+    def test_should_raise_400_for_no_json(self, payload, expected):
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert expected in response.json["detail"]
+
+    @pytest.mark.parametrize(
+        "payload, expected",
+        [
             ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
             ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
             ({"start_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
@@ -1950,3 +1964,4 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 404
+            

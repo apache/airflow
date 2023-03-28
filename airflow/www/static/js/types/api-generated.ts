@@ -1981,7 +1981,7 @@ export interface components {
       pool?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       queue?: string[];
-    };
+    } | null;
     /**
      * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
      * execution_date to figure out the next schedule.

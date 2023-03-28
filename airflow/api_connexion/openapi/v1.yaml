@@ -4275,6 +4275,7 @@ components:
 
     ListTaskInstanceForm:
       type: object
+      nullable: true
       properties:
         dag_ids:
           type: array
