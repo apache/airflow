@@ -859,6 +859,23 @@ class TestKubernetesExecutor:
         assert not mock_kube_client.patch_namespaced_pod.called
         assert pod_ids == {"foobar": {}}
 
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    def test_cleanup_stuck_queued_tasks(self, mock_kube_client, create_task_instance_of_operator):
+        """Delete any pods associated with a task stuck in queued."""
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "123"
+        tis = [create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_cleanup_stuck_tasks", task_id="test_task")]
+        pod_namespace = executor._get_pod_namespace(tis[0]) 
+        pod_name = "foo"
+        executor.cleanup_stuck_queued_tasks(tis)
+
+        mock_delete_namespaced_pod = mock.MagicMock()
+        mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespaced_pod
+
+        mock_delete_namespaced_pod.assert_called_with(pod_name, pod_namespace, body=mock_kube_client.V1DeleteOptions())
+        
+        assert executor.running == set()
+
     @pytest.mark.parametrize(
         "raw_multi_namespace_mode, raw_value_namespace_list, expected_value_in_kube_config",
         [

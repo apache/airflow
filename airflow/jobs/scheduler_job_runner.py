@@ -160,6 +160,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
+
+                # Since the functionality for stalled_task_timeout, task_adoption_timeout, and worker_pods_pending_timeout
+        # are now handled by a single config (task_queued_timeout), we can't deprecate them as we normally would.
+        # So, we'll read each config and take the max value in order to ensure we're not undercutting a legitimate
+        # use of any of these configs.
+        stalled_task_timeout = conf.getfloat("celery", "stalled_task_timeout", fallback=0)
+        if stalled_task_timeout:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'stalled_task_timeout' parameter is deprecated. "
+                "Please use 'scheduler.task_queued_timeout'.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
+        task_adoption_timeout = conf.getfloat("celery", "task_adoption_timeout", fallback=0)
+        if task_adoption_timeout:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'task_adoption_timeout' parameter is deprecated. "
+                "Please use 'scheduler.task_queued_timeout'.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
+        worker_pods_pending_timeout = conf.getfloat("kubernetes", "worker_pods_pending_timeout", fallback=0)
+        if worker_pods_pending_timeout:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'worker_pods_pending_timeout' parameter is deprecated. "
+                "Please use 'scheduler.task_queued_timeout'.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
+        task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
+        self._task_queued_timeout = max(stalled_task_timeout, task_adoption_timeout, worker_pods_pending_timeout, task_queued_timeout)
+
         self.do_pickle = do_pickle
 
         if log:
@@ -864,6 +899,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Check on start up, then every configured interval
         self.adopt_or_reset_orphaned_tasks()
 
+        timers.call_regular_interval(self._task_queued_timeout, self._fail_tasks_stuck_in_queued)
+
         timers.call_regular_interval(
             conf.getfloat("scheduler", "orphaned_tasks_check_interval", fallback=300.0),
             self.adopt_or_reset_orphaned_tasks,
@@ -1424,6 +1461,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             processor_subdir=dag_model.processor_subdir,
         )
         self.job.executor.send_callback(request)
+
+    @provide_session
+    def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+        """
+        Mark tasks stuck in queued for longer than `task_queued_timeout` as failed.
+        Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
+        track of a task, a cluster can't further scale up its workers, etc.), but tasks
+        should not be stuck in queued for a long time. This will mark tasks stuck in
+        queued for longer than `self._task_queued_timeout` as failed. If the task has
+        available retries, it will be retried.
+        """
+        self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
+        try:
+            query = session.query(TI).filter(
+                TI.state == State.QUEUED,
+                TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
+            )
+            tasks_stuck_in_queued: list[TaskInstance] = with_row_locks(
+                query, of=TI, session=session, **skip_locked(session=session)
+            ).all()
+            tasks_stuck_in_queued_messages = []
+            for ti in tasks_stuck_in_queued:
+                tasks_stuck_in_queued_messages.append(repr(ti))
+                ti.handle_failure()
+            if tasks_stuck_in_queued_messages:
+                task_instance_str = "\n\t".join(tasks_stuck_in_queued_messages)
+                self.log.warning(
+                    "Marked the following %s task instances stuck in queued as failed. If the task instance has available retries, it will be retried.\n\t%s",
+                    len(tasks_stuck_in_queued),
+                    task_instance_str,
+                )
+        except OperationalError:
+            self.log.warning("Failed to mark tasks stuck in queued as failed")
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:

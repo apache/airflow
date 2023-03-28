@@ -223,124 +223,64 @@ class TestCeleryExecutor:
             yield app.control.revoke
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_check_for_timedout_adopted_tasks(self, create_dummy_dag, dag_maker, session, mock_celery_revoke):
-        create_dummy_dag(dag_id="test_clear_stalled", task_id="task1", with_dagrun_type=None)
-        dag_run = dag_maker.create_dagrun()
+    def test_cleanup_stuck_queued_tasks_failed(self, session, mock_celery_revoke):
+        start_date = timezone.utcnow() - timedelta(days=2)
 
-        ti = dag_run.task_instances[0]
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow()
-        ti.queued_by_job_id = 1
+        with DAG("test_cleanup_stuck_queued_tasks_failed") as dag:
+            task = BaseOperator(task_id="task_1", start_date=start_date)
+
+        ti = TaskInstance(task=task, run_id=None)
         ti.external_executor_id = "231"
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
+        ti.queued_by_job_id = 1
         session.flush()
 
         executor = celery_executor.CeleryExecutor()
         executor.job_id = 1
-        executor.adopted_task_timeouts = {
-            ti.key: timezone.utcnow() - timedelta(days=1),
-        }
         executor.running = {ti.key}
         executor.tasks = {ti.key: AsyncResult("231")}
         executor.sync()
         assert executor.event_buffer == {}
         assert executor.tasks == {}
         assert executor.running == set()
-        assert executor.adopted_task_timeouts == {}
         assert mock_celery_revoke.called_with("231")
 
         ti.refresh_from_db()
-        assert ti.state == State.SCHEDULED
+        assert ti.state == State.FAILED
         assert ti.queued_by_job_id is None
         assert ti.queued_dttm is None
         assert ti.external_executor_id is None
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_check_for_stalled_tasks(self, create_dummy_dag, dag_maker, session, mock_celery_revoke):
-        create_dummy_dag(dag_id="test_clear_stalled", task_id="task1", with_dagrun_type=None)
-        dag_run = dag_maker.create_dagrun()
+    def test_cleanup_stuck_queued_tasks_retry(self, session, mock_celery_revoke):
+        start_date = timezone.utcnow() - timedelta(days=2)
 
-        ti = dag_run.task_instances[0]
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow()
-        ti.queued_by_job_id = 1
+        with DAG("test_try_adopt_task_instances_none") as dag:
+            task = BaseOperator(task_id="task_1", start_date=start_date, retries=1)
+
+        ti = TaskInstance(task=task, run_id=None)
         ti.external_executor_id = "231"
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
+        ti.queued_by_job_id = 1
         session.flush()
 
         executor = celery_executor.CeleryExecutor()
         executor.job_id = 1
-        executor.stalled_task_timeouts = {
-            ti.key: timezone.utcnow() - timedelta(days=1),
-        }
         executor.running = {ti.key}
         executor.tasks = {ti.key: AsyncResult("231")}
         executor.sync()
         assert executor.event_buffer == {}
         assert executor.tasks == {}
         assert executor.running == set()
-        assert executor.stalled_task_timeouts == {}
         assert mock_celery_revoke.called_with("231")
 
         ti.refresh_from_db()
-        assert ti.state == State.SCHEDULED
+        assert ti.state == State.UP_FOR_RETRY
         assert ti.queued_by_job_id is None
         assert ti.queued_dttm is None
         assert ti.external_executor_id is None
-
-    @pytest.mark.backend("mysql", "postgres")
-    @time_machine.travel("2020-01-01", tick=False)
-    def test_pending_tasks_timeout_with_appropriate_config_setting(self):
-        start_date = timezone.utcnow() - timedelta(days=2)
-
-        with DAG("test_check_for_stalled_tasks_are_ordered"):
-            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
-            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
-
-        ti1 = TaskInstance(task=task_1, run_id=None)
-        ti1.external_executor_id = "231"
-        ti1.state = State.QUEUED
-        ti2 = TaskInstance(task=task_2, run_id=None)
-        ti2.external_executor_id = "232"
-        ti2.state = State.QUEUED
-
-        executor = celery_executor.CeleryExecutor()
-        executor.stalled_task_timeout = timedelta(seconds=30)
-        executor.queued_tasks[ti2.key] = (None, None, None, None)
-        executor.try_adopt_task_instances([ti1])
-        with mock.patch("airflow.executors.celery_executor.send_task_to_executor") as mock_send_task:
-            mock_send_task.return_value = (ti2.key, None, mock.MagicMock())
-            executor._process_tasks([(ti2.key, None, None, mock.MagicMock())])
-        assert executor.stalled_task_timeouts == {
-            ti2.key: timezone.utcnow() + timedelta(seconds=30),
-        }
-        assert executor.adopted_task_timeouts == {
-            ti1.key: timezone.utcnow() + timedelta(seconds=600),
-        }
-
-    @pytest.mark.backend("mysql", "postgres")
-    def test_no_pending_task_timeouts_when_configured(self):
-        start_date = timezone.utcnow() - timedelta(days=2)
-
-        with DAG("test_check_for_stalled_tasks_are_ordered"):
-            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
-            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
-
-        ti1 = TaskInstance(task=task_1, run_id=None)
-        ti1.external_executor_id = "231"
-        ti1.state = State.QUEUED
-        ti2 = TaskInstance(task=task_2, run_id=None)
-        ti2.external_executor_id = "232"
-        ti2.state = State.QUEUED
-
-        executor = celery_executor.CeleryExecutor()
-        executor.task_adoption_timeout = timedelta(0)
-        executor.queued_tasks[ti2.key] = (None, None, None, None)
-        executor.try_adopt_task_instances([ti1])
-        with mock.patch("airflow.executors.celery_executor.send_task_to_executor") as mock_send_task:
-            mock_send_task.return_value = (ti2.key, None, mock.MagicMock())
-            executor._process_tasks([(ti2.key, None, None, mock.MagicMock())])
-        assert executor.adopted_task_timeouts == {}
-        assert executor.stalled_task_timeouts == {}
-
 
 def test_operation_timeout_config():
     assert celery_executor.OPERATION_TIMEOUT == 1
