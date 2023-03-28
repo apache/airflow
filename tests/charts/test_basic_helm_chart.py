@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import warnings
 from subprocess import CalledProcessError
 from typing import Any
@@ -38,9 +39,11 @@ class TestBaseChartTest:
     def _get_object_count(self, version):
         if version == "2.3.2":
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
+        elif version == "2.6.0":
+            return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
     def test_basic_deployments(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
@@ -59,10 +62,7 @@ class TestBaseChartTest:
         list_of_kind_names_tuples = {
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         }
-        if version == "2.3.2":
-            assert ("Secret", "test-basic-airflow-result-backend") in list_of_kind_names_tuples
-            list_of_kind_names_tuples.remove(("Secret", "test-basic-airflow-result-backend"))
-        assert list_of_kind_names_tuples == {
+        expected = {
             ("ServiceAccount", "test-basic-create-user-job"),
             ("ServiceAccount", "test-basic-migrate-database-job"),
             ("ServiceAccount", "test-basic-redis"),
@@ -91,7 +91,7 @@ class TestBaseChartTest:
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            ("Deployment", "test-basic-triggerer"),
+            (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
@@ -99,6 +99,11 @@ class TestBaseChartTest:
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
         }
+        if version == "2.3.2":
+            expected.add(("Secret", "test-basic-airflow-result-backend"))
+        if version == "2.6.0":
+            expected.add(("Service", "test-basic-triggerer"))
+        assert list_of_kind_names_tuples == expected
         assert expected_object_count_in_basic_deployment == len(k8s_objects)
         for k8s_object in k8s_objects:
             labels = jmespath.search("metadata.labels", k8s_object) or {}
@@ -113,7 +118,7 @@ class TestBaseChartTest:
                 "test-label"
             ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
         # Dag Processor creates two extra objects compared to the basic deployment
         object_count_in_basic_deployment = self._get_object_count(version)
@@ -135,10 +140,7 @@ class TestBaseChartTest:
         list_of_kind_names_tuples = {
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         }
-        if version == "2.3.2":
-            assert ("Secret", "test-basic-airflow-result-backend") in list_of_kind_names_tuples
-            list_of_kind_names_tuples.remove(("Secret", "test-basic-airflow-result-backend"))
-        assert list_of_kind_names_tuples == {
+        expected = {
             ("ServiceAccount", "test-basic-create-user-job"),
             ("ServiceAccount", "test-basic-migrate-database-job"),
             ("ServiceAccount", "test-basic-redis"),
@@ -168,7 +170,7 @@ class TestBaseChartTest:
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            ("Deployment", "test-basic-triggerer"),
+            (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
             ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
@@ -177,6 +179,11 @@ class TestBaseChartTest:
             ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
         }
+        if version == "2.3.2":
+            expected.add(("Secret", "test-basic-airflow-result-backend"))
+        if version == "2.6.0":
+            expected.add(("Service", "test-basic-triggerer"))
+        assert list_of_kind_names_tuples == expected
         assert expected_object_count_with_standalone_scheduler == len(k8s_objects)
         for k8s_object in k8s_objects:
             labels = jmespath.search("metadata.labels", k8s_object) or {}
@@ -338,7 +345,7 @@ class TestBaseChartTest:
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
-            (f"{release_name}-triggerer", "Deployment", "triggerer"),
+            # (f"{release_name}-triggerer", "StatefulSet", "triggerer"),
             (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
@@ -508,3 +515,31 @@ class TestBaseChartTest:
     def test_namespace_names(self, namespace):
         """Test various namespace names to make sure they render correctly in templates"""
         render_chart(namespace=namespace)
+
+    def test_postgres_connection_url_no_override(self):
+        # no nameoverride provided
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+        )[0]
+        assert (
+            "postgresql://postgres:postgres@my-release-postgresql.default:5432/postgres?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )
+
+    def test_postgres_connection_url_name_override(self):
+        # nameoverride provided
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+            values={"postgresql": {"nameOverride": "overrideName"}},
+        )[0]
+
+        assert (
+            "postgresql://postgres:postgres@overrideName:5432/postgres?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )
+
+    @staticmethod
+    def default_trigger_obj(version):
+        return "StatefulSet" if version == "2.6.0" else "Deployment"

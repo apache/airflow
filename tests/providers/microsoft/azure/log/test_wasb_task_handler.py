@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+import os
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -53,7 +57,7 @@ class TestWasbTaskHandler:
     def setup_method(self):
         self.wasb_log_folder = "wasb://container/remote/log/location"
         self.remote_log_location = "remote/log/location/1.log"
-        self.local_log_location = "local/log/location"
+        self.local_log_location = str(Path(tempfile.tempdir) / "local/log/location")
         self.container_name = "wasb-container"
         self.wasb_task_handler = WasbTaskHandler(
             base_log_folder=self.local_log_location,
@@ -81,11 +85,11 @@ class TestWasbTaskHandler:
     def test_set_context_raw(self, ti):
         ti.raw = True
         self.wasb_task_handler.set_context(ti)
-        assert not self.wasb_task_handler.upload_on_close
+        assert self.wasb_task_handler.upload_on_close is False
 
     def test_set_context_not_raw(self, ti):
         self.wasb_task_handler.set_context(ti)
-        assert self.wasb_task_handler.upload_on_close
+        assert self.wasb_task_handler.upload_on_close is True
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_log_exists(self, mock_hook):
@@ -97,20 +101,23 @@ class TestWasbTaskHandler:
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    def test_wasb_read(self, mock_hook, ti):
-        mock_hook.return_value.read_file.return_value = "Log line"
+    def test_wasb_read(self, mock_hook_cls, ti):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.get_blobs_list.return_value = ["abc/hello.log"]
+        mock_hook.read_file.return_value = "Log line"
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
+        ti = copy.copy(ti)
+        ti.state = TaskInstanceState.SUCCESS
         assert self.wasb_task_handler.read(ti) == (
             [
                 [
                     (
                         "localhost",
-                        "*** Reading remote log from wasb://container/remote/log/location/1.log.\n"
-                        "Log line\n",
+                        "*** Found remote logs:\n" "***   * wasb://wasb-container/abc/hello.log\n" "Log line",
                     )
                 ]
             ],
-            [{"end_of_log": True}],
+            [{"end_of_log": True, "log_pos": 8}],
         )
 
     @mock.patch(
@@ -166,3 +173,33 @@ class TestWasbTaskHandler:
             mock_error.assert_called_once_with(
                 "Could not write logs to %s", "remote/log/location/1.log", exc_info=True
             )
+
+    @pytest.mark.parametrize(
+        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
+        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
+    )
+    @mock.patch("airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler.wasb_write")
+    def test_close_with_delete_local_logs_conf(
+        self,
+        wasb_write_mock,
+        ti,
+        tmp_path_factory,
+        delete_local_copy,
+        expected_existence_of_local_copy,
+        airflow_version,
+    ):
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
+            "airflow.version.version", airflow_version
+        ):
+            handler = WasbTaskHandler(
+                base_log_folder=str(tmp_path_factory.mktemp("local-s3-log-location")),
+                wasb_log_folder=self.wasb_log_folder,
+                wasb_container=self.container_name,
+            )
+        wasb_write_mock.return_value = True
+        handler.log.info("test")
+        handler.set_context(ti)
+        assert handler.upload_on_close
+
+        handler.close()
+        assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy

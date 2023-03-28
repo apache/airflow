@@ -38,6 +38,7 @@ from lockfile.pidlockfile import read_pid_from_pidfile
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.commands.webserver_command import GunicornMonitor
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -133,14 +134,14 @@ def internal_api(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        gunicorn_master_proc = None
+        gunicorn_master_proc: psutil.Process | None = None
 
         def kill_proc(signum, _):
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
                 gunicorn_master_proc.wait(timeout=30)
-            if gunicorn_master_proc.poll() is not None:
+            if gunicorn_master_proc.is_running():
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
@@ -224,6 +225,8 @@ def create_app(config=None, testing=False):
 
     if "SQLALCHEMY_ENGINE_OPTIONS" not in flask_app.config:
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = settings.prepare_engine_args()
+
+    InternalApiConfig.force_database_direct_access()
 
     csrf = CSRFProtect()
     csrf.init_app(flask_app)

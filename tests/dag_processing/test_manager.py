@@ -26,6 +26,7 @@ import random
 import socket
 import sys
 import threading
+import time
 from datetime import datetime, timedelta
 from logging.config import dictConfig
 from tempfile import TemporaryDirectory
@@ -343,6 +344,24 @@ class TestDagFileProcessorManager:
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == expected_order
 
+    @pytest.fixture
+    def change_platform_timezone(self, monkeypatch):
+        monkeypatch.setenv("TZ", "Europe/Paris")
+
+        # propagate new timezone to C routines
+        # this is only needed for Unix. On Windows, exporting the TZ env variable
+        # is enough (see https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/localtime-s-localtime32-s-localtime64-s?view=msvc-170#remarks)
+        tzset = getattr(time, "tzset", None)
+        if tzset is not None:
+            tzset()
+
+        yield
+
+        # reset timezone to platform's default
+        monkeypatch.delenv("TZ")
+        if tzset is not None:
+            tzset()
+
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
     @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
@@ -350,7 +369,13 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_file_paths_in_queue_sorted_by_modified_time(
-        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+        self,
+        mock_getmtime,
+        mock_isfile,
+        mock_find_path,
+        mock_might_contain_dag,
+        mock_zipfile,
+        change_platform_timezone,
     ):
         """Test files are sorted by modified time"""
         paths_with_mtime = {"file_3.py": 3.0, "file_2.py": 2.0, "file_4.py": 5.0, "file_1.py": 4.0}
@@ -382,7 +407,13 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_file_paths_in_queue_excludes_missing_file(
-        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+        self,
+        mock_getmtime,
+        mock_isfile,
+        mock_find_path,
+        mock_might_contain_dag,
+        mock_zipfile,
+        change_platform_timezone,
     ):
         """Check that a file is not enqueued for processing if it has been deleted"""
         dag_files = ["file_3.py", "file_2.py", "file_4.py"]
@@ -410,7 +441,13 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_add_new_file_to_parsing_queue(
-        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+        self,
+        mock_getmtime,
+        mock_isfile,
+        mock_find_path,
+        mock_might_contain_dag,
+        mock_zipfile,
+        change_platform_timezone,
     ):
         """Check that new file is added to parsing queue"""
         dag_files = ["file_1.py", "file_2.py", "file_3.py"]
@@ -438,13 +475,20 @@ class TestDagFileProcessorManager:
         )
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.settings.TIMEZONE", timezone.utc)
     @mock.patch("zipfile.is_zipfile", return_value=True)
     @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
     @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_recently_modified_file_is_parsed_with_mtime_mode(
-        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+        self,
+        mock_getmtime,
+        mock_isfile,
+        mock_find_path,
+        mock_might_contain_dag,
+        mock_zipfile,
+        change_platform_timezone,
     ):
         """
         Test recently updated files are processed even if min_file_process_interval is not reached
@@ -465,7 +509,7 @@ class TestDagFileProcessorManager:
             async_mode=True,
         )
 
-        # let's say the DAG was just parsed 2 seconds before the Freezed time
+        # let's say the DAG was just parsed 10 seconds before the Freezed time
         last_finish_time = freezed_base_time - timedelta(seconds=10)
         manager._file_stats = {
             "file_1.py": DagFileStat(1, 0, last_finish_time, timedelta(seconds=1.0), 1),
@@ -565,6 +609,7 @@ class TestDagFileProcessorManager:
         {
             ("core", "load_examples"): "False",
             ("scheduler", "standalone_dag_processor"): "True",
+            ("scheduler", "stale_dag_threshold"): "50",
         }
     )
     def test_scan_stale_dags_standalone_mode(self):
@@ -715,7 +760,7 @@ class TestDagFileProcessorManager:
         assert sum(stat.run_count for stat in manager._file_stats.values()) == 3
 
         with create_session() as session:
-            assert session.query(DagModel).get(dag_id) is not None
+            assert session.get(DagModel, dag_id) is not None
 
     @conf_vars({("core", "load_examples"): "False"})
     @pytest.mark.backend("mysql", "postgres")
@@ -823,8 +868,16 @@ class TestDagFileProcessorManager:
         child_pipe.close()
         parent_pipe.close()
 
-        statsd_timing_mock.assert_called_with(
-            "dag_processing.last_duration.temp_dag", timedelta(seconds=last_runtime)
+        statsd_timing_mock.assert_has_calls(
+            [
+                mock.call("dag_processing.last_duration.temp_dag", timedelta(seconds=last_runtime)),
+                mock.call(
+                    "dag_processing.last_duration",
+                    timedelta(seconds=last_runtime),
+                    tags={"file_name": "temp_dag"},
+                ),
+            ],
+            any_order=True,
         )
 
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmpdir):
@@ -1072,6 +1125,12 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
+        dag3_sla1 = SlaCallbackRequest(
+            full_filepath="/green_eggs/ham/file3.py",
+            dag_id="dag3",
+            processor_subdir=tmpdir,
+        )
+
         # when
         manager._add_callback_to_queue(dag1_req1)
         manager._add_callback_to_queue(dag1_sla1)
@@ -1087,12 +1146,15 @@ class TestDagFileProcessorManager:
 
         # when
         manager._add_callback_to_queue(dag1_sla2)
+        manager._add_callback_to_queue(dag3_sla1)
 
-        # then - since sla2 == sla1, should not have brought dag1 to the fore
+        # then - since sla2 == sla1, should not have brought dag1 to the fore, and an SLA on dag3 doesn't
+        # update the queue, although the callback is registered
         assert manager._file_path_queue == collections.deque(
             [dag2_req1.full_filepath, dag1_req1.full_filepath]
         )
         assert manager._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
+        assert manager._callback_to_execute[dag3_sla1.full_filepath] == [dag3_sla1]
 
         # when
         manager._add_callback_to_queue(dag1_req2)

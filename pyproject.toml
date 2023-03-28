@@ -23,7 +23,7 @@ target-version = ['py37', 'py38', 'py39', 'py310']
 # The problem is tracked (and this limitation might be removed if it is solved) in:
 # https://github.com/pypa/setuptools/issues/3548
 [build-system]
-requires = ['setuptools==63.4.3']
+requires = ['setuptools==67.2.0']
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
@@ -104,6 +104,13 @@ known-third-party = [
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
 "tests/decorators/test_python.py" = ["I002"]
+
+# The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
+# when __future__.annotations is used so we need to skip them from upgrading
+"airflow/models/pydantic/taskinstance.py" = ["I002"]
+"airflow/models/pydantic/dag_run.py" = ["I002"]
+"airflow/models/pydantic/dataset.py" = ["I002"]
+"airflow/jobs/pydantic/base_job.py" = ["I002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]

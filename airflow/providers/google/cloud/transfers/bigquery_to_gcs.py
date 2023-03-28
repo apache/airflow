@@ -40,6 +40,9 @@ class BigQueryToGCSOperator(BaseOperator):
     Transfers a BigQuery table to a Google Cloud Storage bucket.
 
     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryToGCSOperator`
+    .. seealso::
         For more details about these parameters:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
@@ -90,6 +93,7 @@ class BigQueryToGCSOperator(BaseOperator):
         "export_format",
         "labels",
         "impersonation_chain",
+        "job_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#e4e6f0"
@@ -189,12 +193,12 @@ class BigQueryToGCSOperator(BaseOperator):
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=configuration["extract"]["sourceTable"]["projectId"],
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
-            nowait=True,
+            nowait=self.deferrable,
         )
 
     def execute(self, context: Context):

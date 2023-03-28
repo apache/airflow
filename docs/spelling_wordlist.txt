@@ -16,6 +16,8 @@ adls
 afterall
 AgentKey
 aio
+aiobotocore
+AioSession
 Airbnb
 airbnb
 Airbyte
@@ -284,12 +286,14 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+containerd
 ContainerGroup
 containerinstance
 ContainerPort
 contentUrl
 contextmgr
 contrib
+coroutine
 coverals
 cp
 cpu
@@ -862,11 +866,8 @@ LineItem
 lineterminator
 linter
 linux
-ListColumnSpecsPager
-ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
-ListTableSpecsPager
 Liveness
 liveness
 livy
@@ -1030,6 +1031,7 @@ os
 OSS
 oss
 ot
+otel
 overridable
 oversubscription
 Pagerduty
@@ -1368,7 +1370,6 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
-StartManualTransferRunsResponse
 starttls
 StatefulSet
 StatefulSets
@@ -1435,7 +1436,6 @@ symlink
 symlinking
 symlinks
 sync'ed
-SynthesizeSpeechResponse
 sys
 syspath
 Systemd
@@ -1507,8 +1507,6 @@ tooltip
 tooltips
 traceback
 tracebacks
-TransferConfig
-TransferRun
 travis
 triage
 triaging

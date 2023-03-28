@@ -34,6 +34,18 @@ class FileWriteListener:
             f.write(line + "\n")
 
     @hookimpl
+    def on_task_instance_running(self, previous_state, task_instance, session):
+        self.write("on_task_instance_running")
+
+    @hookimpl
+    def on_task_instance_success(self, previous_state, task_instance, session):
+        self.write("on_task_instance_success")
+
+    @hookimpl
+    def on_task_instance_failed(self, previous_state, task_instance, session):
+        self.write("on_task_instance_failed")
+
+    @hookimpl
     def on_starting(self, component):
         if isinstance(component, TaskCommandMarker):
             self.write("on_starting")
@@ -42,3 +54,7 @@ class FileWriteListener:
     def before_stopping(self, component):
         if isinstance(component, TaskCommandMarker):
             self.write("before_stopping")
+
+
+def clear():
+    pass

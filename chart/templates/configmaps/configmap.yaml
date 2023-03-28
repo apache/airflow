@@ -28,13 +28,12 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end -}}
-{{- if .Values.airflowConfigAnnotations }}
-  annotations:
-{{- toYaml .Values.airflowConfigAnnotations | nindent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end -}}
+  {{- if .Values.airflowConfigAnnotations }}
+  annotations: {{- toYaml .Values.airflowConfigAnnotations | nindent 4 }}
+  {{- end }}
 {{- $Global := . }}
 data:
   # These are system-specified config overrides.
@@ -46,25 +45,28 @@ data:
     {{- end }}
     {{ end }}
 
-{{- if .Values.airflowLocalSettings }}
-  airflow_local_settings.py: |
-    {{ tpl .Values.airflowLocalSettings . | nindent 4 }}
-{{- end }}
-{{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
-  known_hosts: |
-    {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
-{{- end }}
-{{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-{{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
+  {{- if .Values.airflowLocalSettings }}
+  airflow_local_settings.py: |-
+    {{- tpl .Values.airflowLocalSettings . | nindent 4 }}
+  {{- end }}
+
+  {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.knownHosts }}
+  known_hosts: |-
+    {{- .Values.dags.gitSync.knownHosts | nindent 4 }}
+  {{- end }}
+
+  {{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
   pod_template_file.yaml: |-
-{{- if .Values.podTemplate }}
-    {{ tpl .Values.podTemplate . | nindent 4 }}
-{{- else }}
-{{ tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
-{{- end }}
-{{- end }}
-{{- end }}
-{{- if .Values.kerberos.enabled }}
-  krb5.conf: |
-    {{ tpl .Values.kerberos.config . | nindent 4 }}
-{{- end }}
+    {{- if .Values.podTemplate }}
+      {{- tpl .Values.podTemplate . | nindent 4 }}
+    {{- else }}
+      {{- tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+
+  {{- if .Values.kerberos.enabled }}
+  krb5.conf: |-
+    {{- tpl .Values.kerberos.config . | nindent 4 }}
+  {{- end }}

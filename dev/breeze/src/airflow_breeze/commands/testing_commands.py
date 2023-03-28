@@ -24,6 +24,7 @@ from datetime import datetime
 import click
 from click import IntRange
 
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES, all_selective_test_types
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -356,6 +357,12 @@ def run_tests_in_parallel(
     is_flag=True,
     envvar="FULL_TESTS_NEEDED",
 )
+@click.option(
+    "--upgrade-boto",
+    help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_BOTO",
+)
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -379,6 +386,7 @@ def tests(
     full_tests_needed: bool,
     mount_sources: str,
     extra_pytest_args: tuple,
+    upgrade_boto: bool,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
@@ -393,7 +401,9 @@ def tests(
         mount_sources=mount_sources,
         forward_ports=False,
         test_type=test_type,
+        upgrade_boto=upgrade_boto,
     )
+    rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
     if run_in_parallel:
         run_tests_in_parallel(

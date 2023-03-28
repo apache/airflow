@@ -44,10 +44,18 @@ def test_is_local_default_value():
     assert not BaseExecutor.is_local
 
 
+def test_is_single_threaded_default_value():
+    assert not BaseExecutor.is_single_threaded
+
+
+def test_is_production_default_value():
+    assert BaseExecutor.is_production
+
+
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=BaseOperator(task_id="dummy"))
-    assert executor.get_task_log(ti=ti) is None
+    assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 
 def test_serve_logs_default_value():

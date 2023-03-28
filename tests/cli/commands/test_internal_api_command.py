@@ -16,21 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 from unittest import mock
 
 import psutil
 import pytest
+from rich.console import Console
 
 from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import internal_api_command
 from airflow.cli.commands.internal_api_command import GunicornMonitor
-from airflow.utils.cli import setup_locations
+from tests.cli.commands._common_cli_classes import _ComonCLIGunicornTestClass
+
+console = Console(width=400, color_system="standard")
 
 
 class TestCLIGetNumReadyWorkersRunning:
@@ -79,57 +82,9 @@ class TestCLIGetNumReadyWorkersRunning:
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
-class TestCliInternalAPi:
-    @pytest.fixture(autouse=True)
-    def _make_parser(self):
-        self.parser = cli_parser.get_parser()
+class TestCliInternalAPI(_ComonCLIGunicornTestClass):
 
-    @pytest.fixture(autouse=True)
-    def _cleanup(self):
-        self._check_processes()
-        self._clean_pidfiles()
-
-        yield
-
-        self._check_processes(ignore_running=True)
-        self._clean_pidfiles()
-
-    def _check_processes(self, ignore_running=False):
-        # Confirm that internal-api hasn't been launched.
-        # pgrep returns exit status 1 if no process matched.
-        # Use more specific regexps (^) to avoid matching pytest run when running specific method.
-        # For instance, we want to be able to do: pytest -k 'gunicorn'
-        exit_code_pgrep_internal_api = subprocess.Popen(["pgrep", "-c", "-f", "airflow internal-api"]).wait()
-        exit_code_pgrep_gunicorn = subprocess.Popen(["pgrep", "-c", "-f", "^gunicorn"]).wait()
-        if exit_code_pgrep_internal_api != 1 or exit_code_pgrep_gunicorn != 1:
-            subprocess.Popen(["ps", "-ax"]).wait()
-            if exit_code_pgrep_internal_api != 1:
-                subprocess.Popen(["pkill", "-9", "-f", "airflow-internal-api"]).wait()
-            if exit_code_pgrep_gunicorn != 1:
-                subprocess.Popen(["pkill", "-9", "-f", "^gunicorn"]).wait()
-            if not ignore_running:
-                raise AssertionError(
-                    "Background processes are running that prevent the test from passing successfully."
-                )
-
-    def _clean_pidfiles(self):
-        pidfile_internal_api = setup_locations("internal-api")[0]
-        pidfile_monitor = setup_locations("internal-api-monitor")[0]
-        if os.path.exists(pidfile_internal_api):
-            os.remove(pidfile_internal_api)
-        if os.path.exists(pidfile_monitor):
-            os.remove(pidfile_monitor)
-
-    def _wait_pidfile(self, pidfile):
-        start_time = time.monotonic()
-        while True:
-            try:
-                with open(pidfile) as file:
-                    return int(file.read())
-            except Exception:
-                if start_time - time.monotonic() > 60:
-                    raise
-                time.sleep(1)
+    main_process_regexp = r"airflow internal-api"
 
     @pytest.mark.execution_timeout(210)
     def test_cli_internal_api_background(self):
@@ -141,7 +96,7 @@ class TestCliInternalAPi:
             logfile = f"{tmpdir}/airflow-internal-api.log"
             try:
                 # Run internal-api as daemon in background. Note that the wait method is not called.
-
+                console.print("[magenta]Starting airflow internal-api --daemon")
                 proc = subprocess.Popen(
                     [
                         "airflow",
@@ -160,30 +115,37 @@ class TestCliInternalAPi:
                 assert proc.poll() is None
 
                 pid_monitor = self._wait_pidfile(pidfile_monitor)
-                self._wait_pidfile(pidfile_internal_api)
-
-                # Assert that gunicorn and its monitor are launched.
-                assert 0 == subprocess.Popen(["pgrep", "-f", "-c", "airflow internal-api --daemon"]).wait()
+                console.print(f"[blue]Monitor started at {pid_monitor}")
+                pid_internal_api = self._wait_pidfile(pidfile_internal_api)
+                console.print(f"[blue]Internal API started at {pid_internal_api}")
+                console.print("[blue]Running airflow internal-api process:")
+                # Assert that the internal-api and gunicorn processes are running (by name rather than pid).
+                assert self._find_process(r"airflow internal-api --daemon", print_found_process=True)
+                console.print("[blue]Waiting for gunicorn processes:")
                 # wait for gunicorn to start
                 for i in range(30):
-                    if 0 == subprocess.Popen(["pgrep", "-f", "-c", "^gunicorn"]).wait():
+                    if self._find_process(r"^gunicorn"):
                         break
+                    console.print("[blue]Waiting for gunicorn to start ...")
                     time.sleep(1)
-                assert (
-                    0 == subprocess.Popen(["pgrep", "-c", "-f", "gunicorn: master"]).wait()
-                )  # NOT inclusive
-
-                # Terminate monitor process.
+                console.print("[blue]Running gunicorn processes:")
+                assert self._find_all_processes("^gunicorn", print_found_process=True)
+                console.print("[magenta]Internal-api process started successfully.")
+                console.print(
+                    "[magenta]Terminating monitor process and expect "
+                    "internal-api and gunicorn processes to terminate as well"
+                )
                 proc = psutil.Process(pid_monitor)
                 proc.terminate()
                 assert proc.wait(120) in (0, None)
-
-                self._check_processes()
+                self._check_processes(ignore_running=False)
+                console.print("[magenta]All internal-api and gunicorn processes are terminated.")
             except Exception:
-                # List all logs
-                subprocess.Popen(["ls", "-lah", tmpdir]).wait()
+                console.print("[red]Exception occurred. Dumping all logs.")
                 # Dump all logs
-                subprocess.Popen(["bash", "-c", f"ls {tmpdir}/* | xargs -n 1 -t cat"]).wait()
+                for file in Path(tmpdir).glob("*"):
+                    console.print(f"Dumping {file} (size: {file.stat().st_size})")
+                    console.print(file.read_text())
                 raise
 
     def test_cli_internal_api_debug(self, app):

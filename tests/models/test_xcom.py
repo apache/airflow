@@ -28,11 +28,12 @@ from sqlalchemy.orm import Session
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.models.xcom import XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
+from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
 
 

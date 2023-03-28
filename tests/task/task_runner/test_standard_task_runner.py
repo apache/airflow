@@ -126,7 +126,7 @@ class TestStandardTaskRunner:
         assert runner.return_code() is not None
 
     def test_notifies_about_start_and_stop(self):
-        path_listener_writer = "/tmp/path_listener_writer"
+        path_listener_writer = "/tmp/test_notifies_about_start_and_stop"
         try:
             os.unlink(path_listener_writer)
         except OSError:
@@ -152,7 +152,7 @@ class TestStandardTaskRunner:
         runner = StandardTaskRunner(job1)
         runner.start()
 
-        # Wait until process makes itself the leader of it's own process group
+        # Wait until process makes itself the leader of its own process group
         with timeout(seconds=1):
             while True:
                 runner_pgid = os.getpgid(runner.process.pid)
@@ -164,6 +164,51 @@ class TestStandardTaskRunner:
         assert runner.return_code(timeout=10) is not None
         with open(path_listener_writer) as f:
             assert f.readline() == "on_starting\n"
+            assert f.readline() == "on_task_instance_running\n"
+            assert f.readline() == "on_task_instance_success\n"
+            assert f.readline() == "before_stopping\n"
+
+    def test_notifies_about_fail(self):
+        path_listener_writer = "/tmp/test_notifies_about_fail"
+        try:
+            os.unlink(path_listener_writer)
+        except OSError:
+            pass
+
+        lm = get_listener_manager()
+        lm.add_listener(FileWriteListener(path_listener_writer))
+
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get("test_failing_bash_operator")
+        task = dag.get_task("failing_task")
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        runner = StandardTaskRunner(job1)
+        runner.start()
+
+        # Wait until process makes itself the leader of its own process group
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(runner.process.pid)
+                if runner_pgid == runner.process.pid:
+                    break
+                time.sleep(0.01)
+
+            # Wait till process finishes
+        assert runner.return_code(timeout=10) is not None
+        with open(path_listener_writer) as f:
+            assert f.readline() == "on_starting\n"
+            assert f.readline() == "on_task_instance_running\n"
+            assert f.readline() == "on_task_instance_failed\n"
             assert f.readline() == "before_stopping\n"
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")

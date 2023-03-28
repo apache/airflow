@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import logging
-import tempfile
+import os
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from pytest import param
@@ -46,10 +48,8 @@ class TestGCSTaskHandler:
         clear_db_dags()
 
     @pytest.fixture(autouse=True)
-    def local_log_location(self):
-        with tempfile.TemporaryDirectory() as td:
-            self.local_log_location = td
-            yield td
+    def local_log_location(self, tmp_path_factory):
+        return str(tmp_path_factory.mktemp("local-gcs-log-location"))
 
     @pytest.fixture(autouse=True)
     def gcs_task_handler(self, create_log_template, local_log_location):
@@ -90,15 +90,18 @@ class TestGCSTaskHandler:
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
     def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
-
-        logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        logs, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-
-        assert "*** Reading remote log from gs://bucket/remote/log/location/1.log.\nCONTENT\n" == logs
-        assert {"end_of_log": True} == metadata
+        assert logs == "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT"
+        assert {"end_of_log": True, "log_pos": 7} == metadata
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -106,17 +109,25 @@ class TestGCSTaskHandler:
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_from_local(self, mock_blob, mock_client, mock_creds):
+    def test_should_read_from_local_on_logs_read_error(self, mock_blob, mock_client, mock_creds):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.side_effect = Exception("Failed to connect")
 
         self.gcs_task_handler.set_context(self.ti)
-        log, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
 
-        assert (
-            log == "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
-            f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
+        assert log == (
+            "*** Found remote logs:\n"
+            "***   * gs://bucket/remote/log/location/1.log\n"
+            "*** Unable to read remote log Failed to connect\n"
+            "*** Found local files:\n"
+            f"***   * {self.gcs_task_handler.local_base}/1.log\n"
         )
-        assert metadata == {"end_of_log": False, "log_pos": 31 + len(self.local_log_location)}
+        assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
@@ -227,8 +238,45 @@ class TestGCSTaskHandler:
                 mock.call.from_string().download_as_bytes(),
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
                 mock.call.from_string().upload_from_string(
-                    "*** Previous log discarded: Fail to download\n\nMESSAGE\n", content_type="text/plain"
+                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",  # noqa: E501
+                    content_type="text/plain",
                 ),
             ],
             any_order=False,
         )
+
+    @pytest.mark.parametrize(
+        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
+        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_close_with_delete_local_copy_conf(
+        self,
+        mock_blob,
+        mock_client,
+        mock_creds,
+        local_log_location,
+        delete_local_copy,
+        expected_existence_of_local_copy,
+        airflow_version,
+    ):
+        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
+            "airflow.version.version", airflow_version
+        ):
+            handler = GCSTaskHandler(
+                base_log_folder=local_log_location,
+                gcs_log_folder="gs://bucket/remote/log/location",
+            )
+
+        handler.log.info("test")
+        handler.set_context(self.ti)
+        assert handler.upload_on_close
+
+        handler.close()
+        assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy

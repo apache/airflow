@@ -68,7 +68,10 @@ while True:
     starting_refs = refs
     for ref in refs:
         ref_id = ref.split("/")[-1]
-        schema["definitions"][ref_id] = defs["definitions"][ref_id]
+        remote_def = defs["definitions"].get(ref_id)
+        if not remote_def:
+            continue
+        schema["definitions"][ref_id] = remote_def
     refs = set(find_refs(schema["definitions"]))
     if refs == starting_refs:
         break

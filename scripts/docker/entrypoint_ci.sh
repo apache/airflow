@@ -86,7 +86,7 @@ If it does not complete soon, you might want to stop it and remove file lock:
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        if [[ ${BACKEND:=} == "mysql" || ${BACKEND} == "mssql" ]]; then
+        if [[ ${BACKEND:=} == "mssql" ]]; then
             echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
             exit 1
         fi
@@ -442,6 +442,13 @@ else
         echo
         exit 1
     fi
+fi
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall aiobotocore -y || true
+    pip install --upgrade boto3 botocore
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
