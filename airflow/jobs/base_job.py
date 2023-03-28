@@ -179,7 +179,7 @@ class BaseJob(Base, LoggingMixin):
     def handle_db_task(self, task_function):
         """Should be called to perform a task with db connection."""
         @retry_db_transaction
-        def handle_db_transaction_with_session(self, task_function, session):
+        def handle_db_transaction_with_session(task_function, session):
             return task_function(session)
 
         with create_session() as session:
