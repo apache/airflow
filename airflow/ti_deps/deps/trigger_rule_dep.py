@@ -57,6 +57,9 @@ class _UpstreamTIStates(NamedTuple):
     def calculate(cls, finished_upstreams: Iterator[TaskInstance]) -> _UpstreamTIStates:
         """Calculate states for a task instance.
 
+        ``counter`` is inclusive of ``setup_counter`` -- e.g. if there are 2 skipped upstreams, one
+        of which is a setup, then counter will show 2 skipped and setup counter will show 1.
+
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
         """

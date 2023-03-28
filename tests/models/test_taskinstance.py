@@ -34,6 +34,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 import time_machine
+from pytest import param
 
 from airflow import models, settings
 from airflow.decorators import task, task_group
@@ -91,6 +92,10 @@ from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
+
+ADSS = "all_done_setup_success"
+UP_FAILED = State.UPSTREAM_FAILED
+SKIPPED = State.SKIPPED
 
 
 @pytest.fixture
@@ -1089,17 +1094,17 @@ class TestTaskInstance:
     # Parameterized tests to check for the correct firing
     # of the trigger_rule under various circumstances
     # Numeric fields are in order:
-    #   successes, skipped, failed, upstream_failed, done, removed
+    #   successes, skipped, failed, upstream_failed, removed, done
     @pytest.mark.parametrize(
         "trigger_rule, upstream_setups, upstream_states, flag_upstream_failed, expect_state, expect_passed",
         [
             #
             # Tests for all_success
             #
-            ["all_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 0, 0, 0), True, None, True],
-            ["all_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 0, 0, 0), True, None, False],
-            ["all_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 0, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["all_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 0, 0, 0), True, State.SKIPPED, False],
+            ["all_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
+            ["all_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
+            ["all_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, State.UPSTREAM_FAILED, False],
+            ["all_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, State.SKIPPED, False],
             #
             # Tests for one_success
             #
@@ -1125,9 +1130,9 @@ class TestTaskInstance:
             #
             # Tests for one_failed
             #
-            ["one_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 0, 0, 0), True, None, False],
-            ["one_failed", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 0, 0, 0), True, None, False],
-            ["one_failed", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 0, 0, 0), True, None, True],
+            ["one_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, SKIPPED, False],
+            ["one_failed", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
+            ["one_failed", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, True],
             ["one_failed", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
             ["one_failed", 0, _UpstreamTIStates(2, 3, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
             #
@@ -1138,12 +1143,124 @@ class TestTaskInstance:
             ["all_done", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, False],
             ["all_done", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
             #
-            # Tests for all_done_setup_success
+            # Tests for all_done_setup_success: no upstream setups -> same as all_done
             #
-            ["all_done_setup_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
-            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
-            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, False],
-            ["all_done_setup_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
+            [ADSS, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
+            [ADSS, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
+            [ADSS, 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, False],
+            [ADSS, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
+            #
+            # Tests for all_done_setup_success: with upstream setups -> different from all_done
+            #
+            # params:
+            #   trigger_rule
+            #   upstream_setups
+            #   upstream_states
+            #   flag_upstream_failed
+            #   expect_state
+            #   expect_passed
+            # states: success, skipped, failed, upstream_failed, removed, done, success_setup, skipped_setup
+            # all setups succeeded - one
+            param(
+                ADSS,
+                1,
+                _UpstreamTIStates(6, 0, 0, 0, 0, 6, 1, 0),
+                True,
+                None,
+                True,
+                id="all setups succeeded - one",
+            ),
+            param(
+                ADSS,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 2, 0),
+                True,
+                None,
+                True,
+                id="all setups succeeded - two",
+            ),
+            param(
+                ADSS,
+                1,
+                _UpstreamTIStates(5, 0, 1, 0, 0, 6, 0, 0),
+                True,
+                UP_FAILED,
+                False,
+                id="setups failed - one",
+            ),
+            param(
+                ADSS,
+                2,
+                _UpstreamTIStates(5, 0, 2, 0, 0, 7, 0, 0),
+                True,
+                UP_FAILED,
+                False,
+                id="setups failed - two",
+            ),
+            param(
+                ADSS,
+                1,
+                _UpstreamTIStates(5, 1, 0, 0, 0, 6, 0, 1),
+                True,
+                SKIPPED,
+                False,
+                id="setups skipped - one",
+            ),
+            param(
+                ADSS,
+                2,
+                _UpstreamTIStates(5, 2, 0, 0, 0, 7, 0, 2),
+                True,
+                SKIPPED,
+                False,
+                id="setups skipped - two",
+            ),
+            param(
+                ADSS,
+                2,
+                _UpstreamTIStates(5, 1, 1, 0, 0, 7, 0, 1),
+                True,
+                UP_FAILED,
+                False,
+                id="one setup failed one setup skipped",
+            ),
+            param(
+                ADSS,
+                2,
+                _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
+                True,
+                None,
+                True,
+                id="one setup failed one setup success --> should run",
+            ),
+            param(
+                ADSS,
+                2,
+                _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
+                True,
+                None,
+                True,
+                id="one setup success one setup skipped --> should run",
+            ),
+            param(ADSS, 1, _UpstreamTIStates(3, 0, 0, 0, 0, 3, 1, 0), True, None, False, id="not all done"),
+            param(
+                ADSS,
+                1,
+                _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
+                True,
+                None,
+                False,
+                id="not all done, one failed",
+            ),
+            param(
+                ADSS,
+                1,
+                _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
+                True,
+                None,
+                False,
+                id="not all done, one skipped",
+            ),
         ],
     )
     def test_check_task_dependencies(
@@ -1159,13 +1276,19 @@ class TestTaskInstance:
     ):
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
+        # sanity checks
+        s = upstream_states
+        assert s.skipped >= s.skipped_setup
+        assert s.success >= s.success_setup
+        assert s.done == s.failed + s.success + s.removed + s.upstream_failed + s.skipped
+
         with dag_maker() as dag:
             downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
             for i in range(5):
-                task = EmptyOperator(task_id=f"runme_{i}", dag=dag)
+                task = EmptyOperator(task_id=f"work_{i}", dag=dag)
                 task.set_downstream(downstream)
             for i in range(upstream_setups):
-                task = EmptyOperator.as_setup(task_id=f"runme_{i}", dag=dag)
+                task = EmptyOperator.as_setup(task_id=f"setup_{i}", dag=dag)
                 task.set_downstream(downstream)
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
