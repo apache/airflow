@@ -60,6 +60,7 @@ class MsSqlToHiveOperator(BaseOperator):
     :param mssql_conn_id: source Microsoft SQL Server connection
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :param hive_auth: optional authentication option passed for the Hive connection
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
@@ -79,6 +80,7 @@ class MsSqlToHiveOperator(BaseOperator):
         delimiter: str = chr(1),
         mssql_conn_id: str = "mssql_default",
         hive_cli_conn_id: str = "hive_cli_default",
+        hive_auth: str | None = None,
         tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
@@ -93,6 +95,7 @@ class MsSqlToHiveOperator(BaseOperator):
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
         self.tblproperties = tblproperties
+        self.hive_auth = hive_auth
 
     @classmethod
     def type_map(cls, mssql_type: int) -> str:
@@ -119,7 +122,7 @@ class MsSqlToHiveOperator(BaseOperator):
                     csv_writer.writerows(cursor)
                     tmp_file.flush()
 
-            hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+            hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
             self.log.info("Loading file into Hive")
             hive.load_file(
                 tmp_file.name,
