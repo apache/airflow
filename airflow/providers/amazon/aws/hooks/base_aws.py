@@ -158,6 +158,10 @@ class BaseSessionFactory(LoggingMixin):
         """Create boto3 or aiobotocore Session from connection config."""
         from aiobotocore.session import get_session as async_get_session
 
+        return async_get_session()
+
+    def create_session(self, deferrable: bool = False) -> boto3.session.Session:
+        """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
                 "No connection ID provided. Fallback on boto3 credential strategy (region_name=%r). "
