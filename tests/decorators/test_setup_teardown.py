@@ -202,6 +202,7 @@ class TestSetupTearDownTask:
             mytask2()
 
         assert len(dag.task_group.children) == 6
+        assert [x for x in dag.tasks if not x.downstream_list]  # no deps have been set
         assert dag.task_group.children["setuptask"]._is_setup
         assert dag.task_group.children["teardowntask"]._is_teardown
         assert dag.task_group.children["setuptask2"]._is_setup
