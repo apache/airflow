@@ -88,7 +88,6 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -920,27 +919,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
-        if SetupTeardownContext.is_setup:
-            self._is_setup = True
-        elif SetupTeardownContext.is_teardown:
-            self._is_teardown = True
-            if SetupTeardownContext.on_failure_fail_dagrun:
-                self._on_failure_fail_dagrun = True
-
     @classmethod
     def as_setup(cls, *args, **kwargs):
-        from airflow.utils.setup_teardown import SetupTeardownContext
-
-        with SetupTeardownContext.setup():
-            return cls(*args, **kwargs)
+        op = cls(*args, **kwargs)
+        op._is_setup = True
+        return op
 
     @classmethod
     def as_teardown(cls, *args, **kwargs):
-        from airflow.utils.setup_teardown import SetupTeardownContext
-
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        with SetupTeardownContext.teardown(on_failure_fail_dagrun=on_failure_fail_dagrun):
-            return cls(*args, **kwargs)
+        op = cls(*args, **kwargs)
+        op._is_teardown = True
+        op._on_failure_fail_dagrun = on_failure_fail_dagrun
+        return op
 
     def __eq__(self, other):
         if type(self) is type(other):
