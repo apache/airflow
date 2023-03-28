@@ -646,9 +646,6 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            """Using random.uniform() causes Bandit security check to fail with Issue:
-            [B311:blacklist] Standard pseudo-random generators are not suitable for
-            security/cryptographic purposes. Hence,using random.sample() instead"""
             delay = sample(
                 list(range(BatchClientAsyncHook.DEFAULT_DELAY_MIN, BatchClientAsyncHook.DEFAULT_DELAY_MAX)), 1
             )[0]
@@ -656,9 +653,9 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
             delay = BatchClientAsyncHook.add_jitter(delay)
         await asyncio.sleep(delay)
 
-    async def wait_for_job(
+    async def wait_for_job(  # type: ignore[override]
         self, job_id: str, delay: int | float | None = None
-    ) -> None:  # type: ignore[override]
+    ) -> None:
         """
         Wait for Batch job to complete
 

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-from unittest import mock
 
 import pytest
 
@@ -26,6 +25,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchOperatorTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+from tests.providers.amazon.aws.utils.compat import async_mock
 
 JOB_NAME = "51455483-c62c-48ac-9b88-53a6a725baa3"
 JOB_ID = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
@@ -88,7 +88,7 @@ class TestBatchOperatorTrigger:
         assert task.done() is False
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
     async def test_batch_trigger_completed(self, mock_response):
         """Test if the success event is  returned from trigger."""
         mock_response.return_value = {"status": "success", "message": f"AWS Batch job ({JOB_ID}) succeeded"}
@@ -101,7 +101,7 @@ class TestBatchOperatorTrigger:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
     async def test_batch_trigger_failure(self, mock_response):
         """Test if the failure event is returned from trigger."""
         mock_response.return_value = {"status": "error", "message": f"{JOB_ID} failed"}
@@ -111,7 +111,7 @@ class TestBatchOperatorTrigger:
         assert TriggerEvent({"status": "error", "message": f"{JOB_ID} failed"}) == actual_response
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
     async def test_batch_trigger_none(self, mock_response):
         """Test if the failure event is returned when there is no response from hook."""
         mock_response.return_value = None
@@ -121,7 +121,7 @@ class TestBatchOperatorTrigger:
         assert TriggerEvent({"status": "error", "message": f"{JOB_ID} failed"}) == actual_response
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.monitor_job")
     async def test_batch_trigger_exception(self, mock_response):
         """Test if the exception is raised from trigger."""
         mock_response.side_effect = Exception("Test exception")
