@@ -185,7 +185,7 @@ class BatchOperator(BaseOperator):
 
         return self.job_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
         Relies on trigger to throw an exception, otherwise it assumes execution was
