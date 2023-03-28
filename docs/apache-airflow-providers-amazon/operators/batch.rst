@@ -53,6 +53,7 @@ Create an AWS Batch compute environment
 
 To create a new AWS Batch compute environment you can
 use :class:`~airflow.providers.amazon.aws.operators.batch.BatchCreateComputeEnvironmentOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_batch.py
     :language: python
