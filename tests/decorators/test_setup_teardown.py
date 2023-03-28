@@ -110,7 +110,6 @@ class TestSetupTearDownTask:
                 mygroup()
 
     def test_teardown_taskgroup_decorator(self, dag_maker):
-
         with dag_maker():
             with pytest.raises(
                 expected_exception=AirflowException,
@@ -211,7 +210,6 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask"]._is_teardown is False
         assert dag.task_group.children["mytask2"]._is_setup is False
         assert dag.task_group.children["mytask2"]._is_teardown is False
-
 
     def test_setup_teardown_as_context_manager(self, dag_maker):
         @setup

@@ -78,6 +78,9 @@ class XComArg(ResolveMixin, DependencyMixin):
         i.e. the referenced operator's return value.
     """
 
+    _setup_roots = set()
+    _teardown_leaves = set()
+
     @overload
     def __new__(cls: type[XComArg], operator: Operator, key: str = XCOM_RETURN_KEY) -> XComArg:
         """Called when the user writes ``XComArg(...)`` directly."""
@@ -210,10 +213,14 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         task_group = self.operator.task_group
-        setup_tasks = [task for task in task_group.roots if task._is_setup]
-        teardown_tasks = [task for task in task_group.leaves if task._is_teardown]
-        roots = set(task_group.roots) - set(setup_tasks) - set(teardown_tasks)
-        leaves = set(task_group.leaves) - set(setup_tasks) - set(teardown_tasks)
+        setup_tasks = [task for task in task_group.roots if task._is_setup and task not in self._setup_roots]
+        teardown_tasks = [
+            task for task in task_group.leaves if task._is_teardown and task not in self._teardown_leaves
+        ]
+        self._setup_roots.update(set(setup_tasks))
+        self._teardown_leaves.update(set(teardown_tasks))
+        roots = set(task_group.roots) - set(setup_tasks) - self._setup_roots
+        leaves = set(task_group.leaves) - set(teardown_tasks) - self._teardown_leaves
         if setup_tasks:
             setup_tasks[-1].set_downstream(list(roots))
 
