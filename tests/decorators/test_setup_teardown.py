@@ -158,7 +158,7 @@ class TestSetupTearDownTask:
         assert len(dag.task_group.children) == 1
 
     def test_setup_task_can_be_overriden(self, dag_maker):
-        @task
+        @setup
         def mytask():
             print("I am a setup task")
 
@@ -167,3 +167,46 @@ class TestSetupTearDownTask:
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["mytask2"]
         assert setup_task._is_setup
+
+    def test_setup_teardown_mixed_up_in_a_dag(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        @teardown
+        def teardowntask2():
+            print("teardown")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        with dag_maker() as dag:
+            setuptask()
+            teardowntask()
+            setuptask2()
+            teardowntask2()
+            mytask()
+            mytask2()
+
+        assert len(dag.task_group.children) == 6
+        assert dag.task_group.children["setuptask"]._is_setup
+        assert dag.task_group.children["teardowntask"]._is_teardown
+        assert dag.task_group.children["setuptask2"]._is_setup
+        assert dag.task_group.children["teardowntask2"]._is_teardown
+        assert dag.task_group.children["mytask"]._is_setup is False
+        assert dag.task_group.children["mytask"]._is_teardown is False
+        assert dag.task_group.children["mytask2"]._is_setup is False
+        assert dag.task_group.children["mytask2"]._is_teardown is False
