@@ -25,15 +25,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.job import Job
-    from airflow.serialization.pydantic.job import JobPydantic
 
 
 class BaseJobRunner:
     """Abstract class for job runners to derive from."""
 
     job_type = "undefined"
-
-    job: Job | JobPydantic
 
     def _execute(self) -> int | None:
         """

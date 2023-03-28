@@ -35,11 +35,11 @@ from airflow.utils.cli import process_subdir, setup_locations, setup_logging, si
 from airflow.utils.scheduler_health import serve_health_check
 
 
-def _run_scheduler_job(job: Job, *, skip_serve_logs: bool) -> None:
+def _run_scheduler_job(job_runner: SchedulerJobRunner, *, skip_serve_logs: bool) -> None:
     InternalApiConfig.force_database_direct_access()
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(skip_serve_logs), _serve_health_check(enable_health_check):
-        run_job(job)
+        run_job(job=job_runner.job, execute_callable=job_runner._execute)
 
 
 @cli_utils.action_cli
@@ -47,14 +47,10 @@ def scheduler(args):
     """Starts Airflow Scheduler."""
     print(settings.HEADER)
 
-    job = Job(
-        job_runner=SchedulerJobRunner(
-            subdir=process_subdir(args.subdir),
-            num_runs=args.num_runs,
-            do_pickle=args.do_pickle,
-        )
+    job_runner = SchedulerJobRunner(
+        job=Job(), subdir=process_subdir(args.subdir), num_runs=args.num_runs, do_pickle=args.do_pickle
     )
-    ExecutorLoader.validate_database_executor_compatibility(job.executor)
+    ExecutorLoader.validate_database_executor_compatibility(job_runner.job.executor)
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(
@@ -73,12 +69,12 @@ def scheduler(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
-                _run_scheduler_job(job, skip_serve_logs=args.skip_serve_logs)
+                _run_scheduler_job(job_runner, skip_serve_logs=args.skip_serve_logs)
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
-        _run_scheduler_job(job, skip_serve_logs=args.skip_serve_logs)
+        _run_scheduler_job(job_runner, skip_serve_logs=args.skip_serve_logs)
 
 
 @contextmanager

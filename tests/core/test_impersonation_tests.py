@@ -113,7 +113,9 @@ class BaseImpersonationTest:
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        run_job(Job(job_runner=BackfillJobRunner(dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)))
+        job = Job()
+        job_runner = BackfillJobRunner(job=job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        run_job(job=job, execute_callable=job_runner._execute)
         run_id = DagRun.generate_run_id(DagRunType.BACKFILL_JOB, execution_date=DEFAULT_DATE)
         ti = TaskInstance(task=dag.get_task(task_id), run_id=run_id)
         ti.refresh_from_db()
