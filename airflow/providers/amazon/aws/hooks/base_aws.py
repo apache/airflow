@@ -129,20 +129,27 @@ class BaseSessionFactory(LoggingMixin):
         """Assume Role ARN from AWS Connection"""
         return self.conn.role_arn
 
-    def create_session(self, deferrable: bool = False) -> boto3.session.Session:
-        """Create boto3 or aiobotocore Session from connection config."""
+    def get_async_session(self):
         from aiobotocore.session import get_session as async_get_session
 
+        return async_get_session()
+
+    def create_session(self, deferrable: bool = False) -> boto3.session.Session:
+        """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
                 "No connection ID provided. Fallback on boto3 credential strategy (region_name=%r). "
                 "See: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
                 self.region_name,
             )
-            return async_get_session() if deferrable else boto3.session.Session(region_name=self.region_name)
+            return (
+                self.get_async_session()
+                if deferrable
+                else boto3.session.Session(region_name=self.region_name)
+            )
 
         elif not self.role_arn:
-            return async_get_session() if deferrable else self.basic_session
+            return self.get_async_session() if deferrable else self.basic_session
 
         # Values stored in ``AwsConnectionWrapper.session_kwargs`` are intended to be used only
         # to create the initial boto3 session.
