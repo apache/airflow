@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 from unittest import mock
 
 import pytest
@@ -35,6 +36,7 @@ AWS_CONN_ID = "airflow_test"
 REGION_NAME = "eu-west-1"
 
 
+@pytest.mark.skipif(not bool(importlib.util.find_spec("aiobotocore")), reason="aiobotocore require")
 class TestBatchOperatorTrigger:
     TRIGGER = BatchOperatorTrigger(
         job_id=JOB_ID,
