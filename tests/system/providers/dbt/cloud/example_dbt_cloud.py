@@ -79,7 +79,7 @@ with DAG(
 
     # [START howto_operator_dbt_cloud_run_job_sensor_defered]
     job_run_sensor_defered = DbtCloudJobRunSensor(
-        task_id="job_run_sensor_defered", run_id=trigger_job_run2.output, timeout=20
+        task_id="job_run_sensor_defered", run_id=trigger_job_run2.output, timeout=20, deferrable=True
     )
     # [END howto_operator_dbt_cloud_run_job_sensor_defered]
 
