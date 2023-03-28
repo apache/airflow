@@ -93,10 +93,6 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
-ADSS = "all_done_setup_success"
-UP_FAILED = State.UPSTREAM_FAILED
-SKIPPED = State.SKIPPED
-
 
 @pytest.fixture
 def test_pool():
@@ -1130,7 +1126,7 @@ class TestTaskInstance:
             #
             # Tests for one_failed
             #
-            ["one_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, SKIPPED, False],
+            ["one_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
             ["one_failed", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
             ["one_failed", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, True],
             ["one_failed", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
@@ -1145,10 +1141,10 @@ class TestTaskInstance:
             #
             # Tests for all_done_setup_success: no upstream setups -> same as all_done
             #
-            [ADSS, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
-            [ADSS, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
-            [ADSS, 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, False],
-            [ADSS, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
+            ["all_done_setup_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
+            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
+            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, False],
+            ["all_done_setup_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
             #
             # Tests for all_done_setup_success: with upstream setups -> different from all_done
             #
@@ -1162,7 +1158,7 @@ class TestTaskInstance:
             # states: success, skipped, failed, upstream_failed, removed, done, success_setup, skipped_setup
             # all setups succeeded - one
             param(
-                ADSS,
+                "all_done_setup_success",
                 1,
                 _UpstreamTIStates(6, 0, 0, 0, 0, 6, 1, 0),
                 True,
@@ -1171,7 +1167,7 @@ class TestTaskInstance:
                 id="all setups succeeded - one",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 2,
                 _UpstreamTIStates(7, 0, 0, 0, 0, 7, 2, 0),
                 True,
@@ -1180,52 +1176,52 @@ class TestTaskInstance:
                 id="all setups succeeded - two",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 1,
                 _UpstreamTIStates(5, 0, 1, 0, 0, 6, 0, 0),
                 True,
-                UP_FAILED,
+                State.UPSTREAM_FAILED,
                 False,
                 id="setups failed - one",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 0, 2, 0, 0, 7, 0, 0),
                 True,
-                UP_FAILED,
+                State.UPSTREAM_FAILED,
                 False,
                 id="setups failed - two",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 1,
                 _UpstreamTIStates(5, 1, 0, 0, 0, 6, 0, 1),
                 True,
-                SKIPPED,
+                State.SKIPPED,
                 False,
                 id="setups skipped - one",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 2, 0, 0, 0, 7, 0, 2),
                 True,
-                SKIPPED,
+                State.SKIPPED,
                 False,
                 id="setups skipped - two",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 1, 1, 0, 0, 7, 0, 1),
                 True,
-                UP_FAILED,
+                State.UPSTREAM_FAILED,
                 False,
                 id="one setup failed one setup skipped",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
                 True,
@@ -1234,7 +1230,7 @@ class TestTaskInstance:
                 id="one setup failed one setup success --> should run",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
                 True,
@@ -1242,9 +1238,17 @@ class TestTaskInstance:
                 True,
                 id="one setup success one setup skipped --> should run",
             ),
-            param(ADSS, 1, _UpstreamTIStates(3, 0, 0, 0, 0, 3, 1, 0), True, None, False, id="not all done"),
             param(
-                ADSS,
+                "all_done_setup_success",
+                1,
+                _UpstreamTIStates(3, 0, 0, 0, 0, 3, 1, 0),
+                True,
+                None,
+                False,
+                id="not all done",
+            ),
+            param(
+                "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
                 True,
@@ -1253,7 +1257,7 @@ class TestTaskInstance:
                 id="not all done, one failed",
             ),
             param(
-                ADSS,
+                "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
                 True,
