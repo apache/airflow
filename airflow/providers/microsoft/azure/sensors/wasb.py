@@ -72,8 +72,9 @@ class WasbBlobAsyncSensor(WasbBlobSensor):
     :param container_name: name of the container in which the blob should be searched for
     :param blob_name: name of the blob to check existence for
     :param wasb_conn_id: the connection identifier for connecting to Azure WASB
-    :param poll_interval:  polling period in seconds to check for the status
+    :param poke_interval:  polling period in seconds to check for the status
     :param public_read: whether an anonymous public read access should be used. Default is False
+    :param timeout: Time, in seconds before the task times out and fails.
     """
 
     def __init__(

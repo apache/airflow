@@ -30,6 +30,7 @@ import os
 from functools import wraps
 from typing import Any, Union
 
+from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import (
@@ -532,11 +533,14 @@ class WasbAsyncHook(WasbHook):
         """Initialize the hook instance."""
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client: AsyncBlobServiceClient = self.get_conn()
+        self.blob_service_client: AsyncBlobServiceClient
 
-    def get_conn(self) -> AsyncBlobServiceClient:
+    async def get_async_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
-        conn = self.get_connection(self.conn_id)
+        if self.blob_service_client is not None:
+            return self.blob_service_client
+
+        conn = await sync_to_async(self.get_connection)(self.conn_id)
         extra = conn.extra_dejson or {}
 
         if self.public_read:
@@ -576,12 +580,12 @@ class WasbAsyncHook(WasbHook):
         sas_token = self._get_field(extra, "sas_token")
         if sas_token:
             if sas_token.startswith("https"):
-                self._async_conn = AsyncBlobServiceClient(account_url=sas_token, **extra)
+                self.blob_service_client = AsyncBlobServiceClient(account_url=sas_token, **extra)
             else:
-                self._async_conn = AsyncBlobServiceClient(
+                self.blob_service_client = AsyncBlobServiceClient(
                     account_url=f"https://{conn.login}.blob.core.windows.net/{sas_token}", **extra
                 )
-            return self._async_conn
+            return self.blob_service_client
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
