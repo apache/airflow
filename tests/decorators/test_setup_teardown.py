@@ -211,3 +211,60 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask"]._is_teardown is False
         assert dag.task_group.children["mytask2"]._is_setup is False
         assert dag.task_group.children["mytask2"]._is_teardown is False
+
+
+    def test_setup_teardown_as_context_manager(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        @teardown
+        def teardowntask2():
+            print("teardown")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        with dag_maker() as dag:
+            with setuptask() >> teardowntask():
+                with setuptask2() >> teardowntask2():
+                    mytask() >> mytask2()
+
+        assert len(dag.task_group.children) == 6
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"teardowntask", "setuptask2"}
+        assert dag.task_group.children["setuptask2"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"teardowntask2", "mytask"}
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask2"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"mytask"}
+        assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask2"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {"setuptask", "teardowntask2"}
+        assert not dag.task_group.children["teardowntask"].downstream_task_ids
+        assert dag.task_group.children["teardowntask2"].upstream_task_ids == {"setuptask2", "mytask2"}
+        assert dag.task_group.children["teardowntask2"].downstream_task_ids == {"teardowntask"}
+
+    def test_normal_task_raises_when_used_as_context_managers(self, dag_maker):
+        @task()
+        def mytask():
+            print("mytask")
+
+        with dag_maker():
+            with pytest.raises(
+                AirflowException, match="Only setup/teardown tasks can be used as context managers."
+            ):
+                with mytask():
+                    pass

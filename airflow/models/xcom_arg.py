@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Un
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import XComNotFound
+from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
@@ -202,6 +202,33 @@ class XComArg(ResolveMixin, DependencyMixin):
         :meta private:
         """
         raise NotImplementedError()
+
+    def __enter__(self):
+        if not self.operator._is_setup and not self.operator._is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        task_group = self.operator.task_group
+        setup_tasks = [task for task in task_group.roots if task._is_setup]
+        teardown_tasks = [task for task in task_group.leaves if task._is_teardown]
+        roots = set(task_group.roots) - set(setup_tasks) - set(teardown_tasks)
+        leaves = set(task_group.leaves) - set(setup_tasks) - set(teardown_tasks)
+        if setup_tasks:
+            setup_tasks[-1].set_downstream(list(roots))
+
+        if teardown_tasks:
+            teardown_tasks[-1].set_upstream(list(leaves))
+        root_setup = None
+        for setup_task in setup_tasks:
+            if root_setup:
+                root_setup >> setup_task
+            root_setup = setup_task
+        leave_teardown = None
+        for teardown_task in teardown_tasks:
+            if leave_teardown:
+                teardown_task >> leave_teardown
+            leave_teardown = teardown_task
 
 
 class PlainXComArg(XComArg):
