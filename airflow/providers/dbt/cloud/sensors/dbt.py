@@ -122,17 +122,9 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
 
 class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
     """
-    Checks the status of a dbt Cloud job run asynchronously.
-
-    .. seealso::
-        For more information on the DbtCloudJobRunAsyncSensor, take a look at the guide::
-        :ref:`howto/operator:DbtCloudJobRunAsyncSensor`
-
-    :param dbt_cloud_conn_id: The connection identifier for connecting to dbt Cloud.
-    :param run_id: The job run identifier.
-    :param account_id: The dbt Cloud account identifier.
-    :param poll_interval: Periodic time interval for the sensor to check for job status.
-    :param timeout: Time in seconds to wait for a job run to reach a terminal status. Defaults to 7 days.
+    This class is deprecated.
+    Please use
+    :class:`airflow.providers.dbt.cloud.sensor.dbt.DbtCloudJobRunSensor`.
     """
 
     def __init__(self, **kwargs: Any) -> None:
