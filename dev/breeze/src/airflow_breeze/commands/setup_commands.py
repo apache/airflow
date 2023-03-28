@@ -526,7 +526,7 @@ def errors_detected_in_params(command: str, subcommand: str | None, command_dict
                         f"`{rich_click_key}` group in `{command_path_config(command)}`."
                     )
                     get_console().print(
-                        "[warning]Please remove it from there od add parameter in "
+                        "[warning]Please remove it from there or add parameter in "
                         "the command. NOTE! This error might be printed when the option is"
                         "added twice in the command definition!."
                     )
