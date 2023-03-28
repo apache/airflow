@@ -54,19 +54,22 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         deferrable: bool = False,
         **kwargs,
     ) -> None:
-        if deferrable and "poke_interval" not in kwargs:
-            # TODO: Remove once deprecated
-            if "polling_interval" in kwargs:
-                kwargs["poke_interval"] = kwargs["polling_interval"]
-                warnings.warn(
-                    "Argument `poll_interval` is deprecated and will be removed "
-                    "in a future release.  Please use `poke_interval` instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            else:
-                kwargs["timeout"] = 60 * 60 * 24 * 7
-                kwargs["poke_interval"] = 5
+        if deferrable:
+            if "poke_interval" not in kwargs:
+                # TODO: Remove once deprecated
+                if "polling_interval" in kwargs:
+                    kwargs["poke_interval"] = kwargs["polling_interval"]
+                    warnings.warn(
+                        "Argument `poll_interval` is deprecated and will be removed "
+                        "in a future release.  Please use `poke_interval` instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                else:
+                    kwargs["poke_interval"] = 5
+
+                if "timeout" not in kwargs:
+                    kwargs["timeout"] = 60 * 60 * 24 * 7
 
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
