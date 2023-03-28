@@ -672,7 +672,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             self._sync_dag_view_permissions(dag_resource_name, access_control)
         else:
             resource = self.get_resource(dag_resource_name)
-            _revoke_all_stale_permissions(resource)
+            if resource:
+                _revoke_all_stale_permissions(resource)
 
     def _sync_dag_view_permissions(self, dag_id: str, access_control: dict[str, Collection[str]]) -> None:
         """
