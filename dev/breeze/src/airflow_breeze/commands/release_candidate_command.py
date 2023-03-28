@@ -102,8 +102,8 @@ def create_artifacts_with_breeze():
 
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
-        os.chdir(repo_root)
-        run_command("./dev/sign.sh dist/*", dry_run_override=DRY_RUN, check=True, shell=True)
+        os.chdir(f"{repo_root}/dist")
+        run_command("./../dev/sign.sh *", dry_run_override=DRY_RUN, check=True, shell=True)
         console_print("Release signed")
 
 
