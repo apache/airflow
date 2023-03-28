@@ -67,4 +67,4 @@ with DAG(
 
     root_setup()
     normal() >> section_1()
-    root_teardown()
+    rt = root_teardown()
