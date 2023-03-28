@@ -420,7 +420,7 @@ class CeleryExecutor(BaseExecutor):
             )
 
         return not_adopted_tis
-    
+
     def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstanceKey]) -> None:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
@@ -438,6 +438,7 @@ class CeleryExecutor(BaseExecutor):
                     app.control.revoke(celery_async_result.task_id)
                 except Exception as ex:
                     self.log.error("Error revoking task instance %s from celery: %s", task_instance_key, ex)
+
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
     """

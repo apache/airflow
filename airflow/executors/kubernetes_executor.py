@@ -597,10 +597,6 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_id=self.scheduler_job_id,
         )
         self.event_scheduler = EventScheduler()
-        self.event_scheduler.call_regular_interval(
-            self.kube_config.worker_pods_pending_timeout_check_interval,
-            self._check_worker_pods_pending_timeout,
-        )
 
         self.event_scheduler.call_regular_interval(
             self.kube_config.worker_pods_queued_check_interval,
@@ -701,7 +697,6 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
-
                     # These codes indicate something is wrong with pod definition; otherwise we assume pod
                     # definition is ok, and that retrying may work
                     if e.status in (400, 422):
@@ -731,38 +726,6 @@ class KubernetesExecutor(BaseExecutor):
         # Run any pending timed events
         next_event = self.event_scheduler.run(blocking=False)
         self.log.debug("Next timed event is in %f", next_event)
-
-    def _check_worker_pods_pending_timeout(self):
-        """Check if any pending worker pods have timed out."""
-        if TYPE_CHECKING:
-            assert self.scheduler_job_id
-
-        timeout = self.kube_config.worker_pods_pending_timeout
-        self.log.debug("Looking for pending worker pods older than %d seconds", timeout)
-
-        kwargs = {
-            "limit": self.kube_config.worker_pods_pending_timeout_batch_size,
-            "field_selector": "status.phase=Pending",
-            "label_selector": f"airflow-worker={self.scheduler_job_id}",
-            **self.kube_config.kube_client_request_args,
-        }
-        pending_pods = self._list_pods(kwargs)
-
-        cutoff = timezone.utcnow() - timedelta(seconds=timeout)
-        for pod in pending_pods:
-            self.log.debug(
-                'Found a pending pod "%s", created "%s"', pod.metadata.name, pod.metadata.creation_timestamp
-            )
-            if pod.metadata.creation_timestamp < cutoff:
-                self.log.error(
-                    (
-                        'Pod "%s" has been pending for longer than %d seconds.'
-                        "It will be deleted and set to failed."
-                    ),
-                    pod.metadata.name,
-                    timeout,
-                )
-                self.kube_scheduler.delete_pod(pod.metadata.name, pod.metadata.namespace)
 
     def _change_state(self, key: TaskInstanceKey, state: str | None, pod_id: str, namespace: str) -> None:
         if TYPE_CHECKING:
@@ -864,7 +827,7 @@ class KubernetesExecutor(BaseExecutor):
         self._adopt_completed_pods(kube_client)
         tis_to_flush.extend(pod_ids.values())
         return tis_to_flush
-    
+
     def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstanceKey]) -> None:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
@@ -892,11 +855,10 @@ class KubernetesExecutor(BaseExecutor):
                 raise RuntimeError("Cannot find pod for ti %s", ti)
             elif len(pod_list) > 1:
                 raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
-            self.kube_scheduler.delete_pod(
-                pod_id=pod_list[0].metadata.name,
-                namespace=namespace
+            self.kube_scheduler.delete_pod(pod_id=pod_list[0].metadata.name, namespace=namespace)
+            self.log.info(
+                "Deleted pod %s from namespace %s. Pod was stuck in queued for longer than `task_queued_timeout`."
             )
-            self.log.info("Deleted pod %s from namespace %s. Pod was stuck in queued for longer than `task_queued_timeout`.")
 
     def adopt_launched_task(
         self, kube_client: client.CoreV1Api, pod: k8s.V1Pod, pod_ids: dict[TaskInstanceKey, k8s.V1Pod]

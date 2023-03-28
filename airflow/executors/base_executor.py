@@ -375,8 +375,8 @@ class BaseExecutor(LoggingMixin):
     def terminate(self):
         """This method is called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
-    
-    def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstance]) -> None: # pragma: no cover
+
+    def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstance]) -> None:  # pragma: no cover
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked
