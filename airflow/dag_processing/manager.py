@@ -1139,7 +1139,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self._file_stats.pop(file_path, None)
                     file_paths_to_stop_watching.add(file_path)
                     continue
-                file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
+                file_modified_time = datetime.fromtimestamp(files_with_mtime[file_path], tz=timezone.utc)
             else:
                 file_paths.append(file_path)
                 file_modified_time = None
