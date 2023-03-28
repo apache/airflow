@@ -34,13 +34,11 @@ def setup_task(func: Callable) -> Callable:
     return func
 
 
-def teardown_task(
-    _func=None, multiple_outputs: bool | None = None, on_failure_fail_dagrun: bool = False, **kwargs
-) -> Callable:
+def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callable:
     def teardown(func: Callable) -> Callable:
         # Using FunctionType here since _TaskDecorator is also a callable
         if isinstance(func, types.FunctionType):
-            func = python_task(func, multiple_outputs=multiple_outputs, **kwargs)
+            func = python_task(func)
         if isinstance(func, _TaskGroupFactory):
             raise AirflowException("Task groups cannot be marked as setup or teardown.")
         func._is_teardown = True  # type: ignore[attr-defined]
