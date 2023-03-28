@@ -294,15 +294,24 @@ class BatchOperator(BaseOperator):
         else:
             self.hook.wait_for_job(self.job_id)
 
-        awslogs = self.hook.get_job_awslogs_info(self.job_id)
+        awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         if awslogs:
-            self.log.info("AWS Batch job (%s) CloudWatch Events details found: %s", self.job_id, awslogs)
+            self.log.info("AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id)
+            link_builder = CloudWatchEventsLink()
+            for log in awslogs:
+                self.log.info(link_builder.format_link(**log))
+            if len(awslogs) > 1:
+                # there can be several log streams on multi-node jobs
+                self.log.warning(
+                    "out of all those logs, we can only link to one in the UI. " "Using the first one."
+                )
+
             CloudWatchEventsLink.persist(
                 context=context,
                 operator=self,
                 region_name=self.hook.conn_region_name,
                 aws_partition=self.hook.conn_partition,
-                **awslogs,
+                **awslogs[0],
             )
 
         self.hook.check_job_success(self.job_id)
