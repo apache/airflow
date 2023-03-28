@@ -66,11 +66,16 @@ with DAG(
     )
     # [END howto_sensor_databricks_sql]
 
+    # This DAG contains only one task, so the below pattern (task1) is not necessary,
+    # but it is present here as a pattern to be expanded for users.
+    # For example, (task1 >> task 2 >> task3)
     (sql_sensor)
 
     from tests.system.utils.watcher import watcher
 
-    # This test needs watcher in order to properly mark success/failure
+    # This example does not need a watcher in order to properly mark success/failure
+    # since it is a single task, but it is given here as an example for users to
+    # extend it to their use cases.
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
