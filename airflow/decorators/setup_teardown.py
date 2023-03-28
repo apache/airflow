@@ -34,7 +34,7 @@ def setup_task(func: Callable) -> Callable:
     return func
 
 
-def teardown_task(_func=None, *, on_failure_fail_dagrun: bool | None = None) -> Callable:
+def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callable:
     def teardown(func: Callable) -> Callable:
         # Using FunctionType here since _TaskDecorator is also a callable
         if isinstance(func, types.FunctionType):
