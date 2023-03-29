@@ -320,3 +320,91 @@ class TestSetupTearDownTask:
             ):
                 with mytask():
                     pass
+
+    def test_only_setup(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        with dag_maker() as dag:
+            with setuptask():
+                mytask() >> mytask2()
+
+        assert len(dag.task_group.children) == 3
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask"}
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"mytask"}
+        assert not dag.task_group.children["mytask2"].downstream_task_ids
+
+    def test_only_teardown(self, dag_maker):
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        with dag_maker("foo") as dag:
+            with teardowntask():
+                mytask() >> mytask2()
+
+        assert len(dag.task_group.children) == 3
+        assert not dag.task_group.children["mytask"].upstream_task_ids
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"mytask"}
+        assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {"mytask2"}
+        assert not dag.task_group.children["teardowntask"].downstream_task_ids
+
+    def test_nested_only_setup(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        with dag_maker() as dag:
+            with setuptask() >> teardowntask():
+                with setuptask2():
+                    mytask() << mytask2()
+
+        assert len(dag.task_group.children) == 5
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"teardowntask", "setuptask2"}
+        assert dag.task_group.children["setuptask2"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2"}
+        assert dag.task_group.children["mytask2"].downstream_task_ids == {"mytask"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {"setuptask", "mytask"}
+        assert not dag.task_group.children["teardowntask"].downstream_task_ids

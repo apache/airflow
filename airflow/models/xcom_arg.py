@@ -214,6 +214,11 @@ class XComArg(ResolveMixin, DependencyMixin):
             upstream_setup = [task for task in self.operator.upstream_list if task._is_setup]
             if upstream_setup:
                 SetupTeardownContext.push_context_managed_setup_task(upstream_setup[-1])
+            else:
+                SetupTeardownContext.push_context_managed_setup_task(None)
+        elif self.operator._is_setup:
+            SetupTeardownContext.push_context_managed_setup_task(self.operator)
+            SetupTeardownContext.push_context_managed_teardown_task(None)
         SetupTeardownContext.active = True
         return self
 
