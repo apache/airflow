@@ -24,12 +24,13 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class StepFunctionHook(AwsBaseHook):
     """
     Interact with an AWS Step Functions State Machine.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("stepfunctions") <SFN.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -44,12 +45,14 @@ class StepFunctionHook(AwsBaseHook):
     ) -> str:
         """
         Start Execution of the State Machine.
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.start_execution
 
-        :param state_machine_arn: AWS Step Function State Machine ARN
+        .. seealso::
+            - :external+boto3:py:meth:`SFN.Client.start_execution`
+
+        :param state_machine_arn: AWS Step Function State Machine ARN.
         :param name: The name of the execution.
-        :param state_machine_input: JSON data input to pass to the State Machine
-        :return: Execution ARN
+        :param state_machine_input: JSON data input to pass to the State Machine.
+        :return: Execution ARN.
         """
         execution_args = {"stateMachineArn": state_machine_arn}
         if name is not None:
@@ -68,9 +71,11 @@ class StepFunctionHook(AwsBaseHook):
     def describe_execution(self, execution_arn: str) -> dict:
         """
         Describes a State Machine Execution
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.describe_execution
 
-        :param execution_arn: ARN of the State Machine Execution
-        :return: Dict with Execution details
+        .. seealso::
+            - :external+boto3:py:meth:`SFN.Client.describe_execution`
+
+        :param execution_arn: ARN of the State Machine Execution.
+        :return: Dict with execution details.
         """
         return self.get_conn().describe_execution(executionArn=execution_arn)

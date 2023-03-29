@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -26,11 +27,10 @@ from pytest import param
 
 from airflow.models import Connection
 from airflow.utils.session import create_session
-from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
 
-CONNECTION = {
+CONNECTION: dict[str, Any] = {
     "conn_id": "test_conn",
     "conn_type": "http",
     "description": "description",
@@ -40,11 +40,9 @@ CONNECTION = {
     "password": "admin",
 }
 
-CONNECTION_WITH_EXTRA = CONNECTION.update(
-    {
-        "extra": '{"x_secret": "testsecret","y_secret": "test"}',
-    }
-)
+
+def conn_with_extra() -> dict[str, Any]:
+    return {**CONNECTION, "extra": '{"x_secret": "testsecret","y_secret": "test"}'}
 
 
 @pytest.fixture(autouse=True)
@@ -54,15 +52,13 @@ def clear_connections():
 
 
 def test_create_connection(admin_client, session):
-    init_views.init_connection_form()
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)
     _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
-    init_views.init_connection_form()
-    admin_client.post("/connection/add", data=CONNECTION_WITH_EXTRA, follow_redirects=True)
+    admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
     _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
 
 
@@ -71,6 +67,7 @@ def test_prefill_form_null_extra():
     mock_form.data = {"conn_id": "test", "extra": None, "conn_type": "test"}
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(return_value=())
     cmv.prefill_form(form=mock_form, pk=1)
 
 
@@ -95,12 +92,9 @@ def test_prefill_form_backcompat(extras, expected):
     """
     mock_form = mock.Mock()
     mock_form.data = {"conn_id": "test", "extra": json.dumps(extras), "conn_type": "test"}
+
     cmv = ConnectionModelView()
-    cmv.extra_fields = ["extra__test__my_param"]
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping["extra__test__my_param"] = "my_param"
-
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__my_param", "my_param")])
     cmv.prefill_form(form=mock_form, pk=1)
     assert mock_form.extra__test__my_param.data == expected
 
@@ -128,12 +122,8 @@ def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
     }
 
     cmv = ConnectionModelView()
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping["extra__test__custom_field"] = field_name
-    cmv.extra_fields = ["extra__test__custom_field"]  # Custom field
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__custom_field", field_name)])
     cmv.process_form(form=mock_form, is_created=True)
-
     assert json.loads(mock_form.extra.data) == {
         field_name: "custom_field_val",
         "param1": "param1_val",
@@ -158,9 +148,8 @@ def test_process_form_extras_extra_only(mock_pm_hooks, mock_import_str):
     }
 
     cmv = ConnectionModelView()
-
+    cmv._iter_extra_field_names = mock.Mock(return_value=())
     cmv.process_form(form=mock_form, is_created=True)
-
     assert json.loads(mock_form.extra.data) == {"param2": "param2_val"}
 
 
@@ -185,12 +174,13 @@ def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_n
     }
 
     cmv = ConnectionModelView()
-    cmv.extra_fields = ["extra__test3__custom_field", "extra__test3__custom_bool_field"]  # Custom fields
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping["extra__test3__custom_field"] = field_name
+    cmv._iter_extra_field_names = mock.Mock(
+        return_value=[
+            ("extra__test3__custom_field", field_name),
+            ("extra__test3__custom_bool_field", False),
+        ],
+    )
     cmv.process_form(form=mock_form, is_created=True)
-
     assert json.loads(mock_form.extra.data) == {field_name: False}
 
 
@@ -215,11 +205,7 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
     }
 
     cmv = ConnectionModelView()
-    cmv.extra_fields = ["extra__test4__custom_field"]  # Custom field
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping["extra__test4__custom_field"] = field_name
-
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test4__custom_field", field_name)])
     cmv.process_form(form=mock_form, is_created=True)
 
     if field_name == "custom_field":
@@ -344,10 +330,6 @@ def test_process_form_invalid_extra_removed(admin_client):
     Test that when an invalid json `extra` is passed in the form, it is removed and _not_
     saved over the existing extras.
     """
-    from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
-
-    lazy_add_provider_discovered_options_to_connection_form()
-
     conn_details = {"conn_id": "test_conn", "conn_type": "http"}
     conn = Connection(**conn_details, extra='{"foo": "bar"}')
     conn.id = 1
@@ -360,6 +342,6 @@ def test_process_form_invalid_extra_removed(admin_client):
 
     assert resp.status_code == 200
     with create_session() as session:
-        conn = session.query(Connection).get(1)
+        conn = session.get(Connection, 1)
 
     assert conn.extra == '{"foo": "bar"}'

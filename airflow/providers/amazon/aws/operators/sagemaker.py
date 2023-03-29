@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Sequence
+import time
+import warnings
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -26,7 +28,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
+from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -104,6 +108,41 @@ class SageMakerBaseOperator(BaseOperator):
         """
         self.integer_fields = []
 
+    def _get_unique_job_name(
+        self, proposed_name: str, fail_if_exists: bool, describe_func: Callable[[str], Any]
+    ) -> str:
+        """
+        Returns the proposed name if it doesn't already exist, otherwise returns it with a timestamp suffix.
+
+        :param proposed_name: Base name.
+        :param fail_if_exists: Will throw an error if a job with that name already exists
+            instead of finding a new name.
+        :param describe_func: The `describe_` function for that kind of job.
+            We use it as an O(1) way to check if a job exists.
+        """
+        job_name = proposed_name
+        while self._check_if_job_exists(job_name, describe_func):
+            # this while should loop only once in most cases, just setting it this way to regenerate a name
+            # in case there is collision.
+            if fail_if_exists:
+                raise AirflowException(f"A SageMaker job with name {job_name} already exists.")
+            else:
+                job_name = f"{proposed_name}-{time.time_ns()//1000000}"
+                self.log.info("Changed job name to '%s' to avoid collision.", job_name)
+        return job_name
+
+    def _check_if_job_exists(self, job_name, describe_func: Callable[[str], Any]) -> bool:
+        """Returns True if job exists, False otherwise."""
+        try:
+            describe_func(job_name)
+            self.log.info("Found existing job with name '%s'.", job_name)
+            return True
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ValidationException":
+                return False  # ValidationException is thrown when the job could not be found
+            else:
+                raise e
+
     def execute(self, context: Context):
         raise NotImplementedError("Please implement execute() in sub class!")
 
@@ -135,8 +174,8 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     :param max_ingestion_time: If wait is set to True, the operation fails if the processing job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
-    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
-        (default) and "fail".
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
+        (default), "increment" (deprecated) and "fail".
     :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
     """
 
@@ -149,14 +188,21 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
-        action_if_job_exists: str = "increment",
+        action_if_job_exists: str = "timestamp",
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
-        if action_if_job_exists not in ("increment", "fail"):
+        if action_if_job_exists not in ("increment", "fail", "timestamp"):
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
+            )
+        if action_if_job_exists == "increment":
+            warnings.warn(
+                "Action 'increment' on job name conflict has been deprecated for performance reasons."
+                "The alternative to 'fail' is now 'timestamp'.",
+                DeprecationWarning,
+                stacklevel=2,
             )
         self.action_if_job_exists = action_if_job_exists
         self.wait_for_completion = wait_for_completion
@@ -181,21 +227,12 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
 
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
-        processing_job_name = self.config["ProcessingJobName"]
-        processing_job_dedupe_pattern = "-[0-9]+$"
-        existing_jobs_found = self.hook.count_processing_jobs_by_name(
-            processing_job_name, processing_job_dedupe_pattern
+
+        self.config["ProcessingJobName"] = self._get_unique_job_name(
+            self.config["ProcessingJobName"],
+            self.action_if_job_exists == "fail",
+            self.hook.describe_processing_job,
         )
-        if existing_jobs_found:
-            if self.action_if_job_exists == "fail":
-                raise AirflowException(
-                    f"A SageMaker processing job with name {processing_job_name} already exists."
-                )
-            elif self.action_if_job_exists == "increment":
-                self.log.info("Found existing processing job with name '%s'.", processing_job_name)
-                new_processing_job_name = f"{processing_job_name}-{existing_jobs_found + 1}"
-                self.config["ProcessingJobName"] = new_processing_job_name
-                self.log.info("Incremented processing job name to '%s'.", new_processing_job_name)
 
         response = self.hook.create_processing_job(
             self.config,
@@ -421,8 +458,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         set this parameter to None, the operation does not timeout.
     :param check_if_job_exists: If set to true, then the operator will check whether a transform job
         already exists for the name in the config.
-    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
-        (default) and "fail".
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
+        (default), "increment" (deprecated) and "fail".
         This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
@@ -436,7 +473,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
-        action_if_job_exists: str = "increment",
+        action_if_job_exists: str = "timestamp",
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -444,11 +481,18 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
-        if action_if_job_exists in ("increment", "fail"):
+        if action_if_job_exists in ("increment", "fail", "timestamp"):
+            if action_if_job_exists == "increment":
+                warnings.warn(
+                    "Action 'increment' on job name conflict has been deprecated for performance reasons."
+                    "The alternative to 'fail' is now 'timestamp'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             self.action_if_job_exists = action_if_job_exists
         else:
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
 
@@ -474,13 +518,20 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
-        model_config = self.config.get("Model")
+
         transform_config = self.config.get("Transform", self.config)
         if self.check_if_job_exists:
-            self._check_if_transform_job_exists()
+            transform_config["TransformJobName"] = self._get_unique_job_name(
+                transform_config["TransformJobName"],
+                self.action_if_job_exists == "fail",
+                self.hook.describe_transform_job,
+            )
+
+        model_config = self.config.get("Model")
         if model_config:
             self.log.info("Creating SageMaker Model %s for transform job", model_config["ModelName"])
             self.hook.create_model(model_config)
+
         self.log.info("Creating SageMaker transform Job %s.", transform_config["TransformJobName"])
         response = self.hook.create_transform_job(
             transform_config,
@@ -497,21 +548,6 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                     self.hook.describe_transform_job(transform_config["TransformJobName"])
                 ),
             }
-
-    def _check_if_transform_job_exists(self) -> None:
-        transform_config = self.config.get("Transform", self.config)
-        transform_job_name = transform_config["TransformJobName"]
-        transform_jobs = self.hook.list_transform_jobs(name_contains=transform_job_name)
-        if transform_job_name in [tj["TransformJobName"] for tj in transform_jobs]:
-            if self.action_if_job_exists == "increment":
-                self.log.info("Found existing transform job with name '%s'.", transform_job_name)
-                new_transform_job_name = f"{transform_job_name}-{(len(transform_jobs) + 1)}"
-                transform_config["TransformJobName"] = new_transform_job_name
-                self.log.info("Incremented transform job name to '%s'.", new_transform_job_name)
-            elif self.action_if_job_exists == "fail":
-                raise AirflowException(
-                    f"A SageMaker transform job with name {transform_job_name} already exists."
-                )
 
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
@@ -652,8 +688,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         the operation does not timeout.
     :param check_if_job_exists: If set to true, then the operator will check whether a training job
         already exists for the name in the config.
-    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
-        (default) and "fail".
+    :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
+        (default), "increment" (deprecated) and "fail".
         This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
@@ -668,7 +704,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
-        action_if_job_exists: str = "increment",
+        action_if_job_exists: str = "timestamp",
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -677,11 +713,18 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
-        if action_if_job_exists in ("increment", "fail"):
+        if action_if_job_exists in {"timestamp", "increment", "fail"}:
+            if action_if_job_exists == "increment":
+                warnings.warn(
+                    "Action 'increment' on job name conflict has been deprecated for performance reasons."
+                    "The alternative to 'fail' is now 'timestamp'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             self.action_if_job_exists = action_if_job_exists
         else:
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
 
@@ -701,8 +744,14 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
+
         if self.check_if_job_exists:
-            self._check_if_job_exists()
+            self.config["TrainingJobName"] = self._get_unique_job_name(
+                self.config["TrainingJobName"],
+                self.action_if_job_exists == "fail",
+                self.hook.describe_training_job,
+            )
+
         self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
         response = self.hook.create_training_job(
             self.config,
@@ -715,20 +764,6 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             raise AirflowException(f"Sagemaker Training Job creation failed: {response}")
         else:
             return {"Training": serialize(self.hook.describe_training_job(self.config["TrainingJobName"]))}
-
-    def _check_if_job_exists(self) -> None:
-        training_job_name = self.config["TrainingJobName"]
-        training_jobs = self.hook.list_training_jobs(name_contains=training_job_name)
-        if training_job_name in [tj["TrainingJobName"] for tj in training_jobs]:
-            if self.action_if_job_exists == "increment":
-                self.log.info("Found existing training job with name '%s'.", training_job_name)
-                new_training_job_name = f"{training_job_name}-{(len(training_jobs) + 1)}"
-                self.config["TrainingJobName"] = new_training_job_name
-                self.log.info("Incremented training job name to '%s'.", new_training_job_name)
-            elif self.action_if_job_exists == "fail":
-                raise AirflowException(
-                    f"A SageMaker training job with name {training_job_name} already exists."
-                )
 
 
 class SageMakerDeleteModelOperator(SageMakerBaseOperator):
@@ -958,3 +993,143 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
             if group_created:
                 self.hook.conn.delete_model_package_group(ModelPackageGroupName=self.package_group_name)
             raise
+
+
+class SageMakerAutoMLOperator(SageMakerBaseOperator):
+    """
+    Creates an auto ML job, learning to predict the given column from the data provided through S3.
+    The learning output is written to the specified S3 location.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerAutoMLOperator`
+
+    :param job_name: Name of the job to create, needs to be unique within the account.
+    :param s3_input: The S3 location (folder or file) where to fetch the data.
+        By default, it expects csv with headers.
+    :param target_attribute: The name of the column containing the values to predict.
+    :param s3_output: The S3 folder where to write the model artifacts. Must be 128 characters or fewer.
+    :param role_arn: The ARN of the IAM role to use when interacting with S3.
+        Must have read access to the input, and write access to the output folder.
+    :param compressed_input: Set to True if the input is gzipped.
+    :param time_limit: The maximum amount of time in seconds to spend training the model(s).
+    :param autodeploy_endpoint_name: If specified, the best model will be deployed to an endpoint with
+        that name. No deployment made otherwise.
+    :param extras: Use this dictionary to set any variable input variable for job creation that is not
+        offered through the parameters of this function. The format is described in:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_auto_ml_job
+    :param wait_for_completion: Whether to wait for the job to finish before returning. Defaults to True.
+    :param check_interval: Interval in seconds between 2 status checks when waiting for completion.
+
+    :returns: Only if waiting for completion, a dictionary detailing the best model. The structure is that of
+        the "BestCandidate" key in:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.describe_auto_ml_job
+    """
+
+    template_fields: Sequence[str] = (
+        "job_name",
+        "s3_input",
+        "target_attribute",
+        "s3_output",
+        "role_arn",
+        "compressed_input",
+        "time_limit",
+        "autodeploy_endpoint_name",
+        "extras",
+    )
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        s3_input: str,
+        target_attribute: str,
+        s3_output: str,
+        role_arn: str,
+        compressed_input: bool = False,
+        time_limit: int | None = None,
+        autodeploy_endpoint_name: str | None = None,
+        extras: dict | None = None,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        config: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(config=config or {}, aws_conn_id=aws_conn_id, **kwargs)
+        self.job_name = job_name
+        self.s3_input = s3_input
+        self.target_attribute = target_attribute
+        self.s3_output = s3_output
+        self.role_arn = role_arn
+        self.compressed_input = compressed_input
+        self.time_limit = time_limit
+        self.autodeploy_endpoint_name = autodeploy_endpoint_name
+        self.extras = extras
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+
+    def execute(self, context: Context) -> dict | None:
+        best = self.hook.create_auto_ml_job(
+            self.job_name,
+            self.s3_input,
+            self.target_attribute,
+            self.s3_output,
+            self.role_arn,
+            self.compressed_input,
+            self.time_limit,
+            self.autodeploy_endpoint_name,
+            self.extras,
+            self.wait_for_completion,
+            self.check_interval,
+        )
+        return best
+
+
+class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
+    """
+    Creates a SageMaker experiment, to be then associated to jobs etc.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerCreateExperimentOperator`
+
+    :param name: name of the experiment, must be unique within the AWS account
+    :param description: description of the experiment, optional
+    :param tags: tags to attach to the experiment, optional
+    :param aws_conn_id: The AWS connection ID to use.
+
+    :returns: the ARN of the experiment created, though experiments are referred to by name
+    """
+
+    template_fields: Sequence[str] = (
+        "name",
+        "description",
+        "tags",
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        description: str | None = None,
+        tags: dict | None = None,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        **kwargs,
+    ):
+        super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
+        self.name = name
+        self.description = description
+        self.tags = tags or {}
+
+    def execute(self, context: Context) -> str:
+        sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        params = {
+            "ExperimentName": self.name,
+            "Description": self.description,
+            "Tags": format_tags(self.tags),
+        }
+        ans = sagemaker_hook.conn.create_experiment(**trim_none_values(params))
+        arn = ans["ExperimentArn"]
+        self.log.info("Experiment %s created successfully with ARN %s.", self.name, arn)
+        return arn

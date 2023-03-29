@@ -26,6 +26,7 @@
 """
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -34,18 +35,18 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform import Model, explain
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIBatchPredictionJobLink,
     VertexAIBatchPredictionJobListLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CreateBatchPredictionJobOperator(BaseOperator):
+class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
     Creates a BatchPredictionJob. A BatchPredictionJob once created will right away be attempted to start.
 
@@ -213,6 +214,10 @@ class CreateBatchPredictionJobOperator(BaseOperator):
         self.encryption_spec_key_name = encryption_spec_key_name
         self.sync = sync
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: BatchPredictionJobHook | None = None
@@ -268,7 +273,7 @@ class CreateBatchPredictionJobOperator(BaseOperator):
             self.hook.cancel_batch_prediction_job()
 
 
-class DeleteBatchPredictionJobOperator(BaseOperator):
+class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
     Deletes a BatchPredictionJob. Can only be called on jobs that already finished.
 
@@ -316,6 +321,10 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -342,7 +351,7 @@ class DeleteBatchPredictionJobOperator(BaseOperator):
             self.log.info("The Batch prediction job %s does not exist.", self.batch_prediction_job_id)
 
 
-class GetBatchPredictionJobOperator(BaseOperator):
+class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
     Gets a BatchPredictionJob
 
@@ -391,6 +400,10 @@ class GetBatchPredictionJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -420,7 +433,7 @@ class GetBatchPredictionJobOperator(BaseOperator):
             self.log.info("The Batch prediction job %s does not exist.", self.batch_prediction_job)
 
 
-class ListBatchPredictionJobsOperator(BaseOperator):
+class ListBatchPredictionJobsOperator(GoogleCloudBaseOperator):
     """
     Lists BatchPredictionJobs in a Location.
 
@@ -487,6 +500,10 @@ class ListBatchPredictionJobsOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

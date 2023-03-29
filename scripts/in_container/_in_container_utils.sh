@@ -73,7 +73,10 @@ function in_container_fix_ownership() {
             "${AIRFLOW_SOURCES}/docs"
             "${AIRFLOW_SOURCES}/dags"
             "${AIRFLOW_SOURCES}/airflow/"
+            "${AIRFLOW_SOURCES}/constraints/"
             "${AIRFLOW_SOURCES}/images/"
+            "${AIRFLOW_SOURCES}/.mypy_cache/"
+            "${AIRFLOW_SOURCES}/dev/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
         if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
@@ -261,7 +264,7 @@ function install_local_airflow_with_eager_upgrade() {
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
     # shellcheck disable=SC2086
-    pip install -e ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 }
 
@@ -290,7 +293,7 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 
 }
@@ -353,7 +356,12 @@ function setup_provider_packages() {
 
 
 function install_supported_pip_version() {
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
+        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
+    else
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    fi
+
 }
 
 function filename_to_python_module() {

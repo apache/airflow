@@ -13,9 +13,10 @@
 .coveragerc
 .codecov.yml
 .codespellignorelines
-.eslintrc
 .eslintignore
-.flake8
+.eslintrc
+.prettierignore
+.prettierrc
 .rat-excludes
 .stylelintignore
 .stylelintrc

@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from datetime import datetime
 
 import click
 from click import IntRange
 
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES, all_selective_test_types
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -129,6 +131,7 @@ def _run_test(
         env_variables["DB_RESET"] = "true"
     perform_environment_checks()
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
+    env_variables["SKIP_PROVIDER_TESTS"] = str(exec_shell_params.skip_provider_tests).lower()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
@@ -198,8 +201,9 @@ def _run_test(
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
-def _file_name_from_test_type(test_type):
-    return test_type.lower().replace("[", "_").replace("]", "").replace(",", "_")[:30]
+def _file_name_from_test_type(test_type: str):
+    test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
+    return re.sub("[,\.]", "_", test_type_no_brackets)[:30]
 
 
 def _run_tests_in_pool(
@@ -353,6 +357,12 @@ def run_tests_in_parallel(
     is_flag=True,
     envvar="FULL_TESTS_NEEDED",
 )
+@click.option(
+    "--upgrade-boto",
+    help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_BOTO",
+)
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -376,6 +386,7 @@ def tests(
     full_tests_needed: bool,
     mount_sources: str,
     extra_pytest_args: tuple,
+    upgrade_boto: bool,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
@@ -390,7 +401,9 @@ def tests(
         mount_sources=mount_sources,
         forward_ports=False,
         test_type=test_type,
+        upgrade_boto=upgrade_boto,
     )
+    rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
     if run_in_parallel:
         run_tests_in_parallel(
@@ -442,6 +455,12 @@ def tests(
     type=IntRange(min=0),
     show_default=True,
 )
+@click.option(
+    "--skip-provider-tests",
+    help="Skip provider tests",
+    is_flag=True,
+    envvar="SKIP_PROVIDER_TESTS",
+)
 @option_db_reset
 @option_verbose
 @option_dry_run
@@ -454,6 +473,7 @@ def integration_tests(
     mssql_version: str,
     integration: tuple,
     test_timeout: int,
+    skip_provider_tests: bool,
     db_reset: bool,
     image_tag: str | None,
     mount_sources: str,
@@ -472,6 +492,7 @@ def integration_tests(
         mount_sources=mount_sources,
         forward_ports=False,
         test_type="Integration",
+        skip_provider_tests=skip_provider_tests,
     )
     cleanup_python_generated_files()
     returncode, _ = _run_test(

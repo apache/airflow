@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.transfers.bigquery_to_mysql import BigQueryToMySqlOperator
@@ -28,7 +27,7 @@ TEST_TABLE_ID = "test-table-id"
 TEST_DAG_ID = "test-bigquery-operators"
 
 
-class TestBigQueryToMySqlOperator(unittest.TestCase):
+class TestBigQueryToMySqlOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):
         destination_table = "table"

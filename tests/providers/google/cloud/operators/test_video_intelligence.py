@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -39,7 +38,7 @@ AUDIO = {"uri": "gs://bucket/object"}
 INPUT_URI = "gs://test-bucket//test-video.mp4"
 
 
-class TestCloudVideoIntelligenceOperators(unittest.TestCase):
+class TestCloudVideoIntelligenceOperators:
     @mock.patch("airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceHook")
     def test_detect_video_labels_green_path(self, mock_hook):
 

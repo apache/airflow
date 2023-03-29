@@ -24,18 +24,177 @@
 Changelog
 ---------
 
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add num rows affected to Redshift Data API hook (#29797)``
+* ``Add 'wait_for_completion' param in 'RedshiftCreateClusterOperator' (#29657)``
+* ``Add Amazon Redshift-data to S3<>RS Transfer Operators (#27947)``
+* ``Allow to specify which connection, variable or config are being looked up in the backend using *_lookup_pattern parameters (#29580)``
+* ``Implement file credentials provider for AWS hook AssumeRoleWithWebIdentity (#29623)``
+* ``Implement custom boto waiters for some EMR operators (#29822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix code checking job names in sagemaker (#29245)``
+* ``Avoid emitting fallback message for S3TaskHandler if streaming logs (#29708)``
+* ``Use waiters in ECS Operators instead of inner sensors (#29761)``
+
+Misc
+~~~~
+
+* ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
+* ``Standardize AWS lambda naming (#29749)``
+* ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
+* ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Amazon ECS Enums (#29871)``
+
+7.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Explicitly handle exceptions raised by config parsing in AWS provider (#29587)``
+
+Misc
+~~~~
+
+* ``Fix docstring for EcsRunTaskOperator region_name -> region (#29562)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+
+7.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add option to wait for completion on the EmrCreateJobFlowOperator (#28827)``
+* ``Add transfer operator S3 to (generic) SQL (#29085)``
+* ``add retries to stop_pipeline on conflict (#29077)``
+* ``Add log for AWS Glue Job Console URL (#28925)``
+* ``Enable individual trigger logging (#27758)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: 'num_of_dpus' typehints- GlueJobHook/Operator (#29176)``
+* ``Fix typo in DataSyncHook boto3 methods for create location in NFS and EFS (#28948)``
+* ``Decrypt SecureString value obtained by SsmHook (#29142)``
+
+Misc
+~~~~
+
+* ``log the observed status in redshift sensor (#29274)``
+* ``Use thin/passthrough hook instead of one-liner hook method (#29252)``
+* ``Move imports in AWS SqlToS3Operator transfer to callable function (#29045)``
+* ``introduce base class for EKS sensors (#29053)``
+* ``introduce a method to convert dictionaries to boto-style key-value lists (#28816)``
+* ``Update provide_bucket_name() decorator to handle new conn_type (#28706)``
+* ``uniformize getting hook through cached property in aws sensors (#29001)``
+* ``Use boto3 intersphinx inventory in documentation/docstrings. (#28945)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``shorten other wait times in sys tests (#29254)``
+   * ``Fix false-positive spellcheck failure (#29190)``
+
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ''configuration_overrides'' to templated fields (#28920)``
+* ``Add a new SSM hook and use it in the System Test context builder (#28755)``
+* ``Add waiter config params to emr.add_job_flow_steps (#28464)``
+* ``Add AWS Sagemaker Auto ML operator and sensor (#28472)``
+* ``new operator to create a sagemaker experiment (#28837)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid circular import from S3HookUriParseFailure (#28908)``
+* ``Use compat for cached_property in AWS Batch modules (#28835)``
+* ``Apply "unify bucket and key" before "provide bucket" (#28710)``
+
+Misc
+~~~~
+
+* ``Update S3ToRedshiftOperator docs to inform users about multiple key functionality (#28705)``
+* ``Refactor waiter function and improve unit tests (#28753)``
+* ``Better exception raised in case of numpy missing (#28722)``
+* ``Don't call get_connection from provide_bucket_name (#28716)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
+
 7.0.0
------
+.....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-TODO: add good description of Secrets Backend breaking changes as implemented in
-https://github.com/apache/airflow/pull/27920
+JSON secrets in the 'SecretsManagerBackend' are never interpreted as urlencoded. In ``5.x`` and ``6.x``, the
+code would infer whether the JSON secret values were urlencoded based on context clues; now the unaltered
+values are *always* used to construct ``Connection`` objects.
 
 Pandas is now an optional dependency of the provider. The ``SqlToS3Operator`` and ``HiveToDynamoDBOperator``
 require Pandas to be installed (you can install it automatically by adding ``[pandas]`` extra when installing
 the provider.
+
+* ``Make pandas dependency optional for Amazon Provider (#28505)``
+
+Features
+~~~~~~~~
+
+* ``Deprecate 'full_url_mode' for SecretsManagerBackend; whether a secret is a JSON or URL is inferred (#27920)``
+* ``Add execution role parameter to AddStepsOperator (#28484)``
+* ``Add AWS SageMaker operator to register a model's version (#28024)``
+* ``Add link for EMR Steps Sensor logs (#28180)``
+* ``Add Amazon Elastic Container Registry (ECR) Hook (#28279)``
+* ``Add EMR Notebook operators (#28312)``
+* ``Create 'LambdaCreateFunctionOperator' and sensor (#28241)``
+* ``Better support for Boto Waiters (#28236)``
+* ``Amazon Provider Package user agent (#27823)``
+* ``Allow waiter to be configured via EmrServerless Operators (#27784)``
+* ``Add operators + sensor for aws sagemaker pipelines (#27786)``
+* ``Update RdsHook docstrings to match correct argument names (#28108)``
+* ``add some important log in aws athena hook (#27917)``
+* ``Lambda hook: make runtime and handler optional (#27778)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EmrAddStepsOperature wait_for_completion parameter is not working (#28052)``
+* ``Correctly template Glue Jobs 'create_job_kwargs' arg (#28403)``
+* ``Fix template rendered bucket_key in S3KeySensor (#28340)``
+* ``Fix Type Error while using DynamoDBToS3Operator (#28158)``
+* ``AWSGlueJobHook updates job configuration if it exists (#27893)``
+* ``Fix GlueCrawlerOperature failure when using tags (#28005)``
+
+Misc
+~~~~
+
+* ``Fix S3KeySensor documentation (#28297)``
+* ``Improve docstrings for 'AwsLambdaInvokeFunctionOperator' (#28233)``
+* ``Remove outdated compat imports/code from providers (#28507)``
+* ``add description of breaking changes (#28582)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+* ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
 
 6.2.0
 .....

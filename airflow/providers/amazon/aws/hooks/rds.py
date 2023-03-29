@@ -30,21 +30,16 @@ if TYPE_CHECKING:
 
 class RdsHook(AwsGenericHook["RDSClient"]):
     """
-    Interact with AWS RDS using proper client from the boto3 library.
+    Interact with Amazon Relational Database Service (RDS).
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("rds") <RDS.Client>`.
 
-    Hook attribute `conn` has all methods that listed in documentation
-
-    .. seealso::
-        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html
-        - https://docs.aws.amazon.com/rds/index.html
-
-    Additional arguments (such as ``aws_conn_id`` or ``region_name``) may be specified and
+    Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - `Amazon RDS and Aurora Documentation \
+        <https://docs.aws.amazon.com/rds/index.html>`__
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -55,9 +50,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Get the current state of a DB instance snapshot.
 
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_snapshots`
+
         :param snapshot_id: The ID of the target DB instance snapshot
         :return: Returns the status of the DB snapshot as a string (eg. "available")
-        :rtype: str
         :raises AirflowNotFoundException: If the DB instance snapshot does not exist.
         """
         try:
@@ -72,8 +69,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls :py:meth:`RDS.Client.describe_db_snapshots` until the target state is reached.
+        Polls DB Snapshots until the target state is reached.
         An error is raised after a max number of attempts.
+
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_snapshots`
 
         :param snapshot_id: The ID of the target DB instance snapshot
         :param target_state: Wait until this state is reached
@@ -99,9 +99,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Get the current state of a DB cluster snapshot.
 
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_cluster_snapshots`
+
         :param snapshot_id: The ID of the target DB cluster.
         :return: Returns the status of the DB cluster snapshot as a string (eg. "available")
-        :rtype: str
         :raises AirflowNotFoundException: If the DB cluster snapshot does not exist.
         """
         try:
@@ -116,17 +118,16 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls :py:meth:`RDS.Client.describe_db_cluster_snapshots` until the target state is reached.
+        Polls DB Cluster Snapshots until the target state is reached.
         An error is raised after a max number of attempts.
+
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_cluster_snapshots`
 
         :param snapshot_id: The ID of the target DB cluster snapshot
         :param target_state: Wait until this state is reached
         :param check_interval: The amount of time in seconds to wait between attempts
         :param max_attempts: The maximum number of attempts to be made
-
-        .. seealso::
-            A list of possible values for target_state:
-            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.describe_db_cluster_snapshots
         """
 
         def poke():
@@ -147,9 +148,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Gets the current state of an RDS snapshot export to Amazon S3.
 
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_export_tasks`
+
         :param export_task_id: The identifier of the target snapshot export task.
         :return: Returns the status of the snapshot export task as a string (eg. "canceled")
-        :rtype: str
         :raises AirflowNotFoundException: If the export task does not exist.
         """
         try:
@@ -164,17 +167,16 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, export_task_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls :py:meth:`RDS.Client.describe_export_tasks` until the target state is reached.
+        Polls export tasks until the target state is reached.
         An error is raised after a max number of attempts.
+
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_export_tasks`
 
         :param export_task_id: The identifier of the target snapshot export task.
         :param target_state: Wait until this state is reached
         :param check_interval: The amount of time in seconds to wait between attempts
         :param max_attempts: The maximum number of attempts to be made
-
-        .. seealso::
-            A list of possible values for target_state:
-            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.describe_export_tasks
         """
 
         def poke():
@@ -188,9 +190,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Gets the current state of an RDS snapshot export to Amazon S3.
 
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_event_subscriptions`
+
         :param subscription_name: The name of the target RDS event notification subscription.
         :return: Returns the status of the event subscription as a string (eg. "active")
-        :rtype: str
         :raises AirflowNotFoundException: If the event subscription does not exist.
         """
         try:
@@ -205,17 +209,16 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, subscription_name: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls :py:meth:`RDS.Client.describe_event_subscriptions` until the target state is reached.
+        Polls Even Subscriptions until the target state is reached.
         An error is raised after a max number of attempts.
+
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_event_subscriptions`
 
         :param subscription_name: The name of the target RDS event notification subscription.
         :param target_state: Wait until this state is reached
         :param check_interval: The amount of time in seconds to wait between attempts
         :param max_attempts: The maximum number of attempts to be made
-
-        .. seealso::
-            A list of possible values for target_state:
-            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.describe_event_subscriptions
         """
 
         def poke():
@@ -229,9 +232,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Get the current state of a DB instance.
 
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_instances`
+
         :param db_instance_id: The ID of the target DB instance.
         :return: Returns the status of the DB instance as a string (eg. "available")
-        :rtype: str
         :raises AirflowNotFoundException: If the DB instance does not exist.
         """
         try:
@@ -246,18 +251,16 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, db_instance_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls :py:meth:`RDS.Client.describe_db_instances` until the target state is reached.
+        Polls DB Instances until the target state is reached.
         An error is raised after a max number of attempts.
+
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_instances`
 
         :param db_instance_id: The ID of the target DB instance.
         :param target_state: Wait until this state is reached
         :param check_interval: The amount of time in seconds to wait between attempts
         :param max_attempts: The maximum number of attempts to be made
-
-        .. seealso::
-            For information about DB instance statuses, see Viewing DB instance status in the Amazon RDS
-            User Guide.
-            https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/accessing-monitoring.html#Overview.DBInstance.Status
         """
 
         def poke():
@@ -278,9 +281,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         Get the current state of a DB cluster.
 
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_clusters`
+
         :param db_cluster_id: The ID of the target DB cluster.
         :return: Returns the status of the DB cluster as a string (eg. "available")
-        :rtype: str
         :raises AirflowNotFoundException: If the DB cluster does not exist.
         """
         try:
@@ -295,18 +300,16 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, db_cluster_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls :py:meth:`RDS.Client.describe_db_clusters` until the target state is reached.
+        Polls DB Clusters until the target state is reached.
         An error is raised after a max number of attempts.
+
+        .. seealso::
+            - :external+boto3:py:meth:`RDS.Client.describe_db_clusters`
 
         :param db_cluster_id: The ID of the target DB cluster.
         :param target_state: Wait until this state is reached
         :param check_interval: The amount of time in seconds to wait between attempts
         :param max_attempts: The maximum number of attempts to be made
-
-        .. seealso::
-            For information about DB instance statuses, see Viewing DB instance status in the Amazon RDS
-            User Guide.
-            https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/accessing-monitoring.html#Overview.DBInstance.Status
         """
 
         def poke():

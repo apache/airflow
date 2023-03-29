@@ -41,8 +41,9 @@ os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/air
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
+from tests.test_utils.db import clear_all  # noqa: E402
 
-from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
+from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa: E402  # isort: skip
     count_queries,
     trace_queries,
 )
@@ -196,6 +197,12 @@ def pytest_addoption(parser):
         ),
         metavar="COLUMNS",
     )
+    group.addoption(
+        "--no-db-cleanup",
+        action="store_false",
+        dest="db_cleanup",
+        help="Disable DB clear before each test module.",
+    )
 
 
 def initial_db_init():
@@ -271,6 +278,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
+    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+
+
+def pytest_unconfigure(config):
+    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -291,7 +303,7 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         if selected_backend in backend_names:
             return
     pytest.skip(
-        f"The test is skipped because it does not have the right backend marker "
+        f"The test is skipped because it does not have the right backend marker. "
         f"Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
     )
 
@@ -435,9 +447,12 @@ def frozen_sleep(monkeypatch):
 
 @pytest.fixture(scope="session")
 def app():
-    from airflow.www import app
+    from tests.test_utils.config import conf_vars
 
-    return app.create_app(testing=True)
+    with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+        from airflow.www import app
+
+        yield app.create_app(testing=True)
 
 
 @pytest.fixture
@@ -525,7 +540,7 @@ def dag_maker(request):
 
             dag.clear(session=self.session)
             dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
-            self.dag_model = self.session.query(DagModel).get(dag.dag_id)
+            self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
                 self.serialized_model = SerializedDagModel(
@@ -856,3 +871,33 @@ def reset_logging_config():
 
     logging_config = import_string(settings.LOGGING_CLASS_PATH)
     logging.config.dictConfig(logging_config)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _clear_db(request):
+    """Clear DB before each test module run."""
+    if not request.config.option.db_cleanup:
+        return
+    dist_option = getattr(request.config.option, "dist", "no")
+    if dist_option != "no" or hasattr(request.config, "workerinput"):
+        # Skip if pytest-xdist detected (controller or worker)
+        return
+
+    try:
+        clear_all()
+    except Exception as ex:
+        exc_name_parts = [type(ex).__name__]
+        exc_module = type(ex).__module__
+        if exc_module != "builtins":
+            exc_name_parts.insert(0, exc_module)
+        extra_msg = "" if request.config.option.db_init else ", try to run with flag --with-db-init"
+        pytest.exit(f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}")
+
+
+@pytest.fixture(autouse=True)
+def clear_lru_cache():
+    from airflow.executors.executor_loader import ExecutorLoader
+    from airflow.utils.entry_points import _get_grouped_entry_points
+
+    ExecutorLoader.validate_database_executor_compatibility.cache_clear()
+    _get_grouped_entry_points.cache_clear()

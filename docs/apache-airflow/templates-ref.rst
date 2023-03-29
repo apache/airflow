@@ -36,8 +36,8 @@ in all templates
 =========================================== ===================== ===================================================================
 Variable                                    Type                  Description
 =========================================== ===================== ===================================================================
-``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.3.
-``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.3.
+``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.2.
+``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.2.
 ``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
                                                                   | Same as ``{{ dag_run.logical_date | ds }}``.
 ``{{ ds_nodash }}``                         str                   Same as ``{{ dag_run.logical_date | ds_nodash }}``.
@@ -48,10 +48,10 @@ Variable                                    Type                  Description
 ``{{ ts_nodash }}``                         str                   | Same as ``{{ dag_run.logical_date | ts_nodash }}``.
                                                                   | Example: ``20180101T000000``.
 ``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful DAG run.
-                                            | ``None``            | Added in version 2.3.
+                                            | ``None``            | Added in version 2.2.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful DAG run.
-                                            | ``None``            | Added in version 2.3.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful dag run (if available).
+                                            | ``None``            | Added in version 2.2.
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful DAG run (if available).
                                             | ``None``
 ``{{ dag }}``                               DAG                   The currently running DAG.
 ``{{ task }}``                              BaseOperator          | The currently running task.
@@ -99,7 +99,7 @@ Deprecated Variable                     Description
 ``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ prev_execution_date_success }}``   execution date from prior successful dag run
+``{{ prev_execution_date_success }}``   execution date from prior successful DAG run
 
 =====================================   ====================================
 
@@ -176,9 +176,6 @@ Variable                            Description
 Some airflow specific macros are also defined:
 
 .. automodule:: airflow.macros
-    :members:
-
-.. automodule:: airflow.macros.hive
     :members:
 
 .. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction

@@ -64,8 +64,9 @@ class TestSQLExecuteQueryOperator:
             dag=dag,
         )
 
+    @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
-    def test_do_xcom_push(self, mock_get_db_hook):
+    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output):
         operator = self._construct_operator("SELECT 1;", do_xcom_push=True)
         operator.execute(context=MagicMock())
 
@@ -75,11 +76,12 @@ class TestSQLExecuteQueryOperator:
             handler=fetch_all_handler,
             parameters=None,
             return_last=True,
-            split_statements=False,
         )
+        mock_process_output.assert_called()
 
+    @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
-    def test_dont_xcom_push(self, mock_get_db_hook):
+    def test_dont_xcom_push(self, mock_get_db_hook, mock_process_output):
         operator = self._construct_operator("SELECT 1;", do_xcom_push=False)
         operator.execute(context=MagicMock())
 
@@ -87,10 +89,10 @@ class TestSQLExecuteQueryOperator:
             sql="SELECT 1;",
             autocommit=False,
             parameters=None,
-            split_statements=False,
             handler=None,
             return_last=True,
         )
+        mock_process_output.assert_not_called()
 
 
 class TestColumnCheckOperator:

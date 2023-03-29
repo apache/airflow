@@ -24,6 +24,46 @@
 Changelog
 ---------
 
+1.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Do not process output when do_xcom_push=False  (#29599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make the S3-to-SQL system test self-contained (#29204)``
+   * ``Make static checks generated file  more stable accross the board (#29080)``
+
+1.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle non-compliant behaviour of Exasol cursor (#28744)``
+
+1.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fIx isort problems introduced by recent isort release (#28434)``
+* ``Fix template rendering for Common SQL operators (#28202)``
+* ``Defer to hook setting for split_statements in SQLExecuteQueryOperator (#28635)``
+
+Misc
+~~~~
+
+* ``Clarify docstrings for updated DbApiHook (#27966)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commits preventing accidental API changes in common.sql (#27962)``
+
 1.3.1
 .....
 
@@ -97,10 +137,6 @@ Bug Fixes
 * ``Fix (and test) SQLTableCheckOperator on postgresql (#25821)``
 * ``Don't use Pandas for SQLTableCheckOperator (#25822)``
 * ``Discard semicolon stripping in SQL hook (#25855)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-
 
 1.1.0
 .....

@@ -24,6 +24,7 @@ This module contains Google PubSub operators.
 """
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -38,15 +39,15 @@ from google.cloud.pubsub_v1.types import (
     RetryPolicy,
 )
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class PubSubCreateTopicOperator(BaseOperator):
+class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
     """Create a PubSub topic.
 
     .. seealso::
@@ -145,6 +146,10 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.topic = topic
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.labels = labels
         self.message_storage_policy = message_storage_policy
@@ -182,7 +187,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         )
 
 
-class PubSubCreateSubscriptionOperator(BaseOperator):
+class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
     """Create a PubSub subscription.
 
     .. seealso::
@@ -351,6 +356,10 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         self.ack_deadline_secs = ack_deadline_secs
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.push_config = push_config
         self.retain_acked_messages = retain_acked_messages
@@ -405,7 +414,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         return result
 
 
-class PubSubDeleteTopicOperator(BaseOperator):
+class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
     """Delete a PubSub topic.
 
     .. seealso::
@@ -482,6 +491,10 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.topic = topic
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.retry = retry
         self.timeout = timeout
@@ -507,7 +520,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
         self.log.info("Deleted topic %s", self.topic)
 
 
-class PubSubDeleteSubscriptionOperator(BaseOperator):
+class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
     """Delete a PubSub subscription.
 
     .. seealso::
@@ -586,6 +599,10 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.subscription = subscription
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.retry = retry
         self.timeout = timeout
@@ -611,7 +628,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
         self.log.info("Deleted subscription %s", self.subscription)
 
 
-class PubSubPublishMessageOperator(BaseOperator):
+class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
     """Publish messages to a PubSub topic.
 
     .. seealso::
@@ -692,6 +709,10 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.topic = topic
         self.messages = messages
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -707,7 +728,7 @@ class PubSubPublishMessageOperator(BaseOperator):
         self.log.info("Published to topic %s", self.topic)
 
 
-class PubSubPullOperator(BaseOperator):
+class PubSubPullOperator(GoogleCloudBaseOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
     If the queue is empty, returns empty list - never waits for messages.
     If you do need to wait, please use :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
@@ -775,6 +796,10 @@ class PubSubPullOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.project_id = project_id
         self.subscription = subscription

@@ -673,6 +673,31 @@ class TestWebserverDeployment:
         assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
         assert 1 == len(jmespath.search("spec.template.spec.initContainers", docs[0]))
 
+    def test_should_add_component_specific_annotations(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
+    def test_webserver_pod_hostaliases(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
+        assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
 
 class TestWebserverService:
     def test_default_service(self):

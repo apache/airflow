@@ -21,19 +21,25 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class StsHook(AwsBaseHook):
     """
-    Interact with AWS Security Token Service (STS)
+    Interact with AWS Security Token Service (STS).
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("sts") <STS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
+
     .. seealso::
-    :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="sts", *args, **kwargs)
 
     def get_account_number(self) -> str:
-        """Get the account Number"""
+        """Get the account Number.
+
+        .. seealso::
+            - :external+boto3:py:meth:`STS.Client.get_caller_identity`
+        """
         try:
             return self.get_conn().get_caller_identity()["Account"]
         except Exception as general_error:

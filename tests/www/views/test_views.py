@@ -45,7 +45,7 @@ def test_configuration_do_not_expose_config(admin_client):
     check_content_in_response(
         [
             "Airflow Configuration",
-            "# Your Airflow administrator chose not to expose the configuration, "
+            "Your Airflow administrator chose not to expose the configuration, "
             "most likely for security reasons.",
         ],
         resp,
@@ -59,7 +59,7 @@ def test_configuration_expose_config(admin_client):
     conf.validate()
     with conf_vars({("webserver", "expose_config"): "True"}):
         resp = admin_client.get("configuration", follow_redirects=True)
-    check_content_in_response(["Airflow Configuration", "Running Configuration"], resp)
+    check_content_in_response(["Airflow Configuration"], resp)
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
@@ -144,6 +144,19 @@ def test_task_start_date_filter(admin_client, url, content):
     # in to FAB) but simply that our UTC conversion was run - i.e. it
     # doesn't blow up!
     check_content_in_response(content, resp)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/taskinstance/list/?_flt_1_try_number=0",  # greater than
+        "/taskinstance/list/?_flt_2_try_number=5",  # less than
+    ],
+)
+def test_try_number_filter(admin_client, url):
+    resp = admin_client.get(url)
+    # Ensure that the taskInstance view can filter on gt / lt try_number
+    check_content_in_response("List Task Instance", resp)
 
 
 @pytest.mark.parametrize(

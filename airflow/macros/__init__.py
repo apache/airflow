@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json  # noqa
 import time  # noqa
 import uuid  # noqa
 from datetime import datetime, timedelta
@@ -26,7 +27,17 @@ from typing import Any
 import dateutil  # noqa
 from pendulum import DateTime
 
-from airflow.macros import hive  # noqa
+import airflow.utils.yaml as yaml  # noqa
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "hive": {
+        "closest_ds_partition": "airflow.providers.apache.hive.macros.hive.closest_ds_partition",
+        "max_partition": "airflow.providers.apache.hive.macros.hive.max_partition",
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)
 
 
 def ds_add(ds: str, days: int) -> str:

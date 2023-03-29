@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 """
 This is an example DAG which uses SparkKubernetesOperator and SparkKubernetesSensor.
 In this example, we create two tasks which execute sequentially.
@@ -26,6 +24,7 @@ and the second task is to check the final state of the sparkApplication that sub
 Spark-on-k8s operator is required to be already installed on Kubernetes
 https://github.com/GoogleCloudPlatform/spark-on-k8s-operator
 """
+from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta

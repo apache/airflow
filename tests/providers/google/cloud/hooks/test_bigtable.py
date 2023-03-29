@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
 import google
-from google.cloud.bigtable import Client
+from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.instance import Instance
-from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -50,8 +48,8 @@ CBT_REPLICATE_CLUSTERS = [
 ]
 
 
-class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
-    def setUp(self):
+class TestBigtableHookNoDefaultProjectId:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -146,8 +144,8 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
         table_delete_method.assert_called_once_with()
 
 
-class TestBigtableHookDefaultProjectId(unittest.TestCase):
-    def setUp(self):
+class TestBigtableHookDefaultProjectId:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -322,15 +320,13 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         )
         cluster.assert_has_calls(
             [
-                unittest.mock.call(
+                mock.call(
                     cluster_id=CBT_CLUSTER,
                     location_id=CBT_ZONE,
                     serve_nodes=1,
                     default_storage_type=enums.StorageType.SSD,
                 ),
-                unittest.mock.call(
-                    CBT_REPLICA_CLUSTER_ID, CBT_REPLICA_CLUSTER_ZONE, 1, enums.StorageType.SSD
-                ),
+                mock.call(CBT_REPLICA_CLUSTER_ID, CBT_REPLICA_CLUSTER_ZONE, 1, enums.StorageType.SSD),
             ],
             any_order=True,
         )
@@ -365,12 +361,10 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         )
         cluster.assert_has_calls(
             [
-                unittest.mock.call(
+                mock.call(
                     cluster_id=CBT_CLUSTER, location_id=CBT_ZONE, default_storage_type=enums.StorageType.SSD
                 ),
-                unittest.mock.call(
-                    CBT_REPLICA_CLUSTER_ID, CBT_REPLICA_CLUSTER_ZONE, 1, enums.StorageType.SSD
-                ),
+                mock.call(CBT_REPLICA_CLUSTER_ID, CBT_REPLICA_CLUSTER_ZONE, 1, enums.StorageType.SSD),
             ],
             any_order=True,
         )
@@ -404,15 +398,15 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         )
         cluster.assert_has_calls(
             [
-                unittest.mock.call(
+                mock.call(
                     cluster_id=CBT_CLUSTER,
                     location_id=CBT_ZONE,
                     serve_nodes=1,
                     default_storage_type=enums.StorageType.SSD,
                 ),
-                unittest.mock.call("replica-1", "us-west1-a", 1, enums.StorageType.SSD),
-                unittest.mock.call("replica-2", "us-central1-f", 1, enums.StorageType.SSD),
-                unittest.mock.call("replica-3", "us-east1-d", 1, enums.StorageType.SSD),
+                mock.call("replica-1", "us-west1-a", 1, enums.StorageType.SSD),
+                mock.call("replica-2", "us-central1-f", 1, enums.StorageType.SSD),
+                mock.call("replica-3", "us-east1-d", 1, enums.StorageType.SSD),
             ],
             any_order=True,
         )

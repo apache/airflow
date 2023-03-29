@@ -38,7 +38,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSensor
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, purge_logs
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_sagemaker_endpoint"
 
@@ -58,7 +58,7 @@ KNN_IMAGES_BY_REGION = {
 }
 
 # For an example of how to obtain the following train and test data, please see
-# https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+# https://github.com/apache/airflow/blob/main/tests/system/providers/amazon/aws/example_sagemaker.py
 TRAIN_DATA = "0,4.9,2.5,4.5,1.7\n1,7.0,3.2,4.7,1.4\n0,7.3,2.9,6.3,1.8\n2,5.1,3.5,1.4,0.2\n"
 SAMPLE_TEST_DATA = "6.4,3.2,4.5,1.5"
 
@@ -89,15 +89,8 @@ def delete_endpoint(endpoint_name):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_logs(env_id, endpoint_name):
-    purge_logs(
-        [
-            # Format: ('log group name', 'log stream prefix')
-            ("/aws/sagemaker/TrainingJobs", env_id),
-        ]
-    )
-
-    purge_logs(test_logs=[(f"/aws/sagemaker/Endpoints/{endpoint_name}", None)], force_delete=True)
+def archive_logs(log_group_name):
+    boto3.client("logs").put_retention_policy(logGroupName=log_group_name, retentionInDays=1)
 
 
 @task
@@ -268,6 +261,13 @@ with DAG(
         force_delete=True,
     )
 
+    log_cleanup = prune_logs(
+        [
+            # Format: ('log group name', 'log stream prefix')
+            ("/aws/sagemaker/TrainingJobs", test_context[ENV_ID_KEY]),
+        ]
+    )
+
     chain(
         # TEST SETUP
         test_context,
@@ -286,7 +286,8 @@ with DAG(
         delete_endpoint(test_setup["endpoint_name"]),
         delete_model,
         delete_bucket,
-        delete_logs(test_context[ENV_ID_KEY], test_setup["endpoint_name"]),
+        log_cleanup,
+        archive_logs(f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}"),
     )
 
     from tests.system.utils.watcher import watcher

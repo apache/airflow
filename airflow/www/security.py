@@ -204,10 +204,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
+    def create_db(self):
+        if not self.appbuilder.update_perms:
+            self.log.debug("Skipping db since appbuilder disables update_perms")
+            return
+        super().create_db()
+
     def _get_root_dag_id(self, dag_id):
         if "." in dag_id:
             dm = (
-                self.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
+                self.appbuilder.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
                 .filter(DagModel.dag_id == dag_id)
                 .first()
             )
@@ -252,7 +258,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :param role_name: the name of a role in the ab_role table
         """
-        session = self.get_session
+        session = self.appbuilder.get_session
         role = session.query(Role).filter(Role.name == role_name).first()
         if role:
             self.log.info("Deleting role '%s'", role_name)
@@ -322,6 +328,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user.is_anonymous:
             roles = user.roles
         else:
+            if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (
+                permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags(user)
+            ):
+                return {dag.dag_id for dag in session.query(DagModel.dag_id)}
             user_query = (
                 session.query(User)
                 .options(
@@ -437,14 +447,22 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         return (
             self._has_role(["Admin", "Viewer", "Op", "User"], user)
-            or self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
-            or self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
+            or self.can_read_all_dags(user)
+            or self.can_edit_all_dags(user)
         )
+
+    def can_edit_all_dags(self, user=None):
+        """Has can_edit action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
+
+    def can_read_all_dags(self, user=None):
+        """Has can_read action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
 
     def clean_perms(self):
         """FAB leaves faulty permissions that need to be cleaned up"""
         self.log.debug("Cleaning faulty perms")
-        sesh = self.get_session
+        sesh = self.appbuilder.get_session
         perms = sesh.query(Permission).filter(
             or_(
                 Permission.action == None,  # noqa
@@ -477,7 +495,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perm = None
         if action and resource:
             perm = (
-                self.get_session.query(self.permission_model)
+                self.appbuilder.get_session.query(self.permission_model)
                 .filter_by(action=action, resource=resource)
                 .first()
             )
@@ -495,12 +513,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for role in custom_roles:
             self.add_permission_to_role(role, website_permission)
 
-        self.get_session.commit()
+        self.appbuilder.get_session.commit()
 
     def get_all_permissions(self) -> set[tuple[str, str]]:
         """Returns all permissions as a set of tuples with the action and resource names"""
         return set(
-            self.get_session.query(self.permission_model)
+            self.appbuilder.get_session.query(self.permission_model)
             .join(self.permission_model.action)
             .join(self.permission_model.resource)
             .with_entities(self.action_model.name, self.resource_model.name)
@@ -515,7 +533,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return {
             (action_name, resource_name): viewmodel
             for action_name, resource_name, viewmodel in (
-                self.get_session.query(self.permission_model)
+                self.appbuilder.get_session.query(self.permission_model)
                 .join(self.permission_model.action)
                 .join(self.permission_model.resource)
                 .filter(~self.resource_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
@@ -528,8 +546,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Returns a dict with a key of role name and value of role with early loaded permissions"""
         return {
             r.name: r
-            for r in (
-                self.get_session.query(self.role_model).options(joinedload(self.role_model.permissions)).all()
+            for r in self.appbuilder.get_session.query(self.role_model).options(
+                joinedload(self.role_model.permissions)
             )
         }
 
@@ -566,20 +584,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        dag_resources = (
-            self.get_session.query(Resource)
-            .filter(Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
-            .all()
+        session = self.appbuilder.get_session
+        dag_resources = session.query(Resource).filter(
+            Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%")
         )
         resource_ids = [resource.id for resource in dag_resources]
-        perms = self.get_session.query(Permission).filter(~Permission.resource_id.in_(resource_ids)).all()
 
+        perms = session.query(Permission).filter(~Permission.resource_id.in_(resource_ids))
         perms = [p for p in perms if p.action and p.resource]
 
         admin = self.find_role("Admin")
         admin.permissions = list(set(admin.permissions) | set(perms))
 
-        self.get_session.commit()
+        session.commit()
 
     def sync_roles(self):
         """
@@ -721,12 +738,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return True
 
 
+class FakeAppBuilder:
+    """Stand-in class to replace a Flask App Builder.
+
+    The only purpose is to provide the ``self.appbuilder.get_session`` interface
+    for ``ApplessAirflowSecurityManager`` so it can be used without a real Flask
+    app, which is slow to create.
+    """
+
+    def __init__(self, session: Session | None = None) -> None:
+        self.get_session = session
+
+
 class ApplessAirflowSecurityManager(AirflowSecurityManager):
     """Security Manager that doesn't need the whole flask app"""
 
     def __init__(self, session: Session | None = None):
-        self.session = session
-
-    @property
-    def get_session(self):
-        return self.session
+        self.appbuilder = FakeAppBuilder(session)

@@ -60,6 +60,11 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
     """Handler for DbApiHook.run() to return results"""
+    if not hasattr(cursor, "description"):
+        raise RuntimeError(
+            "The database we interact with does not support DBAPI 2.0. Use operator and "
+            "handlers that are specifically designed for your database."
+        )
     if cursor.description is not None:
         return cursor.fetchall()
     else:
@@ -67,7 +72,12 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return results"""
+    """Handler for DbApiHook.run() to return first result"""
+    if not hasattr(cursor, "description"):
+        raise RuntimeError(
+            "The database we interact with does not support DBAPI 2.0. Use operator and "
+            "handlers that are specifically designed for your database."
+        )
     if cursor.description is not None:
         return cursor.fetchone()
     else:
@@ -290,10 +300,10 @@ class DbApiHook(BaseForDbApiHook):
 
         After ``run`` is called, you may access the following properties on the hook object:
 
-          * ``descriptions``: an array of cursor descriptions. If ``return_last`` is True, this will be
-             a one-element array containing the cursor ``description`` for the last statement.
-             Otherwise, it will contain the cursor description for each statement executed.
-          * ``last_description``: the description for the last statement executed
+        * ``descriptions``: an array of cursor descriptions. If ``return_last`` is True, this will be
+          a one-element array containing the cursor ``description`` for the last statement.
+          Otherwise, it will contain the cursor description for each statement executed.
+        * ``last_description``: the description for the last statement executed
 
         Note that query result will ONLY be actually returned when a handler is provided; if
         ``handler`` is None, this method will return None.
@@ -301,7 +311,7 @@ class DbApiHook(BaseForDbApiHook):
         Handler is a way to process the rows from cursor (Iterator) into a value that is suitable to be
         returned to XCom and generally fit in memory.
 
-        You can use pre-defined handles (`fetch_all_handler``, ''fetch_one_handler``) or implement your
+        You can use pre-defined handles (``fetch_all_handler``, ``fetch_one_handler``) or implement your
         own handler.
 
         :param sql: the sql statement to be executed (str) or a list of

@@ -30,9 +30,9 @@ import sys
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
-    import tty
-    import termios
     import pty
+    import termios
+    import tty
 
 from contextlib import contextmanager
 from typing import Generator
@@ -80,6 +80,8 @@ def reap_process_group(
         returncodes[p.pid] = p.returncode
 
     def signal_procs(sig):
+        if IS_WINDOWS:
+            return
         try:
             logger.info("Sending the signal %s to group %s", sig, process_group_id)
             os.killpg(process_group_id, sig)
@@ -108,7 +110,7 @@ def reap_process_group(
             else:
                 raise
 
-    if process_group_id == os.getpgid(0):
+    if not IS_WINDOWS and process_group_id == os.getpgid(0):
         raise RuntimeError("I refuse to kill myself")
 
     try:

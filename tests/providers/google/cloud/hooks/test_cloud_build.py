@@ -21,7 +21,6 @@ functions in CloudBuildHook
 """
 from __future__ import annotations
 
-import unittest
 from concurrent.futures import Future
 from unittest import mock
 
@@ -60,8 +59,8 @@ OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
 TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
-class TestCloudBuildHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudBuildHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -72,9 +71,13 @@ class TestCloudBuildHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
     def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=None,
+        )
         assert mock_client.return_value == result
-        assert self.hook._client == result
+        assert self.hook._client["global"] == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_cancel_build(self, get_conn):
@@ -326,7 +329,7 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
     @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
     async def test_async_cloud_build_service_client_creation_should_execute_successfully(
         self, mocked_get_build, hook

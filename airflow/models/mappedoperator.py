@@ -41,6 +41,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
     DEFAULT_TRIGGER_RULE,
+    DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
@@ -65,6 +66,7 @@ from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.operator_resources import Resources
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
@@ -110,7 +112,7 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
 
 
 def ensure_xcomarg_return_value(arg: Any) -> None:
-    from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
+    from airflow.models.xcom_arg import XComArg
 
     if isinstance(arg, XComArg):
         for operator, key in arg.iter_references():
@@ -388,6 +390,13 @@ class MappedOperator(AbstractOperator):
     @property
     def ignore_first_depends_on_past(self) -> bool:
         value = self.partial_kwargs.get("ignore_first_depends_on_past", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST)
+        return bool(value)
+
+    @property
+    def wait_for_past_depends_before_skipping(self) -> bool:
+        value = self.partial_kwargs.get(
+            "wait_for_past_depends_before_skipping", DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING
+        )
         return bool(value)
 
     @property
@@ -679,7 +688,11 @@ class MappedOperator(AbstractOperator):
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 
-        self._do_render_template_fields(
+        # Since the operators that extend `BaseOperator` are not subclasses of
+        # `MappedOperator`, we need to call `_do_render_template_fields` from
+        # the unmapped task in order to call the operator method when we override
+        # it to customize the parsing of nested fields.
+        unmapped_task._do_render_template_fields(
             parent=unmapped_task,
             template_fields=self.template_fields,
             context=context,

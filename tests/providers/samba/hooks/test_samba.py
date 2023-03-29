@@ -61,7 +61,7 @@ class TestSambaHook:
             cache["foo"] = mock_connection
 
         # Test that the connection was disconnected upon exit.
-        assert len(mock_connection.disconnect.mock_calls) == 1
+        mock_connection.disconnect.assert_called_once()
 
     @pytest.mark.parametrize(
         "name",

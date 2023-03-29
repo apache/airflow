@@ -56,3 +56,7 @@ Folder ID (optional)
 
     If specified, this ID will be used by default during creation of nodes and clusters.
     See https://cloud.yandex.com/docs/resource-manager/operations/folder/get-id for details
+
+Endpoint (optional)
+    Set API endpoint
+    See https://github.com/yandex-cloud/python-sdk for default

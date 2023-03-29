@@ -49,9 +49,8 @@ class VerticaToMySqlOperator(BaseOperator):
         import, typically used to move data from staging to production
         and issue cleanup commands. (templated)
     :param bulk_load: flag to use bulk_load option.  This loads MySQL directly
-        from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.
-        This option requires an extra connection parameter for the
-        destination MySQL connection: {'local_infile': true}.
+        from a tab-delimited text file using the LOAD DATA LOCAL INFILE command. The MySQL
+        server must support loading local files via this command (it is disabled by default).
     """
 
     template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
@@ -86,7 +85,7 @@ class VerticaToMySqlOperator(BaseOperator):
 
     def execute(self, context: Context):
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
-        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
+        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id, local_infile=self.bulk_load)
 
         if self.bulk_load:
             self._bulk_load_transfer(mysql, vertica)

@@ -43,9 +43,6 @@ services:
         source: ../../../.dockerignore
         target: /opt/airflow/.dockerignore
       - type: bind
-        source: ../../../.flake8
-        target: /opt/airflow/.flake8
-      - type: bind
         source: ../../../.github
         target: /opt/airflow/.github
       - type: bind
@@ -72,6 +69,9 @@ services:
       - type: bind
         source: ../../../airflow
         target: /opt/airflow/airflow
+      - type: bind
+        source: ../../../constraints
+        target: /opt/airflow/constraints
       - type: bind
         source: ../../../provider_packages
         target: /opt/airflow/provider_packages

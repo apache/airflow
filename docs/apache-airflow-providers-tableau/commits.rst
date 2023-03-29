@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2023-02-03
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`67b92d7b53 <https://github.com/apache/airflow/commit/67b92d7b53b2c15b3c9656787f64ff71599d7cb2>`_  2023-02-03   ``Add TableauOperator.template_fields = find, match_with (#29360)``
+=================================================================================================  ===========  ===================================================================
+
 4.0.0
 .....
 
-Latest change: 2022-10-27
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
 `d544e8fbeb <https://github.com/apache/airflow/commit/d544e8fbeb362e76e14d7615d354a299445e5b5a>`_  2022-10-26   ``Remove deprecated Tableau classes (#27288)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``

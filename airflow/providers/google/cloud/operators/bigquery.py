@@ -28,7 +28,7 @@ from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
@@ -42,6 +42,7 @@ from airflow.providers.common.sql.operators.sql import (
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
     BigQueryGetDataTrigger,
@@ -65,6 +66,15 @@ class BigQueryUIColors(enum.Enum):
     QUERY = "#A1BBFF"
     TABLE = "#81A0FF"
     DATASET = "#5F86FF"
+
+
+class IfExistAction(enum.Enum):
+    """Action to take if the resource exist"""
+
+    IGNORE = "ignore"
+    LOG = "log"
+    FAIL = "fail"
+    SKIP = "skip"
 
 
 class BigQueryConsoleLink(BaseOperatorLink):
@@ -167,6 +177,8 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -188,6 +200,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, **kwargs)
@@ -198,6 +211,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
@@ -230,6 +244,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                     conn_id=self.gcp_conn_id,
                     job_id=job.job_id,
                     project_id=hook.project_id,
+                    poll_interval=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -247,7 +262,9 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         if not records:
             raise AirflowException("The query returned empty results")
         elif not all(bool(r) for r in records):
-            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            self._raise_exception(  # type: ignore[attr-defined]
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
+            )
         self.log.info("Record: %s", event["records"])
         self.log.info("Success.")
 
@@ -276,6 +293,8 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -300,6 +319,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
@@ -309,6 +329,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
@@ -348,6 +369,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     sql=self.sql,
                     pass_value=self.pass_value,
                     tolerance=self.tol,
+                    poll_interval=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -402,6 +424,8 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -427,6 +451,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -443,6 +468,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
@@ -486,6 +512,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
                     days_back=self.days_back,
                     ratio_formula=self.ratio_formula,
                     ignore_zero=self.ignore_zero,
+                    poll_interval=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -611,7 +638,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
-        failed_tests(
+        failed_tests.extend(
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for col, checks in self.column_mapping.items()
             for check, check_values in checks.items()
@@ -730,7 +757,7 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         self.log.info("All tests have passed")
 
 
-class BigQueryGetDataOperator(BaseOperator):
+class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     """
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and returns data in a python list. The number of elements in the returned list will
@@ -772,9 +799,6 @@ class BigQueryGetDataOperator(BaseOperator):
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param location: The location used for the operation.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -785,6 +809,11 @@ class BigQueryGetDataOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled. Deprecated.
     """
 
     template_fields: Sequence[str] = (
@@ -806,10 +835,11 @@ class BigQueryGetDataOperator(BaseOperator):
         max_results: int = 100,
         selected_fields: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
+        delegate_to: str | None = None,
+        poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -819,11 +849,16 @@ class BigQueryGetDataOperator(BaseOperator):
         self.max_results = int(max_results)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.project_id = project_id
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _submit_job(
         self,
@@ -899,6 +934,7 @@ class BigQueryGetDataOperator(BaseOperator):
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 project_id=hook.project_id,
+                poll_interval=self.poll_interval,
             ),
             method_name="execute_complete",
         )
@@ -916,7 +952,7 @@ class BigQueryGetDataOperator(BaseOperator):
         return event["records"]
 
 
-class BigQueryExecuteQueryOperator(BaseOperator):
+class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database.
     This operator does not assert idempotency.
@@ -1136,7 +1172,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             self.hook.cancel_job(self.hook.running_job_id)
 
 
-class BigQueryCreateEmptyTableOperator(BaseOperator):
+class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
     """
     Creates a new, empty table in the specified BigQuery dataset,
     optionally with schema.
@@ -1156,7 +1192,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param table_id: The Name of the table to be created. (templated)
     :param table_resource: Table resource as described in documentation:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-        If provided all other parameters are ignored.
+        If provided all other parameters are ignored. (templated)
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
 
@@ -1248,12 +1284,16 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
+    :param if_exists: What should Airflow do if the table exists. If set to `log`, the TI will be passed to
+        success and an error message will be logged. Set to `ignore` to ignore the error, set to `fail` to
+        fail the TI, and set to `skip` to skip it.
+    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
     """
 
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_id",
+        "table_resource",
         "project_id",
         "gcs_schema_object",
         "labels",
@@ -1276,9 +1316,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         gcs_schema_object: str | None = None,
         time_partitioning: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        bigquery_conn_id: str | None = None,
         google_cloud_storage_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict | None = None,
         view: dict | None = None,
         materialized_view: dict | None = None,
@@ -1286,7 +1324,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         location: str | None = None,
         cluster_fields: list[str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        exists_ok: bool = False,
+        if_exists: str = "log",
+        delegate_to: str | None = None,
+        bigquery_conn_id: str | None = None,
+        exists_ok: bool | None = None,
         **kwargs,
     ) -> None:
         if bigquery_conn_id:
@@ -1306,6 +1347,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.gcs_schema_object = gcs_schema_object
         self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
@@ -1316,7 +1361,11 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
-        self.exists_ok = exists_ok
+        if exists_ok is not None:
+            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
+        else:
+            self.if_exists = IfExistAction(if_exists)
 
     def execute(self, context: Context) -> None:
         bq_hook = BigQueryHook(
@@ -1352,7 +1401,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 materialized_view=self.materialized_view,
                 encryption_configuration=self.encryption_configuration,
                 table_resource=self.table_resource,
-                exists_ok=self.exists_ok,
+                exists_ok=self.if_exists == IfExistAction.IGNORE,
             )
             BigQueryTableLink.persist(
                 context=context,
@@ -1365,10 +1414,16 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 "Table %s.%s.%s created successfully", table.project, table.dataset_id, table.table_id
             )
         except Conflict:
-            self.log.info("Table %s.%s already exists.", self.dataset_id, self.table_id)
+            error_msg = f"Table {self.dataset_id}.{self.table_id} already exists."
+            if self.if_exists == IfExistAction.LOG:
+                self.log.info(error_msg)
+            elif self.if_exists == IfExistAction.FAIL:
+                raise AirflowException(error_msg)
+            else:
+                raise AirflowSkipException(error_msg)
 
 
-class BigQueryCreateExternalTableOperator(BaseOperator):
+class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     """
     Creates a new external table in the dataset with the data from Google Cloud
     Storage.
@@ -1480,14 +1535,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         allow_quoted_newlines: bool = False,
         allow_jagged_rows: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        bigquery_conn_id: str | None = None,
         google_cloud_storage_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         src_fmt_configs: dict | None = None,
         labels: dict | None = None,
         encryption_configuration: dict | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
+        bigquery_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         if bigquery_conn_id:
@@ -1569,6 +1624,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.allow_jagged_rows = allow_jagged_rows
         self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.autodetect = autodetect
 
@@ -1630,7 +1689,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "compression": self.compression,
                 "csvOptions": {
-                    "fieldDelimeter": self.field_delimiter,
+                    "fieldDelimiter": self.field_delimiter,
                     "skipLeadingRows": self.skip_leading_rows,
                     "quote": self.quote_character,
                     "allowQuotedNewlines": self.allow_quoted_newlines,
@@ -1654,7 +1713,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         )
 
 
-class BigQueryDeleteDatasetOperator(BaseOperator):
+class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator deletes an existing dataset from your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
@@ -1707,14 +1766,18 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         project_id: str | None = None,
         delete_contents: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.delete_contents = delete_contents
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -1734,7 +1797,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         )
 
 
-class BigQueryCreateEmptyDatasetOperator(BaseOperator):
+class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
@@ -1761,7 +1824,9 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
+    :param if_exists: What should Airflow do if the dataset exists. If set to `log`, the TI will be passed to
+        success and an error message will be logged. Set to `ignore` to ignore the error, set to `fail` to
+        fail the TI, and set to `skip` to skip it.
         **Example**: ::
 
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
@@ -1771,6 +1836,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 gcp_conn_id='_my_gcp_conn_',
                 task_id='newDatasetCreator',
                 dag=dag)
+    :param exists_ok: Deprecated - use `if_exists="ignore"` instead.
     """
 
     template_fields: Sequence[str] = (
@@ -1791,9 +1857,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         dataset_reference: dict | None = None,
         location: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        exists_ok: bool = False,
+        if_exists: str = "log",
+        delegate_to: str | None = None,
+        exists_ok: bool | None = None,
         **kwargs,
     ) -> None:
 
@@ -1802,9 +1869,17 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.dataset_reference = dataset_reference if dataset_reference else {}
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.exists_ok = exists_ok
+        if exists_ok is not None:
+            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
+        else:
+            self.if_exists = IfExistAction(if_exists)
 
         super().__init__(**kwargs)
 
@@ -1822,7 +1897,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 dataset_id=self.dataset_id,
                 dataset_reference=self.dataset_reference,
                 location=self.location,
-                exists_ok=self.exists_ok,
+                exists_ok=self.if_exists == IfExistAction.IGNORE,
             )
             BigQueryDatasetLink.persist(
                 context=context,
@@ -1832,10 +1907,16 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
             )
         except Conflict:
             dataset_id = self.dataset_reference.get("datasetReference", {}).get("datasetId", self.dataset_id)
-            self.log.info("Dataset %s already exists.", dataset_id)
+            error_msg = f"Dataset {dataset_id} already exists."
+            if self.if_exists == IfExistAction.LOG:
+                self.log.info(error_msg)
+            elif self.if_exists == IfExistAction.FAIL:
+                raise AirflowException(error_msg)
+            else:
+                raise AirflowSkipException(error_msg)
 
 
-class BigQueryGetDatasetOperator(BaseOperator):
+class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to return the dataset specified by dataset_id.
 
@@ -1875,13 +1956,17 @@ class BigQueryGetDatasetOperator(BaseOperator):
         dataset_id: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -1906,7 +1991,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
         return dataset
 
 
-class BigQueryGetDatasetTablesOperator(BaseOperator):
+class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
     """
     This operator retrieves the list of tables in the specified dataset.
 
@@ -1946,14 +2031,18 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         project_id: str | None = None,
         max_results: int | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.max_results = max_results
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -1972,7 +2061,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         )
 
 
-class BigQueryPatchDatasetOperator(BaseOperator):
+class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to patch dataset for your Project in BigQuery.
     It only replaces fields that are provided in the submitted dataset resource.
@@ -2015,8 +2104,8 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         dataset_resource: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         warnings.warn(
@@ -2028,6 +2117,10 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2046,7 +2139,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         )
 
 
-class BigQueryUpdateTableOperator(BaseOperator):
+class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
     """
     This operator is used to update table for your Project in BigQuery.
     Use ``fields`` to specify which fields of table to update. If a field
@@ -2099,8 +2192,8 @@ class BigQueryUpdateTableOperator(BaseOperator):
         table_id: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
@@ -2109,6 +2202,10 @@ class BigQueryUpdateTableOperator(BaseOperator):
         self.fields = fields
         self.gcp_conn_id = gcp_conn_id
         self.table_resource = table_resource
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2139,7 +2236,7 @@ class BigQueryUpdateTableOperator(BaseOperator):
         return table
 
 
-class BigQueryUpdateDatasetOperator(BaseOperator):
+class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to update dataset for your Project in BigQuery.
     Use ``fields`` to specify which fields of dataset to update. If a field
@@ -2189,8 +2286,8 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         dataset_id: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.dataset_id = dataset_id
@@ -2198,6 +2295,10 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         self.fields = fields
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2227,7 +2328,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         return dataset
 
 
-class BigQueryDeleteTableOperator(BaseOperator):
+class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
     """
     Deletes BigQuery tables
 
@@ -2266,16 +2367,20 @@ class BigQueryDeleteTableOperator(BaseOperator):
         *,
         deletion_dataset_table: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         ignore_if_missing: bool = False,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
         self.deletion_dataset_table = deletion_dataset_table
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.ignore_if_missing = ignore_if_missing
         self.location = location
@@ -2292,7 +2397,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         hook.delete_table(table_id=self.deletion_dataset_table, not_found_ok=self.ignore_if_missing)
 
 
-class BigQueryUpsertTableOperator(BaseOperator):
+class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
     """
     Upsert BigQuery table
 
@@ -2339,9 +2444,9 @@ class BigQueryUpsertTableOperator(BaseOperator):
         table_resource: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2350,6 +2455,10 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.table_resource = table_resource
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -2376,7 +2485,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         )
 
 
-class BigQueryUpdateTableSchemaOperator(BaseOperator):
+class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
     """
     Update BigQuery Table Schema
     Updates fields on a table schema based on contents of the supplied schema_fields_updates
@@ -2446,8 +2555,8 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         include_policy_tags: bool = False,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         self.schema_fields_updates = schema_fields_updates
@@ -2456,6 +2565,10 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
@@ -2485,7 +2598,7 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         return table
 
 
-class BigQueryInsertJobOperator(BaseOperator):
+class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
     This operator work in the following way:
@@ -2537,6 +2650,8 @@ class BigQueryInsertJobOperator(BaseOperator):
     :param result_retry: How to retry the `result` call that retrieves rows
     :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
     :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
+        Defaults to 4 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -2562,12 +2677,13 @@ class BigQueryInsertJobOperator(BaseOperator):
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         cancel_on_kill: bool = True,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         deferrable: bool = False,
+        poll_interval: float = 4.0,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2576,6 +2692,10 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.job_id = job_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.force_rerun = force_rerun
         self.reattach_states: set[str] = reattach_states or set()
@@ -2585,6 +2705,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.result_timeout = result_timeout
         self.hook: BigQueryHook | None = None
         self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
@@ -2692,6 +2813,7 @@ class BigQueryInsertJobOperator(BaseOperator):
                 conn_id=self.gcp_conn_id,
                 job_id=self.job_id,
                 project_id=self.project_id,
+                poll_interval=self.poll_interval,
             ),
             method_name="execute_complete",
         )

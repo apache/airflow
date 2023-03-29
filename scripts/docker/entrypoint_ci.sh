@@ -72,12 +72,21 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
+    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+        echo
+        echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
+        echo
+        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        echo
+        exit 1
+    fi
 }
 
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        if [[ ${BACKEND:=} == "mysql" || ${BACKEND} == "mssql" ]]; then
+        if [[ ${BACKEND:=} == "mssql" ]]; then
             echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
             exit 1
         fi
@@ -307,9 +316,10 @@ EXTRA_PYTEST_ARGS=(
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
     echo "Running tests with ${_cpus} CPUs in parallel"
-    # Enable parallelism
+    # Enable parallelism and disable coverage
     EXTRA_PYTEST_ARGS+=(
         "-n" "${_cpus}"
+        "--no-cov"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -319,7 +329,7 @@ fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
-        "--cov=airflow/"
+        "--cov=airflow"
         "--cov-config=.coveragerc"
         "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
@@ -332,7 +342,7 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 # - so that we do not skip any in the future if new directories are added
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d)
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -366,6 +376,7 @@ else
     WWW_TESTS=("tests/www")
     HELM_CHART_TESTS=("tests/charts")
     INTEGRATION_TESTS=("tests/integration")
+    SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
     ALL_PRESELECTED_TESTS=(
         "${CLI_TESTS[@]}"
@@ -376,6 +387,14 @@ else
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
         "${WWW_TESTS[@]}"
+        "${SYSTEM_TESTS[@]}"
+    )
+
+    NO_PROVIDERS_INTEGRATION_TESTS=(
+        "tests/integration/api"
+        "tests/integration/cli"
+        "tests/integration/executors"
+        "tests/integration/security"
     )
 
     if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
@@ -393,7 +412,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
-        SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
+            SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
+        else
+            SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
@@ -419,6 +442,13 @@ else
         echo
         exit 1
     fi
+fi
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall aiobotocore -y || true
+    pip install --upgrade boto3 botocore
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS

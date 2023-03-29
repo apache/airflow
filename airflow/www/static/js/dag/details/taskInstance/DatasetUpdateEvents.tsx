@@ -16,69 +16,64 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useMemo } from 'react';
-import {
-  Box, Heading, Text,
-} from '@chakra-ui/react';
+import React, { useMemo } from "react";
+import { Box, Heading, Text } from "@chakra-ui/react";
 
 import {
-  DatasetLink, Table, TimeCell, TriggeredRuns,
-} from 'src/components/Table';
-import { useDatasetEvents } from 'src/api';
-import type { DagRun as DagRunType } from 'src/types';
-import { getMetaValue } from 'src/utils';
+  DatasetLink,
+  Table,
+  TimeCell,
+  TriggeredRuns,
+} from "src/components/Table";
+import { useDatasetEvents } from "src/api";
+import type { DagRun as DagRunType } from "src/types";
+import { getMetaValue } from "src/utils";
 
 interface Props {
-  runId: DagRunType['runId'];
+  runId: DagRunType["runId"];
   taskId: string;
 }
 
-const dagId = getMetaValue('dag_id') || undefined;
+const dagId = getMetaValue("dag_id") || undefined;
 
 const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
-  const { data: { datasetEvents = [] }, isLoading } = useDatasetEvents(
-    {
-      sourceDagId: dagId,
-      sourceRunId: runId,
-      sourceTaskId: taskId,
-    },
-  );
+  const {
+    data: { datasetEvents = [] },
+    isLoading,
+  } = useDatasetEvents({
+    sourceDagId: dagId,
+    sourceRunId: runId,
+    sourceTaskId: taskId,
+  });
 
   const columns = useMemo(
     () => [
       {
-        Header: 'Dataset URI',
-        accessor: 'datasetUri',
+        Header: "Dataset URI",
+        accessor: "datasetUri",
         Cell: DatasetLink,
       },
       {
-        Header: 'When',
-        accessor: 'timestamp',
+        Header: "When",
+        accessor: "timestamp",
         Cell: TimeCell,
       },
       {
-        Header: 'Triggered Runs',
-        accessor: 'createdDagruns',
+        Header: "Triggered Runs",
+        accessor: "createdDagruns",
         Cell: TriggeredRuns,
       },
     ],
-    [],
+    []
   );
 
-  const data = useMemo(
-    () => datasetEvents,
-    [datasetEvents],
-  );
+  const data = useMemo(() => datasetEvents, [datasetEvents]);
 
   return (
     <Box mt={3} flexGrow={1}>
       <Heading size="md">Dataset Events</Heading>
       <Text>Dataset updates caused by this task instance</Text>
-      <Table
-        data={data}
-        columns={columns}
-        isLoading={isLoading}
-      />
+      <Table data={data} columns={columns} isLoading={isLoading} />
     </Box>
   );
 };

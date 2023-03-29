@@ -44,7 +44,13 @@ class SequentialExecutor(BaseExecutor):
     SequentialExecutor alongside sqlite as you first install it.
     """
 
+    supports_pickling: bool = False
+
     is_local: bool = True
+    is_single_threaded: bool = True
+    is_production: bool = False
+
+    serve_logs: bool = True
 
     def __init__(self):
         super().__init__()

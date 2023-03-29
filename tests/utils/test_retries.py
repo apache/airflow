@@ -17,15 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+import logging
 from unittest import mock
 
+import pytest
 from sqlalchemy.exc import OperationalError
 
 from airflow.utils.retries import retry_db_transaction
 
 
-class TestRetries(unittest.TestCase):
+class TestRetries:
     def test_retry_db_transaction_with_passing_retries(self):
         """Test that retries can be passed to decorator"""
         mock_obj = mock.MagicMock()
@@ -38,12 +39,12 @@ class TestRetries(unittest.TestCase):
             mock_obj(2)
             raise op_error
 
-        with self.assertRaises(OperationalError):
+        with pytest.raises(OperationalError):
             test_function(session=mock_session)
 
         assert mock_obj.call_count == 2
 
-    def test_retry_db_transaction_with_default_retries(self):
+    def test_retry_db_transaction_with_default_retries(self, caplog):
         """Test that by default 3 retries will be carried out"""
         mock_obj = mock.MagicMock()
         mock_session = mock.MagicMock()
@@ -57,25 +58,16 @@ class TestRetries(unittest.TestCase):
             mock_obj(2)
             raise op_error
 
-        with self.assertRaises(OperationalError), self.assertLogs(self.__module__, "DEBUG") as logs_output:
+        caplog.set_level(logging.DEBUG, logger=self.__module__)
+        caplog.clear()
+        with pytest.raises(OperationalError):
             test_function(session=mock_session)
 
-        assert (
-            "DEBUG:tests.utils.test_retries:Running "
-            "TestRetries.test_retry_db_transaction_with_default_retries.<locals>.test_function "
-            "with retries. Try 1 of 3" in logs_output.output
-        )
-        assert (
-            "DEBUG:tests.utils.test_retries:Running "
-            "TestRetries.test_retry_db_transaction_with_default_retries.<locals>.test_function "
-            "with retries. Try 2 of 3" in logs_output.output
-        )
-        assert (
-            "DEBUG:tests.utils.test_retries:Running "
-            "TestRetries.test_retry_db_transaction_with_default_retries.<locals>.test_function "
-            "with retries. Try 3 of 3" in logs_output.output
-        )
-
+        for try_no in range(1, 4):
+            assert (
+                "Running TestRetries.test_retry_db_transaction_with_default_retries.<locals>.test_function "
+                f"with retries. Try {try_no} of 3" in caplog.messages
+            )
         assert mock_session.execute.call_count == 3
         assert mock_rollback.call_count == 3
         mock_rollback.assert_has_calls([mock.call(), mock.call(), mock.call()])
@@ -83,7 +75,7 @@ class TestRetries(unittest.TestCase):
     def test_retry_db_transaction_fails_when_used_in_function_without_retry(self):
         """Test that an error is raised when the decorator is used on a function without session arg"""
 
-        with self.assertRaisesRegex(ValueError, "has no `session` argument"):
+        with pytest.raises(ValueError, match=r"has no `session` argument"):
 
             @retry_db_transaction
             def test_function():
@@ -98,7 +90,6 @@ class TestRetries(unittest.TestCase):
             session.execute("select 1;")
             raise OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
 
-        with self.assertRaisesRegex(
-            TypeError, f"session is a required argument for {test_function.__qualname__}"
-        ):
+        error_message = rf"session is a required argument for {test_function.__qualname__}"
+        with pytest.raises(TypeError, match=error_message):
             test_function()

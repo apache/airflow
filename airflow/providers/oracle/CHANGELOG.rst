@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+* ``XCOM push ORA error code in OracleStoredProcedure (#27319)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.5.1
 .....
 

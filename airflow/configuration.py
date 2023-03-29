@@ -25,6 +25,7 @@ import os
 import pathlib
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import warnings
@@ -198,6 +199,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.5.3"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.5.3"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
@@ -206,6 +209,7 @@ class AirflowConfigParser(ConfigParser):
         ("metrics", "stat_name_handler"): ("scheduler", "stat_name_handler", "2.0.0"),
         ("metrics", "statsd_datadog_enabled"): ("scheduler", "statsd_datadog_enabled", "2.0.0"),
         ("metrics", "statsd_datadog_tags"): ("scheduler", "statsd_datadog_tags", "2.0.0"),
+        ("metrics", "statsd_datadog_metrics_tags"): ("scheduler", "statsd_datadog_metrics_tags", "2.6.0"),
         ("metrics", "statsd_custom_client_path"): ("scheduler", "statsd_custom_client_path", "2.0.0"),
         ("scheduler", "parsing_processes"): ("scheduler", "max_threads", "1.10.14"),
         ("scheduler", "scheduler_idle_sleep_time"): ("scheduler", "processor_poll_interval", "2.2.0"),
@@ -337,7 +341,7 @@ class AirflowConfigParser(ConfigParser):
         self._suppress_future_warnings = False
 
     def validate(self):
-        self._validate_config_dependencies()
+        self._validate_sqlite3_version()
         self._validate_enums()
 
         for section, replacement in self.deprecated_values.items():
@@ -395,7 +399,7 @@ class AirflowConfigParser(ConfigParser):
         must be replaced with `postgresql`.
         """
         section, key = "database", "sql_alchemy_conn"
-        old_value = self.get(section, key)
+        old_value = self.get(section, key, _extra_stacklevel=1)
         bad_schemes = ["postgres+psycopg2", "postgres"]
         good_scheme = "postgresql"
         parsed = urlsplit(old_value)
@@ -426,33 +430,27 @@ class AirflowConfigParser(ConfigParser):
                         f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
 
-    def _validate_config_dependencies(self):
-        """
-        Validate that config based on condition.
+    def _validate_sqlite3_version(self):
+        """Validate SQLite version.
 
-        Values are considered invalid when they conflict with other config values
-        or system-level limitations and requirements.
+        Some features in storing rendered fields require SQLite >= 3.15.0.
         """
-        is_executor_without_sqlite_support = self.get("core", "executor") not in (
-            "DebugExecutor",
-            "SequentialExecutor",
+        if "sqlite" not in self.get("database", "sql_alchemy_conn"):
+            return
+
+        import sqlite3
+
+        min_sqlite_version = (3, 15, 0)
+        if _parse_sqlite_version(sqlite3.sqlite_version) >= min_sqlite_version:
+            return
+
+        from airflow.utils.docs import get_docs_url
+
+        min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
+        raise AirflowConfigException(
+            f"error: SQLite C library too old (< {min_sqlite_version_str}). "
+            f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
         )
-        is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
-        if is_sqlite and is_executor_without_sqlite_support:
-            raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
-        if is_sqlite:
-            import sqlite3
-
-            from airflow.utils.docs import get_docs_url
-
-            # Some features in storing rendered fields require sqlite version >= 3.15.0
-            min_sqlite_version = (3, 15, 0)
-            if _parse_sqlite_version(sqlite3.sqlite_version) < min_sqlite_version:
-                min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
-                raise AirflowConfigException(
-                    f"error: sqlite C library version too old (< {min_sqlite_version_str}). "
-                    f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
-                )
 
     def _using_old_value(self, old: Pattern, current_value: str) -> bool:
         return old.search(current_value) is not None
@@ -543,7 +541,7 @@ class AirflowConfigParser(ConfigParser):
         return None
 
     def get_mandatory_value(self, section: str, key: str, **kwargs) -> str:
-        value = self.get(section, key, **kwargs)
+        value = self.get(section, key, _extra_stacklevel=1, **kwargs)
         if value is None:
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
@@ -558,7 +556,13 @@ class AirflowConfigParser(ConfigParser):
 
         ...
 
-    def get(self, section: str, key: str, **kwargs) -> str | None:  # type: ignore[override, misc]
+    def get(  # type: ignore[override, misc]
+        self,
+        section: str,
+        key: str,
+        _extra_stacklevel: int = 0,
+        **kwargs,
+    ) -> str | None:
         section = str(section).lower()
         key = str(key).lower()
         warning_emitted = False
@@ -574,7 +578,7 @@ class AirflowConfigParser(ConfigParser):
                     f"The config section [{deprecated_section}] has been renamed to "
                     f"[{section}]. Please update your `conf.get*` call to use the new name",
                     FutureWarning,
-                    stacklevel=2,
+                    stacklevel=2 + _extra_stacklevel,
                 )
             # Don't warn about individual rename if the whole section is renamed
             warning_emitted = True
@@ -587,7 +591,7 @@ class AirflowConfigParser(ConfigParser):
                     f"[{new_section}/{new_key}] instead. Please update your `conf.get*` call to use the "
                     "new name",
                     FutureWarning,
-                    stacklevel=2,
+                    stacklevel=2 + _extra_stacklevel,
                 )
                 warning_emitted = True
             deprecated_section, deprecated_key = section, key
@@ -603,28 +607,49 @@ class AirflowConfigParser(ConfigParser):
 
         # first check environment variables
         option = self._get_environment_variables(
-            deprecated_key, deprecated_section, key, section, issue_warning=not warning_emitted
+            deprecated_key,
+            deprecated_section,
+            key,
+            section,
+            issue_warning=not warning_emitted,
+            extra_stacklevel=_extra_stacklevel,
         )
         if option is not None:
             return option
 
         # ...then the config file
         option = self._get_option_from_config_file(
-            deprecated_key, deprecated_section, key, kwargs, section, issue_warning=not warning_emitted
+            deprecated_key,
+            deprecated_section,
+            key,
+            kwargs,
+            section,
+            issue_warning=not warning_emitted,
+            extra_stacklevel=_extra_stacklevel,
         )
         if option is not None:
             return option
 
         # ...then commands
         option = self._get_option_from_commands(
-            deprecated_key, deprecated_section, key, section, issue_warning=not warning_emitted
+            deprecated_key,
+            deprecated_section,
+            key,
+            section,
+            issue_warning=not warning_emitted,
+            extra_stacklevel=_extra_stacklevel,
         )
         if option is not None:
             return option
 
         # ...then from secret backends
         option = self._get_option_from_secrets(
-            deprecated_key, deprecated_section, key, section, issue_warning=not warning_emitted
+            deprecated_key,
+            deprecated_section,
+            key,
+            section,
+            issue_warning=not warning_emitted,
+            extra_stacklevel=_extra_stacklevel,
         )
         if option is not None:
             return option
@@ -644,6 +669,7 @@ class AirflowConfigParser(ConfigParser):
         key: str,
         section: str,
         issue_warning: bool = True,
+        extra_stacklevel: int = 0,
     ) -> str | None:
         option = self._get_secret_option(section, key)
         if option:
@@ -653,7 +679,7 @@ class AirflowConfigParser(ConfigParser):
                 option = self._get_secret_option(deprecated_section, deprecated_key)
             if option:
                 if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
                 return option
         return None
 
@@ -664,6 +690,7 @@ class AirflowConfigParser(ConfigParser):
         key: str,
         section: str,
         issue_warning: bool = True,
+        extra_stacklevel: int = 0,
     ) -> str | None:
         option = self._get_cmd_option(section, key)
         if option:
@@ -673,7 +700,7 @@ class AirflowConfigParser(ConfigParser):
                 option = self._get_cmd_option(deprecated_section, deprecated_key)
             if option:
                 if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
                 return option
         return None
 
@@ -685,6 +712,7 @@ class AirflowConfigParser(ConfigParser):
         kwargs: dict[str, Any],
         section: str,
         issue_warning: bool = True,
+        extra_stacklevel: int = 0,
     ) -> str | None:
         if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
@@ -693,7 +721,7 @@ class AirflowConfigParser(ConfigParser):
         if deprecated_section and deprecated_key:
             if super().has_option(deprecated_section, deprecated_key):
                 if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
                 with self.suppress_future_warnings():
                     return expand_env_var(super().get(deprecated_section, deprecated_key, **kwargs))
         return None
@@ -705,6 +733,7 @@ class AirflowConfigParser(ConfigParser):
         key: str,
         section: str,
         issue_warning: bool = True,
+        extra_stacklevel: int = 0,
     ) -> str | None:
         option = self._get_env_var_option(section, key)
         if option is not None:
@@ -714,12 +743,12 @@ class AirflowConfigParser(ConfigParser):
                 option = self._get_env_var_option(deprecated_section, deprecated_key)
             if option is not None:
                 if issue_warning:
-                    self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
                 return option
         return None
 
     def getboolean(self, section: str, key: str, **kwargs) -> bool:  # type: ignore[override]
-        val = str(self.get(section, key, **kwargs)).lower().strip()
+        val = str(self.get(section, key, _extra_stacklevel=1, **kwargs)).lower().strip()
         if "#" in val:
             val = val.split("#")[0].strip()
         if val in ("t", "true", "1"):
@@ -733,7 +762,7 @@ class AirflowConfigParser(ConfigParser):
             )
 
     def getint(self, section: str, key: str, **kwargs) -> int:  # type: ignore[override]
-        val = self.get(section, key, **kwargs)
+        val = self.get(section, key, _extra_stacklevel=1, **kwargs)
         if val is None:
             raise AirflowConfigException(
                 f"Failed to convert value None to int. "
@@ -748,7 +777,7 @@ class AirflowConfigParser(ConfigParser):
             )
 
     def getfloat(self, section: str, key: str, **kwargs) -> float:  # type: ignore[override]
-        val = self.get(section, key, **kwargs)
+        val = self.get(section, key, _extra_stacklevel=1, **kwargs)
         if val is None:
             raise AirflowConfigException(
                 f"Failed to convert value None to float. "
@@ -799,7 +828,7 @@ class AirflowConfigParser(ConfigParser):
             fallback = _UNSET
 
         try:
-            data = self.get(section=section, key=key, fallback=fallback, **kwargs)
+            data = self.get(section=section, key=key, fallback=fallback, _extra_stacklevel=1, **kwargs)
         except (NoSectionError, NoOptionError):
             return default
 
@@ -825,7 +854,7 @@ class AirflowConfigParser(ConfigParser):
         :raises AirflowConfigException: raised because ValueError or OverflowError
         :return: datetime.timedelta(seconds=<config_value>) or None
         """
-        val = self.get(section, key, fallback=fallback, **kwargs)
+        val = self.get(section, key, fallback=fallback, _extra_stacklevel=1, **kwargs)
 
         if val:
             # the given value must be convertible to integer
@@ -867,7 +896,7 @@ class AirflowConfigParser(ConfigParser):
             # Using self.get() to avoid reimplementing the priority order
             # of config variables (env, config, cmd, defaults)
             # UNSET to avoid logging a warning about missing values
-            self.get(section, option, fallback=_UNSET)
+            self.get(section, option, fallback=_UNSET, _extra_stacklevel=1)
             return True
         except (NoOptionError, NoSectionError):
             return False
@@ -1118,8 +1147,8 @@ class AirflowConfigParser(ConfigParser):
             if not display_sensitive and env_var != self._env_var_name("core", "unit_test_mode"):
                 # Don't hide cmd/secret values here
                 if not env_var.lower().endswith("cmd") and not env_var.lower().endswith("secret"):
-                    opt = "< hidden >"
-
+                    if (section, key) in self.sensitive_config_values:
+                        opt = "< hidden >"
             elif raw:
                 opt = opt.replace("%", "%%")
             if display_source:
@@ -1349,20 +1378,22 @@ class AirflowConfigParser(ConfigParser):
         self.read(TEST_CONFIG_FILE)
 
     @staticmethod
-    def _warn_deprecate(section: str, key: str, deprecated_section: str, deprecated_name: str):
+    def _warn_deprecate(
+        section: str, key: str, deprecated_section: str, deprecated_name: str, extra_stacklevel: int
+    ):
         if section == deprecated_section:
             warnings.warn(
                 f"The {deprecated_name} option in [{section}] has been renamed to {key} - "
                 f"the old setting has been used, but please update your config.",
                 DeprecationWarning,
-                stacklevel=4,
+                stacklevel=4 + extra_stacklevel,
             )
         else:
             warnings.warn(
                 f"The {deprecated_name} option in [{deprecated_section}] has been moved to the {key} option "
                 f"in [{section}] - the old setting has been used, but please update your config.",
                 DeprecationWarning,
-                stacklevel=4,
+                stacklevel=4 + extra_stacklevel,
             )
 
     def __getstate__(self):
@@ -1456,6 +1487,7 @@ def initialize_config() -> AirflowConfigParser:
             with open(TEST_CONFIG_FILE, "w") as file:
                 cfg = _parameterized_config_from_template("default_test.cfg")
                 file.write(cfg)
+            make_group_other_inaccessible(TEST_CONFIG_FILE)
 
         local_conf.load_test_config()
     else:
@@ -1470,6 +1502,7 @@ def initialize_config() -> AirflowConfigParser:
 
             with open(AIRFLOW_CONFIG, "w") as file:
                 file.write(default_config)
+            make_group_other_inaccessible(AIRFLOW_CONFIG)
 
         log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
@@ -1510,6 +1543,18 @@ def initialize_config() -> AirflowConfigParser:
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
+
+
+def make_group_other_inaccessible(file_path: str):
+    try:
+        permissions = os.stat(file_path)
+        os.chmod(file_path, permissions.st_mode & (stat.S_IRUSR | stat.S_IWUSR))
+    except Exception as e:
+        log.warning(
+            "Could not change permissions of config file to be group/other inaccessible. "
+            "Continuing with original permissions:",
+            e,
+        )
 
 
 # Historical convenience functions to access config entries

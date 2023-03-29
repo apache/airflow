@@ -19,9 +19,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Iterator
+from unittest import mock
+from unittest.mock import Mock
 
 import pytest
 
+from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -401,6 +404,70 @@ class TestTriggerRuleDep:
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
         assert ti.state == expected_ti_state
+
+    def test_all_success_tr_skip_wait_for_past_depends_before_skipping(self, session, get_task_instance):
+        """
+        All-success trigger rule fails when some upstream tasks are skipped. The state of the ti
+        should not be set to SKIPPED when flag_upstream_failed is True and
+        wait_for_past_depends_before_skipping is True and the past depends are not met.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SUCCESS,
+            success=["FakeTaskID"],
+            skipped=["OtherFakeTaskID"],
+            failed=0,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+        )
+        ti.task.xcom_pull.return_value = None
+        xcom_mock = Mock(return_value=None)
+        with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    dep_context=DepContext(
+                        flag_upstream_failed=True, wait_for_past_depends_before_skipping=True
+                    ),
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 1
+            assert not dep_statuses[0].passed
+            assert ti.state is None
+
+    def test_all_success_tr_skip_wait_for_past_depends_before_skipping_past_depends_met(
+        self, session, get_task_instance
+    ):
+        """
+        All-success trigger rule fails when some upstream tasks are skipped. The state of the ti
+        should be set to SKIPPED when flag_upstream_failed is True and
+        wait_for_past_depends_before_skipping is True and the past depends are met.
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SUCCESS,
+            success=["FakeTaskID"],
+            skipped=["OtherFakeTaskID"],
+            failed=0,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+        )
+        ti.task.xcom_pull.return_value = None
+        xcom_mock = Mock(return_value=True)
+        with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
+            dep_statuses = tuple(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=ti,
+                    dep_context=DepContext(
+                        flag_upstream_failed=True, wait_for_past_depends_before_skipping=True
+                    ),
+                    session=session,
+                )
+            )
+            assert len(dep_statuses) == 1
+            assert not dep_statuses[0].passed
+            assert ti.state == TaskInstanceState.SKIPPED
 
     @pytest.mark.parametrize("flag_upstream_failed", [True, False])
     def test_none_failed_tr_success(self, session, get_task_instance, flag_upstream_failed):
@@ -947,3 +1014,60 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
     tis["tg.t2", 1].run()
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("t3", -1)]
+
+
+def test_upstream_in_mapped_group_when_mapped_tasks_list_is_empty(dag_maker, session):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(x):
+            t1 = t.override(task_id="t1")(x=x)
+            return t.override(task_id="t2")(x=t1)
+
+        t2 = tg.expand(x=[])
+        t.override(task_id="t3")(x=t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+
+    # should return an empty dict
+    tis = _one_scheduling_decision_iteration()
+    assert tis == {}
+
+
+def test_mapped_task_check_before_expand(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(a):
+            b = t.override(task_id="t2")(a)
+            c = t.override(task_id="t3")(b)
+            return c
+
+        tg.expand(a=t([1, 2, 3]))
+
+    dr: DagRun = dag_maker.create_dagrun()
+    result_iterator = TriggerRuleDep()._evaluate_trigger_rule(
+        # t3 depends on t2, which depends on t1 for expansion. Since t1 has not
+        # yet run, t2 has not expanded yet, and we need to guarantee this lack
+        # of expansion does not fail the dependency-checking logic.
+        ti=next(ti for ti in dr.task_instances if ti.task_id == "tg.t3" and ti.map_index == -1),
+        dep_context=DepContext(),
+        session=session,
+    )
+    results = list(result_iterator)
+    assert len(results) == 1
+    assert results[0].passed is False

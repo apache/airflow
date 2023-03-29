@@ -30,7 +30,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
 
@@ -186,7 +186,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
 @pytest.mark.usefixtures("patch_app")
 def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     """Test that the Rendered View masks values retrieved from secret variables."""
-    Variable.set("my_secret", "foo")
+    Variable.set("my_secret", "secret_unlikely_to_happen_accidentally")
     Variable.set("spam", "egg")
 
     assert task_secret.bash_command == "echo {{ var.value.my_secret }} && echo {{ var.value.spam }}"
@@ -202,8 +202,7 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     url = f"rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}"
 
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response(
-        'echo</span> *** <span class="o">&amp;&amp;</span> <span class="nb">echo</span> egg', resp
-    )
+    check_content_in_response("***", resp)
+    check_content_not_in_response("secret_unlikely_to_happen_accidentally", resp)
     ti.refresh_from_task(task_secret)
     assert ti.state == TaskInstanceState.QUEUED

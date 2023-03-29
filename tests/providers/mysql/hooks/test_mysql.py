@@ -123,7 +123,7 @@ class TestMySqlHookConn:
 
     @mock.patch("MySQLdb.connect")
     def test_get_conn_local_infile(self, mock_connect):
-        self.connection.extra = json.dumps({"local_infile": True})
+        self.db_hook.local_infile = True
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -219,8 +219,8 @@ class TestMySqlHookConnMySqlConnectorPython:
     @mock.patch("mysql.connector.connect")
     def test_get_conn_allow_local_infile(self, mock_connect):
         extra_dict = self.connection.extra_dejson
-        extra_dict.update(allow_local_infile=True)
         self.connection.extra = json.dumps(extra_dict)
+        self.db_hook.local_infile = True
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -406,7 +406,7 @@ class TestMySql:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_AIRFLOW_DB": "mysql://root@mysql/airflow?charset=utf8mb4&local_infile=1",
+            "AIRFLOW_CONN_AIRFLOW_DB": "mysql://root@mysql/airflow?charset=utf8mb4",
         },
     )
     def test_mysql_hook_test_bulk_load(self, client):
@@ -419,7 +419,7 @@ class TestMySql:
                 f.write("\n".join(records).encode("utf8"))
                 f.flush()
 
-                hook = MySqlHook("airflow_db")
+                hook = MySqlHook("airflow_db", local_infile=True)
                 with closing(hook.get_conn()) as conn:
                     with closing(conn.cursor()) as cursor:
                         cursor.execute(

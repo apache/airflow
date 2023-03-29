@@ -19,6 +19,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
+      "asgiref",
       "boto3>=1.24.0",
       "jsonpath_ng>=1.5.3",
       "mypy-boto3-appflow>=1.24.0",
@@ -80,9 +81,9 @@
   },
   "apache.flink": {
     "deps": [
+      "apache-airflow-providers-cncf-kubernetes>=5.1.0",
       "apache-airflow>=2.3.0",
-      "cryptography>=2.0.0",
-      "kubernetes>=21.7.0,<24"
+      "cryptography>=2.0.0"
     ],
     "cross-providers-deps": [
       "cncf.kubernetes"
@@ -116,6 +117,15 @@
       "vertica"
     ]
   },
+  "apache.impala": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "impyla>=0.18.0,<1.0"
+    ],
+    "cross-providers-deps": [
+      "common.sql"
+    ]
+  },
   "apache.kylin": {
     "deps": [
       "apache-airflow>=2.3.0",
@@ -125,8 +135,10 @@
   },
   "apache.livy": {
     "deps": [
+      "aiohttp",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.3.0"
+      "apache-airflow>=2.3.0",
+      "asgiref"
     ],
     "cross-providers-deps": [
       "http"
@@ -200,8 +212,10 @@
   "cncf.kubernetes": {
     "deps": [
       "apache-airflow>=2.3.0",
+      "asgiref>=3.5.2",
       "cryptography>=2.0.0",
-      "kubernetes>=21.7.0,<24"
+      "kubernetes>=21.7.0,<24",
+      "kubernetes_asyncio>=18.20.1,<25"
     ],
     "cross-providers-deps": []
   },
@@ -232,8 +246,10 @@
   },
   "dbt.cloud": {
     "deps": [
+      "aiohttp",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.3.0"
+      "apache-airflow>=2.3.0",
+      "asgiref"
     ],
     "cross-providers-deps": [
       "http"
@@ -259,7 +275,7 @@
   },
   "docker": {
     "deps": [
-      "apache-airflow>=2.4.0",
+      "apache-airflow>=2.3.0",
       "docker>=5.0.3",
       "python-dotenv>=0.21.0"
     ],
@@ -301,8 +317,8 @@
   },
   "github": {
     "deps": [
-      "apache-airflow>=2.3.0",
-      "pygithub"
+      "PyGithub!=1.58",
+      "apache-airflow>=2.3.0"
     ],
     "cross-providers-deps": []
   },
@@ -312,9 +328,9 @@
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
       "asgiref>=3.5.2",
+      "gcloud-aio-auth>=4.0.0,<5.0.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage",
-      "gcloud_aio_auth>=4.0.0",
       "google-ads>=15.1.1",
       "google-api-core>=2.7.0,<3.0.0",
       "google-api-python-client>=1.6.0,<2.0.0",
@@ -323,16 +339,17 @@
       "google-cloud-aiplatform>=1.7.1,<2.0.0",
       "google-cloud-automl>=2.1.0",
       "google-cloud-bigquery-datatransfer>=3.0.0",
-      "google-cloud-bigtable>=1.0.0,<2.0.0",
+      "google-cloud-bigtable>=2.0.0,<3.0.0",
       "google-cloud-build>=3.0.0",
       "google-cloud-compute>=0.1.0,<2.0.0",
       "google-cloud-container>=2.2.0,<3.0.0",
       "google-cloud-datacatalog>=3.0.0",
+      "google-cloud-dataflow-client>=0.5.2",
       "google-cloud-dataform>=0.2.0",
       "google-cloud-dataplex>=0.1.0",
       "google-cloud-dataproc-metastore>=1.2.0,<2.0.0",
       "google-cloud-dataproc>=3.1.0",
-      "google-cloud-dlp>=0.11.0,<2.0.0",
+      "google-cloud-dlp>=3.0.0",
       "google-cloud-kms>=2.0.0",
       "google-cloud-language>=1.1.1,<2.0.0",
       "google-cloud-logging>=2.1.1",
@@ -359,7 +376,6 @@
       "pandas-gbq",
       "pandas>=0.17.1",
       "proto-plus>=1.19.6",
-      "protobuf<=3.20.0",
       "sqlalchemy-bigquery>=1.2.1"
     ],
     "cross-providers-deps": [
@@ -401,6 +417,8 @@
   },
   "http": {
     "deps": [
+      "aiohttp",
+      "asgiref",
       "requests>=2.26.0",
       "requests_toolbelt"
     ],
@@ -443,7 +461,7 @@
       "azure-cosmos>=4.0.0",
       "azure-datalake-store>=0.0.45",
       "azure-identity>=1.3.1",
-      "azure-keyvault-secrets>=4.1.0,<5.0",
+      "azure-keyvault-secrets>=4.1.0",
       "azure-kusto-data>=0.0.43,<0.1",
       "azure-mgmt-containerinstance>=1.5.0,<2.0",
       "azure-mgmt-datafactory>=1.0.0,<2.0",
@@ -452,6 +470,7 @@
       "azure-servicebus>=7.6.1",
       "azure-storage-blob>=12.14.0",
       "azure-storage-common>=2.1.0",
+      "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file>=2.1.0",
       "azure-synapse-spark"
     ],
@@ -496,8 +515,8 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
-      "mysql-connector-python>=8.0.11; platform_machine != \"aarch64\"",
-      "mysqlclient>=1.3.6; platform_machine != \"aarch64\""
+      "mysql-connector-python>=8.0.11",
+      "mysqlclient>=1.3.6"
     ],
     "cross-providers-deps": [
       "amazon",
@@ -664,6 +683,12 @@
       "common.sql"
     ]
   },
+  "smtp": {
+    "deps": [
+      "apache-airflow>=2.3.0"
+    ],
+    "cross-providers-deps": []
+  },
   "snowflake": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
@@ -708,7 +733,7 @@
   "telegram": {
     "deps": [
       "apache-airflow>=2.3.0",
-      "python-telegram-bot>=13.0"
+      "python-telegram-bot>=20.0.0"
     ],
     "cross-providers-deps": []
   },

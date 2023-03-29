@@ -188,6 +188,8 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
+        # Included in the cluster-policies doc
+        "_api/airflow/policies/index.rst",
         "README.rst",
     ]
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
@@ -217,21 +219,22 @@ def _get_rst_filepath_from_path(filepath: pathlib.Path):
 if PACKAGE_NAME == "apache-airflow":
     # Exclude top-level packages
     # do not exclude these top-level modules from the doc build:
-    _allowed_top_level = ("exceptions.py",)
+    _allowed_top_level = ("exceptions.py", "policies.py")
 
     browsable_packages = {
         "hooks",
+        "decorators",
         "example_dags",
         "executors",
-        "models",
         "operators",
         "providers",
         "secrets",
         "sensors",
         "timetables",
+        "triggers",
         "utils",
     }
-    browseable_utils = {"dag_parsing_context.py"}
+    browsable_utils: set[str] = set()
 
     root = ROOT_DIR / "airflow"
     for path in root.iterdir():
@@ -240,9 +243,9 @@ if PACKAGE_NAME == "apache-airflow":
         if path.is_dir() and path.name not in browsable_packages:
             exclude_patterns.append(f"_api/airflow/{path.name}")
 
-    # Don't include all of utils, just the specific ones we include in python-api-ref
+    # Don't include all of utils, just the specific ones we decoded to include
     for path in (root / "utils").iterdir():
-        if path.name not in browseable_utils:
+        if path.name not in browsable_utils:
             exclude_patterns.append(_get_rst_filepath_from_path(path))
 elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
@@ -696,6 +699,7 @@ if PACKAGE_NAME == "apache-airflow":
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
     "*/airflow/_vendor/*",
+    "*/airflow/executors/*",
     "*/_internal*",
     "*/node_modules/*",
     "*/migrations/*",

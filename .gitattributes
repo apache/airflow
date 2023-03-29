@@ -30,7 +30,6 @@ CONTRIBUTORS_QUICK_START.rst export-ignore
 .pre-commit-config.yaml export-ignore
 .mailmap export-ignore
 .editorconfig export-ignore
-.flake8 export-ignore
 .inputrc export-ignore
 .codespellignorelines export-ignore
 .gitmodules export-ignore

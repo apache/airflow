@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 """
 Bugs in sphinx-autoapi using metaclasses prevent us from upgrading to 1.3
 which has implicit namespace support. Until that time, we make it look
 like a real package for building docs
 """
+from __future__ import annotations
+
 import os
 
 from sphinx.application import Sphinx

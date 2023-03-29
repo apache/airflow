@@ -17,20 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import ANY
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import (
+    Batch,
     BatchControllerAsyncClient,
     ClusterControllerAsyncClient,
     JobControllerAsyncClient,
     JobStatus,
     WorkflowTemplateServiceAsyncClient,
 )
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook, DataProcJobBuilder
@@ -71,8 +70,8 @@ async def mock_awaitable(*args, **kwargs):
     pass
 
 
-class TestDataprocHook(unittest.TestCase):
-    def setUp(self):
+class TestDataprocHook:
+    def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocHook(gcp_conn_id="test")
 
@@ -421,6 +420,28 @@ class TestDataprocHook(unittest.TestCase):
             timeout=None,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch"))
+    def test_wait_for_batch(self, mock_batch):
+        mock_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        result: Batch = self.hook.wait_for_batch(
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            wait_check_interval=1,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        mock_batch.assert_called_once_with(
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        assert result.state == Batch.State.SUCCEEDED
+
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch_client"))
     def test_delete_batch(self, mock_client):
         self.hook.delete_batch(
@@ -731,6 +752,17 @@ class TestDataprocAsyncHook:
             metadata=(),
         )
 
+    @pytest.mark.asyncio
+    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
+    async def test_get_operation(self, mock_client):
+        mock_client.return_value = None
+        hook = DataprocAsyncHook(
+            gcp_conn_id="google_cloud_default", delegate_to=None, impersonation_chain=None
+        )
+        await hook.get_operation(region=GCP_LOCATION, operation_name="operation_name")
+        mock_client.assert_called_once()
+        mock_client.assert_called_with(region=GCP_LOCATION, operation_name="operation_name")
+
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     def test_instantiate_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):
@@ -909,8 +941,8 @@ class TestDataprocAsyncHook:
         )
 
 
-class TestDataProcJobBuilder(unittest.TestCase):
-    def setUp(self) -> None:
+class TestDataProcJobBuilder:
+    def setup_method(self) -> None:
         self.job_type = "test"
         self.builder = DataProcJobBuilder(
             project_id=GCP_PROJECT,
@@ -920,9 +952,9 @@ class TestDataProcJobBuilder(unittest.TestCase):
             properties={"test": "test"},
         )
 
-    @parameterized.expand([TASK_ID, f"group.{TASK_ID}"])
+    @pytest.mark.parametrize("job_name", [TASK_ID, f"group.{TASK_ID}"])
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
-    def test_init(self, job_name, mock_uuid):
+    def test_init(self, mock_uuid, job_name):
         mock_uuid.return_value = "uuid"
         properties = {"test": "test"}
         expected_job_id = f"{job_name}_{mock_uuid.return_value}".replace(".", "_")
@@ -1008,16 +1040,17 @@ class TestDataProcJobBuilder(unittest.TestCase):
         self.builder.set_python_main(main)
         assert main == self.builder.job["job"][self.job_type]["main_python_file_uri"]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "job_name",
         [
-            ("simple", "name"),
-            ("name with underscores", "name_with_dash"),
-            ("name with dot", "group.name"),
-            ("name with dot and underscores", "group.name_with_dash"),
-        ]
+            pytest.param("name", id="simple"),
+            pytest.param("name_with_dash", id="name with underscores"),
+            pytest.param("group.name", id="name with dot"),
+            pytest.param("group.name_with_dash", id="name with dot and underscores"),
+        ],
     )
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
-    def test_set_job_name(self, name, job_name, mock_uuid):
+    def test_set_job_name(self, mock_uuid, job_name):
         uuid = "test_uuid"
         expected_job_name = f"{job_name}_{uuid[:8]}".replace(".", "_")
         mock_uuid.return_value = uuid

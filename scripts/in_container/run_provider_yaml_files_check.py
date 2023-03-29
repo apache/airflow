@@ -56,7 +56,7 @@ PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
-errors = []
+errors: list[str] = []
 
 console = Console(width=400, color_system="standard")
 
@@ -164,13 +164,6 @@ def check_if_object_exist(object_name: str, resource_type: str, yaml_file_path: 
         else:
             raise RuntimeError(f"Wrong enum {object_type}???")
     except Exception as e:
-        if architecture == Architecture.ARM:
-            if "MySQLdb" in str(e):
-                console.print(
-                    f"[yellow]The imports fail on ARM: {object_name} in {resource_type} {e}, "
-                    f"but it is expected.[/]"
-                )
-                return
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "
             f"or is not a class: {e}"
@@ -290,6 +283,22 @@ def check_hook_classes(yaml_files: dict[str, dict]):
         if hook_class_names:
             check_if_objects_exist_and_belong_to_package(
                 hook_class_names, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
+            )
+
+
+def check_plugin_classes(yaml_files: dict[str, dict]):
+    print("Checking plugin classes belong to package, exist and are classes")
+    resource_type = "plugins"
+    for yaml_file_path, provider_data in yaml_files.items():
+        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+        plugins = provider_data.get(resource_type)
+        if plugins:
+            check_if_objects_exist_and_belong_to_package(
+                {plugin["plugin-class"] for plugin in plugins},
+                provider_package,
+                yaml_file_path,
+                resource_type,
+                ObjectType.CLASS,
             )
 
 
@@ -444,13 +453,12 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
-    architecture = Architecture().get_current()
+    architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
     provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")
     all_provider_files = sorted(str(path) for path in provider_files_pattern)
-
     if len(sys.argv) > 1:
-        paths = sorted(sys.argv[1:])
+        paths = [os.fspath(ROOT_DIR / f) for f in sorted(sys.argv[1:])]
     else:
         paths = all_provider_files
 
@@ -464,16 +472,17 @@ if __name__ == "__main__":
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_hook_classes(all_parsed_yaml_files)
+    check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_modules(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
-    check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
     check_providers_have_all_documentation_files(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded
         check_doc_files(all_parsed_yaml_files)
         check_invalid_integration(all_parsed_yaml_files)
+        check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
 
     if errors:
         console.print(f"[red]Found {len(errors)} errors in providers[/]")

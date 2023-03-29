@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import call, patch
 
@@ -38,8 +37,8 @@ def mock_init(
     pass
 
 
-class TestDatastoreHook(unittest.TestCase):
-    def setUp(self):
+class TestDatastoreHook:
+    def setup_method(self):
         with patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__", new=mock_init
         ):

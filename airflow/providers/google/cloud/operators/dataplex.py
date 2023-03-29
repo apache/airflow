@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import warnings
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -29,16 +30,16 @@ from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataplex_v1.types import Lake, Task
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
 from airflow.providers.google.cloud.links.dataplex import (
     DataplexLakeLink,
     DataplexTaskLink,
     DataplexTasksLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 
-class DataplexCreateTaskOperator(BaseOperator):
+class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
     """
     Creates a task resource within a lake.
 
@@ -113,6 +114,10 @@ class DataplexCreateTaskOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
@@ -169,7 +174,7 @@ class DataplexCreateTaskOperator(BaseOperator):
         return Task.to_dict(task)
 
 
-class DataplexDeleteTaskOperator(BaseOperator):
+class DataplexDeleteTaskOperator(GoogleCloudBaseOperator):
     """
     Delete the task resource.
 
@@ -224,6 +229,10 @@ class DataplexDeleteTaskOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -249,7 +258,7 @@ class DataplexDeleteTaskOperator(BaseOperator):
         self.log.info("Dataplex task %s deleted successfully!", self.dataplex_task_id)
 
 
-class DataplexListTasksOperator(BaseOperator):
+class DataplexListTasksOperator(GoogleCloudBaseOperator):
     """
     Lists tasks under the given lake.
 
@@ -326,6 +335,10 @@ class DataplexListTasksOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -354,7 +367,7 @@ class DataplexListTasksOperator(BaseOperator):
         return [Task.to_dict(task) for task in tasks]
 
 
-class DataplexGetTaskOperator(BaseOperator):
+class DataplexGetTaskOperator(GoogleCloudBaseOperator):
     """
     Get task resource.
 
@@ -410,6 +423,10 @@ class DataplexGetTaskOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -436,7 +453,7 @@ class DataplexGetTaskOperator(BaseOperator):
         return Task.to_dict(task)
 
 
-class DataplexCreateLakeOperator(BaseOperator):
+class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
     """
     Creates a lake resource within a lake.
 
@@ -508,6 +525,10 @@ class DataplexCreateLakeOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
@@ -564,7 +585,7 @@ class DataplexCreateLakeOperator(BaseOperator):
         return Lake.to_dict(lake)
 
 
-class DataplexDeleteLakeOperator(BaseOperator):
+class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
     """
     Delete the lake resource.
 
@@ -618,6 +639,10 @@ class DataplexDeleteLakeOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

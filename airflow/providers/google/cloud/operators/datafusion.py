@@ -17,24 +17,25 @@
 """This module contains Google DataFusion operators."""
 from __future__ import annotations
 
+import warnings
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator
+from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.datafusion import (
+    DataFusionInstanceLink,
+    DataFusionPipelineLink,
+    DataFusionPipelinesLink,
+)
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-BASE_LINK = "https://console.cloud.google.com/data-fusion"
-DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
-DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/default/pipelines"
-DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/default/view/{pipeline_name}"
 
 
 class DataFusionPipelineLinkHelper:
@@ -47,85 +48,7 @@ class DataFusionPipelineLinkHelper:
         return project_id
 
 
-class DataFusionInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Data Fusion Instance link"""
-
-    name = "Data Fusion Instance"
-    key = "instance_conf"
-    format_str = DATAFUSION_INSTANCE_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: (
-            CloudDataFusionRestartInstanceOperator
-            | CloudDataFusionCreateInstanceOperator
-            | CloudDataFusionUpdateInstanceOperator
-            | CloudDataFusionGetInstanceOperator
-        ),
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataFusionInstanceLink.key,
-            value={
-                "region": task_instance.location,
-                "instance_name": task_instance.instance_name,
-                "project_id": project_id,
-            },
-        )
-
-
-class DataFusionPipelineLink(BaseGoogleLink):
-    """Helper class for constructing Data Fusion Pipeline link"""
-
-    name = "Data Fusion Pipeline"
-    key = "pipeline_conf"
-    format_str = DATAFUSION_PIPELINE_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: (
-            CloudDataFusionCreatePipelineOperator
-            | CloudDataFusionStartPipelineOperator
-            | CloudDataFusionStopPipelineOperator
-        ),
-        uri: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataFusionPipelineLink.key,
-            value={
-                "uri": uri,
-                "pipeline_name": task_instance.pipeline_name,
-            },
-        )
-
-
-class DataFusionPipelinesLink(BaseGoogleLink):
-    """Helper class for constructing list of Data Fusion Pipelines link"""
-
-    name = "Data Fusion Pipelines"
-    key = "pipelines_conf"
-    format_str = DATAFUSION_PIPELINES_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: CloudDataFusionListPipelinesOperator,
-        uri: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataFusionPipelinesLink.key,
-            value={
-                "uri": uri,
-            },
-        )
-
-
-class CloudDataFusionRestartInstanceOperator(BaseOperator):
+class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
     """
     Restart a single Data Fusion instance.
     At the end of an operation instance is fully restarted.
@@ -176,6 +99,10 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -196,10 +123,16 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.log.info("Instance %s restarted successfully", self.instance_name)
 
         project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
+        DataFusionInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+        )
 
 
-class CloudDataFusionDeleteInstanceOperator(BaseOperator):
+class CloudDataFusionDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
     Deletes a single Date Fusion instance.
 
@@ -248,6 +181,10 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -268,7 +205,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.log.info("Instance %s deleted successfully", self.instance_name)
 
 
-class CloudDataFusionCreateInstanceOperator(BaseOperator):
+class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
     """
     Creates a new Data Fusion instance in the specified project and location.
 
@@ -323,6 +260,10 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -360,11 +301,17 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
                 )
 
         project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
+        DataFusionInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+        )
         return instance
 
 
-class CloudDataFusionUpdateInstanceOperator(BaseOperator):
+class CloudDataFusionUpdateInstanceOperator(GoogleCloudBaseOperator):
     """
     Updates a single Data Fusion instance.
 
@@ -427,6 +374,10 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -449,10 +400,16 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.log.info("Instance %s updated successfully", self.instance_name)
 
         project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
+        DataFusionInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+        )
 
 
-class CloudDataFusionGetInstanceOperator(BaseOperator):
+class CloudDataFusionGetInstanceOperator(GoogleCloudBaseOperator):
     """
     Gets details of a single Data Fusion instance.
 
@@ -502,6 +459,10 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -520,11 +481,17 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         )
 
         project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
+        DataFusionInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=project_id,
+            instance_name=self.instance_name,
+            location=self.location,
+        )
         return instance
 
 
-class CloudDataFusionCreatePipelineOperator(BaseOperator):
+class CloudDataFusionCreatePipelineOperator(GoogleCloudBaseOperator):
     """
     Creates a Cloud Data Fusion pipeline.
 
@@ -555,12 +522,13 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    operator_extra_links = (DataFusionPipelineLink(),)
+
     template_fields: Sequence[str] = (
         "instance_name",
         "pipeline_name",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -586,6 +554,10 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -609,12 +581,16 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
             instance_url=api_url,
             namespace=self.namespace,
         )
+        DataFusionPipelineLink.persist(
+            context=context,
+            task_instance=self,
+            uri=instance["serviceEndpoint"],
+            pipeline_name=self.pipeline_name,
+        )
+        self.log.info("Pipeline %s created", self.pipeline_name)
 
-        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
-        self.log.info("Pipeline created")
 
-
-class CloudDataFusionDeletePipelineOperator(BaseOperator):
+class CloudDataFusionDeletePipelineOperator(GoogleCloudBaseOperator):
     """
     Deletes a Cloud Data Fusion pipeline.
 
@@ -675,6 +651,10 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -701,7 +681,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.log.info("Pipeline deleted")
 
 
-class CloudDataFusionListPipelinesOperator(BaseOperator):
+class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
     """
     Lists Cloud Data Fusion pipelines.
 
@@ -764,6 +744,10 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -781,19 +765,20 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
             project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
+        service_endpoint = instance["serviceEndpoint"]
         pipelines = hook.list_pipelines(
             instance_url=api_url,
             namespace=self.namespace,
             artifact_version=self.artifact_version,
             artifact_name=self.artifact_name,
         )
-        self.log.info("%s", pipelines)
+        self.log.info("Pipelines: %s", pipelines)
 
-        DataFusionPipelinesLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
+        DataFusionPipelinesLink.persist(context=context, task_instance=self, uri=service_endpoint)
         return pipelines
 
 
-class CloudDataFusionStartPipelineOperator(BaseOperator):
+class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
     """
     Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
@@ -825,9 +810,14 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param asynchronous: Flag to return after submitting the pipeline Id to the Data Fusion API.
-        This is useful for submitting long running pipelines and
+    :param asynchronous: Flag to return after submitting the pipeline ID to the Data Fusion API.
+        This is useful for submitting long-running pipelines and
         waiting on them asynchronously using the CloudDataFusionPipelineStateSensor
+    :param deferrable: Run operator in the deferrable mode. Is not related to asynchronous parameter. While
+        asynchronous parameter gives a possibility to wait until pipeline reaches terminate state using
+        sleep() method, deferrable mode checks for the state using asynchronous calls. It is not possible to
+        use both asynchronous and deferrable parameters at the same time.
+    :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -854,6 +844,8 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous=False,
+        deferrable=False,
+        poll_interval=3.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -865,10 +857,16 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
         self.pipeline_timeout = pipeline_timeout
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
         if success_states:
             self.success_states = success_states
@@ -897,23 +895,65 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         )
         self.log.info("Pipeline %s submitted successfully.", pipeline_id)
 
-        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
+        DataFusionPipelineLink.persist(
+            context=context,
+            task_instance=self,
+            uri=instance["serviceEndpoint"],
+            pipeline_name=self.pipeline_name,
+        )
 
-        if not self.asynchronous:
-            self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
-            hook.wait_for_pipeline_state(
-                success_states=self.success_states,
-                pipeline_id=pipeline_id,
-                pipeline_name=self.pipeline_name,
-                namespace=self.namespace,
-                instance_url=api_url,
-                timeout=self.pipeline_timeout,
+        if self.deferrable:
+            if self.asynchronous:
+                raise AirflowException(
+                    "Both asynchronous and deferrable parameters were passed. Please, provide only one."
+                )
+            self.defer(
+                trigger=DataFusionStartPipelineTrigger(
+                    success_states=self.success_states,
+                    instance_url=api_url,
+                    namespace=self.namespace,
+                    pipeline_name=self.pipeline_name,
+                    pipeline_id=pipeline_id,
+                    poll_interval=self.poll_interval,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    delegate_to=self.delegate_to,
+                ),
+                method_name="execute_complete",
             )
-            self.log.info("Job %s discover success state.", pipeline_id)
+        else:
+            if not self.asynchronous:
+                # when NOT using asynchronous mode it will just wait for pipeline to finish and print message
+                self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
+                hook.wait_for_pipeline_state(
+                    success_states=self.success_states,
+                    pipeline_id=pipeline_id,
+                    pipeline_name=self.pipeline_name,
+                    namespace=self.namespace,
+                    instance_url=api_url,
+                    timeout=self.pipeline_timeout,
+                )
+                self.log.info("Pipeline %s discovered success state.", pipeline_id)
+            #  otherwise, return pipeline_id so that sensor can use it later to check the pipeline state
         return pipeline_id
 
+    def execute_complete(self, context: Context, event: dict[str, Any]):
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(
+            "%s completed with response %s ",
+            self.task_id,
+            event["message"],
+        )
+        return event["pipeline_id"]
 
-class CloudDataFusionStopPipelineOperator(BaseOperator):
+
+class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
     """
     Stops a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
@@ -971,6 +1011,10 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         self.project_id = project_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -989,7 +1033,12 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         )
         api_url = instance["apiEndpoint"]
 
-        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
+        DataFusionPipelineLink.persist(
+            context=context,
+            task_instance=self,
+            uri=instance["serviceEndpoint"],
+            pipeline_name=self.pipeline_name,
+        )
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,
             instance_url=api_url,

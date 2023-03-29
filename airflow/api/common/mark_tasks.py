@@ -22,8 +22,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
 
 from sqlalchemy import or_
-from sqlalchemy.orm import lazyload
-from sqlalchemy.orm.session import Session as SASession
+from sqlalchemy.orm import Session as SASession, lazyload
 
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -154,6 +153,10 @@ def set_state(
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
+            # The try_number was decremented when setting to up_for_reschedule and deferred.
+            # Increment it back when changing the state again
+            if task_instance.state in [State.DEFERRED, State.UP_FOR_RESCHEDULE]:
+                task_instance._try_number += 1
             task_instance.set_state(state, session=session)
         session.flush()
     else:
@@ -466,7 +469,7 @@ def set_dag_run_state_to_failed(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.task_id.in_(task_ids),
-        TaskInstance.state.in_(State.running),
+        TaskInstance.state.in_([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
     )
     task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
 
@@ -482,7 +485,7 @@ def set_dag_run_state_to_failed(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.state.not_in(State.finished),
-        TaskInstance.state.not_in(State.running),
+        TaskInstance.state.not_in([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
     )
 
     tis = [ti for ti in tis]

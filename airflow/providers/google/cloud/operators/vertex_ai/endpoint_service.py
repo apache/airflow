@@ -28,6 +28,7 @@
 """
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -36,19 +37,19 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import EndpointServiceHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIEndpointLink,
     VertexAIEndpointListLink,
     VertexAIModelLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CreateEndpointOperator(BaseOperator):
+class CreateEndpointOperator(GoogleCloudBaseOperator):
     """
     Creates an Endpoint.
 
@@ -101,6 +102,10 @@ class CreateEndpointOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -132,7 +137,7 @@ class CreateEndpointOperator(BaseOperator):
         return endpoint
 
 
-class DeleteEndpointOperator(BaseOperator):
+class DeleteEndpointOperator(GoogleCloudBaseOperator):
     """
     Deletes an Endpoint.
 
@@ -180,6 +185,10 @@ class DeleteEndpointOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -206,7 +215,7 @@ class DeleteEndpointOperator(BaseOperator):
             self.log.info("The Endpoint ID %s does not exist.", self.endpoint_id)
 
 
-class DeployModelOperator(BaseOperator):
+class DeployModelOperator(GoogleCloudBaseOperator):
     """
     Deploys a Model into this Endpoint, creating a DeployedModel within it.
 
@@ -275,6 +284,10 @@ class DeployModelOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -307,7 +320,7 @@ class DeployModelOperator(BaseOperator):
         return deploy_model
 
 
-class GetEndpointOperator(BaseOperator):
+class GetEndpointOperator(GoogleCloudBaseOperator):
     """
     Gets an Endpoint.
 
@@ -356,6 +369,10 @@ class GetEndpointOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -383,7 +400,7 @@ class GetEndpointOperator(BaseOperator):
             self.log.info("The Endpoint ID %s does not exist.", self.endpoint_id)
 
 
-class ListEndpointsOperator(BaseOperator):
+class ListEndpointsOperator(GoogleCloudBaseOperator):
     """
     Lists Endpoints in a Location.
 
@@ -461,6 +478,10 @@ class ListEndpointsOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -486,7 +507,7 @@ class ListEndpointsOperator(BaseOperator):
         return [Endpoint.to_dict(result) for result in results]
 
 
-class UndeployModelOperator(BaseOperator):
+class UndeployModelOperator(GoogleCloudBaseOperator):
     """
     Undeploys a Model from an Endpoint, removing a DeployedModel from it, and freeing all resources it's
     using.
@@ -547,6 +568,10 @@ class UndeployModelOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -572,7 +597,7 @@ class UndeployModelOperator(BaseOperator):
         self.log.info("DeployedModel was removed successfully")
 
 
-class UpdateEndpointOperator(BaseOperator):
+class UpdateEndpointOperator(GoogleCloudBaseOperator):
     """
     Updates an Endpoint.
 
@@ -628,6 +653,10 @@ class UpdateEndpointOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

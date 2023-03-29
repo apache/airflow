@@ -50,6 +50,7 @@ class AzureSynapseSparkBatchRunStatus:
 class AzureSynapseHook(BaseHook):
     """
     A hook to interact with Azure Synapse.
+
     :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
     :param spark_pool: The Apache Spark pool used to submit the job
     """
@@ -139,6 +140,7 @@ class AzureSynapseHook(BaseHook):
     ):
         """
         Run a job in an Apache Spark pool.
+
         :param payload: Livy compatible payload which represents the spark job that a user wants to submit.
         """
         job = self.get_conn().spark_batch.create_spark_batch_job(payload)
@@ -195,6 +197,7 @@ class AzureSynapseHook(BaseHook):
     ) -> None:
         """
         Cancel the spark job run.
+
         :param job_id: The synapse spark job identifier.
         """
         self.get_conn().spark_batch.cancel_spark_batch_job(job_id)

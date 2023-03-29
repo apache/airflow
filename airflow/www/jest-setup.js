@@ -19,18 +19,16 @@
  * under the License.
  */
 
-import '@testing-library/jest-dom';
-import axios from 'axios';
-import { setLogger } from 'react-query';
+import "@testing-library/jest-dom";
+import axios from "axios";
+import { setLogger } from "react-query";
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-import moment from 'moment-timezone';
+import moment from "moment-timezone";
 
-axios.defaults.adapter = require('axios/lib/adapters/http');
+axios.defaults.adapter = require("axios/lib/adapters/http");
 
-axios.interceptors.response.use(
-  (res) => res.data || res,
-);
+axios.interceptors.response.use((res) => res.data || res);
 
 setLogger({
   log: console.log,
@@ -41,19 +39,19 @@ setLogger({
 
 // Mock global objects we use across the app
 global.stateColors = {
-  deferred: 'mediumpurple',
-  failed: 'red',
-  queued: 'gray',
-  removed: 'lightgrey',
-  restarting: 'violet',
-  running: 'lime',
-  scheduled: 'tan',
-  shutdown: 'blue',
-  skipped: 'hotpink',
-  success: 'green',
-  up_for_reschedule: 'turquoise',
-  up_for_retry: 'gold',
-  upstream_failed: 'orange',
+  deferred: "mediumpurple",
+  failed: "red",
+  queued: "gray",
+  removed: "lightgrey",
+  restarting: "violet",
+  running: "lime",
+  scheduled: "tan",
+  shutdown: "blue",
+  skipped: "hotpink",
+  success: "green",
+  up_for_reschedule: "turquoise",
+  up_for_retry: "gold",
+  upstream_failed: "orange",
 };
 
 global.defaultDagRunDisplayNumber = 245;

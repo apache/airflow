@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow import settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
@@ -101,9 +101,11 @@ def action_cli(func=None, check_db=True):
             try:
                 # Check and run migrations if necessary
                 if check_db:
+                    from airflow.configuration import conf
                     from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 
-                    check_and_run_migrations()
+                    if conf.getboolean("database", "check_migrations"):
+                        check_and_run_migrations()
                     synchronize_log_template()
                 return f(*args, **kwargs)
             except Exception as e:
@@ -331,6 +333,18 @@ def should_use_colors(args) -> bool:
     if args.color == ColorMode.OFF:
         return False
     return is_terminal_support_colors()
+
+
+def should_ignore_depends_on_past(args) -> bool:
+    if args.ignore_depends_on_past:
+        warnings.warn(
+            "Using `--ignore-depends-on-past` is Deprecated."
+            "Please use `--depends-on-past ignore` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        return True
+    return args.depends_on_past == "ignore"
 
 
 def suppress_logs_and_warning(f: T) -> T:

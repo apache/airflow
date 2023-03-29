@@ -77,7 +77,7 @@ To use logging from your task functions, simply import and use Python's logging 
 
 .. code-block:: python
 
-   logger = logging.getlogger("airflow.task")
+   logger = logging.getLogger("airflow.task")
 
 Every logging line created this way will be recorded in the task log.
 
@@ -91,9 +91,10 @@ need to be able to be serialized. Airflow out of the box supports all built-in t
 supports objects that are decorated with ``@dataclass`` or ``@attr.define``. The following example shows the use of
 a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
 
-::
+.. note::
 
-  Note: An additional benefit of using ``Dataset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``dataset`` or a ``list[Dataset]]``.
+    An additional benefit of using ``Dataset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``dataset`` or a ``list[Dataset]]``.
+
 
 .. code-block:: python
 
@@ -178,9 +179,18 @@ It is good practice to version the objects that will be used in serialization. T
 so that a version 2 is able to deserialize a version 1. In case you need custom logic
 for deserialization ensure that ``deserialize(data: dict, version: int)`` is specified.
 
-::
+.. note::
 
-  Note: Typing of ``__version__`` is required and needs to be ``ClassVar[int]``
+  Typing of ``__version__`` is required and needs to be ``ClassVar[int]``
+
+
+Sensors and the TaskFlow API
+--------------------------------------
+
+.. versionadded:: 2.5.0
+
+For an example of writing a Sensor using the TaskFlow API, see
+:ref:`Using the TaskFlow API with Sensor operators <taskflow/task_sensor_example>`.
 
 History
 -------

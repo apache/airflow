@@ -83,11 +83,14 @@ class TestPrevDagrunDep:
 
 
 @pytest.mark.parametrize(
-    "depends_on_past, wait_for_downstream, prev_ti, context_ignore_depends_on_past, dep_met",
+    "depends_on_past, wait_for_past_depends_before_skipping, wait_for_downstream, prev_ti,"
+    " context_ignore_depends_on_past, dep_met, past_depends_met_xcom_sent",
     [
         # If the task does not set depends_on_past, the previous dagrun should
         # be ignored, even though previous_ti would otherwise fail the dep.
+        # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
         pytest.param(
+            False,
             False,
             False,  # wait_for_downstream=True overrides depends_on_past=False.
             Mock(
@@ -96,11 +99,46 @@ class TestPrevDagrunDep:
             ),
             False,
             True,
+            False,
+            id="not_depends_on_past",
+        ),
+        # If the task does not set depends_on_past, the previous dagrun should
+        # be ignored, even though previous_ti would otherwise fail the dep.
+        # wait_for_past_depends_before_skipping is True, past_depends_met xcom should be sent
+        pytest.param(
+            False,
+            True,
+            False,  # wait_for_downstream=True overrides depends_on_past=False.
+            Mock(
+                state=State.NONE,
+                **{"are_dependents_done.return_value": False},
+            ),
+            False,
+            True,
+            True,
             id="not_depends_on_past",
         ),
         # If the context overrides depends_on_past, the dep should be met even
         # though there is no previous_ti which would normally fail the dep.
+        # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
         pytest.param(
+            True,
+            False,
+            False,
+            Mock(
+                state=State.SUCCESS,
+                **{"are_dependents_done.return_value": True},
+            ),
+            True,
+            True,
+            False,
+            id="context_ignore_depends_on_past",
+        ),
+        # If the context overrides depends_on_past, the dep should be met even
+        # though there is no previous_ti which would normally fail the dep.
+        # wait_for_past_depends_before_skipping is True, past_depends_met xcom should be sent
+        pytest.param(
+            True,
             True,
             False,
             Mock(
@@ -109,18 +147,25 @@ class TestPrevDagrunDep:
             ),
             True,
             True,
+            True,
             id="context_ignore_depends_on_past",
         ),
         # The first task run should pass since it has no previous dagrun.
-        pytest.param(True, False, None, False, True, id="first_task_run"),
+        # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
+        pytest.param(True, False, False, None, False, True, False, id="first_task_run"),
+        # The first task run should pass since it has no previous dagrun.
+        # wait_for_past_depends_before_skipping is True, past_depends_met xcom should be sent
+        pytest.param(True, True, False, None, False, True, True, id="first_task_run"),
         # Previous TI did not complete execution. This dep should fail.
         pytest.param(
             True,
+            False,
             False,
             Mock(
                 state=State.NONE,
                 **{"are_dependents_done.return_value": True},
             ),
+            False,
             False,
             False,
             id="prev_ti_bad_state",
@@ -130,6 +175,7 @@ class TestPrevDagrunDep:
         # are not done.
         pytest.param(
             True,
+            False,
             True,
             Mock(
                 state=State.SUCCESS,
@@ -137,10 +183,28 @@ class TestPrevDagrunDep:
             ),
             False,
             False,
+            False,
             id="failed_wait_for_downstream",
         ),
         # All the conditions for the dep are met.
+        # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
         pytest.param(
+            True,
+            False,
+            True,
+            Mock(
+                state=State.SUCCESS,
+                **{"are_dependents_done.return_value": True},
+            ),
+            False,
+            True,
+            False,
+            id="all_met",
+        ),
+        # All the conditions for the dep are met
+        # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
+        pytest.param(
+            True,
             True,
             True,
             Mock(
@@ -149,16 +213,19 @@ class TestPrevDagrunDep:
             ),
             False,
             True,
+            True,
             id="all_met",
         ),
     ],
 )
 def test_dagrun_dep(
     depends_on_past,
+    wait_for_past_depends_before_skipping,
     wait_for_downstream,
     prev_ti,
     context_ignore_depends_on_past,
     dep_met,
+    past_depends_met_xcom_sent,
 ):
     task = BaseOperator(
         task_id="test_task",
@@ -180,7 +247,14 @@ def test_dagrun_dep(
             "get_previous_dagrun.return_value": prev_dagrun,
         },
     )
-    ti = Mock(task=task, **{"get_dagrun.return_value": dagrun})
-    dep_context = DepContext(ignore_depends_on_past=context_ignore_depends_on_past)
+    ti = Mock(task=task, **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None})
+    dep_context = DepContext(
+        ignore_depends_on_past=context_ignore_depends_on_past,
+        wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+    )
 
     assert PrevDagrunDep().is_met(ti=ti, dep_context=dep_context) == dep_met
+    if past_depends_met_xcom_sent:
+        ti.xcom_push.assert_called_with(key="past_depends_met", value=True)
+    else:
+        ti.xcom_push.assert_not_called()

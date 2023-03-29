@@ -14,17 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import json
-from pathlib import Path
-
 """
 Global constants that are used by all other Breeze components.
 """
+from __future__ import annotations
+
+import json
 import platform
 from enum import Enum
 from functools import lru_cache
+from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -43,18 +42,36 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-ALL_INTEGRATIONS = [
+TESTABLE_INTEGRATIONS = [
     "cassandra",
+    "celery",
     "kerberos",
     "mongo",
     "pinot",
-    "celery",
     "trino",
 ]
-ALLOWED_INTEGRATIONS = [
-    *ALL_INTEGRATIONS,
-    "all",
-]
+OTHER_INTEGRATIONS = ["statsd"]
+ALL_INTEGRATIONS = sorted(
+    [
+        *TESTABLE_INTEGRATIONS,
+        *OTHER_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        "otel",
+        "statsd",
+        *ALL_INTEGRATIONS,
+    ]
+)
+
+# Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
+# See:
+#   - https://endoflife.date/amazon-eks
+#   - https://endoflife.date/azure-kubernetes-service
+#   - https://endoflife.date/google-kubernetes-engine
 ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
@@ -71,7 +88,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "22.3.1"
+PIP_VERSION = "23.0.1"
 
 
 @lru_cache(maxsize=None)
@@ -240,6 +257,7 @@ AIRFLOW_SOURCES_TO = "/opt/airflow"
 
 DEFAULT_EXTRAS = [
     # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+    "aiobotocore",
     "amazon",
     "async",
     "celery",
@@ -263,6 +281,7 @@ DEFAULT_EXTRAS = [
     "sendgrid",
     "sftp",
     "slack",
+    "snowflake",
     "ssh",
     "statsd",
     "virtualenv",
