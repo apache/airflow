@@ -48,6 +48,8 @@ def get_task_instance(monkeypatch, session, dag_maker):
         done: int = 0,
         skipped_setup: int = 0,
         success_setup: int = 0,
+        normal_tasks: list[str] = None,
+        setup_tasks: list[str] = None,
     ):
         with dag_maker(session=session):
             task = BaseOperator(
@@ -55,9 +57,10 @@ def get_task_instance(monkeypatch, session, dag_maker):
                 trigger_rule=trigger_rule,
                 start_date=datetime(2015, 1, 1),
             )
-            for upstreams in (success, skipped, failed, upstream_failed, removed, done):
-                if not isinstance(upstreams, int):
-                    [EmptyOperator(task_id=task_id) for task_id in upstreams] >> task
+            for task_id in normal_tasks or []:
+                EmptyOperator(task_id=task_id) >> task
+            for task_id in setup_tasks or []:
+                EmptyOperator.as_setup(task_id=task_id) >> task
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
@@ -342,12 +345,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=1,
+            normal_tasks=["FakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -364,12 +368,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
-            failed=["OtherFakeTaskID"],
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -391,12 +396,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -417,12 +423,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         ti.task.xcom_pull.return_value = None
         xcom_mock = Mock(return_value=None)
@@ -450,12 +457,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         ti.task.xcom_pull.return_value = None
         xcom_mock = Mock(return_value=True)
@@ -480,12 +488,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -503,12 +512,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
-            failed=["FailedFakeTaskID"],
+            success=1,
+            skipped=1,
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -526,12 +536,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -549,11 +560,12 @@ class TestTriggerRuleDep:
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
             success=0,
-            skipped=["FakeTaskID", "OtherFakeTaskID"],
+            skipped=2,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -571,12 +583,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
-            failed=["FailedFakeTaskID"],
+            success=1,
+            skipped=1,
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -596,10 +609,11 @@ class TestTriggerRuleDep:
             TriggerRule.ALL_FAILED,
             success=0,
             skipped=0,
-            failed=["FakeTaskID", "OtherFakeTaskID"],
+            failed=2,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -616,12 +630,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_FAILED,
-            success=["FakeTaskID", "OtherFakeTaskID"],
+            success=2,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -639,12 +654,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_DONE,
-            success=["FakeTaskID", "OtherFakeTaskID"],
+            success=2,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -661,12 +677,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SKIPPED,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=1,
+            normal_tasks=["FakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -686,11 +703,12 @@ class TestTriggerRuleDep:
         ti = get_task_instance(
             TriggerRule.ALL_SKIPPED,
             success=0,
-            skipped=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
+            skipped=3,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -707,12 +725,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_DONE,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=1,
+            normal_tasks=["FakeTaskID"],
         )
         EmptyOperator(task_id="OtherFakeTeakID", dag=ti.task.dag) >> ti.task  # An unfinished upstream.
 
@@ -733,12 +752,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_SKIPPED,
-            success=["FakeTaskID", "OtherFakeTaskID"],
+            success=2,
             skipped=0,
-            failed=["FailedFakeTaskID"],
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -756,12 +776,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_SKIPPED,
-            success=["FakeTaskID"],
-            skipped=["SkippedTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "SkippedTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
