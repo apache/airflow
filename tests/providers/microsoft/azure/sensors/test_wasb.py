@@ -124,6 +124,7 @@ class TestWasbBlobAsyncSensor:
         task_id="wasb_blob_async_sensor",
         container_name=TEST_DATA_STORAGE_CONTAINER_NAME,
         blob_name=TEST_DATA_STORAGE_BLOB_NAME,
+        timeout=5,
     )
 
     def test_wasb_blob_sensor_async(self):
@@ -132,6 +133,7 @@ class TestWasbBlobAsyncSensor:
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
         assert isinstance(exc.value.trigger, WasbBlobSensorTrigger), "Trigger is not a WasbBlobSensorTrigger"
+        assert exc.value.timeout == 5
 
     @pytest.mark.parametrize(
         "event",
