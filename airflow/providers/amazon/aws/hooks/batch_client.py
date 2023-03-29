@@ -554,6 +554,7 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
+
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
 
@@ -573,12 +574,6 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
         delay .  It is generally recommended that random jitter is added to API requests.
         A convenience method is provided for this, e.g. to get a random delay of
         10 sec +/- 5 sec: ``delay = BatchClient.add_jitter(10, width=5, minima=0)``
-
-    .. seealso::
-        - `Batch <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html>`_
-        - `Retries <https://docs.aws.amazon.com/general/latest/gr/api-retries.html>`_
-        - `Exponential Backoff And Jitter
-        <https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/>`_
     """
 
     def __init__(self, job_id: str | None, waiters: Any = None, *args: Any, **kwargs: Any) -> None:
@@ -657,9 +652,10 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
         self, job_id: str, delay: int | float | None = None
     ) -> None:
         """
-        Wait for Batch job to complete
+        Wait for Batch job to complete.
 
         :param job_id: a Batch job ID
+
         :param delay: a delay before polling for job status
 
         :raises: AirflowException
@@ -680,6 +676,7 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
         'SUBMITTED'>'PENDING'>'RUNNABLE'>'STARTING'>'RUNNING'>'SUCCEEDED'|'FAILED'
 
         :param job_id: a Batch job ID
+
         :param delay: a delay before polling for job status
 
         :raises: AirflowException
@@ -703,6 +700,7 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
         quickly from STARTING to RUNNING to completed (often a failure).
 
         :param job_id: a Batch job ID
+
         :param delay: a delay before polling for job status
 
         :raises: AirflowException
