@@ -82,8 +82,7 @@ class SecretCache:
 
     @classmethod
     def save_variable(cls, key: str, value: str | None):
-        """saves the value for that key in the cache, if enabled"""
-        cls.init()  # ensure initialization has been done
+        """saves the value for that key in the cache, if initialized"""
         if cls._cache is not None:
             cls._cache[key] = cls._CacheValue(value)
 

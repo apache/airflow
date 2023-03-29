@@ -38,6 +38,7 @@ class TestVariable:
         crypto._fernet = None
         db.clear_db_variables()
         SecretCache.reset()
+        SecretCache.init()
         with mock.patch("airflow.models.variable.mask_secret", autospec=True) as m:
             self.mask_secret = m
             yield
@@ -100,13 +101,17 @@ class TestVariable:
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
 
-    @conf_vars({("secrets", "use_cache"): "0"})
     def test_variable_set_with_env_variable(self, caplog):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         Variable.set("key", "db-value")
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
+            # setting value while shadowed by an env variable will generate a warning
             Variable.set("key", "new-db-value")
+            # value set above is not returned because the env variable value takes priority
             assert "env-value" == Variable.get("key")
+        # invalidate the cache to re-evaluate value
+        SecretCache.invalidate_key("key")
+        # now that env var is not here anymore, we see the value we set before.
         assert "new-db-value" == Variable.get("key")
 
         assert caplog.messages[0] == (

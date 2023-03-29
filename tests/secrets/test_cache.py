@@ -26,7 +26,12 @@ from tests.test_utils.config import conf_vars
 
 
 class TestSecretCache:
-    def setup_method(self) -> None:
+    @staticmethod
+    def setup_method() -> None:
+        SecretCache.init()
+
+    @staticmethod
+    def teardown_method(self) -> None:
         SecretCache.reset()
 
     def test_cache_accessible_from_other_process(self):
@@ -94,6 +99,10 @@ class TestSecretCache:
 
     @conf_vars({("secrets", "use_cache"): "0"})
     def test_disabled(self):
+        # do init to have it read config
+        SecretCache.reset()
+        SecretCache.init()
+
         SecretCache.save_variable("key", "some_value")  # will be ignored
 
         # cache is disabled, gets will always "fail"

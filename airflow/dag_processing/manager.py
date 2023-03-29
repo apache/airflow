@@ -1066,7 +1066,10 @@ class DagFileProcessorManager(LoggingMixin):
 
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
+        # initialize cache to mutualize calls to Variable.get in DAGs
+        # needs to be done before this process is forked to create the DAG parsing processes.
         SecretCache.init()
+
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath

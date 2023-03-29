@@ -272,15 +272,14 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
-        var_val = None
-
         # check cache first
+        # enabled only if SecretCache.init() has been called first
         try:
-            var_val = SecretCache.get_variable(key)
-            return var_val
+            return SecretCache.get_variable(key)
         except SecretCache.NotPresent:
             pass  # continue business
 
+        var_val = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.configuration import conf, ensure_secrets_loaded, initialize_secrets_backends
+from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
 from airflow.models import Connection, Variable
 from airflow.secrets.cache import SecretCache
 from tests.test_utils.config import conf_vars
@@ -116,12 +116,9 @@ class TestVariableFromSecrets:
     def setup_method(self) -> None:
         clear_db_variables()
         SecretCache.reset()
-        conf.remove_section("secrets")
 
     def teardown_method(self) -> None:
         clear_db_variables()
-        SecretCache.reset()
-        conf.remove_section("secrets")
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
@@ -165,7 +162,6 @@ class TestVariableFromSecrets:
                 "backend",
             ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
             ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
-            ("secrets", "use_cache"): "0",
         }
     )
     @mock.patch.dict(
