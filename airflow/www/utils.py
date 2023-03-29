@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import sys
 import textwrap
 import time
 from typing import TYPE_CHECKING, Any, Sequence
@@ -25,9 +27,11 @@ from urllib.parse import urlencode
 
 from flask import request, url_for
 from flask.helpers import flash
+from flask_appbuilder._compat import as_unicode
+from flask_appbuilder.const import LOGMSG_ERR_DBI_DEL_GENERIC, LOGMSG_WAR_DBI_DEL_INTEGRITY
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
-from flask_appbuilder.models.sqla import filters as fab_sqlafilters
+from flask_appbuilder.models.sqla import Model, filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
@@ -37,6 +41,7 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import func, types
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -57,6 +62,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.fab_security.sqla.manager import SecurityManager
+
+log = logging.getLogger(__name__)
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -810,6 +817,64 @@ class CustomSQLAInterface(SQLAInterface):
         return super().get_col_default(col_name)
 
     filter_converter_class = AirflowFilterConverter
+
+
+class DagRunCustomSQLAInterface(CustomSQLAInterface):
+    """
+    Overwrite of custom delete and delete_all methods for speeding up
+    the DagRun deletion when DagRun has a lot of task instances.
+    The default cascade deletion was performing very slowly when task instances were more than 10k.
+
+    """
+
+    def delete(self, item: Model, raise_exception: bool = False) -> bool:
+        try:
+            self._delete_files(item)
+            self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
+            self.session.delete(item)
+            self.session.commit()
+            self.message = (as_unicode(self.delete_row_message), "success")
+            return True
+        except IntegrityError as e:
+            self.message = (as_unicode(self.delete_integrity_error_message), "warning")
+            log.warning(LOGMSG_WAR_DBI_DEL_INTEGRITY.format(str(e)))
+            self.session.rollback()
+            if raise_exception:
+                raise e
+            return False
+        except Exception as e:
+            self.message = (
+                as_unicode(self.general_error_message + " " + str(sys.exc_info()[0])),
+                "danger",
+            )
+            log.exception(LOGMSG_ERR_DBI_DEL_GENERIC.format(str(e)))
+            self.session.rollback()
+            if raise_exception:
+                raise e
+            return False
+
+    def delete_all(self, items: list[Model]) -> bool:
+        try:
+            for item in items:
+                self._delete_files(item)
+                self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
+                self.session.delete(item)
+            self.session.commit()
+            self.message = (as_unicode(self.delete_row_message), "success")
+            return True
+        except IntegrityError as e:
+            self.message = (as_unicode(self.delete_integrity_error_message), "warning")
+            log.warning(LOGMSG_WAR_DBI_DEL_INTEGRITY.format(str(e)))
+            self.session.rollback()
+            return False
+        except Exception as e:
+            self.message = (
+                as_unicode(self.general_error_message + " " + str(sys.exc_info()[0])),
+                "danger",
+            )
+            log.exception(LOGMSG_ERR_DBI_DEL_GENERIC.format(str(e)))
+            self.session.rollback()
+            return False
 
 
 # This class is used directly (i.e. we can't tell Fab to use a different
