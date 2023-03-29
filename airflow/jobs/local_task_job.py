@@ -187,7 +187,7 @@ class LocalTaskJob(BaseJob):
                     self.handle_task_exit(return_code)
                     return return_code
 
-                self.heartbeat()
+                BaseJob.heartbeat(self)
 
                 # If it's been too long since we've heartbeat, then it's possible that
                 # the scheduler rescheduled this task, so kill launched processes.

@@ -24,6 +24,7 @@ import pandas as pd
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone
@@ -124,7 +125,7 @@ class SchedulerMetricsJob(SchedulerJob):
         """
         Override the scheduler heartbeat to determine when the test is complete
         """
-        super().heartbeat()
+        BaseJob.heartbeat(super())
         session = settings.Session()
         # Get all the relevant task instances
         TI = TaskInstance

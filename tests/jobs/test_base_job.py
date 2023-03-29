@@ -159,7 +159,7 @@ class TestBaseJob:
 
             mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
 
-            job.heartbeat()
+            BaseJob.heartbeat(job)
 
             assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
 
@@ -199,10 +199,10 @@ class TestBaseJob:
             hb_callback = Mock()
             job.heartbeat_callback = hb_callback
 
-            job.heartbeat()
+            BaseJob.heartbeat(job)
 
             hb_callback.assert_called_once_with(session=ANY)
 
             hb_callback.reset_mock()
-            job.heartbeat(only_if_necessary=True)
+            BaseJob.heartbeat(job, only_if_necessary=True)
             assert hb_callback.called is False

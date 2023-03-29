@@ -354,7 +354,7 @@ class TriggererJob(BaseJob):
             # Handle failed triggers
             self.handle_failed_triggers()
             # Handle heartbeat
-            self.heartbeat(only_if_necessary=True)
+            BaseJob.heartbeat(self, only_if_necessary=True)
             # Collect stats
             self.emit_metrics()
             # Idle sleep

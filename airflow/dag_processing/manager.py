@@ -577,7 +577,7 @@ class DagFileProcessorManager(LoggingMixin):
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
             if self._job:
-                self._job.heartbeat()
+                BaseJob.heartbeat(self._job)
             if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
                 agent_signal = self._direct_scheduler_conn.recv()
 

@@ -614,7 +614,7 @@ class BackfillJob(BaseJob):
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
-            self.heartbeat(only_if_necessary=is_unit_test)
+            BaseJob.heartbeat(self, only_if_necessary=is_unit_test)
             # execute the tasks in the queue
             executor.heartbeat()
 

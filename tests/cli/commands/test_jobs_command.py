@@ -23,6 +23,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import jobs_command
+from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -49,7 +50,7 @@ class TestCliConfigList:
             self.scheduler_job.state = State.RUNNING
             session.add(self.scheduler_job)
             session.commit()
-            self.scheduler_job.heartbeat()
+            BaseJob.heartbeat(self.scheduler_job)
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(self.parser.parse_args(["jobs", "check", "--job-type", "SchedulerJob"]))
@@ -62,7 +63,7 @@ class TestCliConfigList:
             self.scheduler_job.hostname = "HOSTNAME"
             session.add(self.scheduler_job)
             session.commit()
-            self.scheduler_job.heartbeat()
+            BaseJob.heartbeat(self.scheduler_job)
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(
@@ -81,7 +82,7 @@ class TestCliConfigList:
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
             session.commit()
-            scheduler_job.heartbeat()
+            BaseJob.heartbeat(scheduler_job)
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(
@@ -119,7 +120,7 @@ class TestCliConfigList:
                 scheduler_job.hostname = "HOSTNAME"
                 session.add(scheduler_job)
             session.commit()
-            scheduler_job.heartbeat()
+            BaseJob.heartbeat(scheduler_job)
 
         with pytest.raises(SystemExit, match=r"Found 3 alive jobs. Expected only one."):
             jobs_command.check(

@@ -180,8 +180,9 @@ class BaseJob(Base, LoggingMixin):
     def heartbeat_callback(self, session=None) -> None:
         """Callback that is called during heartbeat. This method should be overwritten."""
 
+    @staticmethod
     @internal_api_call
-    def heartbeat(self, only_if_necessary: bool = False):
+    def heartbeat(job: BaseJob, only_if_necessary: bool = False):
         """
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
@@ -200,52 +201,51 @@ class BaseJob(Base, LoggingMixin):
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
 
+        :param job: Job Object wanted to be heartbeat
         :param only_if_necessary: If the heartbeat is not yet due then do
             nothing (don't update column, don't call ``heartbeat_callback``)
         """
         seconds_remaining = 0
-        if self.latest_heartbeat:
-            seconds_remaining = self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+        if job.latest_heartbeat:
+            seconds_remaining = job.heartrate - (timezone.utcnow() - job.latest_heartbeat).total_seconds()
 
         if seconds_remaining > 0 and only_if_necessary:
             return
 
-        previous_heartbeat = self.latest_heartbeat
+        previous_heartbeat = job.latest_heartbeat
 
         try:
             with create_session() as session:
                 # This will cause it to load from the db
-                session.merge(self)
-                previous_heartbeat = self.latest_heartbeat
+                session.merge(job)
+                previous_heartbeat = job.latest_heartbeat
 
-            if self.state in State.terminating_states:
-                self.kill()
+            if job.state in State.terminating_states:
+                job.kill()
 
             # Figure out how long to sleep for
             sleep_for = 0
-            if self.latest_heartbeat:
-                seconds_remaining = (
-                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-                )
+            if job.latest_heartbeat:
+                seconds_remaining = job.heartrate - (timezone.utcnow() - job.latest_heartbeat).total_seconds()
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:
                 # Make the session aware of this object
-                session.merge(self)
-                self.latest_heartbeat = timezone.utcnow()
+                session.merge(job)
+                job.latest_heartbeat = timezone.utcnow()
                 session.commit()
                 # At this point, the DB has updated.
-                previous_heartbeat = self.latest_heartbeat
+                previous_heartbeat = job.latest_heartbeat
 
-                self.heartbeat_callback(session=session)
-                self.log.debug("[heartbeat]")
+                job.heartbeat_callback(session=session)
+                job.log.debug("[heartbeat]")
         except OperationalError:
-            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-            self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+            Stats.incr(convert_camel_to_snake(job.__class__.__name__) + "_heartbeat_failure", 1, 1)
+            job.log.exception("%s heartbeat got an exception", job.__class__.__name__)
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
-            self.latest_heartbeat = previous_heartbeat
+            job.latest_heartbeat = previous_heartbeat
 
     def run(self):
         """Starts the job."""

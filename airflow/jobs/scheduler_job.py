@@ -905,7 +905,7 @@ class SchedulerJob(BaseJob):
                     self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
-                self.heartbeat(only_if_necessary=True)
+                BaseJob.heartbeat(self, only_if_necessary=True)
 
                 # Run any pending timed events
                 next_event = timers.run(blocking=False)
