@@ -368,7 +368,7 @@ class TriggerRuleDep(BaseTIDep):
                 yield self._failing_status(
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
-                        f"completed, but found {upstream_done} task(s) that were not done. "
+                        f"completed, but found {len(upstream_tasks) - done} task(s) that were not done. "
                         f"upstream_states={upstream_states}, "
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )
@@ -426,7 +426,7 @@ class TriggerRuleDep(BaseTIDep):
                 status = self._failing_status(
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
-                        f"completed, but found {upstream_done} task(s) that were not done. "
+                        f"completed, but found {len(upstream_tasks) - done} task(s) that were not done. "
                         f"upstream_states={upstream_states}, "
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )
@@ -442,7 +442,7 @@ class TriggerRuleDep(BaseTIDep):
             elif upstream_setup and not success_setup >= 1:
                 status = self._failing_status(
                     reason=(
-                        f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup tasks be "
+                        f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup task be "
                         f"successful, but found {upstream_setup - success_setup} task(s) that were not. "
                         f"upstream_states={upstream_states}, "
                         f"upstream_task_ids={task.upstream_task_ids}"

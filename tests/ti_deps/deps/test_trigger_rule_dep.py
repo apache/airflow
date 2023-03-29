@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import Mock
 
 import pytest
+from pytest import param
 
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
@@ -33,6 +34,9 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
+
+SKIPPED = TaskInstanceState.SKIPPED
+UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
 
 
 @pytest.fixture
@@ -670,6 +674,115 @@ class TestTriggerRuleDep:
             )
         )
         assert len(dep_statuses) == 0
+
+    @pytest.mark.parametrize(
+        "task_cfg, states, exp_reason, exp_state",
+        [
+            param(
+                dict(work=2, setup=0),
+                dict(success=2, done=2),
+                None,
+                None,
+                id="no setups",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=2),
+                "but found 1 task(s) that were not done",
+                None,
+                id="setup not done",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=3),
+                "requires at least one upstream setup task be successful",
+                UPSTREAM_FAILED,
+                id="setup failed",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=4, success_setup=1),
+                None,
+                None,
+                id="one setup failed one success",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=3, success_setup=1),
+                "found 1 task(s) that were not done",
+                None,
+                id="one setup success one running",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=3, failed=1),
+                "requires at least one upstream setup task be successful",
+                UPSTREAM_FAILED,
+                id="setup failed",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=4, failed=1, skipped_setup=1),
+                "requires at least one upstream setup task be successful",
+                UPSTREAM_FAILED,
+                id="one setup failed one skipped",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=4, failed=0, skipped_setup=2),
+                "requires at least one upstream setup task be successful",
+                SKIPPED,
+                id="two setups both skipped",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=3, done=3, success_setup=1),
+                None,
+                None,
+                id="all success",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=1, done=3, success_setup=1),
+                None,
+                None,
+                id="work failed",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=3, skipped_setup=1),
+                "requires at least one upstream setup task be successful",
+                SKIPPED,
+                id="one setup; skipped",
+            ),
+        ],
+    )
+    def test_teardown_tr_not_all_done(
+        self, task_cfg, states, exp_reason, exp_state, session, get_task_instance
+    ):
+        """
+        All-done trigger rule success
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_DONE_SETUP_SUCCESS,
+            **states,
+            normal_tasks=[f"w{x}" for x in range(task_cfg["work"])],
+            setup_tasks=[f"s{x}" for x in range(task_cfg["setup"])],
+        )
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti, dep_context=DepContext(flag_upstream_failed=True), session=session
+            )
+        )
+        if exp_reason:
+            dep_status = dep_statuses[0]
+            assert len(dep_statuses) == 1
+            assert exp_reason in dep_status.reason
+            assert dep_status.passed is False
+            assert ti.state == exp_state
+        else:
+            assert len(dep_statuses) == 0
+            assert ti.state is None
 
     def test_all_skipped_tr_failure(self, session, get_task_instance):
         """
