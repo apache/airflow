@@ -20,6 +20,14 @@
 Changelog
 ---------
 
+2.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow for 'tag_name' in GithubTagSensor to be templated (#29842)``
+
 2.2.1
 .....
 
