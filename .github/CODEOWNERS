@@ -4,7 +4,7 @@
 /airflow/models/ @kaxil @XD-DENG @ashb
 
 # DAG Serialization
-/airflow/serialization/ @kaxil @ashb
+/airflow/serialization/ @kaxil @ashb @bolkedebruin
 
 # DAG Parsing
 /airflow/dag_processing @jedcunningham @ephraimbuddy

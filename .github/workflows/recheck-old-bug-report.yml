@@ -23,7 +23,6 @@ on:  # yamllint disable-line rule:truthy
     - cron: '0 7 * * *'
 permissions:
   # All other permissions are set to none
-  pull-requests: write
   issues: write
 jobs:
   recheck-old-bug-report:
@@ -41,7 +40,8 @@ jobs:
           # we set high number of days thus effectively this job will not do any changes on PRs
           days-before-pr-stale: 7000
           days-before-pr-close: 7000
-          remove-stale-when-updated: true
+          remove-stale-when-updated: false
+          remove-issue-stale-when-updated: true
           labels-to-add-when-unstale: 'needs-triage'
           stale-issue-message: >
             This issue has been automatically marked as stale because it has been open for 365 days
