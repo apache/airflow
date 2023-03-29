@@ -667,7 +667,7 @@ function focusGroup(nodeId, followMouse = true) {
 
     // Calculate zoom scale to fill most of the canvas with the node/cluster in focus.
     const scale =
-      Math.min(Math.min(width / nodeWidth, height / nodeHeight), maxZoom) * 0.8;
+      Math.min(Math.min(width / nodeWidth, height / nodeHeight), maxZoom) * 0.4;
 
     // Move the graph so that the node that was expanded/collapsed is centered around
     // the mouse click.
