@@ -18,58 +18,60 @@
  */
 
 import axios, { AxiosResponse } from "axios";
-import { useMutation, useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import { getMetaValue } from "../utils";
-import { useAutoRefresh } from "../context/autorefresh";
-import useErrorToast from "../utils/useErrorToast";
 
 const csrfToken = getMetaValue("csrf_token");
 const clearUrl = getMetaValue("clear_url");
 
-export default function useClearTask({
+export default function useClearTaskDryRun({
   dagId,
   runId,
   taskId,
   executionDate,
   isGroup,
+  past,
+  future,
+  upstream,
+  downstream,
+  recursive,
+  failed,
+  mapIndexes = [],
 }: {
   dagId: string;
   runId: string;
   taskId: string;
   executionDate: string;
   isGroup: boolean;
+  past: boolean;
+  future: boolean;
+  upstream: boolean;
+  downstream: boolean;
+  recursive: boolean;
+  failed: boolean;
+  mapIndexes: number[];
 }) {
-  const queryClient = useQueryClient();
-  const errorToast = useErrorToast();
-  const { startRefresh } = useAutoRefresh();
-
-  return useMutation(
-    ["clearTask", dagId, runId, taskId],
-    ({
+  return useQuery(
+    [
+      "clearTask",
+      dagId,
+      runId,
+      taskId,
+      mapIndexes,
       past,
       future,
       upstream,
       downstream,
       recursive,
       failed,
-      confirmed,
-      mapIndexes = [],
-    }: {
-      past: boolean;
-      future: boolean;
-      upstream: boolean;
-      downstream: boolean;
-      recursive: boolean;
-      failed: boolean;
-      confirmed: boolean;
-      mapIndexes: number[];
-    }) => {
+    ],
+    () => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
-        confirmed,
+        confirmed: false,
         execution_date: executionDate,
         past,
         future,
@@ -94,23 +96,6 @@ export default function useClearTask({
           "Content-Type": "application/x-www-form-urlencoded",
         },
       });
-    },
-    {
-      onSuccess: (_, { confirmed }) => {
-        if (confirmed) {
-          queryClient.invalidateQueries("gridData");
-          queryClient.invalidateQueries([
-            "mappedInstances",
-            dagId,
-            runId,
-            taskId,
-          ]);
-          startRefresh();
-        }
-      },
-      onError: (error: Error, { confirmed }) => {
-        if (confirmed) errorToast({ error });
-      },
     }
   );
 }

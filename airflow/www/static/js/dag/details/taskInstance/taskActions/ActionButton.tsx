@@ -34,7 +34,7 @@ type KeysOfTitleMap = keyof typeof titleMap;
 type Props = ButtonProps & { name: Capitalize<KeysOfTitleMap> };
 const ActionButton = ({ name, ...rest }: Props) => (
   <Button title={titleMap[name.toLowerCase() as KeysOfTitleMap]} {...rest}>
-    {name}
+    {name === "Failed" ? "Only Failed" : name}
   </Button>
 );
 

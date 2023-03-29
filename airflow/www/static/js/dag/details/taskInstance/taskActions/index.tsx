@@ -21,7 +21,6 @@ import React from "react";
 import { Box, VStack, Divider, StackDivider, Text } from "@chakra-ui/react";
 
 import type { CommonActionProps } from "./types";
-import ClearAction from "./Clear";
 import MarkFailedAction from "./MarkFailed";
 import MarkSuccessAction from "./MarkSuccess";
 
@@ -29,54 +28,27 @@ type Props = {
   title: string;
 } & CommonActionProps;
 
-const TaskActions = ({
-  title,
-  runId,
-  taskId,
-  dagId,
-  executionDate,
-  mapIndexes,
-  isGroup,
-}: Props) => (
+const TaskActions = ({ title, runId, taskId, dagId, mapIndexes }: Props) => (
   <Box my={3}>
     <Text as="strong" size="lg">
       {title}
     </Text>
     <Divider my={2} />
     {/* For now only ClearAction is supported for groups */}
-    {isGroup ? (
-      <ClearAction
+    <VStack justifyContent="center" divider={<StackDivider my={3} />}>
+      <MarkFailedAction
         runId={runId}
         taskId={taskId}
         dagId={dagId}
-        executionDate={executionDate}
         mapIndexes={mapIndexes}
-        isGroup={isGroup}
       />
-    ) : (
-      <VStack justifyContent="center" divider={<StackDivider my={3} />}>
-        <ClearAction
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          executionDate={executionDate}
-          mapIndexes={mapIndexes}
-          isGroup={!!isGroup}
-        />
-        <MarkFailedAction
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          mapIndexes={mapIndexes}
-        />
-        <MarkSuccessAction
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          mapIndexes={mapIndexes}
-        />
-      </VStack>
-    )}
+      <MarkSuccessAction
+        runId={runId}
+        taskId={taskId}
+        dagId={dagId}
+        mapIndexes={mapIndexes}
+      />
+    </VStack>
     <Divider my={2} />
   </Box>
 );
