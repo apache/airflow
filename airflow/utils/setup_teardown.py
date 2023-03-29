@@ -79,36 +79,33 @@ class SetupTeardownContext:
 
     @classmethod
     def connect_setup_upstream(cls, operator):
-
         if (
-            SetupTeardownContext.active
+            cls.active
             and not isinstance(operator, MappedOperator)
             and not (operator._is_setup or operator._is_teardown)
         ):
             if not operator.upstream_list:
-                setup_task = SetupTeardownContext.get_context_managed_setup_task()
+                setup_task = cls.get_context_managed_setup_task()
                 if setup_task:
                     setup_task.set_downstream(operator)
 
     @classmethod
     def connect_teardown_downstream(cls, operator):
         if (
-            SetupTeardownContext.active
+            cls.active
             and not isinstance(operator, MappedOperator)
             and not (operator._is_setup or operator._is_teardown)
         ):
             if not operator.upstream_list:
-                teardown_task = SetupTeardownContext.get_context_managed_teardown_task()
+                teardown_task = cls.get_context_managed_teardown_task()
                 if teardown_task:
                     teardown_task.set_upstream(operator)
 
     @classmethod
     def set_work_task_roots_and_leaves(cls):
-        normal_tasks = [
-            task for task in SetupTeardownContext.children if not task._is_setup and not task._is_teardown
-        ]
+        normal_tasks = [task for task in cls.children if not task._is_setup and not task._is_teardown]
         for child in normal_tasks:
             if not child.downstream_list:
-                child.set_downstream(SetupTeardownContext.get_context_managed_teardown_task())
+                child.set_downstream(cls.get_context_managed_teardown_task())
             if not child.upstream_list:
-                child.set_upstream(SetupTeardownContext.get_context_managed_setup_task())
+                child.set_upstream(cls.get_context_managed_setup_task())
