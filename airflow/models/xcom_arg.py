@@ -32,6 +32,7 @@ from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -138,6 +139,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
         for operator, _ in self.iter_references():
+            SetupTeardownContext.connect_teardown_downstream(operator)
             operator.set_upstream(task_or_task_list, edge_modifier)
 
     def set_downstream(
@@ -147,23 +149,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         for operator, _ in self.iter_references():
-            if (
-                SetupTeardownContext.active
-                and not isinstance(operator, MappedOperator)
-                and not (operator._is_setup or operator._is_teardown)
-            ):
-                if not operator.upstream_list:
-                    setup_task = SetupTeardownContext.get_context_managed_setup_task()
-                    if setup_task:
-                        setup_task.set_downstream(operator)
-                if isinstance(task_or_task_list, list):
-                    for task in task_or_task_list:
-                        if not isinstance(task, XComArg):
-                            continue
-                        SetupTeardownContext.children.append(task)
-                else:
-                    if isinstance(task_or_task_list, XComArg):
-                        SetupTeardownContext.children.append(task_or_task_list)
+            SetupTeardownContext.connect_setup_upstream(operator)
             operator.set_downstream(task_or_task_list, edge_modifier)
 
     def _serialize(self) -> dict[str, Any]:
@@ -232,65 +218,10 @@ class XComArg(ResolveMixin, DependencyMixin):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        for xarg in SetupTeardownContext.children:
-            if not xarg.operator.downstream_list:
-                xarg.set_downstream(SetupTeardownContext.get_context_managed_teardown_task())
+        SetupTeardownContext.set_work_task_roots_and_leaves()
         SetupTeardownContext.pop_context_managed_setup_task()
         SetupTeardownContext.pop_context_managed_teardown_task()
         SetupTeardownContext.active = False
-
-
-class SetupTeardownContext:
-    """Context manager for setup/teardown XComArg."""
-
-    _context_managed_setup_task: XComArg | None = None
-    _previous_context_managed_setup_task: list[XComArg] = []
-    _context_managed_teardown_task: XComArg | None = None
-    _previous_context_managed_teardown_task: list[XComArg] = []
-    active: bool = False
-    children: list[XComArg] = []
-
-    @classmethod
-    def push_context_managed_setup_task(cls, task: XComArg):
-        if cls._context_managed_setup_task:
-            cls._previous_context_managed_setup_task.append(cls._context_managed_setup_task)
-        cls._context_managed_setup_task = task
-
-    @classmethod
-    def push_context_managed_teardown_task(cls, task: XComArg):
-        if cls._context_managed_teardown_task:
-            cls._previous_context_managed_teardown_task.append(cls._context_managed_teardown_task)
-        cls._context_managed_teardown_task = task
-
-    @classmethod
-    def pop_context_managed_setup_task(cls) -> XComArg | None:
-        old_setup_task = cls._context_managed_setup_task
-        if cls._previous_context_managed_setup_task:
-            cls._context_managed_setup_task = cls._previous_context_managed_setup_task.pop()
-            if cls._context_managed_setup_task and old_setup_task:
-                cls._context_managed_setup_task.set_downstream(old_setup_task)
-        else:
-            cls._context_managed_setup_task = None
-        return old_setup_task
-
-    @classmethod
-    def pop_context_managed_teardown_task(cls) -> XComArg | None:
-        old_teardown_task = cls._context_managed_teardown_task
-        if cls._previous_context_managed_teardown_task:
-            cls._context_managed_teardown_task = cls._previous_context_managed_teardown_task.pop()
-            if cls._context_managed_teardown_task and old_teardown_task:
-                cls._context_managed_teardown_task.set_upstream(old_teardown_task)
-        else:
-            cls._context_managed_teardown_task = None
-        return old_teardown_task
-
-    @classmethod
-    def get_context_managed_setup_task(cls) -> XComArg | None:
-        return cls._context_managed_setup_task
-
-    @classmethod
-    def get_context_managed_teardown_task(cls) -> XComArg | None:
-        return cls._context_managed_teardown_task
 
 
 class PlainXComArg(XComArg):
