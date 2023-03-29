@@ -78,9 +78,6 @@ class XComArg(ResolveMixin, DependencyMixin):
         i.e. the referenced operator's return value.
     """
 
-    _setup_roots = set()
-    _teardown_leaves = set()
-
     @overload
     def __new__(cls: type[XComArg], operator: Operator, key: str = XCOM_RETURN_KEY) -> XComArg:
         """Called when the user writes ``XComArg(...)`` directly."""
@@ -150,6 +147,23 @@ class XComArg(ResolveMixin, DependencyMixin):
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         for operator, _ in self.iter_references():
+            if (
+                SetupTeardownContext.active
+                and not isinstance(operator, MappedOperator)
+                and not (operator._is_setup or operator._is_teardown)
+            ):
+                if not operator.upstream_list:
+                    setup_task = SetupTeardownContext.get_context_managed_setup_task()
+                    if setup_task:
+                        setup_task.set_downstream(operator)
+                if isinstance(task_or_task_list, list):
+                    for task in task_or_task_list:
+                        if not isinstance(task, XComArg):
+                            continue
+                        SetupTeardownContext.children.append(task)
+                else:
+                    if isinstance(task_or_task_list, XComArg):
+                        SetupTeardownContext.children.append(task_or_task_list)
             operator.set_downstream(task_or_task_list, edge_modifier)
 
     def _serialize(self) -> dict[str, Any]:
@@ -209,33 +223,74 @@ class XComArg(ResolveMixin, DependencyMixin):
     def __enter__(self):
         if not self.operator._is_setup and not self.operator._is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        if self.operator._is_teardown:
+            SetupTeardownContext.push_context_managed_teardown_task(self.operator)
+            upstream_setup = [task for task in self.operator.upstream_list if task._is_setup]
+            if upstream_setup:
+                SetupTeardownContext.push_context_managed_setup_task(upstream_setup[-1])
+        SetupTeardownContext.active = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        task_group = self.operator.task_group
-        setup_tasks = [task for task in task_group.roots if task._is_setup and task not in self._setup_roots]
-        teardown_tasks = [
-            task for task in task_group.leaves if task._is_teardown and task not in self._teardown_leaves
-        ]
-        self._setup_roots.update(set(setup_tasks))
-        self._teardown_leaves.update(set(teardown_tasks))
-        roots = set(task_group.roots) - set(setup_tasks) - self._setup_roots
-        leaves = set(task_group.leaves) - set(teardown_tasks) - self._teardown_leaves
-        if setup_tasks:
-            setup_tasks[-1].set_downstream(list(roots))
+        for xarg in SetupTeardownContext.children:
+            if not xarg.operator.downstream_list:
+                xarg.set_downstream(SetupTeardownContext.get_context_managed_teardown_task())
+        SetupTeardownContext.pop_context_managed_setup_task()
+        SetupTeardownContext.pop_context_managed_teardown_task()
+        SetupTeardownContext.active = False
 
-        if teardown_tasks:
-            teardown_tasks[-1].set_upstream(list(leaves))
-        root_setup = None
-        for setup_task in setup_tasks:
-            if root_setup:
-                root_setup >> setup_task
-            root_setup = setup_task
-        leave_teardown = None
-        for teardown_task in teardown_tasks:
-            if leave_teardown:
-                teardown_task >> leave_teardown
-            leave_teardown = teardown_task
+
+class SetupTeardownContext:
+    """Context manager for setup/teardown XComArg."""
+
+    _context_managed_setup_task: XComArg | None = None
+    _previous_context_managed_setup_task: list[XComArg] = []
+    _context_managed_teardown_task: XComArg | None = None
+    _previous_context_managed_teardown_task: list[XComArg] = []
+    active: bool = False
+    children: list[XComArg] = []
+
+    @classmethod
+    def push_context_managed_setup_task(cls, task: XComArg):
+        if cls._context_managed_setup_task:
+            cls._previous_context_managed_setup_task.append(cls._context_managed_setup_task)
+        cls._context_managed_setup_task = task
+
+    @classmethod
+    def push_context_managed_teardown_task(cls, task: XComArg):
+        if cls._context_managed_teardown_task:
+            cls._previous_context_managed_teardown_task.append(cls._context_managed_teardown_task)
+        cls._context_managed_teardown_task = task
+
+    @classmethod
+    def pop_context_managed_setup_task(cls) -> XComArg | None:
+        old_setup_task = cls._context_managed_setup_task
+        if cls._previous_context_managed_setup_task:
+            cls._context_managed_setup_task = cls._previous_context_managed_setup_task.pop()
+            if cls._context_managed_setup_task and old_setup_task:
+                cls._context_managed_setup_task.set_downstream(old_setup_task)
+        else:
+            cls._context_managed_setup_task = None
+        return old_setup_task
+
+    @classmethod
+    def pop_context_managed_teardown_task(cls) -> XComArg | None:
+        old_teardown_task = cls._context_managed_teardown_task
+        if cls._previous_context_managed_teardown_task:
+            cls._context_managed_teardown_task = cls._previous_context_managed_teardown_task.pop()
+            if cls._context_managed_teardown_task and old_teardown_task:
+                cls._context_managed_teardown_task.set_upstream(old_teardown_task)
+        else:
+            cls._context_managed_teardown_task = None
+        return old_teardown_task
+
+    @classmethod
+    def get_context_managed_setup_task(cls) -> XComArg | None:
+        return cls._context_managed_setup_task
+
+    @classmethod
+    def get_context_managed_teardown_task(cls) -> XComArg | None:
+        return cls._context_managed_teardown_task
 
 
 class PlainXComArg(XComArg):
