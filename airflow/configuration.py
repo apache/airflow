@@ -25,6 +25,7 @@ import os
 import pathlib
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import warnings
@@ -198,6 +199,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.5.3"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.5.3"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
@@ -1484,6 +1487,7 @@ def initialize_config() -> AirflowConfigParser:
             with open(TEST_CONFIG_FILE, "w") as file:
                 cfg = _parameterized_config_from_template("default_test.cfg")
                 file.write(cfg)
+            make_group_other_inaccessible(TEST_CONFIG_FILE)
 
         local_conf.load_test_config()
     else:
@@ -1498,6 +1502,7 @@ def initialize_config() -> AirflowConfigParser:
 
             with open(AIRFLOW_CONFIG, "w") as file:
                 file.write(default_config)
+            make_group_other_inaccessible(AIRFLOW_CONFIG)
 
         log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
@@ -1538,6 +1543,18 @@ def initialize_config() -> AirflowConfigParser:
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
+
+
+def make_group_other_inaccessible(file_path: str):
+    try:
+        permissions = os.stat(file_path)
+        os.chmod(file_path, permissions.st_mode & (stat.S_IRUSR | stat.S_IWUSR))
+    except Exception as e:
+        log.warning(
+            "Could not change permissions of config file to be group/other inaccessible. "
+            "Continuing with original permissions:",
+            e,
+        )
 
 
 # Historical convenience functions to access config entries

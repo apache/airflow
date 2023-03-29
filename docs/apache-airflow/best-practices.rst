@@ -75,7 +75,7 @@ result -
 Deleting a task
 ----------------
 
-Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Tree View, etc making
+Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Grid View, etc making
 it difficult to check the logs of that Task from the Webserver. If that is not desired, please create a new DAG.
 
 
@@ -166,13 +166,17 @@ Good example:
       @task()
       def print_array():
           """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
+          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE!
 
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
 
       print_array()
+
+In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
+
+.. _best_practices/dynamic_dag_generation:
 
 Dynamic DAG Generation
 ----------------------
@@ -213,7 +217,7 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-Make sure to use variable with template in operator, not in the top level code.
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, ``Variable.get()`` produces a request every time the dag file is parsed by the scheduler. Using ``Variable.get()`` will lead to suboptimal performance in the dag file processing. In some cases this can cause the dag file to timeout before it is fully parsed.
 
 Bad example:
 
@@ -428,6 +432,14 @@ want to optimize your DAGs there are the following actions you can take:
   consider splitting them if you observe it takes a long time to reflect changes in your DAG files in the
   UI of Airflow.
 
+* Write efficient Python code. A balance must be struck between fewer DAGs per file, as stated above, and
+  writing less code overall. Creating the Python files that describe DAGs should follow best programming
+  practices and not be treated like configurations. If your DAGs share similar code you should not copy
+  them over and over again to a large number of nearly identical source files, as this will cause a
+  number of unnecessary repeated imports of the same resources. Rather, you should aim to minimize
+  repeated code across all of your DAGs so that the application can run efficiently and can be easily
+  debugged. See :ref:`best_practices/dynamic_dag_generation` on how to create multiple DAGs with similar
+  code.
 
 Testing a DAG
 ^^^^^^^^^^^^^
@@ -690,7 +702,7 @@ A *better* way (though it's a bit more manual) is to use the ``dags pause`` comm
 Add "integration test" DAGs
 ---------------------------
 
-It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with test resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
 
 For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
 

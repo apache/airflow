@@ -223,10 +223,28 @@ class TestSecretsManagerBackend:
 
         assert secrets_manager_backend.get_variable("test_mysql") is None
 
+    @mock_secretsmanager
+    def test_get_config_non_existent_key(self):
+        """
+        Test that if Config key is not present,
+        SystemsManagerParameterStoreBackend.get_config should return None
+        """
+        secret_id = "airflow/config/hello"
+        create_param = {
+            "Name": secret_id,
+        }
+        param = {"SecretId": secret_id, "SecretString": "world"}
+
+        secrets_manager_backend = SecretsManagerBackend()
+        secrets_manager_backend.client.create_secret(**create_param)
+        secrets_manager_backend.client.put_secret_value(**param)
+
+        assert secrets_manager_backend.get_config("test") is None
+
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
-        Test that if Variable key is not present in AWS Secrets Manager,
+        Test that if Connection ID is not present in AWS Secrets Manager,
         SecretsManagerBackend.get_conn_value should return None,
         SecretsManagerBackend._get_secret should not be called
         """
@@ -235,6 +253,7 @@ class TestSecretsManagerBackend:
         secrets_manager_backend = SecretsManagerBackend(**kwargs)
 
         assert secrets_manager_backend.get_conn_value("test_mysql") is None
+        mock_get_secret.assert_not_called()
 
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):
@@ -253,7 +272,7 @@ class TestSecretsManagerBackend:
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_config_prefix_none_value(self, mock_get_secret):
         """
-        Test that if Variable key is not present in AWS Secrets Manager,
+        Test that if Config key is not present in AWS Secrets Manager,
         SecretsManagerBackend.get_config should return None,
         SecretsManagerBackend._get_secret should not be called
         """
@@ -263,6 +282,85 @@ class TestSecretsManagerBackend:
 
         assert secrets_manager_backend.get_config("config") is None
         mock_get_secret.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.client",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        "connection_id, connections_lookup_pattern, num_client_calls",
+        [
+            ("test", "test", 1),
+            ("test", ".*", 1),
+            ("test", "T.*", 1),
+            ("test", "dummy-pattern", 0),
+            ("test", None, 1),
+        ],
+    )
+    def test_connection_lookup_pattern(
+        self, mock_client, connection_id, connections_lookup_pattern, num_client_calls
+    ):
+        """
+        Test that if Connection ID is looked up in AWS Secrets Manager
+        """
+        mock_client().get_secret_value.return_value = {"SecretString": None}
+        kwargs = {"connections_lookup_pattern": connections_lookup_pattern}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+        secrets_manager_backend.get_conn_value(connection_id)
+        assert mock_client().get_secret_value.call_count == num_client_calls
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.client",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        "variable_key, variables_lookup_pattern, num_client_calls",
+        [
+            ("test", "test", 1),
+            ("test", ".*", 1),
+            ("test", "T.*", 1),
+            ("test", "dummy-pattern", 0),
+            ("test", None, 1),
+        ],
+    )
+    def test_variable_lookup_pattern(
+        self, mock_client, variable_key, variables_lookup_pattern, num_client_calls
+    ):
+        """
+        Test that if Variable key is looked up in AWS Secrets Manager
+        """
+        mock_client().get_secret_value.return_value = {"SecretString": None}
+        kwargs = {"variables_lookup_pattern": variables_lookup_pattern}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+        secrets_manager_backend.get_variable(variable_key)
+        assert mock_client().get_secret_value.call_count == num_client_calls
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.client",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        "config_key, config_lookup_pattern, num_client_calls",
+        [
+            ("test", "test", 1),
+            ("test", ".*", 1),
+            ("test", "T.*", 1),
+            ("test", "dummy-pattern", 0),
+            ("test", None, 1),
+        ],
+    )
+    def test_config_lookup_pattern(self, mock_client, config_key, config_lookup_pattern, num_client_calls):
+        """
+        Test that if Variable key is looked up in AWS Secrets Manager
+        """
+        mock_client().get_secret_value.return_value = {"SecretString": None}
+        kwargs = {"config_lookup_pattern": config_lookup_pattern}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+        secrets_manager_backend.get_config(config_key)
+        assert mock_client().get_secret_value.call_count == num_client_calls
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     def test_passing_client_kwargs(self, mock_session_factory):

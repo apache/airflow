@@ -289,7 +289,7 @@ def generate_issue_content(
                     console.print(f"[red]The PR #{pr_number} could not be found[/]")
                     continue
 
-            if pr.user.login == "dependabot":
+            if pr.user.login == "dependabot[bot]":
                 console.print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
                 continue
             # Ignore doc-only and skipped PRs

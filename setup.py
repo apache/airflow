@@ -49,8 +49,6 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = "2.6.0.dev0"
-
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
@@ -162,7 +160,7 @@ class ListExtras(Command):
         print("\n".join(wrap(", ".join(EXTRAS_DEPENDENCIES.keys()), 100)))
 
 
-def git_version(version_: str) -> str:
+def git_version() -> str:
     """
     Return a version to identify the state of the underlying git repo. The version will
     indicate whether the head of the current git-backed working directory is tied to a
@@ -171,7 +169,6 @@ def git_version(version_: str) -> str:
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
 
-    :param str version_: Semver version
     :return: Found Airflow version in Git repo
     """
     try:
@@ -193,7 +190,7 @@ def git_version(version_: str) -> str:
         if repo.is_dirty():
             return f".dev0+{sha}.dirty"
         # commit is clean
-        return f".release:{version_}+{sha}"
+        return f".release:{sha}"
     return "no_git_version"
 
 
@@ -203,7 +200,7 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 
     :param str filename: Destination file to write.
     """
-    text = f"{git_version(version)}"
+    text = git_version()
     with open(filename, "w") as file:
         file.write(text)
 
@@ -251,9 +248,7 @@ deprecated_api = [
     "requests>=2.26.0",
 ]
 doc = [
-    # Astroid 2.12.* breaks documentation building
-    # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
-    "astroid<2.12.0",
+    "astroid>=2.12.3",
     "checksumdir",
     "click>=8.0",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
@@ -281,7 +276,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.1.4",
+    "flask-appbuilder[oauth]==4.3.0",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -305,6 +300,7 @@ ldap = [
     "python-ldap",
 ]
 leveldb = ["plyvel"]
+otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
 pandas = [
     "pandas>=0.17.1",
 ]
@@ -332,7 +328,7 @@ webhdfs = [
 
 # Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
 # manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
-# for details. Wy want to install them explicitly because we want to eventually move to
+# for details. We want to install them explicitly because we want to eventually move to
 # mypyd which does not support installing the types dynamically with --install-types
 mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
@@ -377,7 +373,6 @@ devel_only = [
     "jsondiff",
     "mongomock",
     "moto[cloudformation, glue]>=4.0",
-    "parameterized",
     "paramiko",
     "pipdeptree",
     "pre-commit",
@@ -407,6 +402,14 @@ devel_only = [
     "aioresponses",
 ]
 
+aiobotocore = [
+    # This required for AWS deferrable operators.
+    # There is conflict between boto3 and aiobotocore dependency botocore.
+    # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+    # boto3 have native aync support and we move away from aio aiobotocore
+    "aiobotocore>=2.1.1",
+]
+
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
     return PROVIDER_DEPENDENCIES[provider_name][DEPS]
@@ -422,6 +425,7 @@ def get_unique_dependency_list(req_list_iterable: Iterable[list[str]]):
 
 devel = get_unique_dependency_list(
     [
+        aiobotocore,
         cgroups,
         devel_only,
         doc,
@@ -459,6 +463,7 @@ ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
 # Those are extras that are extensions of the 'core' Airflow. They provide additional features
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
+    "aiobotocore": aiobotocore,
     "async": async_packages,
     "celery": celery,
     "cgroups": cgroups,
@@ -470,6 +475,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "kerberos": kerberos,
     "ldap": ldap,
     "leveldb": leveldb,
+    "otel": otel,
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,
@@ -907,9 +913,7 @@ def do_setup() -> None:
     write_version()
     setup(
         distclass=AirflowDistribution,
-        version=version,
         extras_require=EXTRAS_DEPENDENCIES,
-        download_url=("https://archive.apache.org/dist/airflow/" + version),
         cmdclass={
             "extra_clean": CleanCommand,
             "compile_assets": CompileAssets,

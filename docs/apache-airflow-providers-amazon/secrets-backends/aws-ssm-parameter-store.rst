@@ -29,7 +29,15 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
-    backend_kwargs = {"connections_prefix": "/airflow/connections", "variables_prefix": "/airflow/variables", "profile_name": "default"}
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "connections_lookup_pattern": null,
+      "variables_prefix": "airflow/variables",
+      "variables_lookup_pattern": null,
+      "config_prefix": "airflow/config",
+      "config_lookup_pattern": null,
+      "profile_name": "default"
+    }
 
 To authenticate you can either supply arguments listed in
 :ref:`Amazon Webservices Connection Extra config <howto/connection:aws:configuring-the-connection>` or set
@@ -39,7 +47,12 @@ To authenticate you can either supply arguments listed in
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
-    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "role_arn": "arn:aws:iam::123456789098:role/role-name"}
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "variables_prefix": "airflow/variables",
+      "config_prefix": "airflow/config",
+      "role_arn": "arn:aws:iam::123456789098:role/role-name"
+    }
 
 
 Optional lookup
@@ -50,13 +63,33 @@ This will prevent requests being sent to AWS SSM Parameter Store for the exclude
 
 If you want to look up some and not others in AWS SSM Parameter Store you may do so by setting the relevant ``*_prefix`` parameter of the ones to be excluded as ``null``.
 
-For example, if you want to set parameter ``connections_prefix`` to ``"/airflow/connections"`` and not look up variables, your configuration file should look like this:
+For example, if you want to set parameter ``connections_prefix`` to ``"airflow/connections"`` and not look up variables and config, your configuration file should look like this:
 
 .. code-block:: ini
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
-    backend_kwargs = {"connections_prefix": "/airflow/connections", "variables_prefix": null, "profile_name": "default"}
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "variables_prefix": null,
+      "config_prefix": null,
+      "profile_name": "default"
+    }
+
+If you want to only lookup a specific subset of connections, variables or config in AWS Secrets Manager, you may do so by setting the relevant ``*_lookup_pattern`` parameter.
+This parameter takes a Regex as a string as value.
+
+For example, if you want to only lookup connections starting by "m" in AWS Secrets Manager, your configuration file should look like this:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "connections_lookup_pattern": "^m",
+      "profile_name": "default"
+    }
 
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""

@@ -353,7 +353,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if "dbt_task" in self.json and "git_source" not in self.json:
             raise AirflowException("git_source is required for dbt_task")
 
-        self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
@@ -372,7 +371,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        self.run_id = self._hook.submit_run(self.json)
+        json_normalised = normalise_json_content(self.json)
+        self.run_id = self._hook.submit_run(json_normalised)
         _handle_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self):
@@ -390,7 +390,8 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
     def execute(self, context):
         hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
-        self.run_id = hook.submit_run(self.json)
+        json_normalised = normalise_json_content(self.json)
+        self.run_id = hook.submit_run(json_normalised)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
     def execute_complete(self, context: dict | None, event: dict):

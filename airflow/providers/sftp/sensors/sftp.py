@@ -68,25 +68,29 @@ class SFTPSensor(BaseSensorOperator):
         self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
 
         if self.file_pattern:
-            file_from_pattern = self.hook.get_file_by_pattern(self.path, self.file_pattern)
-            if file_from_pattern:
-                actual_file_to_check = os.path.join(self.path, file_from_pattern)
+            files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)
+            if files_from_pattern:
+                actual_files_to_check = [
+                    os.path.join(self.path, file_from_pattern) for file_from_pattern in files_from_pattern
+                ]
             else:
                 return False
         else:
-            actual_file_to_check = self.path
-
-        try:
-            mod_time = self.hook.get_mod_time(actual_file_to_check)
-            self.log.info("Found File %s last modified: %s", str(actual_file_to_check), str(mod_time))
-        except OSError as e:
-            if e.errno != SFTP_NO_SUCH_FILE:
-                raise e
-            return False
+            actual_files_to_check = [self.path]
+        for actual_file_to_check in actual_files_to_check:
+            try:
+                mod_time = self.hook.get_mod_time(actual_file_to_check)
+                self.log.info("Found File %s last modified: %s", str(actual_file_to_check), str(mod_time))
+            except OSError as e:
+                if e.errno != SFTP_NO_SUCH_FILE:
+                    raise e
+                continue
+            if self.newer_than:
+                _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+                _newer_than = convert_to_utc(self.newer_than)
+                if _newer_than <= _mod_time:
+                    return True
+            else:
+                return True
         self.hook.close_conn()
-        if self.newer_than:
-            _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
-            _newer_than = convert_to_utc(self.newer_than)
-            return _newer_than <= _mod_time
-        else:
-            return True
+        return False

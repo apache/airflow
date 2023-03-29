@@ -18,20 +18,20 @@
  */
 
 /* global moment, $, document */
-export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
-export const isoFormatWithoutTZ = 'YYYY-MM-DDTHH:mm:ss.SSS';
-export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
-export const defaultTZFormat = 'z (Z)';
-export const dateTimeAttrFormat = 'YYYY-MM-DDThh:mm:ssTZD';
+export const defaultFormat = "YYYY-MM-DD, HH:mm:ss";
+export const isoFormatWithoutTZ = "YYYY-MM-DDTHH:mm:ss.SSS";
+export const defaultFormatWithTZ = "YYYY-MM-DD, HH:mm:ss z";
+export const defaultTZFormat = "z (Z)";
+export const dateTimeAttrFormat = "YYYY-MM-DDThh:mm:ssTZD";
 
-export const TimezoneEvent = 'timezone';
+export const TimezoneEvent = "timezone";
 
 export function formatTimezone(what) {
   if (what instanceof moment) {
-    return what.isUTC() ? 'UTC' : what.format(defaultTZFormat);
+    return what.isUTC() ? "UTC" : what.format(defaultTZFormat);
   }
 
-  if (what === 'UTC') {
+  if (what === "UTC") {
     return what;
   }
 
@@ -43,16 +43,20 @@ export function isoDateToTimeEl(datetime, options) {
 
   const addTitle = $.extend({ title: true }, options).title;
 
-  const el = document.createElement('time');
-  el.setAttribute('datetime', dateTimeObj.format());
+  const el = document.createElement("time");
+  el.setAttribute("datetime", dateTimeObj.format());
   if (addTitle) {
-    el.setAttribute('title', dateTimeObj.isUTC() ? '' : `UTC: ${dateTimeObj.clone().utc().format()}`);
+    el.setAttribute(
+      "title",
+      dateTimeObj.isUTC() ? "" : `UTC: ${dateTimeObj.clone().utc().format()}`
+    );
   }
   el.innerText = dateTimeObj.format(defaultFormat);
   return el;
 }
 
-export const formatDateTime = (datetime) => moment(datetime).format(defaultFormatWithTZ);
+export const formatDateTime = (datetime) =>
+  moment(datetime).format(defaultFormatWithTZ);
 
 export const convertAndFormatUTC = (datetime, tz) => {
   let dateTimeObj = moment.utc(datetime);
@@ -65,10 +69,16 @@ export const secondsToString = (seconds) => {
   const numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
   const numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
   const numseconds = Math.floor((((seconds % 31536000) % 86400) % 3600) % 60);
-  return (numdays > 0 ? numdays + (numdays === 1 ? ' day ' : ' days ') : '')
-         + (numhours > 0 ? numhours + (numhours === 1 ? ' hour ' : ' hours ') : '')
-         + (numminutes > 0 ? numminutes + (numminutes === 1 ? ' minute ' : ' minutes ') : '')
-         + (numseconds > 0 ? numseconds + (numseconds === 1 ? ' second' : ' seconds') : '');
+  return (
+    (numdays > 0 ? numdays + (numdays === 1 ? " day " : " days ") : "") +
+    (numhours > 0 ? numhours + (numhours === 1 ? " hour " : " hours ") : "") +
+    (numminutes > 0
+      ? numminutes + (numminutes === 1 ? " minute " : " minutes ")
+      : "") +
+    (numseconds > 0
+      ? numseconds + (numseconds === 1 ? " second" : " seconds")
+      : "")
+  );
 };
 
 export function updateAllDateTimes() {
@@ -76,14 +86,16 @@ export function updateAllDateTimes() {
 
   $('time[data-datetime-convert!="false"]').each((_, el) => {
     const $el = $(el);
-    const dt = moment($el.attr('datetime'));
+    const dt = moment($el.attr("datetime"));
     // eslint-disable-next-line no-underscore-dangle
     if (dt._isValid) {
-      $el.text(dt.format($el.data('with-tz') ? defaultFormatWithTZ : defaultFormat));
+      $el.text(
+        dt.format($el.data("with-tz") ? defaultFormatWithTZ : defaultFormat)
+      );
     }
-    if ($el.attr('title') !== undefined) {
+    if ($el.attr("title") !== undefined) {
       // If displayed date is not UTC, have the UTC date in a title attribute
-      $el.attr('title', dt.isUTC() ? '' : `UTC: ${dt.clone().utc().format()}`);
+      $el.attr("title", dt.isUTC() ? "" : `UTC: ${dt.clone().utc().format()}`);
     }
   });
 
@@ -91,7 +103,7 @@ export function updateAllDateTimes() {
   //
   // Since we have set the default timezone for moment, it will automatically
   // convert it to the new target for us
-  $('.datetime input').each((_, el) => {
+  $(".datetime input").each((_, el) => {
     el.value = moment(el.value).format();
   });
 }
@@ -102,15 +114,16 @@ export function setDisplayedTimezone(tz) {
 }
 
 // moment will resolve the enddate to now if it is undefined
-export const getDuration = (startDate, endDate) => (
-  moment(endDate || undefined).diff(startDate || undefined)
-);
+export const getDuration = (startDate, endDate) =>
+  moment(endDate || undefined).diff(startDate || undefined);
 
 export const formatDuration = (dur) => {
   const duration = moment.duration(dur);
   const days = duration.days();
   // .as('milliseconds') is necessary for .format() to work correctly
-  return `${days > 0 ? `${days}d` : ''}${moment.utc(duration.as('milliseconds')).format('HH:mm:ss')}`;
+  return `${days > 0 ? `${days}d` : ""}${moment
+    .utc(duration.as("milliseconds"))
+    .format("HH:mm:ss")}`;
 };
 
 export const approxTimeFromNow = (dur) => {

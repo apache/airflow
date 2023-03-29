@@ -22,6 +22,7 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 versions:
+  - 3.1.0
   - 3.0.0
   - 2.3.1
   - 2.3.0
@@ -60,6 +61,12 @@ hooks:
   - integration-name: dbt Cloud
     python-modules:
       - airflow.providers.dbt.cloud.hooks.dbt
+
+triggers:
+  - integration-name: dbt Cloud
+    python-modules:
+      - airflow.providers.dbt.cloud.triggers.dbt
+
 
 connection-types:
   - hook-class-name: airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook
