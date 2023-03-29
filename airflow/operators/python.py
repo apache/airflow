@@ -375,8 +375,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             return None
         try:
             return self.pickling_library.loads(path.read_bytes())
-        except ValueError:
-            raise DeserializingResultError from None
+        except ValueError as e:
+            raise DeserializingResultError(f"Error while deserializing results. Error: {e}")
 
     def __deepcopy__(self, memo):
         # module objects can't be copied _at all__
