@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.5.3 (2023-03-30)
+Airflow 2.5.3 (2023-03-31)
 --------------------------
 
 Significant Changes
@@ -44,7 +44,7 @@ Bug Fixes
 - Dag processor manager, add retry_db_transaction to _fetch_callbacks (#30079)
 - Fix db clean command for mysql db (#29999)
 - Avoid considering EmptyOperator in mini scheduler (#29979)
-- Fix some long known Graph View UI problems (#29971)
+- Fix some long known Graph View UI problems (#29971, #30355, #30360)
 - Fix dag docs toggle icon initial angle (#29970)
 - Fix tags selection in DAGs UI (#29944)
 - Including airflow/example_dags/sql/sample.sql in MANIFEST.in (#29883)
