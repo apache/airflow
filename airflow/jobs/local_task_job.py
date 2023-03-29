@@ -263,7 +263,7 @@ class LocalTaskJob(BaseJob):
                 recorded_pid = psutil.Process(ti.pid).ppid()
                 same_process = recorded_pid == current_pid
 
-            if recorded_pid is not None and not same_process:
+            if recorded_pid is not None and not same_process and not IS_WINDOWS:
                 self.log.warning(
                     "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
                 )
