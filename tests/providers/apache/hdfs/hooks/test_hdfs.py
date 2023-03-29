@@ -74,10 +74,13 @@ class TestHDFSHook:
         HDFSHook(hdfs_conn_id="hdfs_missing", autoconfig=True).get_conn()
         mock_client.assert_called_once_with(effective_user=None, use_sasl=False)
 
-    @mock.patch("airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections")
-    def test_get_ha_client(self, mock_get_connections):
-        conn_1 = Connection(conn_id="hdfs_default", conn_type="hdfs", host="localhost", port=8020)
-        conn_2 = Connection(conn_id="hdfs_default", conn_type="hdfs", host="localhost2", port=8020)
-        mock_get_connections.return_value = [conn_1, conn_2]
-        client = HDFSHook().get_conn()
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "AIRFLOW_CONN_HDFS1": "hdfs://host1:8020",
+            "AIRFLOW_CONN_HDFS2": "hdfs://host2:8020",
+        },
+    )
+    def test_get_ha_client(self):
+        client = HDFSHook(hdfs_conn_id={"hdfs1", "hdfs2"}).get_conn()
         assert isinstance(client, snakebite.client.HAClient)
