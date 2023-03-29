@@ -69,7 +69,11 @@ class GithubSensor(BaseSensorOperator):
             ):
                 return self.result_processor(github_result, templated_fields=templated_fields)
             if self.allow_templates_in_result_processor:
-                self.log.info("To use templated fields in your `result_processor` function, provide them as a dict to a `templated_fields` parameter in your `result_processor` function.")
+                self.log.info(
+                    "To use templated fields in your `result_processor` function, \
+                    provide them as a dict to a `templated_fields` parameter in \
+                    your `result_processor` function."
+                )
             return self.result_processor(github_result)
 
         return github_result
