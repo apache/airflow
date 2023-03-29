@@ -18,13 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 from unittest.mock import MagicMock
-from pprint import pprint
-
-import boto3
-import pytest
 from moto import mock_dynamodb
 
-# from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 
@@ -32,31 +27,6 @@ AWS_CONN_ID = "aws_default"
 REGION_NAME = "us-east-1"
 TABLE_NAME = "test_airflow"
 TASK_ID = "dynamodb_value_sensor"
-
-# breeze testing tests ./tests/providers/amazon/aws/sensors/test_dynamodb.py --log-cli-level=INFO
-
-
-@pytest.fixture
-def use_moto():
-    @mock_dynamodb
-    def dynamodb_client():
-        dynamodb = boto3.resource("dynamodb", region_name=REGION_NAME)
-
-        dynamodb.create_table(
-            TableName=TABLE_NAME,
-            KeySchema=[
-                {"AttributeName": "PK", "KeyType": "HASH"},
-                {"AttributeName": "SK", "KeyType": "RANGE"},
-            ],
-            AttributeDefinitions=[
-                {"AttributeName": "PK", "AttributeType": "S"},
-                {"AttributeName": "SK", "AttributeType": "S"},
-            ],
-            BillingMode="PAY_PER_REQUEST",
-        )
-        return dynamodb
-
-    return dynamodb_client
 
 
 class TestDynamoDBValueSensor:
@@ -82,29 +52,32 @@ class TestDynamoDBValueSensor:
         assert REGION_NAME == sensor.region_name
 
     @mock_dynamodb
-    def test_get_conn_returns_a_boto3_connection(self):
+    def test_conn_returns_a_boto3_connection(self):
         hook = DynamoDBHook(aws_conn_id=AWS_CONN_ID)
-        assert hook.get_conn() is not None
+        assert hook.conn is not None
 
     @mock_dynamodb
     @mock.patch("airflow.providers.amazon.aws.sensors.dynamodb.DynamoDBHook")
     def test_sensor_with_pk_and_sk(self, ddb_mock):
-        pprint(ddb_mock)
 
         hook = DynamoDBHook(
             aws_conn_id=AWS_CONN_ID, table_name=TABLE_NAME, table_keys=["PK"], region_name=REGION_NAME
         )
 
-        hook.get_conn().create_table(
+        hook.conn.create_table(
             TableName=TABLE_NAME,
             KeySchema=[
                 {"AttributeName": "PK", "KeyType": "HASH"},
+                {"AttributeName": "SK", "KeyType": "RANGE"},
             ],
-            AttributeDefinitions=[{"AttributeName": "PK", "AttributeType": "S"}],
-            ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
+            AttributeDefinitions=[
+                {"AttributeName": "PK", "AttributeType": "S"},
+                {"AttributeName": "SK", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
         )
 
-        table = hook.get_conn().Table(TABLE_NAME)
+        table = hook.conn.Table(TABLE_NAME)
         table.meta.client.get_waiter("table_exists").wait(TableName=TABLE_NAME)
 
         assert table.table_status == "ACTIVE"
@@ -123,6 +96,8 @@ class TestDynamoDBValueSensor:
             attribute_name="Foo",  # replace with the attribute name to wait for
             attribute_value="Bar",  # replace with the attribute value to wait for (sensor will return true when this value matches the attribute value in the item)
         )
+
+        assert not sensor.poke(None)
 
         table.put_item(Item={"PK": "123", "SK": "2023-03-28T11:11:25-0400", "Foo": "Bar"})
 
