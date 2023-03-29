@@ -722,7 +722,7 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
         async with await self.get_client_async() as client:
             while True:
                 try:
-                    response = await client.describe_jobs(jobs=[job_id])
+                    response = client.describe_jobs(jobs=[job_id])
                     return self.parse_job_description(job_id, response)
 
                 except botocore.exceptions.ClientError as err:
