@@ -281,7 +281,7 @@ class TestBatchOperatorAsync:
             task.execute(context)
         assert isinstance(exc.value.trigger, BatchOperatorTrigger), "Trigger is not a BatchOperatorTrigger"
 
-    def test_batch_op_async_execute_failure(self, context):
+    def test_batch_op_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
 
         task = BatchOperator(
