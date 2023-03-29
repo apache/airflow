@@ -341,12 +341,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if self._is_teardown:
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
+            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
             op_kwargs=kwargs,
             multiple_outputs=self.multiple_outputs,
-            trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS,
             **self.kwargs,
         )
         op._is_setup = self._is_setup
