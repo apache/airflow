@@ -31,7 +31,7 @@ class SetupTeardownContext:
     _context_managed_teardown_task: Operator | None = None
     _previous_context_managed_teardown_task: list[Operator] = []
     active: bool = False
-    children: list[Operator] = []
+    instance_map: dict[Operator, list[Operator]] = {}
 
     @classmethod
     def push_context_managed_setup_task(cls, task: Operator):
@@ -91,15 +91,26 @@ class SetupTeardownContext:
 
     @classmethod
     def set_work_task_roots_and_leaves(cls):
-        normal_tasks = [task for task in cls.children if not task._is_setup and not task._is_teardown]
         setup_task = cls.get_context_managed_setup_task()
         teardown_task = cls.get_context_managed_teardown_task()
-        for child in normal_tasks:
-            if not child.downstream_list and teardown_task:
-                child.set_downstream(teardown_task)
-            if not child.upstream_list and setup_task:
-                child.set_upstream(setup_task)
-        SetupTeardownContext.pop_context_managed_setup_task()
-        SetupTeardownContext.pop_context_managed_teardown_task()
+        if setup_task:
+            tasks_in_context = cls.instance_map.get(setup_task, [])
+            if tasks_in_context:
+                roots = [task for task in tasks_in_context if not task.upstream_list]
+                if not roots:
+                    setup_task.set_downstream(tasks_in_context[0])
+                else:
+                    setup_task.set_downstream(roots)
+        if teardown_task:
+            tasks_in_context = cls.instance_map.get(teardown_task, [])
+            if tasks_in_context:
+                leaves = [task for task in tasks_in_context if not task.downstream_list]
+                if not leaves:
+                    teardown_task.set_upstream(tasks_in_context[-1])
+                else:
+                    teardown_task.set_upstream(leaves)
+        setup_task = SetupTeardownContext.pop_context_managed_setup_task()
+        teardown_task = SetupTeardownContext.pop_context_managed_teardown_task()
         SetupTeardownContext.active = False
-        cls.children = []
+        SetupTeardownContext.instance_map.pop(setup_task, None)
+        SetupTeardownContext.instance_map.pop(teardown_task, None)
