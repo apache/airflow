@@ -209,16 +209,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     def __enter__(self):
         if not self.operator._is_setup and not self.operator._is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
-        if self.operator._is_teardown:
-            SetupTeardownContext.push_context_managed_teardown_task(self.operator)
-            upstream_setup = [task for task in self.operator.upstream_list if task._is_setup]
-            if upstream_setup:
-                SetupTeardownContext.push_context_managed_setup_task(upstream_setup[-1])
-            else:
-                SetupTeardownContext.push_context_managed_setup_task(None)
-        elif self.operator._is_setup:
-            SetupTeardownContext.push_context_managed_setup_task(self.operator)
-            SetupTeardownContext.push_context_managed_teardown_task(None)
+        SetupTeardownContext.push_setup_teardown_task(self.operator)
         SetupTeardownContext.active = True
         return self
 
