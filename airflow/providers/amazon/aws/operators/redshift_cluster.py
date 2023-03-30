@@ -470,7 +470,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
                 raise AirflowException(msg)
             elif "status" in event and event["status"] == "success":
                 self.log.info("%s completed successfully.", self.task_id)
-                self.log.info("Paused cluster successfully")
+                self.log.info("Resumed cluster successfully")
         else:
             raise AirflowException("No event received from trigger")
 
