@@ -52,8 +52,8 @@ def get_task_instance(monkeypatch, session, dag_maker):
         done: int = 0,
         skipped_setup: int = 0,
         success_setup: int = 0,
-        normal_tasks: list[str] = None,
-        setup_tasks: list[str] = None,
+        normal_tasks: list[str] | None = None,
+        setup_tasks: list[str] | None = None,
     ):
         with dag_maker(session=session):
             task = BaseOperator(

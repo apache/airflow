@@ -186,7 +186,6 @@ class TriggerRuleDep(BaseTIDep):
             for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
             if _is_relevant_upstream(finished_ti)
         )
-        finished_upstream_tis = list(finished_upstream_tis)
         upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
 
         success = upstream_states.success
