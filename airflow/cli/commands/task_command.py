@@ -451,7 +451,7 @@ def task_failed_deps(args):
     if failed_deps:
         log.info("Task instance dependencies not met:")
         for dep in failed_deps:
-            log.info(f"{dep.dep_name}: {dep.reason}")
+            log.info("%s: %s", dep.dep_name, dep.reason)
     else:
         log.info("Task instance dependencies are all met.")
 
