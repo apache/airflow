@@ -408,3 +408,111 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask2"].downstream_task_ids == {"mytask"}
         assert dag.task_group.children["teardowntask"].upstream_task_ids == {"setuptask", "mytask"}
         assert not dag.task_group.children["teardowntask"].downstream_task_ids
+
+    def test_task_in_different_setup_context(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        @task()
+        def mytask3():
+            print("mytask")
+
+        @task
+        def mytask4():
+            print("mytask")
+
+        with dag_maker() as dag:
+            with setuptask():
+                t1 = mytask()
+                t2 = mytask2()
+                t1 >> t2
+            with setuptask2():
+                t3 = mytask3()
+                t4 = mytask4()
+                t2 >> t3 >> t4
+
+        assert len(dag.task_group.children) == 6
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert not dag.task_group.children["setuptask2"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2", "mytask"}
+        assert dag.task_group.children["mytask3"].upstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask3"].downstream_task_ids == {"mytask4"}
+        assert dag.task_group.children["mytask4"].upstream_task_ids == {"mytask3"}
+
+    def test_task_in_different_setup_context_2(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        @task()
+        def mytask3():
+            print("mytask")
+
+        @task
+        def mytask4():
+            print("mytask")
+
+        with dag_maker() as dag:
+            with setuptask():
+                t1 = mytask()
+                t2 = mytask2()
+                t1 >> t2
+                with setuptask2():
+                    t3 = mytask3()
+                    t4 = mytask4()
+                    t2 >> t3 >> t4
+
+        assert len(dag.task_group.children) == 6
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert not dag.task_group.children["setuptask2"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2", "mytask"}
+        assert dag.task_group.children["mytask3"].upstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask3"].downstream_task_ids == {"mytask4"}
+        assert dag.task_group.children["mytask4"].upstream_task_ids == {"mytask3"}
+
+    def test_teardown_cannot_be_uptream_of_setuptask(self, dag_maker):
+        @setup
+        def setuptask():
+            print(1)
+
+        @teardown
+        def teardowntask():
+            print(2)
+
+        with dag_maker():
+            with pytest.raises(AirflowException):
+                with teardowntask() >> setuptask():
+                    pass
