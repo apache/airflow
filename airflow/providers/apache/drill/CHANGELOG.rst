@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+2.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Sanitize host in drill hook (#30215)``
+
 2.3.1
 .....
 
