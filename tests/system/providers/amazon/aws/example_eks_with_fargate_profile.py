@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
@@ -38,7 +36,6 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksF
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_eks_with_fargate_profile"
 
 # Externally fetched variables:

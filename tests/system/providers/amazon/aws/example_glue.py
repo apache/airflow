@@ -20,7 +20,6 @@ from datetime import datetime
 
 import boto3
 from botocore.client import BaseClient
-from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -37,7 +36,6 @@ from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
-importorskip("aiobotocore")
 DAG_ID = "example_glue"
 
 # Externally fetched variables:

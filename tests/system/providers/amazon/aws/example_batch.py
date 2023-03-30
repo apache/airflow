@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -38,7 +37,6 @@ from tests.system.providers.amazon.aws.utils import (
     split_string,
 )
 
-importorskip("aiobotocore")
 DAG_ID = "example_batch"
 
 # Externally fetched variables:

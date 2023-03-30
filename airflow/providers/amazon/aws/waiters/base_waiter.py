@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import boto3
-from aiobotocore.waiter import create_waiter_with_client as create_async_waiter_with_client
 from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
 
 
@@ -34,9 +33,15 @@ class BaseBotoWaiter:
         self.client = client
         self.deferrable = deferrable
 
+    def _get_async_waiter_with_client(self, waiter_name: str):
+        from aiobotocore.waiter import create_waiter_with_client as create_async_waiter_with_client
+
+        return create_async_waiter_with_client(
+            waiter_name=waiter_name, waiter_model=self.model, client=self.client
+        )
+
     def waiter(self, waiter_name: str) -> Waiter:
         if self.deferrable:
-            return create_async_waiter_with_client(
-                waiter_name=waiter_name, waiter_model=self.model, client=self.client
-            )
+            return self._get_async_waiter_with_client(waiter_name=waiter_name)
+
         return create_waiter_with_client(waiter_name=waiter_name, waiter_model=self.model, client=self.client)

@@ -48,7 +48,6 @@ from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
-from pytest import importorskip
 from slugify import slugify
 
 from airflow.compat.functools import cached_property
@@ -63,8 +62,6 @@ from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-
-importorskip("aiobotocore")
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
@@ -614,7 +611,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Get the underlying boto3 client using boto3 session"""
         client_type = self.client_type
         session = self.get_session(region_name=region_name, deferrable=deferrable)
-        if isinstance(session, AioSession):
+        if not isinstance(session, boto3.session.Session):
             return session.create_client(
                 client_type,
                 endpoint_url=self.conn_config.endpoint_url,

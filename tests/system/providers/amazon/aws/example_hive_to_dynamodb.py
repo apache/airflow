@@ -23,8 +23,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models import Connection
@@ -35,7 +33,6 @@ from airflow.utils import db
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_hive_to_dynamodb"
 
 # Externally fetched variables:

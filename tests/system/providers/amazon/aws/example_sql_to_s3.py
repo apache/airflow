@@ -21,7 +21,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from pytest import importorskip
 
 from airflow import DAG, settings
 from airflow.decorators import task
@@ -39,7 +38,6 @@ from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_sql_to_s3"
 DB_LOGIN = "adminuser"
 DB_PASS = "MyAmazonPassword1"

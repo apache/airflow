@@ -22,8 +22,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
@@ -31,7 +29,6 @@ from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAtt
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_imap_attachment_to_s3"
 
 # Externally fetched variables:

@@ -22,7 +22,6 @@ import json
 from datetime import datetime
 
 import boto3
-from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -38,7 +37,6 @@ from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_emr"
 CONFIG_NAME = "EMR Runtime Role Security Configuration"
 EXECUTION_ROLE_ARN_KEY = "EXECUTION_ROLE_ARN"
