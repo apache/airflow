@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -29,7 +28,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
-importorskip("aiobotocore")
+
 DAG_ID = "example_sns"
 
 

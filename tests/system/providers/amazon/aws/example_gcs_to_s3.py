@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
@@ -28,7 +26,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
-importorskip("aiobotocore")
+
 DAG_ID = "example_gcs_to_s3"
 
 with DAG(

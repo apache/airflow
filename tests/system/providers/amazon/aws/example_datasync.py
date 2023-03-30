@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from pytest import importorskip
 
 from airflow import models
 from airflow.decorators import task
@@ -29,7 +28,6 @@ from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_datasync"
 
 # Externally fetched variables:

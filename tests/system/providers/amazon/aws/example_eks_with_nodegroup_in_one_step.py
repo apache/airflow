@@ -34,7 +34,6 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksN
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_eks_with_nodegroup_in_one_step"
 
 # Externally fetched variables:

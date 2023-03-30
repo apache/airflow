@@ -47,7 +47,6 @@ from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
-from pytest import importorskip
 from slugify import slugify
 
 from airflow.compat.functools import cached_property
@@ -62,8 +61,6 @@ from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-
-importorskip("aiobotocore")
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 

@@ -19,8 +19,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.cloud_formation import (
@@ -35,7 +33,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
-importorskip("aiobotocore")
+
 DAG_ID = "example_cloudformation"
 
 # The CloudFormation template must have at least one resource to

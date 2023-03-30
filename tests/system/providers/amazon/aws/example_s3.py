@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.python import BranchPythonOperator
@@ -40,7 +38,6 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchanged
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_s3"
 
 sys_test_context_task = SystemTestContextBuilder().build()

@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from pytest import importorskip
-
 from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
@@ -26,7 +24,6 @@ from airflow.utils.dates import datetime
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-importorskip("aiobotocore")
 DAG_ID = "example_mongo_to_s3"
 
 # Externally fetched variables:

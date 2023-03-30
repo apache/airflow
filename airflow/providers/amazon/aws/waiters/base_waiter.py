@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import boto3
-from aiobotocore.waiter import create_waiter_with_client as create_async_waiter_with_client
 from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
 
 

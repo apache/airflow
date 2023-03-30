@@ -38,7 +38,7 @@ from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContex
 
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
-importorskip("aiobotocore")
+
 DAG_ID = "example_eks_with_nodegroups"
 
 # Externally fetched variables:

@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
@@ -37,7 +35,7 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksN
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
-importorskip("aiobotocore")
+
 DAG_ID = "example_eks_templated"
 
 # Example Jinja Template format, substitute your values:

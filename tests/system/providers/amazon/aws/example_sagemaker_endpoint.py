@@ -20,7 +20,6 @@ import json
 from datetime import datetime
 
 import boto3
-from pytest import importorskip
 
 from airflow import DAG
 from airflow.decorators import task
@@ -41,7 +40,6 @@ from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSens
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
-importorskip("aiobotocore")
 DAG_ID = "example_sagemaker_endpoint"
 
 # Externally fetched variables:

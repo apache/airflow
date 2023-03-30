@@ -19,8 +19,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from pytest import importorskip
-
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -31,7 +29,7 @@ from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
-importorskip("aiobotocore")
+
 DAG_ID = "example_local_to_s3"
 TEMP_FILE_PATH = "/tmp/sample-txt.txt"
 SAMPLE_TEXT = "This is some sample text."
