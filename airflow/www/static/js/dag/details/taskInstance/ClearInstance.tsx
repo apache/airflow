@@ -23,6 +23,7 @@ import {
   Button,
   ButtonGroup,
   ButtonProps,
+  Code,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -32,6 +33,11 @@ import {
   ModalOverlay,
   Text,
   useDisclosure,
+  Accordion,
+  AccordionButton,
+  AccordionPanel,
+  AccordionItem,
+  AccordionIcon,
 } from "@chakra-ui/react";
 
 import { getMetaValue } from "src/utils";
@@ -50,6 +56,7 @@ interface Props extends ButtonProps {
   taskId: string;
   executionDate: string;
   isGroup?: boolean;
+  isSubDag?: boolean;
   mapIndex?: number;
 }
 
@@ -59,6 +66,7 @@ const ClearInstance = ({
   mapIndex,
   executionDate,
   isGroup,
+  isSubDag,
   ...otherProps
 }: Props) => {
   const { onOpen, onClose, isOpen } = useDisclosure();
@@ -76,8 +84,8 @@ const ClearInstance = ({
   const [downstream, setDownstream] = useState(false);
   const onToggleDownstream = () => setDownstream(!downstream);
 
-  // const [recursive, setRecursive] = useState(true);
-  // const onToggleRecursive = () => setRecursive(!recursive);
+  const [recursive, setRecursive] = useState(false);
+  const onToggleRecursive = () => setRecursive(!recursive);
 
   const [failed, setFailed] = useState(false);
   const onToggleFailed = () => setFailed(!failed);
@@ -93,7 +101,7 @@ const ClearInstance = ({
       future,
       upstream,
       downstream,
-      recursive: false,
+      recursive,
       failed,
       mapIndexes: [mapIndex || -1],
     });
@@ -106,6 +114,16 @@ const ClearInstance = ({
     isGroup: !!isGroup,
   });
 
+  const resetModal = () => {
+    onClose();
+    setDownstream(false);
+    setUpstream(false);
+    setPast(false);
+    setFuture(false);
+    setRecursive(false);
+    setFailed(false);
+  };
+
   const onClear = () => {
     clearTask({
       confirmed: true,
@@ -113,11 +131,11 @@ const ClearInstance = ({
       future,
       upstream,
       downstream,
-      recursive: false,
+      recursive,
       failed,
       mapIndexes: [mapIndex || -1],
     });
-    onClose();
+    resetModal();
   };
 
   const clearLabel = "Clear and retry task.";
@@ -128,7 +146,6 @@ const ClearInstance = ({
         aria-label={clearLabel}
         ml={2}
         isDisabled={!canEdit}
-        variant="outline"
         colorScheme="blue"
         onClick={onOpen}
         {...otherProps}
@@ -138,8 +155,9 @@ const ClearInstance = ({
       <Modal
         size="3xl"
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={resetModal}
         portalProps={{ containerRef }}
+        blockScrollOnMount={false}
       >
         <ModalOverlay />
         <ModalContent>
@@ -172,21 +190,46 @@ const ClearInstance = ({
                   onClick={onToggleDownstream}
                   name="Downstream"
                 />
-                {/* <ActionButton
-              bg={recursive ? "gray.100" : undefined}
-              onClick={onToggleRecursive}
-              name="Recursive"
-            /> */}
+                {isSubDag && (
+                  <ActionButton
+                    bg={recursive ? "gray.100" : undefined}
+                    onClick={onToggleRecursive}
+                    name="Recursive"
+                  />
+                )}
                 <ActionButton
                   bg={failed ? "gray.100" : undefined}
                   onClick={onToggleFailed}
                   name="Failed"
                 />
               </ButtonGroup>
+              <Accordion allowToggle my={3}>
+                <AccordionItem>
+                  <AccordionButton>
+                    <Box flex="1" textAlign="left">
+                      <Text as="strong" size="lg">
+                        Affected Tasks: {affectedTasks?.length || 0}
+                      </Text>
+                    </Box>
+                    <AccordionIcon />
+                  </AccordionButton>
+                  <AccordionPanel>
+                    <Box maxHeight="400px" overflowY="auto">
+                      {(affectedTasks || []).map((ti) => (
+                        <Code width="100%" key={ti} fontSize="lg">
+                          {ti}
+                        </Code>
+                      ))}
+                    </Box>
+                  </AccordionPanel>
+                </AccordionItem>
+              </Accordion>
             </Box>
           </ModalBody>
           <ModalFooter justifyContent="space-between">
-            <Text>Affected Tasks: {affectedTasks?.length || 0} </Text>
+            <Button colorScheme="gray" onClick={resetModal}>
+              Cancel
+            </Button>
             <Button
               colorScheme="blue"
               isLoading={isLoading || isLoadingDryRun}

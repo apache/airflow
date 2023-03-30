@@ -167,6 +167,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 runId={runId}
                 executionDate={run?.executionDate || ""}
                 isGroup={isGroup}
+                isSubDag={group?.operator === "SubDagOperator"}
                 mapIndex={instance?.mapIndex}
                 mr={2}
               />

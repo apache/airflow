@@ -105,6 +105,7 @@ export default function useClearTask({
             runId,
             taskId,
           ]);
+          queryClient.invalidateQueries(["clearTask", dagId, runId, taskId]);
           startRefresh();
         }
       },
