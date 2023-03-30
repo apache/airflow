@@ -921,19 +921,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.template_fields = [self.template_fields]
 
         if SetupTeardownContext.active:
-            setup_task = SetupTeardownContext.get_context_managed_setup_task()
-            teardown_task = SetupTeardownContext.get_context_managed_teardown_task()
-            ins = SetupTeardownContext.instance_map
-            if setup_task:
-                if ins.get(setup_task) is None:
-                    ins[setup_task] = [self]
-                else:
-                    ins[setup_task].append(self)
-            if teardown_task:
-                if ins.get(teardown_task) is None:
-                    ins[teardown_task] = [self]
-                else:
-                    ins[teardown_task].append(self)
+            SetupTeardownContext.update_instance_map(self)
 
     @classmethod
     def as_setup(cls, *args, **kwargs):

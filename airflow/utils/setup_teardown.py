@@ -57,6 +57,22 @@ class SetupTeardownContext:
         return old_setup_task
 
     @classmethod
+    def update_instance_map(cls, operator):
+        setup_task = SetupTeardownContext.get_context_managed_setup_task()
+        teardown_task = SetupTeardownContext.get_context_managed_teardown_task()
+        ins = SetupTeardownContext.instance_map
+        if setup_task:
+            if ins.get(setup_task) is None:
+                ins[setup_task] = [operator]
+            else:
+                ins[setup_task].append(operator)
+        if teardown_task:
+            if ins.get(teardown_task) is None:
+                ins[teardown_task] = [operator]
+            else:
+                ins[teardown_task].append(operator)
+
+    @classmethod
     def pop_context_managed_teardown_task(cls) -> Operator | None:
         old_teardown_task = cls._context_managed_teardown_task
         if cls._previous_context_managed_teardown_task:
