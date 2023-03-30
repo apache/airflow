@@ -54,6 +54,15 @@ Here is a different example of using this operator to execute a pipeline but cou
         :start-after: [START howto_operator_adf_run_pipeline_async]
         :end-before: [END howto_operator_adf_run_pipeline_async]
 
+Also you can use deferrable mode in :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor` if you would like to free up the worker slots while the sensor is running.
+
+    .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+        :language: python
+        :dedent: 0
+        :start-after: [START howto_operator_adf_run_pipeline_async]
+        :end-before: [END howto_operator_adf_run_pipeline_async]
+
+
 Poll for status of a data factory pipeline run asynchronously
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
