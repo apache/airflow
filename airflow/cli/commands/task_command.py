@@ -217,7 +217,6 @@ def _run_task_by_executor(args, dag, ti):
                 pickle = DagPickle(dag)
                 session.add(pickle)
             pickle_id = pickle.id
-            # TODO: This should be written to a log
             log.info(f"Pickled dag {dag} as pickle_id: {pickle_id}")
         except Exception as e:
             log.error("Could not pickle the DAG: %s", str(e))
@@ -449,7 +448,6 @@ def task_failed_deps(args):
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
-    # TODO, Do we want to print or log this
     if failed_deps:
         log.info("Task instance dependencies not met:")
         for dep in failed_deps:
