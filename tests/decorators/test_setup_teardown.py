@@ -504,16 +504,60 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask3"].downstream_task_ids == {"mytask4"}
         assert dag.task_group.children["mytask4"].upstream_task_ids == {"mytask3"}
 
-    def test_teardown_cannot_be_uptream_of_setuptask(self, dag_maker):
+    def test_setup_teardown_as_context_manager_with_work_task_rel_not_set(self, dag_maker):
+        """
+        Test that setup >> teardown tasks are set up correctly when used as context managers
+        and the normal tasks are set up even if they don't have a relationship set
+        """
+
         @setup
         def setuptask():
-            print(1)
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
 
         @teardown
         def teardowntask():
-            print(2)
+            print("teardown")
 
-        with dag_maker():
-            with pytest.raises(AirflowException):
-                with teardowntask() >> setuptask():
-                    pass
+        @teardown
+        def teardowntask2():
+            print("teardown")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @task()
+        def mytask2():
+            print("mytask")
+
+        with dag_maker() as dag:
+            with setuptask() >> teardowntask():
+                with setuptask2() >> teardowntask2():
+                    mytask()
+                    mytask2()
+
+        assert len(dag.task_group.children) == 6
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"teardowntask", "setuptask2"}
+        assert dag.task_group.children["setuptask2"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {
+            "teardowntask2",
+            "mytask",
+            "mytask2",
+        }
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask2"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2"}
+        assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask2"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {"setuptask", "teardowntask2"}
+        assert not dag.task_group.children["teardowntask"].downstream_task_ids
+        assert dag.task_group.children["teardowntask2"].upstream_task_ids == {
+            "setuptask2",
+            "mytask",
+            "mytask2",
+        }
+        assert dag.task_group.children["teardowntask2"].downstream_task_ids == {"teardowntask"}
