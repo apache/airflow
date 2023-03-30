@@ -921,7 +921,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.template_fields = [self.template_fields]
 
         if SetupTeardownContext.active:
-            SetupTeardownContext.update_instance_map(self)
+            SetupTeardownContext.update_context_map(self)
 
     @classmethod
     def as_setup(cls, *args, **kwargs):

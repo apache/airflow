@@ -31,7 +31,7 @@ class SetupTeardownContext:
     _context_managed_teardown_task: Operator | None = None
     _previous_context_managed_teardown_task: list[Operator] = []
     active: bool = False
-    instance_map: dict[Operator, list[Operator]] = {}
+    context_map: dict[Operator, list[Operator]] = {}
 
     @classmethod
     def push_context_managed_setup_task(cls, task: Operator):
@@ -57,10 +57,10 @@ class SetupTeardownContext:
         return old_setup_task
 
     @classmethod
-    def update_instance_map(cls, operator):
+    def update_context_map(cls, operator):
         setup_task = SetupTeardownContext.get_context_managed_setup_task()
         teardown_task = SetupTeardownContext.get_context_managed_teardown_task()
-        ins = SetupTeardownContext.instance_map
+        ins = SetupTeardownContext.context_map
         if setup_task:
             if ins.get(setup_task) is None:
                 ins[setup_task] = [operator]
@@ -110,7 +110,7 @@ class SetupTeardownContext:
         setup_task = cls.get_context_managed_setup_task()
         teardown_task = cls.get_context_managed_teardown_task()
         if setup_task:
-            tasks_in_context = cls.instance_map.get(setup_task, [])
+            tasks_in_context = cls.context_map.get(setup_task, [])
             if tasks_in_context:
                 roots = [task for task in tasks_in_context if not task.upstream_list]
                 if not roots:
@@ -118,7 +118,7 @@ class SetupTeardownContext:
                 else:
                     setup_task.set_downstream(roots)
         if teardown_task:
-            tasks_in_context = cls.instance_map.get(teardown_task, [])
+            tasks_in_context = cls.context_map.get(teardown_task, [])
             if tasks_in_context:
                 leaves = [task for task in tasks_in_context if not task.downstream_list]
                 if not leaves:
@@ -128,5 +128,5 @@ class SetupTeardownContext:
         setup_task = SetupTeardownContext.pop_context_managed_setup_task()
         teardown_task = SetupTeardownContext.pop_context_managed_teardown_task()
         SetupTeardownContext.active = False
-        SetupTeardownContext.instance_map.pop(setup_task, None)
-        SetupTeardownContext.instance_map.pop(teardown_task, None)
+        SetupTeardownContext.context_map.pop(setup_task, None)
+        SetupTeardownContext.context_map.pop(teardown_task, None)
