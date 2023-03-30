@@ -217,7 +217,7 @@ def _run_task_by_executor(args, dag, ti):
                 pickle = DagPickle(dag)
                 session.add(pickle)
             pickle_id = pickle.id
-            log.info(f"Pickled dag {dag} as pickle_id: {pickle_id}")
+            log.info("Pickled dag %s as pickle_id: %s", str(dag), str(pickle_id))
         except Exception as e:
             log.error("Could not pickle the DAG: %s", str(e))
             raise e
@@ -389,7 +389,7 @@ def task_run(args, dag=None):
     get_listener_manager().hook.on_starting(component=TaskCommandMarker())
 
     if args.pickle:
-        log.info(f"Loading pickle id: {args.pickle}")
+        log.info("Loading pickle id: %s", str(args.pickle))
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
         dag = get_dag(args.subdir, args.dag_id)
