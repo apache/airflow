@@ -448,11 +448,11 @@ class TestSetupTearDownTask:
         assert not dag.task_group.children["setuptask"].upstream_task_ids
         assert not dag.task_group.children["setuptask2"].upstream_task_ids
         assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask"}
-        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask3"}
         assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
         assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
-        assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2", "mytask"}
-        assert dag.task_group.children["mytask3"].upstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"mytask"}
+        assert dag.task_group.children["mytask3"].upstream_task_ids == {"mytask2", "setuptask2"}
         assert dag.task_group.children["mytask3"].downstream_task_ids == {"mytask4"}
         assert dag.task_group.children["mytask4"].upstream_task_ids == {"mytask3"}
 
@@ -493,13 +493,14 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 6
         assert not dag.task_group.children["setuptask"].upstream_task_ids
-        assert not dag.task_group.children["setuptask2"].upstream_task_ids
-        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask"}
-        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["setuptask2"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask", "setuptask2"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask3"}
         assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
         assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
-        assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2", "mytask"}
-        assert dag.task_group.children["mytask3"].upstream_task_ids == {"mytask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"mytask"}
+        assert dag.task_group.children["mytask2"].downstream_task_ids == {"mytask3"}
+        assert dag.task_group.children["mytask3"].upstream_task_ids == {"mytask2", "setuptask2"}
         assert dag.task_group.children["mytask3"].downstream_task_ids == {"mytask4"}
         assert dag.task_group.children["mytask4"].upstream_task_ids == {"mytask3"}
 
