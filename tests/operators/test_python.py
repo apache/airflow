@@ -954,6 +954,7 @@ class TestPythonVirtualenvOperator(BasePythonTest):
         with pytest.raises(DeserializingResultError):
             task._read_result(path=mock.Mock())
 
+
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
         with pytest.raises(AirflowException):
