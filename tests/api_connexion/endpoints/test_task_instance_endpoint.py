@@ -1964,4 +1964,3 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 404
-            

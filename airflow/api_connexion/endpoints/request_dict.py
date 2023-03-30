@@ -26,6 +26,5 @@ def get_json_request_dict() -> Mapping[str, Any]:
     from flask import request
 
     if not request.data:
-        raise BadRequest(detail="POST Body must not be None")
+        raise BadRequest(detail="POST Body must not be empty")
     return cast(Mapping[str, Any], request.get_json())
-    
