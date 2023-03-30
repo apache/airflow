@@ -87,6 +87,7 @@ class SetupTeardownContext:
             downstream_teardown = [task for task in operator.downstream_list if task._is_teardown]
             if downstream_teardown:
                 SetupTeardownContext.push_context_managed_teardown_task(downstream_teardown[0])
+        SetupTeardownContext.active = True
 
     @classmethod
     def set_work_task_roots_and_leaves(cls):
@@ -98,4 +99,7 @@ class SetupTeardownContext:
                 child.set_downstream(teardown_task)
             if not child.upstream_list and setup_task:
                 child.set_upstream(setup_task)
+        SetupTeardownContext.pop_context_managed_setup_task()
+        SetupTeardownContext.pop_context_managed_teardown_task()
+        SetupTeardownContext.active = False
         cls.children = []
