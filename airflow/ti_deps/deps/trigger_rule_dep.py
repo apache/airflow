@@ -420,9 +420,8 @@ class TriggerRuleDep(BaseTIDep):
                     )
                 )
         elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
-            status = None
             if not upstream_done:
-                status = self._failing_status(
+                yield self._failing_status(
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
                         f"completed, but found {len(upstream_tasks) - done} task(s) that were not done. "
@@ -431,7 +430,7 @@ class TriggerRuleDep(BaseTIDep):
                     )
                 )
             elif upstream_setup is None:  # for now, None only happens in mapped case
-                status = self._failing_status(
+                yield self._failing_status(
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' cannot have mapped tasks as upstream. "
                         f"upstream_states={upstream_states}, "
@@ -439,7 +438,7 @@ class TriggerRuleDep(BaseTIDep):
                     )
                 )
             elif upstream_setup and not success_setup >= 1:
-                status = self._failing_status(
+                yield self._failing_status(
                     reason=(
                         f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup task be "
                         f"successful, but found {upstream_setup - success_setup} task(s) that were not. "
@@ -447,7 +446,5 @@ class TriggerRuleDep(BaseTIDep):
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
-            if status:
-                yield status
         else:
             yield self._failing_status(reason=f"No strategy to evaluate trigger rule '{trigger_rule}'.")
