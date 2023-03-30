@@ -37,7 +37,7 @@ class TestTriggerRule:
         assert TriggerRule.is_valid(TriggerRule.DUMMY)
         assert TriggerRule.is_valid(TriggerRule.ALWAYS)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
-        assert TriggerRule.is_valid(TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        assert TriggerRule.is_valid(TriggerRule._ALL_DONE_SETUP_SUCCESS)
         assert len(TriggerRule.all_triggers()) == 14
 
         with pytest.raises(ValueError):

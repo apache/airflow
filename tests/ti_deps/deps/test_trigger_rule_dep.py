@@ -764,7 +764,7 @@ class TestTriggerRuleDep:
         All-done trigger rule success
         """
         ti = get_task_instance(
-            TriggerRule.ALL_DONE_SETUP_SUCCESS,
+            TriggerRule._ALL_DONE_SETUP_SUCCESS,
             **states,
             normal_tasks=[f"w{x}" for x in range(task_cfg["work"])],
             setup_tasks=[f"s{x}" for x in range(task_cfg["setup"])],

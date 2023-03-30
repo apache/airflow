@@ -285,7 +285,7 @@ class TriggerRuleDep(BaseTIDep):
             elif trigger_rule == TR.ALL_SKIPPED:
                 if success or failed:
                     new_state = TaskInstanceState.SKIPPED
-            elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
+            elif trigger_rule == TR._ALL_DONE_SETUP_SUCCESS:
                 if upstream_done and upstream_setup and skipped_setup >= upstream_setup:
                     # when there is an upstream setup and they have all skipped, then skip
                     new_state = TaskInstanceState.SKIPPED
@@ -419,7 +419,7 @@ class TriggerRuleDep(BaseTIDep):
                         f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
-        elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
+        elif trigger_rule == TR._ALL_DONE_SETUP_SUCCESS:
             if not upstream_done:
                 yield self._failing_status(
                     reason=(

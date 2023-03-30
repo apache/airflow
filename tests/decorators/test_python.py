@@ -879,7 +879,7 @@ def test_teardown_trigger_rule_selective_application(dag_maker, session):
         teardown_task = my_teardown()
     assert work_task.operator.trigger_rule == TriggerRule.ALL_SUCCESS
     assert setup_task.operator.trigger_rule == TriggerRule.ALL_SUCCESS
-    assert teardown_task.operator.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
+    assert teardown_task.operator.trigger_rule == TriggerRule._ALL_DONE_SETUP_SUCCESS
 
 
 def test_teardown_trigger_rule_override_behavior(dag_maker, session):
