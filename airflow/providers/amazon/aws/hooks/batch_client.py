@@ -27,7 +27,7 @@ A client for AWS Batch services
 from __future__ import annotations
 
 import asyncio
-from random import sample, uniform
+from random import uniform
 from time import sleep
 from typing import Any
 
@@ -641,9 +641,7 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = sample(
-                list(range(BatchClientAsyncHook.DEFAULT_DELAY_MIN, BatchClientAsyncHook.DEFAULT_DELAY_MAX)), 1
-            )[0]
+            delay = uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
         else:
             delay = BatchClientAsyncHook.add_jitter(delay)
         await asyncio.sleep(delay)
