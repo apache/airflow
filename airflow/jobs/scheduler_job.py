@@ -298,7 +298,6 @@ class SchedulerJob(BaseJob):
             states=list(EXECUTION_STATES), session=session
         )
 
-        num_tasks_in_executor = 0
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
 
@@ -511,7 +510,6 @@ class SchedulerJob(BaseJob):
             Stats.gauge(f"pool.starving_tasks.{pool_name}", num_starving_tasks)
 
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
-        Stats.gauge("scheduler.tasks.running", num_tasks_in_executor)
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
         if len(executable_tis) > 0:
