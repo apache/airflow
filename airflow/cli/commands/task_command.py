@@ -218,15 +218,14 @@ def _run_task_by_executor(args, dag, ti):
                 session.add(pickle)
             pickle_id = pickle.id
             # TODO: This should be written to a log
-            print(f"Pickled dag {dag} as pickle_id: {pickle_id}")
+            log.info(f"Pickled dag {dag} as pickle_id: {pickle_id}")
         except Exception as e:
-            print("Could not pickle the DAG")
-            print(e)
+            log.error("Could not pickle the DAG: %s", str(e))
             raise e
     executor = ExecutorLoader.get_default_executor()
     executor.job_id = None
     executor.start()
-    print("Sending to executor.")
+    log.info("Sending to executor.")
     executor.queue_task_instance(
         ti,
         mark_success=args.mark_success,
@@ -391,7 +390,7 @@ def task_run(args, dag=None):
     get_listener_manager().hook.on_starting(component=TaskCommandMarker())
 
     if args.pickle:
-        print(f"Loading pickle id: {args.pickle}")
+        log.info(f"Loading pickle id: {args.pickle}")
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
         dag = get_dag(args.subdir, args.dag_id)
@@ -452,11 +451,11 @@ def task_failed_deps(args):
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
     # TODO, Do we want to print or log this
     if failed_deps:
-        print("Task instance dependencies not met:")
+        log.info("Task instance dependencies not met:")
         for dep in failed_deps:
-            print(f"{dep.dep_name}: {dep.reason}")
+            log.info(f"{dep.dep_name}: {dep.reason}")
     else:
-        print("Task instance dependencies are all met.")
+        log.info("Task instance dependencies are all met.")
 
 
 @cli_utils.action_cli(check_db=False)
