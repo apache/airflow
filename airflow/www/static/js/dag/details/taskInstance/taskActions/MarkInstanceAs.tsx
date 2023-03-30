@@ -26,37 +26,25 @@ import {
   MenuItem,
   MenuList,
   MenuButtonProps,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   useDisclosure,
   ButtonGroup,
   Box,
   Text,
-  Accordion,
-  AccordionButton,
-  AccordionPanel,
-  AccordionItem,
-  AccordionIcon,
-  Code,
 } from "@chakra-ui/react";
 import { MdArrowDropDown } from "react-icons/md";
+import { capitalize } from "lodash";
 
 import { getMetaValue } from "src/utils";
 import type { TaskState } from "src/types";
-import { useContainerRef } from "src/context/containerRef";
 import {
   useMarkFailedTask,
   useMarkSuccessTask,
   useMarkTaskDryRun,
 } from "src/api";
 
-import { SimpleStatus } from "../../StatusBox";
-import ActionButton from "./taskActions/ActionButton";
+import { SimpleStatus } from "../../../StatusBox";
+import ActionButton from "./ActionButton";
+import ActionModal from "./ActionModal";
 
 const canEdit = getMetaValue("can_edit") === "True";
 const dagId = getMetaValue("dag_id");
@@ -65,18 +53,19 @@ interface Props extends MenuButtonProps {
   runId: string;
   taskId: string;
   state?: TaskState;
-  mapIndexes?: number[];
+  mapIndex?: number;
+  isMapped?: boolean;
 }
 
 const MarkInstanceAs = ({
   runId,
   taskId,
-  mapIndexes,
+  mapIndex,
+  isMapped,
   state: currentState,
   ...otherProps
 }: Props) => {
   const { onOpen, onClose, isOpen } = useDisclosure();
-  const containerRef = useContainerRef();
 
   const [newState, setNewState] = useState<"failed" | "success">("success");
 
@@ -101,6 +90,9 @@ const MarkInstanceAs = ({
     setNewState("success");
     onOpen();
   };
+
+  const mapIndexes =
+    mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;
 
   const { data: affectedTasks, isLoading: isLoadingDryRun } = useMarkTaskDryRun(
     {
@@ -160,6 +152,8 @@ const MarkInstanceAs = ({
   };
 
   const markLabel = "Manually set task instance state";
+  const isMappedSummary = isMapped && mapIndex === undefined;
+
   return (
     <>
       <Menu>
@@ -180,102 +174,92 @@ const MarkInstanceAs = ({
         <MenuList>
           <MenuItem
             onClick={markAsFailed}
-            isDisabled={currentState === "failed"}
+            isDisabled={!isMappedSummary && currentState === "failed"}
           >
             <SimpleStatus state="failed" mr={2} />
             failed
           </MenuItem>
           <MenuItem
             onClick={markAsSuccess}
-            isDisabled={currentState === "success"}
+            isDisabled={!isMappedSummary && currentState === "success"}
           >
             <SimpleStatus state="success" mr={2} />
             success
           </MenuItem>
         </MenuList>
       </Menu>
-      <Modal
-        size="3xl"
+      <ActionModal
         isOpen={isOpen}
         onClose={resetModal}
-        portalProps={{ containerRef }}
-        blockScrollOnMount={false}
+        header={`Mark as ${capitalize(newState)}`}
+        subheader={
+          <>
+            <Text>
+              <Text as="strong" mr={1}>
+                Task:
+              </Text>
+              {taskId}
+            </Text>
+            <Text>
+              <Text as="strong" mr={1}>
+                Run:
+              </Text>
+              {runId}
+            </Text>
+            {isMapped && (
+              <Text>
+                <Text as="strong" mr={1}>
+                  Map Index:
+                </Text>
+                {mapIndex !== undefined ? mapIndex : `All mapped tasks`}
+              </Text>
+            )}
+          </>
+        }
+        affectedTasks={affectedTasks}
+        submitButton={
+          <Button
+            colorScheme={
+              (newState === "success" && "green") ||
+              (newState === "failed" && "red") ||
+              "grey"
+            }
+            isLoading={
+              isLoadingDryRun || isMarkSuccessLoading || isMarkFailedLoading
+            }
+            isDisabled={!affectedTasks?.length || !newState}
+            onClick={onMarkState}
+          >
+            Mark as {newState}
+          </Button>
+        }
       >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            Mark {taskId} as {newState}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Box>
-              <Text>Include: </Text>
-              <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
-                <ActionButton
-                  bg={past ? "gray.100" : undefined}
-                  onClick={onTogglePast}
-                  name="Past"
-                />
-                <ActionButton
-                  bg={future ? "gray.100" : undefined}
-                  onClick={onToggleFuture}
-                  name="Future"
-                />
-                <ActionButton
-                  bg={upstream ? "gray.100" : undefined}
-                  onClick={onToggleUpstream}
-                  name="Upstream"
-                />
-                <ActionButton
-                  bg={downstream ? "gray.100" : undefined}
-                  onClick={onToggleDownstream}
-                  name="Downstream"
-                />
-              </ButtonGroup>
-              <Accordion allowToggle my={3}>
-                <AccordionItem>
-                  <AccordionButton>
-                    <Box flex="1" textAlign="left">
-                      <Text as="strong" size="lg">
-                        Affected Tasks: {affectedTasks?.length || 0}
-                      </Text>
-                    </Box>
-                    <AccordionIcon />
-                  </AccordionButton>
-                  <AccordionPanel>
-                    <Box maxHeight="400px" overflowY="auto">
-                      {(affectedTasks || []).map((ti) => (
-                        <Code width="100%" key={ti} fontSize="lg">
-                          {ti}
-                        </Code>
-                      ))}
-                    </Box>
-                  </AccordionPanel>
-                </AccordionItem>
-              </Accordion>
-            </Box>
-          </ModalBody>
-          <ModalFooter justifyContent="space-between">
-            <Button colorScheme="gray" onClick={resetModal}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme={
-                (newState === "success" && "green") ||
-                (newState === "failed" && "red") ||
-                "grey"
-              }
-              isLoading={
-                isLoadingDryRun || isMarkSuccessLoading || isMarkFailedLoading
-              }
-              isDisabled={!affectedTasks?.length || !newState}
-              onClick={onMarkState}
-            >
-              Mark as {newState}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+        <Box>
+          <Text>Include: </Text>
+          <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
+            <ActionButton
+              bg={past ? "gray.100" : undefined}
+              onClick={onTogglePast}
+              name="Past"
+            />
+            <ActionButton
+              bg={future ? "gray.100" : undefined}
+              onClick={onToggleFuture}
+              name="Future"
+            />
+            <ActionButton
+              bg={upstream ? "gray.100" : undefined}
+              onClick={onToggleUpstream}
+              name="Upstream"
+            />
+            <ActionButton
+              bg={downstream ? "gray.100" : undefined}
+              onClick={onToggleDownstream}
+              name="Downstream"
+            />
+          </ButtonGroup>
+        </Box>
+      </ActionModal>
     </>
   );
 };

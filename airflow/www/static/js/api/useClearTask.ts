@@ -63,7 +63,7 @@ export default function useClearTask({
       recursive: boolean;
       failed: boolean;
       confirmed: boolean;
-      mapIndexes: number[];
+      mapIndexes?: number[];
     }) => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,

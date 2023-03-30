@@ -25,7 +25,7 @@ const titleMap = {
   future: "Also include future task instances when clearing this one",
   upstream: "Also include upstream dependencies",
   downstream: "Also include downstream dependencies",
-  recursive: "",
+  recursive: "Include subdags and parent dags",
   failed: "Only consider failed task instances when clearing this one",
 };
 

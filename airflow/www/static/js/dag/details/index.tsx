@@ -48,8 +48,8 @@ import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
 import FilterTasks from "./FilterTasks";
 import ClearRun from "./dagRun/ClearRun";
 import MarkRunAs from "./dagRun/MarkRunAs";
-import ClearInstance from "./taskInstance/ClearInstance";
-import MarkInstanceAs from "./taskInstance/MarkInstanceAs";
+import ClearInstance from "./taskInstance/taskActions/ClearInstance";
+import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -167,8 +167,8 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 runId={runId}
                 executionDate={run?.executionDate || ""}
                 isGroup={isGroup}
-                isSubDag={group?.operator === "SubDagOperator"}
-                mapIndex={instance?.mapIndex}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
                 mr={2}
               />
               {!isGroup && (
@@ -176,6 +176,8 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                   taskId={taskId}
                   runId={runId}
                   state={instance?.state}
+                  isMapped={isMapped}
+                  mapIndex={mapIndex}
                   mr={2}
                 />
               )}

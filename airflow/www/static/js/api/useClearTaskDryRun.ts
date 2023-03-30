@@ -50,7 +50,7 @@ export default function useClearTaskDryRun({
   downstream: boolean;
   recursive: boolean;
   failed: boolean;
-  mapIndexes: number[];
+  mapIndexes?: number[];
 }) {
   return useQuery(
     [
