@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models.mappedoperator import MappedOperator
-
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
@@ -76,30 +74,6 @@ class SetupTeardownContext:
     @classmethod
     def get_context_managed_teardown_task(cls) -> Operator | None:
         return cls._context_managed_teardown_task
-
-    @classmethod
-    def connect_setup_upstream(cls, operator):
-        if (
-            cls.active
-            and not isinstance(operator, MappedOperator)
-            and not (operator._is_setup or operator._is_teardown)
-        ):
-            if not operator.upstream_list:
-                setup_task = cls.get_context_managed_setup_task()
-                if setup_task:
-                    setup_task.set_downstream(operator)
-
-    @classmethod
-    def connect_teardown_downstream(cls, operator):
-        if (
-            cls.active
-            and not isinstance(operator, MappedOperator)
-            and not (operator._is_setup or operator._is_teardown)
-        ):
-            if not operator.upstream_list:
-                teardown_task = cls.get_context_managed_teardown_task()
-                if teardown_task:
-                    teardown_task.set_upstream(operator)
 
     @classmethod
     def push_setup_teardown_task(cls, operator):

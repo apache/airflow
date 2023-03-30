@@ -139,7 +139,6 @@ class XComArg(ResolveMixin, DependencyMixin):
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
         for operator, _ in self.iter_references():
-            SetupTeardownContext.connect_teardown_downstream(operator)
             operator.set_upstream(task_or_task_list, edge_modifier)
 
     def set_downstream(
@@ -149,7 +148,6 @@ class XComArg(ResolveMixin, DependencyMixin):
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         for operator, _ in self.iter_references():
-            SetupTeardownContext.connect_setup_upstream(operator)
             operator.set_downstream(task_or_task_list, edge_modifier)
 
     def _serialize(self) -> dict[str, Any]:
