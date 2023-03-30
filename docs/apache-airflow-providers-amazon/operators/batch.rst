@@ -38,6 +38,7 @@ Submit a new AWS Batch job
 ==========================
 
 To submit a new AWS Batch job and monitor it until it reaches a terminal state you can
+also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 use :class:`~airflow.providers.amazon.aws.operators.batch.BatchOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_batch.py
