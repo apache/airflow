@@ -25,8 +25,8 @@ import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
-import pyarrow as pa
-import pyarrow.parquet as pq
+from pyarrow import Table, schema as pa_schema, string as pa_string
+from pyarrow.parquet import ParquetWriter
 import unicodecsv as csv
 
 from airflow.models import BaseOperator
@@ -290,7 +290,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 row_pydic = {col: [value] for col, value in zip(schema, row)}
-                tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
+                tbl = Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
                 row = self.convert_types(schema, col_type_dict, row)
@@ -362,28 +362,30 @@ class BaseSQLToGCSOperator(BaseOperator):
         return csv_writer
 
     def _configure_parquet_file(self, file_handle, parquet_schema):
-        parquet_writer = pq.ParquetWriter(file_handle.name, parquet_schema)
+        parquet_writer = ParquetWriter(file_handle.name, parquet_schema)
         return parquet_writer
 
     def _convert_parquet_schema(self, cursor):
+        from pyarrow import int64, float64, bool_, string, binaty, date32, date64, timestamp
+
         type_map = {
-            "INTEGER": pa.int64(),
-            "FLOAT": pa.float64(),
-            "NUMERIC": pa.float64(),
-            "BIGNUMERIC": pa.float64(),
-            "BOOL": pa.bool_(),
-            "STRING": pa.string(),
-            "BYTES": pa.binary(),
-            "DATE": pa.date32(),
-            "DATETIME": pa.date64(),
-            "TIMESTAMP": pa.timestamp("s"),
+            "INTEGER": int64(),
+            "FLOAT": float64(),
+            "NUMERIC": float64(),
+            "BIGNUMERIC": float64(),
+            "BOOL": bool_(),
+            "STRING": string(),
+            "BYTES": binary(),
+            "DATE": date32(),
+            "DATETIME": date64(),
+            "TIMESTAMP": timestamp("s"),
         }
 
         columns = [field[0] for field in cursor.description]
         bq_fields = [self.field_to_bigquery(field) for field in cursor.description]
         bq_types = [bq_field.get("type") if bq_field is not None else None for bq_field in bq_fields]
-        pq_types = [type_map.get(bq_type, pa.string()) for bq_type in bq_types]
-        parquet_schema = pa.schema(zip(columns, pq_types))
+        pq_types = [type_map.get(bq_type, pa_string()) for bq_type in bq_types]
+        parquet_schema = pa_schema(zip(columns, pq_types))
         return parquet_schema
 
     @abc.abstractmethod
