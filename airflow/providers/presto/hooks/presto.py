@@ -30,7 +30,7 @@ from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
-
+from pandas import DataFrame
 
 def generate_presto_client_info() -> str:
     """Return json string with dag_id, task_id, execution_date and try_number"""
@@ -153,9 +153,7 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        import pandas
-
+    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs) -> DataFrame:
         cursor = self.get_cursor()
         try:
             cursor.execute(self.strip_sql_string(sql), parameters)
@@ -164,10 +162,10 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data, **kwargs)
+            df = DataFrame(data, **kwargs)
             df.columns = [c[0] for c in column_descriptions]
         else:
-            df = pandas.DataFrame(**kwargs)
+            df = DataFrame(**kwargs)
         return df
 
     def run(

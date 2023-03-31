@@ -29,7 +29,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Iterable, Mapping
 
 try:
-    import pandas
+    from pandas import DataFrame
 except ImportError as e:
     from airflow.exceptions import AirflowOptionalProviderFeatureException
 
@@ -333,7 +333,7 @@ class HiveCliHook(BaseHook):
 
     def load_df(
         self,
-        df: pandas.DataFrame,
+        df: DataFrame,
         table: str,
         field_dict: dict[Any, Any] | None = None,
         delimiter: str = ",",
@@ -358,7 +358,7 @@ class HiveCliHook(BaseHook):
         :param kwargs: passed to self.load_file
         """
 
-        def _infer_field_types_from_df(df: pandas.DataFrame) -> dict[Any, Any]:
+        def _infer_field_types_from_df(df: DataFrame) -> dict[Any, Any]:
             dtype_kind_hive_type = {
                 "b": "BOOLEAN",  # boolean
                 "i": "BIGINT",  # signed integer
@@ -1033,14 +1033,14 @@ class HiveServer2Hook(DbApiHook):
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
-    ) -> pandas.DataFrame:
+    ) -> DataFrame:
         """
         Get a pandas dataframe from a Hive query
 
         :param sql: hql to be executed.
         :param schema: target schema, default to 'default'.
         :param hive_conf: hive_conf to execute alone with the hql.
-        :param kwargs: (optional) passed into pandas.DataFrame constructor
+        :param kwargs: (optional) passed into DataFrame constructor
         :return: result of hive execution
 
         >>> hh = HiveServer2Hook()
@@ -1049,8 +1049,8 @@ class HiveServer2Hook(DbApiHook):
         >>> len(df.index)
         100
 
-        :return: pandas.DateFrame
+        :return: DateFrame
         """
         res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
-        df = pandas.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
+        df = DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df

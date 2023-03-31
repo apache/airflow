@@ -20,7 +20,7 @@ from __future__ import annotations
 from contextlib import closing
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
-import pandas as pd
+from pandas import DataFrame
 import pyexasol
 from pyexasol import ExaConnection, ExaStatement
 
@@ -65,7 +65,7 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
+    def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> DataFrame:
         """
         Executes the sql and returns a pandas dataframe
 

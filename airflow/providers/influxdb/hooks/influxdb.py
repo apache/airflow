@@ -24,7 +24,7 @@ This module allows to connect to a InfluxDB database.
 """
 from __future__ import annotations
 
-import pandas as pd
+from pandas import DataFrame
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxTable
 from influxdb_client.client.write.point import Point
@@ -108,7 +108,7 @@ class InfluxDBHook(BaseHook):
         query_api = client.query_api()
         return query_api.query(query)
 
-    def query_to_df(self, query) -> pd.DataFrame:
+    def query_to_df(self, query) -> DataFrame:
         """
         Function to run the query and
         return a pandas dataframe
@@ -116,7 +116,7 @@ class InfluxDBHook(BaseHook):
         should be included in the query
 
         :param query: InfluxDB query
-        :return: pd.DataFrame
+        :return: DataFrame
         """
         client = self.get_conn()
 

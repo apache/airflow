@@ -28,7 +28,8 @@ import logging
 import time
 from typing import Any, Iterable
 
-import pandas as pd
+from pandas import DataFrame, Series, to_datetime
+from numpy import NaN
 from requests import Session
 from simple_salesforce import Salesforce, api
 
@@ -223,7 +224,7 @@ class SalesforceHook(BaseHook):
         return self.make_query(query)
 
     @classmethod
-    def _to_timestamp(cls, column: pd.Series) -> pd.Series:
+    def _to_timestamp(cls, column: Series) -> Series:
         """
         Convert a column of a dataframe to UNIX timestamps if applicable
 
@@ -240,7 +241,7 @@ class SalesforceHook(BaseHook):
         # if the column cannot be converted,
         # just return the original column untouched
         try:
-            column = pd.to_datetime(column)
+            column = to_datetime(column)
         except ValueError:
             log.error("Could not convert field to timestamps: %s", column.name)
             return column
@@ -254,9 +255,9 @@ class SalesforceHook(BaseHook):
             try:
                 converted.append(value.timestamp())
             except (ValueError, AttributeError):
-                converted.append(pd.np.NaN)
+                converted.append(NaN)
 
-        return pd.Series(converted, index=column.index)
+        return Series(converted, index=column.index)
 
     def write_object_to_file(
         self,
@@ -265,7 +266,7 @@ class SalesforceHook(BaseHook):
         fmt: str = "csv",
         coerce_to_timestamp: bool = False,
         record_time_added: bool = False,
-    ) -> pd.DataFrame:
+    ) -> DataFrame:
         """
         Write query results to file.
 
@@ -337,7 +338,7 @@ class SalesforceHook(BaseHook):
 
     def object_to_df(
         self, query_results: list[dict], coerce_to_timestamp: bool = False, record_time_added: bool = False
-    ) -> pd.DataFrame:
+    ) -> DataFrame:
         """
         Export query results to dataframe.
 
@@ -358,7 +359,7 @@ class SalesforceHook(BaseHook):
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column
         # we should write all of our timestamps as FLOATS in our final schema
-        df = pd.DataFrame.from_records(query_results, exclude=["attributes"])
+        df = DataFrame.from_records(query_results, exclude=["attributes"])
 
         df.columns = [column.lower() for column in df.columns]
 

@@ -30,6 +30,7 @@ from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+from pandas import DataFrame
 
 
 def generate_trino_client_info() -> str:
@@ -168,9 +169,7 @@ class TrinoHook(DbApiHook):
 
     def get_pandas_df(
         self, sql: str = "", parameters: Iterable | Mapping | None = None, **kwargs
-    ):  # type: ignore[override]
-        import pandas
-
+    ) -> DataFrame:  # type: ignore[override]
         cursor = self.get_cursor()
         try:
             cursor.execute(self.strip_sql_string(sql), parameters)
@@ -179,10 +178,10 @@ class TrinoHook(DbApiHook):
             raise TrinoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data, **kwargs)
+            df = DataFrame(data, **kwargs)
             df.columns = [c[0] for c in column_descriptions]
         else:
-            df = pandas.DataFrame(**kwargs)
+            df = DataFrame(**kwargs)
         return df
 
     def run(
