@@ -265,7 +265,14 @@ If release name contains chart name it will be used as a full name.
 
 # This helper is used for airflow containers that do not need the users code.
 {{ define "default_airflow_image" -}}
-{{ printf "%s:%s" .Values.defaultAirflowRepository .Values.defaultAirflowTag }}
+{{- $repository := .Values.defaultAirflowRepository -}}
+{{- $tag := .Values.defaultAirflowTag -}}
+{{- $digest := .Values.defaultAirflowDigest -}}
+{{- if $digest }}
+{{- printf "%s@%s" $repository $digest -}}
+{{- else }}
+{{- printf "%s:%s" $repository $tag -}}
+{{- end }}
 {{- end }}
 
 {{ define "airflow_image_for_migrations" -}}
