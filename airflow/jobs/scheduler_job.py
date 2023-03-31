@@ -29,7 +29,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
+from typing import TYPE_CHECKING, Any, Collection, DefaultDict, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -84,14 +84,24 @@ DR = DagRun
 DM = DagModel
 
 
+def default_int_dict() -> DefaultDict[Any, int]:
+    return defaultdict(int)
+
+
 @dataclass
 class ConcurrencyMap:
-    """Dataclass to represent concurrency maps"""
+    """
+    Dataclass to represent concurrency maps
 
-    dag_active_tasks_map: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
-    task_concurrency_map: DefaultDict[tuple[str, str], int] = field(default_factory=lambda: defaultdict(int))
+    It contains a map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
+    to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
+    to # of task instances in the given state list in each DAG run.
+    """
+
+    dag_active_tasks_map: DefaultDict[str, int] = field(default_factory=default_int_dict)
+    task_concurrency_map: DefaultDict[tuple[str, str], int] = field(default_factory=default_int_dict)
     task_dagrun_concurrency_map: DefaultDict[tuple[str, str, str], int] = field(
-        default_factory=lambda: defaultdict(int)
+        default_factory=default_int_dict
     )
 
 
@@ -236,9 +246,7 @@ class SchedulerJob(BaseJob):
         Get the concurrency maps.
 
         :param states: List of states to query for
-        :return: A map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
-         to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
-         to # of task instances in the given state list in the each DAG run
+        :return: Concurrency map
         """
         ti_concurrency_query: list[tuple[str, str, str, int]] = (
             session.query(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
