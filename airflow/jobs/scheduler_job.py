@@ -104,6 +104,14 @@ class ConcurrencyMap:
         default_factory=default_int_dict
     )
 
+    @classmethod
+    def from_concurrency_map(cls, mapping: dict[tuple[str, str, str], int]) -> ConcurrencyMap:
+        instance = cls(task_dagrun_concurrency_map=defaultdict(int, mapping))
+        for (d, r, t), c in mapping.items():
+            instance.dag_active_tasks_map[d] += c
+            instance.task_concurrency_map[(d, t)] += c
+        return instance
+
 
 def _is_parent_process() -> bool:
     """
@@ -253,13 +261,9 @@ class SchedulerJob(BaseJob):
             .filter(TI.state.in_(states))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         ).all()
-        concurrency_map = ConcurrencyMap()
-        for result in ti_concurrency_query:
-            task_id, run_id, dag_id, count = result
-            concurrency_map.dag_active_tasks_map[dag_id] += count
-            concurrency_map.task_concurrency_map[(dag_id, task_id)] += count
-            concurrency_map.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] = count
-        return concurrency_map
+        return ConcurrencyMap.from_concurrency_map(
+            {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
+        )
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
