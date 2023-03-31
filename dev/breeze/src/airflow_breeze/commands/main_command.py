@@ -26,7 +26,7 @@ from click import Context
 
 from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.production_image_commands import prod_image
-from airflow_breeze.commands.testing_commands import testing
+from airflow_breeze.commands.testing_commands import group_for_testing
 from airflow_breeze.configure_rich_click import click
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
@@ -74,7 +74,7 @@ class MainGroupWithAliases(BreezeGroup):
             return prod_image.get_command(ctx, "build")
         if cmd_name == "tests":
             print_deprecated("tests", "testing tests")
-            return testing.get_command(ctx, "tests")
+            return group_for_testing.get_command(ctx, "tests")
         if cmd_name == "config":
             print_deprecated("config", "setup config")
             return setup.get_command(ctx, "config")

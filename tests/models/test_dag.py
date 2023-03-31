@@ -24,6 +24,7 @@ import os
 import pickle
 import re
 import sys
+import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
@@ -62,7 +63,12 @@ from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import (
+    ContinuousTimetable,
+    DatasetTriggeredTimetable,
+    NullTimetable,
+    OnceTimetable,
+)
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
@@ -1381,7 +1387,7 @@ class TestDag:
         assert dag.task_dict == {op1.task_id: op1, op3.task_id: op3}
         assert dag.task_dict == {op2.task_id: op2, op3.task_id: op3}
 
-    def test_sub_dag_updates_all_references_while_deepcopy(self):
+    def test_partial_subset_updates_all_references_while_deepcopy(self):
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
             op1 = EmptyOperator(task_id="t1")
             op2 = EmptyOperator(task_id="t2")
@@ -1389,11 +1395,37 @@ class TestDag:
             op1 >> op2
             op2 >> op3
 
-        sub_dag = dag.partial_subset("t2", include_upstream=True, include_downstream=False)
-        assert id(sub_dag.task_dict["t1"].downstream_list[0].dag) == id(sub_dag)
+        partial = dag.partial_subset("t2", include_upstream=True, include_downstream=False)
+        assert id(partial.task_dict["t1"].downstream_list[0].dag) == id(partial)
 
         # Copied DAG should not include unused task IDs in used_group_ids
-        assert "t3" not in sub_dag._task_group.used_group_ids
+        assert "t3" not in partial.task_group.used_group_ids
+
+    def test_partial_subset_taskgroup_join_ids(self):
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            start = EmptyOperator(task_id="start")
+            with TaskGroup(group_id="outer", prefix_group_id=False) as outer_group:
+                with TaskGroup(group_id="tg1", prefix_group_id=False) as tg1:
+                    EmptyOperator(task_id="t1")
+                with TaskGroup(group_id="tg2", prefix_group_id=False) as tg2:
+                    EmptyOperator(task_id="t2")
+
+                start >> tg1 >> tg2
+
+        # Pre-condition checks
+        task = dag.get_task("t2")
+        assert task.task_group.upstream_group_ids == {"tg1"}
+        assert isinstance(task.task_group.parent_group, weakref.ProxyType)
+        assert task.task_group.parent_group == outer_group
+
+        partial = dag.partial_subset(["t2"], include_upstream=True, include_downstream=False)
+        copied_task = partial.get_task("t2")
+        assert copied_task.task_group.upstream_group_ids == {"tg1"}
+        assert isinstance(copied_task.task_group.parent_group, weakref.ProxyType)
+        assert copied_task.task_group.parent_group
+
+        # Make sure we don't affect the original!
+        assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
 
     def test_schedule_dag_no_previous_runs(self):
         """
@@ -2379,6 +2411,21 @@ my_postgres_conn:
         with pytest.raises(ValueError, match="At most one"):
             with DAG(dag_id="hello", **kwargs):
                 pass
+
+    def test_continuous_schedule_interval_limits_max_active_runs(self):
+
+        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=1)
+        assert isinstance(dag.timetable, ContinuousTimetable)
+        assert dag.max_active_runs == 1
+
+        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=0)
+        assert isinstance(dag.timetable, ContinuousTimetable)
+        assert dag.max_active_runs == 0
+
+        with pytest.raises(AirflowException):
+            dag = DAG(
+                "continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=25
+            )
 
 
 class TestDagModel:

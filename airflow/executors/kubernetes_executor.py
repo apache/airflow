@@ -781,7 +781,7 @@ class KubernetesExecutor(BaseExecutor):
             namespace = pod_override.metadata.namespace
         return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
 
-    def get_task_log(self, ti: TaskInstance) -> tuple[list[str], list[str]]:
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         messages = []
         log = []
         try:
@@ -794,7 +794,7 @@ class KubernetesExecutor(BaseExecutor):
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
-                try_number=ti.try_number,
+                try_number=try_number,
                 map_index=ti.map_index,
                 run_id=ti.run_id,
                 airflow_worker=ti.queued_by_job_id,
