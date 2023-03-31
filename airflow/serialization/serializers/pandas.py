@@ -28,16 +28,18 @@ serializers = [
 deserializers = serializers
 
 if TYPE_CHECKING:
-    from airflow.serialization.serde import U
     from pandas import DataFrame
+
+    from airflow.serialization.serde import U
 
 __version__ = 1
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
     import pyarrow as pa
-    from pyarrow import parquet as pq
+
     from pandas import DataFrame
+    from pyarrow import parquet as pq
 
     if not isinstance(o, DataFrame):
         return "", "", 0, False
@@ -57,8 +59,12 @@ def deserialize(classname: str, version: int, data: object) -> DataFrame:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
 
     import io
+
     from pyarrow import parquet as pq
 
+    if not isinstance(data, str):
+        raise TypeError(f"serialized {classname} has wrong data type {type(data)}")
+    
     buf = io.BytesIO(bytes.fromhex(data))
     df = pq.read_table(buf).to_pandas()
 
