@@ -597,10 +597,11 @@ class DagRun(Base, LoggingMixin):
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
-        # modify if setup/teardown is available for mapped task
-        teardown_tis = [
-            ti for ti in leaf_tis if not isinstance(ti.task, MappedOperator) and ti.task._is_teardown
-        ]
+        # TODO: Remove isintance(.., MappedOperator) if setup/teardown is available for mapped task
+        teardown_tasks_ids = {
+            t.task_id for t in dag.tasks if not isinstance(t, MappedOperator) and t._is_teardown
+        }
+        teardown_tis = [ti for ti in tis if ti.task_id in teardown_tasks_ids]
         leaf_tis = list(set(leaf_tis) - set(teardown_tis))
         include_on_failure = [
             ti

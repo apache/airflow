@@ -2316,9 +2316,9 @@ def test_dagrun_with_note(dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    "dag_run_state, on_failure_fail_dagrun", [[State.SUCCESS, False], [State.FAILED, True]]
+    "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
 )
-def test_teardown_faile_behaviour_on_dagrun(dag_maker, session, dag_run_state, on_failure_fail_dagrun):
+def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state, on_failure_fail_dagrun):
     with dag_maker():
 
         @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
@@ -2332,12 +2332,51 @@ def test_teardown_faile_behaviour_on_dagrun(dag_maker, session, dag_run_state, o
         mytask() >> teardowntask()
 
     dr = dag_maker.create_dagrun()
-    mytask_it = dr.get_task_instance(task_id="mytask")
-    teardown_ti = dr.get_task_instance(task_id="teardowntask")
-    mytask_it.state = State.SUCCESS
-    teardown_ti.state = State.FAILED
-    session.merge(mytask_it)
-    session.merge(teardown_ti)
+    ti1 = dr.get_task_instance(task_id="mytask")
+    td1 = dr.get_task_instance(task_id="teardowntask")
+    ti1.state = State.SUCCESS
+    td1.state = State.FAILED
+    session.merge(ti1)
+    session.merge(td1)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    dr = session.query(DagRun).one()
+    assert dr.state == dag_run_state
+
+
+@pytest.mark.parametrize(
+    "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
+)
+def test_teardown_failure_on_non_leave_behaviour_on_dagrun(
+    dag_maker, session, dag_run_state, on_failure_fail_dagrun
+):
+    with dag_maker():
+
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        def teardowntask():
+            print(1)
+
+        @teardown
+        def teardowntask2():
+            print(1)
+
+        @task
+        def mytask():
+            print(1)
+
+        mytask() >> teardowntask() >> teardowntask2()
+
+    dr = dag_maker.create_dagrun()
+    ti1 = dr.get_task_instance(task_id="mytask")
+    td1 = dr.get_task_instance(task_id="teardowntask")
+    td2 = dr.get_task_instance(task_id="teardowntask2")
+    ti1.state = State.SUCCESS
+    td1.state = State.FAILED
+    td2.state = State.FAILED
+    session.merge(ti1)
+    session.merge(td1)
+    session.merge(td2)
     session.flush()
     dr.update_state()
     session.flush()
