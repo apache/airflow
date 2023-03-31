@@ -21,7 +21,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor
+from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobAsyncSensor, WasbBlobSensor
 from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 
 # Ignore missing args provided by default_args
@@ -46,6 +46,8 @@ with DAG(
 
     wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")
 
+    wait_for_blob_async = WasbBlobAsyncSensor(task_id="wait_for_blob_async")
+
     transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
         task_id="transfer_files_to_gcs",
         # AZURE arg
@@ -60,7 +62,7 @@ with DAG(
     )
     # [END how_to_azure_blob_to_gcs]
 
-    wait_for_blob >> transfer_files_to_gcs
+    wait_for_blob >> wait_for_blob_async >> transfer_files_to_gcs
 
     from tests.system.utils.watcher import watcher
 
