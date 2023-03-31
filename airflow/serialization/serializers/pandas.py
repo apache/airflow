@@ -37,7 +37,6 @@ __version__ = 1
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
     import pyarrow as pa
-
     from pandas import DataFrame
     from pyarrow import parquet as pq
 
@@ -64,7 +63,7 @@ def deserialize(classname: str, version: int, data: object) -> DataFrame:
 
     if not isinstance(data, str):
         raise TypeError(f"serialized {classname} has wrong data type {type(data)}")
-    
+
     buf = io.BytesIO(bytes.fromhex(data))
     df = pq.read_table(buf).to_pandas()
 
