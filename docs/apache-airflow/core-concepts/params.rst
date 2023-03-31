@@ -44,7 +44,7 @@ Use a dictionary that maps Param names to either a :class:`~airflow.models.param
         "the_dag",
         params={
             "x": Param(5, type="integer", minimum=3),
-            "y": 6
+            "my_int_param": 6
         },
     ):
 
@@ -55,10 +55,13 @@ You can also add Params to individual tasks.
 
 .. code-block::
 
+    def print_my_int_param(params):
+      print(params.my_int_param)
+
     PythonOperator(
-        task_id="print_x",
-        params={"x": 10},
-        python_callable=print_it,
+        task_id="print_my_int_param",
+        params={"my_int_param": 10},
+        python_callable=print_my_int_param,
     )
 
 Task-level params take precedence over DAG-level params, and user-supplied params (when triggering the DAG)
@@ -75,10 +78,10 @@ Params can be referenced in :ref:`templated strings <templates-ref>` under ``par
     PythonOperator(
         task_id="from_template",
         op_args=[
-            "{{ params.int_param + 10 }}",
+            "{{ params.my_int_param + 10 }}",
         ],
         python_callable=(
-            lambda x: print(x)
+            lambda my_int_param: print(my_int_param)
         ),
     )
 
@@ -90,7 +93,7 @@ You can change this by setting ``render_template_as_native_obj=True`` while init
 
     with DAG(
         "the_dag",
-        params={"x": Param(5, type="integer", minimum=3)},
+        params={"my_int_param": Param(5, type="integer", minimum=3)},
         render_template_as_native_obj=True
     ):
 
@@ -104,10 +107,10 @@ This way, the Param's type is respected when it's provided to your task:
     PythonOperator(
         task_id="template_type",
         op_args=[
-            "{{ params.int_param }}",
+            "{{ params.my_int_param }}",
         ],
         python_callable=(
-            lambda x: print(type(x))
+            lambda my_int_param: print(type(my_int_param))
         ),
     )
 
@@ -117,11 +120,11 @@ Another way to access your param is via a task's ``context`` kwarg.
    :emphasize-lines: 1,2
 
     def print_x(**context):
-        print(context["params"]["x"])
+        print(context["params"]["my_int_param"])
 
     PythonOperator(
-        task_id="print_x",
-        python_callable=print_x,
+        task_id="print_my_int_param",
+        python_callable=print_my_int_param,
     )
 
 JSON Schema Validation
@@ -135,7 +138,7 @@ JSON Schema Validation
         "my_dag",
         params={
             # an int with a default value
-            "int_param": Param(10, type="integer", minimum=0, maximum=20),
+            "my_int_param": Param(10, type="integer", minimum=0, maximum=20),
 
             # a required param which can be of multiple types
             # a param must have a default value
