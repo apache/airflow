@@ -46,6 +46,7 @@ from google.cloud.bigquery import (
     SchemaField,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery.job.base import UnknownJob
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
@@ -313,7 +314,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         view: dict | None = None,
         materialized_view: dict | None = None,
         encryption_configuration: dict | None = None,
-        retry: Retry | None = DEFAULT_RETRY,
+        retry: Retry = DEFAULT_RETRY,
         location: str | None = None,
         exists_ok: bool = True,
     ) -> Table:
@@ -1041,7 +1042,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return datasets_list
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_dataset(self, dataset_id: str, project_id: str | None = None) -> Dataset:
+    def get_dataset(self, dataset_id: str, project_id: str | None = None) -> Any:
         """
         Fetch the dataset referenced by dataset_id.
 
@@ -1227,7 +1228,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         table_id: str,
         max_results: int | None = None,
-        selected_fields: list[str] | str | None = None,
+        selected_fields: list[str] | list[SchemaField] | str | None = None,
         page_token: str | None = None,
         start_index: int | None = None,
         project_id: str | None = None,
@@ -1250,13 +1251,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return: list of rows
         """
         location = location or self.location
-        if isinstance(selected_fields, str):
+        if selected_fields and isinstance(selected_fields, str):
             selected_fields = selected_fields.split(",")
 
+        selected_fields_list: list[SchemaField] | None = None
+
         if selected_fields:
-            selected_fields = [SchemaField(n, "") for n in selected_fields]
-        else:
-            selected_fields = None
+            selected_fields_list = [SchemaField(n, "") if isinstance(n, str) else n for n in selected_fields]
 
         table = self._resolve_table_reference(
             table_resource={},
@@ -1267,7 +1268,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         result = self.get_client(project_id=project_id, location=location).list_rows(
             table=Table.from_api_repr(table),
-            selected_fields=selected_fields,
+            selected_fields=selected_fields_list,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
@@ -1460,7 +1461,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(
         self,
-        job_id: str | None = None,
+        job_id: str,
         project_id: str | None = None,
         location: str | None = None,
     ) -> CopyJob | QueryJob | LoadJob | ExtractJob:
@@ -1470,12 +1471,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
             numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
-            characters. If not provided then uuid will be generated.
+            characters.
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         """
         client = self.get_client(project_id=project_id, location=location)
         job = client.get_job(job_id=job_id, project=project_id, location=location)
+        if isinstance(job, UnknownJob):
+            raise Exception("Unknown job type: " + str(job))
         return job
 
     @staticmethod
@@ -1486,6 +1489,20 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             (datetime.now() - datetime.fromtimestamp(0)) / timedelta(microseconds=1)
         )
         return f"airflow_{microseconds_from_epoch}_{uniqueness_suffix}"
+
+    @staticmethod
+    def _get_job_type(configuration: Iterable[str]) -> type[LoadJob | CopyJob | ExtractJob | QueryJob]:
+        supported_jobs: dict[str, type[LoadJob | CopyJob | ExtractJob | QueryJob]] = {
+            LoadJob._JOB_TYPE: LoadJob,
+            CopyJob._JOB_TYPE: CopyJob,
+            ExtractJob._JOB_TYPE: ExtractJob,
+            QueryJob._JOB_TYPE: QueryJob,
+        }
+
+        for job_type_str, job_type in supported_jobs.items():
+            if job_type_str in configuration:
+                return job_type
+        raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_job(
@@ -1527,22 +1544,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "jobReference": {"jobId": job_id, "projectId": project_id, "location": location},
         }
 
-        supported_jobs = {
-            LoadJob._JOB_TYPE: LoadJob,
-            CopyJob._JOB_TYPE: CopyJob,
-            ExtractJob._JOB_TYPE: ExtractJob,
-            QueryJob._JOB_TYPE: QueryJob,
-        }
-
-        job = None
-        for job_type, job_object in supported_jobs.items():
-            if job_type in configuration:
-                job = job_object
-                break
-
-        if not job:
-            raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
-        job = job.from_api_repr(job_data, client)
+        job_type = self._get_job_type(configuration)
+        job = job_type.from_api_repr(job_data, client)
         self.log.info("Inserting job %s", job.job_id)
         if nowait:
             # Initiate the job and don't wait for it to complete.
@@ -2468,7 +2471,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_datasets_list(*args, **kwargs)
 
-    def get_dataset(self, *args, **kwargs) -> dict:
+    def get_dataset(self, *args, **kwargs) -> Dataset:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`
@@ -2612,7 +2615,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.run_copy(*args, **kwargs)
 
-    def run_extract(self, *args, **kwargs) -> str:
+    def run_extract(self, *args, **kwargs) -> str | CopyJob | QueryJob | LoadJob | ExtractJob:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract`

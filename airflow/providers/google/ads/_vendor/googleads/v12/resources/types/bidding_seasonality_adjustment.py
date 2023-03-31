@@ -15,10 +15,10 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import advertising_channel_type
-from google.ads.googleads.v12.enums.types import device
-from google.ads.googleads.v12.enums.types import seasonality_event_scope
-from google.ads.googleads.v12.enums.types import seasonality_event_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import advertising_channel_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import seasonality_event_scope
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import seasonality_event_status
 
 
 __protobuf__ = proto.module(

@@ -386,7 +386,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
             try:
                 self.log.info("Executing: %s", self.configuration)
-                job = self._submit_job(self.hook, job_id)
+                job: CopyJob | QueryJob | LoadJob | ExtractJob = self._submit_job(self.hook, job_id)
             except Conflict:
                 # If the job already exists retrieve it
                 job = self.hook.get_job(

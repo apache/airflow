@@ -315,12 +315,12 @@ class StackdriverTaskHandler(logging.Handler):
         )
         response = self._logging_service_client.list_log_entries(request=request)
         page: ListLogEntriesResponse = next(response.pages)
-        messages = []
+        messages: list[str] = []
         for entry in page.entries:
             if "message" in (entry.json_payload or {}):
-                messages.append(entry.json_payload["message"])
+                messages.append(str(entry.json_payload["message"]))
             elif entry.text_payload:
-                messages.append(entry.text_payload)
+                messages.append(str(entry.text_payloa))
         return "\n".join(messages), page.next_page_token
 
     @classmethod

@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.enums.types import campaign_criterion_status
-from google.ads.googleads.v12.enums.types import criterion_type
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import campaign_criterion_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import criterion_type
 
 
 __protobuf__ = proto.module(

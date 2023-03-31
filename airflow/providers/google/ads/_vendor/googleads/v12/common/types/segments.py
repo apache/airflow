@@ -15,80 +15,80 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     ad_destination_type as gage_ad_destination_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     ad_network_type as gage_ad_network_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     budget_campaign_association_status as gage_budget_campaign_association_status,
 )
-from google.ads.googleads.v12.enums.types import click_type as gage_click_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import click_type as gage_click_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     conversion_action_category as gage_conversion_action_category,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     conversion_attribution_event_type as gage_conversion_attribution_event_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     conversion_lag_bucket as gage_conversion_lag_bucket,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     conversion_or_adjustment_lag_bucket as gage_conversion_or_adjustment_lag_bucket,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     conversion_value_rule_primary_dimension as gage_conversion_value_rule_primary_dimension,
 )
-from google.ads.googleads.v12.enums.types import day_of_week as gage_day_of_week
-from google.ads.googleads.v12.enums.types import device as gage_device
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import day_of_week as gage_day_of_week
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import device as gage_device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     external_conversion_source as gage_external_conversion_source,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     hotel_date_selection_type as gage_hotel_date_selection_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     hotel_price_bucket as gage_hotel_price_bucket,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     hotel_rate_type as gage_hotel_rate_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     month_of_year as gage_month_of_year,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     placeholder_type as gage_placeholder_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     product_channel as gage_product_channel,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     product_channel_exclusivity as gage_product_channel_exclusivity,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     product_condition as gage_product_condition,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     recommendation_type as gage_recommendation_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     search_engine_results_page_type as gage_search_engine_results_page_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     search_term_match_type as gage_search_term_match_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     sk_ad_network_ad_event_type as gage_sk_ad_network_ad_event_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     sk_ad_network_attribution_credit as gage_sk_ad_network_attribution_credit,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     sk_ad_network_user_type as gage_sk_ad_network_user_type,
 )
-from google.ads.googleads.v12.enums.types import slot as gage_slot
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import slot as gage_slot
 
 
 __protobuf__ = proto.module(

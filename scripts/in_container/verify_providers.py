@@ -138,6 +138,7 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
     ("'urllib3.contrib.pyopenssl' module is deprecated and will be", "botocore"),
     ("'urllib3.contrib.pyopenssl' module is deprecated and will be", "requests_toolbelt"),
     ("zmq.eventloop.ioloop is deprecated in pyzmq 17.", "jupyter_client"),
+    ("Support for grpcio-gcp is deprecated.", "google"),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: set[str] = {

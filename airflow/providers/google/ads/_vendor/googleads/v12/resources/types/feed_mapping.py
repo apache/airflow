@@ -15,39 +15,39 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import ad_customizer_placeholder_field
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import ad_customizer_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     affiliate_location_placeholder_field,
 )
-from google.ads.googleads.v12.enums.types import app_placeholder_field
-from google.ads.googleads.v12.enums.types import call_placeholder_field
-from google.ads.googleads.v12.enums.types import callout_placeholder_field
-from google.ads.googleads.v12.enums.types import custom_placeholder_field
-from google.ads.googleads.v12.enums.types import dsa_page_feed_criterion_field
-from google.ads.googleads.v12.enums.types import education_placeholder_field
-from google.ads.googleads.v12.enums.types import feed_mapping_criterion_type
-from google.ads.googleads.v12.enums.types import feed_mapping_status
-from google.ads.googleads.v12.enums.types import flight_placeholder_field
-from google.ads.googleads.v12.enums.types import hotel_placeholder_field
-from google.ads.googleads.v12.enums.types import image_placeholder_field
-from google.ads.googleads.v12.enums.types import job_placeholder_field
-from google.ads.googleads.v12.enums.types import local_placeholder_field
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import app_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import call_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import callout_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import custom_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import dsa_page_feed_criterion_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import education_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_mapping_criterion_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_mapping_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import flight_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import hotel_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import image_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import job_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import local_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     location_extension_targeting_criterion_field,
 )
-from google.ads.googleads.v12.enums.types import location_placeholder_field
-from google.ads.googleads.v12.enums.types import message_placeholder_field
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import location_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import message_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     placeholder_type as gage_placeholder_type,
 )
-from google.ads.googleads.v12.enums.types import price_placeholder_field
-from google.ads.googleads.v12.enums.types import promotion_placeholder_field
-from google.ads.googleads.v12.enums.types import real_estate_placeholder_field
-from google.ads.googleads.v12.enums.types import sitelink_placeholder_field
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import price_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import promotion_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import real_estate_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import sitelink_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     structured_snippet_placeholder_field,
 )
-from google.ads.googleads.v12.enums.types import travel_placeholder_field
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import travel_placeholder_field
 
 
 __protobuf__ = proto.module(

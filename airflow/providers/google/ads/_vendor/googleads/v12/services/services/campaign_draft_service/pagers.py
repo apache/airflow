@@ -15,7 +15,7 @@
 #
 from typing import Any, Callable, Iterable, Iterator, Sequence, Tuple
 
-from google.ads.googleads.v12.services.types import campaign_draft_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_draft_service
 from google.rpc import status_pb2  # type: ignore
 
 

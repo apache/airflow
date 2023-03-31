@@ -61,6 +61,9 @@ TEST_BUILD_INSTANCE = dict(
             "secret_env": [],
             "volumes": [],
             "status": 0,
+            "allow_failure": False,
+            "exit_code": 0,
+            "allow_exit_codes": [],
             "script": "",
         }
     ],

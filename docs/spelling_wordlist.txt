@@ -637,6 +637,7 @@ Gmail
 golang
 googleads
 GoogleAdsRow
+GoogleAdsToGcsOperator
 googleapiclient
 gpu
 gpus

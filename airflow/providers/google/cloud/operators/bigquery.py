@@ -2318,12 +2318,12 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
             fields=fields,
         )
 
-        dataset = dataset.to_api_repr()
+        dataset_api = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=dataset["datasetReference"]["datasetId"],
-            project_id=dataset["datasetReference"]["projectId"],
+            dataset_id=dataset_api["datasetReference"]["datasetId"],
+            project_id=dataset_api["datasetReference"]["projectId"],
         )
         return dataset
 
@@ -2753,7 +2753,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
 
         try:
             self.log.info("Executing: %s'", self.configuration)
-            job = self._submit_job(hook, job_id)
+            job: CopyJob | QueryJob | LoadJob | ExtractJob = self._submit_job(hook, job_id)
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(

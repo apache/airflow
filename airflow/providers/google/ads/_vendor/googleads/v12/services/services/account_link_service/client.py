@@ -33,10 +33,10 @@ try:
 except AttributeError:  # pragma: NO COVER
     OptionalRetry = Union[retries.Retry, object]  # type: ignore
 
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     account_link as gagr_account_link,
 )
-from google.ads.googleads.v12.services.types import account_link_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import account_link_service
 from google.rpc import status_pb2  # type: ignore
 from .transports.base import AccountLinkServiceTransport, DEFAULT_CLIENT_INFO
 from .transports.grpc import AccountLinkServiceGrpcTransport

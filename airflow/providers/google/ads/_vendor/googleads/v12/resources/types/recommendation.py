@@ -15,14 +15,14 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.common.types import extensions
-from google.ads.googleads.v12.enums.types import keyword_match_type
-from google.ads.googleads.v12.enums.types import recommendation_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import extensions
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import keyword_match_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import recommendation_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     target_cpa_opt_in_recommendation_goal,
 )
-from google.ads.googleads.v12.resources.types import ad as gagr_ad
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import ad as gagr_ad
 
 
 __protobuf__ = proto.module(

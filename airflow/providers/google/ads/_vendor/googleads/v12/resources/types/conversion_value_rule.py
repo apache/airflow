@@ -15,12 +15,12 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import conversion_value_rule_status
-from google.ads.googleads.v12.enums.types import value_rule_device_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_value_rule_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import value_rule_device_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     value_rule_geo_location_match_type,
 )
-from google.ads.googleads.v12.enums.types import value_rule_operation
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import value_rule_operation
 
 
 __protobuf__ = proto.module(

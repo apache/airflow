@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import offline_user_data
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import offline_user_data
 
 
 __protobuf__ = proto.module(

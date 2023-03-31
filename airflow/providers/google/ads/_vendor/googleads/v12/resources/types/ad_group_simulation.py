@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import simulation
-from google.ads.googleads.v12.enums.types import simulation_modification_method
-from google.ads.googleads.v12.enums.types import simulation_type
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import simulation
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import simulation_modification_method
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import simulation_type
 
 
 __protobuf__ = proto.module(

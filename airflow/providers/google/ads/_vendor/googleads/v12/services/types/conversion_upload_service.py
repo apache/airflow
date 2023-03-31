@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import offline_user_data
-from google.ads.googleads.v12.enums.types import conversion_environment_enum
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import offline_user_data
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_environment_enum
 from google.rpc import status_pb2  # type: ignore
 
 

@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import account_link_status
-from google.ads.googleads.v12.enums.types import linked_account_type
-from google.ads.googleads.v12.enums.types import mobile_app_vendor
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import account_link_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import linked_account_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import mobile_app_vendor
 
 
 __protobuf__ = proto.module(

@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_user_access_invitation,
 )
 

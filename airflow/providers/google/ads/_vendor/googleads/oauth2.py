@@ -21,7 +21,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCreds
 from google.oauth2.credentials import Credentials as InstalledAppCredentials
 from google.auth.transport.requests import Request
 
-from google.ads.googleads import config
+from airflow.providers.google.ads._vendor.googleads import config
 
 _SERVICE_ACCOUNT_SCOPES = ["https://www.googleapis.com/auth/adwords"]
 _DEFAULT_TOKEN_URI = "https://accounts.google.com/o/oauth2/token"

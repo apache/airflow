@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import dates
-from google.ads.googleads.v12.enums.types import invoice_type
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import dates
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import invoice_type
 
 
 __protobuf__ = proto.module(

@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.12.0
   - 8.11.0
   - 8.10.0
   - 8.9.0
@@ -76,8 +77,16 @@ dependencies:
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
-  - google-ads>=15.1.1
-  - google-api-core>=2.7.0,<3.0.0
+  # needed by vendored-in google-ads
+  - googleapis-common-protos<2.0.0,>=1.56.4
+  - google-api-core<=2.11.0,>=2.10.1
+  - google-auth-oauthlib<1.0.0,>=0.3.0
+  - grpcio<2.0.0,>=1.38.1
+  - grpcio-status<2.0.0,>=1.38.1
+  - PyYAML<7.0,>=5.1
+  # Temporary commented out until we have google-ads vendored-in
+  # - google-ads>=15.1.1
+  # - google-api-core>=2.7.0,<3.0.0
   - google-api-python-client>=1.6.0,<2.0.0
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1

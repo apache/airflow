@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import tag_snippet
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import tag_snippet
 
 
 __protobuf__ = proto.module(
