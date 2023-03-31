@@ -37,6 +37,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
+
     # [START create_livy]
     livy_java_task = LivyOperator(
         task_id="pi_java_task",
@@ -51,7 +52,6 @@ with DAG(
     livy_python_task = LivyOperator(task_id="pi_python_task", file="/pi.py", polling_interval=60)
 
     livy_java_task >> livy_python_task
-
     # [END create_livy]
 
     # [START create_livy_deferrable]
