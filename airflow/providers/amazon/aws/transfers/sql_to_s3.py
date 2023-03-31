@@ -135,7 +135,7 @@ class SqlToS3Operator(BaseOperator):
         Set dtype of object to str to allow for downstream transformations.
         """
         try:
-            import numpy as np
+            from numpy import equal, isclose, where
             from pandas import Float64Dtype, Int64Dtype
         except ImportError as e:
             from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -152,13 +152,13 @@ class SqlToS3Operator(BaseOperator):
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
                 notna_series = df[col].dropna().values
-                if np.equal(notna_series, notna_series.astype(int)).all():
+                if equal(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col])
+                    df[col] = where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(Int64Dtype())
-                elif np.isclose(notna_series, notna_series.astype(int)).all():
+                elif isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col])
+                    df[col] = where(df[col].isnull(), None, df[col])
                     df[col] = df[col].astype(Float64Dtype())
 
     def execute(self, context: Context) -> None:
