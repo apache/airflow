@@ -96,7 +96,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("images", "/opt/airflow/images"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
-    ("pytest.ini", "/opt/airflow/pytest.ini"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("setup.cfg", "/opt/airflow/setup.cfg"),

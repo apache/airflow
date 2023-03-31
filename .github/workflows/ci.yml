@@ -499,8 +499,9 @@ jobs:
           cache-dependency-path: ./dev/requirements.txt
       - name: "Test examples of PROD image building"
         run: >
-          python -m pip install -r ./docker_tests/requirements.txt &&
-          python -m pytest docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes
+          cd ./docker_tests &&
+          python -m pip install -r requirements.txt &&
+          python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes
 
   test-git-clone-on-windows:
     timeout-minutes: 5
