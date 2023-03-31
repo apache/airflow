@@ -786,6 +786,16 @@ For example this will run API and WWW tests in parallel:
 
     breeze testing tests --test-types "API WWW" --run-in-parallel
 
+There are few special types of tests that you can run:
+
+* ``All`` - all tests are run in single pytest run.
+* ``PlainAsserts`` - some tests of ours fail when ``--assert=rewrite`` feature of pytest is used. This
+  is in order to get better output of ``assert`` statements This is a special test type that runs those
+  select tests tests with ``--assert=plain`` flag.
+* ``Postgres`` - runs all tests that require Postgres database
+* ``MySQL`` - runs all tests that require MySQL database
+* ``Quarantine`` - runs all tests that are in quarantine (marked with ``@pytest.mark.quarantined``
+  decorator)
 
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
@@ -1017,7 +1027,7 @@ Run selected tests:
 
 .. code-block::bash
 
-    breeze k8s tests kubernetes_tests/test_kubernetes_executor.py
+    breeze k8s tests test_kubernetes_executor.py
 
 All parameters of the command are here:
 
@@ -1042,7 +1052,7 @@ output during test execution.
 
 .. code-block::bash
 
-    breeze k8s tests -- kubernetes_tests/test_kubernetes_executor.py -s
+    breeze k8s tests -- test_kubernetes_executor.py -s
 
 Running k8s complete tests
 ..........................
@@ -1061,7 +1071,7 @@ Run selected tests:
 
 .. code-block::bash
 
-    breeze k8s run-complete-tests kubernetes_tests/test_kubernetes_executor.py
+    breeze k8s run-complete-tests test_kubernetes_executor.py
 
 All parameters of the command are here:
 
@@ -1086,7 +1096,7 @@ output during test execution.
 
 .. code-block::bash
 
-    breeze k8s run-complete-tests -- kubernetes_tests/test_kubernetes_executor.py -s
+    breeze k8s run-complete-tests -- test_kubernetes_executor.py -s
 
 
 Entering k8s shell
@@ -1110,7 +1120,7 @@ be created and airflow deployed to it before running the tests):
 
 .. code-block::bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest kubernetes_tests/test_kubernetes_executor.py
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
     platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/.k8s-env/bin/python
     cachedir: .pytest_cache
@@ -1118,8 +1128,8 @@ be created and airflow deployed to it before running the tests):
     plugins: anyio-3.6.1
     collected 2 items
 
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
     .build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233

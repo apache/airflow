@@ -276,6 +276,10 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
+# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# but may still be present in the local directory if the user has old breeze image
+rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" != "true" ]]; then
@@ -436,6 +440,16 @@ else
                 echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
             fi
         done
+    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
+        # Those tests fail when --asert=rewrite is set, therefore we run them separately
+        # with --assert=plain to make sure they pass.
+        SELECTED_TESTS=(
+            # this on is mysteriously failing dill serialization. It could be removed once
+            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
+            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
+        )
+        EXTRA_PYTEST_ARGS+=("--assert=plain")
+        export PYTEST_PLAIN_ASSERTS="true"
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"

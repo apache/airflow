@@ -788,6 +788,12 @@ class TestPythonVirtualenvOperator(BasePythonTest):
     # context using dill (which is slow apparently).
     @pytest.mark.execution_timeout(120)
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.skipif(
+        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
+        reason="assertion rewriting breaks this test because dill will try to serialize "
+        "AssertRewritingHook including captured stdout and we need to run "
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true",
+    )
     def test_airflow_context(self):
         def f(
             # basic
