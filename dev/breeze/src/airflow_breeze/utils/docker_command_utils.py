@@ -86,6 +86,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("NOTICE", "/opt/airflow/NOTICE"),
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow", "/opt/airflow/airflow"),
+    ("constraints", "/opt/airflow/constraints"),
     ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
@@ -95,7 +96,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("images", "/opt/airflow/images"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
-    ("pytest.ini", "/opt/airflow/pytest.ini"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("setup.cfg", "/opt/airflow/setup.cfg"),
@@ -438,7 +438,7 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=tty"])
+    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=auto"])
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -475,7 +475,7 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "build",
                 "--builder",
                 image_params.builder,
-                "--progress=tty",
+                "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
         )
@@ -613,9 +613,11 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
+    set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
     set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
+    set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
     set_value_to_default_if_not_set(env, "UPGRADE_TO_NEWER_DEPENDENCIES", "false")
     set_value_to_default_if_not_set(env, "USE_PACKAGES_FROM_DIST", "false")
     set_value_to_default_if_not_set(env, "VERBOSE", "false")
@@ -655,8 +657,10 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "PYTHON_MAJOR_MINOR_VERSION": "python",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
+    "SKIP_PROVIDER_TESTS": "skip_provider_tests",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
+    "UPGRADE_BOTO": "upgrade_boto",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",

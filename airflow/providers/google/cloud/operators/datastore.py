@@ -18,23 +18,24 @@
 """This module contains Google Datastore operators."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.datastore import (
     CloudDatastoreEntitiesLink,
     CloudDatastoreImportExportLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudDatastoreExportEntitiesOperator(BaseOperator):
+class CloudDatastoreExportEntitiesOperator(GoogleCloudBaseOperator):
     """
     Export entities from Google Cloud Datastore to Cloud Storage
 
@@ -100,6 +101,10 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         super().__init__(**kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.cloud_storage_conn_id = cloud_storage_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.bucket = bucket
         self.namespace = namespace
@@ -146,7 +151,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         return result
 
 
-class CloudDatastoreImportEntitiesOperator(BaseOperator):
+class CloudDatastoreImportEntitiesOperator(GoogleCloudBaseOperator):
     """
     Import entities from Cloud Storage to Google Cloud Datastore
 
@@ -209,6 +214,10 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.datastore_conn_id = datastore_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.bucket = bucket
         self.file = file
@@ -245,7 +254,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         return result
 
 
-class CloudDatastoreAllocateIdsOperator(BaseOperator):
+class CloudDatastoreAllocateIdsOperator(GoogleCloudBaseOperator):
     """
     Allocate IDs for incomplete keys. Return list of keys.
 
@@ -293,6 +302,10 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         self.partial_keys = partial_keys
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -309,7 +322,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         return keys
 
 
-class CloudDatastoreBeginTransactionOperator(BaseOperator):
+class CloudDatastoreBeginTransactionOperator(GoogleCloudBaseOperator):
     """
     Begins a new transaction. Returns a transaction handle.
 
@@ -356,6 +369,10 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         self.transaction_options = transaction_options
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -371,7 +388,7 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         return handle
 
 
-class CloudDatastoreCommitOperator(BaseOperator):
+class CloudDatastoreCommitOperator(GoogleCloudBaseOperator):
     """
     Commit a transaction, optionally creating, deleting or modifying some entities.
 
@@ -419,6 +436,10 @@ class CloudDatastoreCommitOperator(BaseOperator):
         self.body = body
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -435,7 +456,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
         return response
 
 
-class CloudDatastoreRollbackOperator(BaseOperator):
+class CloudDatastoreRollbackOperator(GoogleCloudBaseOperator):
     """
     Roll back a transaction.
 
@@ -482,6 +503,10 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         self.transaction = transaction
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -496,7 +521,7 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         )
 
 
-class CloudDatastoreRunQueryOperator(BaseOperator):
+class CloudDatastoreRunQueryOperator(GoogleCloudBaseOperator):
     """
     Run a query for entities. Returns the batch of query results.
 
@@ -543,6 +568,10 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         self.body = body
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -558,7 +587,7 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         return response
 
 
-class CloudDatastoreGetOperationOperator(BaseOperator):
+class CloudDatastoreGetOperationOperator(GoogleCloudBaseOperator):
     """
     Gets the latest state of a long-running operation.
 
@@ -602,6 +631,10 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
 
         self.name = name
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -614,7 +647,7 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         return op
 
 
-class CloudDatastoreDeleteOperationOperator(BaseOperator):
+class CloudDatastoreDeleteOperationOperator(GoogleCloudBaseOperator):
     """
     Deletes the long-running operation.
 
@@ -658,6 +691,10 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
 
         self.name = name
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

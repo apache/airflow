@@ -17,13 +17,13 @@
  * under the License.
  */
 
-import type { Dag, DagRun, TaskInstance } from 'src/types';
+import type { Dag, DagRun, TaskInstance } from "src/types";
 
 export interface CommonActionProps {
-  runId: DagRun['runId'],
-  taskId: TaskInstance['taskId'],
-  dagId: Dag['id'],
-  executionDate: DagRun['executionDate'],
-  mapIndexes: number[],
+  runId: DagRun["runId"];
+  taskId: TaskInstance["taskId"];
+  dagId: Dag["id"];
+  executionDate: DagRun["executionDate"];
+  mapIndexes: number[];
   isGroup?: boolean;
 }

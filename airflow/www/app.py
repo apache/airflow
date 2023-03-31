@@ -25,9 +25,11 @@ from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
+from markupsafe import Markup
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
@@ -50,7 +52,6 @@ from airflow.www.extensions.init_views import (
     init_api_experimental,
     init_api_internal,
     init_appbuilder_views,
-    init_connection_form,
     init_error_handlers,
     init_flash_views,
     init_plugins,
@@ -81,9 +82,17 @@ def create_app(config=None, testing=False):
 
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
-    flask_app.config["APP_NAME"] = conf.get(section="webserver", key="instance_name", fallback="Airflow")
     flask_app.config["TESTING"] = testing
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+
+    instance_name = conf.get(section="webserver", key="instance_name", fallback="Airflow")
+    instance_name_has_markup = conf.getboolean(
+        section="webserver", key="instance_name_has_markup", fallback=False
+    )
+    if instance_name_has_markup:
+        instance_name = Markup(instance_name).striptags()
+
+    flask_app.config["APP_NAME"] = instance_name
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
@@ -117,6 +126,8 @@ def create_app(config=None, testing=False):
     flask_app.json_provider_class = AirflowJsonProvider
     flask_app.json = AirflowJsonProvider(flask_app)
 
+    InternalApiConfig.force_database_direct_access()
+
     csrf.init_app(flask_app)
 
     init_wsgi_middleware(flask_app)
@@ -147,7 +158,6 @@ def create_app(config=None, testing=False):
         init_appbuilder_views(flask_app)
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)
-        init_connection_form()
         init_error_handlers(flask_app)
         init_api_connexion(flask_app)
         if conf.getboolean("webserver", "run_internal_api", fallback=False):

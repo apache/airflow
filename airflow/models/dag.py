@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+import collections.abc
 import copy
 import functools
 import itertools
@@ -86,7 +87,12 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import (
+    ContinuousTimetable,
+    DatasetTriggeredTimetable,
+    NullTimetable,
+    OnceTimetable,
+)
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -180,6 +186,8 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return NullTimetable()
     if interval == "@once":
         return OnceTimetable()
+    if interval == "@continuous":
+        return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
@@ -308,8 +316,7 @@ class DAG(LoggingMixin):
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
     :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created. The timeout
-        is only enforced for scheduled DagRuns.
+        timing out / failing, so that new DagRuns can be created.
     :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
@@ -404,7 +411,7 @@ class DAG(LoggingMixin):
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
-        params: dict | None = None,
+        params: collections.abc.MutableMapping | None = None,
         access_control: dict | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
@@ -546,6 +553,12 @@ class DAG(LoggingMixin):
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
+        if self.timetable.active_runs_limit is not None:
+            if self.timetable.active_runs_limit < self.max_active_runs:
+                raise AirflowException(
+                    f"Invalid max_active_runs: {type(self.timetable)} "
+                    f"requires max_active_runs <= {self.timetable.active_runs_limit}"
+                )
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
@@ -1502,25 +1515,28 @@ class DAG(LoggingMixin):
     ) -> list[TaskInstance]:
         """Get ``num`` task instances before (including) ``base_date``.
 
-        The returned list may contain exactly ``num`` task instances. It can
-        have less if there are less than ``num`` scheduled DAG runs before
-        ``base_date``, or more if there are manual task runs between the
-        requested period, which does not count toward ``num``.
+        The returned list may contain exactly ``num`` task instances
+        corresponding to any DagRunType. It can have less if there are
+        less than ``num`` scheduled DAG runs before ``base_date``.
         """
-        min_date: datetime | None = (
+        execution_dates: list[Any] = (
             session.query(DagRun.execution_date)
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date <= base_date,
-                DagRun.run_type != DagRunType.MANUAL,
             )
             .order_by(DagRun.execution_date.desc())
-            .offset(num)
-            .limit(1)
-            .scalar()
+            .limit(num)
+            .all()
         )
-        if min_date is None:
-            min_date = timezone.utc_epoch()
+
+        if len(execution_dates) == 0:
+            return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
+
+        min_date: datetime | None = execution_dates[-1]._mapping.get(
+            "execution_date"
+        )  # getting the last value from the list
+
         return self.get_task_instances(start_date=min_date, end_date=base_date, session=session)
 
     @provide_session
@@ -1535,6 +1551,7 @@ class DAG(LoggingMixin):
             start_date = (timezone.utcnow() - timedelta(30)).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
+
         query = self._get_task_instances(
             task_ids=None,
             start_date=start_date,
@@ -2211,21 +2228,32 @@ class DAG(LoggingMixin):
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
+            # We want to deepcopy _most but not all_ attributes of the task group, so we create a shallow copy
+            # and then manually deep copy the instances. (memo argument to deepcopy only works for instances
+            # of classes, not "native" properties of an instance)
             copied = copy.copy(group)
-            copied.used_group_ids = set(copied.used_group_ids)
-            copied._parent_group = parent_group
 
-            copied.children = {}
+            memo[id(group.children)] = {}
+            if parent_group:
+                memo[id(group.parent_group)] = parent_group
+            for attr, value in copied.__dict__.items():
+                if id(value) in memo:
+                    value = memo[id(value)]
+                else:
+                    value = copy.deepcopy(value, memo)
+                copied.__dict__[attr] = value
+
+            proxy = weakref.proxy(copied)
 
             for child in group.children.values():
                 if isinstance(child, AbstractOperator):
                     if child.task_id in dag.task_dict:
                         task = copied.children[child.task_id] = dag.task_dict[child.task_id]
-                        task.task_group = weakref.proxy(copied)
+                        task.task_group = proxy
                     else:
                         copied.used_group_ids.discard(child.task_id)
                 else:
-                    filtered_child = filter_task_group(child, copied)
+                    filtered_child = filter_task_group(child, proxy)
 
                     # Only include this child TaskGroup if it is non-empty.
                     if filtered_child.children:
@@ -2233,7 +2261,7 @@ class DAG(LoggingMixin):
 
             return copied
 
-        dag._task_group = filter_task_group(self._task_group, None)
+        dag._task_group = filter_task_group(self.task_group, None)
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
         # the cut.
@@ -3251,7 +3279,11 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=NEW_SESSION):
-        return session.query(DagModel).options(joinedload(DagModel.parent_dag)).get(dag_id)
+        return session.get(
+            DagModel,
+            dag_id,
+            options=[joinedload(DagModel.parent_dag)],
+        )
 
     @classmethod
     @provide_session
@@ -3333,6 +3365,7 @@ class DagModel(Base):
         session.commit()
 
     @classmethod
+    @internal_api_call
     @provide_session
     def deactivate_deleted_dags(cls, alive_dag_filelocs: list[str], session=NEW_SESSION):
         """
@@ -3488,7 +3521,7 @@ def dag(
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
-    params: dict | None = None,
+    params: collections.abc.MutableMapping | None = None,
     access_control: dict | None = None,
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
@@ -3550,8 +3583,8 @@ def dag(
                 owner_links=owner_links,
                 auto_register=auto_register,
             ) as dag_obj:
-                # Set DAG documentation from function documentation.
-                if f.__doc__:
+                # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                if f.__doc__ and not dag_obj.doc_md:
                     dag_obj.doc_md = f.__doc__
 
                 # Generate DAGParam for each function arg/kwarg and replace it for calling the function.

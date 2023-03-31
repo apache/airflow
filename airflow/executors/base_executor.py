@@ -109,12 +109,15 @@ class BaseExecutor(LoggingMixin):
     supports_pickling: bool = True
     supports_sentry: bool = False
 
+    is_local: bool = False
+    is_single_threaded: bool = False
+    is_production: bool = True
+
+    change_sensor_mode_to_reschedule: bool = False
+    serve_logs: bool = False
+
     job_id: None | int | str = None
     callback_sink: BaseCallbackSink | None = None
-
-    is_local: bool = False
-
-    serve_logs: bool = False
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
@@ -353,6 +356,16 @@ class BaseExecutor(LoggingMixin):
         :param executor_config: Configuration passed to the executor.
         """
         raise NotImplementedError()
+
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        """
+        This method can be implemented by any child class to return the task logs.
+
+        :param ti: A TaskInstance object
+        :param try_number: current try_number to read log from
+        :return: tuple of logs and messages
+        """
+        return [], []
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""

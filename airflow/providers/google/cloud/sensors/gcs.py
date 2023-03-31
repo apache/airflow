@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import os
 import textwrap
+import warnings
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.retry import Retry
 from google.cloud.storage.retry import DEFAULT_RETRY
@@ -74,6 +75,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         retry: Retry = DEFAULT_RETRY,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 
@@ -81,9 +83,15 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.bucket = bucket
         self.object = object
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.retry = retry
+
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         self.log.info("Sensor checks existence of : %s, %s", self.bucket, self.object)
@@ -94,10 +102,43 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         )
         return hook.exists(self.bucket, self.object, self.retry)
 
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=GCSBlobTrigger(
+                    bucket=self.bucket,
+                    object_name=self.object,
+                    poke_interval=self.poke_interval,
+                    google_cloud_conn_id=self.google_cloud_conn_id,
+                    hook_params={
+                        "delegate_to": self.delegate_to,
+                        "impersonation_chain": self.impersonation_chain,
+                    },
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info("File %s was found in bucket %s.", self.object, self.bucket)
+        return event["message"]
+
 
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
-    Checks for the existence of a file in Google Cloud Storage .
+    Checks for the existence of a file in Google Cloud Storage.
+    Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release.
+    Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead
 
     :param bucket: The Google Cloud Storage bucket where the object is.
     :param object: The name of the object to check in the Google cloud storage bucket.
@@ -115,33 +156,13 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
         account from the list granting this role to the originating account (templated).
     """
 
-    def execute(self, context: Context) -> None:
-        """Airflow runs this method on the worker and defers using the trigger."""
-        self.defer(
-            timeout=timedelta(seconds=self.timeout),
-            trigger=GCSBlobTrigger(
-                bucket=self.bucket,
-                object_name=self.object,
-                poke_interval=self.poke_interval,
-                google_cloud_conn_id=self.google_cloud_conn_id,
-                hook_params={
-                    "delegate_to": self.delegate_to,
-                    "impersonation_chain": self.impersonation_chain,
-                },
-            ),
-            method_name="execute_complete",
+    def __init__(self, **kwargs: Any) -> None:
+        warnings.warn(
+            "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
+            "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead",
+            DeprecationWarning,
         )
-
-    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        self.log.info("File %s was found in bucket %s.", self.object, self.bucket)
-        return event["message"]
+        super().__init__(deferrable=True, **kwargs)
 
 
 def ts_function(context):
@@ -205,6 +226,10 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         self.object = object
         self.ts_func = ts_func
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -264,6 +289,10 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self.bucket = bucket
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self._matches: list[str] = []
         self.impersonation_chain = impersonation_chain
@@ -363,6 +392,10 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.google_cloud_conn_id = google_cloud_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.last_activity_time = None
         self.impersonation_chain = impersonation_chain

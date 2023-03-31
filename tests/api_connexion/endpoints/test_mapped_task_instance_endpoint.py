@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 import os
+import urllib
 
 import pytest
 
@@ -38,6 +39,8 @@ from tests.test_utils.mock_operators import MockOperator
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
+QUOTED_DEFAULT_DATETIME_STR_1 = urllib.parse.quote(DEFAULT_DATETIME_STR_1)
+QUOTED_DEFAULT_DATETIME_STR_2 = urllib.parse.quote(DEFAULT_DATETIME_STR_2)
 
 
 @pytest.fixture(scope="module")
@@ -368,7 +371,7 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
     def test_mapped_task_instances_with_date(self, one_task_with_mapped_tis, session):
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
-            f"?start_date_gte={DEFAULT_DATETIME_STR_1}",
+            f"?start_date_gte={QUOTED_DEFAULT_DATETIME_STR_1}",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -377,7 +380,7 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
 
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
-            f"?start_date_gte={DEFAULT_DATETIME_STR_2}",
+            f"?start_date_gte={QUOTED_DEFAULT_DATETIME_STR_2}",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200

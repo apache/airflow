@@ -42,13 +42,16 @@ class LocalKubernetesExecutor(LoggingMixin):
     supports_pickling: bool = False
     supports_sentry: bool = False
 
+    is_local: bool = False
+    is_single_threaded: bool = False
+    is_production: bool = True
+
+    serve_logs: bool = True
+    change_sensor_mode_to_reschedule: bool = False
+
     callback_sink: BaseCallbackSink | None = None
 
     KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
-
-    is_local: bool = False
-
-    serve_logs: bool = True
 
     def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
@@ -140,6 +143,12 @@ class LocalKubernetesExecutor(LoggingMixin):
             pool=pool,
             cfg_path=cfg_path,
         )
+
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        """Fetch task log from kubernetes executor"""
+        if ti.queue == self.kubernetes_executor.kubernetes_queue:
+            return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
+        return [], []
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """

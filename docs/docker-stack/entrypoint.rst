@@ -75,7 +75,7 @@ the user have also "group write" access for group ``0`` - they will be writable 
 folder will have a "group write" access and ``GID=0``, so that execution with another, arbitrary user
 will still continue to work, even if such directory is mounted by another arbitrary user later.
 
-The ``umask`` setting however only works for runtime of the container - it is not used during building of
+The ``umask`` setting, however, only works for runtime of the container - it is not used during building of
 the image. If you would like to extend the image and add your own packages, you should remember to add
 ``umask 0002`` in front of your docker command - this way the directories created by any installation
 that need group access will also be writable for the group. This can be done for example this way:
@@ -132,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.6.0.dev0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.6.0.dev0-python3.7 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -144,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.6.0.dev0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.6.0.dev0-python3.7 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -152,13 +152,13 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.6.0.dev0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.6.0.dev0-python3.7 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.6.0.dev0-python3.6 help
+  > docker run -it apache/airflow:2.6.0.dev0-python3.7 help
     usage: airflow [-h] GROUP_OR_COMMAND ...
 
     positional arguments:
@@ -199,7 +199,7 @@ Execute custom code before the Airflow entrypoint
 
 If you want to execute some custom code before Airflow's entrypoint you can by using
 a custom script and calling Airflow's entrypoint as the
-last ``exec`` instruction in your custom one. However you have to remember to use ``dumb-init`` in the same
+last ``exec`` instruction in your custom one. However, you have to remember to use ``dumb-init`` in the same
 way as it is used with Airflow's entrypoint, otherwise you might have problems with proper signal
 propagation (See the next chapter).
 

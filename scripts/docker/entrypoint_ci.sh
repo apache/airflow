@@ -72,12 +72,21 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
+    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+        echo
+        echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
+        echo
+        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        echo
+        exit 1
+    fi
 }
 
 if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        if [[ ${BACKEND:=} == "mysql" || ${BACKEND} == "mssql" ]]; then
+        if [[ ${BACKEND:=} == "mssql" ]]; then
             echo "${COLOR_RED}ARM platform is not supported for ${BACKEND} backend. Exiting.${COLOR_RESET}"
             exit 1
         fi
@@ -267,6 +276,10 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
+# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# but may still be present in the local directory if the user has old breeze image
+rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" != "true" ]]; then
@@ -307,9 +320,10 @@ EXTRA_PYTEST_ARGS=(
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
     echo "Running tests with ${_cpus} CPUs in parallel"
-    # Enable parallelism
+    # Enable parallelism and disable coverage
     EXTRA_PYTEST_ARGS+=(
         "-n" "${_cpus}"
+        "--no-cov"
     )
 else
     EXTRA_PYTEST_ARGS+=(
@@ -319,7 +333,7 @@ fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
-        "--cov=airflow/"
+        "--cov=airflow"
         "--cov-config=.coveragerc"
         "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
@@ -380,6 +394,13 @@ else
         "${SYSTEM_TESTS[@]}"
     )
 
+    NO_PROVIDERS_INTEGRATION_TESTS=(
+        "tests/integration/api"
+        "tests/integration/cli"
+        "tests/integration/executors"
+        "tests/integration/security"
+    )
+
     if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
         SELECTED_TESTS=("${CLI_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "API" ]]; then
@@ -395,7 +416,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
-        SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
+            SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
+        else
+            SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
         find_all_other_tests
         SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
@@ -415,12 +440,29 @@ else
                 echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
             fi
         done
+    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
+        # Those tests fail when --asert=rewrite is set, therefore we run them separately
+        # with --assert=plain to make sure they pass.
+        SELECTED_TESTS=(
+            # this on is mysteriously failing dill serialization. It could be removed once
+            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
+            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
+        )
+        EXTRA_PYTEST_ARGS+=("--assert=plain")
+        export PYTEST_PLAIN_ASSERTS="true"
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
+fi
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall aiobotocore -y || true
+    pip install --upgrade boto3 botocore
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS

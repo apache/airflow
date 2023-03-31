@@ -45,7 +45,6 @@ fi
 set +x
 if [[ "${RES}" == "0" && ( ${CI:="false"} == "true" || ${CI} == "True" ) ]]; then
     echo "All tests successful"
-    cp .coverage /files
 fi
 
 MAIN_GITHUB_REPOSITORY="apache/airflow"

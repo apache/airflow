@@ -34,6 +34,9 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.minor_release_command import create_minor_version_branch
+from airflow_breeze.commands.release_candidate_command import publish_release_candidate
+from airflow_breeze.commands.release_command import airflow_release
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -758,7 +761,7 @@ def get_prs_for_package(package_id: str) -> list[int]:
 
 
 @release_management.command(
-    name="generate-issue-content", help="Generates content for issue to test the release."
+    name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
 @click.option(
     "--github-token",
@@ -780,7 +783,7 @@ def get_prs_for_package(package_id: str) -> list[int]:
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option("--disable-progress", is_flag=True, help="Disable progress bar")
 @argument_packages
-def generate_issue_content(
+def generate_issue_content_providers(
     packages: list[str],
     github_token: str,
     suffix: str,
@@ -889,3 +892,9 @@ def generate_issue_content(
                 users.add("@" + pr.user.login)
         get_console().print("All users involved in the PRs:")
         get_console().print(" ".join(users))
+
+
+# AIRFLOW RELEASE COMMANDS
+release_management.add_command(publish_release_candidate)
+release_management.add_command(airflow_release)
+release_management.add_command(create_minor_version_branch)

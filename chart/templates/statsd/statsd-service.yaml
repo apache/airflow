@@ -29,15 +29,15 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: {{ .Values.ports.statsdScrape | quote }}
-{{- if .Values.statsd.service.extraAnnotations }}
-{{- toYaml .Values.statsd.service.extraAnnotations | nindent 4 }}
-{{- end }}
+    {{- if .Values.statsd.service.extraAnnotations }}
+      {{- toYaml .Values.statsd.service.extraAnnotations | nindent 4 }}
+    {{- end }}
 spec:
   type: ClusterIP
   selector:

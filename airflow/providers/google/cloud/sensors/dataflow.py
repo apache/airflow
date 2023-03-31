@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Dataflow sensor."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow.exceptions import AirflowException
@@ -85,6 +86,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: DataflowHook | None = None
@@ -172,6 +177,10 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         self.fail_on_terminal_state = fail_on_terminal_state
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: DataflowHook | None = None
@@ -257,6 +266,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         self.fail_on_terminal_state = fail_on_terminal_state
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: DataflowHook | None = None
@@ -342,6 +355,10 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.fail_on_terminal_state = fail_on_terminal_state
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: DataflowHook | None = None

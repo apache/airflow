@@ -75,7 +75,7 @@ result -
 Deleting a task
 ----------------
 
-Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Tree View, etc making
+Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Grid View, etc making
 it difficult to check the logs of that Task from the Webserver. If that is not desired, please create a new DAG.
 
 
@@ -166,13 +166,17 @@ Good example:
       @task()
       def print_array():
           """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
+          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE!
 
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
 
       print_array()
+
+In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
+
+.. _best_practices/dynamic_dag_generation:
 
 Dynamic DAG Generation
 ----------------------
@@ -213,7 +217,7 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-Make sure to use variable with template in operator, not in the top level code.
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, ``Variable.get()`` produces a request every time the dag file is parsed by the scheduler. Using ``Variable.get()`` will lead to suboptimal performance in the dag file processing. In some cases this can cause the dag file to timeout before it is fully parsed.
 
 Bad example:
 
@@ -404,8 +408,8 @@ your DAG "less complex" - since this is a Python code, it's the DAG writer who c
 their code.
 
 There are no "metrics" for DAG complexity, especially, there are no metrics that can tell you
-whether your DAG is "simple enough". However - as with any Python code you can definitely tell that
-your code is "simpler" or "faster" when you optimize it, the same can be said about DAG code. If you
+whether your DAG is "simple enough". However, as with any Python code, you can definitely tell that
+your DAG code is "simpler" or "faster" when it is optimized. If you
 want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG load faster. This is a single improvement advice that might be implemented in various ways
@@ -428,6 +432,14 @@ want to optimize your DAGs there are the following actions you can take:
   consider splitting them if you observe it takes a long time to reflect changes in your DAG files in the
   UI of Airflow.
 
+* Write efficient Python code. A balance must be struck between fewer DAGs per file, as stated above, and
+  writing less code overall. Creating the Python files that describe DAGs should follow best programming
+  practices and not be treated like configurations. If your DAGs share similar code you should not copy
+  them over and over again to a large number of nearly identical source files, as this will cause a
+  number of unnecessary repeated imports of the same resources. Rather, you should aim to minimize
+  repeated code across all of your DAGs so that the application can run efficiently and can be easily
+  debugged. See :ref:`best_practices/dynamic_dag_generation` on how to create multiple DAGs with similar
+  code.
 
 Testing a DAG
 ^^^^^^^^^^^^^
@@ -690,7 +702,7 @@ A *better* way (though it's a bit more manual) is to use the ``dags pause`` comm
 Add "integration test" DAGs
 ---------------------------
 
-It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with test resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
 
 For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
 
@@ -712,9 +724,9 @@ and the dependencies basically conflict between those tasks.
 If you are using pre-defined Airflow Operators to talk to external services, there is not much choice, but usually those
 operators will have dependencies that are not conflicting with basic Airflow dependencies. Airflow uses constraints mechanism
 which means that you have a "fixed" set of dependencies that the community guarantees that Airflow can be installed with
-(including all community providers) without triggering conflicts. However you can upgrade the providers
-independently and their constraints do not limit you so the chance of a conflicting dependency is lower (you still have
-to test those dependencies). Therefore when you are using pre-defined operators, chance is that you will have
+(including all community providers) without triggering conflicts. However, you can upgrade the providers
+independently and their constraints do not limit you, so the chance of a conflicting dependency is lower (you still have
+to test those dependencies). Therefore, when you are using pre-defined operators, chance is that you will have
 little, to no problems with conflicting dependencies.
 
 However, when you are approaching Airflow in a more "modern way", where you use TaskFlow Api and most of
@@ -784,7 +796,7 @@ There are certain limitations and overhead introduced by this operator:
   a victim of "supply chain" attack where new version of a dependency might become malicious
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.operators.python.PythonVirtualenvOperator` in
 :ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
@@ -799,7 +811,7 @@ A bit more involved but with significantly less overhead, security, stability pr
 :class:`airflow.operators.python.ExternalPythonOperator``. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.external_python`` decorator (recommended way of using the operator).
-It requires however that you have a pre-existing, immutable Python environment, that is prepared upfront.
+It requires, however, that you have a pre-existing, immutable Python environment, that is prepared upfront.
 Unlike in :class:`airflow.operators.python.PythonVirtualenvOperator` you cannot add new dependencies
 to such pre-existing environment. All dependencies you need should be added upfront in your environment
 and available in all the workers in case your Airflow runs in a distributed environment.
@@ -928,7 +940,7 @@ Using multiple Docker Images and Celery Queues
 
 There is a possibility (though it requires a deep knowledge of Airflow deployment) to run Airflow tasks
 using multiple, independent Docker images. This can be achieved via allocating different tasks to different
-Queues and configuring your Celery workers to use different images for different Queues. This however
+Queues and configuring your Celery workers to use different images for different Queues. This, however,
 (at least currently) requires a lot of manual deployment configuration and intrinsic knowledge of how
 Airflow, Celery and Kubernetes works. Also it introduces quite some overhead for running the tasks - there
 are less chances for resource reuse and it's much more difficult to fine-tune such a deployment for

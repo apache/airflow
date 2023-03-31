@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -26,7 +25,7 @@ import pytest
 from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout, TaskDeferred
 from airflow.models import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -89,7 +88,7 @@ MATERIALIZED_VIEW_DEFINITION = {
 TEST_TABLE = "test-table"
 
 
-class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
+class TestBigQueryCreateEmptyTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryCreateEmptyTableOperator(
@@ -201,7 +200,42 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
+@pytest.mark.parametrize(
+    "if_exists, is_conflict, expected_error, log_msg",
+    [
+        ("ignore", False, None, None),
+        ("log", False, None, None),
+        ("log", True, None, f"Table {TEST_DATASET}.{TEST_TABLE_ID} already exists."),
+        ("fail", False, None, None),
+        ("fail", True, AirflowException, None),
+        ("skip", False, None, None),
+        ("skip", True, AirflowSkipException, None),
+    ],
+)
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+def test_create_existing_table(mock_hook, caplog, if_exists, is_conflict, expected_error, log_msg):
+    operator = BigQueryCreateEmptyTableOperator(
+        task_id=TASK_ID,
+        dataset_id=TEST_DATASET,
+        project_id=TEST_GCP_PROJECT_ID,
+        table_id=TEST_TABLE_ID,
+        view=VIEW_DEFINITION,
+        if_exists=if_exists,
+    )
+    if is_conflict:
+        mock_hook.return_value.create_empty_table.side_effect = Conflict("any")
+    else:
+        mock_hook.return_value.create_empty_table.side_effect = None
+    if expected_error is not None:
+        with pytest.raises(expected_error):
+            operator.execute(context=MagicMock())
+    else:
+        operator.execute(context=MagicMock())
+    if log_msg is not None:
+        assert log_msg in caplog.text
+
+
+class TestBigQueryCreateExternalTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
@@ -252,7 +286,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryDeleteDatasetOperator(unittest.TestCase):
+class TestBigQueryDeleteDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryDeleteDatasetOperator(
@@ -268,7 +302,7 @@ class TestBigQueryDeleteDatasetOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
+class TestBigQueryCreateEmptyDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryCreateEmptyDatasetOperator(
@@ -288,7 +322,41 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryGetDatasetOperator(unittest.TestCase):
+@pytest.mark.parametrize(
+    "if_exists, is_conflict, expected_error, log_msg",
+    [
+        ("ignore", False, None, None),
+        ("log", False, None, None),
+        ("log", True, None, f"Dataset {TEST_DATASET} already exists."),
+        ("fail", False, None, None),
+        ("fail", True, AirflowException, None),
+        ("skip", False, None, None),
+        ("skip", True, AirflowSkipException, None),
+    ],
+)
+@mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+def test_create_empty_dataset(mock_hook, caplog, if_exists, is_conflict, expected_error, log_msg):
+    operator = BigQueryCreateEmptyDatasetOperator(
+        task_id=TASK_ID,
+        dataset_id=TEST_DATASET,
+        project_id=TEST_GCP_PROJECT_ID,
+        location=TEST_DATASET_LOCATION,
+        if_exists=if_exists,
+    )
+    if is_conflict:
+        mock_hook.return_value.create_empty_dataset.side_effect = Conflict("any")
+    else:
+        mock_hook.return_value.create_empty_dataset.side_effect = None
+    if expected_error is not None:
+        with pytest.raises(expected_error):
+            operator.execute(context=MagicMock())
+    else:
+        operator.execute(context=MagicMock())
+    if log_msg is not None:
+        assert log_msg in caplog.text
+
+
+class TestBigQueryGetDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryGetDatasetOperator(
@@ -301,7 +369,7 @@ class TestBigQueryGetDatasetOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryUpdateTableOperator(unittest.TestCase):
+class TestBigQueryUpdateTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         table_resource = {"friendlyName": "Test TB"}
@@ -323,7 +391,7 @@ class TestBigQueryUpdateTableOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryUpdateTableSchemaOperator(unittest.TestCase):
+class TestBigQueryUpdateTableSchemaOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
 
@@ -353,7 +421,7 @@ class TestBigQueryUpdateTableSchemaOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryPatchDatasetOperator(unittest.TestCase):
+class TestBigQueryPatchDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         dataset_resource = {"friendlyName": "Test DS"}
@@ -370,7 +438,7 @@ class TestBigQueryPatchDatasetOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
+class TestBigQueryUpdateDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         dataset_resource = {"friendlyName": "Test DS"}
@@ -723,7 +791,7 @@ class TestBigQueryOperator:
         )
 
 
-class TestBigQueryGetDataOperator(unittest.TestCase):
+class TestBigQueryGetDataOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
 
@@ -749,7 +817,7 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryTableDeleteOperator(unittest.TestCase):
+class TestBigQueryTableDeleteOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         ignore_if_missing = True
@@ -767,7 +835,7 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
+class TestBigQueryGetDatasetTablesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryGetDatasetTablesOperator(
@@ -803,7 +871,7 @@ class TestBigQueryCheckOperators:
         mock_get_db_hook.assert_called_once()
 
 
-class TestBigQueryUpsertTableOperator(unittest.TestCase):
+class TestBigQueryUpsertTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         operator = BigQueryUpsertTableOperator(

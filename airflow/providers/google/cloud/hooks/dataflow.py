@@ -29,11 +29,16 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Generator, Sequence, TypeVar, cast
 
+from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
 
@@ -524,6 +529,10 @@ class DataflowHook(GoogleBaseHook):
         self.wait_until_finished = wait_until_finished
         self.job_id: str | None = None
         self.beam_hook = BeamHook(BeamRunnerType.DataflowRunner)
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -641,36 +650,10 @@ class DataflowHook(GoogleBaseHook):
         """
         name = self.build_dataflow_job_name(job_name, append_job_name)
 
-        environment = environment or {}
-        # available keys for runtime environment are listed here:
-        # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
-        environment_keys = [
-            "numWorkers",
-            "maxWorkers",
-            "zone",
-            "serviceAccountEmail",
-            "tempLocation",
-            "bypassTempDirValidation",
-            "machineType",
-            "additionalExperiments",
-            "network",
-            "subnetwork",
-            "additionalUserLabels",
-            "kmsKeyName",
-            "ipConfiguration",
-            "workerRegion",
-            "workerZone",
-        ]
-
-        for key in variables:
-            if key in environment_keys:
-                if key in environment:
-                    self.log.warning(
-                        "'%s' parameter in 'variables' will override of "
-                        "the same one passed in 'environment'!",
-                        key,
-                    )
-                environment.update({key: variables[key]})
+        environment = self._update_environment(
+            variables=variables,
+            environment=environment,
+        )
 
         service = self.get_conn()
 
@@ -719,6 +702,40 @@ class DataflowHook(GoogleBaseHook):
         jobs_controller.wait_for_done()
         return response["job"]
 
+    def _update_environment(self, variables: dict, environment: dict | None = None) -> dict:
+        environment = environment or {}
+        # available keys for runtime environment are listed here:
+        # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+        environment_keys = {
+            "numWorkers",
+            "maxWorkers",
+            "zone",
+            "serviceAccountEmail",
+            "tempLocation",
+            "bypassTempDirValidation",
+            "machineType",
+            "additionalExperiments",
+            "network",
+            "subnetwork",
+            "additionalUserLabels",
+            "kmsKeyName",
+            "ipConfiguration",
+            "workerRegion",
+            "workerZone",
+        }
+
+        def _check_one(key, val):
+            if key in environment:
+                self.log.warning(
+                    "%r parameter in 'variables' will override the same one passed in 'environment'!",
+                    key,
+                )
+            return key, val
+
+        environment.update(_check_one(key, val) for key, val in variables.items() if key in environment_keys)
+
+        return environment
+
     @GoogleBaseHook.fallback_to_default_project_id
     def start_flex_template(
         self,
@@ -727,9 +744,9 @@ class DataflowHook(GoogleBaseHook):
         project_id: str,
         on_new_job_id_callback: Callable[[str], None] | None = None,
         on_new_job_callback: Callable[[dict], None] | None = None,
-    ):
+    ) -> dict:
         """
-        Starts flex templates with the Dataflow  pipeline.
+        Starts flex templates with the Dataflow pipeline.
 
         :param body: The request body. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
@@ -1037,7 +1054,7 @@ class DataflowHook(GoogleBaseHook):
     def get_job(
         self,
         job_id: str,
-        project_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> dict:
         """
@@ -1165,3 +1182,88 @@ class DataflowHook(GoogleBaseHook):
             wait_until_finished=self.wait_until_finished,
         )
         job_controller.wait_for_done()
+
+
+class AsyncDataflowHook(GoogleBaseAsyncHook):
+    """Async hook class for dataflow service."""
+
+    sync_hook_class = DataflowHook
+
+    async def initialize_client(self, client_class):
+        """
+        Initialize object of the given class.
+
+        Method is used to initialize asynchronous client. Because of the big amount of the classes which are
+        used for Dataflow service it was decided to initialize them the same way with credentials which are
+        received from the method of the GoogleBaseHook class.
+        :param client_class: Class of the Google cloud SDK
+        """
+        credentials = (await self.get_sync_hook()).get_credentials()
+        return client_class(
+            credentials=credentials,
+        )
+
+    async def get_project_id(self) -> str:
+        project_id = (await self.get_sync_hook()).project_id
+        return project_id
+
+    async def get_job(
+        self,
+        job_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        job_view: int = JobView.JOB_VIEW_SUMMARY,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> Job:
+        """
+        Gets the job with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :param project_id: the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param job_view: Optional. JobView object which determines representation of the returned data
+        :param location: Optional. The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        """
+        project_id = project_id or (await self.get_project_id())
+        client = await self.initialize_client(JobsV1Beta3AsyncClient)
+
+        request = GetJobRequest(
+            dict(
+                project_id=project_id,
+                job_id=job_id,
+                view=job_view,
+                location=location,
+            )
+        )
+
+        job = await client.get_job(
+            request=request,
+        )
+
+        return job
+
+    async def get_job_status(
+        self,
+        job_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        job_view: int = JobView.JOB_VIEW_SUMMARY,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> JobState:
+        """
+        Gets the job status with the specified Job ID.
+
+        :param job_id: Job ID to get.
+        :param project_id: the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param job_view: Optional. JobView object which determines representation of the returned data
+        :param location: Optional. The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        """
+        job = await self.get_job(
+            project_id=project_id,
+            job_id=job_id,
+            job_view=job_view,
+            location=location,
+        )
+        state = job.current_state
+        return state

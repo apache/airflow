@@ -18,6 +18,7 @@
 """This module contains Google Vertex AI operators."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -27,19 +28,19 @@ from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
     VertexAITrainingLink,
     VertexAITrainingPipelinesLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CustomTrainingJobBaseOperator(BaseOperator):
+class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
     """The base class for operators that launch Custom jobs on VertexAI."""
 
     def __init__(
@@ -147,6 +148,10 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.sync = sync
         # END Run param
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -1213,7 +1218,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             self.hook.cancel_job()
 
 
-class DeleteCustomTrainingJobOperator(BaseOperator):
+class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
     """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
 
     :param training_pipeline_id: Required. The name of the TrainingPipeline resource to be deleted.
@@ -1263,6 +1268,10 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -1302,7 +1311,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
             self.log.info("The Custom Job ID %s does not exist.", self.custom_job)
 
 
-class ListCustomTrainingJobOperator(BaseOperator):
+class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):
     """Lists CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob in a Location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -1383,6 +1392,10 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

@@ -34,6 +34,9 @@ class BigQueryToBigQueryOperator(BaseOperator):
     Copies data from one BigQuery table to another.
 
     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryToBigQueryOperator`
+    .. seealso::
         For more details about these parameters:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
 
@@ -105,6 +108,10 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.labels = labels
         self.encryption_configuration = encryption_configuration

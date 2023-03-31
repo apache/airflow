@@ -53,6 +53,7 @@ Resume an Amazon Redshift cluster
 
 To resume a 'paused' Amazon Redshift cluster you can use
 :class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift.py
     :language: python
@@ -65,8 +66,9 @@ To resume a 'paused' Amazon Redshift cluster you can use
 Pause an Amazon Redshift cluster
 ================================
 
-To pause an 'available' Amazon Redshift cluster you can use
-:class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
+To pause an ``available`` Amazon Redshift cluster you can use
+:class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift.py
     :language: python

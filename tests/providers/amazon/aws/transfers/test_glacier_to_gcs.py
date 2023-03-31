@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
 
@@ -31,7 +31,7 @@ TASK_ID = "glacier_job"
 VAULT_NAME = "airflow"
 
 
-class TestGlacierToGCSOperator(TestCase):
+class TestGlacierToGCSOperator:
     @mock.patch("airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierHook")
     @mock.patch("airflow.providers.amazon.aws.transfers.glacier_to_gcs.GCSHook")
     @mock.patch("airflow.providers.amazon.aws.transfers.glacier_to_gcs.tempfile")

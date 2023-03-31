@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Data Fusion sensors."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
@@ -84,6 +85,10 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         self.project_id = project_id
         self.namespace = namespace
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

@@ -21,12 +21,28 @@ import collections
 import logging
 import re
 import sys
-from typing import Any, Callable, Dict, Generator, Iterable, List, TextIO, Tuple, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    TextIO,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
+from airflow.typing_compat import TypeGuard
 
-Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
+if TYPE_CHECKING:
+    from kubernetes.client import V1EnvVar
+
+Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)
@@ -108,6 +124,19 @@ def _secrets_masker() -> SecretsMasker:
         "https://airflow.apache.org/docs/apache-airflow/stable/logging-monitoring/logging-tasks.html"
         "#advanced-configuration"
     )
+
+
+@cache
+def _get_v1_env_var_type() -> type:
+    try:
+        from kubernetes.client import V1EnvVar
+    except ImportError:
+        return type("V1EnvVar", (), {})
+    return V1EnvVar
+
+
+def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
+    return isinstance(v, _get_v1_env_var_type())
 
 
 class SecretsMasker(logging.Filter):
@@ -200,10 +229,18 @@ class SecretsMasker(logging.Filter):
             if name and should_hide_value_for_key(name):
                 return self._redact_all(item, depth)
             if isinstance(item, dict):
-                return {
+                to_return = {
                     dict_key: self._redact(subval, name=dict_key, depth=(depth + 1))
                     for dict_key, subval in item.items()
                 }
+                return to_return
+            elif _is_v1_env_var(item):
+                tmp: dict = item.to_dict()
+                if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
+                    tmp["value"] = "***"
+                else:
+                    return self._redact(item=tmp, name=name, depth=depth)
+                return tmp
             elif isinstance(item, str):
                 if self.replacer:
                     # We can't replace specific values, but the key-based redacting

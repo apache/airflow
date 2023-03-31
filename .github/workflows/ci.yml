@@ -149,7 +149,9 @@ jobs:
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       providers-package-format-exclude: ${{ steps.selective-checks.outputs.providers-package-format-exclude }}
+      skip-provider-tests: ${{ steps.source-run-info.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
@@ -223,7 +225,7 @@ jobs:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
-        run: breeze ci selective-check >> ${GITHUB_OUTPUT}
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:
@@ -409,7 +411,7 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
 
-  run-new-breeze-tests:
+  run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -426,8 +428,9 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
-      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
       - run: breeze setup version
+      - run: python -m pytest ./dev/breeze/ -n auto --color=yes
+      - run: breeze setup check-all-params-in-groups
 
   tests-www:
     timeout-minutes: 10
@@ -496,8 +499,9 @@ jobs:
           cache-dependency-path: ./dev/requirements.txt
       - name: "Test examples of PROD image building"
         run: >
-          python -m pip install -r ./docker_tests/requirements.txt &&
-          python -m pytest docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes
+          cd ./docker_tests &&
+          python -m pip install -r requirements.txt &&
+          python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes
 
   test-git-clone-on-windows:
     timeout-minutes: 5
@@ -538,8 +542,6 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Tests Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -734,9 +736,10 @@ jobs:
       - name: "Verify sdist packages with twine"
         run: pipx install twine && twine check dist/*.tar.gz
         if: matrix.package-format == 'sdist'
-      - name: "Test issue generation automatically"
+      - name: "Test providers issue generation automatically"
         run: >
-          breeze release-management generate-issue-content --only-available-in-dist --disable-progress
+          breeze release-management generate-issue-content-providers
+          --only-available-in-dist --disable-progress
         if: matrix.package-format == 'wheel'
       - name: "Install and test provider packages and airflow via ${{matrix.package-format}} files"
         run: breeze release-management verify-provider-packages --use-packages-from-dist
@@ -759,6 +762,41 @@ jobs:
           breeze release-management verify-provider-packages --use-airflow-version 2.3.0
           --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0
         if: matrix.package-format == 'wheel'
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
+  test-airflow-release-commands:
+    timeout-minutes: 80
+    name: "Test Airflow release commands"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.runs-on == 'self-hosted'
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Install required packages"
+        run: python -m pip install --editable ./dev/breeze/
+      - name: "Check Airflow create minor branch command"
+        run: breeze release-management create-minor-branch --version-branch 2-4 -a y
+      - name: "Check Airflow RC process command"
+        run: |
+          breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  -a y
+      - name: "Check Airflow release process command"
+        run: |
+          breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -795,13 +833,43 @@ jobs:
       - name: "Post Helm Tests"
         uses: ./.github/actions/post_tests
 
+  test-pytest-collection:
+    timeout-minutes: 5
+    name: "Test Pytest collection"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    if: needs.build-info.outputs.image-build == 'true'
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        id: wait-for-images
+        run: breeze ci-image pull --wait-for-image --tag-as-latest
+        env:
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      - name: "Tests Pytest collection"
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py"
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
   tests-postgres:
     timeout-minutes: 130
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -840,12 +908,56 @@ jobs:
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
+  tests-postgres-boto:
+    timeout-minutes: 130
+    name: >
+      LatestBotoPostgres${{needs.build-info.outputs.default-postgres-version}},
+      Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.test-types}}
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, test-pytest-collection]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      UPGRADE_BOTO: "true"
+      JOB_ID: >
+        postgres-${{needs.build-info.outputs.default-python-version}}-
+        ${{needs.build-info.outputs.default-postgres-version}}
+      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Tests: ${{needs.build-info.outputs.default-python-version}}:${{needs.build-info.outputs.test-types}}
+        run: breeze testing tests --run-in-parallel
+      - name: >
+          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
+          ${{needs.build-info.outputs.test-types}}
+        uses: ./.github/actions/post_tests
+
   tests-mysql:
     timeout-minutes: 130
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -878,6 +990,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
+      - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
+        if: env.MYSQL_VERSION != '5.7'
+        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -886,7 +1001,7 @@ jobs:
     name: >
       MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -928,7 +1043,7 @@ jobs:
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
@@ -969,7 +1084,7 @@ jobs:
     timeout-minutes: 130
     name: Integration Tests Postgres
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
@@ -979,10 +1094,11 @@ jobs:
       BACKEND: "postgres"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1018,8 +1134,8 @@ jobs:
           breeze testing integration-tests --integration trino --integration kerberos
           breeze stop
         if: needs.build-info.outputs.runs-on != 'self-hosted'
-      - name: "Integration Tests Postgres: all"
-        run: breeze testing integration-tests --integration all
+      - name: "Integration Tests Postgres: all-testable"
+        run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
@@ -1028,20 +1144,21 @@ jobs:
     timeout-minutes: 130
     name: Integration Tests MySQL
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "postgres"
+      BACKEND: "mysql"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      BACKEND_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       JOB_ID: "integration"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
+      SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
+    if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1055,8 +1172,8 @@ jobs:
       - name: "Prepare breeze & CI image: ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
         uses: ./.github/actions/prepare_breeze_and_image
         if: needs.build-info.outputs.runs-on == 'self-hosted'
-      - name: "Integration Tests MySQL: all"
-        run: breeze testing integration-tests --integration all
+      - name: "Integration Tests MySQL: all-testable"
+        run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
@@ -1068,7 +1185,7 @@ jobs:
     name: "Quarantined tests"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     continue-on-error: true
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       TEST_TYPES: "Quarantined"
@@ -1097,43 +1214,6 @@ jobs:
       - name: >
           Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
         uses: ./.github/actions/post_tests
-
-  upload-coverage:
-    timeout-minutes: 15
-    name: "Upload coverage"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
-    continue-on-error: true
-    needs:
-      - build-info
-      - tests-postgres
-      - tests-sqlite
-      - tests-mysql
-      - tests-mssql
-      - tests-quarantined
-      - tests-integration-postgres
-      - tests-integration-mysql
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-    # Only upload coverage on merges to main
-    if: needs.build-info.outputs.run-coverage == 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-          submodules: recursive
-      - name: "Download all artifacts from the current build"
-        uses: actions/download-artifact@v3
-        with:
-          path: ./coverage-files
-      - name: "Removes unnecessary artifacts"
-        run: ls ./coverage-files | grep -v coverage | xargs rm -rfv
-      - name: "Upload all coverage reports to codecov"
-        uses: ./.github/actions/codecov-action
-        with:
-          directory: "./coverage-files"
 
   summarize-warnings:
     timeout-minutes: 15
@@ -1442,6 +1522,7 @@ jobs:
           breeze prod-image build
           --builder airflow_cache
           --install-packages-from-context
+          --run-in-parallel
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
       - name: "Push PROD latest image ${{ matrix.platform }}"

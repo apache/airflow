@@ -735,6 +735,15 @@ class TestAwsS3Hook:
         assert hook.get_bucket_tagging(bucket_name="new_bucket") == tag_set
 
     @mock_s3
+    def test_put_bucket_tagging_with_dict(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="new_bucket")
+        tag_set = {"Color": "Green"}
+        hook.put_bucket_tagging(bucket_name="new_bucket", tag_set=tag_set)
+
+        assert hook.get_bucket_tagging(bucket_name="new_bucket") == [{"Key": "Color", "Value": "Green"}]
+
+    @mock_s3
     def test_put_bucket_tagging_with_pair(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")

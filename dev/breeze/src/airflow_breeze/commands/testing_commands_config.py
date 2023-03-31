@@ -53,6 +53,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--upgrade-boto",
             ],
         },
     ],
@@ -75,6 +76,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--skip-provider-tests",
             ],
         },
     ],

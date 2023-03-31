@@ -30,7 +30,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
-from types import FunctionType
+from types import ClassMethodDescriptorType, FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -75,7 +75,6 @@ from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -89,8 +88,10 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
@@ -149,7 +150,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
 def get_merged_defaults(
     dag: DAG | None,
     task_group: TaskGroup | None,
-    task_params: dict | None,
+    task_params: collections.abc.MutableMapping | None,
     task_default_args: dict | None,
 ) -> tuple[dict, ParamsDict]:
     args, params = _get_parent_defaults(dag, task_group)
@@ -169,7 +170,7 @@ def get_merged_defaults(
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
-    class_method = None
+    class_method: ClassMethodDescriptorType | None = None
 
     def __get__(
         self, obj: BaseOperator, cls: type[BaseOperator] | None = None
@@ -194,7 +195,7 @@ def partial(
     end_date: datetime | None = None,
     owner: str = DEFAULT_OWNER,
     email: None | str | Iterable[str] = None,
-    params: dict | None = None,
+    params: collections.abc.MutableMapping | None = None,
     resources: dict[str, Any] | None = None,
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
@@ -690,6 +691,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    _is_setup = False
+    _is_teardown = False
+    _on_failure_fail_dagrun = False
+
     def __init__(
         self,
         task_id: str,
@@ -708,7 +713,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
-        params: dict | None = None,
+        params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str = DEFAULT_WEIGHT_RULE,
@@ -920,6 +925,23 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             self.template_fields = [self.template_fields]
+
+        if SetupTeardownContext.active:
+            SetupTeardownContext.update_context_map(self)
+
+    @classmethod
+    def as_setup(cls, *args, **kwargs):
+        op = cls(*args, **kwargs)
+        op._is_setup = True
+        return op
+
+    @classmethod
+    def as_teardown(cls, *args, **kwargs):
+        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        op = cls(*args, **kwargs)
+        op._is_teardown = True
+        op._on_failure_fail_dagrun = on_failure_fail_dagrun
+        return op
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1464,6 +1486,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "template_fields",
                     "template_fields_renderers",
                     "params",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()

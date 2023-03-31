@@ -229,10 +229,18 @@ class TestPatchVariable(TestVariableEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json == {
-            "key": "var1",
-            "value": "updated",
-        }
+        assert response.json == {"key": "var1", "value": "updated", "description": None}
+        _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
+
+    def test_should_update_variable_with_mask(self, session):
+        Variable.set("var1", "foo", description="before update")
+        response = self.client.patch(
+            "/api/v1/variables/var1?update_mask=description",
+            json={"key": "var1", "value": "updated", "description": "after_update"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {"key": "var1", "value": "foo", "description": "after_update"}
         _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
 
     def test_should_reject_invalid_update(self):

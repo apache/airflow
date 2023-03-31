@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "dataflow_template"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -71,6 +72,7 @@ with models.DAG(
     # [START howto_operator_start_template_job]
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start_template_job",
+        project_id=PROJECT_ID,
         template="gs://dataflow-templates/latest/Word_Count",
         parameters={"inputFile": f"gs://{BUCKET_NAME}/{FILE_NAME}", "output": GCS_OUTPUT},
         location=LOCATION,
