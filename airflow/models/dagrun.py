@@ -51,6 +51,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
+from airflow.models import MappedOperator
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
@@ -596,6 +597,17 @@ class DagRun(Base, LoggingMixin):
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
+        # modify if setup/teardown is available for mapped task
+        teardown_tis = [
+            ti for ti in leaf_tis if not isinstance(ti.task, MappedOperator) and ti.task._is_teardown
+        ]
+        leaf_tis = list(set(leaf_tis) - set(teardown_tis))
+        include_on_failure = [
+            ti
+            for ti in teardown_tis
+            if not isinstance(ti.task, MappedOperator) and ti.task._on_failure_fail_dagrun
+        ]
+        leaf_tis.extend(include_on_failure)
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
