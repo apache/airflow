@@ -27,7 +27,8 @@ import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from typing import Generator, Union
 
-import pendulum
+from pendulum.datetime import DateTime
+from pendulum import instance
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
@@ -102,7 +103,7 @@ def _get_dag_run(
     """
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    execution_date: pendulum.DateTime | None = None
+    execution_date: DateTime | None = None
     if exec_date_or_run_id:
         dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
         if dag_run:
@@ -127,7 +128,7 @@ def _get_dag_run(
     if execution_date is not None:
         dag_run_execution_date = execution_date
     else:
-        dag_run_execution_date = pendulum.instance(timezone.utcnow())
+        dag_run_execution_date = instance(timezone.utcnow())
 
     if create_if_necessary == "memory":
         dag_run = DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=dag_run_execution_date)

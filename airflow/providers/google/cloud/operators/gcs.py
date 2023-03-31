@@ -26,7 +26,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Sequence
 
-import pendulum
+from pendulum import instance
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -740,20 +740,20 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_start = context["data_interval_start"]
             orig_end = context["data_interval_end"]
         except KeyError:
-            orig_start = pendulum.instance(context["execution_date"])
+            orig_start = instance(context["execution_date"])
             following_execution_date = context["dag"].following_schedule(context["execution_date"])
             if following_execution_date is None:
                 orig_end = None
             else:
-                orig_end = pendulum.instance(following_execution_date)
+                orig_end = instance(following_execution_date)
 
         timespan_start = orig_start
         if orig_end is None:  # Only possible in Airflow before 2.2.
             self.log.warning("No following schedule found, setting timespan end to max %s", orig_end)
-            timespan_end = pendulum.instance(datetime.datetime.max)
+            timespan_end = instance(datetime.datetime.max)
         elif orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
             self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
-            timespan_end = pendulum.instance(datetime.datetime.max)
+            timespan_end = instance(datetime.datetime.max)
         else:
             timespan_end = orig_end
 

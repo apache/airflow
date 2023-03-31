@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 
-import pendulum
+from pendulum import instance
 from connexion import NoContent
 from flask import g
 from flask_login import current_user
@@ -320,7 +320,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    logical_date = pendulum.instance(post_body["execution_date"])
+    logical_date = instance(post_body["execution_date"])
     run_id = post_body["run_id"]
     dagrun_instance = (
         session.query(DagRun)

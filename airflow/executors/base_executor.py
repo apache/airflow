@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, List, Optional, Sequence, Tuple
 
-import pendulum
+from pendulum import now as pendulum_now
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
@@ -72,12 +72,12 @@ class RunningRetryAttemptType:
     MIN_SECONDS = 10
     total_tries: int = field(default=0, init=False)
     tries_after_min: int = field(default=0, init=False)
-    first_attempt_time: datetime = field(default_factory=lambda: pendulum.now("UTC"), init=False)
+    first_attempt_time: datetime = field(default_factory=lambda: pendulum_now("UTC"), init=False)
 
     @property
     def elapsed(self):
         """Seconds since first attempt"""
-        return (pendulum.now("UTC") - self.first_attempt_time).total_seconds()
+        return (pendulum_now("UTC") - self.first_attempt_time).total_seconds()
 
     def can_try_again(self):
         """

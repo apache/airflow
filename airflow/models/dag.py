@@ -51,7 +51,8 @@ from typing import (
 from urllib.parse import urlsplit
 
 import jinja2
-import pendulum
+from pendulum.datetime import DateTime
+from pendulum import now as pendulum_now, parse as pendulum_parse, instance
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
@@ -472,7 +473,7 @@ class DAG(LoggingMixin):
         tz = None
         if start_date and start_date.tzinfo:
             tzinfo = None if start_date.tzinfo else settings.TIMEZONE
-            tz = pendulum.instance(start_date, tz=tzinfo).timezone
+            tz = instance(start_date, tz=tzinfo).timezone
         elif "start_date" in self.default_args and self.default_args["start_date"]:
             date = self.default_args["start_date"]
             if not isinstance(date, datetime):
@@ -481,7 +482,7 @@ class DAG(LoggingMixin):
                 start_date = date
 
             tzinfo = None if date.tzinfo else settings.TIMEZONE
-            tz = pendulum.instance(date, tz=tzinfo).timezone
+            tz = instance(date, tz=tzinfo).timezone
         self.timezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
@@ -752,7 +753,7 @@ class DAG(LoggingMixin):
 
     def date_range(
         self,
-        start_date: pendulum.DateTime,
+        start_date: DateTime,
         num: int | None = None,
         end_date: datetime | None = None,
     ) -> list[datetime]:
@@ -770,7 +771,7 @@ class DAG(LoggingMixin):
             coerced_end_date = timezone.utcnow()
         else:
             coerced_end_date = end_date
-        it = self.iter_dagrun_infos_between(start_date, pendulum.instance(coerced_end_date), align=False)
+        it = self.iter_dagrun_infos_between(start_date, instance(coerced_end_date), align=False)
         return [info.logical_date for info in it]
 
     def is_fixed_time_schedule(self):
@@ -940,7 +941,7 @@ class DAG(LoggingMixin):
             info = None
         return info
 
-    def next_dagrun_after_date(self, date_last_automated_dagrun: pendulum.DateTime | None):
+    def next_dagrun_after_date(self, date_last_automated_dagrun: DateTime | None):
         warnings.warn(
             "`DAG.next_dagrun_after_date()` is deprecated. Please use `DAG.next_dagrun_info()` instead.",
             category=RemovedInAirflow3Warning,
@@ -974,8 +975,8 @@ class DAG(LoggingMixin):
 
     def iter_dagrun_infos_between(
         self,
-        earliest: pendulum.DateTime | None,
-        latest: pendulum.DateTime,
+        earliest: DateTime | None,
+        latest: DateTime,
         *,
         align: bool = True,
     ) -> Iterable[DagRunInfo]:
@@ -1070,7 +1071,7 @@ class DAG(LoggingMixin):
         )
         earliest = timezone.coerce_datetime(start_date)
         if end_date is None:
-            latest = pendulum.now(timezone.utc)
+            latest = pendulum_now(timezone.utc)
         else:
             latest = timezone.coerce_datetime(end_date)
         return [info.logical_date for info in self.iter_dagrun_infos_between(earliest, latest)]
@@ -1430,7 +1431,7 @@ class DAG(LoggingMixin):
         return dagruns
 
     @provide_session
-    def get_latest_execution_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
+    def get_latest_execution_date(self, session: Session = NEW_SESSION) -> DateTime | None:
         """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
@@ -1757,7 +1758,7 @@ class DAG(LoggingMixin):
                     .filter(
                         TI.dag_id == task.external_dag_id,
                         TI.task_id == task.external_task_id,
-                        DagRun.execution_date == pendulum.parse(task.execution_date),
+                        DagRun.execution_date == pendulum_parse(task.execution_date),
                     )
                 )
 

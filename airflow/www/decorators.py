@@ -25,7 +25,7 @@ from io import BytesIO as IO
 from itertools import chain
 from typing import Callable, TypeVar, cast
 
-import pendulum
+from pendulum import parse as pendulum_parse
 from flask import after_this_request, g, request
 from pendulum.parsing.exceptions import ParserError
 
@@ -114,7 +114,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 if "execution_date" in request.values:
                     execution_date_value = request.values.get("execution_date")
                     try:
-                        log.execution_date = pendulum.parse(execution_date_value, strict=False)
+                        log.execution_date = pendulum_parse(execution_date_value, strict=False)
                     except ParserError:
                         logger.exception(
                             "Failed to parse execution_date from the request: %s", execution_date_value

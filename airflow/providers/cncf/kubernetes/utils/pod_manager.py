@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Generator, cast
 
-import pendulum
+from pendulum import pendulum_now, parse as pendulum_parse
 import tenacity
 from kubernetes import client, watch
 from kubernetes.client.models.v1_container_status import V1ContainerStatus
@@ -345,7 +345,7 @@ class PodManager(LoggingMixin):
                     container_name=container_name,
                     timestamps=True,
                     since_seconds=(
-                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
+                        math.ceil((pendulum_now() - since_time).total_seconds()) if since_time else None
                     ),
                     follow=follow,
                     post_termination_timeout=termination_timeout,
@@ -430,7 +430,7 @@ class PodManager(LoggingMixin):
         timestamp = line[:split_at]
         message = line[split_at + 1 :].rstrip()
         try:
-            last_log_time = cast(DateTime, pendulum.parse(timestamp))
+            last_log_time = cast(DateTime, pendulum_parse(timestamp))
         except ParserError:
             self.log.error("Error parsing timestamp. Will continue execution but won't update timestamp")
             return None, line

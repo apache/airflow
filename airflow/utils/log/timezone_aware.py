@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import logging
 
-import pendulum
+from pendulum import from_timestamp
+from pendulum.tz import local_timezone
 
 
 class TimezoneAware(logging.Formatter):
@@ -38,7 +39,7 @@ class TimezoneAware(logging.Formatter):
         Returns the creation time of the specified LogRecord in ISO 8601 date and time format
         in the local time zone.
         """
-        dt = pendulum.from_timestamp(record.created, tz=pendulum.local_timezone())
+        dt = from_timestamp(record.created, tz=local_timezone())
         if datefmt:
             s = dt.strftime(datefmt)
         else:

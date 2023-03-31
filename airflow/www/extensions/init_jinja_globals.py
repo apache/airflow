@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-import pendulum
+from pendulum.tz import local_timezone
 
 import airflow
 from airflow.configuration import conf
@@ -31,13 +31,13 @@ def init_jinja_globals(app):
     """Add extra globals variable to Jinja context"""
     server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
-        server_timezone = pendulum.local_timezone().name
+        server_timezone = local_timezone().name
     elif server_timezone == "utc":
         server_timezone = "UTC"
 
     default_ui_timezone = conf.get("webserver", "default_ui_timezone")
     if default_ui_timezone == "system":
-        default_ui_timezone = pendulum.local_timezone().name
+        default_ui_timezone = local_timezone().name
     elif default_ui_timezone == "utc":
         default_ui_timezone = "UTC"
     if not default_ui_timezone:

@@ -19,8 +19,7 @@ from __future__ import annotations
 import itertools
 from typing import Iterable
 
-import pendulum
-from pendulum import DateTime
+from pendulum.datetime import DateTime
 
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
@@ -111,7 +110,7 @@ class EventsTimetable(Timetable):
     @classmethod
     def deserialize(cls, data) -> Timetable:
         return cls(
-            [pendulum.DateTime.fromisoformat(x) for x in data["event_dates"]],
+            [DateTime.fromisoformat(x) for x in data["event_dates"]],
             data["restrict_to_events"],
             presorted=True,
         )

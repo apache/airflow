@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
-import pendulum
+from pendulum import now as pendulum_now
 
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils.context import Context
@@ -52,7 +52,7 @@ class LatestOnlyOperator(BaseBranchOperator):
 
         dag: DAG = context["dag"]
         next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
-        now = pendulum.now("UTC")
+        now = pendulum_now("UTC")
 
         if next_info is None:
             self.log.info("Last scheduled execution: allowing execution to proceed.")

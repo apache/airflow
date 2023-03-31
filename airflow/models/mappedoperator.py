@@ -26,7 +26,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
 
 import attr
-import pendulum
+from pendulum.datetime import DateTime
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -270,8 +270,8 @@ class MappedOperator(AbstractOperator):
 
     dag: DAG | None
     task_group: TaskGroup | None
-    start_date: pendulum.DateTime | None
-    end_date: pendulum.DateTime | None
+    start_date: DateTime | None
+    end_date: DateTime | None
     upstream_task_ids: set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: set[str] = attr.ib(factory=set, init=False)
 

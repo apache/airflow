@@ -84,6 +84,6 @@ def datetime_diff_for_humans(dt: Any, since: DateTime | None = None) -> str:
     :param since: When to display the date from. If ``None`` then the diff is
         between ``dt`` and now.
     """
-    import pendulum
+    from pendulum import instance
 
-    return pendulum.instance(dt).diff_for_humans(since)
+    return instance(dt).diff_for_humans(since)

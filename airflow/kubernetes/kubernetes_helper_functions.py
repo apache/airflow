@@ -20,7 +20,7 @@ import logging
 import secrets
 import string
 
-import pendulum
+from pendulum import parse as pendulum_parse
 from slugify import slugify
 
 from airflow.models.taskinstance import TaskInstanceKey
@@ -95,7 +95,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import Session
 
-        execution_date = pendulum.parse(annotations["execution_date"])
+        execution_date = pendulum_parse(annotations["execution_date"])
         # Do _not_ use create-session, we don't want to expunge
         session = Session()
 

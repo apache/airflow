@@ -20,7 +20,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
-import pendulum
+from pendulum.datetime import DateTime
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
@@ -133,8 +133,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             return self.node_id[len(tg.node_id) + 1 :]
         return self.node_id
 
-    start_date: pendulum.DateTime | None
-    end_date: pendulum.DateTime | None
+    start_date: DateTime | None
+    end_date: DateTime | None
     upstream_task_ids: set[str]
     downstream_task_ids: set[str]
 

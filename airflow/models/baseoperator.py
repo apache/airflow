@@ -47,7 +47,8 @@ from typing import (
 )
 
 import attr
-import pendulum
+from pendulum.datetime import DateTime
+from pendulum import instance
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
@@ -680,8 +681,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Setting it to None by default as other Operators do not have that field
     subdag: DAG | None = None
 
-    start_date: pendulum.DateTime | None = None
-    end_date: pendulum.DateTime | None = None
+    start_date: DateTime | None = None
+    end_date: DateTime | None = None
 
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
@@ -1282,8 +1283,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if TYPE_CHECKING:
             assert self.start_date
 
-        start_date = pendulum.instance(start_date or self.start_date)
-        end_date = pendulum.instance(end_date or self.end_date or timezone.utcnow())
+        start_date = instance(start_date or self.start_date)
+        end_date = instance(end_date or self.end_date or timezone.utcnow())
 
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past

@@ -26,7 +26,7 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
-import pendulum
+from pendulum.tz import timezone, local_timezone
 import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc
@@ -48,13 +48,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-TIMEZONE = pendulum.tz.timezone("UTC")
+TIMEZONE = timezone("UTC")
 try:
     tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
-        TIMEZONE = pendulum.tz.local_timezone()
+        TIMEZONE = local_timezone()
     else:
-        TIMEZONE = pendulum.tz.timezone(tz)
+        TIMEZONE = timezone(tz)
 except Exception:
     pass
 log.info("Configured default timezone %s", TIMEZONE)

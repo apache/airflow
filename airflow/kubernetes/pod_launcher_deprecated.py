@@ -23,7 +23,7 @@ import time
 import warnings
 from datetime import datetime as dt
 
-import pendulum
+from pendulum import parse as pendulum_parse, now as pendulum_now
 import tenacity
 from kubernetes import client, watch
 from kubernetes.client.models.v1_pod import V1Pod
@@ -153,7 +153,7 @@ class PodLauncher(LoggingMixin):
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode("utf-8"))
                     if timestamp:
-                        last_log_time = pendulum.parse(timestamp)
+                        last_log_time = pendulum_parse(timestamp)
                     self.log.info(message)
                 time.sleep(1)
 
@@ -162,7 +162,7 @@ class PodLauncher(LoggingMixin):
 
                 self.log.warning("Pod %s log read interrupted", pod.metadata.name)
                 if last_log_time:
-                    delta = pendulum.now() - last_log_time
+                    delta = pendulum_now() - last_log_time
                     # Prefer logs duplication rather than loss
                     read_logs_since_sec = math.ceil(delta.total_seconds())
         result = None

@@ -29,7 +29,7 @@ from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
-import pendulum
+from pendulum import pendulum_now
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
@@ -226,7 +226,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             if logs[-1].message == self.end_of_log_mark:
                 metadata["end_of_log"] = True
 
-        cur_ts = pendulum.now()
+        cur_ts = pendulum_now()
         if "last_log_timestamp" in metadata:
             last_log_ts = timezone.parse(metadata["last_log_timestamp"])
 

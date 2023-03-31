@@ -21,7 +21,8 @@ import time
 from typing import TYPE_CHECKING, Any, Iterable, Iterator, Sequence
 
 import attr
-import pendulum
+from pendulum.datetime import DateTime
+from pendulum import pendulum_now, instance
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
@@ -98,7 +99,7 @@ class BackfillJob(BaseJob):
         not_ready: set[TaskInstanceKey] = attr.ib(factory=set)
         deadlocked: set[TaskInstance] = attr.ib(factory=set)
         active_runs: list[DagRun] = attr.ib(factory=list)
-        executed_dag_run_dates: set[pendulum.DateTime] = attr.ib(factory=set)
+        executed_dag_run_dates: set[DateTime] = attr.ib(factory=set)
         finished_runs: int = 0
         total_runs: int = 0
 
@@ -797,9 +798,9 @@ class BackfillJob(BaseJob):
         # Get DagRun schedule between the start/end dates, which will turn into dag runs.
         dagrun_start_date = timezone.coerce_datetime(start_date)
         if self.bf_end_date is None:
-            dagrun_end_date = pendulum.now(timezone.utc)
+            dagrun_end_date = pendulum_now(timezone.utc)
         else:
-            dagrun_end_date = pendulum.instance(self.bf_end_date)
+            dagrun_end_date = instance(self.bf_end_date)
         dagrun_infos = list(self.dag.iter_dagrun_infos_between(dagrun_start_date, dagrun_end_date))
         if self.run_backwards:
             tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]

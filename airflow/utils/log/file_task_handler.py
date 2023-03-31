@@ -27,7 +27,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
-import pendulum
+from pendulum.datetime import DateTime
+from pendulum import parse as pendulum_parse
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -102,7 +103,7 @@ if not _parse_timestamp:
 
     def _parse_timestamp(line: str):
         timestamp_str, _ = line.split(" ", 1)
-        return pendulum.parse(timestamp_str.strip("[]"))
+        return pendulum_parse(timestamp_str.strip("[]"))
 
 
 def _parse_timestamps_in_log_file(lines: Iterable[str]):
@@ -125,7 +126,7 @@ def _interleave_logs(*logs):
         records.extend(_parse_timestamps_in_log_file(log.splitlines()))
     last = None
     for _, _, v in sorted(
-        records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
+        records, key=lambda x: (x[0], x[1]) if x[0] else (DateTime(2000, 1, 1), x[1])
     ):
         if v != last:  # dedupe
             yield v

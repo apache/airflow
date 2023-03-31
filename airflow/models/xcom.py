@@ -30,7 +30,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
 import attr
-import pendulum
+from pendulum.datetime import DateTime
 from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
@@ -566,7 +566,7 @@ class BaseXCom(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     def clear(
-        execution_date: pendulum.DateTime,
+        execution_date: DateTime,
         dag_id: str,
         task_id: str,
         session: Session = NEW_SESSION,
@@ -577,7 +577,7 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     @internal_api_call
     def clear(
-        execution_date: pendulum.DateTime | None = None,
+        execution_date: DateTime | None = None,
         dag_id: str | None = None,
         task_id: str | None = None,
         session: Session = NEW_SESSION,

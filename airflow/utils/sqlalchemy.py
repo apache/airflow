@@ -23,7 +23,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any, Iterable
 
-import pendulum
+from pendulum.tz import timezone
 from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-utc = pendulum.tz.timezone("UTC")
+utc = timezone("UTC")
 
 using_mysql = conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("mysql")
 

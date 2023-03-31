@@ -20,12 +20,13 @@ from __future__ import annotations
 import datetime as dt
 from typing import overload
 
-import pendulum
-from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
+from pendulum.tz import timezone
+from pendulum import instance, parse as pendulum_parse
+from dateutil.relativedelta import relativedelta
 
 # UTC time zone as a tzinfo instance.
-utc = pendulum.tz.timezone("UTC")
+utc = timezone("UTC")
 
 
 def is_localized(value):
@@ -104,9 +105,9 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
     if not is_localized(value):
         from airflow.settings import TIMEZONE
 
-        value = pendulum.instance(value, TIMEZONE)
+        value = instance(value, TIMEZONE)
 
-    return pendulum.instance(value.astimezone(utc))
+    return instance(value.astimezone(utc))
 
 
 @overload
@@ -211,7 +212,7 @@ def parse(string: str, timezone=None) -> DateTime:
     """
     from airflow.settings import TIMEZONE
 
-    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore
+    return pendulum_parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore
 
 
 @overload
@@ -243,7 +244,7 @@ def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateT
     if isinstance(v, DateTime):
         return v if v.tzinfo else make_aware(v, tz)
     # Only dt.datetime is left here.
-    return pendulum.instance(v if v.tzinfo else make_aware(v, tz))
+    return instance(v if v.tzinfo else make_aware(v, tz))
 
 
 def td_format(td_object: None | dt.timedelta | float | int) -> str | None:

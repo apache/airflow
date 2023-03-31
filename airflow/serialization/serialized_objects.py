@@ -149,7 +149,7 @@ def encode_timezone(var: Timezone) -> str | int:
 
 def decode_timezone(var: str | int) -> Timezone:
     """Decode a previously serialized Pendulum Timezone."""
-    return pendulum.tz.timezone(var)
+    return Timezone(var)
 
 
 def _get_registered_timetable(importable_string: str) -> type[Timetable] | None:
