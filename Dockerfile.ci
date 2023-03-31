@@ -852,6 +852,8 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
+rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+
 set +u
 if [[ "${RUN_TESTS}" != "true" ]]; then
     exec /bin/bash "${@}"
@@ -1009,6 +1011,16 @@ else
                 echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
             fi
         done
+    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
+        # Those tests fail when --asert=rewrite is set, therefore we run them separately
+        # with --assert=plain to make sure they pass.
+        SELECTED_TESTS=(
+            # this on is mysteriously failing dill serialization. It could be removed once
+            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
+            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
+        )
+        EXTRA_PYTEST_ARGS+=("--assert=plain")
+        export PYTEST_PLAIN_ASSERTS="true"
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
@@ -1071,6 +1083,32 @@ COPY <<"EOF" /entrypoint_exec.sh
 . /opt/airflow/scripts/in_container/run_init_script.sh
 
 exec /bin/bash "${@}"
+EOF
+
+# The content below is automatically copied from scripts/docker/patch_cassandra_type_code.py
+COPY <<"EOF" /patch_cassandra_type_code.py
+#!/usr/bin/env python
+
+from __future__ import annotations
+
+import cassandra.type_codes as cassandra_type_codes
+
+if __name__ == "__main__":
+    print()
+    path_to_patch = cassandra_type_codes.__file__
+    with open(path_to_patch, "r+") as f:
+        content = f.read()
+        if "PYTEST_DONT_REWRITE" in content:
+            print(f"The {path_to_patch} is already patched with PYTEST_DONT_REWRITE")
+            print()
+            exit(0)
+        f.seek(0)
+        content = content.replace('"""', '"""\nPYTEST_DONT_REWRITE', 1)
+        f.write(content)
+        f.truncate()
+        print(f"Patched {path_to_patch} with PYTEST_DONT_REWRITE")
+        print()
+        exit(0)
 EOF
 
 FROM ${PYTHON_BASE_IMAGE} as main
@@ -1301,6 +1339,15 @@ RUN bash /scripts/docker/install_pip_version.sh; \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
+COPY --from=scripts patch_cassandra_type_code.py /patch_cassandra_type_code.py
+
+# Patch cassandra type_code to avoide accidental type_code assert rewriting breaking pytest
+# test discovery and execution.
+# This one can be fixed once https://github.com/pytest-dev/pytest/issues/10844
+# is fixed and released or once the workaround is merged in cassandra-driver
+# https://github.com/datastax/python-driver/pull/1142
+RUN python /patch_cassandra_type_code.py
+
 # Install autocomplete for airflow
 RUN if command -v airflow; then \
         register-python-argcomplete airflow >> ~/.bashrc ; \
@@ -1308,6 +1355,7 @@ RUN if command -v airflow; then \
 
 # Install autocomplete for Kubectl
 RUN echo "source /etc/bash_completion" >> ~/.bashrc
+
 
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
 # copying over stuff that is accidentally generated or that we do not need (such as egg-info)
