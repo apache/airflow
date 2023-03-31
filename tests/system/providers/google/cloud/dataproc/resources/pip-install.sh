@@ -62,7 +62,7 @@ function main() {
   fi
 
   install_pip
-  run_with_retry pip install --upgrade "${PACKAGES}"
+  run_with_retry pip install --upgrade ${PACKAGES}
 }
 
 main
