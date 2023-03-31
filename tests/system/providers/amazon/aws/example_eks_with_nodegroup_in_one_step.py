@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import boto3
+
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
@@ -42,6 +45,22 @@ sys_test_context_task = (
 )
 
 
+@task
+def create_launch_template(template_name: str):
+    # This launch template enables IMDSv2.
+    boto3.client("ec2").create_launch_template(
+        LaunchTemplateName=template_name,
+        LaunchTemplateData={
+            "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
+        },
+    )
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_launch_template(template_name: str):
+    boto3.client("ec2").delete_launch_template(LaunchTemplateName=template_name)
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -54,6 +73,7 @@ with DAG(
 
     cluster_name = f"{env_id}-cluster"
     nodegroup_name = f"{env_id}-nodegroup"
+    launch_template_name = f"{env_id}-launch-template"
 
     # [START howto_operator_eks_create_cluster_with_nodegroup]
     # Create an Amazon EKS cluster control plane and an EKS nodegroup compute platform in one step.
@@ -68,6 +88,9 @@ with DAG(
         resources_vpc_config={"subnetIds": test_context[SUBNETS_KEY]},
         # ``compute='nodegroup'`` is the default, explicitly set here for demo purposes.
         compute="nodegroup",
+        # The launch template enforces IMDSv2 and is required for internal
+        # compliance when running these system tests on AWS infrastructure.
+        create_nodegroup_kwargs={"launchTemplate": {"name": launch_template_name}},
     )
     # [END howto_operator_eks_create_cluster_with_nodegroup]
 
@@ -126,6 +149,7 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
+        create_launch_template(launch_template_name),
         # TEST BODY
         create_cluster_and_nodegroup,
         await_create_nodegroup,
@@ -134,6 +158,7 @@ with DAG(
         describe_pod,
         delete_nodegroup_and_cluster,
         await_delete_cluster,
+        delete_launch_template(launch_template_name),
     )
 
     from tests.system.utils.watcher import watcher
