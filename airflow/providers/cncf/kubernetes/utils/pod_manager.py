@@ -218,7 +218,7 @@ class PodManager(LoggingMixin):
 
     def __init__(
         self,
-        kube_client: client.CoreV1Api = None,
+        kube_client: client.CoreV1Api,
     ):
         """
         Creates the launcher.
