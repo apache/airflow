@@ -191,27 +191,27 @@ def partial(
     task_id: str,
     dag: DAG | None = None,
     task_group: TaskGroup | None = None,
-    start_date: datetime | None | ArgNotSet = NOTSET,
-    end_date: datetime | None | ArgNotSet = NOTSET,
-    owner: str | None | ArgNotSet = NOTSET,
+    start_date: datetime | ArgNotSet = NOTSET,
+    end_date: datetime | ArgNotSet = NOTSET,
+    owner: str | ArgNotSet = NOTSET,
     email: None | str | Iterable[str] | ArgNotSet = NOTSET,
     params: dict | None = None,
     resources: dict[str, Any] | None | ArgNotSet = NOTSET,
-    trigger_rule: str | None | ArgNotSet = NOTSET,
-    depends_on_past: bool | None | ArgNotSet = NOTSET,
-    ignore_first_depends_on_past: bool | None | ArgNotSet = NOTSET,
-    wait_for_past_depends_before_skipping: bool | None | ArgNotSet = NOTSET,
-    wait_for_downstream: bool | None | ArgNotSet = NOTSET,
+    trigger_rule: str | ArgNotSet = NOTSET,
+    depends_on_past: bool | ArgNotSet = NOTSET,
+    ignore_first_depends_on_past: bool | ArgNotSet = NOTSET,
+    wait_for_past_depends_before_skipping: bool | ArgNotSet = NOTSET,
+    wait_for_downstream: bool | ArgNotSet = NOTSET,
     retries: int | None | ArgNotSet = NOTSET,
-    queue: str | None | ArgNotSet = NOTSET,
-    pool: str | None = None,
-    pool_slots: int | None | ArgNotSet = NOTSET,
+    queue: str | ArgNotSet = NOTSET,
+    pool: str | ArgNotSet = NOTSET,
+    pool_slots: int | ArgNotSet = NOTSET,
     execution_timeout: timedelta | None | ArgNotSet = NOTSET,
     max_retry_delay: None | timedelta | float | ArgNotSet = NOTSET,
-    retry_delay: timedelta | float | None | ArgNotSet = NOTSET,
-    retry_exponential_backoff: bool | None | ArgNotSet = NOTSET,
-    priority_weight: int | None | ArgNotSet = NOTSET,
-    weight_rule: str | None | ArgNotSet = NOTSET,
+    retry_delay: timedelta | float | ArgNotSet = NOTSET,
+    retry_exponential_backoff: bool | ArgNotSet = NOTSET,
+    priority_weight: int | ArgNotSet = NOTSET,
+    weight_rule: str | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
@@ -292,11 +292,7 @@ def partial(
     }
 
     DEFAULT_VALUES: dict[str, Any] = {
-        "task_id": None,
-        "start_date": None,
-        "end_date": None,
         "owner": DEFAULT_OWNER,
-        "email": None,
         "trigger_rule": DEFAULT_TRIGGER_RULE,
         "depends_on_past": False,
         "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -306,37 +302,22 @@ def partial(
         "queue": DEFAULT_QUEUE,
         "pool_slots": DEFAULT_POOL_SLOTS,
         "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
-        "max_retry_delay": None,
         "retry_delay": DEFAULT_RETRY_DELAY,
         "retry_exponential_backoff": False,
         "priority_weight": DEFAULT_PRIORITY_WEIGHT,
         "weight_rule": DEFAULT_WEIGHT_RULE,
-        "sla": None,
-        "max_active_tis_per_dag": None,
-        "on_execute_callback": None,
-        "on_failure_callback": None,
-        "on_retry_callback": None,
-        "on_success_callback": None,
-        "run_as_user": None,
-        "executor_config": None,
         "inlets": [],
         "outlets": [],
-        "resources": None,
-        "doc": None,
-        "doc_json": None,
-        "doc_md": None,
-        "doc_rst": None,
-        "doc_yaml": None,
     }
 
-    # Override None kwargs by dag default values
+    # Override NOTSET kwargs by dag default values
     for k, v in default_partial_kwargs.items():
         if partial_kwargs.get(k) is NOTSET:
             partial_kwargs[k] = v
 
-    # Override None kwargs which don't have a dag default value by Airflow default value
+    # Override NOTSET kwargs which don't have a dag default value by Airflow default value or None
     partial_kwargs = {
-        k: v if v is not NOTSET else DEFAULT_VALUES.get(k, v) for k, v in partial_kwargs.items()
+        k: v if v is not NOTSET else DEFAULT_VALUES.get(k, None) for k, v in partial_kwargs.items()
     }
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
