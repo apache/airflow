@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Un
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import XComNotFound
+from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
@@ -32,6 +32,7 @@ from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -202,6 +203,15 @@ class XComArg(ResolveMixin, DependencyMixin):
         :meta private:
         """
         raise NotImplementedError()
+
+    def __enter__(self):
+        if not self.operator._is_setup and not self.operator._is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self.operator)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
 
 
 class PlainXComArg(XComArg):
