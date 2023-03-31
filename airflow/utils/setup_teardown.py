@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class SetupTeardownContext:
-    """Context manager for setup/teardown XComArg."""
+    """Context manager for setup/teardown tasks."""
 
     _context_managed_setup_task: Operator | None = None
     _previous_context_managed_setup_task: list[Operator] = []
