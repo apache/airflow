@@ -60,17 +60,17 @@ class SetupTeardownContext:
     def update_context_map(cls, operator):
         setup_task = SetupTeardownContext.get_context_managed_setup_task()
         teardown_task = SetupTeardownContext.get_context_managed_teardown_task()
-        ins = SetupTeardownContext.context_map
+        ctx = SetupTeardownContext.context_map
         if setup_task:
-            if ins.get(setup_task) is None:
-                ins[setup_task] = [operator]
+            if ctx.get(setup_task) is None:
+                ctx[setup_task] = [operator]
             else:
-                ins[setup_task].append(operator)
+                ctx[setup_task].append(operator)
         if teardown_task:
-            if ins.get(teardown_task) is None:
-                ins[teardown_task] = [operator]
+            if ctx.get(teardown_task) is None:
+                ctx[teardown_task] = [operator]
             else:
-                ins[teardown_task].append(operator)
+                ctx[teardown_task].append(operator)
 
     @classmethod
     def pop_context_managed_teardown_task(cls) -> Operator | None:
