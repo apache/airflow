@@ -301,9 +301,7 @@ ldap = [
 ]
 leveldb = ["plyvel"]
 otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
-pandas = [
-    "pandas>=0.17.1",
-]
+pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
