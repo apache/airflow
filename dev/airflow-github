@@ -146,7 +146,6 @@ def is_core_commit(files: list[str]) -> bool:
         "images/",
         "TESTING.rst",
         "codecov.yml",
-        "pytest.ini",
         "kubernetes_tests/",
         ".github/",
         ".pre-commit-config.yaml",

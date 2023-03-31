@@ -109,7 +109,7 @@ class SelectiveUnitTestTypes(Enum):
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
     *all_selective_test_types(),
-    "Helm",
+    "PlainAsserts",
     "Postgres",
     "MySQL",
     "Quarantine",

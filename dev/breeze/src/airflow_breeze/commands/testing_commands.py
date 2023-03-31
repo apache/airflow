@@ -72,11 +72,11 @@ LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
-def testing():
+def group_for_testing():
     pass
 
 
-@testing.command(
+@group_for_testing.command(
     name="docker-compose-tests",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -308,7 +308,7 @@ def run_tests_in_parallel(
     )
 
 
-@testing.command(
+@group_for_testing.command(
     name="tests",
     help="Run the specified unit test targets.",
     context_settings=dict(
@@ -347,7 +347,7 @@ def run_tests_in_parallel(
 @click.option(
     "--test-types",
     help="Space separated list of test types used for testing in parallel.",
-    default=" ".join(all_selective_test_types()),
+    default=" ".join(all_selective_test_types()) + " PlainAsserts",
     show_default=True,
     envvar="TEST_TYPES",
 )
@@ -366,7 +366,7 @@ def run_tests_in_parallel(
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
-def tests(
+def command_for_tests(
     python: str,
     backend: str,
     postgres_version: str,
@@ -432,7 +432,7 @@ def tests(
         sys.exit(returncode)
 
 
-@testing.command(
+@group_for_testing.command(
     name="integration-tests",
     help="Run the specified integratio tests.",
     context_settings=dict(
@@ -506,7 +506,7 @@ def integration_tests(
     sys.exit(returncode)
 
 
-@testing.command(
+@group_for_testing.command(
     name="helm-tests",
     help="Run Helm chart tests.",
     context_settings=dict(

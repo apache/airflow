@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,22 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-[tool.black]
-line-length = 110
-target-version = ['py37', 'py38', 'py39', 'py310']
 
-[tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose"
-norecursedirs = [
-    ".eggs",
-]
-log_level = "INFO"
-filterwarnings = [
-    "error::pytest.PytestCollectionWarning",
-]
-python_files = [
-    "*.py",
-]
-testpaths = [
-    "tests",
-]
+from __future__ import annotations
+
+import cassandra.type_codes as cassandra_type_codes
+
+if __name__ == "__main__":
+    print()
+    path_to_patch = cassandra_type_codes.__file__
+    with open(path_to_patch, "r+") as f:
+        content = f.read()
+        if "PYTEST_DONT_REWRITE" in content:
+            print(f"The {path_to_patch} is already patched with PYTEST_DONT_REWRITE")
+            print()
+            exit(0)
+        f.seek(0)
+        content = content.replace('"""', '"""\nPYTEST_DONT_REWRITE', 1)
+        f.write(content)
+        f.truncate()
+        print(f"Patched {path_to_patch} with PYTEST_DONT_REWRITE")
+        print()
+        exit(0)

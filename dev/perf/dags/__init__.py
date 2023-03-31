@@ -14,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-[tool.black]
-line-length = 110
-target-version = ['py37', 'py38', 'py39', 'py310']
-
-[tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose"
-norecursedirs = [
-    ".eggs",
-]
-log_level = "INFO"
-filterwarnings = [
-    "error::pytest.PytestCollectionWarning",
-]
-python_files = [
-    "*.py",
-]
-testpaths = [
-    "tests",
-]

@@ -51,6 +51,14 @@ from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa: E402  # isort: 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
+# Ignore files that are really test dags to be ignored by pytest
+collect_ignore = [
+    "tests/dags/subdir1/test_ignore_this.py",
+    "tests/dags/test_invalid_dup_task.pyy",
+    "tests/dags_corrupted/test_impersonation_custom.py",
+    "tests/test_utils/perf/dags/elastic_dag.py",
+]
+
 
 @pytest.fixture()
 def reset_environment():
@@ -277,6 +285,9 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
+    )
+    config.addinivalue_line(
+        "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
     )
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
