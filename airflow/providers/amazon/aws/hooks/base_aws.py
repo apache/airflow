@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 import boto3
 import botocore
 import botocore.session
+import jinja2
 import requests
 import tenacity
 from botocore.client import ClientMeta
@@ -796,7 +797,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         path = Path(__file__).parents[1].joinpath(f"waiters/{self.client_type}.json").resolve()
         return path if path.exists() else None
 
-    def get_waiter(self, waiter_name: str) -> Waiter:
+    def get_waiter(self, waiter_name: str, parameters: dict[str, str] | None = None) -> Waiter:
         """
         First checks if there is a custom waiter with the provided waiter_name and
         uses that if it exists, otherwise it will check the service client for a
@@ -804,16 +805,37 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         :param waiter_name: The name of the waiter.  The name should exactly match the
             name of the key in the waiter model file (typically this is CamelCase).
+        :param parameters: will scan the waiter config for the keys of that dict, and replace them with the
+            corresponding value. If a custom waiter has such keys to be expanded, they need to be provided
+            here.
         """
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:
-                config = json.load(config_file)
-                return BaseBotoWaiter(client=self.conn, model_config=config).waiter(waiter_name)
+                config = json.loads(config_file.read())
+
+            config = self._apply_parameters_value(config, waiter_name, parameters)
+            return BaseBotoWaiter(client=self.conn, model_config=config).waiter(waiter_name)
         # If there is no custom waiter found for the provided name,
         # then try checking the service's official waiters.
         return self.conn.get_waiter(waiter_name)
+
+    @staticmethod
+    def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
+        """Replaces potential jinja templates in acceptors definition"""
+        # only process the waiter we're going to use to not raise errors for missing params for other waiters.
+        acceptors = config["waiters"][waiter_name]["acceptors"]
+        for a in acceptors:
+            arg = a["argument"]
+            template = jinja2.Template(arg, autoescape=False, undefined=jinja2.StrictUndefined)
+            try:
+                a["argument"] = template.render(parameters or {})
+            except jinja2.UndefinedError as e:
+                raise AirflowException(
+                    f"Parameter was not supplied for templated waiter's acceptor '{arg}'", e
+                )
+        return config
 
     def list_waiters(self) -> list[str]:
         """Returns a list containing the names of all waiters for the service, official and custom."""

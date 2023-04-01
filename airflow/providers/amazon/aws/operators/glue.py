@@ -54,6 +54,7 @@ class GlueJobOperator(BaseOperator):
     :param run_job_kwargs: Extra arguments for Glue Job Run
     :param wait_for_completion: Whether or not wait for job run completion. (default: True)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
+    :param update_config: If True, Operator will update job configuration.  (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -91,6 +92,7 @@ class GlueJobOperator(BaseOperator):
         run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
         verbose: bool = False,
+        update_config: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -111,6 +113,7 @@ class GlueJobOperator(BaseOperator):
         self.run_job_kwargs = run_job_kwargs or {}
         self.wait_for_completion = wait_for_completion
         self.verbose = verbose
+        self.update_config = update_config
 
     def execute(self, context: Context):
         """
@@ -141,6 +144,7 @@ class GlueJobOperator(BaseOperator):
             s3_bucket=self.s3_bucket,
             iam_role_name=self.iam_role_name,
             create_job_kwargs=self.create_job_kwargs,
+            update_config=self.update_config,
         )
         self.log.info(
             "Initializing AWS Glue Job: %s. Wait for completion: %s",

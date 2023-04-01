@@ -22,13 +22,14 @@ import pendulum
 
 from airflow import DAG
 from airflow.exceptions import AirflowSkipException
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.context import Context
 from airflow.utils.trigger_rule import TriggerRule
 
 
 # Create some placeholder operators
-class EmptySkipOperator(EmptyOperator):
+class EmptySkipOperator(BaseOperator):
     """Empty operator which always skips the task."""
 
     ui_color = "#e8b7e4"

@@ -229,7 +229,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.5.1'
+  version: '2.5.3'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -2805,7 +2805,6 @@ components:
             - dataset_triggered
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: true
         external_trigger:
           type: boolean
           default: true
@@ -3964,7 +3963,6 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: true
 
     DatasetEventCollection:
       description: |
@@ -4538,6 +4536,7 @@ components:
 
         *Changed in version 2.1.3*&#58; 'queued' is added as a possible value.
       type: string
+      readOnly: true
       enum:
         - queued
         - running

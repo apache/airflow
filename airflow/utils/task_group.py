@@ -38,7 +38,6 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
-from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -230,13 +229,6 @@ class TaskGroup(DAGNode):
                 task.dag = self.dag
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
-
-        if SetupTeardownContext.is_setup:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_setup", True)
-        elif SetupTeardownContext.is_teardown:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_teardown", True)
 
         self.children[key] = task
 
