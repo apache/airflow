@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.12.0
 ......
 
-Latest change: 2023-03-30
+Latest change: 2023-04-01
 
 =================================================================================================  ===========  ========================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================================================
+`25048fa6b2 <https://github.com/apache/airflow/commit/25048fa6b21b1e75a0c6fb6d626c67860e8cecff>`_  2023-04-01   ``Switch to using vendored-in google ads. (#30410)``
+`2e65c70e99 <https://github.com/apache/airflow/commit/2e65c70e99e73d4bc39e26da88f9e0102dd41f65>`_  2023-04-01   ``Merging of the google ads vendored-in code. (#30399)``
 `540a076801 <https://github.com/apache/airflow/commit/540a0768012c82794add3ec159768521e01a0fe2>`_  2023-03-30   ``merge BigQueryTableExistenceAsyncSensor into BigQueryTableExistenceSensor (#30235)``
 `29eba167ea <https://github.com/apache/airflow/commit/29eba167eac5d08862a85dd1358a8b6c43f61200>`_  2023-03-22   ``Merge BigQueryTableExistencePartitionAsyncSensor into BigQueryTableExistencePartitionSensor (#30231)``
 `79a2fa7db9 <https://github.com/apache/airflow/commit/79a2fa7db9d1689c5fe8a0afaa3883c4e0ccc00d>`_  2023-03-21   ``Merge GCSObjectExistenceAsyncSensor logic to GCSObjectExistenceSensor (#30014)``

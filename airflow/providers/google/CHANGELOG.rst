@@ -54,6 +54,8 @@ Misc
 * ``Merge BigQueryTableExistencePartitionAsyncSensor into BigQueryTableExistencePartitionSensor (#30231)``
 * ``Merge GCSObjectExistenceAsyncSensor logic to GCSObjectExistenceSensor (#30014)``
 * ``Align cncf provider file names with AIP-21 (#29905)``
+* ``Switch to using vendored-in google ads. (#30410)``
+* ``Merging of the google ads vendored-in code. (#30399)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
