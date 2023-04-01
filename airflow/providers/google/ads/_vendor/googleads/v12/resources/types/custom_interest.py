@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import custom_interest_member_type
-from google.ads.googleads.v12.enums.types import custom_interest_status
-from google.ads.googleads.v12.enums.types import custom_interest_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import custom_interest_member_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import custom_interest_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import custom_interest_type
 
 
 __protobuf__ = proto.module(

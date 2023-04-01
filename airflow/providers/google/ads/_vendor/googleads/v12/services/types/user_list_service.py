@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.resources.types import user_list
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import user_list
 from google.protobuf import field_mask_pb2  # type: ignore
 from google.rpc import status_pb2  # type: ignore
 

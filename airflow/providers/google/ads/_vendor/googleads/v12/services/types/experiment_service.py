@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     experiment as gagr_experiment,
 )
 from google.protobuf import field_mask_pb2  # type: ignore

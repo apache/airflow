@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     operating_system_version_operator_type,
 )
 

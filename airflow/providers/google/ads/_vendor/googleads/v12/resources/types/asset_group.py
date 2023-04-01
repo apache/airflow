@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import ad_strength as gage_ad_strength
-from google.ads.googleads.v12.enums.types import asset_group_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import ad_strength as gage_ad_strength
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_group_status
 
 
 __protobuf__ = proto.module(

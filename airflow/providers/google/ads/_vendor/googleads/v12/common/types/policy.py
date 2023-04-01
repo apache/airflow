@@ -15,14 +15,14 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import policy_topic_entry_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import policy_topic_entry_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     policy_topic_evidence_destination_mismatch_url_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     policy_topic_evidence_destination_not_working_device,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     policy_topic_evidence_destination_not_working_dns_error_type,
 )
 

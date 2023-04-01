@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import combined_audience_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import combined_audience_status
 
 
 __protobuf__ = proto.module(

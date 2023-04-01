@@ -15,36 +15,36 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import age_range_type
-from google.ads.googleads.v12.enums.types import app_payment_model_type
-from google.ads.googleads.v12.enums.types import content_label_type
-from google.ads.googleads.v12.enums.types import day_of_week as gage_day_of_week
-from google.ads.googleads.v12.enums.types import device
-from google.ads.googleads.v12.enums.types import gender_type
-from google.ads.googleads.v12.enums.types import hotel_date_selection_type
-from google.ads.googleads.v12.enums.types import income_range_type
-from google.ads.googleads.v12.enums.types import interaction_type
-from google.ads.googleads.v12.enums.types import keyword_match_type
-from google.ads.googleads.v12.enums.types import listing_group_type
-from google.ads.googleads.v12.enums.types import location_group_radius_units
-from google.ads.googleads.v12.enums.types import minute_of_hour
-from google.ads.googleads.v12.enums.types import parental_status_type
-from google.ads.googleads.v12.enums.types import preferred_content_type
-from google.ads.googleads.v12.enums.types import product_bidding_category_level
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import age_range_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import app_payment_model_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import content_label_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import day_of_week as gage_day_of_week
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import gender_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import hotel_date_selection_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import income_range_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import interaction_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import keyword_match_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import listing_group_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import location_group_radius_units
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import minute_of_hour
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import parental_status_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import preferred_content_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import product_bidding_category_level
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     product_channel as gage_product_channel,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     product_channel_exclusivity as gage_product_channel_exclusivity,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     product_condition as gage_product_condition,
 )
-from google.ads.googleads.v12.enums.types import product_custom_attribute_index
-from google.ads.googleads.v12.enums.types import product_type_level
-from google.ads.googleads.v12.enums.types import proximity_radius_units
-from google.ads.googleads.v12.enums.types import webpage_condition_operand
-from google.ads.googleads.v12.enums.types import webpage_condition_operator
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import product_custom_attribute_index
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import product_type_level
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import proximity_radius_units
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import webpage_condition_operand
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import webpage_condition_operator
 
 
 __protobuf__ = proto.module(

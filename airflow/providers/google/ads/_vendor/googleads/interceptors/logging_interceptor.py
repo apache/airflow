@@ -26,7 +26,7 @@ import logging
 
 from grpc import UnaryUnaryClientInterceptor, UnaryStreamClientInterceptor
 
-from google.ads.googleads.interceptors import Interceptor, mask_message
+from airflow.providers.google.ads._vendor.googleads.interceptors import Interceptor, mask_message
 from types import SimpleNamespace
 
 

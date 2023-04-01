@@ -15,12 +15,12 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     affiliate_location_feed_relationship_type,
 )
-from google.ads.googleads.v12.enums.types import feed_attribute_type
-from google.ads.googleads.v12.enums.types import feed_origin
-from google.ads.googleads.v12.enums.types import feed_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_attribute_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_origin
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_status
 
 
 __protobuf__ = proto.module(

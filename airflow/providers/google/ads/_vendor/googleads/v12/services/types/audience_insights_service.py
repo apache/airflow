@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.enums.types import audience_insights_dimension
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import audience_insights_dimension
 
 
 __protobuf__ = proto.module(

@@ -15,15 +15,15 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import ad_asset
-from google.ads.googleads.v12.enums.types import call_conversion_reporting_state
-from google.ads.googleads.v12.enums.types import display_ad_format_setting
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import ad_asset
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import call_conversion_reporting_state
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import display_ad_format_setting
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     display_upload_product_type as gage_display_upload_product_type,
 )
-from google.ads.googleads.v12.enums.types import legacy_app_install_ad_app_store
-from google.ads.googleads.v12.enums.types import mime_type as gage_mime_type
-from google.ads.googleads.v12.enums.types import video_thumbnail
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import legacy_app_install_ad_app_store
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import mime_type as gage_mime_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import video_thumbnail
 
 
 __protobuf__ = proto.module(

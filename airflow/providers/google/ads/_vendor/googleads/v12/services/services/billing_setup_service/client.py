@@ -33,7 +33,7 @@ try:
 except AttributeError:  # pragma: NO COVER
     OptionalRetry = Union[retries.Retry, object]  # type: ignore
 
-from google.ads.googleads.v12.services.types import billing_setup_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import billing_setup_service
 from .transports.base import BillingSetupServiceTransport, DEFAULT_CLIENT_INFO
 from .transports.grpc import BillingSetupServiceGrpcTransport
 

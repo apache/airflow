@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import manager_link_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import manager_link_status
 
 
 __protobuf__ = proto.module(

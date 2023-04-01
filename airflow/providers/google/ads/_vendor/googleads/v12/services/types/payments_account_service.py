@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.resources.types import payments_account
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import payments_account
 
 
 __protobuf__ = proto.module(

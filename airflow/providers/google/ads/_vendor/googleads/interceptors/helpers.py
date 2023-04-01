@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from copy import deepcopy
-from google.ads.googleads.util import (
+from airflow.providers.google.ads._vendor.googleads.util import (
     set_nested_message_field,
     get_nested_attr,
     convert_proto_plus_to_protobuf,

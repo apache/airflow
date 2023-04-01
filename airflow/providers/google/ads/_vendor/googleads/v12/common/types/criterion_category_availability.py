@@ -15,16 +15,16 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     advertising_channel_sub_type as gage_advertising_channel_sub_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     advertising_channel_type as gage_advertising_channel_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     criterion_category_channel_availability_mode,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     criterion_category_locale_availability_mode,
 )
 

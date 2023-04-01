@@ -15,32 +15,32 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.common.types import feed_common
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import feed_common
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     call_conversion_reporting_state as gage_call_conversion_reporting_state,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     call_to_action_type as gage_call_to_action_type,
 )
-from google.ads.googleads.v12.enums.types import lead_form_call_to_action_type
-from google.ads.googleads.v12.enums.types import lead_form_desired_intent
-from google.ads.googleads.v12.enums.types import lead_form_field_user_input_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import lead_form_call_to_action_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import lead_form_desired_intent
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import lead_form_field_user_input_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     lead_form_post_submit_call_to_action_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     location_ownership_type as gage_location_ownership_type,
 )
-from google.ads.googleads.v12.enums.types import mime_type as gage_mime_type
-from google.ads.googleads.v12.enums.types import mobile_app_vendor
-from google.ads.googleads.v12.enums.types import price_extension_price_qualifier
-from google.ads.googleads.v12.enums.types import price_extension_price_unit
-from google.ads.googleads.v12.enums.types import price_extension_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import mime_type as gage_mime_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import mobile_app_vendor
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import price_extension_price_qualifier
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import price_extension_price_unit
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import price_extension_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     promotion_extension_discount_modifier,
 )
-from google.ads.googleads.v12.enums.types import promotion_extension_occasion
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import promotion_extension_occasion
 
 
 __protobuf__ = proto.module(

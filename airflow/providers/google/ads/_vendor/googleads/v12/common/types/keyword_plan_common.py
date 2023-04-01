@@ -15,14 +15,14 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import dates
-from google.ads.googleads.v12.enums.types import device as gage_device
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import dates
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import device as gage_device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     keyword_plan_aggregate_metric_type,
 )
-from google.ads.googleads.v12.enums.types import keyword_plan_competition_level
-from google.ads.googleads.v12.enums.types import keyword_plan_concept_group_type
-from google.ads.googleads.v12.enums.types import month_of_year
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import keyword_plan_competition_level
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import keyword_plan_concept_group_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import month_of_year
 
 
 __protobuf__ = proto.module(
