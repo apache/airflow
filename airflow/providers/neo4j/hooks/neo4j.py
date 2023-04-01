@@ -61,11 +61,28 @@ class Neo4jHook(BaseHook):
 
         is_encrypted = self.connection.extra_dejson.get("encrypted", False)
 
-        self.client = GraphDatabase.driver(
-            uri, auth=(self.connection.login, self.connection.password), encrypted=is_encrypted
-        )
+        self.client = self.get_client(self.connection, is_encrypted, uri)
 
         return self.client
+
+    def get_client(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
+        """
+        Function to determine that relevant driver based on extras.
+        :param conn: Connection object.
+        :param encrypted: boolean if encrypted connection or not.
+        :return: Neo4jDriver
+        """
+        # Self signed certificates
+        ssc = conn.extra_dejson.get("certs_self_signed", False)
+
+        # Only certificates signed by CA.
+        trusted_ca = conn.extra_dejson.get("certs_trusted_ca", False)
+
+        if trusted_ca or ssc:
+            driver = GraphDatabase.driver(uri, auth=(conn.login, conn.password))
+        else:
+            driver = GraphDatabase.driver(uri, auth=(conn.login, conn.password), encrypted=encrypted)
+        return driver
 
     def get_uri(self, conn: Connection) -> str:
         """
