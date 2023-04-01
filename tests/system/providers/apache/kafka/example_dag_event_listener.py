@@ -57,6 +57,7 @@ def _producer_function():
     for i in range(50):
         yield (json.dumps(i), json.dumps(i + 1))
 
+
 def _generate_uuid():
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for i in range(6))
@@ -127,3 +128,9 @@ with DAG(
         print("FIZZ BUZZ")
 
     fizz_buzz_task = PythonOperator(task_id="fizz_buzz", python_callable=_fizz_buzz)
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

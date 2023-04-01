@@ -67,4 +67,3 @@ class KafkaHook(BaseHook):
             False, str(e)
 
         return False, "Failed to establish connection."
-

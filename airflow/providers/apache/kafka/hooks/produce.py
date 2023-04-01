@@ -35,7 +35,6 @@ class KafkaProducerHook(KafkaHook):
 
     def get_producer(self) -> Producer:
         """Returns a producer object for sending messages to Kafka"""
-
         producer = Producer(self.get_conn())
 
         self.log.info("Producer %s", producer)

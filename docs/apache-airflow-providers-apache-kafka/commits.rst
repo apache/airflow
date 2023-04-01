@@ -30,4 +30,3 @@ For high-level changelog, see :doc:`package information including changelog <ind
 .....
 
 Initial release of this provider.
-

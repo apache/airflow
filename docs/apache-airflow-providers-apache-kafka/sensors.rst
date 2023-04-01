@@ -25,7 +25,7 @@ Apache Kafka Sensors
 AwaitMessageSensor
 ------------------------
 
-A sensor that defers until a specific message is published to a Kafka topic. 
+A sensor that defers until a specific message is published to a Kafka topic.
 The sensor will create a consumer reading messages from a Kafka topic until a message fulfilling criteria defined in the
 ``apply_function`` parameter is found.
 
@@ -53,7 +53,7 @@ For further information, see the `Apache Kafka Consumer documentation <https://k
 AwaitMessageTriggerFunctionSensor
 ---------------------------------
 
-Similar to the ``AwaitMessageSensor`` above, this sensor will defer until it consumes a message from a Kafka topic fulfilling the criteria 
+Similar to the ``AwaitMessageSensor`` above, this sensor will defer until it consumes a message from a Kafka topic fulfilling the criteria
 of its ``apply_function``. Once a positive event is encountered, the ``AwaitMessageTriggerFunctionSensor`` will trigger a callable provided
 to ``event_triggered_function``.
 
