@@ -76,7 +76,6 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                 "in_app_exclude",
                 "ignore_errors",
                 "before_breadcrumb",
-                "transport",
             )
         )
 
@@ -114,6 +113,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                     )
 
                 sentry_config_opts["before_send"] = conf.getimport("sentry", "before_send", fallback=None)
+                sentry_config_opts["transport"] = conf.getimport("sentry", "transport", fallback=None)
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
