@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
+from airflow.providers.neo4j.hooks.neo4j import Neo4jHook, Driver
 
 
 class TestNeo4jHookConn:
@@ -29,9 +29,11 @@ class TestNeo4jHookConn:
         "conn_extra, expected_uri",
         [
             ({}, "bolt://host:7687"),
-            ({"bolt_scheme": True}, "bolt://host:7687"),
-            ({"certs_self_signed": True, "bolt_scheme": True}, "bolt+ssc://host:7687"),
-            ({"certs_trusted_ca": True, "bolt_scheme": True}, "bolt+s://host:7687"),
+            ({"neo4j_scheme": False}, "bolt://host:7687"),
+            ({"certs_self_signed": True, "neo4j_scheme": False}, "bolt+ssc://host:7687"),
+            ({"certs_trusted_ca": True, "neo4j_scheme": False}, "bolt+s://host:7687"),
+            ({"certs_self_signed": True, "neo4j_scheme": True}, "neo4j+ssc://host:7687"),
+            ({"certs_trusted_ca": True, "neo4j_scheme": True}, "neo4j+s://host:7687"),
         ],
     )
     def test_get_uri_neo4j_scheme(self, conn_extra, expected_uri):
@@ -101,3 +103,32 @@ class TestNeo4jHookConn:
             )
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
+    
+    @pytest.mark.parametrize(
+        "conn_extra, expected",
+        [
+            ({"certs_self_signed": True, "neo4j_scheme": False, "encrypted": True}, True),
+            ({"certs_self_signed": True, "neo4j_scheme": False, "encrypted": False}, True),
+            ({"certs_trusted_ca": True, "neo4j_scheme": False, "encrypted": False}, True),
+            ({"certs_self_signed": True, "neo4j_scheme": True, "encrypted": False}, True),
+            ({"certs_trusted_ca": True, "neo4j_scheme": True, "encrypted": False}, True),
+            ({"certs_trusted_ca": False, "neo4j_scheme": False, "encrypted": True}, True),
+        ],
+    )
+    def test_get_client(self,conn_extra, expected):
+        connection = Connection(
+            conn_type="neo4j",
+            login="login",
+            password="password",
+            host="host",
+            schema="schema",
+            extra=conn_extra,
+        )
+        # Use the environment variable mocking to test saving the configuration as a URI and
+        # to avoid mocking Airflow models class
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+            neo4j_hook = Neo4jHook()            
+            is_encrypted = conn_extra.get('encrypted', False)
+            with neo4j_hook.get_client(conn=connection, encrypted=is_encrypted, uri=neo4j_hook.get_uri(connection)) as client:
+                assert isinstance(client, Driver) == expected
+            
