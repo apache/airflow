@@ -103,6 +103,7 @@ tmp
 
 # Vendored-in code
 _vendor
+./airflow/providers/google/ads/_vendor
 
 # generated doc-only-changes.txt
 .latest-doc-only-change.txt

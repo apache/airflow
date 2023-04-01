@@ -273,9 +273,11 @@ def import_all_classes(
             except AirflowOptionalProviderFeatureException:
                 # We ignore optional features
                 ...
-            except Exception:
-                exception_str = traceback.format_exc()
-                tracebacks.append((modinfo.name, exception_str))
+            except Exception as e:
+                # skip the check as we are temporary vendoring in the google ads client with wrong package
+                if "No module named 'google.ads.googleads.v12'" not in str(e):
+                    exception_str = traceback.format_exc()
+                    tracebacks.append((modinfo.name, exception_str))
     if tracebacks:
         if IS_AIRFLOW_VERSION_PROVIDED:
             console.print(
