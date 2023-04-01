@@ -14,35 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-package-name: apache-airflow-providers-openfaas
-name: OpenFaaS
-description: |
-    `OpenFaaS <https://www.openfaas.com/>`__
+import yaml
 
-suspended: false
-versions:
-  - 3.1.0
-  - 3.0.0
-  - 2.0.3
-  - 2.0.2
-  - 2.0.1
-  - 2.0.0
-  - 1.1.1
-  - 1.1.0
-  - 1.0.0
+from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT
 
-dependencies:
-  - apache-airflow>=2.3.0
 
-integrations:
-  - integration-name: OpenFaaS
-    external-doc-url: https://www.openfaas.com/
-    logo: /integration-logos/openfaas/OpenFaaS.png
-    tags: [software]
-
-hooks:
-  - integration-name: OpenFaaS
-    python-modules:
-      - airflow.providers.openfaas.hooks.openfaas
+def _get_suspended_providers_folders() -> list[str]:
+    """
+    Returns a list of suspended providers folders that should be
+    skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
+    """
+    suspended_providers = []
+    for provider_path in AIRFLOW_PROVIDERS_ROOT.glob("**/provider.yaml"):
+        provider_yaml = yaml.safe_load(provider_path.read_text())
+        if provider_yaml["suspended"]:
+            suspended_providers.append(
+                provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT).as_posix().replace("airflow/", "")
+            )
+    return suspended_providers

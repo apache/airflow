@@ -894,7 +894,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy
         name: Run mypy for core
         language: python
@@ -902,7 +902,7 @@ repos:
         files: \.py$
         exclude: ^.*/_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy
         name: Run mypy for providers
         language: python
@@ -910,7 +910,7 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/\*\.py$|^tests/system/providers/\*\.py$
         exclude: ^.*/_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy
         name: Run mypy for /docs/ folder
         language: python
@@ -918,7 +918,7 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py

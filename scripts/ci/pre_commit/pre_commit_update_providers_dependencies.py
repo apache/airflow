@@ -47,6 +47,7 @@ errors: list[str] = []
 
 CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
+SUSPENDED = "suspended"
 
 ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
 
@@ -168,13 +169,11 @@ if __name__ == "__main__":
     num_files = len(ALL_PROVIDER_FILES)
     num_providers = len(ALL_PROVIDERS)
     console.print(f"Found {len(ALL_PROVIDERS)} providers with {len(ALL_PROVIDER_FILES)} Python files.")
-
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
-
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
-        ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content["dependencies"])
-
+        if not provider_yaml_content["suspended"]:
+            ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content["dependencies"])
     if warnings:
         console.print("[yellow]Warnings!\n")
         for warning in warnings:
