@@ -706,26 +706,37 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
-def test_task_instance_clear(session, admin_client):
+@pytest.mark.parametrize(
+    "client_fixture, should_succeed",
+    [
+        ("admin_client", True),
+        ("user_client", True),
+        ("viewer_client", False),
+        ("anonymous_client", False),
+    ],
+)
+def test_task_instance_clear(session, request, client_fixture, should_succeed):
+    client = request.getfixturevalue(client_fixture)
     task_id = "runme_0"
+    initial_state = State.SUCCESS
 
     # Set the state to success for clearing.
     ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
-    ti_q.update({"state": State.SUCCESS})
+    ti_q.update({"state": initial_state})
     session.commit()
 
     # Send a request to clear.
     rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
-    resp = admin_client.post(
+    resp = client.post(
         "/taskinstance/action_post",
         data={"action": "clear", "rowid": rowid},
         follow_redirects=True,
     )
-    assert resp.status_code == 200
+    assert resp.status_code == (200 if should_succeed else 404)
 
     # Now the state should be None.
     state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
-    assert state == State.NONE
+    assert state == (State.NONE if should_succeed else initial_state)
 
 
 def test_task_instance_clear_failure(admin_client):

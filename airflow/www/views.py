@@ -5378,6 +5378,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         "list": "read",
+        "action_clear": "edit",
         "action_muldelete": "delete",
     }
     base_permissions = [
