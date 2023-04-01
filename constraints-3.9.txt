@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-03-29T20:31:41Z
+# This constraints file was automatically generated on 2023-04-01T18:01:41Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-5-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -179,9 +179,9 @@ billiard==3.6.4.0
 black==23.1a1
 bleach==6.0.0
 blinker==1.5
-boto3==1.26.102
+boto3==1.26.104
 boto==2.49.0
-botocore==1.29.102
+botocore==1.29.104
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==5.3.0
@@ -217,7 +217,7 @@ curlify==2.2.1
 dask==2023.3.2
 databricks-sql-connector==2.4.1
 datadog==0.45.0
-db-dtypes==1.1.0
+db-dtypes==1.1.1
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -266,7 +266,7 @@ google-api-core==2.8.2
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.8.0
-google-auth==2.17.0
+google-auth==2.17.1
 google-cloud-aiplatform==1.16.1
 google-cloud-appengine-logging==1.1.3
 google-cloud-audit-log==0.2.4
@@ -299,7 +299,7 @@ google-cloud-resource-manager==1.6.0
 google-cloud-secret-manager==1.0.2
 google-cloud-spanner==1.19.3
 google-cloud-speech==1.3.4
-google-cloud-storage==2.7.0
+google-cloud-storage==2.8.0
 google-cloud-tasks==2.10.1
 google-cloud-texttospeech==1.0.3
 google-cloud-translate==1.7.2
@@ -336,7 +336,7 @@ inflection==0.5.1
 influxdb-client==1.36.1
 iniconfig==2.0.0
 ipdb==0.13.13
-ipython==8.11.0
+ipython==8.12.0
 isodate==0.6.1
 isort==5.11.2
 itsdangerous==2.1.2
@@ -402,7 +402,7 @@ mysql-connector-python==8.0.32
 mysqlclient==2.1.1
 nbclient==0.7.2
 nbformat==5.8.0
-neo4j==5.6.0
+neo4j==5.7.0
 networkx==3.0
 nodeenv==1.7.0
 numpy==1.24.2
@@ -412,7 +412,7 @@ openapi-schema-validator==0.4.4
 openapi-spec-validator==0.5.6
 openpyxl==3.1.2
 opsgenie-sdk==2.1.5
-oracledb==1.2.2
+oracledb==1.3.0
 orjson==3.8.9
 oscrypto==1.3.0
 oss2==2.17.0
@@ -486,7 +486,7 @@ pytest-asyncio==0.21.0
 pytest-capture-warnings==0.0.4
 pytest-cov==4.0.0
 pytest-httpx==0.21.3
-pytest-instafail==0.4.2
+pytest-instafail==0.5.0
 pytest-rerunfailures==11.1.2
 pytest-timeouts==1.2.1
 pytest-xdist==3.2.1
@@ -607,8 +607,8 @@ types-protobuf==4.22.0.0
 types-pyOpenSSL==23.1.0.1
 types-python-dateutil==2.8.19.11
 types-python-slugify==8.0.0.2
-types-pytz==2023.2.0.1
-types-redis==4.5.3.1
+types-pytz==2023.3.0.0
+types-redis==4.5.4.1
 types-requests==2.28.11.17
 types-setuptools==67.6.0.6
 types-tabulate==0.9.0.2
