@@ -33,7 +33,7 @@ For parameter definitions take a look at :class:`~airflow.providers.apache.kafka
 KafkaAdminClientHook
 ------------------------
 
-A hook for interacting with an Apache Kafka cluster. 
+A hook for interacting with an Apache Kafka cluster.
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.hooks.client.KafkaAdminClientHook`.
 
 Reference
@@ -68,4 +68,3 @@ Reference
 """""""""
 
 For further information, look at `Apache Kafka Producer documentation <https://kafka.apache.org/documentation/#producerconfigs>`_.
-

@@ -236,3 +236,9 @@ with DAG(
 
     t1 >> t2
     t3 >> [t4, t4b] >> t5 >> t6
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

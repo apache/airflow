@@ -57,6 +57,7 @@ def _producer_function():
     for i in range(50):
         yield (json.dumps(i), json.dumps(i + 1))
 
+
 def _generate_uuid():
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for i in range(6))
