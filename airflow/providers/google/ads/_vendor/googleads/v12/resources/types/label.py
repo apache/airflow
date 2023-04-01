@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import text_label as gagc_text_label
-from google.ads.googleads.v12.enums.types import label_status
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import text_label as gagc_text_label
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import label_status
 
 
 __protobuf__ = proto.module(

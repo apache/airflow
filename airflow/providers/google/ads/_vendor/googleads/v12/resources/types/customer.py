@@ -15,11 +15,11 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import conversion_tracking_status_enum
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_tracking_status_enum
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     customer_pay_per_conversion_eligibility_failure_reason,
 )
-from google.ads.googleads.v12.enums.types import customer_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import customer_status
 
 
 __protobuf__ = proto.module(

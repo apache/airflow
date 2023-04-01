@@ -33,10 +33,10 @@ try:
 except AttributeError:  # pragma: NO COVER
     OptionalRetry = Union[retries.Retry, object]  # type: ignore
 
-from google.ads.googleads.v12.services.services.keyword_plan_idea_service import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.services.keyword_plan_idea_service import (
     pagers,
 )
-from google.ads.googleads.v12.services.types import keyword_plan_idea_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import keyword_plan_idea_service
 from .transports.base import (
     KeywordPlanIdeaServiceTransport,
     DEFAULT_CLIENT_INFO,

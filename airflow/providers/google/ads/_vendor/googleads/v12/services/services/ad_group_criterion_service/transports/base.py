@@ -25,7 +25,7 @@ from google.api_core import retry as retries  # type: ignore
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.oauth2 import service_account  # type: ignore
 
-from google.ads.googleads.v12.services.types import ad_group_criterion_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_criterion_service
 
 try:
     DEFAULT_CLIENT_INFO = gapic_v1.client_info.ClientInfo(

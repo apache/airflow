@@ -24,8 +24,8 @@ from google.auth.transport.grpc import SslCredentials  # type: ignore
 
 import grpc  # type: ignore
 
-from google.ads.googleads.v12.resources.types import google_ads_field
-from google.ads.googleads.v12.services.types import google_ads_field_service
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import google_ads_field
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import google_ads_field_service
 from .base import GoogleAdsFieldServiceTransport, DEFAULT_CLIENT_INFO
 
 

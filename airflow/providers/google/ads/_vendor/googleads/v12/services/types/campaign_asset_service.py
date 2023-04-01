@@ -15,10 +15,10 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     response_content_type as gage_response_content_type,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_asset as gagr_campaign_asset,
 )
 from google.protobuf import field_mask_pb2  # type: ignore

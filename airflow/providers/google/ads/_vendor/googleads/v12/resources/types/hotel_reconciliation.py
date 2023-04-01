@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import hotel_reconciliation_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import hotel_reconciliation_status
 
 
 __protobuf__ = proto.module(

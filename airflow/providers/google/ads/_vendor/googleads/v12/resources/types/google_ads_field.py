@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import google_ads_field_category
-from google.ads.googleads.v12.enums.types import google_ads_field_data_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import google_ads_field_category
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import google_ads_field_data_type
 
 
 __protobuf__ = proto.module(

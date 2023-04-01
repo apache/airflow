@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import policy
-from google.ads.googleads.v12.enums.types import policy_approval_status
-from google.ads.googleads.v12.enums.types import policy_review_status
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import policy
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import policy_approval_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import policy_review_status
 
 
 __protobuf__ = proto.module(

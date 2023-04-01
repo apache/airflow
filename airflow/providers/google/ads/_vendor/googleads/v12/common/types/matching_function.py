@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import matching_function_context_type
-from google.ads.googleads.v12.enums.types import matching_function_operator
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import matching_function_context_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import matching_function_operator
 
 
 __protobuf__ = proto.module(

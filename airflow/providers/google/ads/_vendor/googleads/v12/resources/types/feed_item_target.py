@@ -15,10 +15,10 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.enums.types import feed_item_target_device
-from google.ads.googleads.v12.enums.types import feed_item_target_status
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_item_target_device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_item_target_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     feed_item_target_type as gage_feed_item_target_type,
 )
 

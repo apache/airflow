@@ -15,24 +15,24 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import custom_parameter
-from google.ads.googleads.v12.common.types import feed_common
-from google.ads.googleads.v12.common.types import policy
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import custom_parameter
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import feed_common
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import policy
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     feed_item_quality_approval_status,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     feed_item_quality_disapproval_reason,
 )
-from google.ads.googleads.v12.enums.types import feed_item_status
-from google.ads.googleads.v12.enums.types import feed_item_validation_status
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_item_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_item_validation_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     geo_targeting_restriction as gage_geo_targeting_restriction,
 )
-from google.ads.googleads.v12.enums.types import placeholder_type
-from google.ads.googleads.v12.enums.types import policy_approval_status
-from google.ads.googleads.v12.enums.types import policy_review_status
-from google.ads.googleads.v12.errors.types import feed_item_validation_error
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import placeholder_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import policy_approval_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import policy_review_status
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import feed_item_validation_error
 
 
 __protobuf__ = proto.module(

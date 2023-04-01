@@ -15,11 +15,11 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import chain_relationship_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import chain_relationship_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     location_ownership_type as gage_location_ownership_type,
 )
-from google.ads.googleads.v12.enums.types import location_string_filter_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import location_string_filter_type
 
 
 __protobuf__ = proto.module(

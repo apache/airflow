@@ -15,16 +15,16 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.common.types import custom_parameter
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import custom_parameter
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     ad_group_criterion_approval_status,
 )
-from google.ads.googleads.v12.enums.types import ad_group_criterion_status
-from google.ads.googleads.v12.enums.types import bidding_source
-from google.ads.googleads.v12.enums.types import criterion_system_serving_status
-from google.ads.googleads.v12.enums.types import criterion_type
-from google.ads.googleads.v12.enums.types import quality_score_bucket
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import ad_group_criterion_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import bidding_source
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import criterion_system_serving_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import criterion_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import quality_score_bucket
 
 
 __protobuf__ = proto.module(

@@ -15,571 +15,571 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import metrics as gagc_metrics
-from google.ads.googleads.v12.common.types import segments as gagc_segments
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import metrics as gagc_metrics
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import segments as gagc_segments
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     response_content_type as gage_response_content_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     summary_row_setting as gage_summary_row_setting,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     accessible_bidding_strategy as gagr_accessible_bidding_strategy,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     account_budget as gagr_account_budget,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     account_budget_proposal as gagr_account_budget_proposal,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     account_link as gagr_account_link,
 )
-from google.ads.googleads.v12.resources.types import ad_group as gagr_ad_group
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import ad_group as gagr_ad_group
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_ad as gagr_ad_group_ad,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_ad_asset_combination_view as gagr_ad_group_ad_asset_combination_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_ad_asset_view as gagr_ad_group_ad_asset_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_ad_label as gagr_ad_group_ad_label,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_asset as gagr_ad_group_asset,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_asset_set as gagr_ad_group_asset_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_audience_view as gagr_ad_group_audience_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_bid_modifier as gagr_ad_group_bid_modifier,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_criterion as gagr_ad_group_criterion,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_criterion_customizer as gagr_ad_group_criterion_customizer,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_criterion_label as gagr_ad_group_criterion_label,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_criterion_simulation as gagr_ad_group_criterion_simulation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_customizer as gagr_ad_group_customizer,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_extension_setting as gagr_ad_group_extension_setting,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_feed as gagr_ad_group_feed,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_label as gagr_ad_group_label,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_simulation as gagr_ad_group_simulation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_parameter as gagr_ad_parameter,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_schedule_view as gagr_ad_schedule_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     age_range_view as gagr_age_range_view,
 )
-from google.ads.googleads.v12.resources.types import asset as gagr_asset
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import asset as gagr_asset
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_field_type_view as gagr_asset_field_type_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_group as gagr_asset_group,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_group_asset as gagr_asset_group_asset,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_group_listing_group_filter as gagr_asset_group_listing_group_filter,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_group_product_group_view as gagr_asset_group_product_group_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_group_signal as gagr_asset_group_signal,
 )
-from google.ads.googleads.v12.resources.types import asset_set as gagr_asset_set
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import asset_set as gagr_asset_set
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_set_asset as gagr_asset_set_asset,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_set_type_view as gagr_asset_set_type_view,
 )
-from google.ads.googleads.v12.resources.types import audience as gagr_audience
-from google.ads.googleads.v12.resources.types import batch_job as gagr_batch_job
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import audience as gagr_audience
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import batch_job as gagr_batch_job
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     bidding_data_exclusion as gagr_bidding_data_exclusion,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     bidding_seasonality_adjustment as gagr_bidding_seasonality_adjustment,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     bidding_strategy as gagr_bidding_strategy,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     bidding_strategy_simulation as gagr_bidding_strategy_simulation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     billing_setup as gagr_billing_setup,
 )
-from google.ads.googleads.v12.resources.types import call_view as gagr_call_view
-from google.ads.googleads.v12.resources.types import campaign as gagr_campaign
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import call_view as gagr_call_view
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import campaign as gagr_campaign
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_asset as gagr_campaign_asset,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_asset_set as gagr_campaign_asset_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_audience_view as gagr_campaign_audience_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_bid_modifier as gagr_campaign_bid_modifier,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_budget as gagr_campaign_budget,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_conversion_goal as gagr_campaign_conversion_goal,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_criterion as gagr_campaign_criterion,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_criterion_simulation as gagr_campaign_criterion_simulation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_customizer as gagr_campaign_customizer,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_draft as gagr_campaign_draft,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_extension_setting as gagr_campaign_extension_setting,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_feed as gagr_campaign_feed,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_group as gagr_campaign_group,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_label as gagr_campaign_label,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_shared_set as gagr_campaign_shared_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_simulation as gagr_campaign_simulation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     carrier_constant as gagr_carrier_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     change_event as gagr_change_event,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     change_status as gagr_change_status,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     click_view as gagr_click_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     combined_audience as gagr_combined_audience,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     conversion_action as gagr_conversion_action,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     conversion_custom_variable as gagr_conversion_custom_variable,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     conversion_goal_campaign_config as gagr_conversion_goal_campaign_config,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     conversion_value_rule as gagr_conversion_value_rule,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     conversion_value_rule_set as gagr_conversion_value_rule_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     currency_constant as gagr_currency_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     custom_audience as gagr_custom_audience,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     custom_conversion_goal as gagr_custom_conversion_goal,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     custom_interest as gagr_custom_interest,
 )
-from google.ads.googleads.v12.resources.types import customer as gagr_customer
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import customer as gagr_customer
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_asset as gagr_customer_asset,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_asset_set as gagr_customer_asset_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_client as gagr_customer_client,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_client_link as gagr_customer_client_link,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_conversion_goal as gagr_customer_conversion_goal,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_customizer as gagr_customer_customizer,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_extension_setting as gagr_customer_extension_setting,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_feed as gagr_customer_feed,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_label as gagr_customer_label,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_manager_link as gagr_customer_manager_link,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_negative_criterion as gagr_customer_negative_criterion,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_user_access as gagr_customer_user_access,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_user_access_invitation as gagr_customer_user_access_invitation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customizer_attribute as gagr_customizer_attribute,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     detail_placement_view as gagr_detail_placement_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     detailed_demographic as gagr_detailed_demographic,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     display_keyword_view as gagr_display_keyword_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     distance_view as gagr_distance_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     domain_category as gagr_domain_category,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     dynamic_search_ads_search_term_view as gagr_dynamic_search_ads_search_term_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     expanded_landing_page_view as gagr_expanded_landing_page_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     experiment as gagr_experiment,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     experiment_arm as gagr_experiment_arm,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     extension_feed_item as gagr_extension_feed_item,
 )
-from google.ads.googleads.v12.resources.types import feed as gagr_feed
-from google.ads.googleads.v12.resources.types import feed_item as gagr_feed_item
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import feed as gagr_feed
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import feed_item as gagr_feed_item
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     feed_item_set as gagr_feed_item_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     feed_item_set_link as gagr_feed_item_set_link,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     feed_item_target as gagr_feed_item_target,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     feed_mapping as gagr_feed_mapping,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     feed_placeholder_view as gagr_feed_placeholder_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     gender_view as gagr_gender_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     geo_target_constant as gagr_geo_target_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     geographic_view as gagr_geographic_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     group_placement_view as gagr_group_placement_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     hotel_group_view as gagr_hotel_group_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     hotel_performance_view as gagr_hotel_performance_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     hotel_reconciliation as gagr_hotel_reconciliation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     income_range_view as gagr_income_range_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_plan as gagr_keyword_plan,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_plan_ad_group as gagr_keyword_plan_ad_group,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_plan_ad_group_keyword as gagr_keyword_plan_ad_group_keyword,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_plan_campaign as gagr_keyword_plan_campaign,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_plan_campaign_keyword as gagr_keyword_plan_campaign_keyword,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_theme_constant as gagr_keyword_theme_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_view as gagr_keyword_view,
 )
-from google.ads.googleads.v12.resources.types import label as gagr_label
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import label as gagr_label
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     landing_page_view as gagr_landing_page_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     language_constant as gagr_language_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     lead_form_submission_data as gagr_lead_form_submission_data,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     life_event as gagr_life_event,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     location_view as gagr_location_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     managed_placement_view as gagr_managed_placement_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     media_file as gagr_media_file,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     mobile_app_category_constant as gagr_mobile_app_category_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     mobile_device_constant as gagr_mobile_device_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     offline_user_data_job as gagr_offline_user_data_job,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     operating_system_version_constant as gagr_operating_system_version_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     paid_organic_search_term_view as gagr_paid_organic_search_term_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     parental_status_view as gagr_parental_status_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     per_store_view as gagr_per_store_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     product_bidding_category_constant as gagr_product_bidding_category_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     product_group_view as gagr_product_group_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     recommendation as gagr_recommendation,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     remarketing_action as gagr_remarketing_action,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     search_term_view as gagr_search_term_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     shared_criterion as gagr_shared_criterion,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     shared_set as gagr_shared_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     shopping_performance_view as gagr_shopping_performance_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     smart_campaign_search_term_view as gagr_smart_campaign_search_term_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     smart_campaign_setting as gagr_smart_campaign_setting,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     third_party_app_analytics_link as gagr_third_party_app_analytics_link,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     topic_constant as gagr_topic_constant,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     topic_view as gagr_topic_view,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     user_interest as gagr_user_interest,
 )
-from google.ads.googleads.v12.resources.types import user_list as gagr_user_list
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import user_list as gagr_user_list
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     user_location_view as gagr_user_location_view,
 )
-from google.ads.googleads.v12.resources.types import video as gagr_video
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import video as gagr_video
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     webpage_view as gagr_webpage_view,
 )
-from google.ads.googleads.v12.services.types import ad_group_ad_label_service
-from google.ads.googleads.v12.services.types import ad_group_ad_service
-from google.ads.googleads.v12.services.types import ad_group_asset_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_ad_label_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_ad_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_asset_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     ad_group_bid_modifier_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     ad_group_criterion_customizer_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     ad_group_criterion_label_service,
 )
-from google.ads.googleads.v12.services.types import ad_group_criterion_service
-from google.ads.googleads.v12.services.types import ad_group_customizer_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_criterion_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_customizer_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     ad_group_extension_setting_service,
 )
-from google.ads.googleads.v12.services.types import ad_group_feed_service
-from google.ads.googleads.v12.services.types import ad_group_label_service
-from google.ads.googleads.v12.services.types import ad_group_service
-from google.ads.googleads.v12.services.types import ad_parameter_service
-from google.ads.googleads.v12.services.types import ad_service
-from google.ads.googleads.v12.services.types import asset_group_asset_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_feed_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_label_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_group_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_parameter_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import ad_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import asset_group_asset_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     asset_group_listing_group_filter_service,
 )
-from google.ads.googleads.v12.services.types import asset_group_service
-from google.ads.googleads.v12.services.types import asset_group_signal_service
-from google.ads.googleads.v12.services.types import asset_service
-from google.ads.googleads.v12.services.types import asset_set_asset_service
-from google.ads.googleads.v12.services.types import asset_set_service
-from google.ads.googleads.v12.services.types import audience_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import asset_group_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import asset_group_signal_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import asset_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import asset_set_asset_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import asset_set_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import audience_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     bidding_data_exclusion_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     bidding_seasonality_adjustment_service,
 )
-from google.ads.googleads.v12.services.types import bidding_strategy_service
-from google.ads.googleads.v12.services.types import campaign_asset_service
-from google.ads.googleads.v12.services.types import campaign_asset_set_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import bidding_strategy_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_asset_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_asset_set_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     campaign_bid_modifier_service,
 )
-from google.ads.googleads.v12.services.types import campaign_budget_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_budget_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     campaign_conversion_goal_service,
 )
-from google.ads.googleads.v12.services.types import campaign_criterion_service
-from google.ads.googleads.v12.services.types import campaign_customizer_service
-from google.ads.googleads.v12.services.types import campaign_draft_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_criterion_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_customizer_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_draft_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     campaign_extension_setting_service,
 )
-from google.ads.googleads.v12.services.types import campaign_feed_service
-from google.ads.googleads.v12.services.types import campaign_group_service
-from google.ads.googleads.v12.services.types import campaign_label_service
-from google.ads.googleads.v12.services.types import campaign_service
-from google.ads.googleads.v12.services.types import campaign_shared_set_service
-from google.ads.googleads.v12.services.types import conversion_action_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_feed_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_group_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_label_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import campaign_shared_set_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import conversion_action_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     conversion_custom_variable_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     conversion_goal_campaign_config_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     conversion_value_rule_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     conversion_value_rule_set_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     custom_conversion_goal_service,
 )
-from google.ads.googleads.v12.services.types import customer_asset_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import customer_asset_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     customer_conversion_goal_service,
 )
-from google.ads.googleads.v12.services.types import customer_customizer_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import customer_customizer_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     customer_extension_setting_service,
 )
-from google.ads.googleads.v12.services.types import customer_feed_service
-from google.ads.googleads.v12.services.types import customer_label_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import customer_feed_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import customer_label_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     customer_negative_criterion_service,
 )
-from google.ads.googleads.v12.services.types import customer_service
-from google.ads.googleads.v12.services.types import customizer_attribute_service
-from google.ads.googleads.v12.services.types import experiment_arm_service
-from google.ads.googleads.v12.services.types import experiment_service
-from google.ads.googleads.v12.services.types import extension_feed_item_service
-from google.ads.googleads.v12.services.types import feed_item_service
-from google.ads.googleads.v12.services.types import feed_item_set_link_service
-from google.ads.googleads.v12.services.types import feed_item_set_service
-from google.ads.googleads.v12.services.types import feed_item_target_service
-from google.ads.googleads.v12.services.types import feed_mapping_service
-from google.ads.googleads.v12.services.types import feed_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import customer_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import customizer_attribute_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import experiment_arm_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import experiment_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import extension_feed_item_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import feed_item_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import feed_item_set_link_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import feed_item_set_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import feed_item_target_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import feed_mapping_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import feed_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     keyword_plan_ad_group_keyword_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     keyword_plan_ad_group_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     keyword_plan_campaign_keyword_service,
 )
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     keyword_plan_campaign_service,
 )
-from google.ads.googleads.v12.services.types import keyword_plan_service
-from google.ads.googleads.v12.services.types import label_service
-from google.ads.googleads.v12.services.types import media_file_service
-from google.ads.googleads.v12.services.types import remarketing_action_service
-from google.ads.googleads.v12.services.types import shared_criterion_service
-from google.ads.googleads.v12.services.types import shared_set_service
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import keyword_plan_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import label_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import media_file_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import remarketing_action_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import shared_criterion_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import shared_set_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     smart_campaign_setting_service,
 )
-from google.ads.googleads.v12.services.types import user_list_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import user_list_service
 from google.protobuf import field_mask_pb2  # type: ignore
 from google.rpc import status_pb2  # type: ignore
 

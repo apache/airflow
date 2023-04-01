@@ -24,8 +24,8 @@ from google.auth.transport.grpc import SslCredentials  # type: ignore
 
 import grpc  # type: ignore
 
-from google.ads.googleads.v12.resources.types import merchant_center_link
-from google.ads.googleads.v12.services.types import merchant_center_link_service
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import merchant_center_link
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import merchant_center_link_service
 from .base import MerchantCenterLinkServiceTransport, DEFAULT_CLIENT_INFO
 
 

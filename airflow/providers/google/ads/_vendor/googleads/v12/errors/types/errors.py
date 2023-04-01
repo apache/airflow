@@ -15,416 +15,416 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import policy
-from google.ads.googleads.v12.common.types import value
-from google.ads.googleads.v12.enums.types import resource_limit_type
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import policy
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import value
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import resource_limit_type
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     access_invitation_error as gage_access_invitation_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     account_budget_proposal_error as gage_account_budget_proposal_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     account_link_error as gage_account_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_customizer_error as gage_ad_customizer_error,
 )
-from google.ads.googleads.v12.errors.types import ad_error as gage_ad_error
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import ad_error as gage_ad_error
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_group_ad_error as gage_ad_group_ad_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_group_bid_modifier_error as gage_ad_group_bid_modifier_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_group_criterion_customizer_error as gage_ad_group_criterion_customizer_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_group_criterion_error as gage_ad_group_criterion_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_group_customizer_error as gage_ad_group_customizer_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_group_error as gage_ad_group_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_group_feed_error as gage_ad_group_feed_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_parameter_error as gage_ad_parameter_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     ad_sharing_error as gage_ad_sharing_error,
 )
-from google.ads.googleads.v12.errors.types import adx_error as gage_adx_error
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import adx_error as gage_adx_error
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_error as gage_asset_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_group_asset_error as gage_asset_group_asset_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_group_error as gage_asset_group_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_group_listing_group_filter_error as gage_asset_group_listing_group_filter_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_link_error as gage_asset_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_set_asset_error as gage_asset_set_asset_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_set_error as gage_asset_set_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     asset_set_link_error as gage_asset_set_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     audience_error as gage_audience_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     audience_insights_error as gage_audience_insights_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     authentication_error as gage_authentication_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     authorization_error as gage_authorization_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     batch_job_error as gage_batch_job_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     bidding_error as gage_bidding_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     bidding_strategy_error as gage_bidding_strategy_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     billing_setup_error as gage_billing_setup_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_budget_error as gage_campaign_budget_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_conversion_goal_error as gage_campaign_conversion_goal_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_criterion_error as gage_campaign_criterion_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_customizer_error as gage_campaign_customizer_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_draft_error as gage_campaign_draft_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_error as gage_campaign_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_experiment_error as gage_campaign_experiment_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_feed_error as gage_campaign_feed_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     campaign_shared_set_error as gage_campaign_shared_set_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     change_event_error as gage_change_event_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     change_status_error as gage_change_status_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     collection_size_error as gage_collection_size_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     context_error as gage_context_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     conversion_action_error as gage_conversion_action_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     conversion_adjustment_upload_error as gage_conversion_adjustment_upload_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     conversion_custom_variable_error as gage_conversion_custom_variable_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     conversion_goal_campaign_config_error as gage_conversion_goal_campaign_config_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     conversion_upload_error as gage_conversion_upload_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     conversion_value_rule_error as gage_conversion_value_rule_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     conversion_value_rule_set_error as gage_conversion_value_rule_set_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     country_code_error as gage_country_code_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     criterion_error as gage_criterion_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     currency_code_error as gage_currency_code_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     custom_audience_error as gage_custom_audience_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     custom_conversion_goal_error as gage_custom_conversion_goal_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     custom_interest_error as gage_custom_interest_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     customer_client_link_error as gage_customer_client_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     customer_customizer_error as gage_customer_customizer_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     customer_error as gage_customer_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     customer_feed_error as gage_customer_feed_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     customer_manager_link_error as gage_customer_manager_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     customer_user_access_error as gage_customer_user_access_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     customizer_attribute_error as gage_customizer_attribute_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     database_error as gage_database_error,
 )
-from google.ads.googleads.v12.errors.types import date_error as gage_date_error
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import date_error as gage_date_error
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     date_range_error as gage_date_range_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     distinct_error as gage_distinct_error,
 )
-from google.ads.googleads.v12.errors.types import enum_error as gage_enum_error
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import enum_error as gage_enum_error
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     experiment_arm_error as gage_experiment_arm_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     experiment_error as gage_experiment_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     extension_feed_item_error as gage_extension_feed_item_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     extension_setting_error as gage_extension_setting_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     feed_attribute_reference_error as gage_feed_attribute_reference_error,
 )
-from google.ads.googleads.v12.errors.types import feed_error as gage_feed_error
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import feed_error as gage_feed_error
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     feed_item_error as gage_feed_item_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     feed_item_set_error as gage_feed_item_set_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     feed_item_set_link_error as gage_feed_item_set_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     feed_item_target_error as gage_feed_item_target_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     feed_item_validation_error as gage_feed_item_validation_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     feed_mapping_error as gage_feed_mapping_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     field_error as gage_field_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     field_mask_error as gage_field_mask_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     function_error as gage_function_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     function_parsing_error as gage_function_parsing_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     geo_target_constant_suggestion_error as gage_geo_target_constant_suggestion_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     header_error as gage_header_error,
 )
-from google.ads.googleads.v12.errors.types import id_error as gage_id_error
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import id_error as gage_id_error
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     image_error as gage_image_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     internal_error as gage_internal_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     invoice_error as gage_invoice_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     keyword_plan_ad_group_error as gage_keyword_plan_ad_group_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     keyword_plan_ad_group_keyword_error as gage_keyword_plan_ad_group_keyword_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     keyword_plan_campaign_error as gage_keyword_plan_campaign_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     keyword_plan_campaign_keyword_error as gage_keyword_plan_campaign_keyword_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     keyword_plan_error as gage_keyword_plan_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     keyword_plan_idea_error as gage_keyword_plan_idea_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     label_error as gage_label_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     language_code_error as gage_language_code_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     list_operation_error as gage_list_operation_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     manager_link_error as gage_manager_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     media_bundle_error as gage_media_bundle_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     media_file_error as gage_media_file_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     media_upload_error as gage_media_upload_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     merchant_center_error as gage_merchant_center_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     multiplier_error as gage_multiplier_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     mutate_error as gage_mutate_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     new_resource_creation_error as gage_new_resource_creation_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     not_allowlisted_error as gage_not_allowlisted_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     not_empty_error as gage_not_empty_error,
 )
-from google.ads.googleads.v12.errors.types import null_error as gage_null_error
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import null_error as gage_null_error
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     offline_user_data_job_error as gage_offline_user_data_job_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     operation_access_denied_error as gage_operation_access_denied_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     operator_error as gage_operator_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     partial_failure_error as gage_partial_failure_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     payments_account_error as gage_payments_account_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     policy_finding_error as gage_policy_finding_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     policy_validation_parameter_error as gage_policy_validation_parameter_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     policy_violation_error as gage_policy_violation_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     query_error as gage_query_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     quota_error as gage_quota_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     range_error as gage_range_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     reach_plan_error as gage_reach_plan_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     recommendation_error as gage_recommendation_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     region_code_error as gage_region_code_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     request_error as gage_request_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     resource_access_denied_error as gage_resource_access_denied_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     resource_count_limit_exceeded_error as gage_resource_count_limit_exceeded_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     setting_error as gage_setting_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     shared_criterion_error as gage_shared_criterion_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     shared_set_error as gage_shared_set_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     size_limit_error as gage_size_limit_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     smart_campaign_error as gage_smart_campaign_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     string_format_error as gage_string_format_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     string_length_error as gage_string_length_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     third_party_app_analytics_link_error as gage_third_party_app_analytics_link_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     time_zone_error as gage_time_zone_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     url_field_error as gage_url_field_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     user_data_error as gage_user_data_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     user_list_error as gage_user_list_error,
 )
-from google.ads.googleads.v12.errors.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.errors.types import (
     youtube_video_registration_error as gage_youtube_video_registration_error,
 )
 from google.protobuf import duration_pb2  # type: ignore
