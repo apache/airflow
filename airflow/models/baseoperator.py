@@ -984,6 +984,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         op._on_failure_fail_dagrun = on_failure_fail_dagrun
         return op
 
+    def __enter__(self):
+        if not self._is_setup and not self._is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
+
     def __eq__(self, other):
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
