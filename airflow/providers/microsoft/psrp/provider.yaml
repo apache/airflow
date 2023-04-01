@@ -23,6 +23,7 @@ description: |
     `PowerShell Remoting Protocol (PSRP)
     <https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__.
 
+suspended: false
 versions:
   - 2.2.0
   - 2.1.0
