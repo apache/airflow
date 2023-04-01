@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     criterion_category_availability,
 )
 

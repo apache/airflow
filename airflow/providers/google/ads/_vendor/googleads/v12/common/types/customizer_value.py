@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import customizer_attribute_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import customizer_attribute_type
 
 
 __protobuf__ = proto.module(

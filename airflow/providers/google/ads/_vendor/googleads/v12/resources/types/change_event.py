@@ -15,54 +15,54 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import change_client_type
-from google.ads.googleads.v12.enums.types import change_event_resource_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import change_client_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import change_event_resource_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     resource_change_operation as gage_resource_change_operation,
 )
-from google.ads.googleads.v12.resources.types import ad as gagr_ad
-from google.ads.googleads.v12.resources.types import ad_group as gagr_ad_group
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import ad as gagr_ad
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import ad_group as gagr_ad_group
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_ad as gagr_ad_group_ad,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_asset as gagr_ad_group_asset,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_bid_modifier as gagr_ad_group_bid_modifier,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_criterion as gagr_ad_group_criterion,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     ad_group_feed as gagr_ad_group_feed,
 )
-from google.ads.googleads.v12.resources.types import asset as gagr_asset
-from google.ads.googleads.v12.resources.types import asset_set as gagr_asset_set
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import asset as gagr_asset
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import asset_set as gagr_asset_set
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     asset_set_asset as gagr_asset_set_asset,
 )
-from google.ads.googleads.v12.resources.types import campaign as gagr_campaign
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import campaign as gagr_campaign
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_asset as gagr_campaign_asset,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_asset_set as gagr_campaign_asset_set,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_budget as gagr_campaign_budget,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_criterion as gagr_campaign_criterion,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     campaign_feed as gagr_campaign_feed,
 )
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     customer_asset as gagr_customer_asset,
 )
-from google.ads.googleads.v12.resources.types import feed as gagr_feed
-from google.ads.googleads.v12.resources.types import feed_item as gagr_feed_item
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import feed as gagr_feed
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import feed_item as gagr_feed_item
 from google.protobuf import field_mask_pb2  # type: ignore
 
 

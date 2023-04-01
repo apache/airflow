@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import ad_type_infos
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.resources.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import ad_type_infos
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import (
     keyword_theme_constant as gagr_keyword_theme_constant,
 )
 

@@ -33,8 +33,8 @@ try:
 except AttributeError:  # pragma: NO COVER
     OptionalRetry = Union[retries.Retry, object]  # type: ignore
 
-from google.ads.googleads.v12.enums.types import audience_insights_dimension
-from google.ads.googleads.v12.services.types import audience_insights_service
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import audience_insights_dimension
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import audience_insights_service
 from .transports.base import (
     AudienceInsightsServiceTransport,
     DEFAULT_CLIENT_INFO,

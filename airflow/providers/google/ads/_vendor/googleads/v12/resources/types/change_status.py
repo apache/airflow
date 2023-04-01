@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import change_status_operation
-from google.ads.googleads.v12.enums.types import change_status_resource_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import change_status_operation
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import change_status_resource_type
 
 
 __protobuf__ = proto.module(

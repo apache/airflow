@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import custom_conversion_goal_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import custom_conversion_goal_status
 
 
 __protobuf__ = proto.module(

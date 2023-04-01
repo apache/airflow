@@ -15,12 +15,12 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import account_budget_proposal_type
-from google.ads.googleads.v12.enums.types import account_budget_status
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import account_budget_proposal_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import account_budget_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     spending_limit_type as gage_spending_limit_type,
 )
-from google.ads.googleads.v12.enums.types import time_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import time_type
 
 
 __protobuf__ = proto.module(

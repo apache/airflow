@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.resources.types import feed_item_set_link
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import feed_item_set_link
 from google.rpc import status_pb2  # type: ignore
 
 

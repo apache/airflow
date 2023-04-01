@@ -15,7 +15,7 @@
 #
 from typing import Any, Callable, Iterable, Iterator, Sequence, Tuple
 
-from google.ads.googleads.v12.services.types import keyword_plan_idea_service
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import keyword_plan_idea_service
 
 
 class GenerateKeywordIdeasPager:

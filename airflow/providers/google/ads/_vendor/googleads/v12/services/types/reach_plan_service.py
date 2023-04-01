@@ -15,11 +15,11 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.common.types import dates
-from google.ads.googleads.v12.enums.types import frequency_cap_time_unit
-from google.ads.googleads.v12.enums.types import reach_plan_age_range
-from google.ads.googleads.v12.enums.types import reach_plan_network
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import dates
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import frequency_cap_time_unit
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import reach_plan_age_range
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import reach_plan_network
 
 
 __protobuf__ = proto.module(

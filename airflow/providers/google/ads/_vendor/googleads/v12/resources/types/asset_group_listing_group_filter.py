@@ -15,23 +15,23 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     listing_group_filter_bidding_category_level,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     listing_group_filter_custom_attribute_index,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     listing_group_filter_product_channel,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     listing_group_filter_product_condition,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     listing_group_filter_product_type_level,
 )
-from google.ads.googleads.v12.enums.types import listing_group_filter_type_enum
-from google.ads.googleads.v12.enums.types import listing_group_filter_vertical
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import listing_group_filter_type_enum
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import listing_group_filter_vertical
 
 
 __protobuf__ = proto.module(

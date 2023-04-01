@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import geo_targeting_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import geo_targeting_type
 
 
 __protobuf__ = proto.module(

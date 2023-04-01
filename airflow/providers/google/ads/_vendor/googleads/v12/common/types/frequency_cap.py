@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import frequency_cap_event_type
-from google.ads.googleads.v12.enums.types import frequency_cap_level
-from google.ads.googleads.v12.enums.types import frequency_cap_time_unit
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import frequency_cap_event_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import frequency_cap_level
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import frequency_cap_time_unit
 
 
 __protobuf__ = proto.module(

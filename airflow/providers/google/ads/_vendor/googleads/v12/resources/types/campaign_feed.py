@@ -15,11 +15,11 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     matching_function as gagc_matching_function,
 )
-from google.ads.googleads.v12.enums.types import feed_link_status
-from google.ads.googleads.v12.enums.types import placeholder_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_link_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import placeholder_type
 
 
 __protobuf__ = proto.module(

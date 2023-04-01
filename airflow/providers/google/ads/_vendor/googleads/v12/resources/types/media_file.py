@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import media_type
-from google.ads.googleads.v12.enums.types import mime_type as gage_mime_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import media_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import mime_type as gage_mime_type
 
 
 __protobuf__ = proto.module(

@@ -15,19 +15,19 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import custom_parameter
-from google.ads.googleads.v12.common.types import feed_common
-from google.ads.googleads.v12.enums.types import app_store as gage_app_store
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import custom_parameter
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import feed_common
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import app_store as gage_app_store
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     call_conversion_reporting_state as gage_call_conversion_reporting_state,
 )
-from google.ads.googleads.v12.enums.types import price_extension_price_qualifier
-from google.ads.googleads.v12.enums.types import price_extension_price_unit
-from google.ads.googleads.v12.enums.types import price_extension_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import price_extension_price_qualifier
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import price_extension_price_unit
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import price_extension_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     promotion_extension_discount_modifier,
 )
-from google.ads.googleads.v12.enums.types import promotion_extension_occasion
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import promotion_extension_occasion
 
 
 __protobuf__ = proto.module(

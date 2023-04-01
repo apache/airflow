@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import click_location
-from google.ads.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import click_location
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
 
 
 __protobuf__ = proto.module(

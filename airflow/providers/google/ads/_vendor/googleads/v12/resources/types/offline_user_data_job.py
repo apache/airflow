@@ -15,15 +15,15 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import offline_user_data
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import offline_user_data
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     offline_user_data_job_failure_reason,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     offline_user_data_job_match_rate_range,
 )
-from google.ads.googleads.v12.enums.types import offline_user_data_job_status
-from google.ads.googleads.v12.enums.types import offline_user_data_job_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import offline_user_data_job_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import offline_user_data_job_type
 
 
 __protobuf__ = proto.module(

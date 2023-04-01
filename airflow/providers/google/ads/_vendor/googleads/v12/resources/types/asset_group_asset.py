@@ -15,12 +15,12 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     policy_summary as gagc_policy_summary,
 )
-from google.ads.googleads.v12.enums.types import asset_field_type
-from google.ads.googleads.v12.enums.types import asset_link_status
-from google.ads.googleads.v12.enums.types import asset_performance_label
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_field_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_link_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_performance_label
 
 
 __protobuf__ = proto.module(

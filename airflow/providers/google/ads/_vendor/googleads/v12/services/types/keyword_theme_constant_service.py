@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.resources.types import keyword_theme_constant
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import keyword_theme_constant
 
 
 __protobuf__ = proto.module(

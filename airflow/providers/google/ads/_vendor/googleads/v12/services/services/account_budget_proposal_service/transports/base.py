@@ -25,7 +25,7 @@ from google.api_core import retry as retries  # type: ignore
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.oauth2 import service_account  # type: ignore
 
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     account_budget_proposal_service,
 )
 

@@ -15,10 +15,10 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import keyword_plan_common
-from google.ads.googleads.v12.enums.types import keyword_match_type
-from google.ads.googleads.v12.enums.types import keyword_plan_keyword_annotation
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import keyword_plan_common
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import keyword_match_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import keyword_plan_keyword_annotation
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     keyword_plan_network as gage_keyword_plan_network,
 )
 

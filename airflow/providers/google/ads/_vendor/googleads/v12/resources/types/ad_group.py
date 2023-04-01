@@ -15,20 +15,20 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import custom_parameter
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import custom_parameter
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     explorer_auto_optimizer_setting as gagc_explorer_auto_optimizer_setting,
 )
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     targeting_setting as gagc_targeting_setting,
 )
-from google.ads.googleads.v12.enums.types import ad_group_ad_rotation_mode
-from google.ads.googleads.v12.enums.types import ad_group_status
-from google.ads.googleads.v12.enums.types import ad_group_type
-from google.ads.googleads.v12.enums.types import asset_field_type
-from google.ads.googleads.v12.enums.types import asset_set_type
-from google.ads.googleads.v12.enums.types import bidding_source
-from google.ads.googleads.v12.enums.types import targeting_dimension
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import ad_group_ad_rotation_mode
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import ad_group_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import ad_group_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_field_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_set_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import bidding_source
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import targeting_dimension
 
 
 __protobuf__ = proto.module(

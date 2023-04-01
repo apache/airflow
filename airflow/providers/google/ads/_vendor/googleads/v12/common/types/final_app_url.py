@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import app_url_operating_system_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import app_url_operating_system_type
 
 
 __protobuf__ = proto.module(

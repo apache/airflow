@@ -15,12 +15,12 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import conversion_action_category
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_action_category
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     conversion_value_rule_set_status,
 )
-from google.ads.googleads.v12.enums.types import value_rule_set_attachment_type
-from google.ads.googleads.v12.enums.types import value_rule_set_dimension
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import value_rule_set_attachment_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import value_rule_set_dimension
 
 
 __protobuf__ = proto.module(

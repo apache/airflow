@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.resources.types import google_ads_field
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import google_ads_field
 
 
 __protobuf__ = proto.module(

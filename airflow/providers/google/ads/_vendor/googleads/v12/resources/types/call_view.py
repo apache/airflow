@@ -15,11 +15,11 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     call_tracking_display_location as gage_call_tracking_display_location,
 )
-from google.ads.googleads.v12.enums.types import call_type
-from google.ads.googleads.v12.enums.types import google_voice_call_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import call_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import google_voice_call_status
 
 
 __protobuf__ = proto.module(

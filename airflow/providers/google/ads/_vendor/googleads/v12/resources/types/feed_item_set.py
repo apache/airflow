@@ -15,10 +15,10 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     feed_item_set_filter_type_infos,
 )
-from google.ads.googleads.v12.enums.types import feed_item_set_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_item_set_status
 
 
 __protobuf__ = proto.module(

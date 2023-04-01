@@ -15,10 +15,10 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import metric_goal
-from google.ads.googleads.v12.enums.types import async_action_status
-from google.ads.googleads.v12.enums.types import experiment_status
-from google.ads.googleads.v12.enums.types import experiment_type
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import metric_goal
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import async_action_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import experiment_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import experiment_type
 
 
 __protobuf__ = proto.module(

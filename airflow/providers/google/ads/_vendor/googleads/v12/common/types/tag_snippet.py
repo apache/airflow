@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import tracking_code_page_format
-from google.ads.googleads.v12.enums.types import tracking_code_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import tracking_code_page_format
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import tracking_code_type
 
 
 __protobuf__ = proto.module(

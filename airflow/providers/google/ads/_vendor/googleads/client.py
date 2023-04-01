@@ -22,8 +22,8 @@ import grpc.experimental
 import proto
 from proto.enums import ProtoEnumMeta
 
-from google.ads.googleads import config, oauth2, util
-from google.ads.googleads.interceptors import (
+from airflow.providers.google.ads._vendor.googleads import config, oauth2, util
+from airflow.providers.google.ads._vendor.googleads.interceptors import (
     MetadataInterceptor,
     ExceptionInterceptor,
     LoggingInterceptor,

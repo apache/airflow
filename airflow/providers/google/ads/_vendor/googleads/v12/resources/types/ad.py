@@ -15,13 +15,13 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import ad_type_infos
-from google.ads.googleads.v12.common.types import custom_parameter
-from google.ads.googleads.v12.common.types import final_app_url
-from google.ads.googleads.v12.common.types import url_collection
-from google.ads.googleads.v12.enums.types import ad_type
-from google.ads.googleads.v12.enums.types import device
-from google.ads.googleads.v12.enums.types import system_managed_entity_source
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import ad_type_infos
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import custom_parameter
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import final_app_url
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import url_collection
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import ad_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import system_managed_entity_source
 
 
 __protobuf__ = proto.module(

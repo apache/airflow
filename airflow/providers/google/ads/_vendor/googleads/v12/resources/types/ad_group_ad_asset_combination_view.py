@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import asset_usage
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import asset_usage
 
 
 __protobuf__ = proto.module(

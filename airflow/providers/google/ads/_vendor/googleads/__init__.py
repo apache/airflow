@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import google.ads.googleads.client
-import google.ads.googleads.errors
-import google.ads.googleads.util
+import airflow.providers.google.ads._vendor.googleads.client
+import airflow.providers.google.ads._vendor.googleads.errors
+import airflow.providers.google.ads._vendor.googleads.util
 
 VERSION = "20.0.0"

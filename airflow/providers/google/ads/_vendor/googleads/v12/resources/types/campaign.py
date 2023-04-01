@@ -15,60 +15,60 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import bidding
-from google.ads.googleads.v12.common.types import custom_parameter
-from google.ads.googleads.v12.common.types import frequency_cap
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import bidding
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import custom_parameter
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import frequency_cap
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     real_time_bidding_setting as gagc_real_time_bidding_setting,
 )
-from google.ads.googleads.v12.common.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import (
     targeting_setting as gagc_targeting_setting,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     ad_serving_optimization_status as gage_ad_serving_optimization_status,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     advertising_channel_sub_type as gage_advertising_channel_sub_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     advertising_channel_type as gage_advertising_channel_type,
 )
-from google.ads.googleads.v12.enums.types import app_campaign_app_store
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import app_campaign_app_store
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     app_campaign_bidding_strategy_goal_type,
 )
-from google.ads.googleads.v12.enums.types import asset_field_type
-from google.ads.googleads.v12.enums.types import asset_set_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_field_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import asset_set_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     bidding_strategy_system_status as gage_bidding_strategy_system_status,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     bidding_strategy_type as gage_bidding_strategy_type,
 )
-from google.ads.googleads.v12.enums.types import brand_safety_suitability
-from google.ads.googleads.v12.enums.types import campaign_experiment_type
-from google.ads.googleads.v12.enums.types import campaign_primary_status
-from google.ads.googleads.v12.enums.types import campaign_primary_status_reason
-from google.ads.googleads.v12.enums.types import campaign_serving_status
-from google.ads.googleads.v12.enums.types import campaign_status
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import brand_safety_suitability
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import campaign_experiment_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import campaign_primary_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import campaign_primary_status_reason
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import campaign_serving_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import campaign_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     location_source_type as gage_location_source_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     negative_geo_target_type as gage_negative_geo_target_type,
 )
-from google.ads.googleads.v12.enums.types import optimization_goal_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import optimization_goal_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     payment_mode as gage_payment_mode,
 )
-from google.ads.googleads.v12.enums.types import performance_max_upgrade_status
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import performance_max_upgrade_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     positive_geo_target_type as gage_positive_geo_target_type,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     vanity_pharma_display_url_mode as gage_vanity_pharma_display_url_mode,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     vanity_pharma_text as gage_vanity_pharma_text,
 )
 

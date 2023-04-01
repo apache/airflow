@@ -15,13 +15,13 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import criteria
-from google.ads.googleads.v12.common.types import extensions
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import criteria
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import extensions
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     extension_type as gage_extension_type,
 )
-from google.ads.googleads.v12.enums.types import feed_item_status
-from google.ads.googleads.v12.enums.types import feed_item_target_device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_item_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import feed_item_target_device
 
 
 __protobuf__ = proto.module(

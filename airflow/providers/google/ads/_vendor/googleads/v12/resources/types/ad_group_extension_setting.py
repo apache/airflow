@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import extension_setting_device
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import extension_setting_device
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     extension_type as gage_extension_type,
 )
 

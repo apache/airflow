@@ -15,15 +15,15 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import user_lists
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import user_lists
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     access_reason as gage_access_reason,
 )
-from google.ads.googleads.v12.enums.types import user_list_access_status
-from google.ads.googleads.v12.enums.types import user_list_closing_reason
-from google.ads.googleads.v12.enums.types import user_list_membership_status
-from google.ads.googleads.v12.enums.types import user_list_size_range
-from google.ads.googleads.v12.enums.types import user_list_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_access_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_closing_reason
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_membership_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_size_range
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_type
 
 
 __protobuf__ = proto.module(

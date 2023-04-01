@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import access_invitation_status
-from google.ads.googleads.v12.enums.types import access_role as gage_access_role
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import access_invitation_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import access_role as gage_access_role
 
 
 __protobuf__ = proto.module(

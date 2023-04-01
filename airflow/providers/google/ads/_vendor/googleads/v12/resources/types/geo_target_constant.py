@@ -15,7 +15,7 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import geo_target_constant_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import geo_target_constant_status
 
 
 __protobuf__ = proto.module(

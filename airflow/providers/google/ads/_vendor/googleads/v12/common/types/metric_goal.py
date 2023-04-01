@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import experiment_metric
-from google.ads.googleads.v12.enums.types import experiment_metric_direction
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import experiment_metric
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import experiment_metric_direction
 
 
 __protobuf__ = proto.module(

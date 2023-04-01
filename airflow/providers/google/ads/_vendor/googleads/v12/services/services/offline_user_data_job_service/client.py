@@ -33,8 +33,8 @@ try:
 except AttributeError:  # pragma: NO COVER
     OptionalRetry = Union[retries.Retry, object]  # type: ignore
 
-from google.ads.googleads.v12.resources.types import offline_user_data_job
-from google.ads.googleads.v12.services.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import offline_user_data_job
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import (
     offline_user_data_job_service,
 )
 from google.api_core import operation  # type: ignore

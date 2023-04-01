@@ -15,9 +15,9 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import extensions
-from google.ads.googleads.v12.enums.types import keyword_match_type
-from google.ads.googleads.v12.resources.types import ad as gagr_ad
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import extensions
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import keyword_match_type
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import ad as gagr_ad
 from google.rpc import status_pb2  # type: ignore
 
 

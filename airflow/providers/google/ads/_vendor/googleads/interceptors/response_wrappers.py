@@ -16,7 +16,7 @@
 import grpc
 import time
 
-from google.ads.googleads import util
+from airflow.providers.google.ads._vendor.googleads import util
 from types import SimpleNamespace
 
 

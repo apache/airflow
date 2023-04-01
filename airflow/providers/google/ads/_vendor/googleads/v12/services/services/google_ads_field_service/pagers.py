@@ -15,8 +15,8 @@
 #
 from typing import Any, Callable, Iterable, Iterator, Sequence, Tuple
 
-from google.ads.googleads.v12.resources.types import google_ads_field
-from google.ads.googleads.v12.services.types import google_ads_field_service
+from airflow.providers.google.ads._vendor.googleads.v12.resources.types import google_ads_field
+from airflow.providers.google.ads._vendor.googleads.v12.services.types import google_ads_field_service
 
 
 class SearchGoogleAdsFieldsPager:

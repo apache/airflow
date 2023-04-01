@@ -15,24 +15,24 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import customer_match_upload_key_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import customer_match_upload_key_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     user_list_combined_rule_operator,
 )
-from google.ads.googleads.v12.enums.types import user_list_crm_data_source_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_crm_data_source_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     user_list_date_rule_item_operator,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     user_list_flexible_rule_operator,
 )
-from google.ads.googleads.v12.enums.types import user_list_logical_rule_operator
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_logical_rule_operator
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     user_list_number_rule_item_operator,
 )
-from google.ads.googleads.v12.enums.types import user_list_prepopulation_status
-from google.ads.googleads.v12.enums.types import user_list_rule_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_prepopulation_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import user_list_rule_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     user_list_string_rule_item_operator,
 )
 

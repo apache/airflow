@@ -15,8 +15,8 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.enums.types import bidding_strategy_type
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import bidding_strategy_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     target_impression_share_location,
 )
 

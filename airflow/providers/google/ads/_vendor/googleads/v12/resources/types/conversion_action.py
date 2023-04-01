@@ -15,19 +15,19 @@
 #
 import proto  # type: ignore
 
-from google.ads.googleads.v12.common.types import tag_snippet
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.common.types import tag_snippet
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     attribution_model as gage_attribution_model,
 )
-from google.ads.googleads.v12.enums.types import conversion_action_category
-from google.ads.googleads.v12.enums.types import conversion_action_counting_type
-from google.ads.googleads.v12.enums.types import conversion_action_status
-from google.ads.googleads.v12.enums.types import conversion_action_type
-from google.ads.googleads.v12.enums.types import conversion_origin
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_action_category
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_action_counting_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_action_status
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_action_type
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import conversion_origin
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     data_driven_model_status as gage_data_driven_model_status,
 )
-from google.ads.googleads.v12.enums.types import (
+from airflow.providers.google.ads._vendor.googleads.v12.enums.types import (
     mobile_app_vendor as gage_mobile_app_vendor,
 )
 
