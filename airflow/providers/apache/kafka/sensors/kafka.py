@@ -38,7 +38,7 @@ class AwaitMessageSensor(BaseOperator):
     - return event (as default xcom or specific xcom key)
 
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: Topics (or topic regex) to use for reading from
     :param apply_function: The function to apply to messages to determine if an event occurred. As a dot
         notation string.
@@ -125,7 +125,7 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
     - return event (as default xcom or specific xcom key)
 
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: Topics (or topic regex) to use for reading from
     :param apply_function: The function to apply to messages to determine if an event occurred. As a dot
         notation string.

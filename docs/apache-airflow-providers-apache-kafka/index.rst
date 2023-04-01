@@ -18,7 +18,6 @@
 ``apache-airflow-providers-apache-kafka``
 ==========================================
 
-
 Content
 -------
 
@@ -26,7 +25,13 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection Types <connections/kafka>
+
+    Connection <connections/kafka>
+    Hooks <hooks>
+    Operators <operators>
+    Sensors <sensors>
+    Triggers <triggers>
+
 
 .. toctree::
     :maxdepth: 1
@@ -35,9 +40,17 @@ Content
     Python API<_api/airflow/providers/apache/kafka/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/kafka/index>
+
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kafka/|version|/tests/system/providers/apache/kafka>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kafka/>
     Installing from sources <installing-providers-from-sources>
 
@@ -47,4 +60,35 @@ Content
 
     Detailed list of commits <commits>
 
-.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+Package apache-airflow-providers-apache-kafka
+------------------------------------------------------
+
+`Apache Kafka <https://kafka.apache.org/>`__
+
+
+Release: 1.0.0
+
+Provider package
+----------------
+
+This is a provider package for ``apache.kafka`` provider. All classes for this provider package
+are in ``airflow.providers.apache.kafka`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported via ``pip install apache-airflow-providers-apache-kafka``.
+
+Requirements
+------------
+
+===================  ==================
+PIP package          Version required
+===================  ==================
+``apache-airflow``   ``>=2.3.0``
+``confluent-kafka``
+===================  ==================
+
+.. include:: ../../airflow/providers/apache/kafka/CHANGELOG.rst

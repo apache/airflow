@@ -34,7 +34,7 @@ class ConsumeFromTopicOperator(BaseOperator):
     using the user supplied callable function. The consumer will continue to read in batches until it reaches
     the end of the log or reads a maximum number of messages is reached.
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: A list of topics or regex patterns the consumer should subscribe to.
     :param apply_function: The function that should be applied to fetched one at a time.
         name of dag file executing the function and the function name delimited by a `.`
@@ -57,6 +57,10 @@ class ConsumeFromTopicOperator(BaseOperator):
         defaults to 1000
     :param poll_timeout: How long the Kafka consumer should wait before determining no more messages are
         available, defaults to 60
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ConsumeFromTopicOperator`
     """
 
     BLUE = "#ffefeb"

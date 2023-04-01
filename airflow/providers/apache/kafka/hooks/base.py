@@ -27,7 +27,7 @@ class KafkaHook(BaseHook):
     """A base hook for interacting with Apache Kafka"""
 
     conn_name_attr = "kafka_config_id"
-    default_conn_name = "kafka_config_default"
+    default_conn_name = "kafka_default"
     conn_type = "kafka"
     hook_name = "Apache Kafka"
 
@@ -53,7 +53,7 @@ class KafkaHook(BaseHook):
         config = self.get_connection(self.kafka_config_id).extra_dejson
 
         if not (config.get("bootstrap.servers", None)):
-            raise ValueError("config['bootsrap.servers'] must be provided.")
+            raise ValueError("config['bootstrap.servers'] must be provided.")
 
         return config
 

@@ -27,7 +27,7 @@ class KafkaConsumerHook(KafkaHook):
     """
     A hook for creating a Kafka Consumer
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: A list of topics to subscribe to.
     """
 
@@ -39,7 +39,7 @@ class KafkaConsumerHook(KafkaHook):
             raise ValueError("The 'group.id' parameter must be set in the config dictionary'. Got <None>")
 
         if not self.get_conn().get("bootstrap.servers", None):
-            raise ValueError("config['bootsrap.servers'] must be provided.")
+            raise ValueError("config['bootstrap.servers'] must be provided.")
 
     def get_consumer(self) -> Consumer:
         """Returns a Consumer that has been subscribed to topics."""

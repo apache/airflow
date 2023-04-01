@@ -27,7 +27,7 @@ class KafkaAdminClientHook(KafkaHook):
     """
     A hook for interacting with the Kafka Cluster
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     """
 
     def __init__(self, kafka_config_id=KafkaHook.default_conn_name) -> None:

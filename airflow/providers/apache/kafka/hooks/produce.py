@@ -24,7 +24,7 @@ from airflow.providers.apache.kafka.hooks.base import KafkaHook
 class KafkaProducerHook(KafkaHook):
     """
     A hook for creating a Kafka Producer
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     """
 
     def __init__(self, kafka_config_id=KafkaHook.default_conn_name) -> None:
@@ -35,6 +35,7 @@ class KafkaProducerHook(KafkaHook):
 
     def get_producer(self) -> Producer:
         """Returns a producer object for sending messages to Kafka"""
+
         producer = Producer(self.get_conn())
 
         self.log.info("Producer %s", producer)
