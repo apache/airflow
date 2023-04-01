@@ -84,7 +84,7 @@ def session():
         yield session
 
 
-def create_trigger_in_db(session, trigger):
+def create_trigger_in_db(session, trigger, operator=None):
     dag_model = DagModel(dag_id="test_dag")
     dag = DAG(dag_id=dag_model.dag_id, start_date=pendulum.datetime(2023, 1, 1))
     run = DagRun(
@@ -95,9 +95,11 @@ def create_trigger_in_db(session, trigger):
     )
     trigger_orm = Trigger.from_object(trigger)
     trigger_orm.id = 1
-    task_instance = TaskInstance(
-        BaseOperator(task_id="test_ti", dag=dag), execution_date=run.execution_date, run_id=run.run_id
-    )
+    if operator:
+        operator.dag = dag
+    else:
+        operator = BaseOperator(task_id="test_ti", dag=dag)
+    task_instance = TaskInstance(operator, execution_date=run.execution_date, run_id=run.run_id)
     task_instance.trigger_id = trigger_orm.id
     session.add(dag_model)
     session.add(run)
@@ -105,6 +107,44 @@ def create_trigger_in_db(session, trigger):
     session.add(task_instance)
     session.commit()
     return dag_model, run, trigger_orm, task_instance
+
+
+def test_trigger_logging_sensitive_info(session, capsys):
+    """
+    Checks that when a trigger fires, it doesn't log any sensitive
+    information from arguments
+    """
+
+    class SensitiveArgOperator(BaseOperator):
+        def __init__(self, password, **kwargs):
+            self.password = password
+            super().__init__(**kwargs)
+
+    # Use a trigger that will immediately succeed
+    trigger = SuccessTrigger()
+    op = SensitiveArgOperator(task_id="sensitive_arg_task", password="some_password")
+    create_trigger_in_db(session, trigger, operator=op)
+    # Make a TriggererJob and have it retrieve DB tasks
+    job = TriggererJob()
+    job.load_triggers()
+    # Now, start TriggerRunner up (and set it as a daemon thread during tests)
+    job.runner.daemon = True
+    job.runner.start()
+    try:
+        # Wait for up to 3 seconds for it to fire and appear in the event queue
+        for _ in range(30):
+            if job.runner.events:
+                assert list(job.runner.events) == [(1, TriggerEvent(True))]
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("TriggerRunner never sent the trigger event out")
+    finally:
+        # We always have to stop the runner
+        job.runner.stop = True
+    stdout = capsys.readouterr().out
+    assert "test_dag/test_run/sensitive_arg_task/-1 (ID 1) starting" in stdout
+    assert "some_password" not in stdout
 
 
 def test_is_alive():
