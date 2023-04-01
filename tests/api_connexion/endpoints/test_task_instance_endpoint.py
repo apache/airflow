@@ -876,7 +876,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         "payload, expected",
         [
-            ({}, "POST Body must not be None"),
+            ({}, "POST Body must not be empty"),
         ],
     )
     def test_should_raise_400_for_no_json(self, payload, expected):
