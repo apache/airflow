@@ -105,6 +105,7 @@ with DAG(
             if message & 5 == 0:
                 print(f"encountered {message} BUZZ !")
 
+    # [START howto_sensor_await_message_trigger_function]
     listen_for_message = AwaitMessageTriggerFunctionSensor(
         kafka_config_id="fizz_buzz",
         task_id="listen_for_message",
@@ -112,6 +113,7 @@ with DAG(
         apply_function="event_listener.await_function",
         event_triggered_function=pick_downstream_dag,
     )
+    # [END howto_sensor_await_message_trigger_function]
 
 with DAG(
     dag_id="fizz-buzz",

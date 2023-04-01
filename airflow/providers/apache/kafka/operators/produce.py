@@ -42,7 +42,7 @@ class ProduceToTopicOperator(BaseOperator):
 
     Registers a producer to a kafka topic and publishes messages to the log.
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topic: The topic the producer should produce to, defaults to None
     :param producer_function: The function that generates key/value pairs as messages for production,
         defaults to None
@@ -56,7 +56,9 @@ class ProduceToTopicOperator(BaseOperator):
         defaults to 0
     :raises AirflowException: _description_
 
-
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ProduceToTopicOperator`
     """
 
     template_fields = (

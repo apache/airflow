@@ -15,19 +15,16 @@
     specific language governing permissions and limitations
     under the License.
 
-Package apache-airflow-providers-apache-kafka
 
-------------------------------------------------------
+Apache Kafka Triggers
+=====================
 
-`Kafka <https://kafka.apache.org>`__
+.. _howto/triggers:AwaitMessageTrigger:
 
+AwaitMessageTrigger
+------------------------
 
-This is detailed commit list of changes for versions provider package: ``kafka``.
-For high-level changelog, see :doc:`package information including changelog <index>`.
+The ``AwaitMessageTrigger`` is a trigger that will consume messages polled from a Kafka topic and process them with a provided callable.
+If the callable returns any data, a TriggerEvent is raised.
 
-
-1.0.0
-.....
-
-Initial release of this provider.
-
+For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger`.
