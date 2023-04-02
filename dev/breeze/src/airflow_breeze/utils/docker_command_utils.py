@@ -22,7 +22,7 @@ import re
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import CalledProcessError, CompletedProcess
+from subprocess import DEVNULL, CalledProcessError, CompletedProcess
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -768,3 +768,26 @@ def fix_ownership_using_docker():
         "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
     ]
     run_command(cmd, text=True, env=env, check=False)
+
+
+def remove_docker_networks(networks: list[str] | None = None) -> None:
+    """
+    Removes specified docker networks. If no networks are specified, it removes all unused networks.
+    Errors are ignored (not even printed in the output), so you can safely call it without checking
+    if the networks exist.
+
+    :param networks: list of networks to remove
+    """
+    if networks is None:
+        run_command(
+            ["docker", "network", "prune", "-f"],
+            check=False,
+            stderr=DEVNULL,
+        )
+    else:
+        for network in networks:
+            run_command(
+                ["docker", "network", "rm", network],
+                check=False,
+                stderr=DEVNULL,
+            )
