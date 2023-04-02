@@ -81,6 +81,10 @@ class Output(NamedTuple):
     def file(self) -> TextIO:
         return open(self.file_name, "a+t")
 
+    @property
+    def escaped_title(self) -> str:
+        return self.title.replace("[", "\\[")
+
 
 @lru_cache(maxsize=None)
 def get_console(output: Output | None = None) -> Console:
