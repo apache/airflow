@@ -84,3 +84,32 @@ An example usage of the DatabricksSqlOperator to perform statements from a file 
     :language: python
     :start-after: [START howto_operator_databricks_sql_multiple_file]
     :end-before: [END howto_operator_databricks_sql_multiple_file]
+
+
+DatabricksSqlSensor
+===================
+
+Use the :class:`~airflow.providers.databricks.sensors.sql.DatabricksSqlSensor` to run the sensor
+for a specific Delta table on a Databricks SQL workspace.
+
+Using the Sensor
+----------------
+
+The sensor executes the SQL statement supplied by the user. The only required parameters are:
+
+* ``sql`` - SQL query to execute for the sensor.
+
+* One of ``sql_endpoint_name`` (name of Databricks SQL endpoint to use) or ``http_path`` (HTTP path for Databricks SQL endpoint or Databricks cluster).
+
+Other parameters are optional and could be found in the class documentation.
+
+Examples
+--------
+
+Poking the specific table for existence of data/partition:
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_sql]
+    :end-before: [END howto_sensor_databricks_sql]
