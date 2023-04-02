@@ -26,7 +26,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
-from airflow.providers.databricks.hooks.databricks_sql import  DatabricksSqlHook
 from airflow.utils import timezone
 
 TASK_ID = "db-sensor"
@@ -43,9 +42,6 @@ DEFAULT_SQL_ENDPOINT = "sql_warehouse_default"
 DEFAULT_CALLER = "TestDatabricksSqlSensor"
 DEFAULT_SQL = f"select 1 from {DEFAULT_CATALOG}.{DEFAULT_SCHEMA}.{DEFAULT_TABLE} LIMIT 1"
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-
-EMTPY_SQL_ENDPOINT = None
-EMPTY_HTTP_PATH = None
 
 TIMESTAMP_TEST = datetime.now() - timedelta(days=30)
 

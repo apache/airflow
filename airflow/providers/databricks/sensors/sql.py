@@ -27,7 +27,6 @@ from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
 from airflow.exceptions import AirflowException
-from contextlib import closing
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
