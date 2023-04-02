@@ -57,10 +57,10 @@ There are very many reasons why your task might not be getting scheduled. Here a
 - Are the dependencies for the task met? The task instances directly
   upstream from the task need to be in a ``success`` state. Also,
   if you have set ``depends_on_past=True``, the previous task instance
-  needs to have succeeded (except if it is the first run for that task).
+  needs to have succeeded or been skipped (except if it is the first run for that task).
   Also, if ``wait_for_downstream=True``, make sure you understand
   what it means - all tasks *immediately* downstream of the *previous*
-  task instance must have succeeded.
+  task instance must have succeeded or been skipped.
   You can view how these properties are set from the ``Task Instance Details``
   page for your task.
 

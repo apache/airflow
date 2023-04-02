@@ -129,7 +129,7 @@ class TestPythonPackages:
         "elasticsearch": ["elasticsearch", "es.elastic", "elasticsearch_dsl"],
         "google": [
             "OpenSSL",
-            "google.ads",
+            # "google.ads", Remove google ads as it is vendored in google provider now
             "googleapiclient",
             "google.auth",
             "google_auth_httplib2",
