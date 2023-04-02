@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'JenkinsHook' fix connection intake on https (#30301)``
+
 3.2.0
 .....
 
