@@ -554,18 +554,28 @@ command takes care about it. This is needed when you want to run webserver insid
 Breeze cleanup
 --------------
 
-Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
-disk usage by the images. If you need to clean-up the images periodically you can run
-``breeze setup cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--all``).
+Sometimes you need to cleanup your docker environment (and it is recommended you do that regularly). There
+are several reasons why you might want to do that.
+
+Breeze uses docker images heavily and those images are rebuild periodically and might leave dangling, unused
+images in docker cache. This might cause extra disk usage. Also running various docker compose commands
+(for example running tests with ``breeze testing tests``) might create additional docker networks that might
+prevent new networks from being created. Those networks are not removed automatically by docker-compose.
+Also Breeze uses it's own cache to keep information about all images.
+
+All those unused images, networks and cache can be removed by running ``breeze cleanup`` command. By default
+it will not remove the most recent images that you might need to run breeze commands, but you
+can also remove those breeze images to clean-up everything by adding ``--all`` command (note that you will
+need to build the images again from scratch - pulling from the registry might take a while).
+
+Breeze will ask you to confirm each step, unless you specify ``--answer yes`` flag.
 
 Those are all available flags of ``cleanup`` command:
-
 
 .. image:: ./images/breeze/output_cleanup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
   :width: 100%
-  :alt: Breeze setup cleanup
+  :alt: Breeze cleanup
 
 Running arbitrary commands in container
 ---------------------------------------

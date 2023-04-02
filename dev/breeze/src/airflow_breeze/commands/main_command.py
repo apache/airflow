@@ -46,6 +46,7 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.docker_command_utils import remove_docker_networks
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -249,10 +250,14 @@ def cleanup(all: bool):
                 sys.exit(0)
         else:
             get_console().print("[info]No locally downloaded images to remove[/]\n")
-    get_console().print("Pruning docker images")
-    given_answer = user_confirm("Are you sure with the removal?")
+    get_console().print("Removing unused networks")
+    given_answer = user_confirm("Are you sure with the removal of unused docker networks?")
     if given_answer == Answer.YES:
-        system_prune_command_to_execute = ["docker", "system", "prune"]
+        remove_docker_networks()
+    get_console().print("Pruning docker images")
+    given_answer = user_confirm("Are you sure with the removal of docker images?")
+    if given_answer == Answer.YES:
+        system_prune_command_to_execute = ["docker", "system", "prune", "-f"]
         run_command(
             system_prune_command_to_execute,
             check=False,

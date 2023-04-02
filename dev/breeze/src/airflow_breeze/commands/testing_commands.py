@@ -56,6 +56,7 @@ from airflow_breeze.utils.docker_command_utils import (
     DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
+    remove_docker_networks,
 )
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
@@ -129,7 +130,6 @@ def _run_test(
         env_variables["TEST_TIMEOUT"] = str(test_timeout)
     if db_reset:
         env_variables["DB_RESET"] = "true"
-    perform_environment_checks()
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
     env_variables["SKIP_PROVIDER_TESTS"] = str(exec_shell_params.skip_provider_tests).lower()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
@@ -158,6 +158,7 @@ def _run_test(
     ]
     run_cmd.extend(list(extra_pytest_args))
     try:
+        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
         result = run_command(
             run_cmd,
             env=env_variables,
@@ -198,6 +199,7 @@ def _run_test(
             check=False,
             verbose_override=False,
         )
+        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
@@ -217,8 +219,9 @@ def _run_tests_in_pool(
     debug_resources: bool,
     skip_cleanup: bool,
 ):
-    with ci_group(f"Testing {' '.join(tests_to_run)}"):
-        all_params = [f"Test {test_type}" for test_type in tests_to_run]
+    escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
+    with ci_group(f"Testing {' '.join(escaped_tests)}"):
+        all_params = [f"{test_type}" for test_type in tests_to_run]
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
@@ -242,9 +245,10 @@ def _run_tests_in_pool(
                 )
                 for index, test_type in enumerate(tests_to_run)
             ]
+    escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
     check_async_run_results(
         results=results,
-        success=f"Tests {' '.join(tests_to_run)} completed successfully",
+        success=f"Tests {' '.join(escaped_tests)} completed successfully",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -405,10 +409,13 @@ def command_for_tests(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
+    perform_environment_checks()
     if run_in_parallel:
+        test_list = test_types.split(" ")
+        test_list.sort(key=lambda x: x in ["Providers", "WWW"], reverse=True)
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
-            test_types_list=test_types.split(" "),
+            test_types_list=test_list,
             extra_pytest_args=extra_pytest_args,
             db_reset=db_reset,
             # Allow to pass information on whether to use full tests in the parallel execution mode
@@ -495,6 +502,7 @@ def integration_tests(
         skip_provider_tests=skip_provider_tests,
     )
     cleanup_python_generated_files()
+    perform_environment_checks()
     returncode, _ = _run_test(
         exec_shell_params=exec_shell_params,
         extra_pytest_args=extra_pytest_args,
