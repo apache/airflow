@@ -26,6 +26,8 @@ from airflow.compat.functools import cached_property
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.exceptions import AirflowException
+from contextlib import closing
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -82,6 +84,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
+        """Creates DatabricksSqlSensor object using the specified input arguments."""
         self.databricks_conn_id = databricks_conn_id
         self._http_path = http_path
         self._sql_endpoint_name = sql_endpoint_name
@@ -98,6 +101,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
 
     @cached_property
     def _get_hook(self) -> DatabricksSqlHook:
+        """Creates and returns a DatabricksSqlHook object."""
         return DatabricksSqlHook(
             self.databricks_conn_id,
             self._http_path,
@@ -112,6 +116,9 @@ class DatabricksSqlSensor(BaseSensorOperator):
         )
 
     def _get_results(self) -> bool:
+        """Uses the Databricks SQL hook and runs the specified SQL query."""
+        if self._http_path in (None, "") and self._sql_endpoint_name in (None, ""):
+            raise AirflowException("Both HTTP Path and SQL endpoint are not specified.")
         hook = self._get_hook
         sql_result = hook.run(
             self.sql,
@@ -121,4 +128,5 @@ class DatabricksSqlSensor(BaseSensorOperator):
         return bool(sql_result)
 
     def poke(self, context: Context) -> bool:
+        """Sensor poke function to get and return results from the SQL sensor."""
         return self._get_results()

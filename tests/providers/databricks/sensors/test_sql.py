@@ -26,6 +26,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
+from airflow.providers.databricks.hooks.databricks_sql import  DatabricksSqlHook
 from airflow.utils import timezone
 
 TASK_ID = "db-sensor"
@@ -37,10 +38,14 @@ TOKEN = "token"
 DEFAULT_SCHEMA = "schema1"
 DEFAULT_CATALOG = "catalog1"
 DEFAULT_TABLE = "table1"
+DEFAULT_HTTP_PATH = "/sql/1.0/warehouses/xxxxx"
 DEFAULT_SQL_ENDPOINT = "sql_warehouse_default"
 DEFAULT_CALLER = "TestDatabricksSqlSensor"
 DEFAULT_SQL = f"select 1 from {DEFAULT_CATALOG}.{DEFAULT_SCHEMA}.{DEFAULT_TABLE} LIMIT 1"
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+
+EMTPY_SQL_ENDPOINT = None
+EMPTY_HTTP_PATH = None
 
 TIMESTAMP_TEST = datetime.now() - timedelta(days=30)
 
@@ -79,3 +84,22 @@ class TestDatabricksSqlSensor:
     def test_unsupported_conn_type(self):
         with pytest.raises(AirflowException):
             self.sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_sql_endpoint_http_path(self):
+        """Neither SQL endpoint not HTTP path has been specified."""
+        _sensor_without_endpoint_http = DatabricksSqlSensor(
+            task_id="task2",
+            databricks_conn_id=DEFAULT_CONN_ID,
+            dag=self.dag,
+            sql=DEFAULT_SQL,
+            schema=DEFAULT_SCHEMA,
+            catalog=DEFAULT_CATALOG,
+            timeout=30,
+            poke_interval=15,
+        )
+        with pytest.raises(AirflowException):
+            _sensor_without_endpoint_http._get_results()
+
+
+
+

@@ -105,6 +105,13 @@ Other parameters are optional and could be found in the class documentation.
 
 Examples
 --------
+Configuring Databricks connection to be used with the Sensor.
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_connection_setup]
+    :end-after: [END howto_sensor_databricks_connection_setup]
 
 Poking the specific table for existence of data/partition:
 
