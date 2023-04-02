@@ -471,6 +471,52 @@ class TestCliDags:
         assert "example_complex" in out
 
     @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_get_dag_details(self):
+        args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_details(args)
+            out = temp_stdout.getvalue()
+
+        # Check if DAG Details field are present
+        dag_details_fields = [
+            "timezone",
+            "start_date",
+            "dag_id",
+            "default_view",
+            "is_paused_upon_creation",
+            "is_paused",
+            "concurrency",
+            "description",
+            "schedule_interval",
+            "dag_run_timeout",
+            "last_parsed",
+            "max_active_tasks",
+            "fileloc",
+            "max_active_runs",
+            "orientation",
+            "is_active",
+            "params",
+            "end_date",
+            "file_token",
+            "tags",
+            "doc_md",
+            "pickle_id",
+            "owners",
+            "catchup",
+            "render_template_as_native_obj",
+            "is_subdag",
+        ]
+
+        for field in dag_details_fields:
+            assert field in out
+
+        # Check if identifying values are present
+        dag_details_values = ["airflow", "airflow/example_dags/example_complex.py", "16", "example_complex"]
+
+        for value in dag_details_values:
+            assert value in out
+
+    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags(self):
         args = self.parser.parse_args(["dags", "list", "--output", "yaml"])
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:

@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
+from airflow.api_connexion.schemas.dag_schema import dag_detail_schema
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
@@ -341,6 +342,21 @@ def dag_list_dags(args):
             "paused": x.get_is_paused(),
         },
     )
+
+
+@cli_utils.action_cli
+@suppress_logs_and_warning
+def dag_details(args):
+    """Get DAG details given a DAG id"""
+    dag = get_dag(args.subdir, args.dag_id)
+    dag_detail = dag_detail_schema.dump(dag)
+    for key, value in dag_detail.items():
+        if isinstance(value, dict):
+            print(f"\t{key}:")
+            for subkey, subvalue in value.items():
+                print(f"\t\t{subkey}: {subvalue}")
+        else:
+            print(f"\t{key}: {value}")
 
 
 @cli_utils.action_cli
