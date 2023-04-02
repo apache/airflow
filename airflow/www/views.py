@@ -974,6 +974,18 @@ class Airflow(AirflowBaseView):
             state_color_mapping=state_color_mapping,
         )
 
+    @expose("/dashboard")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DASHBOARD),
+        ]
+    )
+    def dashboard(self):
+        """Dashboard view."""
+        return self.render_template(
+            "airflow/dashboard.html",
+        )
+
     @expose("/next_run_datasets_summary", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
     @provide_session
@@ -3785,6 +3797,27 @@ class Airflow(AirflowBaseView):
                 "dag_runs": encoded_runs,
                 "ordering": dag.timetable.run_ordering,
             }
+        # avoid spaces to reduce payload size
+        return (
+            htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
+    @expose("/object/dashboard_data")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DASHBOARD),
+        ]
+    )
+    def dashboard_data(self):
+        """Returns dashboard data"""
+        with create_session() as session:
+            dag_runs = (
+                session.query(func.count(DagRun.run_id), DagRun.run_type).group_by(DagRun.run_type).all()
+            )
+
+            data = {"dag_runs": {sum_value: run_type for sum_value, run_type in dag_runs}}
+
         # avoid spaces to reduce payload size
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
