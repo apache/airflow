@@ -34,6 +34,8 @@ The auth option is moved from the extra field to the auth parameter in the Hook.
 parameters defined in your connections as auth, you should move them to the DAG where your HiveOperator
 or other Hive related operators are used.
 
+* ``Move auth parameter from extra to Hook parameter (#30212)``
+
 5.1.3
 .....
 

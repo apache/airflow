@@ -24,6 +24,30 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``enhance spark_k8s_operator (#29977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator xcom push when 'get_logs=False' (#29052)``
+* ``Fixed hanged KubernetesPodOperator (#28336)``
+
+Misc
+~~~~
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``Remove "boilerplate" from all taskflow decorators (#30118)``
+* ``Ensure setup/teardown work on a previously decorated function (#30216)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
 5.2.2
 .....
 

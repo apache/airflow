@@ -24,10 +24,27 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve creating Vault connection from the UI and add documentation for this conn (#30057)``
+* ``Remove required validations in Hashicorp Vault conn form (#30138)``
+* ``remove unused key_id variable (#30055)``
+* ``Simplify dict logic in Hashicorp Vault Hook (#30060)``
+
 3.3.0
 .....
 
+Features
+~~~~~~~~
 * ``Support multiple mount points in Vault backend secret (#29734)``
+
+Bug Fixes
+~~~~~~~~~
+
 * ``Fix empty paths in Vault secrets backend (#29908)``
 
 .. Review and move the new changes to one of the sections above:

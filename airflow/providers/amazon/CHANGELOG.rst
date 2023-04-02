@@ -24,6 +24,32 @@
 Changelog
 ---------
 
+7.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'RedshiftResumeClusterOperator' (#30090)``
+* ``Add 'AwsToAwsBaseOperator' (#30044)``
+* ``Add deferrable mode in RedshiftPauseClusterOperator (#28850)``
+* ``Add support of a different AWS connection for DynamoDB (#29452)``
+* ``Add 'EC2CreateInstanceOperator', 'EC2TerminateInstanceOperator' (#29548)``
+* ``Make update config behavior optional in GlueJobOperator (#30162)``
+* ``custom waiters with dynamic values, applied to appflow (#29911)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Misc
+~~~~
+* ``Move string enum class to utils module + add test (#29906)``
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``rewrite polling code for appflow hook (#28869)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move and convert all AWS example dags to system tests (#30003)``
+   * ``Remove aws async ci job (#30127)``
+
 7.3.0
 .....
 

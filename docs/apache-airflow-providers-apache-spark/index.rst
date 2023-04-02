@@ -64,7 +64,7 @@ Package apache-airflow-providers-apache-spark
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 4.0.0
+Release: 4.0.1
 
 Provider package
 ----------------

@@ -67,4 +67,13 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-smtp``
 
+Requirements
+------------
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.3.0``
+==================  ==================
+
 .. include:: ../../airflow/providers/smtp/CHANGELOG.rst
