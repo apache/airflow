@@ -32,13 +32,13 @@ TASK_ID = "db-sensor"
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
 HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
-TOKEN = "token"
+PERSONAL_ACCESS_TOKEN = "token"
 
 DEFAULT_SCHEMA = "schema1"
 DEFAULT_CATALOG = "catalog1"
 DEFAULT_TABLE = "table1"
 DEFAULT_HTTP_PATH = "/sql/1.0/warehouses/xxxxx"
-DEFAULT_SQL_ENDPOINT = "sql_warehouse_default"
+DEFAULT_SQL_WAREHOUSE = "sql_warehouse_default"
 DEFAULT_CALLER = "TestDatabricksSqlSensor"
 DEFAULT_SQL = f"select 1 from {DEFAULT_CATALOG}.{DEFAULT_SCHEMA}.{DEFAULT_TABLE} LIMIT 1"
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -54,7 +54,7 @@ class TestDatabricksSqlSensor:
         self.sensor = DatabricksSqlSensor(
             task_id=TASK_ID,
             databricks_conn_id=DEFAULT_CONN_ID,
-            sql_endpoint_name=DEFAULT_SQL_ENDPOINT,
+            sql_warehouse_name=DEFAULT_SQL_WAREHOUSE,
             dag=self.dag,
             sql=DEFAULT_SQL,
             schema=DEFAULT_SCHEMA,
@@ -66,7 +66,7 @@ class TestDatabricksSqlSensor:
     def test_init(self):
         assert self.sensor.databricks_conn_id == "databricks_default"
         assert self.sensor.task_id == "db-sensor"
-        assert self.sensor._sql_endpoint_name == "sql_warehouse_default"
+        assert self.sensor._sql_warehouse_name == "sql_warehouse_default"
         assert self.sensor.poke_interval == 15
 
     @pytest.mark.parametrize(
@@ -81,9 +81,9 @@ class TestDatabricksSqlSensor:
         with pytest.raises(AirflowException):
             self.sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_sql_endpoint_http_path(self):
-        """Neither SQL endpoint not HTTP path has been specified."""
-        _sensor_without_endpoint_http = DatabricksSqlSensor(
+    def test_sql_warehouse_http_path(self):
+        """Neither SQL warehouse name not HTTP path has been specified."""
+        _sensor_without_sql_warehouse_http = DatabricksSqlSensor(
             task_id="task2",
             databricks_conn_id=DEFAULT_CONN_ID,
             dag=self.dag,
@@ -94,7 +94,7 @@ class TestDatabricksSqlSensor:
             poke_interval=15,
         )
         with pytest.raises(AirflowException):
-            _sensor_without_endpoint_http._get_results()
+            _sensor_without_sql_warehouse_http._get_results()
 
 
 

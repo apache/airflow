@@ -51,14 +51,14 @@ with DAG(
     # [START howto_sensor_databricks_connection_setup]
     # Connection string setup for Databricks workspace.
     connection_id = "databricks_default"
-    sql_endpoint_name = "Starter Warehouse"
+    sql_warehouse_name = "Starter Warehouse"
     # [END howto_sensor_databricks_connection_setup]
 
     # [START howto_sensor_databricks_sql]
     # Example of using the Databricks SQL Sensor to check existence of data/partitions for a Delta table.
     sql_sensor = DatabricksSqlSensor(
         databricks_conn_id=connection_id,
-        sql_endpoint_name=sql_endpoint_name,
+        sql_warehouse_name=sql_warehouse_name,
         catalog="hive_metastore",
         task_id="sql_sensor_task",
         sql="select * from hive_metastore.temp.sample_table_3 limit 1",
