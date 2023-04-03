@@ -95,7 +95,3 @@ class TestDatabricksSqlSensor:
         )
         with pytest.raises(AirflowException):
             _sensor_without_sql_warehouse_http._get_results()
-
-
-
-
