@@ -3642,7 +3642,9 @@ class Airflow(AirflowBaseView):
                 query = query.filter(DagRun.state == run_state)
 
             dag_runs = wwwutils.sorted_dag_runs(query, ordering=dag.timetable.run_ordering, limit=num_runs)
-            encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
+            encoded_runs = [
+                wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder) for dr in dag_runs
+            ]
             data = {
                 "groups": dag_to_grid(dag, dag_runs, session),
                 "dag_runs": encoded_runs,
