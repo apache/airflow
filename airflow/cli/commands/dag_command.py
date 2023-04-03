@@ -353,9 +353,15 @@ def dag_details(args, session=NEW_SESSION):
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
     dag_detail = dag_schema.dump(dag)
+
+    if args.output == "table":
+        data = [{"property_name": key, "property_value": value} for key, value in dag_detail.items()]
+    else:
+        data = [dag_detail]
+
     AirflowConsole().print_as(
-        data=[dag_detail],
-        output=("yaml" if args.output == "table" else args.output),
+        data=data,
+        output=args.output,
     )
 
 
