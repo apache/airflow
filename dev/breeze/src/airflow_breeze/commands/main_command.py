@@ -26,7 +26,7 @@ from click import Context
 
 from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.production_image_commands import prod_image
-from airflow_breeze.commands.testing_commands import testing
+from airflow_breeze.commands.testing_commands import group_for_testing
 from airflow_breeze.configure_rich_click import click
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
@@ -46,6 +46,7 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.docker_command_utils import remove_docker_networks
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -74,7 +75,7 @@ class MainGroupWithAliases(BreezeGroup):
             return prod_image.get_command(ctx, "build")
         if cmd_name == "tests":
             print_deprecated("tests", "testing tests")
-            return testing.get_command(ctx, "tests")
+            return group_for_testing.get_command(ctx, "tests")
         if cmd_name == "config":
             print_deprecated("config", "setup config")
             return setup.get_command(ctx, "config")
@@ -249,10 +250,14 @@ def cleanup(all: bool):
                 sys.exit(0)
         else:
             get_console().print("[info]No locally downloaded images to remove[/]\n")
-    get_console().print("Pruning docker images")
-    given_answer = user_confirm("Are you sure with the removal?")
+    get_console().print("Removing unused networks")
+    given_answer = user_confirm("Are you sure with the removal of unused docker networks?")
     if given_answer == Answer.YES:
-        system_prune_command_to_execute = ["docker", "system", "prune"]
+        remove_docker_networks()
+    get_console().print("Pruning docker images")
+    given_answer = user_confirm("Are you sure with the removal of docker images?")
+    if given_answer == Answer.YES:
+        system_prune_command_to_execute = ["docker", "system", "prune", "-f"]
         run_command(
             system_prune_command_to_execute,
             check=False,

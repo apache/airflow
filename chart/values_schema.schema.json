@@ -9,7 +9,7 @@
                     "not": {
                         "properties": {
                             "description": {
-                                "pattern": "^Labels for the configmap$|^Labels for the secret$"
+                                "pattern": "^Labels for the configmap$|^Labels for the secret$|^Annotations for the configmap$|^Annotations for the secret$"
                             }
                         }
                     }
