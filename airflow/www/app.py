@@ -35,6 +35,7 @@ from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
 from airflow.utils.json import AirflowJsonProvider
+from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.extensions.init_dagbag import init_dagbag
@@ -170,6 +171,7 @@ def create_app(config=None, testing=False):
         init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
         init_check_user_active(flask_app)
+        setup_event_handlers(db.engine)
     return flask_app
 
 

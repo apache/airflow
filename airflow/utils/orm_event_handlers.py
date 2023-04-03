@@ -19,15 +19,34 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlalchemy.orm.mapper
 import time
 import traceback
 
 import sqlalchemy.orm.mapper
-from sqlalchemy import event, exc
 
 from airflow.configuration import conf
+from sqlalchemy import event, exc
 
 log = logging.getLogger(__name__)
+
+
+def provide_rds_token(conn_parameters):
+    if conf.getboolean("database", "use_aws_token_identity", fallback="false"):
+        import boto3
+        log.debug(f'Connecting to backend DB using pod identity')
+        client = boto3.client(
+            "rds",
+            region_name=conf.get_mandatory_value("database", "aws_rds_region"),
+        )
+        token = client.generate_db_auth_token(
+            DBHostname=conn_parameters["host"],
+            Port=conn_parameters["port"],
+            DBUsername=conn_parameters["user"],
+        )
+        conn_parameters["password"] = token
+    else:
+        log.debug(f'Connecting to backend DB using user/password')
 
 
 def setup_event_handlers(engine):
@@ -41,16 +60,18 @@ def setup_event_handlers(engine):
         connection_record.info["pid"] = os.getpid()
 
     if engine.dialect.name == "sqlite":
-
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
+    else:
+        @event.listens_for(engine, "do_connect")
+        def provide_token(dialect, conn_rec, cargs, cparams):
+            provide_rds_token(cparams)
 
     # this ensures coherence in mysql when storing datetimes (not required for postgres)
     if engine.dialect.name == "mysql":
-
         @event.listens_for(engine, "connect")
         def set_mysql_timezone(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
@@ -68,7 +89,6 @@ def setup_event_handlers(engine):
             )
 
     if conf.getboolean("debug", "sqlalchemy_stats", fallback=False):
-
         @event.listens_for(engine, "before_cursor_execute")
         def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
             conn.info.setdefault("query_start_time", []).append(time.perf_counter())
