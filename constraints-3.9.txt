@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-01T16:34:43Z
+# This constraints file was automatically generated on 2023-04-03T09:39:51Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -128,6 +128,7 @@ apache-airflow-providers-sendgrid==3.1.0
 apache-airflow-providers-sftp==4.2.4
 apache-airflow-providers-singularity==3.1.0
 apache-airflow-providers-slack==7.2.0
+apache-airflow-providers-smtp==1.0.0rc1
 apache-airflow-providers-snowflake==4.0.4
 apache-airflow-providers-sqlite==3.3.1
 apache-airflow-providers-ssh==3.5.0
@@ -185,7 +186,7 @@ billiard==3.6.4.0
 bitarray==2.7.3
 black==23.1a1
 bleach==6.0.0
-blinker==1.5
+blinker==1.6
 boto3==1.26.76
 boto==2.49.0
 botocore==1.29.76
@@ -403,7 +404,7 @@ mypy-extensions==1.0.0
 mypy==1.0.0
 mysql-connector-python==8.0.32
 mysqlclient==2.1.1
-nbclient==0.7.2
+nbclient==0.7.3
 nbformat==5.8.0
 neo4j==5.7.0
 networkx==3.0
@@ -541,7 +542,7 @@ sarif-om==1.0.4
 sasl==0.3.1
 scramp==1.4.4
 scrapbook==0.5.0
-semver==2.13.0
+semver==3.0.0
 sendgrid==6.10.0
 sentinels==1.0.0
 sentry-sdk==1.18.0
