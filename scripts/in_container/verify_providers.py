@@ -138,6 +138,7 @@ KNOWN_DEPRECATED_MESSAGES: set[tuple[str, str]] = {
     ("'urllib3.contrib.pyopenssl' module is deprecated and will be", "botocore"),
     ("'urllib3.contrib.pyopenssl' module is deprecated and will be", "requests_toolbelt"),
     ("zmq.eventloop.ioloop is deprecated in pyzmq 17.", "jupyter_client"),
+    ("Support for grpcio-gcp is deprecated.", "google"),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: set[str] = {
@@ -273,9 +274,11 @@ def import_all_classes(
             except AirflowOptionalProviderFeatureException:
                 # We ignore optional features
                 ...
-            except Exception:
-                exception_str = traceback.format_exc()
-                tracebacks.append((modinfo.name, exception_str))
+            except Exception as e:
+                # skip the check as we are temporary vendoring in the google ads client with wrong package
+                if "No module named 'google.ads.googleads.v12'" not in str(e):
+                    exception_str = traceback.format_exc()
+                    tracebacks.append((modinfo.name, exception_str))
     if tracebacks:
         if IS_AIRFLOW_VERSION_PROVIDED:
             console.print(
