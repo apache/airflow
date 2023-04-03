@@ -116,7 +116,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
 
     def _get_results(self) -> bool:
         """Uses the Databricks SQL hook and runs the specified SQL query."""
-        if not (self._http_path and self._sql_warehouse_name):
+        if not (self._http_path or self._sql_warehouse_name):
             raise AirflowException("Both HTTP Path and SQL warehouse name are not specified.")
         hook = self._get_hook
         sql_result = hook.run(
