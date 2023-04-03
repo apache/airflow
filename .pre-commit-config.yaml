@@ -34,7 +34,7 @@ repos:
         name: Add TOC for Markdown and RST files
         files:
           ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
           - "2"
@@ -47,7 +47,7 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
-          ^.*/_vendor/
+          ^.*/.*_vendor/
         args:
           - --comment-style
           - "/*||*/"
@@ -56,7 +56,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
-        exclude: ^\.github/.*$|^.*/_vendor/|newsfragments/.*\.rst$
+        exclude: ^\.github/.*$|^.*/.*_vendor/|newsfragments/.*\.rst$
         args:
           - --comment-style
           - "||"
@@ -67,7 +67,7 @@ repos:
       - id: insert-license
         name: Add license for all CSS/JS/JSX/PUML/TS/TSX files
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^.*/_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/
         args:
           - --comment-style
           - "/*!| *| */"
@@ -77,7 +77,7 @@ repos:
       - id: insert-license
         name: Add license for all JINJA template files
         files: ^airflow/www/templates/.*\.html$
-        exclude: ^\.github/.*$|^.*/_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/
         args:
           - --comment-style
           - "{#||#}"
@@ -86,7 +86,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Shell files
-        exclude: ^\.github/.*$|^.*/_vendor/|^dev/breeze/autocomplete/.*$
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^dev/breeze/autocomplete/.*$
         files: \.bash$|\.sh$
         args:
           - --comment-style
@@ -96,7 +96,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
-        exclude: ^\.github/.*$|^.*/_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/
         files: \.py$|\.pyi$
         args:
           - --comment-style
@@ -106,7 +106,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
-        exclude: ^\.github/.*$|^.*/_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/
         files: \.xml$
         args:
           - --comment-style
@@ -116,7 +116,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files
-        exclude: ^\.github/.*$|^.*/_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -128,7 +128,7 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^.*/_vendor/
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
@@ -137,7 +137,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$|^.*/_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/
         args:
           - --comment-style
           - "|#|"
@@ -152,7 +152,7 @@ repos:
       - id: black
         name: Run black (Python formatter)
         args: [--config=./pyproject.toml]
-        exclude: ^.*/_vendor/|^airflow/contrib/
+        exclude: ^.*/.*_vendor/|^airflow/contrib/
   - repo: local
     hooks:
       - id: update-common-sql-api-stubs
@@ -181,7 +181,7 @@ repos:
         entry: ruff --fix --no-update-check --force-exclude
         additional_dependencies: ['ruff==0.0.226']
         files: \.pyi?$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.13.0
     hooks:
@@ -204,28 +204,28 @@ repos:
         name: Detect accidentally committed debug statements
       - id: check-builtin-literals
         name: Require literal syntax when initializing Python builtin types
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
       - id: detect-private-key
         name: Detect if private key is added to the repository
         exclude: ^docs/apache-airflow-providers-ssh/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^.*/_vendor/|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
+        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
       - id: check-executables-have-shebangs
         name: Check that executables have shebang
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
       - id: check-xml
         name: Check XML files with xmllint
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
-        exclude: ^.*/_vendor/|^docs/apache-airflow/img/.*\.dot|^images/breeze/output.*$
+        exclude: ^.*/.*_vendor/|^docs/apache-airflow/img/.*\.dot|^images/breeze/output.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from Python files
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         args:
           - --remove
       - id: pretty-format-json
@@ -242,10 +242,10 @@ repos:
     hooks:
       - id: rst-backticks
         name: Check if RST files use double backticks for code
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.29.0
     hooks:
@@ -253,7 +253,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$
+        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '0.77'
     hooks:
@@ -261,7 +261,7 @@ repos:
         name: Run flynt string format converter for Python
         exclude: |
           (?x)
-          ^.*/_vendor/
+          ^.*/.*_vendor/
         args:
          # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
          # to split the text by hand. Too long lines are detected by flake8 (below),
@@ -278,7 +278,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$
+        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
@@ -290,7 +290,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^.*/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
+        exclude: ^.*/.*_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
@@ -419,7 +419,7 @@ repos:
         entry: "^\\s*from\\s+\\."
         pass_filenames: true
         files: \.py$
-        exclude: ^.*/_vendor/|^docs/|^tests/
+        exclude: ^.*/.*_vendor/|^docs/|^tests/
       - id: check-urlparse-usage-in-code
         language: pygrep
         name: Don't use urlparse in code
@@ -483,7 +483,7 @@ repos:
           ^airflow/www/static/css/bootstrap-theme.css$|
           ^airflow/www/static/js/types/api-generated.ts$|
           ^airflow/www/templates/appbuilder/flash.html$|
-          ^.*/_vendor/|
+          ^.*/.*_vendor/|
           ^dev/|
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
@@ -536,7 +536,7 @@ repos:
         files: >
           (?x)
           ^airflow/providers/.*\.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
         language: python
@@ -557,28 +557,28 @@ repos:
           to avoid import cycles.
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-incorrect-use-of-LoggingMixin
         language: pygrep
         name: Make sure LoggingMixin is not used alone
         entry: "LoggingMixin\\(\\)"
         files: \.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-daysago-import-from-utils
         language: pygrep
         name: Make sure days_ago is imported from airflow.utils.dates
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
         name: "'start_date' not to be defined in default_args in example_dags"
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
@@ -724,7 +724,7 @@ repos:
         language: python
         pass_filenames: true
         files: .*\.schema\.json$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: lint-json-schema
@@ -809,7 +809,7 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
@@ -874,7 +874,7 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4', 'astor']
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
@@ -905,7 +905,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy-providers
@@ -913,7 +913,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: ^airflow/providers/.*\.py$|^tests/providers/\*\.py$|^tests/system/providers/\*\.py$
-        exclude: ^.*/_vendor/
+        exclude: ^.*/.*_vendor/
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy-docs

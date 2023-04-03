@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.12.1
   - 8.12.0
   - 8.11.0
   - 8.10.0
