@@ -55,7 +55,7 @@ with DAG(
     # [END howto_sensor_databricks_connection_setup]
 
     # [START howto_sensor_databricks_sql]
-    # Example of using the Databricks SQL Sensor to check existence of data/partitions for a Delta table.
+    # Example of using the Databricks SQL Sensor to check existence of data in a table.
     sql_sensor = DatabricksSqlSensor(
         databricks_conn_id=connection_id,
         sql_warehouse_name=sql_warehouse_name,

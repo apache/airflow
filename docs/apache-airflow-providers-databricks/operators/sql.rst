@@ -22,14 +22,14 @@ DatabricksSqlOperator
 =====================
 
 Use the :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator` to execute SQL
-on a `Databricks SQL endpoint  <https://docs.databricks.com/sql/admin/sql-endpoints.html>`_ or a
+on a `Databricks SQL warehouse  <https://docs.databricks.com/sql/admin/sql-endpoints.html>`_ or a
 `Databricks cluster <https://docs.databricks.com/clusters/index.html>`_.
 
 
 Using the Operator
 ------------------
 
-Operator executes given SQL queries against configured endpoint. The only required parameters are:
+Operator executes given SQL queries against configured warehouse. The only required parameters are:
 
 * ``sql`` - SQL queries to execute. There are 3 ways of specifying SQL queries:
 
@@ -37,7 +37,7 @@ Operator executes given SQL queries against configured endpoint. The only requir
   2. List of strings representing SQL statements.
   3. Name of the file with SQL queries. File must have ``.sql`` extension. Each query should finish with ``;<new_line>``
 
-* One of ``sql_endpoint_name`` (name of Databricks SQL endpoint to use) or ``http_path`` (HTTP path for Databricks SQL endpoint or Databricks cluster).
+* One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
 
 Other parameters are optional and could be found in the class documentation.
 
@@ -90,7 +90,7 @@ DatabricksSqlSensor
 ===================
 
 Use the :class:`~airflow.providers.databricks.sensors.sql.DatabricksSqlSensor` to run the sensor
-for a specific Delta table on a Databricks SQL workspace.
+for a table accessible via a Databricks SQL warehouse or interactive cluster.
 
 Using the Sensor
 ----------------
@@ -99,7 +99,7 @@ The sensor executes the SQL statement supplied by the user. The only required pa
 
 * ``sql`` - SQL query to execute for the sensor.
 
-* One of ``sql_endpoint_name`` (name of Databricks SQL endpoint to use) or ``http_path`` (HTTP path for Databricks SQL endpoint or Databricks cluster).
+* One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
 
 Other parameters are optional and could be found in the class documentation.
 

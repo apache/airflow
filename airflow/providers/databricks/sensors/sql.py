@@ -39,13 +39,13 @@ class DatabricksSqlSensor(BaseSensorOperator):
     :param databricks_conn_id: Reference to :ref:`Databricks
         connection id<howto/connection:databricks>` (templated), defaults to
         DatabricksSqlHook.default_conn_name.
-    :param sql_warehouse_name: Optional name of Databricks SQL Warehouse. If not specified, ``http_path``
+    :param sql_warehouse_name: Optional name of Databricks SQL warehouse. If not specified, ``http_path``
         must be provided as described below, defaults to None
-    :param http_path: Optional string specifying HTTP path of Databricks SQL Warehouse or All Purpose Cluster.
+    :param http_path: Optional string specifying HTTP path of Databricks SQL warehouse or All Purpose cluster.
         If not specified, it should be either specified in the Databricks connection's
         extra parameters, or ``sql_warehouse_name`` must be specified.
     :param session_configuration: An optional dictionary of Spark session parameters. If not specified,
-        it could be specified in the Databricks connection's extra parameters., defaults to None
+        it could be specified in the Databricks connection's extra parameters, defaults to None
     :param http_headers: An optional list of (k, v) pairs
         that will be set as HTTP headers on every request. (templated).
     :param catalog: An optional initial catalog to use.
@@ -54,7 +54,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         Requires Databricks Runtime version 9.0+ (templated), defaults to "default"
     :param sql: SQL statement to be executed.
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
-    :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters.
+    :param client_parameters: Additional parameters internal to Databricks SQL connector parameters.
     """
 
     template_fields: Sequence[str] = (
@@ -116,8 +116,8 @@ class DatabricksSqlSensor(BaseSensorOperator):
 
     def _get_results(self) -> bool:
         """Uses the Databricks SQL hook and runs the specified SQL query."""
-        if self._http_path in (None, "") and self._sql_warehouse_name in (None, ""):
-            raise AirflowException("Both HTTP Path and SQL Warehouse name are not specified.")
+        if not (self._http_path and self._sql_warehouse_name):
+            raise AirflowException("Both HTTP Path and SQL warehouse name are not specified.")
         hook = self._get_hook
         sql_result = hook.run(
             self.sql,
