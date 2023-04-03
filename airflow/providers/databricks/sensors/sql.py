@@ -23,10 +23,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
