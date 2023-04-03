@@ -23,6 +23,9 @@ from airflow import AirflowException
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.operators.bash import BashOperator
 from airflow.settings import _ENABLE_AIP_52
+from airflow.utils import timezone
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
@@ -212,6 +215,116 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask"]._is_teardown is False
         assert dag.task_group.children["mytask2"]._is_setup is False
         assert dag.task_group.children["mytask2"]._is_teardown is False
+
+    def test_setup_decorator_can_take_op_args(self, dag_maker):
+        @setup(task_id="setuptask")
+        def mytask():
+            print(2)
+
+        with dag_maker() as dag:
+            mytask()
+        assert len(dag.task_group.children) == 1
+        setup_task = dag.task_group.children["setuptask"]
+        assert setup_task._is_setup
+
+    def test_teardown_decorator_can_take_op_args(self, dag_maker):
+        @teardown(task_id="teardown_task")
+        def mytask():
+            print(2)
+
+        with dag_maker() as dag:
+            mytask()
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["teardown_task"]
+        assert teardown_task._is_teardown
+
+    def test_setup_decorator_on_task_deco_with_op_args(self, dag_maker):
+        @setup(task_id="setuptask")
+        @task
+        def mytask():
+            print(2)
+
+        with dag_maker() as dag:
+            mytask()
+        assert len(dag.task_group.children) == 1
+        setup_task = dag.task_group.children["setuptask"]
+        assert setup_task._is_setup
+
+    def test_teardown_decorator_on_task_deco_with_op_args(self, dag_maker):
+        @teardown(task_id="teardown_task")
+        @task
+        def mytask():
+            print(2)
+
+        with dag_maker() as dag:
+            mytask()
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["teardown_task"]
+        assert teardown_task._is_teardown
+
+    def test_setup_decorator_on_task_deco_with_same_op_args(self, dag_maker):
+        @setup(task_id="setuptask")
+        @task(task_id="mytask2")
+        def mytask():
+            print(2)
+
+        with dag_maker() as dag:
+            mytask()
+        assert len(dag.task_group.children) == 1
+        setup_task = dag.task_group.children["setuptask"]
+        assert setup_task._is_setup
+
+    def test_teardown_decorator_on_task_deco_with_same_op_args(self, dag_maker):
+        @teardown(task_id="teardown_task")
+        @task(task_id="mytask2")
+        def mytask():
+            print(2)
+
+        with dag_maker() as dag:
+            mytask()
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["teardown_task"]
+        assert teardown_task._is_teardown
+
+    def test_multiple_outputs_with_setup(self, dag_maker):
+        """Tests pushing multiple outputs as a dictionary using setup tasks"""
+
+        @setup(multiple_outputs=True)
+        def return_dict(number: int):
+            return {"number": number + 1, "43": 43}
+
+        test_number = 10
+        with dag_maker():
+            ret = return_dict(test_number)
+
+        dr = dag_maker.create_dagrun()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull(key="number") == test_number + 1
+        assert ti.xcom_pull(key="43") == 43
+        assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
+
+    def test_multiple_outputs_with_teardown(self, dag_maker):
+        """Tests pushing multiple outputs as a dictionary using teardown tasks"""
+
+        @teardown(multiple_outputs=True)
+        def return_dict(number: int):
+            return {"number": number + 1, "43": 43}
+
+        test_number = 10
+        with dag_maker():
+            ret = return_dict(test_number)
+
+        dr = dag_maker.create_dagrun()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull(key="number") == test_number + 1
+        assert ti.xcom_pull(key="43") == 43
+        assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
 
     def test_setup_teardown_as_context_manager_normal_tasks_rel_set_downstream(self, dag_maker):
         """
