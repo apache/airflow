@@ -140,7 +140,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 query_kwargs["resource_version"] = resource_version
                 return self._pod_events(kube_client=kube_client, query_kwargs=query_kwargs)
             else:
-                raise e
+                raise
 
     def _run(
         self,
