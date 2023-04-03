@@ -834,7 +834,7 @@ jobs:
         uses: ./.github/actions/post_tests
 
   test-pytest-collection:
-    timeout-minutes: 5
+    timeout-minutes: 8
     name: "Test Pytest collection"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
