@@ -23,6 +23,16 @@
 Changelog
 ---------
 
+9.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google  announced sunset of Bid manager API v1 and v1.1 by April 27, 2023 for more information
+please check: `docs <https://developers.google.com/bid-manager/v1.1>`_  As a result default value of api_version in GoogleDisplayVideo360Hook and related operators updated to v2
+
+
 8.12.0
 ......
 
