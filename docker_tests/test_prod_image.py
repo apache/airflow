@@ -129,7 +129,7 @@ class TestPythonPackages:
         "elasticsearch": ["elasticsearch", "es.elastic", "elasticsearch_dsl"],
         "google": [
             "OpenSSL",
-            # "google.ads", Remove google ads as it is vendored in google provider now
+            "airflow.providers.google_vendor.googleads",
             "googleapiclient",
             "google.auth",
             "google_auth_httplib2",
