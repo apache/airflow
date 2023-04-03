@@ -29,7 +29,8 @@ Changelog
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
-Use ``kubernetes_default`` connection by default in the KubernetesPodOperator. (#28848)
+
+Use kubernetes_default connection by default in the KubernetesPodOperator.
 
 5.3.0
 .....
