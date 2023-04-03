@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlalchemy.orm.mapper
 import time
 import traceback
 
 import sqlalchemy.orm.mapper
-from sqlalchemy import event, exc
+from airflow.utils.module_loading import import_string
 
 from airflow.configuration import conf
+from sqlalchemy import event, exc
 
 log = logging.getLogger(__name__)
 
@@ -41,16 +43,21 @@ def setup_event_handlers(engine):
         connection_record.info["pid"] = os.getpid()
 
     if engine.dialect.name == "sqlite":
-
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
+    else:
+        @event.listens_for(engine, "do_connect")
+        def customize_connection(dialect, conn_rec, cargs, cparams):
+            sql_alchemy_amend_connection_method_path = conf.get("database", "amend_connection_method_path")
+            if sql_alchemy_amend_connection_method_path:
+                sql_alchemy_amend_connection_method = import_string(sql_alchemy_amend_connection_method_path)
+                sql_alchemy_amend_connection_method(dialect, conn_rec, cargs, cparams)
 
     # this ensures coherence in mysql when storing datetimes (not required for postgres)
     if engine.dialect.name == "mysql":
-
         @event.listens_for(engine, "connect")
         def set_mysql_timezone(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
@@ -68,7 +75,6 @@ def setup_event_handlers(engine):
             )
 
     if conf.getboolean("debug", "sqlalchemy_stats", fallback=False):
-
         @event.listens_for(engine, "before_cursor_execute")
         def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
             conn.info.setdefault("query_start_time", []).append(time.perf_counter())

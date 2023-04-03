@@ -21,6 +21,7 @@ import warnings
 from datetime import timedelta
 from tempfile import gettempdir
 
+from airflow.utils.orm_event_handlers import setup_event_handlers
 from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
@@ -170,6 +171,7 @@ def create_app(config=None, testing=False):
         init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
         init_check_user_active(flask_app)
+        setup_event_handlers(db.engine)
     return flask_app
 
 
