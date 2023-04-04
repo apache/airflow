@@ -91,6 +91,9 @@ spec:
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.statsd.args }}
           args: {{ tpl (toYaml .Values.statsd.args) . | nindent 12 }}
+          {{- else}}
+          args:
+            - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources:
 {{ toYaml .Values.statsd.resources | indent 12 }}
