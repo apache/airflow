@@ -202,17 +202,19 @@ class DagBag(LoggingMixin):
                 dag_id in self.dags_last_fetched
                 and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
             ):
-                sd_latest_version = SerializedDagModel.get_latest_version_hash(dag_id=dag_id, session=session)
-                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(
-                    dag_id=dag_id,
-                    session=session,
+                sd_latest_version_and_updated_datetime = (
+                    SerializedDagModel.get_latest_version_hash_and_updated_datetime(
+                        dag_id=dag_id, session=session
+                    )
                 )
-                if not sd_latest_version or not sd_last_updated_datetime:
+                if not sd_latest_version_and_updated_datetime:
                     self.log.warning("Serialized DAG %s no longer exists", dag_id)
                     del self.dags[dag_id]
                     del self.dags_last_fetched[dag_id]
                     del self.dags_hash[dag_id]
                     return None
+
+                sd_latest_version, sd_last_updated_datetime = sd_latest_version_and_updated_datetime
 
                 if (
                     sd_last_updated_datetime > self.dags_last_fetched[dag_id]

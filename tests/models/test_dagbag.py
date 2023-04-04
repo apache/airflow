@@ -973,7 +973,7 @@ class TestDagBag:
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 8)), tick=False):
-            with assert_queries_count(3):
+            with assert_queries_count(2):
                 updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
                 updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
 
@@ -997,7 +997,7 @@ class TestDagBag:
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
             dag_bag = DagBag(read_dags_from_db=True)
 
-            with assert_queries_count(3):
+            with assert_queries_count(2):
                 ser_dag = dag_bag.get_dag("example_bash_operator")
 
             ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
@@ -1021,7 +1021,7 @@ class TestDagBag:
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 30)), tick=False):
-            with assert_queries_count(3):
+            with assert_queries_count(2):
                 updated_ser_dag = dag_bag.get_dag("example_bash_operator")
                 updated_ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
 
