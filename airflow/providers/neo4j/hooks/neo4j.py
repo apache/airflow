@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 from neo4j import Driver, GraphDatabase
 
@@ -70,19 +71,14 @@ class Neo4jHook(BaseHook):
         Function to determine that relevant driver based on extras.
         :param conn: Connection object.
         :param encrypted: boolean if encrypted connection or not.
-        :return: Neo4jDriver
+        :param uri: uri string for connection.
+        :return: Driver
         """
-        # Self signed certificates
-        ssc = conn.extra_dejson.get("certs_self_signed", False)
-
-        # Only certificates signed by CA.
-        trusted_ca = conn.extra_dejson.get("certs_trusted_ca", False)
-
-        if trusted_ca or ssc:
-            driver = GraphDatabase.driver(uri, auth=(conn.login, conn.password))
-        else:
-            driver = GraphDatabase.driver(uri, auth=(conn.login, conn.password), encrypted=encrypted)
-        return driver
+        parsed_uri = urlsplit(uri)
+        kwargs = {}
+        if parsed_uri.scheme in ["bolt", "neo4j"]:
+            kwargs["encrypted"] = encrypted
+        return GraphDatabase.driver(uri, auth=(conn.login, conn.password), **kwargs)
 
     def get_uri(self, conn: Connection) -> str:
         """
