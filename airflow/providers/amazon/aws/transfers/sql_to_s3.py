@@ -107,7 +107,7 @@ class SqlToS3Operator(BaseOperator):
         verify: bool | str | None = None,
         file_format: Literal["csv", "json", "parquet"] = "csv",
         pd_kwargs: dict | None = None,
-        partition_kwargs: dict | None = None,
+        groupby_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -120,7 +120,7 @@ class SqlToS3Operator(BaseOperator):
         self.replace = replace
         self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
-        self.partition_kwargs = partition_kwargs or {}
+        self.groupby_kwargs = groupby_kwargs or {}
 
         if "path_or_buf" in self.pd_kwargs:
             raise AirflowException("The argument path_or_buf is not allowed, please remove it")
@@ -186,10 +186,10 @@ class SqlToS3Operator(BaseOperator):
 
     def _partition_dataframe(self, df: DataFrame) -> Iterable[str, DataFrame]:
         """Partition dataframe using pandas groupby() method"""
-        if not self.partition_kwargs:
+        if not self.groupby_kwargs:
             yield "", df
         else:
-            grouped_df = df.groupby(**self.partition_kwargs)
+            grouped_df = df.groupby(**self.groupby_kwargs)
             for group_label in grouped_df.groups.keys():
                 yield group_label, grouped_df.get_group(group_label).reset_index(drop=True)
 

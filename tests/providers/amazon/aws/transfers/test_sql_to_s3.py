@@ -176,9 +176,9 @@ class TestSqlToS3Operator:
                 dag=None,
             )
 
-    def test_with_partition_kwarg(self):
+    def test_with_groupby_kwarg(self):
         """
-        Test operator when the partition_kwargs is specified
+        Test operator when the groupby_kwargs is specified
         """
         query = "query"
         s3_bucket = "bucket"
@@ -193,7 +193,7 @@ class TestSqlToS3Operator:
             task_id="task_id",
             replace=True,
             pd_kwargs={"index": False, "header": False},
-            partition_kwargs={"by": "Team"},
+            groupby_kwargs={"by": "Team"},
             dag=None,
         )
         example = {
@@ -228,9 +228,9 @@ class TestSqlToS3Operator:
             )
         )
 
-    def test_without_partition_kwarg(self):
+    def test_without_groupby_kwarg(self):
         """
-        Test operator when the partition_kwargs is not specified
+        Test operator when the groupby_kwargs is not specified
         """
         query = "query"
         s3_bucket = "bucket"
