@@ -23,20 +23,16 @@ Audit logs can be accessed through the Airflow UI. They are located under the "A
 
 Airflow provides a set of predefined events that can be tracked in audit logs. These events include:
 
-- `action_trigger_dag`: Triggering a DAG
-- `action_create`: Creating a DAG or task
-- `action_edit`: Modifying a DAG or task
-- `action_delete`: Deleting a DAG or task
-- `action_failed`: Setting a task as failed
-- `action_success`: Setting a task as successful
-- `action_retry`: Retrying a failed task
-- `action_clear`: Clearing a task's state
+- ``action_trigger_dag``: Triggering a DAG
+- ``action_create``: Creating a DAG or task
+- ``action_edit``: Modifying a DAG or task
+- ``action_delete``: Deleting a DAG or task
+- ``action_failed``: Setting a task as failed
+- ``action_success``: Setting a task as successful
+- ``action_retry``: Retrying a failed task
+- ``action_clear``: Clearing a task's state
 
 In addition to these predefined events, Airflow allows you to define custom events that can be tracked in audit logs. 
 This can be done by calling the `log` method of the `TaskInstance` object.
 
-## Conclusion
-Audit logs are a critical component of any system that needs to maintain a high level of security and compliance. 
-In Airflow, audit logs can be used to track user actions and system events, which can be used to troubleshoot issues, 
-detect security breaches, and ensure regulatory compliance. By understanding how audit logs work in Airflow, 
-you can ensure that your system is secure and compliant with industry standards.
+
