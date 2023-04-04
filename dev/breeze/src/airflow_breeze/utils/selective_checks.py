@@ -24,7 +24,13 @@ from enum import Enum
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_SOURCES_ROOT,
+    SYSTEM_TESTS_PROVIDERS_ROOT,
+    TESTS_PROVIDERS_ROOT,
+)
+from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -188,10 +194,6 @@ TEST_TYPE_MATCHES = HashableDict(
     }
 )
 
-TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
-AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-
 
 def find_provider_affected(changed_file: str) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
@@ -230,13 +232,39 @@ def add_dependent_providers(
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
     all_providers: set[str] = set()
+    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+    all_providers_affected = False
+    suspended_providers: set[str] = set()
     for changed_file in changed_files:
         provider = find_provider_affected(changed_file)
         if provider == "Providers":
-            return set()
-        if provider is not None:
-            all_providers.add(provider)
-    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+            all_providers_affected = True
+        elif provider is not None:
+            if provider not in dependencies:
+                suspended_providers.add(provider)
+            else:
+                all_providers.add(provider)
+    if all_providers_affected:
+        return set()
+    if suspended_providers:
+        # We check for suspended providers only after we have checked if all providers are affected.
+        # No matter if we found that we are modifying a suspended provider individually, if all providers are
+        # affected, then it means that we are ok to proceed because likely we are running some kind of
+        # global refactoring that affects multiple providers including the suspended one. This is a
+        # potential escape hatch if someone would like to modify suspended provider,
+        # but it can be found at the review time and is anyway harmless as the provider will not be
+        # released nor tested nor used in CI anyway.
+        get_console().print("[error]You are modifying suspended providers.\n")
+        get_console().print(
+            "[info]Some providers modified by this change have been suspended, "
+            "and before attempting such changes you should fix the reason for suspension."
+        )
+        get_console().print(
+            "[info]When fixing it, you should set suspended = false in provider.yaml "
+            "to make changes to the provider."
+        )
+        get_console().print(f"Suspended providers: {suspended_providers}")
+        sys.exit(1)
     for provider in list(all_providers):
         add_dependent_providers(all_providers, provider, dependencies)
     return all_providers
@@ -612,3 +640,7 @@ class SelectiveChecks:
     @cached_property
     def debug_resources(self) -> bool:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
+
+    @cached_property
+    def suspended_providers_folders(self) -> str:
+        return " ".join(get_suspended_providers_folders())
