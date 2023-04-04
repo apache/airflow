@@ -66,7 +66,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         """Test DynamoDB item for matching attribute value"""
         key = {self.partition_key_name: self.partition_key_value}
         msg = (
-            f"Checking table {self.table_name} for"
+            f"Checking table {self.table_name} for "
             + f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
         )
 
