@@ -30,12 +30,12 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.microsoft.azure.sensors.wasb import (
-    WasbBlobSensor,
     WasbBlobAsyncSensor,
+    WasbBlobSensor,
     WasbPrefixAsyncSensor,
     WasbPrefixSensor,
 )
-from airflow.providers.microsoft.azure.triggers.wasb import WasbPrefixSensorTrigger
+from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 

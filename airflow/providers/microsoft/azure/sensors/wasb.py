@@ -23,8 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.providers.microsoft.azure.triggers.wasb import WasbPrefixSensorTrigger
-from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger
+from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
