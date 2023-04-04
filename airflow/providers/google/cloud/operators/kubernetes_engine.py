@@ -473,6 +473,15 @@ class GKEStartPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
+    @staticmethod
+    def get_gke_config_file():
+        warnings.warn(
+            "The `get_gke_config_file` method is deprecated, "
+            "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+
     @cached_property
     def cluster_hook(self) -> GKEHook:
         return GKEHook(
