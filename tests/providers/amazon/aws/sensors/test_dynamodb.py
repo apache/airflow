@@ -56,3 +56,4 @@ class TestDynamoDBValueSensor:
         mock_conn.Table.get_item = Mock(return_value=response)
 
         assert self.sensor.poke(None)
+        
