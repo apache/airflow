@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from asyncio import Future
-
 import asyncio
 import logging
+from asyncio import Future
 
 import pytest
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildStep
