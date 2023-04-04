@@ -33,6 +33,6 @@ Airflow provides a set of predefined events that can be tracked in audit logs. T
 - ``action_clear``: Clearing a task's state
 
 In addition to these predefined events, Airflow allows you to define custom events that can be tracked in audit logs. 
-This can be done by calling the `log` method of the `TaskInstance` object.
+This can be done by calling the ``log`` method of the ``TaskInstance`` object.
 
 
