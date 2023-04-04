@@ -354,7 +354,7 @@ def dag_details(args, session=NEW_SESSION):
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
     dag_detail = dag_schema.dump(dag)
 
-    if args.output == "table" or args.output == "plain":
+    if args.output in ["table", "plain"]:
         data = [{"property_name": key, "property_value": value} for key, value in dag_detail.items()]
     else:
         data = [dag_detail]
