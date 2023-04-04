@@ -1104,7 +1104,7 @@ DAGS_COMMANDS = (
         name="details",
         help="Get DAG details given a DAG id",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_details"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="list",
