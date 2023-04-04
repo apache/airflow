@@ -29,7 +29,6 @@ import multiprocessing
 import time
 from collections import defaultdict
 from contextlib import suppress
-from datetime import timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
 
@@ -47,7 +46,7 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.utils import timezone
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -828,7 +827,7 @@ class KubernetesExecutor(BaseExecutor):
         tis_to_flush.extend(pod_ids.values())
         return tis_to_flush
 
-    def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstanceKey]) -> None:
+    def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstance]) -> None:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked

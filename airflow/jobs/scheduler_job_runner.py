@@ -1494,7 +1494,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             repr(ti),
                             self._task_queued_timeout,
                         )
-                        ti.handle_failure(error=msg)
+                        ti.handle_failure(error=msg, session=session)
                     if tasks_stuck_in_queued_messages:
                         task_instance_str = "\n\t".join(tasks_stuck_in_queued_messages)
                         self.log.warning(

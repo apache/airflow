@@ -905,55 +905,6 @@ class TestKubernetesExecutor:
 
         assert executor.kube_config.multi_namespace_mode_namespace_list == expected_value_in_kube_config
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
-    def test_pending_pod_timeout(self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher):
-        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
-        mock_kube_client = mock_get_kube_client.return_value
-        now = timezone.utcnow()
-        pending_pods = [
-            k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(
-                    name="foo60",
-                    labels={"airflow-worker": "123"},
-                    creation_timestamp=now - timedelta(seconds=60),
-                    namespace="mynamespace",
-                )
-            ),
-            k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(
-                    name="foo90",
-                    labels={"airflow-worker": "123"},
-                    creation_timestamp=now - timedelta(seconds=90),
-                    namespace="mynamespace",
-                )
-            ),
-        ]
-        mock_kube_client.list_namespaced_pod.return_value.items = pending_pods
-
-        config = {
-            ("kubernetes", "namespace"): "mynamespace",
-            ("kubernetes", "kube_client_request_args"): '{"sentinel": "foo"}',
-        }
-        with conf_vars(config):
-            executor = KubernetesExecutor()
-            executor.job_id = 123
-            executor.start()
-            try:
-                assert 2 == len(executor.event_scheduler.queue)
-            finally:
-                executor.end()
-
-        mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="mynamespace",
-            field_selector="status.phase=Pending",
-            label_selector="airflow-worker=123",
-            limit=5,
-            sentinel="foo",
-        )
-        mock_delete_pod.assert_called_once_with("foo90", "mynamespace")
-
     def test_clear_not_launched_queued_tasks_not_launched(self, dag_maker, create_dummy_dag, session):
         """If a pod isn't found for a TI, reset the state to scheduled"""
         mock_kube_client = mock.MagicMock()

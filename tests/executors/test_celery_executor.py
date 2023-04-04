@@ -199,8 +199,6 @@ class TestCeleryExecutor:
         tis = [ti1, ti2]
         executor = celery_executor.CeleryExecutor()
         assert executor.running == set()
-        assert executor.adopted_task_timeouts == {}
-        assert executor.stalled_task_timeouts == {}
         assert executor.tasks == {}
 
         not_adopted_tis = executor.try_adopt_task_instances(tis)
@@ -208,11 +206,7 @@ class TestCeleryExecutor:
         key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, try_number)
         key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, try_number)
         assert executor.running == {key_1, key_2}
-        assert executor.adopted_task_timeouts == {
-            key_1: timezone.utcnow() + executor.task_adoption_timeout,
-            key_2: timezone.utcnow() + executor.task_adoption_timeout,
-        }
-        assert executor.stalled_task_timeouts == {}
+
         assert executor.tasks == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         assert not_adopted_tis == []
 

@@ -23,7 +23,6 @@
 """
 from __future__ import annotations
 
-import datetime
 import logging
 import math
 import operator
@@ -42,7 +41,6 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cl
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
-from sqlalchemy.orm.session import Session
 
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
@@ -53,10 +51,8 @@ from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType, EventBufferValueType, TaskTuple
@@ -421,7 +417,7 @@ class CeleryExecutor(BaseExecutor):
 
         return not_adopted_tis
 
-    def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstanceKey]) -> None:
+    def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstance]) -> None:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked

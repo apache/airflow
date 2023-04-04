@@ -1574,7 +1574,7 @@ class TestSchedulerJob:
 
     def test_fail_stuck_queued_tasks(self, dag_maker):
         session = settings.Session()
-        with dag_maker("test_fail_stuck_queued_tasks") as dag:
+        with dag_maker("test_fail_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1")
 
         dr = dag_maker.create_dagrun()
@@ -1596,7 +1596,7 @@ class TestSchedulerJob:
 
     def test_retry_stuck_queued_tasks(self, dag_maker):
         session = settings.Session()
-        with dag_maker("test_retry_stuck_queued_tasks") as dag:
+        with dag_maker("test_retry_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1", retries=1)
 
         dr = dag_maker.create_dagrun()
@@ -2181,7 +2181,6 @@ class TestSchedulerJob:
         advance_execution_date=False,
         session=None,
     ):
-
         """
         Helper for testing DagRun states with simple two-task DAGs.
         This is hackish: a dag run is created but its tasks are
@@ -3020,7 +3019,6 @@ class TestSchedulerJob:
 
         default_args = {"depends_on_past": False, "start_date": start_date}
         with dag_maker(dag_name1, schedule="* * * * *", max_active_runs=1, default_args=default_args) as dag1:
-
             run_this_1 = EmptyOperator(task_id="run_this_1")
             run_this_2 = EmptyOperator(task_id="run_this_2")
             run_this_2.set_upstream(run_this_1)
@@ -4592,6 +4590,7 @@ class TestSchedulerJob:
         Note: This doesn't currently account for tasks that go into retry -- the scheduler would be detected
         as idle in that circumstance
         """
+
         # Spy on _do_scheduling and _process_executor_events so we can notice
         # if nothing happened, and abort early! Given we are using
         # SequentialExecutor this shouldn't be possible -- if there is nothing
@@ -5100,7 +5099,6 @@ class TestSchedulerJobQueriesCount:
                 ("core", "min_serialized_dag_fetch_interval"): "100",
             }
         ):
-
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             dagbag.sync_to_db()
 
