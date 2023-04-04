@@ -78,8 +78,11 @@ class DynamoDBValueSensor(BaseSensorOperator):
 
         self.log.info(msg)
         table = self.hook.conn.Table(self.table_name)
+        self.log.info(f"Table: {table}")
         response = table.get_item(Key=key)
         self.log.info(f"Response: {response}")
+        self.log.info(f"Want: {self.attribute_name} = {self.attribute_value}")
+        self.log.info(f'Got: {response["Item"][self.attribute_name]} = {self.attribute_value}')
         return response["Item"][self.attribute_name] == self.attribute_value
 
     @cached_property
