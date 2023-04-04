@@ -261,7 +261,7 @@ def _run_tests_in_pool(
 
 def run_tests_in_parallel(
     exec_shell_params: ShellParams,
-    test_types_list: list[str],
+    parallel_test_types_list: list[str],
     extra_pytest_args: tuple,
     db_reset: bool,
     full_tests_needed: bool,
@@ -276,7 +276,7 @@ def run_tests_in_parallel(
     memory_available = psutil.virtual_memory()
     if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
         # Run heavy tests sequentially
-        heavy_test_types_to_run = {"Core", "Providers"} & set(test_types_list)
+        heavy_test_types_to_run = {"Core", "Providers"} & set(parallel_test_types_list)
         if heavy_test_types_to_run:
             # some of those are requested
             get_console().print(
@@ -286,9 +286,9 @@ def run_tests_in_parallel(
             )
             tests_to_run_sequentially = []
             for heavy_test_type in heavy_test_types_to_run:
-                for test_type in test_types_list:
+                for test_type in parallel_test_types_list:
                     if test_type.startswith(heavy_test_type):
-                        test_types_list.remove(test_type)
+                        parallel_test_types_list.remove(test_type)
                         tests_to_run_sequentially.append(test_type)
             _run_tests_in_pool(
                 tests_to_run=tests_to_run_sequentially,
@@ -302,7 +302,7 @@ def run_tests_in_parallel(
                 skip_cleanup=skip_cleanup,
             )
     _run_tests_in_pool(
-        tests_to_run=test_types_list,
+        tests_to_run=parallel_test_types_list,
         parallelism=parallelism,
         exec_shell_params=exec_shell_params,
         extra_pytest_args=extra_pytest_args,
@@ -351,11 +351,11 @@ def run_tests_in_parallel(
 @option_debug_resources
 @option_include_success_outputs
 @click.option(
-    "--test-types",
+    "--parallel-test-types",
     help="Space separated list of test types used for testing in parallel.",
     default=" ".join(all_selective_test_types()) + " PlainAsserts",
     show_default=True,
-    envvar="TEST_TYPES",
+    envvar="PARALLEL_TEST_TYPES",
 )
 @click.option(
     "--full-tests-needed",
@@ -400,7 +400,7 @@ def command_for_tests(
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs: bool,
-    test_types: str,
+    parallel_test_types: str,
     full_tests_needed: bool,
     mount_sources: str,
     extra_pytest_args: tuple,
@@ -429,11 +429,11 @@ def command_for_tests(
     cleanup_python_generated_files()
     perform_environment_checks()
     if run_in_parallel:
-        test_list = test_types.split(" ")
+        test_list = parallel_test_types.split(" ")
         test_list.sort(key=lambda x: x in ["Providers", "WWW"], reverse=True)
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
-            test_types_list=test_list,
+            parallel_test_types_list=test_list,
             extra_pytest_args=extra_pytest_args,
             db_reset=db_reset,
             # Allow to pass information on whether to use full tests in the parallel execution mode
