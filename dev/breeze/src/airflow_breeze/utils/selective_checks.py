@@ -482,7 +482,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        return "amazon" in self.test_types or "Providers" in self.test_types.split(" ")
+        return "amazon" in self.parallel_test_types or "Providers" in self.parallel_test_types.split(" ")
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -560,7 +560,7 @@ class SelectiveChecks:
         return sorted_candidate_test_types
 
     @cached_property
-    def test_types(self) -> str:
+    def parallel_test_types(self) -> str:
         if not self.run_tests:
             return ""
         if self.full_tests_needed:

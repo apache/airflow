@@ -645,7 +645,9 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         client_options = None
         if location != "global":
             client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
-        client = CloudBuildAsyncClient(client_options=client_options)
+        client = CloudBuildAsyncClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+        )
 
         request = GetBuildRequest(
             project_id=project_id,
