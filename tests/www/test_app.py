@@ -235,7 +235,10 @@ class TestFlaskCli:
         with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:cached_app"), mock.patch.object(
             sys, "argv", ["flask", "routes"]
         ), pytest.raises(SystemExit):
-            runpy.run_module("flask", run_name="__main__")
+            from flask import __main__
+
+            # We are not using run_module because of https://github.com/pytest-dev/pytest/issues/9007
+            runpy.run_path(__main__.__file__, run_name="main")
 
         output = capsys.readouterr()
         assert "/login/" in output.out

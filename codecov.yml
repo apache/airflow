@@ -84,6 +84,7 @@ coverage:
 
 ignore:
   - "airflow/_vendor"
+  - "airflow/providers/google/ads/_vendor"
   - "airflow/contrib"
   - "airflow/example_dags"
   - "airflow/migrations"

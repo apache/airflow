@@ -28,14 +28,27 @@ from __future__ import annotations
 import logging
 import os
 from functools import wraps
-from typing import Any
+from typing import Any, Union
 
+from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AsyncClientSecretCredential,
+    DefaultAzureCredential as AsyncDefaultAzureCredential,
+)
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
+from azure.storage.blob._models import BlobProperties
+from azure.storage.blob.aio import (
+    BlobClient as AsyncBlobClient,
+    BlobServiceClient as AsyncBlobServiceClient,
+    ContainerClient as AsyncContainerClient,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
 
 
 def _ensure_prefixes(conn_type):
@@ -502,3 +515,155 @@ class WasbHook(BaseHook):
             return success
         except Exception as e:
             return False, str(e)
+
+
+class WasbAsyncHook(WasbHook):
+    """
+    An async hook that connects to Azure WASB to perform operations.
+
+    :param wasb_conn_id: reference to the :ref:`wasb connection <howto/connection:wasb>`
+    :param public_read: whether an anonymous public read access should be used. default is False
+    """
+
+    def __init__(
+        self,
+        wasb_conn_id: str = "wasb_default",
+        public_read: bool = False,
+    ) -> None:
+        """Initialize the hook instance."""
+        self.conn_id = wasb_conn_id
+        self.public_read = public_read
+        self.blob_service_client: AsyncBlobServiceClient = None  # type: ignore
+
+    async def get_async_conn(self) -> AsyncBlobServiceClient:
+        """Return the Async BlobServiceClient object."""
+        if self.blob_service_client is not None:
+            return self.blob_service_client
+
+        conn = await sync_to_async(self.get_connection)(self.conn_id)
+        extra = conn.extra_dejson or {}
+
+        if self.public_read:
+            # Here we use anonymous public read
+            # more info
+            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
+            self.blob_service_client = AsyncBlobServiceClient(account_url=conn.host, **extra)
+            return self.blob_service_client
+
+        connection_string = self._get_field(extra, "connection_string")
+        if connection_string:
+            # connection_string auth takes priority
+            self.blob_service_client = AsyncBlobServiceClient.from_connection_string(
+                connection_string, **extra
+            )
+            return self.blob_service_client
+
+        shared_access_key = self._get_field(extra, "shared_access_key")
+        if shared_access_key:
+            # using shared access key
+            self.blob_service_client = AsyncBlobServiceClient(
+                account_url=conn.host, credential=shared_access_key, **extra
+            )
+            return self.blob_service_client
+
+        tenant = self._get_field(extra, "tenant_id")
+        if tenant:
+            # use Active Directory auth
+            app_id = conn.login
+            app_secret = conn.password
+            token_credential = AsyncClientSecretCredential(tenant, app_id, app_secret)
+            self.blob_service_client = AsyncBlobServiceClient(
+                account_url=conn.host, credential=token_credential, **extra  # type:ignore[arg-type]
+            )
+            return self.blob_service_client
+
+        sas_token = self._get_field(extra, "sas_token")
+        if sas_token:
+            if sas_token.startswith("https"):
+                self.blob_service_client = AsyncBlobServiceClient(account_url=sas_token, **extra)
+            else:
+                self.blob_service_client = AsyncBlobServiceClient(
+                    account_url=f"https://{conn.login}.blob.core.windows.net/{sas_token}", **extra
+                )
+            return self.blob_service_client
+
+        # Fall back to old auth (password) or use managed identity if not provided.
+        credential = conn.password
+        if not credential:
+            credential = AsyncDefaultAzureCredential()
+            self.log.info("Using DefaultAzureCredential as credential")
+        self.blob_service_client = AsyncBlobServiceClient(
+            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            credential=credential,
+            **extra,
+        )
+
+        return self.blob_service_client
+
+    def _get_blob_client(self, container_name: str, blob_name: str) -> AsyncBlobClient:
+        """
+        Instantiate a blob client.
+
+        :param container_name: the name of the blob container
+        :param blob_name: the name of the blob. This needs not be existing
+        """
+        return self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+
+    async def check_for_blob_async(self, container_name: str, blob_name: str, **kwargs: Any) -> bool:
+        """
+        Check if a blob exists on Azure Blob Storage.
+
+        :param container_name: name of the container
+        :param blob_name: name of the blob
+        :param kwargs: optional keyword arguments for ``BlobClient.get_blob_properties``
+        """
+        try:
+            await self._get_blob_client(container_name, blob_name).get_blob_properties(**kwargs)
+        except ResourceNotFoundError:
+            return False
+        return True
+
+    def _get_container_client(self, container_name: str) -> AsyncContainerClient:
+        """
+        Instantiate a container client.
+
+        :param container_name: the name of the container
+        """
+        return self.blob_service_client.get_container_client(container_name)
+
+    async def get_blobs_list_async(
+        self,
+        container_name: str,
+        prefix: str | None = None,
+        include: list[str] | None = None,
+        delimiter: str = "/",
+        **kwargs: Any,
+    ) -> list[BlobProperties]:
+        """
+        List blobs in a given container.
+
+        :param container_name: the name of the container
+        :param prefix: filters the results to return only blobs whose names
+            begin with the specified prefix.
+        :param include: specifies one or more additional datasets to include in the
+            response. Options include: ``snapshots``, ``metadata``, ``uncommittedblobs``,
+            ``copy`, ``deleted``.
+        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        """
+        container = self._get_container_client(container_name)
+        blob_list = []
+        blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
+        async for blob in blobs:
+            blob_list.append(blob.name)
+        return blob_list
+
+    async def check_for_prefix_async(self, container_name: str, prefix: str, **kwargs: Any) -> bool:
+        """
+        Check if a prefix exists on Azure Blob storage.
+
+        :param container_name: Name of the container.
+        :param prefix: Prefix of the blob.
+        :param kwargs: Optional keyword arguments for ``ContainerClient.walk_blobs``
+        """
+        blobs = await self.get_blobs_list_async(container_name=container_name, prefix=prefix, **kwargs)
+        return len(blobs) > 0
