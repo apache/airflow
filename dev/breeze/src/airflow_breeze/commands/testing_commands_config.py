@@ -42,7 +42,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--test-types",
+                "--parallel-test-types",
                 "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
