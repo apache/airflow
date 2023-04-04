@@ -119,11 +119,20 @@ class QuickSightHook(AwsBaseHook):
             raise AirflowException(f"AWS request failed: {e}")
 
     def get_error_info(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> dict | None:
-        """If the ingestion failed, returns the error info. Else, returns None."""
+        """
+        Gets info about the error if any.
+
+        :param aws_account_id: An AWS Account ID
+        :param data_set_id: QuickSight Data Set ID
+        :param ingestion_id: QuickSight Ingestion ID
+        :return: Error info dict containing the error type (key 'Type') and message (key 'Message')
+            if available. Else, returns None.
+        """
         describe_ingestion_response = self.get_conn().describe_ingestion(
             AwsAccountId=aws_account_id, DataSetId=data_set_id, IngestionId=ingestion_id
         )
-        return describe_ingestion_response["Ingestion"].get("ErrorInfo", None)
+        # using .get() to get None if the key is not present, instead of an exception.
+        return describe_ingestion_response["Ingestion"].get("ErrorInfo")
 
     def wait_for_state(
         self,
