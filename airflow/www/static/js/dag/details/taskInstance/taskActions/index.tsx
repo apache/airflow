@@ -43,40 +43,30 @@ const TaskActions = ({
       {title}
     </Text>
     <Divider my={2} />
-    {/* For now only ClearAction is supported for groups */}
-    {isGroup ? (
-      <ClearAction
-        runId={runId}
-        taskId={taskId}
-        dagId={dagId}
-        executionDate={executionDate}
-        mapIndexes={mapIndexes}
-        isGroup={isGroup}
-      />
-    ) : (
-      <VStack justifyContent="center" divider={<StackDivider my={3} />}>
-        <ClearAction
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          executionDate={executionDate}
-          mapIndexes={mapIndexes}
-          isGroup={!!isGroup}
-        />
-        <MarkFailedAction
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          mapIndexes={mapIndexes}
-        />
-        <MarkSuccessAction
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          mapIndexes={mapIndexes}
-        />
-      </VStack>
-    )}
+    <VStack justifyContent="center" divider={<StackDivider my={3} />}>
+    <ClearAction
+      runId={runId}
+      taskId={taskId}
+      dagId={dagId}
+      executionDate={executionDate}
+      mapIndexes={mapIndexes}
+      isGroup={!!isGroup}
+    />
+    <MarkFailedAction
+      runId={runId}
+      taskId={taskId}
+      dagId={dagId}
+      mapIndexes={mapIndexes}
+      isGroup={!!isGroup}
+    />
+    <MarkSuccessAction
+      runId={runId}
+      taskId={taskId}
+      dagId={dagId}
+      mapIndexes={mapIndexes}
+      isGroup={!!isGroup}
+    />
+    </VStack>
     <Divider my={2} />
   </Box>
 );

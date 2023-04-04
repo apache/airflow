@@ -31,11 +31,13 @@ export default function useConfirmMarkTask({
   runId,
   taskId,
   state,
+  isGroup,
 }: {
   dagId: string;
   runId: string;
   taskId: string;
   state: TaskState;
+  isGroup: boolean;
 }) {
   const errorToast = useErrorToast();
   return useMutation(
@@ -56,13 +58,18 @@ export default function useConfirmMarkTask({
       const params = new URLSearchParamsWrapper({
         dag_id: dagId,
         dag_run_id: runId,
-        task_id: taskId,
         past,
         future,
         upstream,
         downstream,
         state,
       });
+
+      if (isGroup) {
+        params.append("group_id", taskId);
+      } else {
+        params.append("task_id", taskId);
+      }
 
       mapIndexes.forEach((mi: number) => {
         params.append("map_index", mi.toString());

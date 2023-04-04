@@ -18,24 +18,18 @@
  */
 
 import React, { useState } from "react";
-import { Button, Flex, ButtonGroup, useDisclosure } from "@chakra-ui/react";
+import { Button, Flex, ButtonGroup, useDisclosure, Alert, AlertIcon } from "@chakra-ui/react";
 
 import ConfirmDialog from "src/components/ConfirmDialog";
 import { useMarkSuccessTask, useConfirmMarkTask } from "src/api";
 import { getMetaValue } from "src/utils";
 
 import ActionButton from "./ActionButton";
+import type { CommonActionProps } from "./types";
 
 const canEdit = getMetaValue("can_edit") === "True";
 
-interface Props {
-  dagId: string;
-  runId: string;
-  taskId: string;
-  mapIndexes: number[];
-}
-
-const MarkSuccess = ({ dagId, runId, taskId, mapIndexes }: Props) => {
+const MarkSuccess = ({ dagId, runId, taskId, mapIndexes, isGroup }: CommonActionProps) => {
   const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
 
   // Options check/unchecked
@@ -59,6 +53,7 @@ const MarkSuccess = ({ dagId, runId, taskId, mapIndexes }: Props) => {
       dagId,
       runId,
       taskId,
+      isGroup: !!isGroup,
     });
   const { mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading } =
     useConfirmMarkTask({
@@ -66,6 +61,7 @@ const MarkSuccess = ({ dagId, runId, taskId, mapIndexes }: Props) => {
       runId,
       taskId,
       state: "success",
+      isGroup: !!isGroup,
     });
 
   const onClick = async () => {
@@ -131,9 +127,19 @@ const MarkSuccess = ({ dagId, runId, taskId, mapIndexes }: Props) => {
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to mark as success:"
+        description={`Task instances you are about to mark as success (${affectedTasks.length}):`}
         affectedTasks={affectedTasks}
-      />
+      >
+        {isGroup && (past || future) && (
+          <Alert status="warning" mb={3}>
+            <AlertIcon />
+            Marking a TaskGroup as success in the future and/or past will affect all the
+            tasks of this group across multiple dag runs.
+            <br />
+            This can take a while to complete.
+          </Alert>
+        )}
+      </ConfirmDialog>
     </Flex>
   );
 };
