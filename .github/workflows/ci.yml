@@ -843,7 +843,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       JOB_ID: "test-pytest-collection"
