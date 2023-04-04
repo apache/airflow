@@ -25,7 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
+from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils import timezone
 
 TASK_ID = "db-sensor"

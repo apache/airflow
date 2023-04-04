@@ -22,7 +22,7 @@ import textwrap
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.databricks.sensors.sql import DatabricksSqlSensor
+from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 
 # [Env variable to be used from the OS]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
