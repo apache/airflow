@@ -440,7 +440,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     cluster_identifier=self.cluster_identifier,
                     attempts=self._attempts,
-                    operation_type="pause_cluster",
+                    operation_type="resume_cluster",
                 ),
                 method_name="execute_complete",
             )
@@ -470,7 +470,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
                 raise AirflowException(msg)
             elif "status" in event and event["status"] == "success":
                 self.log.info("%s completed successfully.", self.task_id)
-                self.log.info("Paused cluster successfully")
+                self.log.info("Resumed cluster successfully")
         else:
             raise AirflowException("No event received from trigger")
 

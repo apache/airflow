@@ -23,6 +23,44 @@
 Changelog
 ---------
 
+8.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add missing 'poll_interval' in Bigquery operator (#30132)``
+* ``Add poll_interval param in BigQueryInsertJobOperator (#30091)``
+* ``Add 'job_id' to 'BigQueryToGCSOperator' templated_fields (#30006)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix setting project_id for gs to bq and bq to gs (#30053)``
+* ``Fix location on cloud build operators (#29937)``
+* ``'GoogleDriveHook': Fixing log message + adding more verbose documentation (#29694)``
+* ``Add "BOOLEAN" to type_map of MSSQLToGCSOperator, fix incorrect bit->int type conversion by specifying BIT fields explicitly (#29902)``
+* ``Google Cloud Providers - Fix _MethodDefault deepcopy failure (#29518)``
+* ``Handling project location param on async BigQuery dts trigger (#29786)``
+* ``Support CloudDataTransferServiceJobStatusSensor without specifying a project_id (#30035)``
+* ``Wait insert_job result in normal mode (#29925)``
+
+Misc
+~~~~
+
+* ``merge BigQueryTableExistenceAsyncSensor into BigQueryTableExistenceSensor (#30235)``
+* ``Remove  unnecessary upper constraints from google provider (#29915)``
+* ``Merge BigQueryTableExistencePartitionAsyncSensor into BigQueryTableExistencePartitionSensor (#30231)``
+* ``Merge GCSObjectExistenceAsyncSensor logic to GCSObjectExistenceSensor (#30014)``
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``Switch to using vendored-in google ads. (#30410)``
+* ``Merging of the google ads vendored-in code. (#30399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
 8.11.0
 ......
 

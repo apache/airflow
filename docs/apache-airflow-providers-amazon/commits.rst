@@ -28,14 +28,38 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.4.0
+.....
+
+Latest change: 2023-03-21
+
+=================================================================================================  ===========  ============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================
+`46d9a0c294 <https://github.com/apache/airflow/commit/46d9a0c294ea72574a79f0fb567eb9dc97cf96c1>`_  2023-03-21   ``Make update config behavior optional in GlueJobOperator (#30162)``
+`2a42cb46af <https://github.com/apache/airflow/commit/2a42cb46af66c7d6a95a718726cb9206258a0c14>`_  2023-03-21   ``Move and convert all AWS example dags to system tests (#30003)``
+`05c0841880 <https://github.com/apache/airflow/commit/05c0841880ccfc25c9e525cafde3e46d7c6f9fce>`_  2023-03-21   ``custom waiters with dynamic values, applied to appflow (#29911)``
+`0036ef7d35 <https://github.com/apache/airflow/commit/0036ef7d35b1a5f654affa10528c348e6097644f>`_  2023-03-21   ``Add deferrable mode to 'RedshiftResumeClusterOperator' (#30090)``
+`b54285d0a1 <https://github.com/apache/airflow/commit/b54285d0a15945ebdcbe3ff9220c82059f09d8a4>`_  2023-03-16   ``Remove aws async ci job (#30127)``
+`4effd6f48b <https://github.com/apache/airflow/commit/4effd6f48b5b0fabde7e8bc731844a1cd258dc0e>`_  2023-03-14   ``Add 'AwsToAwsBaseOperator' (#30044)``
+`cf77c3b966 <https://github.com/apache/airflow/commit/cf77c3b96609aa8c260566274d54b06eb38c8100>`_  2023-03-13   ``Add deferrable mode in RedshiftPauseClusterOperator (#28850)``
+`3780b01fc4 <https://github.com/apache/airflow/commit/3780b01fc46385809423bec9ef858be5be64b703>`_  2023-03-10   ``Add support of a different AWS connection for DynamoDB (#29452)``
+`d2cc9df82c <https://github.com/apache/airflow/commit/d2cc9df82c8b6ae6cccb51462b8b5a37155666a7>`_  2023-03-07   ``Add 'EC2CreateInstanceOperator', 'EC2TerminateInstanceOperator' (#29548)``
+`b6392ae5fd <https://github.com/apache/airflow/commit/b6392ae5fd466fa06ca92c061a0f93272e27a26b>`_  2023-03-07   ``Support deleting the local log files when using remote logging (#29772)``
+`bf27e5379c <https://github.com/apache/airflow/commit/bf27e5379cbd2b77c9917cd4f0be48a8d24bbabb>`_  2023-03-05   ``Move string enum class to utils module + add test (#29906)``
+`971039454a <https://github.com/apache/airflow/commit/971039454a3684d0ea7261dfe91f34ac4b62af72>`_  2023-03-04   ``Align cncf provider file names with AIP-21 (#29905)``
+`2cebdc5007 <https://github.com/apache/airflow/commit/2cebdc5007f90b42937b2a0346f3c727dc36e131>`_  2023-03-03   ``rewrite polling code for appflow hook (#28869)``
+=================================================================================================  ===========  ============================================================================
+
 7.3.0
 .....
 
-Latest change: 2023-03-02
+Latest change: 2023-03-03
 
 =================================================================================================  ===========  =======================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================================
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
 `76d8aaa836 <https://github.com/apache/airflow/commit/76d8aaa8362ba199d98680d71ccb3a800cbc4d38>`_  2023-03-02   ``Fix Amazon ECS Enums (#29871)``
 `faf792f634 <https://github.com/apache/airflow/commit/faf792f634f3d2dae672ca184b4d95bd4834924d>`_  2023-03-02   ``Implement custom boto waiters for some EMR operators (#29822)``
 `ea8ce218b9 <https://github.com/apache/airflow/commit/ea8ce218b9abe3c69f4c2d8c65180cf8bafebdd6>`_  2023-03-02   ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``

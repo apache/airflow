@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import boto3
+
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
@@ -46,6 +49,23 @@ sys_test_context_task = (
     SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(SUBNETS_KEY, split_string=True).build()
 )
 
+
+@task
+def create_launch_template(template_name: str):
+    # This launch template enables IMDSv2.
+    boto3.client("ec2").create_launch_template(
+        LaunchTemplateName=template_name,
+        LaunchTemplateData={
+            "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
+        },
+    )
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_launch_template(template_name: str):
+    boto3.client("ec2").delete_launch_template(LaunchTemplateName=template_name)
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -58,6 +78,7 @@ with DAG(
 
     cluster_name = f"{env_id}-cluster"
     nodegroup_name = f"{env_id}-nodegroup"
+    launch_template_name = f"{env_id}-launch-template"
 
     # [START howto_operator_eks_create_cluster]
     # Create an Amazon EKS Cluster control plane without attaching compute service.
@@ -87,6 +108,10 @@ with DAG(
         nodegroup_role_arn=test_context[ROLE_ARN_KEY],
     )
     # [END howto_operator_eks_create_nodegroup]
+    # The launch template enforces IMDSv2 and is required for internal compliance
+    # when running these system tests on AWS infrastructure.  It is not required
+    # for the operator to work, so I'm placing it outside the demo snippet.
+    create_nodegroup.create_nodegroup_kwargs = {"launchTemplate": {"name": launch_template_name}}
 
     # [START howto_sensor_eks_nodegroup]
     await_create_nodegroup = EksNodegroupStateSensor(
@@ -165,6 +190,7 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
+        create_launch_template(launch_template_name),
         # TEST BODY
         create_cluster,
         await_create_cluster,
@@ -177,6 +203,7 @@ with DAG(
         await_delete_nodegroup,
         delete_cluster,  # part of the test AND teardown
         await_delete_cluster,
+        delete_launch_template(launch_template_name),
     )
 
     from tests.system.utils.watcher import watcher

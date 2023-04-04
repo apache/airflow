@@ -76,6 +76,7 @@ class ShellParams:
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
     ci: bool = False
+    collect_only: bool = False
     db_reset: bool = False
     dev_mode: bool = False
     extra_args: tuple = ()
@@ -102,6 +103,7 @@ class ShellParams:
     platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+    remove_arm_packages: bool = False
     skip_environment_initialization: bool = False
     skip_constraints: bool = False
     start_airflow: str = "false"
