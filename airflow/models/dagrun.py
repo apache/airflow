@@ -598,6 +598,8 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
         # TODO: Remove 'getattr' if setup/teardown is available for mapped task
         if dag.teardowns:
+            # when on_failure_fail_dagrun is `False`, the final state of the DagRun
+            # will be computed as if the teardown task simply didn't exist.
             teardown_task_ids = [t.task_id for t in dag.teardowns]
             upstream_of_teardowns = [t.task_id for t in dag.tasks_upstream_of_teardowns]
             teardown_tis = [ti for ti in tis if ti.task_id in teardown_task_ids]
