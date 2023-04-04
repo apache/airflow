@@ -552,11 +552,11 @@ class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
     """
     Async client for AWS Batch services.
 
-    :param max_retries: exponential back-off retries, 4200 = 48 hours;
-        polling is only used when waiters is None
+    :param job_id: the job ID, usually unknown (None) until the
+        submit_job operation gets the jobId defined by AWS Batch
 
-    :param status_retries: number of HTTP retries to get job status, 10;
-        polling is only used when waiters is None
+    :param waiters: an :py:class:`.BatchWaiters` object (see note below);
+        if None, polling is used with max_retries and status_retries.
 
     .. note::
         Several methods use a default random delay to check or poll for job status, i.e.
