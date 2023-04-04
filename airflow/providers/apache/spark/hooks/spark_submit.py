@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 with contextlib.suppress(ImportError, NameError):
     from airflow.kubernetes import kube_client
 
-ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit"]
+ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit", "spark3-submit"]
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -78,7 +78,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         supports yarn and k8s mode too.
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
-                         Some distros may use spark2-submit.
+                         Some distros may use spark2-submit or spark3-submit.
     """
 
     conn_name_attr = "conn_id"
@@ -150,14 +150,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._submit_sp: Any | None = None
         self._yarn_application_id: str | None = None
         self._kubernetes_driver_pod: str | None = None
-        self._spark_binary = spark_binary
-        if self._spark_binary is not None and self._spark_binary not in ALLOWED_SPARK_BINARIES:
-            raise RuntimeError(
-                f"The spark-binary extra can be on of {ALLOWED_SPARK_BINARIES} and it"
-                f" was `{spark_binary}`. Please make sure your spark binary is one of the"
-                f" allowed ones and that it is available on the PATH"
-            )
-
+        self.spark_binary = spark_binary
         self._connection = self._resolve_connection()
         self._is_yarn = "yarn" in self._connection["master"]
         self._is_kubernetes = "k8s" in self._connection["master"]
@@ -186,7 +179,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "master": "yarn",
             "queue": None,
             "deploy_mode": None,
-            "spark_binary": self._spark_binary or "spark-submit",
+            "spark_binary": self.spark_binary or "spark-submit",
             "namespace": None,
         }
 
@@ -203,20 +196,22 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             extra = conn.extra_dejson
             conn_data["queue"] = extra.get("queue")
             conn_data["deploy_mode"] = extra.get("deploy-mode")
-            spark_binary = self._spark_binary or extra.get("spark-binary", "spark-submit")
-            if spark_binary not in ALLOWED_SPARK_BINARIES:
-                raise RuntimeError(
-                    f"The `spark-binary` extra can be on of {ALLOWED_SPARK_BINARIES} and it"
-                    f" was `{spark_binary}`. Please make sure your spark binary is one of the"
-                    " allowed ones and that it is available on the PATH"
-                )
+            if not self.spark_binary:
+                self.spark_binary = extra.get("spark-binary", "spark-submit")
+                if self.spark_binary is not None and self.spark_binary not in ALLOWED_SPARK_BINARIES:
+                    raise RuntimeError(
+                        f"The spark-binary extra can be on of {ALLOWED_SPARK_BINARIES} and it"
+                        f" was `{self.spark_binary}`. Please make sure your spark binary is one of the"
+                        f" allowed ones and that it is available on the PATH"
+                    )
             conn_spark_home = extra.get("spark-home")
             if conn_spark_home:
                 raise RuntimeError(
-                    "The `spark-home` extra is not allowed any more. Please make sure your `spark-submit` or"
-                    " `spark2-submit` are available on the PATH."
+                    "The `spark-home` extra is not allowed any more. Please make sure one of"
+                    f" {ALLOWED_SPARK_BINARIES} is available on the PATH, and set `spark-binary`"
+                    " if needed."
                 )
-            conn_data["spark_binary"] = spark_binary
+            conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
         except AirflowException:
             self.log.info(

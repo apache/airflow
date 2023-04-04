@@ -21,11 +21,13 @@ import json
 import os
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest import mock
-from unittest.mock import mock_open
+from unittest.mock import MagicMock, PropertyMock, mock_open
 from uuid import UUID
 
 import boto3
+import jinja2
 import pytest
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
@@ -34,9 +36,11 @@ from botocore.utils import FileWebIdentityTokenLoader
 from moto import mock_dynamodb, mock_emr, mock_iam, mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
 
+from airflow import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
+    AwsGenericHook,
     BaseSessionFactory,
     resolve_session_factory,
 )
@@ -46,7 +50,6 @@ from tests.test_utils.config import conf_vars
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
 MOCK_BOTO3_SESSION = mock.MagicMock(return_value="Mock boto3.session.Session")
-
 
 SAML_ASSERTION = """
 <?xml version="1.0"?>
@@ -978,3 +981,49 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
         # In normal circumstances lines below should not execute.
         # We want to show additional information why this test not passed
         assert not result, f"Credentials Method: {hook.get_session().get_credentials().method}"
+
+
+TEST_WAITER_CONFIG_LOCATION = Path(__file__).parents[1].joinpath("waiters/test.json")
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_waiter_config_params_not_provided(waiter_path_mock: MagicMock, caplog):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
+
+    with pytest.raises(AirflowException) as ae:
+        hook.get_waiter("wait_for_test")
+
+    # should warn about missing param
+    assert "PARAM_1" in str(ae.value)
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_waiter_config_no_params_needed(waiter_path_mock: MagicMock, caplog):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
+
+    with caplog.at_level("WARN"):
+        hook.get_waiter("other_wait")
+
+    # other waiters in the json need params, but not this one, so we shouldn't warn about it.
+    assert len(caplog.text) == 0
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_waiter_config_with_parameters_specified(waiter_path_mock: MagicMock):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
+
+    waiter = hook.get_waiter("wait_for_test", {"PARAM_1": "hello", "PARAM_2": "world"})
+
+    assert waiter.config.acceptors[0].argument == "'hello' == 'world'"
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_waiter_config_param_wrong_format(waiter_path_mock: MagicMock):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(client_type="mwaa")  # needs to be a real client type
+
+    with pytest.raises(jinja2.TemplateSyntaxError):
+        hook.get_waiter("bad_param_wait")

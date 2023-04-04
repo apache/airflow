@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import * as API from "./api-generated";
+import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
 
@@ -96,6 +96,7 @@ interface Task {
   isMapped?: boolean;
   operator?: string;
   hasOutletDatasets?: boolean;
+  triggerRule?: API.TriggerRule;
 }
 
 type RunOrdering = (
