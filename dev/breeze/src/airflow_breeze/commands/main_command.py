@@ -138,15 +138,21 @@ def check_for_python_emulation():
             )
             from inputimeout import TimeoutOccurred, inputimeout
 
-            user_status = inputimeout(
-                prompt="Are you REALLY sure you want to continue? (answer with y otherwise we exit in 20s)\n",
-                timeout=20,
-            )
-            if user_status.upper() not in ["Y", "YES"]:
+            try:
+                user_status = inputimeout(
+                    prompt="Are you REALLY sure you want to continue? "
+                    "(answer with y otherwise we exit in 20s)\n",
+                    timeout=20,
+                )
+                if user_status.upper() not in ["Y", "YES"]:
+                    sys.exit(1)
+            except TimeoutOccurred:
+                from airflow_breeze.utils.console import get_console
+
+                get_console().print("\nNo answer, exiting...")
                 sys.exit(1)
-    except TimeoutOccurred:
-        get_console().print("\nNo answer, exiting...")
-        sys.exit(1)
+    except FileNotFoundError:
+        pass
     except subprocess.CalledProcessError:
         pass
     except PermissionError:
