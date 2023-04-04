@@ -131,6 +131,8 @@ def _run_test(
     if db_reset:
         env_variables["DB_RESET"] = "true"
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
+    env_variables["COLLECT_ONLY"] = str(exec_shell_params.collect_only).lower()
+    env_variables["REMOVE_ARM_PACKAGES"] = str(exec_shell_params.remove_arm_packages).lower()
     env_variables["SKIP_PROVIDER_TESTS"] = str(exec_shell_params.skip_provider_tests).lower()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
@@ -367,6 +369,18 @@ def run_tests_in_parallel(
     is_flag=True,
     envvar="UPGRADE_BOTO",
 )
+@click.option(
+    "--collect-only",
+    help="Collect tests only, do not run them.",
+    is_flag=True,
+    envvar="COLLECT_ONLY",
+)
+@click.option(
+    "--remove-arm-packages",
+    help="Removes arm packages from the image to test if ARM collection works",
+    is_flag=True,
+    envvar="REMOVE_ARM_PACKAGES",
+)
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -391,6 +405,8 @@ def command_for_tests(
     mount_sources: str,
     extra_pytest_args: tuple,
     upgrade_boto: bool,
+    collect_only: bool,
+    remove_arm_packages: bool,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
@@ -406,6 +422,8 @@ def command_for_tests(
         forward_ports=False,
         test_type=test_type,
         upgrade_boto=upgrade_boto,
+        collect_only=collect_only,
+        remove_arm_packages=remove_arm_packages,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()

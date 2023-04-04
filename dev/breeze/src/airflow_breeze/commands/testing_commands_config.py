@@ -27,6 +27,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--test-type",
                 "--test-timeout",
+                "--collect-only",
                 "--db-reset",
                 "--backend",
                 "--python",
@@ -54,6 +55,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--mount-sources",
                 "--upgrade-boto",
+                "--remove-arm-packages",
             ],
         },
     ],

@@ -843,6 +843,11 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      JOB_ID: "test-pytest-collection"
+      COVERAGE: "false"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -858,7 +863,7 @@ jobs:
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       - name: "Tests Pytest collection"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py"
+        run: breeze testing tests --run-in-parallel --collect-only
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -904,7 +909,7 @@ jobs:
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
+        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -992,7 +997,7 @@ jobs:
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
         if: env.MYSQL_VERSION != '5.7'
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
+        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -1076,7 +1081,7 @@ jobs:
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
+        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
         uses: ./.github/actions/post_tests
 
