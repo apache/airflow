@@ -28,7 +28,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import task, task_group, teardown
+from airflow.decorators import setup, task, task_group, teardown
 from airflow.models import (
     DAG,
     DagBag,
@@ -2382,3 +2382,74 @@ def test_teardown_failure_on_non_leave_behaviour_on_dagrun(
     session.flush()
     dr = session.query(DagRun).one()
     assert dr.state == dag_run_state
+
+
+def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session):
+    with dag_maker():
+
+        @setup
+        def setuptask():
+            print(2)
+
+        @teardown
+        def teardown_task():
+            print(1)
+
+        @task
+        def mytask():
+            print(1)
+
+        with setuptask() >> teardown_task():
+            mytask()
+
+    dr = dag_maker.create_dagrun()
+    s1 = dr.get_task_instance(task_id="setuptask")
+    td1 = dr.get_task_instance(task_id="teardown_task")
+    t1 = dr.get_task_instance(task_id="mytask")
+    s1.state = TaskInstanceState.SUCCESS
+    td1.state = TaskInstanceState.SUCCESS
+    t1.state = TaskInstanceState.FAILED
+    session.merge(s1)
+    session.merge(td1)
+    session.merge(t1)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    dr = session.query(DagRun).one()
+    assert dr.state == DagRunState.FAILED
+
+
+def test_failure_of_leave_task_not_connected_to_teardown_task(dag_maker, session):
+    with dag_maker():
+
+        @setup
+        def setuptask():
+            print(2)
+
+        @teardown
+        def teardown_task():
+            print(1)
+
+        @task
+        def mytask():
+            print(1)
+
+        setuptask()
+        teardown_task()
+        mytask()
+
+    dr = dag_maker.create_dagrun()
+    s1 = dr.get_task_instance(task_id="setuptask")
+    td1 = dr.get_task_instance(task_id="teardown_task")
+    t1 = dr.get_task_instance(task_id="mytask")
+    s1.state = TaskInstanceState.SUCCESS
+    td1.state = TaskInstanceState.SUCCESS
+    t1.state = TaskInstanceState.FAILED
+    session.merge(s1)
+    session.merge(td1)
+    session.merge(t1)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    dr = session.query(DagRun).one()
+    assert dr.state == DagRunState.FAILED
