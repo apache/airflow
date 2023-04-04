@@ -21,6 +21,7 @@ name: Apache Spark
 description: |
     `Apache Spark <https://spark.apache.org/>`__
 
+suspended: false
 versions:
   - 4.0.1
   - 4.0.0
