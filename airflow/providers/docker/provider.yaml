@@ -21,6 +21,7 @@ name: Docker
 description: |
     `Docker <https://docs.docker.com/install/>`__
 
+suspended: false
 versions:
   - 3.5.1
   - 3.5.0

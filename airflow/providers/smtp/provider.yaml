@@ -22,6 +22,7 @@ name: Simple Mail Transfer Protocol (SMTP)
 description: |
   `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
+suspended: false
 versions:
   - 1.0.0
 
