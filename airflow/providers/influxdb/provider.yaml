@@ -28,6 +28,7 @@ dependencies:
   - influxdb-client>=1.19.0
   - requests>=2.26.0
 
+suspended: false
 versions:
   - 2.1.0
   - 2.0.0

@@ -21,6 +21,7 @@ name: Apache Livy
 description: |
   `Apache Livy <https://livy.apache.org/>`__
 
+suspended: false
 versions:
   - 3.4.0
   - 3.3.0

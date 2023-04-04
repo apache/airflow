@@ -321,7 +321,7 @@ repos:
         name: Checks setup extra packages
         description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
         language: python
-        files: ^setup\.py$|^docs/apache-airflow/extra-packages-ref\.rst$
+        files: ^setup\.py$|^docs/apache-airflow/extra-packages-ref\.rst$|^airflow/providers/.*/provider\.yaml$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich>=12.4.4']
@@ -350,7 +350,7 @@ repos:
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
-        files: ^setup\.py$|^CONTRIBUTING\.rst$|^INSTALL$
+        files: ^setup\.py$|^CONTRIBUTING\.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: check-extras-order
@@ -698,7 +698,7 @@ repos:
         files: ^dev/breeze/.*$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['click', 'rich>=12.4.4']
+        additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
       - id: check-system-tests-present
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py
@@ -844,10 +844,15 @@ repos:
         name: Update output of breeze commands in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yaml$
+        files: >
+          (?x)
+          ^BREEZE\.rst$|^dev/breeze/.*$|
+          ^\.pre-commit-config\.yaml$|
+          ^scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py$|
+          ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -894,7 +899,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy
         name: Run mypy for core
         language: python
@@ -902,7 +907,7 @@ repos:
         files: \.py$
         exclude: ^.*/_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy
         name: Run mypy for providers
         language: python
@@ -910,7 +915,7 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/\*\.py$|^tests/system/providers/\*\.py$
         exclude: ^.*/_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: run-mypy
         name: Run mypy for /docs/ folder
         language: python
@@ -918,7 +923,7 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py

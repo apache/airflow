@@ -95,6 +95,7 @@ from airflow_breeze.utils.run_utils import (
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_forced_answer
+from airflow_breeze.utils.suspended_providers import get_suspended_provider_ids
 
 option_debug_release_management = click.option(
     "--debug",
@@ -276,8 +277,16 @@ def prepare_provider_packages(
     perform_environment_checks()
     cleanup_python_generated_files()
     packages_list = list(packages)
+
+    suspended_provider_ids = get_suspended_provider_ids()
     if package_list_file:
-        packages_list.extend([package.strip() for package in package_list_file.readlines()])
+        packages_list.extend(
+            [
+                package.strip()
+                for package in package_list_file.readlines()
+                if package.strip() not in suspended_provider_ids
+            ]
+        )
     shell_params = ShellParams(
         mount_sources=MOUNT_ALL,
         github_repository=github_repository,

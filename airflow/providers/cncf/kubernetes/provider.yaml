@@ -21,6 +21,7 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
+suspended: false
 versions:
   - 5.3.0
   - 5.2.2

@@ -890,6 +890,17 @@ EXTRA_PYTEST_ARGS=(
     "-rfEX"
 )
 
+if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
+    for provider in ${SUSPENDED_PROVIDERS_FOLDERS=}; do
+        echo "Skipping tests for suspended provider: ${provider}"
+        EXTRA_PYTEST_ARGS+=(
+            "--ignore=tests/providers/${provider}"
+            "--ignore=tests/system/providers/${provider}"
+            "--ignore=tests/integration/providers/${provider}"
+        )
+    done
+fi
+
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
     echo "Running tests with ${_cpus} CPUs in parallel"

@@ -21,6 +21,7 @@ name: Zendesk
 description: |
     `Zendesk <https://www.zendesk.com/>`__
 
+suspended: false
 versions:
   - 4.2.0
   - 4.1.0

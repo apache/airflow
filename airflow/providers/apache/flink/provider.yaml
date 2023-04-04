@@ -21,6 +21,7 @@ name: Apache Flink
 description: |
     `Apache Flink <https://flink.apache.org/>`__
 
+suspended: false
 versions:
   - 1.0.1
   - 1.0.0

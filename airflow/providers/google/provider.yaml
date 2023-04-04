@@ -28,6 +28,7 @@ description: |
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
+suspended: false
 versions:
   - 8.12.0
   - 8.11.0
