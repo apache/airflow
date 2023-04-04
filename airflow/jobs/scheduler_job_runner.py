@@ -1471,28 +1471,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         available retries, it will be retried.
         """
         self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
-        try:
-            query = session.query(TI).filter(
-                TI.state == State.QUEUED,
-                TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
-            )
-            tasks_stuck_in_queued: list[TaskInstance] = with_row_locks(
-                query, of=TI, session=session, **skip_locked(session=session)
-            ).all()
-            tasks_stuck_in_queued_messages = []
-            for ti in tasks_stuck_in_queued:
-                tasks_stuck_in_queued_messages.append(repr(ti))
-                msg = "TI %s was in the queued state for longer than %s.", repr(ti), self._task_queued_timeout
-                ti.handle_failure(error=msg)
-            if tasks_stuck_in_queued_messages:
-                task_instance_str = "\n\t".join(tasks_stuck_in_queued_messages)
-                self.log.warning(
-                    "Marked the following %s task instances stuck in queued as failed. If the task instance has available retries, it will be retried.\n\t%s",
-                    len(tasks_stuck_in_queued),
-                    task_instance_str,
+        for attempt in run_with_db_retries(logger=self.log):
+            with attempt:
+                self.log.debug(
+                    "Running SchedulerJob.adopt_or_reset_orphaned_tasks with retries. Try %d of %d",
+                    attempt.retry_state.attempt_number,
+                    MAX_DB_RETRIES,
                 )
-        except OperationalError:
-            self.log.warning("Failed to mark tasks stuck in queued as failed")
+                try:
+                    query = session.query(TI).filter(
+                        TI.state == State.QUEUED,
+                        TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
+                    )
+                    tasks_stuck_in_queued: list[TaskInstance] = with_row_locks(
+                        query, of=TI, session=session, **skip_locked(session=session)
+                    ).all()
+                    tasks_stuck_in_queued_messages = []
+                    for ti in tasks_stuck_in_queued:
+                        tasks_stuck_in_queued_messages.append(repr(ti))
+                        msg = (
+                            "TI %s was in the queued state for longer than %s.",
+                            repr(ti),
+                            self._task_queued_timeout,
+                        )
+                        ti.handle_failure(error=msg)
+                    if tasks_stuck_in_queued_messages:
+                        task_instance_str = "\n\t".join(tasks_stuck_in_queued_messages)
+                        self.log.warning(
+                            "Marked the following %s task instances stuck in queued as failed. If the task instance has available retries, it will be retried.\n\t%s",
+                            len(tasks_stuck_in_queued),
+                            task_instance_str,
+                        )
+                except OperationalError:
+                    self.log.warning("Failed to mark tasks stuck in queued as failed")
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:

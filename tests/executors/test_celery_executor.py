@@ -223,7 +223,7 @@ class TestCeleryExecutor:
             yield app.control.revoke
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_cleanup_stuck_queued_tasks_failed(self, session, mock_celery_revoke):
+    def test_cleanup_stuck_queued_tasks(self, session):
         start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_cleanup_stuck_queued_tasks_failed") as dag:
@@ -235,52 +235,17 @@ class TestCeleryExecutor:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
         ti.queued_by_job_id = 1
         session.flush()
-
-        executor = celery_executor.CeleryExecutor()
-        executor.job_id = 1
-        executor.running = {ti.key}
-        executor.tasks = {ti.key: AsyncResult("231")}
-        executor.sync()
-        assert executor.event_buffer == {}
+        with _prepare_app() as app:
+            app.control.revoke = mock.MagicMock()
+            executor = celery_executor.CeleryExecutor()
+            executor.job_id = 1
+            executor.running = {ti.key}
+            executor.tasks = {ti.key: AsyncResult("231")}
+            executor.sync()
+            executor.cleanup_stuck_queued_tasks([ti])
         assert executor.tasks == {}
-        assert executor.running == set()
-        assert mock_celery_revoke.called_with("231")
+        assert app.control.revoke.called_with("231")
 
-        ti.refresh_from_db()
-        assert ti.state == State.FAILED
-        assert ti.queued_by_job_id is None
-        assert ti.queued_dttm is None
-        assert ti.external_executor_id is None
-
-    @pytest.mark.backend("mysql", "postgres")
-    def test_cleanup_stuck_queued_tasks_retry(self, session, mock_celery_revoke):
-        start_date = timezone.utcnow() - timedelta(days=2)
-
-        with DAG("test_try_adopt_task_instances_none") as dag:
-            task = BaseOperator(task_id="task_1", start_date=start_date, retries=1)
-
-        ti = TaskInstance(task=task, run_id=None)
-        ti.external_executor_id = "231"
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
-        ti.queued_by_job_id = 1
-        session.flush()
-
-        executor = celery_executor.CeleryExecutor()
-        executor.job_id = 1
-        executor.running = {ti.key}
-        executor.tasks = {ti.key: AsyncResult("231")}
-        executor.sync()
-        assert executor.event_buffer == {}
-        assert executor.tasks == {}
-        assert executor.running == set()
-        assert mock_celery_revoke.called_with("231")
-
-        ti.refresh_from_db()
-        assert ti.state == State.UP_FOR_RETRY
-        assert ti.queued_by_job_id is None
-        assert ti.queued_dttm is None
-        assert ti.external_executor_id is None
 
 def test_operation_timeout_config():
     assert celery_executor.OPERATION_TIMEOUT == 1

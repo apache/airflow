@@ -837,7 +837,6 @@ class KubernetesExecutor(BaseExecutor):
         :param tis: Task Instances to clean up
         """
         for ti in tis:
-            namespace = self._get_pod_namespace(ti)
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -847,7 +846,7 @@ class KubernetesExecutor(BaseExecutor):
                 airflow_worker=ti.queued_by_job_id,
             )
             namespace = self._get_pod_namespace(ti)
-            pod_list = client.list_namespaced_pod(
+            pod_list = self.kube_client.list_namespaced_pod(
                 namespace=namespace,
                 label_selector=selector,
             ).items
