@@ -150,6 +150,13 @@ date will be converted to UTC using the timezone associated with ``start_date``
 or ``end_date``, then for calculations this timezone information will be
 disregarded.
 
+.. note::
+    When authoring a Timezone aware DAG you must make sure that the underlying timezone library (for example: pendulum)
+    is updated with recent changes to regulations (daylight saving changes etc...). When a change in time
+    is expected you should verify with the underlying timezone library that the switch will happen as expected.
+    There might be a need to update the library version. As a general recommendation if you can author DAGs in UTC
+    that is preferred.
+
 Templates
 '''''''''
 
