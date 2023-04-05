@@ -77,9 +77,11 @@ from airflow.exceptions import (
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -115,7 +117,6 @@ if TYPE_CHECKING:
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
-
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
@@ -133,7 +134,6 @@ ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
 ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
-
 
 # Backward compatibility: If neither schedule_interval nor timetable is
 # *provided by the user*, default to a one-day interval.
@@ -1840,6 +1840,7 @@ class DAG(LoggingMixin):
         past: bool = False,
         commit: bool = True,
         session=NEW_SESSION,
+        group_id: str | None = None,
     ) -> list[TaskInstance]:
         """
         Set the state of a TaskInstance to the given state, and clear its downstream tasks that are
@@ -1862,14 +1863,50 @@ class DAG(LoggingMixin):
         if not exactly_one(execution_date, run_id):
             raise ValueError("Exactly one of execution_date or run_id must be provided")
 
-        task = self.get_task(task_id)
-        task.dag = self
+        tasks_to_set_state: list[
+            BaseOperator | MappedOperator | tuple[BaseOperator | MappedOperator, int]
+        ] = []
+        task_ids: list[str] = []
+        locked_dag_run_ids: list[int] = []
 
-        tasks_to_set_state: list[Operator | tuple[Operator, int]]
-        if map_indexes is None:
-            tasks_to_set_state = [task]
+        if execution_date is None:
+            dag_run = (
+                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
+            )  # Raises an error if not found
+            resolve_execution_date = dag_run.execution_date
         else:
-            tasks_to_set_state = [(task, map_index) for map_index in map_indexes]
+            resolve_execution_date = execution_date
+
+        end_date = resolve_execution_date if not future else None
+        start_date = resolve_execution_date if not past else None
+
+        if group_id is not None:
+            task_group_dict = self.task_group.get_task_group_dict()
+            task_group = task_group_dict.get(group_id)
+            if task_group is None:
+                raise ValueError("TaskGroup {group_id} could not be found")
+            tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
+            task_ids = [task.task_id for task in task_group.iter_tasks()]
+            dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == self.dag_id).with_for_update()
+
+            if start_date is None and end_date is None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
+            else:
+                if start_date is not None:
+                    dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
+
+                if end_date is not None:
+                    dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
+
+            locked_dag_run_ids = dag_runs_query.all()
+        elif task_id:
+            task_ids = [task_id]
+            task = self.get_task(task_id)
+            task.dag = self
+            if map_indexes is None:
+                tasks_to_set_state = [task]
+            else:
+                tasks_to_set_state = [(task, map_index) for map_index in map_indexes]
 
         altered = set_state(
             tasks=tasks_to_set_state,
@@ -1885,27 +1922,17 @@ class DAG(LoggingMixin):
         )
 
         if not commit:
+            del locked_dag_run_ids
             return altered
 
         # Clear downstream tasks that are in failed/upstream_failed state to resume them.
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
         subdag = self.partial_subset(
-            task_ids_or_regex={task_id},
+            task_ids_or_regex=task_ids,
             include_downstream=True,
             include_upstream=False,
         )
-
-        if execution_date is None:
-            dag_run = (
-                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
-            )  # Raises an error if not found
-            resolve_execution_date = dag_run.execution_date
-        else:
-            resolve_execution_date = execution_date
-
-        end_date = resolve_execution_date if not future else None
-        start_date = resolve_execution_date if not past else None
 
         subdag.clear(
             start_date=start_date,
@@ -1914,10 +1941,12 @@ class DAG(LoggingMixin):
             include_parentdag=True,
             only_failed=True,
             session=session,
+            task_ids=task_ids,
             # Exclude the task itself from being cleared
             exclude_task_ids={task_id},
         )
 
+        del locked_dag_run_ids
         return altered
 
     @property
