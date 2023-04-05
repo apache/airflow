@@ -489,9 +489,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 run_id = task_instance.run_id
                 task_id = task_instance.task_id
                 map_index = task_instance.map_index
+                try_number = task_instance.try_number
                 self.triggers[trigger_id] = {
                     "task": asyncio.create_task(self.run_trigger(trigger_id, trigger_instance)),
-                    "name": f"{dag_id}/{run_id}/{task_id}/{map_index} (ID {trigger_id})",
+                    "name": f"{dag_id}/{run_id}/{task_id}/{map_index}/{try_number} (ID {trigger_id})",
                     "events": 0,
                 }
             else:

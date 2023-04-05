@@ -143,7 +143,7 @@ def test_trigger_logging_sensitive_info(session, capsys):
         # We always have to stop the runner
         job.runner.stop = True
     stdout = capsys.readouterr().out
-    assert "test_dag/test_run/sensitive_arg_task/-1 (ID 1) starting" in stdout
+    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in stdout
     assert "some_password" not in stdout
 
 
