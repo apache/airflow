@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import sqlite3
+from urllib.parse import unquote
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -33,13 +34,21 @@ class SqliteHook(DbApiHook):
 
     def get_conn(self) -> sqlite3.dbapi2.Connection:
         """Returns a sqlite connection object"""
-        conn_id = getattr(self, self.conn_name_attr)
-        airflow_conn = self.get_connection(conn_id)
-        conn = sqlite3.connect(airflow_conn.host)
+        # The sqlite3 connection does not use the sqlite scheme and path should not end with a slash.
+        # See https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#uri-connections for details.
+        sqlalchemy_uri = self.get_uri()
+        sqlite_uri = sqlalchemy_uri.replace("sqlite:///", "file:").replace("/?", "?")
+        conn = sqlite3.connect(sqlite_uri, uri=True)
         return conn
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
         conn_id = getattr(self, self.conn_name_attr)
         airflow_conn = self.get_connection(conn_id)
-        return f"sqlite:///{airflow_conn.host}"
+        if airflow_conn.conn_type is None:
+            airflow_conn.conn_type = self.conn_type
+        # The sqlite connection has one more slash for path specification.
+        # See https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#connect-strings for details.
+        uri = unquote(airflow_conn.get_uri())
+        sqlalchemy_uri = uri.replace("sqlite://", "sqlite:///")
+        return sqlalchemy_uri
