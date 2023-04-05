@@ -24,6 +24,31 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable 'AzureDataFactoryRunPipelineOperator' (#30147)``
+* ``Add deferrable 'AzureDataFactoryPipelineRunStatusSensor' (#29801)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ADF job failure during deferral (#30248)``
+* ``Fix AzureDataLakeStorageV2Hook 'account_url' with Active Directory authentication (#29980) (#29981)``
+
+Misc
+~~~~
+* ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
+* ``Expose missing params in AzureSynapseHook API docs (#30099)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``organize azure provider.yaml (#30155)``
+
 5.2.1
 .....
 

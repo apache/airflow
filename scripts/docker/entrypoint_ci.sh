@@ -276,6 +276,10 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
+# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# but may still be present in the local directory if the user has old breeze image
+rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" != "true" ]]; then
@@ -313,6 +317,17 @@ EXTRA_PYTEST_ARGS=(
     "-rfEX"
 )
 
+if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
+    for provider in ${SUSPENDED_PROVIDERS_FOLDERS=}; do
+        echo "Skipping tests for suspended provider: ${provider}"
+        EXTRA_PYTEST_ARGS+=(
+            "--ignore=tests/providers/${provider}"
+            "--ignore=tests/system/providers/${provider}"
+            "--ignore=tests/integration/providers/${provider}"
+        )
+    done
+fi
+
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
     echo "Running tests with ${_cpus} CPUs in parallel"
@@ -333,6 +348,21 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
         "--cov-config=.coveragerc"
         "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
+fi
+
+if [[ ${COLLECT_ONLY:="false"} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "--collect-only"
+        "-qqqq"
+        "--disable-warnings"
+    )
+fi
+
+if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
+    # Test what happens if we do not have ARM packages installed.
+    # This is useful to see if pytest collection works without ARM packages which is important
+    # for the MacOS M1 users running tests in their ARM machines with `breeze testing tests` command
+    python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
 fi
 
 declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
@@ -436,6 +466,16 @@ else
                 echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
             fi
         done
+    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
+        # Those tests fail when --asert=rewrite is set, therefore we run them separately
+        # with --assert=plain to make sure they pass.
+        SELECTED_TESTS=(
+            # this on is mysteriously failing dill serialization. It could be removed once
+            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
+            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
+        )
+        EXTRA_PYTEST_ARGS+=("--assert=plain")
+        export PYTEST_PLAIN_ASSERTS="true"
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"

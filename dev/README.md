@@ -121,7 +121,7 @@ can ask PMC to perform that final step of release.
 Make sure your public key is on id.apache.org and in KEYS. You will need to sign the release artifacts
 with your pgp key. After you have created a key, make sure you:
 
-- Add your GPG pub key to https://dist.apache.org/repos/dist/release/airflow/KEYS , follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
+- Add your GPG pub key to https://dist.apache.org/repos/dist/release/airflow/KEYS, follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
 - Add your key fingerprint to https://id.apache.org/ (login with your apache credentials, paste your fingerprint into the pgp fingerprint field and hit save).
 
 ```shell script

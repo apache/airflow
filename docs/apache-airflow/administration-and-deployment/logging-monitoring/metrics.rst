@@ -139,7 +139,8 @@ Name                                                Description
 ``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on it's
                                                     configuration
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
-``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
+``dag_processing.total_parse_time``                 Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
+``dag_processing.file_path_queue_size``             Number of DAG files to be considered for the next scan
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
 ``dag_processing.file_path_queue_size``             Size of the dag file queue.
 ``scheduler.tasks.running``                         Number of tasks running in executor
@@ -164,7 +165,7 @@ Timers
 Name                                                Description
 =================================================== ========================================================================
 ``dagrun.dependency-check.<dag_id>``                Milliseconds taken to check DAG dependencies
-``dag.<dag_id>.<task_id>.duration``                 Milliseconds taken to finish a task
+``dag.<dag_id>.<task_id>.duration``                 Seconds taken to finish a task
 ``dag_processing.last_duration.<dag_file>``         Seconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
