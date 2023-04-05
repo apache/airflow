@@ -104,7 +104,7 @@ def _serve_logs(skip_serve_logs: bool = False):
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs ):
     # Setup levels at which logs go to stderr and stdout if required
-    if conf.has_option('logging', 'split_logging') and conf.get('logging', 'split_logging'):
+    if conf.has_option('logging', 'reset_and_split_logging') and conf.get('logging', 'reset_and_split_logging'):
         airflow_formatter = logging.Formatter(conf.get('logging', 'log_format'))
 
         class NoErrorOrAboveFilter(logging.Filter):
