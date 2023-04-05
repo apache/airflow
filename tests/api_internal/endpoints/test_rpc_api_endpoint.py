@@ -23,7 +23,11 @@ from unittest import mock
 import pytest
 from flask import Flask
 
+from airflow.models.pydantic.taskinstance import TaskInstancePydantic
+from airflow.models.taskinstance import TaskInstance
+from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.utils.state import State
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -109,6 +113,21 @@ class TestRpcApiEndpoint:
             assert response_data == method_result
 
         expected_mock.assert_called_once_with(**method_params)
+
+    def test_method_with_pydantic_serialized_object(self):
+        ti = TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING)
+        mock_test_method.return_value = ti
+
+        response = self.client.post(
+            "/internal_api/v1/rpcapi",
+            headers={"Content-Type": "application/json"},
+            data=json.dumps({"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""}),
+        )
+        assert response.status_code == 200
+        print(response.data)
+        response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
+        expected_data = TaskInstancePydantic.from_orm(ti)
+        assert response_data == expected_data
 
     def test_method_with_exception(self):
         mock_test_method.side_effect = ValueError("Error!!!")

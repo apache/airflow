@@ -22,7 +22,7 @@ import re
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import CalledProcessError, CompletedProcess
+from subprocess import DEVNULL, CalledProcessError, CompletedProcess
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -96,7 +96,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("images", "/opt/airflow/images"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
-    ("pytest.ini", "/opt/airflow/pytest.ini"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("setup.cfg", "/opt/airflow/setup.cfg"),
@@ -597,6 +596,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "CI_TARGET_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "CI_TARGET_REPO", APACHE_AIRFLOW_GITHUB_REPOSITORY)
     set_value_to_default_if_not_set(env, "COMMIT_SHA", commit_sha())
+    set_value_to_default_if_not_set(env, "COLLECT_ONLY", "false")
     set_value_to_default_if_not_set(env, "DB_RESET", "false")
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
@@ -611,11 +611,13 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "LOAD_EXAMPLES", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
+    set_value_to_default_if_not_set(env, "REMOVE_ARM_PACKAGES", "false")
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
     set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
+    set_value_to_default_if_not_set(env, "SUSPENDED_PROVIDERS_FOLDERS", "")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
     set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
     set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
@@ -769,3 +771,26 @@ def fix_ownership_using_docker():
         "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
     ]
     run_command(cmd, text=True, env=env, check=False)
+
+
+def remove_docker_networks(networks: list[str] | None = None) -> None:
+    """
+    Removes specified docker networks. If no networks are specified, it removes all unused networks.
+    Errors are ignored (not even printed in the output), so you can safely call it without checking
+    if the networks exist.
+
+    :param networks: list of networks to remove
+    """
+    if networks is None:
+        run_command(
+            ["docker", "network", "prune", "-f"],
+            check=False,
+            stderr=DEVNULL,
+        )
+    else:
+        for network in networks:
+            run_command(
+                ["docker", "network", "rm", network],
+                check=False,
+                stderr=DEVNULL,
+            )

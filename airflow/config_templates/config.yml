@@ -259,7 +259,7 @@ core:
       default: "True"
     dag_discovery_safe_mode:
       description: |
-        When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
+        If enabled, Airflow will only scan files containing both ``DAG`` and ``airflow`` (case-insensitive).
       version_added: 1.10.3
       type: string
       example: ~
