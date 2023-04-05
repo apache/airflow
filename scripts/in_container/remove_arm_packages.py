@@ -25,7 +25,7 @@ from pathlib import Path
 from rich.console import Console
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
-
+AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 console = Console(width=400, color_system="standard")
 
 

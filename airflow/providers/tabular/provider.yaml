@@ -21,6 +21,7 @@ name: Tabular
 description: |
     `Tabular <https://tabular.io/>`__
 
+suspended: false
 versions:
   - 1.1.0
   - 1.0.1
