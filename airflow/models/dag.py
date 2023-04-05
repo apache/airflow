@@ -1942,9 +1942,8 @@ class DAG(LoggingMixin):
             include_parentdag=True,
             only_failed=True,
             session=session,
-            task_ids=task_ids,
             # Exclude the task itself from being cleared
-            exclude_task_ids={task_id},
+            exclude_task_ids=task_ids,
         )
 
         del locked_dag_run_ids
