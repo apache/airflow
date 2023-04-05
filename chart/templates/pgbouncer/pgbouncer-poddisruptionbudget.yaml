@@ -42,5 +42,5 @@ spec:
       tier: airflow
       component: pgbouncer
       release: {{ .Release.Name }}
-{{ toYaml .Values.pgbouncer.podDisruptionBudget.config | indent 2 }}
+  {{- toYaml .Values.pgbouncer.podDisruptionBudget.config | nindent 2 }}
 {{- end }}
