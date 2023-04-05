@@ -444,7 +444,7 @@ class TestDagRunOperator:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException) as exception:
             task.execute_complete(
                 context={},
                 event=(
