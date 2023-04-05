@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import tempfile
 import warnings
 from typing import TYPE_CHECKING, Any, Generator
@@ -100,6 +101,9 @@ class KubernetesHook(BaseHook):
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
             "xcom_sidecar_container_image": StringField(
                 lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
+            ),
+            "xcom_sidecar_container_resources": StringField(
+                lazy_gettext("XCom sidecar resources (JSON format)"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -365,6 +369,13 @@ class KubernetesHook(BaseHook):
     def get_xcom_sidecar_container_image(self):
         """Returns the xcom sidecar image that defined in the connection"""
         return self._get_field("xcom_sidecar_container_image")
+
+    def get_xcom_sidecar_container_resources(self):
+        """Returns the xcom sidecar resources that defined in the connection"""
+        field = self._get_field("xcom_sidecar_container_resources")
+        if not field:
+            return None
+        return json.loads(field)
 
     def get_pod_log_stream(
         self,
