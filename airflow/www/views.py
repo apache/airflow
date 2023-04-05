@@ -2435,7 +2435,6 @@ class Airflow(AirflowBaseView):
         future: bool,
         past: bool,
         state: TaskInstanceState,
-        session: Session,
         group_id: str,
     ):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -2454,7 +2453,6 @@ class Airflow(AirflowBaseView):
             future=future,
             past=past,
             group_id=group_id,
-            session=session,
         )
 
         flash(f"Marked {state} on {len(altered)} task instances")
@@ -2562,8 +2560,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    @provide_session
-    def failed(self, *, session: Session = NEW_SESSION):
+    def failed(self):
         """Mark task as failed."""
         args = request.form
         dag_id = args.get("dag_id")
@@ -2593,7 +2590,6 @@ class Airflow(AirflowBaseView):
             future=future,
             past=past,
             state=TaskInstanceState.FAILED,
-            session=session,
             group_id=group_id,
         )
 
@@ -2605,8 +2601,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    @provide_session
-    def success(self, *, session: Session = NEW_SESSION):
+    def success(self):
         """Mark task as success."""
         args = request.form
         dag_id = args.get("dag_id")
@@ -2636,7 +2631,6 @@ class Airflow(AirflowBaseView):
             future=future,
             past=past,
             state=TaskInstanceState.SUCCESS,
-            session=session,
             group_id=group_id,
         )
 

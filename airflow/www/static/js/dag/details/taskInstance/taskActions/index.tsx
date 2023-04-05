@@ -44,28 +44,28 @@ const TaskActions = ({
     </Text>
     <Divider my={2} />
     <VStack justifyContent="center" divider={<StackDivider my={3} />}>
-    <ClearAction
-      runId={runId}
-      taskId={taskId}
-      dagId={dagId}
-      executionDate={executionDate}
-      mapIndexes={mapIndexes}
-      isGroup={!!isGroup}
-    />
-    <MarkFailedAction
-      runId={runId}
-      taskId={taskId}
-      dagId={dagId}
-      mapIndexes={mapIndexes}
-      isGroup={!!isGroup}
-    />
-    <MarkSuccessAction
-      runId={runId}
-      taskId={taskId}
-      dagId={dagId}
-      mapIndexes={mapIndexes}
-      isGroup={!!isGroup}
-    />
+      <ClearAction
+        runId={runId}
+        taskId={taskId}
+        dagId={dagId}
+        executionDate={executionDate}
+        mapIndexes={mapIndexes}
+        isGroup={!!isGroup}
+      />
+      <MarkFailedAction
+        runId={runId}
+        taskId={taskId}
+        dagId={dagId}
+        mapIndexes={mapIndexes}
+        isGroup={!!isGroup}
+      />
+      <MarkSuccessAction
+        runId={runId}
+        taskId={taskId}
+        dagId={dagId}
+        mapIndexes={mapIndexes}
+        isGroup={!!isGroup}
+      />
     </VStack>
     <Divider my={2} />
   </Box>

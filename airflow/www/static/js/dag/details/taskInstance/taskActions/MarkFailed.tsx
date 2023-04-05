@@ -18,18 +18,32 @@
  */
 
 import React, { useState } from "react";
-import { Button, Flex, ButtonGroup, useDisclosure, Alert, AlertIcon } from "@chakra-ui/react";
+import {
+  Button,
+  Flex,
+  ButtonGroup,
+  useDisclosure,
+  Alert,
+  AlertIcon,
+} from "@chakra-ui/react";
 
 import { useConfirmMarkTask, useMarkFailedTask } from "src/api";
 import ConfirmDialog from "src/components/ConfirmDialog";
 import { getMetaValue } from "src/utils";
 
 import ActionButton from "./ActionButton";
-import type { CommonActionProps } from "./types";
 
 const canEdit = getMetaValue("can_edit") === "True";
 
-const MarkFailed = ({ dagId, runId, taskId, mapIndexes, isGroup }: CommonActionProps) => {
+interface Props {
+  dagId: string;
+  runId: string;
+  taskId: string;
+  mapIndexes: number[];
+  isGroup: boolean;
+}
+
+const MarkFailed = ({ dagId, runId, taskId, mapIndexes, isGroup }: Props) => {
   const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
 
   // Options check/unchecked
@@ -133,8 +147,8 @@ const MarkFailed = ({ dagId, runId, taskId, mapIndexes, isGroup }: CommonActionP
         {isGroup && (past || future) && (
           <Alert status="warning" mb={3}>
             <AlertIcon />
-            Marking a TaskGroup as failed in the future and/or past will affect all the
-            tasks of this group across multiple dag runs.
+            Marking a TaskGroup as failed in the future and/or past will affect
+            all the tasks of this group across multiple dag runs.
             <br />
             This can take a while to complete.
           </Alert>
