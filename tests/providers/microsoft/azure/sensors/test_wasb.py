@@ -32,7 +32,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.microsoft.azure.sensors.wasb import (
     WasbBlobAsyncSensor,
     WasbBlobSensor,
-    WasbPrefixAsyncSensor,
     WasbPrefixSensor,
 )
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
@@ -239,10 +238,11 @@ class TestWasbPrefixAsyncSensor:
             "logical_date": execution_date,
         }
 
-    SENSOR = WasbPrefixAsyncSensor(
+    SENSOR = WasbPrefixSensor(
         task_id="wasb_prefix_sensor_async",
         container_name=TEST_DATA_STORAGE_CONTAINER_NAME,
         prefix=TEST_DATA_STORAGE_BLOB_PREFIX,
+        deferrable=True,
     )
 
     def test_wasb_prefix_sensor_async(self):

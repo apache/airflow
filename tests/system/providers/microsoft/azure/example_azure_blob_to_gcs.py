@@ -73,13 +73,8 @@ with DAG(
     )
     # [END how_to_azure_blob_to_gcs]
 
-    (
-        wait_for_blob
-        >> wait_for_blob_async
-        >> wait_for_blob_prefix
-        >> wait_for_blob_prefix_async
-        >> transfer_files_to_gcs
-    )
+    wait_for_blob >> wait_for_blob_async >> wait_for_blob_prefix \
+    >> wait_for_blob_prefix_async >> transfer_files_to_gcs
 
     from tests.system.utils.watcher import watcher
 
