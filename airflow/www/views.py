@@ -2441,6 +2441,7 @@ class Airflow(AirflowBaseView):
         future: bool,
         past: bool,
         state: TaskInstanceState,
+        group_id: str,
     ):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
 
@@ -2457,6 +2458,7 @@ class Airflow(AirflowBaseView):
             downstream=downstream,
             future=future,
             past=past,
+            group_id=group_id,
         )
 
         flash(f"Marked {state} on {len(altered)} task instances")
@@ -2478,6 +2480,7 @@ class Airflow(AirflowBaseView):
         dag_run_id = args.get("dag_run_id")
         state = args.get("state")
         origin = get_safe_url(args.get("origin"))
+        group_id = args.get("group_id")
 
         if "map_index" not in args:
             map_indexes: list[int] | None = None
@@ -2495,14 +2498,6 @@ class Airflow(AirflowBaseView):
             msg = f"DAG {dag_id} not found"
             return redirect_or_json(origin, msg, status="error", status_code=404)
 
-        try:
-            task = dag.get_task(task_id)
-        except airflow.exceptions.TaskNotFound:
-            msg = f"Task {task_id} not found"
-            return redirect_or_json(origin, msg, status="error", status_code=404)
-
-        task.dag = dag
-
         if state not in (
             "success",
             "failed",
@@ -2515,10 +2510,27 @@ class Airflow(AirflowBaseView):
             msg = f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run"
             return redirect_or_json(origin, msg, status="error", status_code=400)
 
-        if map_indexes is None:
-            tasks: list[Operator] | list[tuple[Operator, int]] = [task]
-        else:
-            tasks = [(task, map_index) for map_index in map_indexes]
+        tasks: list[Operator | tuple[Operator, int]] = []
+
+        if group_id is not None:
+            task_group_dict = dag.task_group.get_task_group_dict()
+            task_group = task_group_dict.get(group_id)
+            if task_group is None:
+                return redirect_or_json(
+                    origin, msg=f"TaskGroup {group_id} could not be found", status="error", status_code=404
+                )
+            tasks = [task for task in task_group.iter_tasks()]
+        elif task_id:
+            try:
+                task = dag.get_task(task_id)
+            except airflow.exceptions.TaskNotFound:
+                msg = f"Task {task_id} not found"
+                return redirect_or_json(origin, msg, status="error", status_code=404)
+            task.dag = dag
+            if map_indexes is None:
+                tasks = [task]
+            else:
+                tasks = [(task, map_index) for map_index in map_indexes]
 
         to_be_altered = set_state(
             tasks=tasks,
@@ -2565,6 +2577,7 @@ class Airflow(AirflowBaseView):
         dag_id = args.get("dag_id")
         task_id = args.get("task_id")
         run_id = args.get("dag_run_id")
+        group_id = args.get("group_id")
 
         if "map_index" not in args:
             map_indexes: list[int] | None = None
@@ -2588,6 +2601,7 @@ class Airflow(AirflowBaseView):
             future=future,
             past=past,
             state=TaskInstanceState.FAILED,
+            group_id=group_id,
         )
 
     @expose("/success", methods=["POST"])
@@ -2604,6 +2618,7 @@ class Airflow(AirflowBaseView):
         dag_id = args.get("dag_id")
         task_id = args.get("task_id")
         run_id = args.get("dag_run_id")
+        group_id = args.get("group_id")
 
         if "map_index" not in args:
             map_indexes: list[int] | None = None
@@ -2627,6 +2642,7 @@ class Airflow(AirflowBaseView):
             future=future,
             past=past,
             state=TaskInstanceState.SUCCESS,
+            group_id=group_id,
         )
 
     @expose("/dags/<string:dag_id>")
