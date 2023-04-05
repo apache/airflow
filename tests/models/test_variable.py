@@ -281,6 +281,7 @@ class TestVariable:
 
         mock_backend.get_variable.assert_called_once()
         assert first == second
+        assert SecretCache._cache is not None  # doing this for mypy, otherwise it complains on the next line.
         assert key in SecretCache._cache
 
     def test_cache_invalidation_on_set(self):
