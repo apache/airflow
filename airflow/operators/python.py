@@ -36,7 +36,6 @@ import dill
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
-    DeserializingResultError,
     RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
@@ -376,7 +375,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         try:
             return self.pickling_library.loads(path.read_bytes())
         except ValueError:
-            raise DeserializingResultError()
+            self.log.error(
+                "Error deserializing result. Note that result deserialization "
+                "is not supported across major Python versions."
+            )
+            raise
 
     def __deepcopy__(self, memo):
         # module objects can't be copied _at all__
