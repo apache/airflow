@@ -21,6 +21,7 @@ name: Pagerduty
 description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
+suspended: false
 versions:
   - 3.1.0
   - 3.0.0

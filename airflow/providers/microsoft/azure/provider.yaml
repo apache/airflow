@@ -20,6 +20,7 @@ package-name: apache-airflow-providers-microsoft-azure
 name: Microsoft Azure
 description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
+suspended: false
 versions:
   - 5.3.0
   - 5.2.1
