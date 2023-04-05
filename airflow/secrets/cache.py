@@ -48,7 +48,7 @@ class SecretCache:
         """initializes the cache, provided the configuration allows it. Safe to call several times."""
         if cls._cache is not None:
             return
-        use_cache = conf.getboolean(section="secrets", key="use_cache", fallback=True)
+        use_cache = conf.getboolean(section="secrets", key="use_cache", fallback=False)
         if not use_cache:
             return
         if cls.__manager is None:
@@ -69,10 +69,11 @@ class SecretCache:
         """
         Tries to get the value associated with the key from the cache
 
-        :return: None if the value was not in the cache or expired, or if the cache is disabled.
-            The CACHED_NONE_VALUE sentinel is returned if None was the saved value.
+        :return: The saved value (which can be None) if present in cache and not expired,
+            a NotPresent exception otherwise.
         """
         if cls._cache is None:
+            # using an exception for misses allow to meaningfully cache None values
             raise cls.NotPresent
 
         val = cls._cache.get(key)

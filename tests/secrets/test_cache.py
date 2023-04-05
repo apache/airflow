@@ -25,8 +25,17 @@ from airflow.secrets.cache import SecretCache
 from tests.test_utils.config import conf_vars
 
 
+def test_cache_disabled_by_default():
+    SecretCache.init()
+    SecretCache.save_variable("test", "not saved")
+    with pytest.raises(SecretCache.NotPresent):
+        SecretCache.get_variable("test")
+    assert SecretCache._cache is None
+
+
 class TestSecretCache:
     @staticmethod
+    @conf_vars({("secrets", "use_cache"): "true"})
     def setup_method() -> None:
         SecretCache.init()
 

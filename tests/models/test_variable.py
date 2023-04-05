@@ -38,7 +38,8 @@ class TestVariable:
         crypto._fernet = None
         db.clear_db_variables()
         SecretCache.reset()
-        SecretCache.init()
+        with conf_vars({("secrets", "use_cache"): "true"}):
+            SecretCache.init()
         with mock.patch("airflow.models.variable.mask_secret", autospec=True) as m:
             self.mask_secret = m
             yield
