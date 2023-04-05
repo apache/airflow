@@ -53,7 +53,7 @@ class S3ToSFTPOperator(BaseOperator):
         downloading the file from S3.
     """
 
-    template_fields: Sequence[str] = ("s3_key", "sftp_path")
+    template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket")
 
     def __init__(
         self,
