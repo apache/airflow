@@ -21,6 +21,7 @@ name: Elasticsearch
 description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
+suspended: false
 versions:
   - 4.4.0
   - 4.3.3
