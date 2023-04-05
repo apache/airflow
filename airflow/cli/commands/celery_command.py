@@ -26,12 +26,10 @@ from sys import stderr as system_stderr, stdout as system_stdout
 import daemon
 import psutil
 import sqlalchemy.exc
-
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.signals import after_setup_logger
 from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
-
 
 from airflow import settings
 from airflow.configuration import conf

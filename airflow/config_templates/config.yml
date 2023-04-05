@@ -870,6 +870,16 @@ logging:
       type: string
       example: "0o664"
       default: "0o664"
+    reset_and_split_logging:
+      description:  |
+        By default Celery sends all logs into stderr.
+        This option removes default handlers and provide new ones.
+        It might be useful to send low level logs like INFO and WARNING to stdout,
+        while sending higher severity logs to STDERR.
+      version_added: 2.5.4
+      type: boolean
+      example: ~
+      default: "False"
 
 
 metrics:
