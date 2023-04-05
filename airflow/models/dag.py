@@ -1857,6 +1857,7 @@ class DAG(LoggingMixin):
         :param future: Include all future TaskInstances of the given task_id
         :param commit: Commit changes
         :param past: Include all past TaskInstances of the given task_id
+        :param group_id: The group_id of the TaskGroup
         """
         from airflow.api.common.mark_tasks import set_state
 
