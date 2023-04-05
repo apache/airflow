@@ -126,6 +126,24 @@ class BaseSessionFactory(LoggingMixin):
         """Assume Role ARN from AWS Connection"""
         return self.conn.role_arn
 
+    def _apply_session_kwargs(self, session):
+        if self.conn.session_kwargs.get("profile_name", None) is not None:
+            session.set_config_variable("profile", self.conn.session_kwargs["profile_name"])
+
+        if (
+            self.conn.session_kwargs.get("aws_access_key_id", None)
+            or self.conn.session_kwargs.get("aws_secret_access_key", None)
+            or self.conn.session_kwargs.get("aws_session_token", None)
+        ):
+            session.set_credentials(
+                self.conn.session_kwargs["aws_access_key_id"],
+                self.conn.session_kwargs["aws_secret_access_key"],
+                self.conn.session_kwargs["aws_session_token"],
+            )
+
+        if self.conn.session_kwargs.get("region_name", None) is not None:
+            session.set_config_variable("region", self.conn.session_kwargs["region_name"])
+
     def get_async_session(self):
         from aiobotocore.session import get_session as async_get_session
 
@@ -139,14 +157,19 @@ class BaseSessionFactory(LoggingMixin):
                 "See: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
                 self.region_name,
             )
-            return (
-                self.get_async_session()
-                if deferrable
-                else boto3.session.Session(region_name=self.region_name)
-            )
-
+            if deferrable:
+                session = self.get_async_session()
+                self._apply_session_kwargs(session)
+                return session
+            else:
+                return boto3.session.Session(region_name=self.region_name)
         elif not self.role_arn:
-            return self.get_async_session() if deferrable else self.basic_session
+            if deferrable:
+                session = self.get_async_session()
+                self._apply_session_kwargs(session)
+                return session
+            else:
+                return self.basic_session
 
         # Values stored in ``AwsConnectionWrapper.session_kwargs`` are intended to be used only
         # to create the initial boto3 session.
