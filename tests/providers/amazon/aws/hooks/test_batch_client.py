@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 from unittest import mock
 
+import botocore
 import botocore.exceptions
 import pytest
 

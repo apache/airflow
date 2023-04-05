@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobQueueLink,
 )
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
+from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
@@ -71,6 +72,7 @@ class BatchOperator(BaseOperator):
         Override the region_name in connection (if provided)
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
+    :param deferrable: Run operator in the deferrable mode.
 
     .. note::
         Any custom waiters must return a waiter for these calls:
@@ -125,6 +127,7 @@ class BatchOperator(BaseOperator):
         region_name: str | None = None,
         tags: dict | None = None,
         wait_for_completion: bool = True,
+        deferrable: bool = False,
         **kwargs,
     ):
 
@@ -139,6 +142,8 @@ class BatchOperator(BaseOperator):
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
+        self.deferrable = deferrable
+
         self.hook = BatchClientHook(
             max_retries=max_retries,
             status_retries=status_retries,
@@ -154,9 +159,41 @@ class BatchOperator(BaseOperator):
         """
         self.submit_job(context)
 
+        if self.deferrable:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BatchOperatorTrigger(
+                    job_id=self.job_id,
+                    job_name=self.job_name,
+                    job_definition=self.job_definition,
+                    job_queue=self.job_queue,
+                    overrides=self.overrides,
+                    array_properties=self.array_properties,
+                    parameters=self.parameters,
+                    waiters=self.waiters,
+                    tags=self.tags,
+                    max_retries=self.hook.max_retries,
+                    status_retries=self.hook.status_retries,
+                    aws_conn_id=self.hook.aws_conn_id,
+                    region_name=self.hook.region_name,
+                ),
+                method_name="execute_complete",
+            )
+
         if self.wait_for_completion:
             self.monitor_job(context)
 
+        return self.job_id
+
+    def execute_complete(self, context: Context, event: dict[str, Any]):
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if "status" in event and event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(event["message"])
         return self.job_id
 
     def on_kill(self):
