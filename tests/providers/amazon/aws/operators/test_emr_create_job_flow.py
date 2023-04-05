@@ -129,7 +129,10 @@ class TestEmrCreateJobFlowOperator:
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
         # String in job_flow_overrides (i.e. from loaded as a file) is not "parsed" until inside execute()
-        with patch("boto3.session.Session", boto3_session_mock):
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             self.operator.execute(self.mock_context)
 
         expected_args = {
@@ -161,7 +164,10 @@ class TestEmrCreateJobFlowOperator:
         emr_session_mock.client.return_value = self.emr_client_mock
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
-        with patch("boto3.session.Session", boto3_session_mock):
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
 
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
@@ -175,7 +181,10 @@ class TestEmrCreateJobFlowOperator:
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
         self.operator.wait_for_completion = True
 
-        with patch("boto3.session.Session", boto3_session_mock):
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
             mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
             assert_expected_waiter_type(mock_waiter, "job_flow_waiting")

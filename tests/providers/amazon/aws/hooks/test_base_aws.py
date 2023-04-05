@@ -451,7 +451,7 @@ class TestAwsBaseHook:
         ) as mock_boto3, mock.patch(
             "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
         ) as mock_isinstance:
-            mock_isinstance.return_value = False
+            mock_isinstance.return_value = True
             mock_get.return_value.ok = True
 
             mock_client = mock_boto3.session.Session.return_value.client
@@ -651,7 +651,7 @@ class TestAwsBaseHook:
         ) as mock_boto3, mock.patch(
             "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
         ) as mock_isinstance:
-            mock_isinstance.return_value = False
+            mock_isinstance.return_value = True
             mock_get.return_value.ok = True
 
             mock_client = mock_boto3.session.Session.return_value.client

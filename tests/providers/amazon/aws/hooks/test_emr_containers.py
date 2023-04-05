@@ -54,8 +54,9 @@ class TestEmrContainerHook:
         assert self.emr_containers.aws_conn_id == "aws_default"
         assert self.emr_containers.virtual_cluster_id == "vc1234"
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.isinstance", return_value=True)
     @mock.patch("boto3.session.Session")
-    def test_create_emr_on_eks_cluster(self, mock_session):
+    def test_create_emr_on_eks_cluster(self, mock_session, mock_isinstance):
         emr_client_mock = mock.MagicMock()
         emr_client_mock.create_virtual_cluster.return_value = CREATE_EMR_ON_EKS_CLUSTER_RETURN
         emr_session_mock = mock.MagicMock()
@@ -69,8 +70,9 @@ class TestEmrContainerHook:
         )
         assert emr_on_eks_create_cluster_response == "vc1234"
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.isinstance", return_value=True)
     @mock.patch("boto3.session.Session")
-    def test_submit_job(self, mock_session):
+    def test_submit_job(self, mock_session, mock_isinstance):
         # Mock out the emr_client creator
         emr_client_mock = mock.MagicMock()
         emr_client_mock.start_job_run.return_value = SUBMIT_JOB_SUCCESS_RETURN
@@ -88,8 +90,9 @@ class TestEmrContainerHook:
         )
         assert emr_containers_job == "job123456"
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.isinstance", return_value=True)
     @mock.patch("boto3.session.Session")
-    def test_query_status_polling_when_terminal(self, mock_session):
+    def test_query_status_polling_when_terminal(self, mock_session, mock_isinstance):
         emr_client_mock = mock.MagicMock()
         emr_session_mock = mock.MagicMock()
         emr_session_mock.client.return_value = emr_client_mock
@@ -101,8 +104,9 @@ class TestEmrContainerHook:
         emr_client_mock.describe_job_run.assert_called_once()
         assert query_status == "COMPLETED"
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.isinstance", return_value=True)
     @mock.patch("boto3.session.Session")
-    def test_query_status_polling_with_timeout(self, mock_session):
+    def test_query_status_polling_with_timeout(self, mock_session, mock_isinstance):
         emr_client_mock = mock.MagicMock()
         emr_session_mock = mock.MagicMock()
         emr_session_mock.client.return_value = emr_client_mock

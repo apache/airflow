@@ -37,7 +37,10 @@ class TestEmrTerminateJobFlowOperator:
         self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
 
     def test_execute_terminates_the_job_flow_and_does_not_error(self):
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             operator = EmrTerminateJobFlowOperator(
                 task_id="test_task", job_flow_id="j-8989898989", aws_conn_id="aws_default"
             )

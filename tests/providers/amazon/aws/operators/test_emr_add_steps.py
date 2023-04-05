@@ -151,7 +151,10 @@ class TestEmrAddStepsOperator:
         assert json.loads(test_task.steps) == file_steps
 
         # String in job_flow_overrides (i.e. from loaded as a file) is not "parsed" until inside execute()
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             test_task.execute(None)
 
         self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
@@ -161,7 +164,10 @@ class TestEmrAddStepsOperator:
     def test_execute_returns_step_id(self):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             assert self.operator.execute(self.mock_context) == ["s-2LH3R5GW3A53T"]
 
     def test_init_with_cluster_name(self):
@@ -169,7 +175,10 @@ class TestEmrAddStepsOperator:
 
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with patch(
                 "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name"
             ) as mock_get_cluster_id_by_name:

@@ -85,7 +85,10 @@ class TestEmrContainerOperator:
         emr_session_mock.client.return_value = emr_client_mock
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
-        with patch("boto3.session.Session", boto3_session_mock):
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             assert self.emr_container.execute(None) == "job123456"
             assert mock_check_query_status.call_count == 5
 
@@ -130,7 +133,10 @@ class TestEmrContainerOperator:
             max_polling_attempts=3,
         )
 
-        with patch("boto3.session.Session", boto3_session_mock):
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException) as ctx:
                 timeout_container.execute(None)
 

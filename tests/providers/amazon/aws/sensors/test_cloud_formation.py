@@ -51,7 +51,10 @@ class TestCloudFormationCreateStackSensor:
         assert op.poke({})
 
     def test_poke_false(self):
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             self.cloudformation_client_mock.describe_stacks.return_value = {
                 "Stacks": [{"StackStatus": "CREATE_IN_PROGRESS"}]
             }
@@ -59,7 +62,10 @@ class TestCloudFormationCreateStackSensor:
             assert not op.poke({})
 
     def test_poke_stack_in_unsuccessful_state(self):
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             self.cloudformation_client_mock.describe_stacks.return_value = {
                 "Stacks": [{"StackStatus": "bar"}]
             }
@@ -91,7 +97,10 @@ class TestCloudFormationDeleteStackSensor:
         assert op.poke({})
 
     def test_poke_false(self):
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             self.cloudformation_client_mock.describe_stacks.return_value = {
                 "Stacks": [{"StackStatus": "DELETE_IN_PROGRESS"}]
             }
@@ -99,7 +108,10 @@ class TestCloudFormationDeleteStackSensor:
             assert not op.poke({})
 
     def test_poke_stack_in_unsuccessful_state(self):
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             self.cloudformation_client_mock.describe_stacks.return_value = {
                 "Stacks": [{"StackStatus": "bar"}]
             }

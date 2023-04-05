@@ -55,7 +55,10 @@ class TestCloudFormationCreateStackOperator:
             dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
         )
 
-        with mock.patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock), mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             operator.execute(self.mock_context)
 
         self.cloudformation_client_mock.create_stack.assert_any_call(
@@ -84,7 +87,10 @@ class TestCloudFormationDeleteStackOperator:
             dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
         )
 
-        with mock.patch("boto3.session.Session", self.boto3_session_mock):
+        with mock.patch("boto3.session.Session", self.boto3_session_mock), mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             operator.execute(self.mock_context)
 
         self.cloudformation_client_mock.delete_stack.assert_any_call(StackName=stack_name)
