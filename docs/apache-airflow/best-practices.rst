@@ -200,10 +200,12 @@ Some cases of dynamic DAG generation are described in the :doc:`howto/dynamic-da
 Airflow Variables
 -----------------
 
-As mentioned in the previous chapter, :ref:`best_practices/top_level_code`. you should avoid
-using Airflow Variables at top level Python code of DAGs. You can use the Airflow Variables freely inside the
-``execute()`` methods of the operators, but you can also pass the Airflow Variables to the existing operators
-via Jinja template, which will delay reading the value until the task execution.
+Using Airflow Variables yields network calls and database access, so their usage in top-level Python code for DAGs
+should be avoided, as mentioned in the previous chapter, :ref:`best_practices/top_level_code`.
+Their impact on DAG parsing can be mitigated though, by :ref:`enabling caching<config:secrets__use-cache>`
+with a sensible :ref:`ttl<config:secrets__cache-ttl-seconds>`.
+You can use the Airflow Variables freely inside the ``execute()`` methods of the operators, but you can also pass the
+Airflow Variables to the existing operators via Jinja template, which will delay reading the value until the task execution.
 
 The template syntax to do this is:
 
@@ -217,7 +219,11 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, ``Variable.get()`` produces a request every time the dag file is parsed by the scheduler. Using ``Variable.get()`` will lead to suboptimal performance in the dag file processing. In some cases this can cause the dag file to timeout before it is fully parsed.
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas,
+``Variable.get()`` produces a request every time the dag file is parsed by the scheduler if caching is not enabled.
+Using ``Variable.get()`` without :ref:`enabling caching<config:secrets__use-cache>` will lead to suboptimal
+performance in the dag file processing.
+In some cases this can cause the dag file to timeout before it is fully parsed.
 
 Bad example:
 
@@ -225,20 +231,20 @@ Bad example:
 
     from airflow.models import Variable
 
-    foo_var = Variable.get("foo")  # DON'T DO THAT
+    foo_var = Variable.get("foo")  # AVOID THAT
     bash_use_variable_bad_1 = BashOperator(
         task_id="bash_use_variable_bad_1", bash_command="echo variable foo=${foo_env}", env={"foo_env": foo_var}
     )
 
     bash_use_variable_bad_2 = BashOperator(
         task_id="bash_use_variable_bad_2",
-        bash_command=f"echo variable foo=${Variable.get('foo')}",  # DON'T DO THAT
+        bash_command=f"echo variable foo=${Variable.get('foo')}",  # AVOID THAT
     )
 
     bash_use_variable_bad_3 = BashOperator(
         task_id="bash_use_variable_bad_3",
         bash_command="echo variable foo=${foo_env}",
-        env={"foo_env": Variable.get("foo")},  # DON'T DO THAT
+        env={"foo_env": Variable.get("foo")},  # AVOID THAT
     )
 
 
