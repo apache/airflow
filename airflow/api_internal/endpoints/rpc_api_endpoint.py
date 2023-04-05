@@ -83,7 +83,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     try:
         if body.get("params"):
             params_json = json.loads(str(body.get("params")))
-            params = BaseSerialization.deserialize(params_json)
+            params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
     except Exception as err:
         log.error("Error deserializing parameters.")
         log.error(err)
@@ -92,7 +92,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     log.debug("Calling method %.", {method_name})
     try:
         output = handler(**params)
-        output_json = BaseSerialization.serialize(output)
+        output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
         log.debug("Returning response")
         return Response(
             response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}
