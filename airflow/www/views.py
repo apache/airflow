@@ -2441,7 +2441,7 @@ class Airflow(AirflowBaseView):
         future: bool,
         past: bool,
         state: TaskInstanceState,
-        group_id: str,
+        group_id: str | None = None,
     ):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
 
