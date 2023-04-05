@@ -18,20 +18,18 @@
 """Celery command."""
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 from multiprocessing import Process
+from sys import stderr as system_stderr, stdout as system_stdout
 
 import daemon
-import logging
 import psutil
 import sqlalchemy.exc
-
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.signals import after_setup_logger
 from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
-from sys import stderr as system_stderr, stdout as system_stdout
-
 
 from airflow import settings
 from airflow.configuration import conf
@@ -102,10 +100,12 @@ def _serve_logs(skip_serve_logs: bool = False):
 
 
 @after_setup_logger.connect()
-def logger_setup_handler(logger, **kwargs ):
+def logger_setup_handler(logger, **kwargs):
     # Setup levels at which logs go to stderr and stdout if required
-    if conf.has_option('logging', 'reset_and_split_logging') and conf.get('logging', 'reset_and_split_logging'):
-        airflow_formatter = logging.Formatter(conf.get('logging', 'log_format'))
+    if conf.has_option("logging", "reset_and_split_logging") and conf.get(
+        "logging", "reset_and_split_logging"
+    ):
+        airflow_formatter = logging.Formatter(conf.get("logging", "log_format"))
 
         class NoErrorOrAboveFilter(logging.Filter):
             def filter(self, record):
@@ -116,7 +116,7 @@ def logger_setup_handler(logger, **kwargs ):
         below_error_handler.setFormatter(airflow_formatter)
 
         from_error_handler = logging.StreamHandler(system_stderr)
-        from_error_handler.setLevel(logging.ERROR) 
+        from_error_handler.setLevel(logging.ERROR)
         from_error_handler.setFormatter(airflow_formatter)
 
         logger.handlers.clear()
