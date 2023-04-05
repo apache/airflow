@@ -38,14 +38,20 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
+from airflow.jobs.base_job import BaseJob
+from airflow.jobs.pydantic.base_job import BaseJobPydantic
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
+from airflow.models.dagrun import DagRun
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, ExpandInput, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.pydantic.dag_run import DagRunPydantic
+from airflow.models.pydantic.dataset import DatasetPydantic
+from airflow.models.pydantic.taskinstance import TaskInstancePydantic
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
@@ -384,7 +390,7 @@ class BaseSerialization:
 
     @classmethod
     def serialize(
-        cls, var: Any, *, strict: bool = False
+        cls, var: Any, *, strict: bool = False, use_pydantic_models: bool = False
     ) -> Any:  # Unfortunately there is no support for recursive types in mypy
         """Helper function of depth first search for serialization.
 
@@ -405,10 +411,14 @@ class BaseSerialization:
             return var
         elif isinstance(var, dict):
             return cls._encode(
-                {str(k): cls.serialize(v, strict=strict) for k, v in var.items()}, type_=DAT.DICT
+                {
+                    str(k): cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models)
+                    for k, v in var.items()
+                },
+                type_=DAT.DICT,
             )
         elif isinstance(var, list):
-            return [cls.serialize(v, strict=strict) for v in var]
+            return [cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models) for v in var]
         elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
@@ -433,12 +443,23 @@ class BaseSerialization:
         elif isinstance(var, set):
             # FIXME: casts set to list in customized serialization in future.
             try:
-                return cls._encode(sorted(cls.serialize(v, strict=strict) for v in var), type_=DAT.SET)
+                return cls._encode(
+                    sorted(
+                        cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models) for v in var
+                    ),
+                    type_=DAT.SET,
+                )
             except TypeError:
-                return cls._encode([cls.serialize(v, strict=strict) for v in var], type_=DAT.SET)
+                return cls._encode(
+                    [cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models) for v in var],
+                    type_=DAT.SET,
+                )
         elif isinstance(var, tuple):
             # FIXME: casts tuple to list in customized serialization in future.
-            return cls._encode([cls.serialize(v, strict=strict) for v in var], type_=DAT.TUPLE)
+            return cls._encode(
+                [cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models) for v in var],
+                type_=DAT.TUPLE,
+            )
         elif isinstance(var, TaskGroup):
             return TaskGroupSerialization.serialize_task_group(var)
         elif isinstance(var, Param):
@@ -448,7 +469,18 @@ class BaseSerialization:
         elif isinstance(var, Dataset):
             return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
         elif isinstance(var, SimpleTaskInstance):
-            return cls._encode(cls.serialize(var.__dict__, strict=strict), type_=DAT.SIMPLE_TASK_INSTANCE)
+            return cls._encode(
+                cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
+                type_=DAT.SIMPLE_TASK_INSTANCE,
+            )
+        elif use_pydantic_models and isinstance(var, BaseJob):
+            return cls._encode(BaseJobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
+        elif use_pydantic_models and isinstance(var, TaskInstance):
+            return cls._encode(TaskInstancePydantic.from_orm(var).dict(), type_=DAT.TASK_INSTANCE)
+        elif use_pydantic_models and isinstance(var, DagRun):
+            return cls._encode(DagRunPydantic.from_orm(var).dict(), type_=DAT.DAG_RUN)
+        elif use_pydantic_models and isinstance(var, Dataset):
+            return cls._encode(DatasetPydantic.from_orm(var).dict(), type_=DAT.DATA_SET)
         else:
             log.debug("Cast type %s to str in serialization.", type(var))
             if strict:
@@ -456,7 +488,7 @@ class BaseSerialization:
             return str(var)
 
     @classmethod
-    def deserialize(cls, encoded_var: Any) -> Any:
+    def deserialize(cls, encoded_var: Any, use_pydantic_models=False) -> Any:
         """Helper function of depth first search for deserialization.
 
         :meta private:
@@ -465,7 +497,7 @@ class BaseSerialization:
         if cls._is_primitive(encoded_var):
             return encoded_var
         elif isinstance(encoded_var, list):
-            return [cls.deserialize(v) for v in encoded_var]
+            return [cls.deserialize(v, use_pydantic_models) for v in encoded_var]
 
         if not isinstance(encoded_var, dict):
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
@@ -473,7 +505,7 @@ class BaseSerialization:
         type_ = encoded_var[Encoding.TYPE]
 
         if type_ == DAT.DICT:
-            return {k: cls.deserialize(v) for k, v in var.items()}
+            return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -492,9 +524,9 @@ class BaseSerialization:
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
         elif type_ == DAT.SET:
-            return {cls.deserialize(v) for v in var}
+            return {cls.deserialize(v, use_pydantic_models) for v in var}
         elif type_ == DAT.TUPLE:
-            return tuple(cls.deserialize(v) for v in var)
+            return tuple(cls.deserialize(v, use_pydantic_models) for v in var)
         elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
@@ -503,6 +535,14 @@ class BaseSerialization:
             return Dataset(**var)
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
+        elif use_pydantic_models and type_ == DAT.BASE_JOB:
+            return BaseJobPydantic.parse_obj(var)
+        elif use_pydantic_models and type_ == DAT.TASK_INSTANCE:
+            return TaskInstancePydantic.parse_obj(var)
+        elif use_pydantic_models and type_ == DAT.DAG_RUN:
+            return DagRunPydantic.parse_obj(var)
+        elif use_pydantic_models and type_ == DAT.DATA_SET:
+            return DatasetPydantic.parse_obj(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
@@ -1114,13 +1154,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialize_operator_extra_links
 
     @classmethod
-    def serialize(cls, var: Any, *, strict: bool = False) -> Any:
+    def serialize(cls, var: Any, *, strict: bool = False, use_pydantic_models: bool = False) -> Any:
         # the wonders of multiple inheritance BaseOperator defines an instance method
-        return BaseSerialization.serialize(var=var, strict=strict)
+        return BaseSerialization.serialize(var=var, strict=strict, use_pydantic_models=use_pydantic_models)
 
     @classmethod
-    def deserialize(cls, encoded_var: Any) -> Any:
-        return BaseSerialization.deserialize(encoded_var=encoded_var)
+    def deserialize(cls, encoded_var: Any, use_pydantic_models: bool = False) -> Any:
+        return BaseSerialization.deserialize(encoded_var=encoded_var, use_pydantic_models=use_pydantic_models)
 
 
 class SerializedDAG(DAG, BaseSerialization):
