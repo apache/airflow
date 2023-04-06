@@ -25,9 +25,9 @@ import pytest
 import requests
 
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.models.pydantic.taskinstance import TaskInstancePydantic
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars

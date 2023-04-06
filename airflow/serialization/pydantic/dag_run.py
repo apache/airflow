@@ -20,7 +20,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel as BaseModelPydantic
 
-from airflow.models.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 
 
 class DagRunPydantic(BaseModelPydantic):
