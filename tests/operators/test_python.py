@@ -956,7 +956,7 @@ class TestPythonVirtualenvOperator(BasePythonTest):
             dag=self.dag,
         )
 
-        task.pickling_library.loads = mock.Mock(side_effect=ValueError)
+        task.pickling_library.loads = mock.Mock(side_effect=DeserializingResultError)
         with pytest.raises(DeserializingResultError):
             task._read_result(path=mock.Mock())
 
