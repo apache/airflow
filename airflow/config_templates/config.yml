@@ -873,9 +873,9 @@ logging:
     celery_logging_override:
       description:  |
         By default Celery sends all logs into stderr.
-        If this option is selected AirFlow will handle and send low level logs like INFO and WARNING to stdout,
+        If this option is enabled AirFlow will handle and send low level logs like INFO and WARNING to stdout,
         while sending higher severity logs to stderr.
-        This option removes default logging handlers, and provide new ones.
+        If enabled default logging handlers will be removed, and new ones provided.
       version_added: 2.5.4
       type: boolean
       example: ~
