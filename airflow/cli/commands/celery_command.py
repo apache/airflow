@@ -102,7 +102,7 @@ def _serve_logs(skip_serve_logs: bool = False):
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs):
     # Setup levels at which logs go to stderr and stdout if required
-    if conf.get("logging", "celery_logging_override", fallback=None):
+    if conf.get("logging", "celery_logging_split", fallback=None):
         # This format is copied from:
         # https://github.com/celery/celery/blob/main/celery/app/defaults.py
         # We want it to look the same as Celery itself
