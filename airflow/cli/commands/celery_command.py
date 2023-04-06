@@ -103,7 +103,12 @@ def _serve_logs(skip_serve_logs: bool = False):
 def logger_setup_handler(logger, **kwargs):
     # Setup levels at which logs go to stderr and stdout if required
     if conf.get("logging", "celery_logging_override", fallback=None):
-        airflow_formatter = logging.Formatter(conf.get("logging", "log_format"))
+        # This format is copied from:
+        # https://github.com/celery/celery/blob/main/celery/app/defaults.py
+        # We want it to look the same as Celery itself
+        DEFAULT_TASK_LOG_FMT = "[%(asctime)s: %(levelname)s/%(processName)s]"\
+        "%(task_name)s[%(task_id)s]: %(message)s"
+        celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
 
         class NoErrorOrAboveFilter(logging.Filter):
             def filter(self, record):
@@ -111,11 +116,11 @@ def logger_setup_handler(logger, **kwargs):
 
         below_error_handler = logging.StreamHandler(sys.stdout)
         below_error_handler.addFilter(NoErrorOrAboveFilter())
-        below_error_handler.setFormatter(airflow_formatter)
+        below_error_handler.setFormatter(celery_formatter)
 
         from_error_handler = logging.StreamHandler(sys.stderr)
         from_error_handler.setLevel(logging.ERROR)
-        from_error_handler.setFormatter(airflow_formatter)
+        from_error_handler.setFormatter(celery_formatter)
 
         logger.handlers[:] = [below_error_handler, from_error_handler]
 
