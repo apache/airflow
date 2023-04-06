@@ -946,6 +946,20 @@ class TestPythonVirtualenvOperator(BasePythonTest):
         }
         assert set(context) == declared_keys
 
+    def test_except_value_error(self):
+        def f():
+            return 1
+
+        task = PythonVirtualenvOperator(
+            python_callable=f,
+            task_id="task",
+            dag=self.dag,
+        )
+
+        task.pickling_library.loads = mock.Mock(side_effect=ValueError)
+        with pytest.raises(ValueError):
+            task._read_result(path=mock.Mock())
+
 
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
