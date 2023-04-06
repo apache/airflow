@@ -107,7 +107,7 @@ Examples
 --------
 Configuring Databricks connection to be used with the Sensor.
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensor.py
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_databricks_connection_setup]
@@ -115,7 +115,7 @@ Configuring Databricks connection to be used with the Sensor.
 
 Poking the specific table for existence of data/partition:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensor.py
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_databricks_sql]
