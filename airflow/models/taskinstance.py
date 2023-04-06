@@ -2613,7 +2613,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @Sentry.enrich_errors
     @provide_session
-    def schedule_downstream_tasks(self, session=None):
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION) -> None:
         """
         The mini-scheduler for scheduling downstream tasks of this task instance
         :meta: private
