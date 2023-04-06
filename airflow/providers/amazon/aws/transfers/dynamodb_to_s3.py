@@ -22,7 +22,9 @@ DynamoDB table to S3.
 from __future__ import annotations
 
 import json
+import time
 from copy import copy
+from datetime import datetime
 from decimal import Decimal
 from os.path import getsize
 from tempfile import NamedTemporaryFile
@@ -87,6 +89,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
+    :param ExportTime: Time in the past from which to export table data, counted in seconds from the start of
+     the Unix epoch. The table export will be a snapshot of the table’s state at this point in time.
     """
 
     template_fields: Sequence[str] = (
@@ -109,6 +113,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
+        export_time: datetime | None = None,
+        export_format: str = 'DYNAMODB_JSON',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -118,11 +124,51 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
+        self.export_time = export_time
+        self.export_format = export_format
 
     def execute(self, context: Context) -> None:
         hook = DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
-        table = hook.get_conn().Table(self.dynamodb_table_name)
+        if self.export_time:
+            self._export_table_to_point_in_time(hook=hook)
+        else:
+            self._export_entire_data(hook=hook)
 
+    def _export_table_to_point_in_time(self, hook: DynamoDBHook):
+        """
+        Export data from start of epoc till `export_time`. Table export will be a snapshot of the table’s
+         state at this point in time.
+        """
+        terminal_status = ['COMPLETED', 'FAILED']
+        sleep_time = 30  # unit: seconds
+        client = hook.conn.meta.client
+        while True:
+            response = client.export_table_to_point_in_time(
+                TableArn=self.dynamodb_table_name,
+                ExportTime=self.export_time,
+                ClientToken='string',
+                S3Bucket=self.s3_bucket_name,
+                S3Prefix=self.s3_key_prefix,
+                ExportFormat=self.export_format
+            )
+            export_status = self._get_export_status(response)
+            if export_status in terminal_status:
+                break
+            time.sleep(sleep_time)
+
+
+    @staticmethod
+    def _get_export_status(response: dict) -> str:
+        """
+        Get export status from response safely.
+        """
+        return response.get('ExportDescription', {}).get('ExportStatus')
+
+    def _export_entire_data(self, hook: DynamoDBHook):
+        """
+        Export all data from the table.
+        """
+        table = hook.get_conn().Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         f: IO[Any]
