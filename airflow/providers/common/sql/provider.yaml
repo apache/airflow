@@ -21,6 +21,7 @@ name: Common SQL
 description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
+suspended: false
 versions:
   - 1.4.0
   - 1.3.4

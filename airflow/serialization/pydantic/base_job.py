@@ -20,7 +20,7 @@ from typing import Optional
 
 from pydantic import BaseModel as BaseModelPydantic
 
-from airflow.models.pydantic.taskinstance import TaskInstancePydantic
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class BaseJobPydantic(BaseModelPydantic):

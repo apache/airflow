@@ -21,6 +21,7 @@ name: Atlassian Jira
 description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 
+suspended: false
 versions:
   - 2.0.1
   - 2.0.0
