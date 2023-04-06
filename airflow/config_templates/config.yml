@@ -870,7 +870,7 @@ logging:
       type: string
       example: "0o664"
       default: "0o664"
-    reset_and_split_logging:
+    celery_logging_override:
       description:  |
         By default Celery sends all logs into stderr.
         This option removes default handlers and provide new ones.

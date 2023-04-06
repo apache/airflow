@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 from multiprocessing import Process
-from sys import stderr as system_stderr, stdout as system_stdout
+import sys.stderr, sys.stdout
 
 import daemon
 import psutil
@@ -102,26 +102,22 @@ def _serve_logs(skip_serve_logs: bool = False):
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs):
     # Setup levels at which logs go to stderr and stdout if required
-    if conf.has_option("logging", "reset_and_split_logging") and conf.get(
-        "logging", "reset_and_split_logging"
-    ):
+    if conf.get("logging", "celery_logging_override", fallback=None):
         airflow_formatter = logging.Formatter(conf.get("logging", "log_format"))
 
         class NoErrorOrAboveFilter(logging.Filter):
             def filter(self, record):
                 return record.levelno <= logging.WARNING
 
-        below_error_handler = logging.StreamHandler(system_stdout)
+        below_error_handler = logging.StreamHandler(sys.stdout)
         below_error_handler.addFilter(NoErrorOrAboveFilter())
         below_error_handler.setFormatter(airflow_formatter)
 
-        from_error_handler = logging.StreamHandler(system_stderr)
+        from_error_handler = logging.StreamHandler(sys.stderr)
         from_error_handler.setLevel(logging.ERROR)
         from_error_handler.setFormatter(airflow_formatter)
 
-        logger.handlers.clear()
-        logger.addHandler(below_error_handler)
-        logger.addHandler(from_error_handler)
+        logger.handlers[:] = [below_error_handler, from_error_handler]
 
 
 @cli_utils.action_cli
