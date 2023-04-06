@@ -593,7 +593,7 @@ repos:
         files: config\.yml$|default_airflow\.cfg$|default\.cfg$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml']
+        additional_dependencies: ['pyyaml', 'packaging']
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
