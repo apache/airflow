@@ -801,8 +801,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        if dag is not None and dag.fail_stop and trigger_rule != DEFAULT_TRIGGER_RULE:
-            raise DagInvalidTriggerRule()
+        DagInvalidTriggerRule.check(dag, trigger_rule)
 
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:

@@ -2360,8 +2360,7 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
-        if self.fail_stop and task.trigger_rule != airflow.models.abstractoperator.DEFAULT_TRIGGER_RULE:
-            raise DagInvalidTriggerRule()
+        DagInvalidTriggerRule.check(self, task.trigger_rule)
 
         from airflow.utils.task_group import TaskGroupContext
 
