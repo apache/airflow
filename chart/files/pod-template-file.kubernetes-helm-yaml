@@ -86,7 +86,7 @@ spec:
   hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
   {{- end }}
   restartPolicy: Never
-  securityContext: {{- $securityContext | nindent 4 }}
+  securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
   affinity: {{- toYaml $affinity | nindent 4 }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}

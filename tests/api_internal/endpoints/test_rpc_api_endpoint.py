@@ -23,9 +23,9 @@ from unittest import mock
 import pytest
 from flask import Flask
 
-from airflow.models.pydantic.taskinstance import TaskInstancePydantic
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.state import State
 from airflow.www import app
