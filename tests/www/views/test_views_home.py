@@ -158,12 +158,14 @@ def working_dags(tmpdir):
 @pytest.fixture()
 def working_dags_with_read_perm(tmpdir):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
-    dag_contents_template_with_read_perm = "from airflow import DAG\ndag = DAG('{}', tags=['{}'], " \
-                                           "access_control={{'role_single_dag':{{'can_read'}}}}) "
+    dag_contents_template_with_read_perm = (
+        "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
+        "access_control={{'role_single_dag':{{'can_read'}}}}) "
+    )
     with create_session() as session:
         for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
-            if dag_id == 'filter_test_1':
+            if dag_id == "filter_test_1":
                 with open(filename, "w") as f:
                     f.writelines(dag_contents_template_with_read_perm.format(dag_id, tag))
             else:
@@ -175,12 +177,14 @@ def working_dags_with_read_perm(tmpdir):
 @pytest.fixture()
 def working_dags_with_edit_perm(tmpdir):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
-    dag_contents_template_with_read_perm = "from airflow import DAG\ndag = DAG('{}', tags=['{}'], " \
-                                           "access_control={{'role_single_dag':{{'can_edit'}}}}) "
+    dag_contents_template_with_read_perm = (
+        "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
+        "access_control={{'role_single_dag':{{'can_edit'}}}}) "
+    )
     with create_session() as session:
         for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
-            if dag_id == 'filter_test_1':
+            if dag_id == "filter_test_1":
                 with open(filename, "w") as f:
                     f.writelines(dag_contents_template_with_read_perm.format(dag_id, tag))
             else:
