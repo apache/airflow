@@ -151,7 +151,7 @@ class BaseExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: str | None = None,
+        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
