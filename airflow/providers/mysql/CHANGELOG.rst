@@ -27,6 +27,14 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+4.0.3
+.....
+
+Misc
+~~~~
+
+* ``Turn the package mysql-connector-python optional (dependency moved to extra) (#30487)``
+
 4.0.2
 .....
 
