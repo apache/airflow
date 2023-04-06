@@ -112,7 +112,7 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
-from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.helpers import alchemy_to_dict, exactly_one
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.net import get_hostname
@@ -2441,7 +2441,6 @@ class Airflow(AirflowBaseView):
         future: bool,
         past: bool,
         state: TaskInstanceState,
-        group_id: str | None = None,
     ):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
 
@@ -2458,7 +2457,38 @@ class Airflow(AirflowBaseView):
             downstream=downstream,
             future=future,
             past=past,
+        )
+
+        flash(f"Marked {state} on {len(altered)} task instances")
+        return redirect(origin)
+
+    def _mark_task_group_state(
+        self,
+        *,
+        dag_id: str,
+        run_id: str,
+        group_id: str,
+        origin: str,
+        upstream: bool,
+        downstream: bool,
+        future: bool,
+        past: bool,
+        state: TaskInstanceState,
+    ):
+        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+
+        if not run_id:
+            flash(f"Cannot mark tasks as {state}, seem that DAG {dag_id} has never run", "error")
+            return redirect(origin)
+
+        altered = dag.set_task_group_state(
             group_id=group_id,
+            run_id=run_id,
+            state=state,
+            upstream=upstream,
+            downstream=downstream,
+            future=future,
+            past=past,
         )
 
         flash(f"Marked {state} on {len(altered)} task instances")
@@ -2493,6 +2523,9 @@ class Airflow(AirflowBaseView):
         past = to_boolean(args.get("past"))
         origin = origin or url_for("Airflow.index")
 
+        if not exactly_one(task_id, group_id):
+            raise ValueError("Exactly one of task_id or group_id must be provided")
+
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
             msg = f"DAG {dag_id} not found"
@@ -2512,7 +2545,7 @@ class Airflow(AirflowBaseView):
 
         tasks: list[Operator | tuple[Operator, int]] = []
 
-        if group_id is not None:
+        if group_id:
             task_group_dict = dag.task_group.get_task_group_dict()
             task_group = task_group_dict.get(group_id)
             if task_group is None:
@@ -2572,12 +2605,15 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     def failed(self):
-        """Mark task as failed."""
+        """Mark task or task_group as failed."""
         args = request.form
         dag_id = args.get("dag_id")
         task_id = args.get("task_id")
         run_id = args.get("dag_run_id")
         group_id = args.get("group_id")
+
+        if not exactly_one(task_id, group_id):
+            raise ValueError("Exactly one of task_id or group_id must be provided")
 
         if "map_index" not in args:
             map_indexes: list[int] | None = None
@@ -2590,19 +2626,31 @@ class Airflow(AirflowBaseView):
         future = to_boolean(args.get("future"))
         past = to_boolean(args.get("past"))
 
-        return self._mark_task_instance_state(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_indexes=map_indexes,
-            origin=origin,
-            upstream=upstream,
-            downstream=downstream,
-            future=future,
-            past=past,
-            state=TaskInstanceState.FAILED,
-            group_id=group_id,
-        )
+        if task_id:
+            return self._mark_task_instance_state(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_indexes=map_indexes,
+                origin=origin,
+                upstream=upstream,
+                downstream=downstream,
+                future=future,
+                past=past,
+                state=TaskInstanceState.FAILED,
+            )
+        elif group_id:
+            return self._mark_task_group_state(
+                dag_id=dag_id,
+                run_id=run_id,
+                group_id=group_id,
+                origin=origin,
+                upstream=upstream,
+                downstream=downstream,
+                future=future,
+                past=past,
+                state=TaskInstanceState.FAILED,
+            )
 
     @expose("/success", methods=["POST"])
     @auth.has_access(
@@ -2613,12 +2661,15 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     def success(self):
-        """Mark task as success."""
+        """Mark task or task_group as success."""
         args = request.form
         dag_id = args.get("dag_id")
         task_id = args.get("task_id")
         run_id = args.get("dag_run_id")
         group_id = args.get("group_id")
+
+        if not exactly_one(task_id, group_id):
+            raise ValueError("Exactly one of task_id or group_id must be provided")
 
         if "map_index" not in args:
             map_indexes: list[int] | None = None
@@ -2631,19 +2682,31 @@ class Airflow(AirflowBaseView):
         future = to_boolean(args.get("future"))
         past = to_boolean(args.get("past"))
 
-        return self._mark_task_instance_state(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_indexes=map_indexes,
-            origin=origin,
-            upstream=upstream,
-            downstream=downstream,
-            future=future,
-            past=past,
-            state=TaskInstanceState.SUCCESS,
-            group_id=group_id,
-        )
+        if task_id:
+            return self._mark_task_instance_state(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_indexes=map_indexes,
+                origin=origin,
+                upstream=upstream,
+                downstream=downstream,
+                future=future,
+                past=past,
+                state=TaskInstanceState.SUCCESS,
+            )
+        elif group_id:
+            return self._mark_task_group_state(
+                dag_id=dag_id,
+                run_id=run_id,
+                group_id=group_id,
+                origin=origin,
+                upstream=upstream,
+                downstream=downstream,
+                future=future,
+                past=past,
+                state=TaskInstanceState.SUCCESS,
+            )
 
     @expose("/dags/<string:dag_id>")
     @auth.has_access(
