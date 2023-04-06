@@ -39,7 +39,6 @@ from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.pydantic.base_job import BaseJobPydantic
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -48,9 +47,6 @@ from airflow.models.expandinput import EXPAND_INPUT_EMPTY, ExpandInput, create_e
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
-from airflow.models.pydantic.dag_run import DagRunPydantic
-from airflow.models.pydantic.dataset import DatasetPydantic
-from airflow.models.pydantic.taskinstance import TaskInstancePydantic
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
@@ -58,6 +54,10 @@ from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
+from airflow.serialization.pydantic.base_job import BaseJobPydantic
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.serialization.pydantic.dataset import DatasetPydantic
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.settings import DAGS_FOLDER, json
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
