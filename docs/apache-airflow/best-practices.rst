@@ -202,8 +202,8 @@ Airflow Variables
 
 Using Airflow Variables yields network calls and database access, so their usage in top-level Python code for DAGs
 should be avoided, as mentioned in the previous chapter, :ref:`best_practices/top_level_code`.
-Their impact on DAG parsing can be mitigated though, by :ref:`enabling caching<config:secrets__use-cache>`
-with a sensible :ref:`ttl<config:secrets__cache-ttl-seconds>`.
+Their impact on DAG parsing can be mitigated though, by :ref:`enabling caching<config:secrets__use_cache>`
+with a sensible :ref:`ttl<config:secrets__cache_ttl_seconds>`.
 You can use the Airflow Variables freely inside the ``execute()`` methods of the operators, but you can also pass the
 Airflow Variables to the existing operators via Jinja template, which will delay reading the value until the task execution.
 
@@ -221,7 +221,7 @@ or if you need to deserialize a json object from the variable :
 
 In top-level code, variables using jinja templates do not produce a request until a task is running, whereas,
 ``Variable.get()`` produces a request every time the dag file is parsed by the scheduler if caching is not enabled.
-Using ``Variable.get()`` without :ref:`enabling caching<config:secrets__use-cache>` will lead to suboptimal
+Using ``Variable.get()`` without :ref:`enabling caching<config:secrets__use_cache>` will lead to suboptimal
 performance in the dag file processing.
 In some cases this can cause the dag file to timeout before it is fully parsed.
 
