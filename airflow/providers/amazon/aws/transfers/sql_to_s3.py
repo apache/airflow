@@ -184,7 +184,7 @@ class SqlToS3Operator(BaseOperator):
                     filename=tmp_file.name, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
                 )
 
-    def _partition_dataframe(self, df: DataFrame) -> Iterable[str, DataFrame]:
+    def _partition_dataframe(self, df: DataFrame) -> Iterable[tuple[str, DataFrame]]:
         """Partition dataframe using pandas groupby() method"""
         if not self.groupby_kwargs:
             yield "", df
