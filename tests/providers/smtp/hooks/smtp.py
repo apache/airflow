@@ -166,7 +166,9 @@ class TestSmtpHook:
         with SmtpHook() as smtp_hook, tempfile.NamedTemporaryFile() as attachment:
             attachment.write(b"attachment")
             attachment.seek(0)
-            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", files=[attachment.name])
+            smtp_hook.send_email_smtp(
+                to="to", subject="subject", html_content="content", files=[attachment.name]
+            )
             assert mock_send_mime.called
             _, call_args = mock_send_mime.call_args
             assert "from" == call_args["from_addr"]
