@@ -376,13 +376,13 @@ class BaseExecutor(LoggingMixin):
         """This method is called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
 
-    def cleanup_stuck_queued_tasks(self, tis: Sequence[TaskInstance]) -> None:  # pragma: no cover
+    def cleanup_stuck_queued_task(self, ti: TaskInstance) -> None:  # pragma: no cover
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.
-        :param tis: Task Instances to clean up
+        :param ti: Task Instance to clean up
         """
         raise NotImplementedError()
 

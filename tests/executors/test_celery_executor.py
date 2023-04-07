@@ -217,10 +217,10 @@ class TestCeleryExecutor:
             yield app.control.revoke
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_cleanup_stuck_queued_tasks(self, session):
+    def test_cleanup_stuck_queued_task(self, session):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_cleanup_stuck_queued_tasks_failed") as dag:
+        with DAG("test_cleanup_stuck_queued_task_failed"):
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         ti = TaskInstance(task=task, run_id=None)
@@ -236,7 +236,7 @@ class TestCeleryExecutor:
             executor.running = {ti.key}
             executor.tasks = {ti.key: AsyncResult("231")}
             executor.sync()
-            executor.cleanup_stuck_queued_tasks([ti])
+            executor.cleanup_stuck_queued_task(ti)
         assert executor.tasks == {}
         assert app.control.revoke.called_with("231")
 

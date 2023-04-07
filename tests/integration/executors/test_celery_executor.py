@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest import mock
 
 # leave this it is used by the test worker

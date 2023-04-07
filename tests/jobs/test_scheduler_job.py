@@ -1583,14 +1583,13 @@ class TestSchedulerJob:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
 
-        processor = mock.MagicMock()
-
         self.scheduler_job = SchedulerJob(num_runs=0)
-        self.scheduler_job.processor_agent = processor
         self.scheduler_job._task_queued_timeout = 300
+        self.scheduler_job.executor = mock.MagicMock()
 
         self.scheduler_job._fail_tasks_stuck_in_queued()
 
+        self.scheduler_job.executor.cleanup_stuck_queued_task.assert_called_once()
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         assert ti.state == State.FAILED
 
@@ -1605,14 +1604,13 @@ class TestSchedulerJob:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
 
-        processor = mock.MagicMock()
-
         self.scheduler_job = SchedulerJob(num_runs=0)
-        self.scheduler_job.processor_agent = processor
         self.scheduler_job._task_queued_timeout = 300
+        self.scheduler_job.executor = mock.MagicMock()
 
         self.scheduler_job._fail_tasks_stuck_in_queued()
 
+        self.scheduler_job.executor.cleanup_stuck_queued_task.assert_called_once()
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         assert ti.state == State.UP_FOR_RETRY
 
