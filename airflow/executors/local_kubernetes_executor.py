@@ -17,16 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
 from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.executors.local_executor import LocalExecutor
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 
 
 class LocalKubernetesExecutor(LoggingMixin):
@@ -127,6 +129,8 @@ class LocalKubernetesExecutor(LoggingMixin):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance via local or kubernetes executor."""
+        from airflow.models.taskinstance import SimpleTaskInstance
+
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key

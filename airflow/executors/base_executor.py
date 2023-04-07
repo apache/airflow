@@ -23,39 +23,40 @@ import warnings
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
-from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
-# Command to execute - list of strings
-# the first element is always "airflow".
-# It should be result of TaskInstance.generate_command method.q
-CommandType = List[str]
+if TYPE_CHECKING:
+    from airflow.callbacks.base_callback_sink import BaseCallbackSink
+    from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
+    # Command to execute - list of strings
+    # the first element is always "airflow".
+    # It should be result of TaskInstance.generate_command method.
+    CommandType = List[str]
 
-# Task that is queued. It contains all the information that is
-# needed to run the task.
-#
-# Tuple of: command, priority, queue name, TaskInstance
-QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], TaskInstance]
+    # Task that is queued. It contains all the information that is
+    # needed to run the task.
+    #
+    # Tuple of: command, priority, queue name, TaskInstance
+    QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], TaskInstance]
 
-# Event_buffer dict value type
-# Tuple of: state, info
-EventBufferValueType = Tuple[Optional[str], Any]
+    # Event_buffer dict value type
+    # Tuple of: state, info
+    EventBufferValueType = Tuple[Optional[str], Any]
 
-# Task tuple to send to be executed
-TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    # Task tuple to send to be executed
+    TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 log = logging.getLogger(__name__)
 
