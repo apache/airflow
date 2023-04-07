@@ -21,12 +21,13 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 from multiprocessing import Process
-import sys.stderr, sys.stdout
+import sys
 
 import daemon
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
+from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
 from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
@@ -103,11 +104,6 @@ def _serve_logs(skip_serve_logs: bool = False):
 def logger_setup_handler(logger, **kwargs):
     # Setup levels at which logs go to stderr and stdout if required
     if conf.get("logging", "celery_logging_split", fallback=None):
-        # This format is copied from:
-        # https://github.com/celery/celery/blob/main/celery/app/defaults.py
-        # We want it to look the same as Celery itself
-        DEFAULT_TASK_LOG_FMT = "[%(asctime)s: %(levelname)s/%(processName)s]"\
-        "%(task_name)s[%(task_id)s]: %(message)s"
         celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
 
         class NoErrorOrAboveFilter(logging.Filter):
