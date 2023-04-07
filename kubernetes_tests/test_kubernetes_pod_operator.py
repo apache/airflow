@@ -89,6 +89,7 @@ def mock_get_connection():
 
 
 @pytest.mark.execution_timeout(180)
+@pytest.mark.usefixtures("mock_get_connection")
 class TestKubernetesPodOperatorSystem:
     @pytest.fixture(autouse=True)
     def setup_tests(self, test_label):
@@ -146,8 +147,7 @@ class TestKubernetesPodOperatorSystem:
             return None
         return ",".join([f"{key}={value}" for key, value in enumerate(self.labels)])
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_do_xcom_push_defaults_false(self, kubeconfig_path):
+    def test_do_xcom_push_defaults_false(self, kubeconfig_path, mock_get_connection):
         with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
             new_config_path = f.name
         shutil.copy(kubeconfig_path, new_config_path)
@@ -164,8 +164,7 @@ class TestKubernetesPodOperatorSystem:
         )
         assert not k.do_xcom_push
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_config_path_move(self, kubeconfig_path):
+    def test_config_path_move(self, kubeconfig_path, mock_get_connection):
         with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
             new_config_path = f.name
         shutil.copy(kubeconfig_path, new_config_path)
@@ -188,8 +187,7 @@ class TestKubernetesPodOperatorSystem:
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert actual_pod == expected_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_working_pod(self):
+    def test_working_pod(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -206,8 +204,7 @@ class TestKubernetesPodOperatorSystem:
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_delete_operator_pod(self):
+    def test_delete_operator_pod(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -225,8 +222,7 @@ class TestKubernetesPodOperatorSystem:
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_already_checked_on_success(self):
+    def test_already_checked_on_success(self, mock_get_connection):
         """
         When ``is_delete_operator_pod=False``, pod should have 'already_checked'
         label, whether pod is successful or not.
@@ -248,8 +244,7 @@ class TestKubernetesPodOperatorSystem:
         actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
         assert actual_pod["metadata"]["labels"]["already_checked"] == "True"
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_already_checked_on_failure(self):
+    def test_already_checked_on_failure(self, mock_get_connection):
         """
         When ``is_delete_operator_pod=False``, pod should have 'already_checked'
         label, whether pod is successful or not.
@@ -274,8 +269,7 @@ class TestKubernetesPodOperatorSystem:
         assert status["state"]["terminated"]["reason"] == "Error"
         assert actual_pod["metadata"]["labels"]["already_checked"] == "True"
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_hostnetwork(self):
+    def test_pod_hostnetwork(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -294,8 +288,7 @@ class TestKubernetesPodOperatorSystem:
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_dnspolicy(self):
+    def test_pod_dnspolicy(self, mock_get_connection):
         dns_policy = "ClusterFirstWithHostNet"
         k = KubernetesPodOperator(
             namespace="default",
@@ -317,8 +310,7 @@ class TestKubernetesPodOperatorSystem:
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_schedulername(self):
+    def test_pod_schedulername(self, mock_get_connection):
         scheduler_name = "default-scheduler"
         k = KubernetesPodOperator(
             namespace="default",
@@ -337,8 +329,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["schedulerName"] = scheduler_name
         assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_node_selector(self):
+    def test_pod_node_selector(self, mock_get_connection):
         node_selector = {"beta.kubernetes.io/os": "linux"}
         k = KubernetesPodOperator(
             namespace="default",
@@ -357,8 +348,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["nodeSelector"] = node_selector
         assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_resources(self):
+    def test_pod_resources(self, mock_get_connection):
         resources = k8s.V1ResourceRequirements(
             requests={"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
             limits={"memory": "64Mi", "cpu": 0.25, "nvidia.com/gpu": None, "ephemeral-storage": "2Gi"},
@@ -428,8 +418,7 @@ class TestKubernetesPodOperatorSystem:
             ),
         ],
     )
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_affinity(self, val):
+    def test_pod_affinity(self, val, mock_get_connection):
         expected = {
             "nodeAffinity": {
                 "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -460,8 +449,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["affinity"] = expected
         assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_port(self):
+    def test_port(self, mock_get_connection):
         port = k8s.V1ContainerPort(
             name="http",
             container_port=80,
@@ -484,8 +472,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["containers"][0]["ports"] = [{"name": "http", "containerPort": 80}]
         assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_volume_mount(self):
+    def test_volume_mount(self, mock_get_connection):
         with mock.patch.object(PodManager, "log") as mock_logger:
             volume_mount = k8s.V1VolumeMount(
                 name="test-volume", mount_path="/tmp/test_volume", sub_path=None, read_only=False
@@ -525,8 +512,7 @@ class TestKubernetesPodOperatorSystem:
             assert self.expected_pod == actual_pod
 
     @pytest.mark.parametrize("uid", [0, 1000])
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_run_as_user(self, uid):
+    def test_run_as_user(self, uid, mock_get_connection):
         security_context = {"runAsUser": uid}
         name = str(uuid4())
         k = KubernetesPodOperator(
@@ -551,8 +537,7 @@ class TestKubernetesPodOperatorSystem:
         assert pod.to_dict()["spec"]["security_context"]["run_as_user"] == uid
 
     @pytest.mark.parametrize("gid", [0, 1000])
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_fs_group(self, gid):
+    def test_fs_group(self, gid, mock_get_connection):
         security_context = {"fsGroup": gid}
         name = str(uuid4())
         k = KubernetesPodOperator(
@@ -576,8 +561,7 @@ class TestKubernetesPodOperatorSystem:
         )
         assert pod.to_dict()["spec"]["security_context"]["fs_group"] == gid
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_disable_privilege_escalation(self):
+    def test_disable_privilege_escalation(self, mock_get_connection):
         container_security_context = {"allowPrivilegeEscalation": False}
 
         k = KubernetesPodOperator(
@@ -597,8 +581,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["containers"][0]["securityContext"] = container_security_context
         assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_faulty_image(self):
+    def test_faulty_image(self, mock_get_connection):
         bad_image_name = "foobar"
         k = KubernetesPodOperator(
             namespace="default",
@@ -618,8 +601,7 @@ class TestKubernetesPodOperatorSystem:
             self.expected_pod["spec"]["containers"][0]["image"] = bad_image_name
             assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_faulty_service_account(self):
+    def test_faulty_service_account(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -637,8 +619,7 @@ class TestKubernetesPodOperatorSystem:
         with pytest.raises(ApiException, match="error looking up service account default/foobar"):
             k.get_or_create_pod(pod, context)
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_failure(self):
+    def test_pod_failure(self, mock_get_connection):
         """
         Tests that the task fails when a pod reports a failure
         """
@@ -660,8 +641,7 @@ class TestKubernetesPodOperatorSystem:
             self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
             assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_xcom_push(self, test_label):
+    def test_xcom_push(self, test_label, mock_get_connection):
         expected = {"test_label": test_label, "buzz": 2}
         args = [f"echo '{json.dumps(expected)}' > /airflow/xcom/return.json"]
         k = KubernetesPodOperator(
@@ -677,8 +657,7 @@ class TestKubernetesPodOperatorSystem:
         context = create_context(k)
         assert k.execute(context) == expected
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_env_vars(self):
+    def test_env_vars(self, mock_get_connection):
         # WHEN
         env_vars = [
             k8s.V1EnvVar(name="ENV1", value="val1"),
@@ -710,8 +689,7 @@ class TestKubernetesPodOperatorSystem:
         ]
         assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_template_file_system(self):
+    def test_pod_template_file_system(self, mock_get_connection):
         """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
@@ -734,8 +712,7 @@ class TestKubernetesPodOperatorSystem:
             param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_template_file_with_overrides_system(self, env_vars, test_label):
+    def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
@@ -762,8 +739,7 @@ class TestKubernetesPodOperatorSystem:
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_template_file_with_full_pod_spec(self, test_label):
+    def test_pod_template_file_with_full_pod_spec(self, test_label, mock_get_connection):
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -804,8 +780,7 @@ class TestKubernetesPodOperatorSystem:
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_full_pod_spec(self, test_label):
+    def test_full_pod_spec(self, test_label, mock_get_connection):
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 labels={"test_label": test_label, "fizz": "buzz"}, namespace="default", name="test-pod"
@@ -850,8 +825,7 @@ class TestKubernetesPodOperatorSystem:
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_init_container(self):
+    def test_init_container(self, mock_get_connection):
         # GIVEN
         volume_mounts = [
             k8s.V1VolumeMount(mount_path="/etc/foo", name="test-volume", sub_path=None, read_only=True)
@@ -1046,8 +1020,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["priorityClassName"] = priority_class_name
         assert self.expected_pod == actual_pod
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_pod_name(self):
+    def test_pod_name(self, mock_get_connection):
         pod_name_too_long = "a" * 221
         with pytest.raises(AirflowException):
             KubernetesPodOperator(
@@ -1062,8 +1035,7 @@ class TestKubernetesPodOperatorSystem:
                 do_xcom_push=False,
             )
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_on_kill(self):
+    def test_on_kill(self, mock_get_connection):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
         name = "test"
@@ -1103,8 +1075,7 @@ class TestKubernetesPodOperatorSystem:
         with pytest.raises(ApiException, match=r'pods \\"test.[a-z0-9]+\\" not found'):
             client.read_namespaced_pod(name=name, namespace=namespace)
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_reattach_failing_pod_once(self):
+    def test_reattach_failing_pod_once(self, mock_get_connection):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
         client = hook.core_v1_client
         name = "test"
@@ -1171,8 +1142,7 @@ class TestKubernetesPodOperatorSystem:
                 k.execute(context)
             create_mock.assert_called_once()
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_using_resources(self):
+    def test_using_resources(self, mock_get_connection):
         exception_message = (
             "Specifying resources for the launched pod with 'resources' is deprecated. "
             "Use 'container_resources' instead."
@@ -1194,8 +1164,7 @@ class TestKubernetesPodOperatorSystem:
                 resources=resources,
             )
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_changing_base_container_name_with_get_logs(self):
+    def test_changing_base_container_name_with_get_logs(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -1220,8 +1189,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
         assert self.expected_pod["spec"] == actual_pod["spec"]
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_changing_base_container_name_no_logs(self):
+    def test_changing_base_container_name_no_logs(self, mock_get_connection):
         """
         This test checks BOTH a modified base container name AND the get_logs=False flow,
         and as a result, also checks that the flow works with fast containers
@@ -1251,8 +1219,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
         assert self.expected_pod["spec"] == actual_pod["spec"]
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_changing_base_container_name_no_logs_long(self):
+    def test_changing_base_container_name_no_logs_long(self, mock_get_connection):
         """
         Similar to test_changing_base_container_name_no_logs, but ensures that
         pods running longer than 1 second work too.
@@ -1283,8 +1250,7 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["containers"][0]["args"] = ["sleep 3"]
         assert self.expected_pod["spec"] == actual_pod["spec"]
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_changing_base_container_name_failure(self):
+    def test_changing_base_container_name_failure(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -1311,8 +1277,7 @@ class TestKubernetesPodOperatorSystem:
 
         assert mock_get_container_termination_message.call_args[0][1] == "apple-sauce"
 
-    @pytest.mark.usefixtures("mock_get_connection")
-    def test_base_container_name_init_precedence(self):
+    def test_base_container_name_init_precedence(self, mock_get_connection):
         assert (
             KubernetesPodOperator(base_container_name="apple-sauce", task_id=str(uuid4())).base_container_name
             == "apple-sauce"
