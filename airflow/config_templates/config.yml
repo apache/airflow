@@ -438,14 +438,14 @@ core:
       example: '{"some_param": "some_value"}'
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
     internal_api_url:
       description: |
-        (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
-      version_added: 2.6.0
+        (experimental) Airflow Internal API url. Only used if [core] database_access_isolation is True.
+      version_added: 2.7.0
       type: string
       default: ~
       example: 'http://localhost:8080'
@@ -1674,7 +1674,7 @@ webserver:
     run_internal_api:
       description: |
         Boolean for running Internal API in the webserver.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
