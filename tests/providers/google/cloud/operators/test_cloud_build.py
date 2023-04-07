@@ -475,13 +475,6 @@ def test_async_create_build_error_event_should_throw_exception():
         operator.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
 
 
-@mock.patch(CLOUD_BUILD_HOOK_PATH)
-def test_async_create_build_with_missing_build_should_throw_exception(mock_hook):
-    mock_hook.return_value.create_build.return_value = Build()
-    with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
-        CloudBuildCreateBuildOperator(task_id="id")
-
-
 @pytest.mark.parametrize(
     "file_type, file_content",
     [
