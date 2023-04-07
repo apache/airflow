@@ -406,7 +406,7 @@ class DagFileProcessor(LoggingMixin):
             session.query(TI.task_id, func.max(DR.execution_date).label("max_ti"))
             .join(TI.dag_run)
             .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
+            .filter(or_(TI.state == State.SUCCESS))
             .filter(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
             .subquery("sq")
@@ -425,6 +425,16 @@ class DagFileProcessor(LoggingMixin):
                 TI.dag_id == dag.dag_id,
                 TI.task_id == qry.c.task_id,
                 DR.execution_date == qry.c.max_ti,
+            )
+        )
+        skipped_tis = set(
+            session.query(TI.dag_id, TI.task_id, DR.execution_date)
+            .join(TI.dag_run)
+            .filter(
+                TI.dag_id == dag.dag_id,
+                TI.state == State.SKIPPED,
+                TI.task_id == qry.c.task_id,
+                DR.execution_date > qry.c.max_ti,
             )
         )
 
@@ -449,6 +459,8 @@ class DagFileProcessor(LoggingMixin):
                 if next_info is None:
                     break
                 if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
+                    continue
+                if (ti.dag_id, ti.task_id, next_info.logical_date) in skipped_tis:
                     continue
                 if next_info.logical_date + task.sla < ts:
 

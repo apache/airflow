@@ -300,6 +300,57 @@ class TestDagFileProcessor:
         assert sla_miss_count == 2
         mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
 
+    @mock.patch("airflow.dag_processing.processor.Stats.incr")
+    @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
+    def test_dag_file_processor_sla_miss_continue_checking_the_task_instances_after_skipped_ti(
+        self, mock_get_dagbag, mock_stats_incr, dag_maker
+    ):
+        """
+        Test that the dag file processor continue checking subsequent task instances
+        even if the preceding task instance misses the sla ahead
+        """
+        session = settings.Session()
+
+        # Create a dag with a start of 3 days ago,
+        # and create TIs with state success and skipped in that order.
+        # Then we should have 1 missing slas
+        now = timezone.utcnow()
+        test_start_date = now - datetime.timedelta(days=3)
+        with dag_maker(
+            dag_id="test_sla_miss",
+            default_args={"start_date": test_start_date, "sla": datetime.timedelta(days=1)},
+        ) as dag:
+            task = EmptyOperator(task_id="dummy")
+        for offset_day, ti_state in {
+            0: "success",
+            1: "skipped",
+        }.items():
+            execution_date = test_start_date + datetime.timedelta(days=offset_day)
+
+            dag_maker.create_dagrun(
+                run_id=f"test_{offset_day}", execution_date=execution_date, state=State.SUCCESS
+            )
+            session.merge(TaskInstance(task=task, run_id=f"test_{offset_day}", state=ti_state))
+            session.flush()
+
+        mock_dagbag = mock.Mock()
+        mock_dagbag.get_dag.return_value = dag
+        mock_get_dagbag.return_value = mock_dagbag
+
+        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        sla_miss_count = (
+            session.query(SlaMiss)
+            .filter(
+                SlaMiss.dag_id == dag.dag_id,
+                SlaMiss.task_id == task.task_id,
+            )
+            .count()
+        )
+        assert sla_miss_count == 1
+        mock_stats_incr.assert_called_with(
+            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test_0", "task_id": "dummy"}
+        )
+
     @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
