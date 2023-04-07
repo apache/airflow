@@ -613,12 +613,12 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping=False,
         ignore_ti_state=False,
         local=False,
-        pickle_id=None,
+        pickle_id: int | None = None,
         raw=False,
         job_id=None,
         pool=None,
         cfg_path=None,
-    ):
+    ) -> list[str]:
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -2613,7 +2613,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @Sentry.enrich_errors
     @provide_session
-    def schedule_downstream_tasks(self, session=None):
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION) -> None:
         """
         The mini-scheduler for scheduling downstream tasks of this task instance
         :meta: private

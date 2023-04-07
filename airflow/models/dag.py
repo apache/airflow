@@ -3271,7 +3271,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dagmodel(dag_id, session=NEW_SESSION):
+    def get_dagmodel(dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
         return session.get(
             DagModel,
             dag_id,

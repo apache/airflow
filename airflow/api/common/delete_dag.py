@@ -21,20 +21,21 @@ from __future__ import annotations
 import logging
 
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel, TaskFail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import get_sqla_model_classes
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 log = logging.getLogger(__name__)
 
 
 @provide_session
-def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> int:
+def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session = NEW_SESSION) -> int:
     """
     Delete a DAG by a dag_id.
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 import signal
 
 import psutil
+from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -31,7 +32,7 @@ from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 SIGSEGV_MESSAGE = """
@@ -229,7 +230,7 @@ class LocalTaskJob(BaseJob):
         self.task_runner.on_finish()
 
     @provide_session
-    def heartbeat_callback(self, session=None):
+    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         """Self destruct task if state has been moved away from running externally."""
         if self.terminating:
             # ensure termination if processes are created later
@@ -273,7 +274,10 @@ class LocalTaskJob(BaseJob):
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
                 execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
-                dagrun_timeout = ti.task.dag.dagrun_timeout
+                if ti.task.dag is not None:
+                    dagrun_timeout = ti.task.dag.dagrun_timeout
+                else:
+                    dagrun_timeout = None
                 if dagrun_timeout and execution_time > dagrun_timeout:
                     self.log.warning("DagRun timed out after %s.", str(execution_time))
 

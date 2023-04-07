@@ -1293,11 +1293,11 @@ class SchedulerJob(BaseJob):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
-        if not dag:
-            self.log.error("Couldn't find dag %s in DagBag/DB!", dag_run.dag_id)
+        if not dag or not dag_model:
+            self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
             return callback
-        dag_model = DM.get_dagmodel(dag.dag_id, session)
 
         if (
             dag_run.start_date
@@ -1401,6 +1401,10 @@ class SchedulerJob(BaseJob):
             return
 
         dag_model = DagModel.get_dagmodel(dag.dag_id)
+        if not dag_model:
+            self.log.error("Couldn't find DAG %s in database!", dag.dag_id)
+            return
+
         request = SlaCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dag.dag_id,

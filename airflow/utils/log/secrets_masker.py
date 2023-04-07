@@ -28,6 +28,7 @@ from typing import (
     Dict,
     Generator,
     Iterable,
+    Iterator,
     List,
     TextIO,
     Tuple,
@@ -352,11 +353,61 @@ class RedactedIO(TextIO):
 
     def __init__(self):
         self.target = sys.stdout
-        self.fileno = sys.stdout.fileno
+
+    def __enter__(self) -> TextIO:
+        return self.target.__enter__()
+
+    def __exit__(self, t, v, b) -> None:
+        return self.target.__exit__(t, v, b)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.target)
+
+    def __next__(self) -> str:
+        return next(self.target)
+
+    def close(self) -> None:
+        return self.target.close()
+
+    def fileno(self) -> int:
+        return self.target.fileno()
+
+    def flush(self) -> None:
+        return self.target.flush()
+
+    def isatty(self) -> bool:
+        return self.target.isatty()
+
+    def read(self, n: int = -1) -> str:
+        return self.target.read(n)
+
+    def readable(self) -> bool:
+        return self.target.readable()
+
+    def readline(self, n: int = -1) -> str:
+        return self.target.readline(n)
+
+    def readlines(self, n: int = -1) -> list[str]:
+        return self.target.readlines(n)
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        return self.target.seek(offset, whence)
+
+    def seekable(self) -> bool:
+        return self.target.seekable()
+
+    def tell(self) -> int:
+        return self.target.tell()
+
+    def truncate(self, s: int | None = None) -> int:
+        return self.target.truncate(s)
+
+    def writable(self) -> bool:
+        return self.target.writable()
 
     def write(self, s: str) -> int:
         s = redact(s)
         return self.target.write(s)
 
-    def flush(self) -> None:
-        return self.target.flush()
+    def writelines(self, lines) -> None:
+        self.target.writelines(lines)

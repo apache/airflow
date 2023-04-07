@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
+from sqlalchemy.orm import Session
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.configuration import conf
@@ -50,7 +51,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
@@ -494,7 +495,7 @@ class KubernetesExecutor(BaseExecutor):
         return pods
 
     @provide_session
-    def clear_not_launched_queued_tasks(self, session=None) -> None:
+    def clear_not_launched_queued_tasks(self, session: Session = NEW_SESSION) -> None:
         """
         Clear tasks that were not yet launched, but were previously queued.
 
