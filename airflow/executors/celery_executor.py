@@ -35,7 +35,7 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from multiprocessing import cpu_count
-from typing import Any, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -49,8 +49,7 @@ import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType, TaskTuple
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -59,6 +58,15 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.timezone import utcnow
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType, EventBufferValueType, TaskTuple
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+    # Task instance that is sent over Celery queues
+    # TaskInstanceKey, Command, queue_name, CallableTask
+    TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
+
 
 log = logging.getLogger(__name__)
 
@@ -162,11 +170,6 @@ class ExceptionWithTraceback:
     def __init__(self, exception: Exception, exception_traceback: str):
         self.exception = exception
         self.traceback = exception_traceback
-
-
-# Task instance that is sent over Celery queues
-# TaskInstanceKey, Command, queue_name, CallableTask
-TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 
 def send_task_to_executor(
@@ -392,6 +395,8 @@ class CeleryExecutor(BaseExecutor):
     def _send_stalled_tis_back_to_scheduler(
         self, keys: list[TaskInstanceKey], session: Session = NEW_SESSION
     ) -> None:
+        from airflow.models.taskinstance import TaskInstance
+
         try:
             session.query(TaskInstance).filter(
                 TaskInstance.filter_for_tis(keys),

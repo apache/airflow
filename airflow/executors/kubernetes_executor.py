@@ -41,30 +41,33 @@ from urllib3.exceptions import ReadTimeoutError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
-from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.executors.base_executor import BaseExecutor
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+    # TaskInstance key, command, configuration, pod_template_file
+    KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
+
+    # key, pod state, pod_id, namespace, resource_version
+    KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
+
+    # pod_id, namespace, pod state, annotations, resource_version
+    KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
+
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
-
-# TaskInstance key, command, configuration, pod_template_file
-KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
-
-# key, pod state, pod_id, namespace, resource_version
-KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
-
-# pod_id, namespace, pod state, annotations, resource_version
-KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 
 
 class ResourceVersion:
@@ -512,6 +515,7 @@ class KubernetesExecutor(BaseExecutor):
         """
         if TYPE_CHECKING:
             assert self.kube_client
+        from airflow.models.taskinstance import TaskInstance
 
         self.log.debug("Clearing tasks that have not been launched")
         query = session.query(TaskInstance).filter(
