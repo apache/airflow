@@ -185,6 +185,8 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been created: %s.", id_)
+
         return operation, id_
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -229,7 +231,7 @@ class CloudBuildHook(GoogleBaseHook):
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
 
-        operation.result()
+        self.wait_for_operation(operation, timeout)
 
         return self.get_build(id_=id_, project_id=project_id)
 
@@ -524,13 +526,12 @@ class CloudBuildHook(GoogleBaseHook):
         )
 
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been retried: %s.", id_)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id, location=location)
 
-        operation.result()
-
-        self.log.info("Build has been retried: %s.", id_)
+        self.wait_for_operation(operation, timeout)
 
         return self.get_build(id_=id_, project_id=project_id, location=location)
 
@@ -571,14 +572,15 @@ class CloudBuildHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self.log.info("Build trigger has been run: %s.", trigger_id)
 
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been created: %s.", id_)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id, location=location)
-        operation.result()
 
-        self.log.info("Build trigger has been run: %s.", trigger_id)
+        self.wait_for_operation(operation, timeout)
 
         return self.get_build(id_=id_, project_id=project_id, location=location)
 
