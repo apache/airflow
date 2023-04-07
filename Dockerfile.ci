@@ -878,16 +878,19 @@ EXTRA_PYTEST_ARGS=(
     "--teardown-timeout=${TEST_TIMEOUT}"
     "--output=${WARNINGS_FILE}"
     "--disable-warnings"
-    # Only display summary for non-expected case
+    # Only display summary for non-expected cases
+    #
     # f - failed
     # E - error
     # X - xpassed (passed even if expected to fail)
-    # The following cases are not displayed:
     # s - skipped
+    #
+    # The following cases are not displayed:
     # x - xfailed (expected to fail and failed)
     # p - passed
     # P - passed with output
-    "-rfEX"
+    #
+    "-rfEXs"
 )
 
 if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
