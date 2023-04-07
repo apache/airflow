@@ -53,7 +53,7 @@ Example usage:
 Grouping
 --------
 
-We can group the data in the table by passing the ``groupby_kwargs`` param. This param accepts a ``dict`` which will be passed to pandas :doc:`goupby() <pandas:/reference/api/pandas.DataFrame.groupby.html?highlight=groupby#pandas.DataFrame.groupby>` as kwargs.
+We can group the data in the table by passing the ``groupby_kwargs`` param. This param accepts a ``dict`` which will be passed to pandas `groupby() <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.groupby.html#pandas.DataFrame.groupby>`_ as kwargs.
 
 Example usage:
 
