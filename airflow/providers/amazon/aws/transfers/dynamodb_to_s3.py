@@ -114,7 +114,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
         export_time: datetime | None = None,
-        export_format: str = 'DYNAMODB_JSON',
+        export_format: str = "DYNAMODB_JSON",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -136,33 +136,32 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     def _export_table_to_point_in_time(self, hook: DynamoDBHook):
         """
-        Export data from start of epoc till `export_time`. Table export will be a snapshot of the table’s
+        Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
          state at this point in time.
         """
-        terminal_status = ['COMPLETED', 'FAILED']
+        terminal_status = ["COMPLETED", "FAILED"]
         sleep_time = 30  # unit: seconds
         client = hook.conn.meta.client
         while True:
             response = client.export_table_to_point_in_time(
                 TableArn=self.dynamodb_table_name,
                 ExportTime=self.export_time,
-                ClientToken='string',
+                ClientToken="string",
                 S3Bucket=self.s3_bucket_name,
                 S3Prefix=self.s3_key_prefix,
-                ExportFormat=self.export_format
+                ExportFormat=self.export_format,
             )
             export_status = self._get_export_status(response)
             if export_status in terminal_status:
                 break
             time.sleep(sleep_time)
 
-
     @staticmethod
     def _get_export_status(response: dict) -> str:
         """
         Get export status from response safely.
         """
-        return response.get('ExportDescription', {}).get('ExportStatus')
+        return response.get("ExportDescription", {}).get("ExportStatus")
 
     def _export_entire_data(self, hook: DynamoDBHook):
         """
