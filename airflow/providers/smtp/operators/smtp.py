@@ -79,10 +79,10 @@ class EmailOperator(BaseOperator):
     def execute(self, context: Context):
         with SmtpHook(smtp_conn_id=self.conn_id) as smtp_hook:
             return smtp_hook.send_email_smtp(
-                self.to,
-                self.from_email,
-                self.subject,
-                self.html_content,
+                to=self.to,
+                from_email=self.from_email,
+                subject=self.subject,
+                html_content=self.html_content,
                 files=self.files,
                 cc=self.cc,
                 bcc=self.bcc,
