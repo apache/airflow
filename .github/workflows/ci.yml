@@ -46,6 +46,7 @@ env:
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
+  AIRFLOW_ENABLE_AIP_52: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
