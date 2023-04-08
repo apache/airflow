@@ -18,15 +18,14 @@
 """This module contains Google Kubernetes Engine operators."""
 from __future__ import annotations
 
-import os
-import tempfile
 import warnings
-from contextlib import contextmanager
-from typing import TYPE_CHECKING, Generator, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
+from kubernetes.client.models import V1Pod
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 
 try:
@@ -34,15 +33,14 @@ try:
 except ImportError:
     # preserve backward compatibility for older versions of cncf.kubernetes provider
     from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook, GKEPodHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from airflow.utils.process_utils import execute_in_subprocess, patch_environ
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
+from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -233,6 +231,8 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param poll_interval: Interval size which defines how often operation status is checked.
     """
 
     template_fields: Sequence[str] = (
@@ -363,7 +363,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
 class GKEStartPodOperator(KubernetesPodOperator):
     """
     Executes a task in a Kubernetes pod in the specified Google Kubernetes
-    Engine cluster
+    Engine cluster.
 
     This Operator assumes that the system has gcloud installed and has configured a
     connection id with a service account.
@@ -386,7 +386,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         should be spawned in
     :param use_internal_ip: Use the internal IP address as the endpoint.
     :param project_id: The Google Developers Console project id
-    :param gcp_conn_id: The google cloud connection id to use. This allows for
+    :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or list of accounts required to get the access_token
@@ -399,8 +399,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :param regional: The location param is region name.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod.  Current default is False, but this will be
+        pod; if False, leave the pod. Current default is False, but this will be
         changed in the next major release of this provider.
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -413,11 +414,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
         *,
         location: str,
         cluster_name: str,
-        use_internal_ip: bool = False,
+        use_internal_ip: bool | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        regional: bool = False,
+        regional: bool | None = None,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
@@ -432,14 +433,34 @@ class GKEStartPodOperator(KubernetesPodOperator):
             )
             is_delete_operator_pod = False
 
+        if use_internal_ip is not None:
+            warnings.warn(
+                f"You have set parameter use_internal_ip in class {self.__class__.__name__}. "
+                "In current implementation of the operator the parameter is not used and will "
+                "be deleted in future.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if regional is not None:
+            warnings.warn(
+                f"You have set parameter regional in class {self.__class__.__name__}. "
+                "In current implementation of the operator the parameter is not used and will "
+                "be deleted in future.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
-        self.use_internal_ip = use_internal_ip
         self.impersonation_chain = impersonation_chain
-        self.regional = regional
+
+        self.pod: V1Pod | None = None
+        self._ssl_ca_cert: str | None = None
+        self._cluster_url: str | None = None
 
         if self.gcp_conn_id is None:
             raise AirflowException(
@@ -453,88 +474,77 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
     @staticmethod
-    @contextmanager
-    def get_gke_config_file(
-        gcp_conn_id,
-        project_id: str | None,
-        cluster_name: str,
-        impersonation_chain: str | Sequence[str] | None,
-        regional: bool,
-        location: str,
-        use_internal_ip: bool,
-    ) -> Generator[str, None, None]:
+    def get_gke_config_file():
+        warnings.warn(
+            "The `get_gke_config_file` method is deprecated, "
+            "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
 
-        hook = GoogleBaseHook(gcp_conn_id=gcp_conn_id)
-        project_id = project_id or hook.project_id
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
 
-        if not project_id:
-            raise AirflowException(
-                "The project id must be passed either as "
-                "keyword project_id parameter or as project_id extra "
-                "in Google Cloud connection definition. Both are not set!"
+    @cached_property
+    def hook(self) -> GKEPodHook:  # type: ignore[override]
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
             )
 
-        # Write config to a temp file and set the environment variable to point to it.
-        # This is to avoid race conditions of reading/writing a single file
-        with tempfile.NamedTemporaryFile() as conf_file, patch_environ(
-            {KUBE_CONFIG_ENV_VAR: conf_file.name}
-        ), hook.provide_authorized_gcloud():
-            # Attempt to get/update credentials
-            # We call gcloud directly instead of using google-cloud-python api
-            # because there is no way to write kubernetes config to a file, which is
-            # required by KubernetesPodOperator.
-            # The gcloud command looks at the env variable `KUBECONFIG` for where to save
-            # the kubernetes config file.
-            cmd = [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                cluster_name,
-                "--project",
-                project_id,
-            ]
-            if impersonation_chain:
-                if isinstance(impersonation_chain, str):
-                    impersonation_account = impersonation_chain
-                elif len(impersonation_chain) == 1:
-                    impersonation_account = impersonation_chain[0]
-                else:
-                    raise AirflowException(
-                        "Chained list of accounts is not supported, please specify only one service account"
-                    )
+        hook = GKEPodHook(
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+        return hook
 
-                cmd.extend(
-                    [
-                        "--impersonate-service-account",
-                        impersonation_account,
-                    ]
-                )
-            if regional:
-                cmd.append("--region")
-            else:
-                cmd.append("--zone")
-            cmd.append(location)
-            if use_internal_ip:
-                cmd.append("--internal-ip")
-            execute_in_subprocess(cmd)
+    def execute(self, context: Context):
+        """Executes process of creating pod and executing provided command inside it."""
+        self.fetch_cluster_info()
+        return super().execute(context)
 
-            # Tell `KubernetesPodOperator` where the config file is located
-            yield os.environ[KUBE_CONFIG_ENV_VAR]
-
-    def execute(self, context: Context) -> str | None:
-
-        with GKEStartPodOperator.get_gke_config_file(
-            gcp_conn_id=self.gcp_conn_id,
+    def fetch_cluster_info(self) -> tuple[str, str | None]:
+        """Fetches cluster info for connecting to it."""
+        cluster = self.cluster_hook.get_cluster(
+            name=self.cluster_name,
             project_id=self.project_id,
-            cluster_name=self.cluster_name,
-            impersonation_chain=self.impersonation_chain,
-            regional=self.regional,
-            location=self.location,
-            use_internal_ip=self.use_internal_ip,
-        ) as config_file:
-            self.config_file = config_file
-            result = super().execute(context)
-            if not self.is_delete_operator_pod:
-                KubernetesEnginePodLink.persist(context=context, task_instance=self)
-            return result
+        )
+
+        self._cluster_url = f"https://{cluster.endpoint}"
+        self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
+        return self._cluster_url, self._ssl_ca_cert
+
+    def invoke_defer_method(self):
+        """Method to easily redefine triggers which are being used in child classes."""
+        trigger_start_time = utcnow()
+        self.defer(
+            trigger=GKEStartPodTrigger(
+                pod_name=self.pod.metadata.name,
+                pod_namespace=self.pod.metadata.namespace,
+                trigger_start_time=trigger_start_time,
+                cluster_url=self._cluster_url,
+                ssl_ca_cert=self._ssl_ca_cert,
+                get_logs=self.get_logs,
+                startup_timeout=self.startup_timeout_seconds,
+                cluster_context=self.cluster_context,
+                poll_interval=self.poll_interval,
+                in_cluster=self.in_cluster,
+                should_delete_pod=self.is_delete_operator_pod,
+                base_container_name=self.base_container_name,
+            ),
+            method_name="execute_complete",
+            kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
+        )
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        # It is required for hook to be initialized
+        self._cluster_url = kwargs["cluster_url"]
+        self._ssl_ca_cert = kwargs["ssl_ca_cert"]
+
+        return super().execute_complete(context, event, **kwargs)
