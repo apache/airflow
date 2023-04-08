@@ -90,3 +90,78 @@ class TestRedshiftClusterTrigger:
         )
         task = [i async for i in trigger.run()]
         assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "operation_type,return_value,response",
+        [
+            (
+                "resume_cluster",
+                {"status": "error", "message": "test error"},
+                TriggerEvent({"status": "error", "message": "test error"}),
+            ),
+        ],
+    )
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    async def test_resume_trigger_run_error(
+        self, mock_resume_cluster, operation_type, return_value, response
+    ):
+        """Test RedshiftClusterTrigger resume cluster with success"""
+        mock_resume_cluster.return_value = return_value
+        trigger = RedshiftClusterTrigger(
+            task_id=TASK_ID,
+            poll_interval=POLLING_PERIOD_SECONDS,
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            operation_type=operation_type,
+            attempts=1,
+        )
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert response == actual
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "operation_type,return_value,response",
+        [
+            (
+                "resume_cluster",
+                {"status": "success", "cluster_state": "available"},
+                TriggerEvent({"status": "success", "cluster_state": "available"}),
+            ),
+        ],
+    )
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    async def test_resume_trigger_run_success(
+        self, mock_resume_cluster, operation_type, return_value, response
+    ):
+        """Test RedshiftClusterTrigger resume cluster with success"""
+        mock_resume_cluster.return_value = return_value
+        trigger = RedshiftClusterTrigger(
+            task_id=TASK_ID,
+            poll_interval=POLLING_PERIOD_SECONDS,
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            operation_type=operation_type,
+            attempts=1,
+        )
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert response == actual
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    async def test_resume_trigger_failure(self, mock_resume_cluster):
+        """Test RedshiftClusterTrigger resume cluster with failure status"""
+        mock_resume_cluster.side_effect = Exception("Test exception")
+        trigger = RedshiftClusterTrigger(
+            task_id=TASK_ID,
+            poll_interval=POLLING_PERIOD_SECONDS,
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            operation_type="resume_cluster",
+            attempts=1,
+        )
+        task = [i async for i in trigger.run()]
+        assert len(task) == 1
+        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task

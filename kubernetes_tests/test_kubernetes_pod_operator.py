@@ -699,18 +699,18 @@ class TestKubernetesPodOperatorSystem:
         assert result == {"hello": "world"}
 
     @pytest.mark.parametrize(
-        "input",
+        "env_vars",
         [
             param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
             param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
-    def test_pod_template_file_with_overrides_system(self, input, test_label):
+    def test_pod_template_file_with_overrides_system(self, env_vars, test_label):
         fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
-            env_vars=[k8s.V1EnvVar(name="env_name", value="value")],
+            env_vars=env_vars,
             in_cluster=False,
             pod_template_file=fixture,
             do_xcom_push=True,
@@ -890,6 +890,7 @@ class TestKubernetesPodOperatorSystem:
         await_xcom_sidecar_container_start_mock.return_value = None
         hook_mock.return_value.is_in_cluster = False
         hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         extract_xcom_mock.return_value = "{}"
         path = sys.path[0] + "/tests/kubernetes/pod.yaml"
         k = KubernetesPodOperator(
@@ -956,7 +957,9 @@ class TestKubernetesPodOperatorSystem:
                         "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
                         "image": "alpine",
                         "name": "airflow-xcom-sidecar",
-                        "resources": {"requests": {"cpu": "1m"}},
+                        "resources": {
+                            "requests": {"cpu": "1m", "memory": "10Mi"},
+                        },
                         "volumeMounts": [{"mountPath": "/airflow/xcom", "name": "xcom"}],
                     },
                 ],

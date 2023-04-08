@@ -513,6 +513,39 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[1].image == "private.repo/alpine:3.13"
 
+    @patch(HOOK_CLASS)
+    def test_xcom_sidecar_container_resources_default(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].resources == k8s.V1ResourceRequirements(
+            requests={
+                "cpu": "1m",
+                "memory": "10Mi",
+            },
+        )
+
+    @patch(HOOK_CLASS)
+    def test_xcom_sidecar_container_resources_custom(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = {
+            "requests": {"cpu": "1m", "memory": "10Mi"},
+            "limits": {"cpu": "10m", "memory": "50Mi"},
+        }
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].resources == {
+            "requests": {"cpu": "1m", "memory": "10Mi"},
+            "limits": {"cpu": "10m", "memory": "50Mi"},
+        }
+
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
             task_id="task",
@@ -1263,6 +1296,23 @@ class TestKubernetesPodOperatorAsync:
         )
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[1].image == "alpine"
+
+    @patch(HOOK_CLASS)
+    def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self, hook_mock):
+        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+        k = KubernetesPodOperator(
+            name=TEST_NAME,
+            task_id="task",
+            do_xcom_push=True,
+            deferrable=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].resources == k8s.V1ResourceRequirements(
+            requests={
+                "cpu": "1m",
+                "memory": "10Mi",
+            },
+        )
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))

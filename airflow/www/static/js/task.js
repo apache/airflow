@@ -25,10 +25,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const value = attr.innerHTML;
     if (value.length === 32 && moment(value, "YYYY-MM-DD").isValid()) {
       // 32 is the length of our timestamps
-      attr.innerHTML = `<time datetime="${value}">${value}</time>`;
+      attr.innerHTML = "";
+      const timeElement = document.createElement("time");
+      timeElement.setAttribute("datetime", value);
+      const textNode = document.createTextNode(value);
+      timeElement.appendChild(textNode);
+      attr.appendChild(timeElement);
     } else if (value.includes("http")) {
       // very basic url detection
-      attr.innerHTML = `<a href=${value}>${value}</a>`;
+      attr.innerHTML = "";
+      const linkElement = document.createElement("a");
+      linkElement.setAttribute("href", value);
+      const textNode = document.createTextNode(value);
+      linkElement.appendChild(textNode);
+      attr.appendChild(linkElement);
     }
   });
 });

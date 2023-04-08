@@ -17,12 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import dill
 from sqlalchemy import BigInteger, Column, Integer, PickleType
 
 from airflow.models.base import Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 
 class DagPickle(Base):
@@ -44,9 +49,9 @@ class DagPickle(Base):
 
     __tablename__ = "dag_pickle"
 
-    def __init__(self, dag):
+    def __init__(self, dag: DAG) -> None:
         self.dag_id = dag.dag_id
         if hasattr(dag, "template_env"):
-            dag.template_env = None
+            dag.template_env = None  # type: ignore[attr-defined]
         self.pickle_hash = hash(dag)
         self.pickle = dag

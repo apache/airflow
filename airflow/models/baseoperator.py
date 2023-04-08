@@ -88,6 +88,7 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -919,14 +920,27 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
+        if SetupTeardownContext.active:
+            SetupTeardownContext.update_context_map(self)
+
     @classmethod
     def as_setup(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Setup tasks are disabled.")
+
         op = cls(*args, **kwargs)
         op._is_setup = True
         return op
 
     @classmethod
     def as_teardown(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Teardown tasks are disabled.")
+
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
         op = cls(*args, **kwargs)
         op._is_teardown = True
