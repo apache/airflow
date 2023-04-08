@@ -17,9 +17,9 @@
 
 .. _howto/operator:RedshiftSQLOperator:
 
-===============
-Amazon Redshift
-===============
+===================
+Amazon Redshift SQL
+===================
 
 `Amazon Redshift <https://aws.amazon.com/redshift/>`__ manages all the work of setting up, operating, and scaling a data warehouse:
 provisioning capacity, monitoring and backing up the cluster, and applying patches and upgrades to
@@ -29,7 +29,7 @@ business and customers.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
