@@ -31,7 +31,7 @@ from unittest import mock
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
@@ -276,6 +276,20 @@ class TestPythonOperator(BasePythonTest):
         else:
             assert "Done. Returned value was: test_return_value" not in caplog.messages
             assert "Done. Returned value not shown" in caplog.messages
+
+    def test_python_operator_templates_exts(self):
+        def func():
+            return "test_return_value"
+
+        python_operator = PythonOperator(
+            task_id="python_operator",
+            python_callable=func,
+            dag=self.dag,
+            show_return_value_in_logs=False,
+            templates_exts=["test_ext"],
+        )
+
+        assert python_operator.template_ext == ["test_ext"]
 
 
 class TestBranchOperator(BasePythonTest):
@@ -931,6 +945,20 @@ class TestPythonVirtualenvOperator(BasePythonTest):
             *intentionally_excluded_context_keys,
         }
         assert set(context) == declared_keys
+
+    def test_except_value_error(self):
+        def f():
+            return 1
+
+        task = PythonVirtualenvOperator(
+            python_callable=f,
+            task_id="task",
+            dag=self.dag,
+        )
+
+        task.pickling_library.loads = mock.Mock(side_effect=DeserializingResultError)
+        with pytest.raises(DeserializingResultError):
+            task._read_result(path=mock.Mock())
 
 
 class TestCurrentContext:
