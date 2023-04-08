@@ -37,7 +37,6 @@ Misc
 
 * ``Add more info to quicksight error messages (#30466)``
 * ``add template field for s3 bucket (#30472)``
-
 * ``Add s3_bucket to template fields in SFTP to S3 operator (#30444)``
 
 
