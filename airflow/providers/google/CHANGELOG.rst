@@ -23,6 +23,20 @@
 Changelog
 ---------
 
+8.12.1
+......
+
+This version of provider contains a temporary workaround to issue with ``v11`` version of
+google-ads API being discontinued, while the google provider dependencies preventing installing
+any google-ads client supporting ``v12`` API. This version contains vendored-in version of google-ads
+library ``20.0.0`` v12 support only. The workaround (and vendored-in library) will be removed
+as soon as dependencies of the provider will allow to use google-ads supporting newer
+API versions of google-ads.
+
+.. note::
+
+  ONLY v12 version of google ads is supported. You should set v12 when your create an operator or client.
+
 8.12.0
 ......
 
