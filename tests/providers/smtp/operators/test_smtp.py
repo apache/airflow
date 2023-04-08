@@ -48,4 +48,5 @@ class TestEmailOperator:
         smtp_client_mock = mock_smtplib.SMTP_SSL()
         op = EmailOperator(task_id="test_email", to="to", subject="subject", html_content="content")
         op.execute({})
-        assert smtp_client_mock.sendmail.call_args_list[0].kwargs["from_addr"] == sender_email
+        call_args = smtp_client_mock.sendmail.call_args[1]
+        assert call_args["from_addr"] == sender_email
