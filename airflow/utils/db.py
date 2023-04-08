@@ -692,12 +692,11 @@ def _create_db_from_orm(session):
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
         db.create_all()
 
-    with create_global_lock(session=session , lock=DBLocks.MIGRATIONS):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         engine = session.get_bind().engine
         Base.metadata.create_all(engine)
         Model.metadata.create_all(engine)
         _create_flask_session_tbl(engine.url)
-        _create_flask_session_tbl()
         # stamp the migration head
         config = _get_alembic_config()
         command.stamp(config, "head")
