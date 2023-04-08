@@ -241,16 +241,16 @@
           {% set dag_is_paused = dag.get_is_paused() %}
           <tr>
             <td style="padding-right:0;">
-              {% if dag.can_edit %}
+              {% if dag.can_pause %}
                 {% set switch_tooltip = 'Pause/Unpause DAG' %}
               {% else %}
                 {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
               {% endif %}
-              <label class="switch-label{{ ' disabled' if not dag.can_edit else '' }} js-tooltip"
+              <label class="switch-label{{ ' disabled' if not dag.can_pause else '' }} js-tooltip"
                      title="{{ switch_tooltip }}">
                 <input class="switch-input" id="toggle-{{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}" type="checkbox"
                   {{ " checked" if not dag_is_paused else "" }}
-                  {{ " disabled" if not dag.can_edit else "" }}>
+                  {{ " disabled" if not dag.can_pause else "" }}>
                 <span class="switch" aria-hidden="true"></span>
               </label>
             </td>

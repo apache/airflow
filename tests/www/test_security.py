@@ -133,6 +133,9 @@ def _can_edit_dag(dag_id: str, user) -> bool:
 def _can_delete_dag(dag_id: str, user) -> bool:
     return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
 
+def _can_pause_dag(dag_id: str, user) -> bool:
+    return get_auth_manager().is_authorized_dag(method="PATCH", details=DagDetails(id=dag_id), user=user)
+
 
 def _has_all_dags_access(user) -> bool:
     return get_auth_manager().is_authorized_dag(
@@ -360,6 +363,7 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
 
             assert _can_read_dag(dag_id, user) is False
             assert _can_edit_dag(dag_id, user) is False
+            assert _can_pause_dag(dag_id, user) is False
             assert has_dag_perm("GET", dag_id, user) is False
             assert has_dag_perm("PUT", dag_id, user) is False
 
@@ -405,6 +409,7 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 
                 assert _can_read_dag(dag_id, user) is True
                 assert _can_edit_dag(dag_id, user) is True
+                assert _can_pause_dag(dag_id, user) is True
                 assert has_dag_perm("GET", dag_id, user) is True
                 assert has_dag_perm("PUT", dag_id, user) is True
 

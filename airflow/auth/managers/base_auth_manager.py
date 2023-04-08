@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
 
 
 class BaseAuthManager(LoggingMixin):

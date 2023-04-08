@@ -60,11 +60,12 @@ ACTION_CAN_CREATE = "can_create"
 ACTION_CAN_READ = "can_read"
 ACTION_CAN_EDIT = "can_edit"
 ACTION_CAN_DELETE = "can_delete"
+ACTION_CAN_PAUSE = "can_pause"
 ACTION_CAN_ACCESS_MENU = "menu_access"
 DEPRECATED_ACTION_CAN_DAG_READ = "can_dag_read"
 DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 
-DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
+DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE, ACTION_CAN_PAUSE}
 
 
 def resource_name_for_dag(root_dag_id: str) -> str:

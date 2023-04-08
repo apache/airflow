@@ -25,6 +25,7 @@ from airflow.security.permissions import (
     ACTION_CAN_DELETE,
     ACTION_CAN_EDIT,
     ACTION_CAN_READ,
+    ACTION_CAN_PAUSE,
 )
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ _MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
     "GET": ACTION_CAN_READ,
     "PUT": ACTION_CAN_EDIT,
     "DELETE": ACTION_CAN_DELETE,
+    "PATCH": ACTION_CAN_PAUSE,
 }
 
 
