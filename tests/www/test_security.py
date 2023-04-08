@@ -327,8 +327,10 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
 
             assert security_manager.can_read_dag(dag_id, user) is False
             assert security_manager.can_edit_dag(dag_id, user) is False
+            assert security_manager.can_pause_dag(dag_id, user) is False
             assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is False
             assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is False
+            assert has_dag_perm(permissions.ACTION_CAN_PAUSE, dag_id, user) is False
 
 
 @pytest.mark.parametrize(
@@ -368,8 +370,10 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 
                 assert security_manager.can_read_dag(dag_id, user) is True
                 assert security_manager.can_edit_dag(dag_id, user) is True
+                assert security_manager.can_pause_dag(dag_id, user) is True
                 assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is True
                 assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is True
+                assert has_dag_perm(permissions.ACTION_CAN_PAUSE, dag_id, user) is True
 
 
 def test_get_user_roles(app_builder, security_manager):
@@ -463,7 +467,6 @@ def test_get_accessible_dag_ids(app, security_manager, session):
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             ],
         ) as user:
-
             dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
             session.add(dag_model)
             session.commit()
@@ -491,7 +494,6 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
         ) as user:
-
             dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
             session.add(dag_model)
             session.commit()
@@ -711,7 +713,6 @@ def test_correct_roles_have_perms_to_read_config(security_manager):
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
-
     access_control = {"Public": {permissions.ACTION_CAN_READ}}
 
     collect_dags_from_db_mock = mock.Mock()

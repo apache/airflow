@@ -104,6 +104,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     USER_PERMISSIONS = [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
@@ -399,6 +400,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         root_dag_id = self._get_root_dag_id(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_DELETE, dag_resource_name, user=user)
+
+    def can_pause_dag(self, dag_id, user=None) -> bool:
+        """Determines whether a user has DAG pause access."""
+        root_dag_id = self._get_root_dag_id(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
+        return self.has_access(permissions.ACTION_CAN_PAUSE, dag_resource_name, user=user)
 
     def prefixed_dag_id(self, dag_id: str) -> str:
         """Returns the permission name for a DAG id."""

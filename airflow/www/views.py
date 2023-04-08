@@ -799,6 +799,7 @@ class Airflow(AirflowBaseView):
                 dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id, g.user)
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
+                dag.can_pause = get_airflow_app().appbuilder.sm.can_pause_dag(dag.dag_id, g.user)
 
             dagtags = session.query(func.distinct(DagTag.name)).all()
             tags = [
@@ -1886,6 +1887,7 @@ class Airflow(AirflowBaseView):
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         dag_orm: DagModel = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+        can_pause_dag = get_airflow_app().appbuilder.sm.can_pause_dag(dag_id, g.user)
 
         # Prepare form fields with param struct details to render a proper form with schema information
         form_fields = {}
@@ -1971,6 +1973,8 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                 recent_confs=recent_confs,
+                can_pause_dag=can_pause_dag,
+                dag_is_paused=dag.get_is_paused(),
             )
 
         try:
@@ -1987,6 +1991,8 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                 recent_confs=recent_confs,
+                can_pause_dag=can_pause_dag,
+                dag_is_paused=dag.get_is_paused(),
             )
 
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
@@ -2022,6 +2028,8 @@ class Airflow(AirflowBaseView):
                         form=form,
                         is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                         recent_confs=recent_confs,
+                        can_pause_dag=can_pause_dag,
+                        dag_is_paused=dag.get_is_paused(),
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
@@ -2035,6 +2043,8 @@ class Airflow(AirflowBaseView):
                     form=form,
                     is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                     recent_confs=recent_confs,
+                    can_pause_dag=can_pause_dag,
+                    dag_is_paused=dag.get_is_paused(),
                 )
 
         if unpause and dag.get_is_paused():
@@ -2067,6 +2077,8 @@ class Airflow(AirflowBaseView):
                 conf=request_conf,
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                can_pause_dag=can_pause_dag,
+                dag_is_paused=dag.get_is_paused(),
             )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")
@@ -3422,7 +3434,7 @@ class Airflow(AirflowBaseView):
     @expose("/paused", methods=["POST"])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
         ]
     )
     @action_logging
@@ -5808,6 +5820,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
         dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id)
         dag.can_trigger = dag.can_edit and can_create_dag_run
         dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id)
+        dag.can_pause = get_airflow_app().appbuilder.sm.can_pause_dag(dag.dag_id, g.user)
         context["dag"] = dag
 
 
