@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-07T17:14:26Z
+# This constraints file was automatically generated on 2023-04-08T12:47:23Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -253,7 +253,7 @@ identify==2.5.22
 idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
-importlib-metadata==6.1.0
+importlib-metadata==6.2.0
 importlib-resources==5.12.0
 impyla==0.18.0
 incremental==22.10.0
@@ -319,7 +319,7 @@ multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.26.78
 mypy-boto3-rds==1.26.108
-mypy-boto3-redshift-data==1.26.88
+mypy-boto3-redshift-data==1.26.109
 mypy-extensions==1.0.0
 mypy==1.0.0
 mysql-connector-python==8.0.32
@@ -497,7 +497,7 @@ sphinxcontrib-spelling==8.0.0
 spython==0.3.0
 sqlalchemy-bigquery==1.6.1
 sqlalchemy-drill==1.1.2
-sqlalchemy-redshift==0.8.13
+sqlalchemy-redshift==0.8.14
 sqlparse==0.4.3
 sshpubkeys==3.3.1
 sshtunnel==0.4.0
