@@ -96,6 +96,7 @@ def acl_app(app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_EDIT, "DAG:example_bash_operator"),
             (permissions.ACTION_CAN_READ, "DAG:example_bash_operator"),
+            (permissions.ACTION_CAN_PAUSE, "DAG:example_bash_operator"),
         ],
         "all_dag_role": [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
@@ -159,7 +160,7 @@ def init_dagruns(acl_app, reset_dagruns):
 
 @pytest.fixture()
 def dag_test_client(acl_app):
-    return client_with_login(acl_app, username="dag_test", password="dag_test")
+    return client_with_login(acl_app, username="dag_tester", password="dag_test")
 
 
 @pytest.fixture()
@@ -195,12 +196,13 @@ def test_permission_exist(acl_app):
     perms_views = acl_app.appbuilder.sm.get_resource_permissions(
         acl_app.appbuilder.sm.get_resource("DAG:example_bash_operator"),
     )
-    assert len(perms_views) == 3
+    assert len(perms_views) == 4
 
     perms = {str(perm) for perm in perms_views}
     assert "can read on DAG:example_bash_operator" in perms
     assert "can edit on DAG:example_bash_operator" in perms
     assert "can delete on DAG:example_bash_operator" in perms
+    assert "can pause on DAG:example_bash_operator" in perms
 
 
 @pytest.mark.usefixtures("user_edit_one_dag")
@@ -209,6 +211,7 @@ def test_role_permission_associate(acl_app):
     perms = {str(perm) for perm in test_role.permissions}
     assert "can edit on DAG:example_bash_operator" in perms
     assert "can read on DAG:example_bash_operator" in perms
+    assert "can pause on DAG:example_bash_operator" not in perms
 
 
 @pytest.fixture(scope="module")
