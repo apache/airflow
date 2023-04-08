@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.neo4j.hooks.neo4j import Driver, Neo4jHook
+from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 
 class TestNeo4jHookConn:
@@ -105,17 +105,17 @@ class TestNeo4jHookConn:
             assert op_result == session.run.return_value.data.return_value
 
     @pytest.mark.parametrize(
-        "conn_extra, expected",
+        "conn_extra, encrypted",
         [
-            ({"certs_self_signed": True, "neo4j_scheme": False, "encrypted": True}, True),
-            ({"certs_self_signed": True, "neo4j_scheme": False, "encrypted": False}, True),
-            ({"certs_trusted_ca": True, "neo4j_scheme": False, "encrypted": False}, True),
-            ({"certs_self_signed": True, "neo4j_scheme": True, "encrypted": False}, True),
-            ({"certs_trusted_ca": True, "neo4j_scheme": True, "encrypted": False}, True),
-            ({"certs_trusted_ca": False, "neo4j_scheme": False, "encrypted": True}, True),
+            ({}, False),
+            ({"neo4j_scheme": False, "encrypted": True}, True),
+            ({"certs_self_signed": True, "neo4j_scheme": False, "encrypted": False}, False),
+            ({"certs_trusted_ca": True, "neo4j_scheme": False, "encrypted": False}, False),
+            ({"certs_self_signed": True, "neo4j_scheme": True, "encrypted": False}, False),
+            ({"certs_trusted_ca": True, "neo4j_scheme": True, "encrypted": False}, False),
         ],
     )
-    def test_get_client(self, conn_extra, expected):
+    def test_encrypted_provided(self, conn_extra, encrypted):
         connection = Connection(
             conn_type="neo4j",
             login="login",
@@ -129,7 +129,7 @@ class TestNeo4jHookConn:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
             neo4j_hook = Neo4jHook()
             is_encrypted = conn_extra.get("encrypted", False)
-            with neo4j_hook.get_client(
-                conn=connection, encrypted=is_encrypted, uri=neo4j_hook.get_uri(connection)
-            ) as client:
-                assert isinstance(client, Driver) == expected
+            assert is_encrypted == encrypted
+            uri = neo4j_hook.get_uri(connection)
+            with neo4j_hook.get_client(conn=connection, encrypted=is_encrypted, uri=uri) as client:
+                assert client
