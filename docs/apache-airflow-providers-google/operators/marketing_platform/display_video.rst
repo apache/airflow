@@ -30,8 +30,7 @@ Prerequisite Tasks
 Creating a report
 ^^^^^^^^^^^^^^^^^
 
-This Operator is Deprecated and will be removed soon. Please look:
-.. _howto/operator:GoogleDisplayVideo360CreateQueryOperator:
+This Operator is Deprecated and will be removed soon. Please look at ``GoogleDisplayVideo360CreateQueryOperator``.
 
 To create Display&Video 360 report use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateReportOperator`.
