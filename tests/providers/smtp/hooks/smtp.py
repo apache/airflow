@@ -166,7 +166,9 @@ class TestSmtpHook:
         with SmtpHook() as smtp_hook, tempfile.NamedTemporaryFile() as attachment:
             attachment.write(b"attachment")
             attachment.seek(0)
-            smtp_hook.send_email_smtp("to", "subject", "content", files=[attachment.name])
+            smtp_hook.send_email_smtp(
+                to="to", subject="subject", html_content="content", files=[attachment.name]
+            )
             assert mock_send_mime.called
             _, call_args = mock_send_mime.call_args
             assert "from" == call_args["from_addr"]
@@ -191,7 +193,7 @@ class TestSmtpHook:
         mock_hook_conn.return_value = mock_conn
         smtp_client_mock = mock_smtplib.SMTP_SSL()
         with SmtpHook() as smtp_hook:
-            smtp_hook.send_email_smtp("to", "subject", "content", from_email="from")
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
             mock_hook_conn.assert_called_with("smtp_default")
             smtp_client_mock.login.assert_called_once_with("user", "password")
             smtp_client_mock.sendmail.assert_called_once()
@@ -202,7 +204,7 @@ class TestSmtpHook:
     def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.return_value = Mock()
         with SmtpHook() as smtp_hook:
-            smtp_hook.send_email_smtp("to", "subject", "content", from_email="from")
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
         mock_smtp_ssl.assert_called_once_with(host="smtp_server_address", port=465, timeout=30)
 
@@ -211,7 +213,7 @@ class TestSmtpHook:
     def test_send_mime_nossl(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.return_value = Mock()
         with SmtpHook(smtp_conn_id="smtp_nonssl") as smtp_hook:
-            smtp_hook.send_email_smtp("to", "subject", "content", from_email="from")
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp_ssl.called
         mock_smtp.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
 
@@ -229,7 +231,7 @@ class TestSmtpHook:
         )
         db.merge_conn(conn)
         with SmtpHook(smtp_conn_id="smtp_noauth") as smtp_hook:
-            smtp_hook.send_email_smtp("to", "subject", "content", from_email="from")
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         mock_smtp.assert_called_once_with(host="smtp_server_address", port=587, timeout=30)
         assert not mock_smtp.login.called
         with create_session() as session:
@@ -239,7 +241,7 @@ class TestSmtpHook:
     @patch("smtplib.SMTP")
     def test_send_mime_dryrun(self, mock_smtp, mock_smtp_ssl):
         with SmtpHook() as smtp_hook:
-            smtp_hook.send_email_smtp("to", "subject", "content", dryrun=True)
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", dryrun=True)
         assert not mock_smtp.sendmail.called
         assert not mock_smtp_ssl.sendmail.called
 
@@ -248,7 +250,7 @@ class TestSmtpHook:
         mock_smtp_ssl().sendmail.side_effect = smtplib.SMTPServerDisconnected()
         with SmtpHook() as smtp_hook:
             with pytest.raises(smtplib.SMTPServerDisconnected):
-                smtp_hook.send_email_smtp("to", "subject", "content")
+                smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content")
         assert mock_smtp_ssl().sendmail.call_count == 5
 
     @patch("email.message.Message.as_string")
@@ -259,7 +261,7 @@ class TestSmtpHook:
         side_effects = [smtplib.SMTPServerDisconnected(), smtplib.SMTPServerDisconnected(), final_mock]
         mock_smtp_ssl.side_effect = side_effects
         with SmtpHook() as smtp_hook:
-            smtp_hook.send_email_smtp("to", "subject", "content")
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content")
         assert mock_smtp_ssl.call_count == side_effects.index(final_mock) + 1
         assert final_mock.starttls.called
         final_mock.sendmail.assert_called_once_with(from_addr="from", to_addrs=["to"], msg="msg")
@@ -283,7 +285,7 @@ class TestSmtpHook:
         connection_mock.get_connection_from_secrets.return_value = fake_conn
         with SmtpHook() as smtp_hook:
             with pytest.raises(smtplib.SMTPServerDisconnected):
-                smtp_hook.send_email_smtp("to", "subject", "content")
+                smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content")
         mock_smtp_ssl.assert_any_call(
             host=fake_conn.host, port=fake_conn.port, timeout=fake_conn.extra_dejson["timeout"]
         )
