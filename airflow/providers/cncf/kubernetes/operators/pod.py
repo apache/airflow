@@ -245,7 +245,7 @@ class KubernetesPodOperator(BaseOperator):
     def __init__(
         self,
         *,
-        kubernetes_conn_id: str | None = None,  # 'kubernetes_default',
+        kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
         namespace: str | None = None,
         image: str | None = None,
         name: str | None = None,

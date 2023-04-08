@@ -89,7 +89,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     (ti,) = dr.task_instances
     dag.get_task("f").execute(context=ti.get_template_context(session=session))
     mock_hook.assert_called_once_with(
-        conn_id=None,
+        conn_id="kubernetes_default",
         in_cluster=False,
         cluster_context="default",
         config_file="/tmp/fake_file",
@@ -137,7 +137,7 @@ def test_kubernetes_with_input_output(
     dag.get_task("my_task_id").execute(context=ti.get_template_context(session=session))
 
     mock_hook.assert_called_once_with(
-        conn_id=None,
+        conn_id="kubernetes_default",
         in_cluster=False,
         cluster_context="default",
         config_file="/tmp/fake_file",
