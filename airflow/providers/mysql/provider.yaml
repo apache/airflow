@@ -21,6 +21,7 @@ name: MySQL
 description: |
     `MySQL <https://www.mysql.com/products/>`__
 
+suspended: false
 versions:
   - 4.0.2
   - 4.0.1

@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy.orm import Session
+
 from airflow.jobs.base_job import BaseJob
 from airflow.utils.net import get_hostname
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 
 @provide_session
-def check(args, session=None):
+def check(args, session: Session = NEW_SESSION) -> None:
     """Checks if job(s) are still alive."""
     if args.allow_multiple and not args.limit > 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
