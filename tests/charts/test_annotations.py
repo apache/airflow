@@ -369,6 +369,7 @@ class TestServiceAccountAnnotations:
         (
             {
                 "pgbouncer": {
+                    "enabled": True,
                     "podAnnotations": {
                         "example": "pgbouncer",
                     },
