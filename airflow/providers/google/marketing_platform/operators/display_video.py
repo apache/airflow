@@ -120,7 +120,7 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleDisplayVideo360CreateQueryOperator`
+        ``GoogleDisplayVideo360CreateQueryOperator``
 
     .. seealso::
         Check also the official API docs:
