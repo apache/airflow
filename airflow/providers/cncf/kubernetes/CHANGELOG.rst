@@ -30,7 +30,17 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Use kubernetes_default connection by default in the KubernetesPodOperator.
+Use ``kubernetes_default`` connection by default in the ``KubernetesPodOperator``.
+
+* ``Use default connection id for KubernetesPodOperator (#28848)``
+
+Features
+~~~~~~~~
+
+* ``Allow to set limits for XCOM container (#28125)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add mechanism to suspend providers (#30422)``
 
 5.3.0
 .....
