@@ -4385,8 +4385,8 @@
                     ],
                     "default": null
                 },
-                "extraAnnotations": {
-                    "description": "Extra annotations for the PgBouncer Pod.",
+                "podAnnotations": {
+                    "description": "Add annotations for the PgBouncer Pod.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
