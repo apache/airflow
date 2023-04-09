@@ -197,7 +197,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
 
     .. seealso::
         Check also the official API docs:
-        `https://developers.google.com/bid-manager/v2/queries/delete'
+        `https://developers.google.com/bid-manager/v2/queries/delete`
 
     :param report_id: Report ID to delete.
     :param report_name: Name of the report to delete.
