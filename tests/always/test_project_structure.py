@@ -266,6 +266,10 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
+        "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
     }
 
     BASE_CLASSES = {

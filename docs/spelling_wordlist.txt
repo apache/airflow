@@ -300,6 +300,7 @@ cpu
 cpus
 crd
 createDisposition
+CreateQueryOperator
 creationTimestamp
 credssp
 Cron
@@ -443,6 +444,7 @@ discoverability
 discoverable
 diskTypes
 displayName
+DisplayVideo
 distcp
 distro
 distros
@@ -469,6 +471,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+DownloadReportV
 downscaling
 Drillbit
 Drivy
@@ -638,6 +641,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+GoogleDisplayVideo
 gpu
 gpus
 greenlet
@@ -1252,6 +1256,8 @@ rtype
 ru
 runAsUser
 runnable
+RunQueryOperator
+RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
