@@ -1542,7 +1542,7 @@ pgbouncer:
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
-  extraAnnotations: {}
+  podAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
