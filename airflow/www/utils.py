@@ -829,12 +829,8 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
         try:
-            self._delete_files(item)
             self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
-            self.session.delete(item)
-            self.session.commit()
-            self.message = (as_unicode(self.delete_row_message), "success")
-            return True
+            return super().delete(item, raise_exception=raise_exception)
         except IntegrityError as e:
             self.message = (as_unicode(self.delete_integrity_error_message), "warning")
             log.warning(LOGMSG_WAR_DBI_DEL_INTEGRITY.format(str(e)))
@@ -856,12 +852,8 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     def delete_all(self, items: list[Model]) -> bool:
         try:
             for item in items:
-                self._delete_files(item)
                 self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
-                self.session.delete(item)
-            self.session.commit()
-            self.message = (as_unicode(self.delete_row_message), "success")
-            return True
+            return super().delete_all(items)
         except IntegrityError as e:
             self.message = (as_unicode(self.delete_integrity_error_message), "warning")
             log.warning(LOGMSG_WAR_DBI_DEL_INTEGRITY.format(str(e)))
