@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.0.0
+.....
+
+Latest change: 2023-04-09
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`71db47a73d <https://github.com/apache/airflow/commit/71db47a73d741015d8ffeaa2276635f19d51f8e7>`_  2023-04-09   ``Update DV360 operators to use API v2 (#30326)``
+`3d2c96e3f5 <https://github.com/apache/airflow/commit/3d2c96e3f5d238955bccba190726d0fba860eb7a>`_  2023-04-08   ``Add deferrable mode to GKEStartPodOperator (#29266)``
+`4703f9a0e5 <https://github.com/apache/airflow/commit/4703f9a0e589557f5176a6f466ae83fe52644cf6>`_  2023-04-08   ``BigQueryHook list_rows/get_datasets_list can return iterator (#30543)``
+`d9896fd96e <https://github.com/apache/airflow/commit/d9896fd96eb91a684a512a86924a801db53eb945>`_  2023-04-08   ``Fix dynamic imports in google ads vendored in library (#30544)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+`2ba1e63c37 <https://github.com/apache/airflow/commit/2ba1e63c37d56a4bba6f69c07497112a5e7cb157>`_  2023-04-04   ``Fix cloud build async credentials (#30441)``
+`cc6fd5c0d9 <https://github.com/apache/airflow/commit/cc6fd5c0d915e7f77feff70fef23519515b12083>`_  2023-04-03   ``Small quotation fix (#30448)``
+=================================================================================================  ===========  =========================================================================
+
 8.12.0
 ......
 
-Latest change: 2023-04-01
+Latest change: 2023-04-02
 
 =================================================================================================  ===========  ========================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `25048fa6b2 <https://github.com/apache/airflow/commit/25048fa6b21b1e75a0c6fb6d626c67860e8cecff>`_  2023-04-01   ``Switch to using vendored-in google ads. (#30410)``
 `2e65c70e99 <https://github.com/apache/airflow/commit/2e65c70e99e73d4bc39e26da88f9e0102dd41f65>`_  2023-04-01   ``Merging of the google ads vendored-in code. (#30399)``
 `540a076801 <https://github.com/apache/airflow/commit/540a0768012c82794add3ec159768521e01a0fe2>`_  2023-03-30   ``merge BigQueryTableExistenceAsyncSensor into BigQueryTableExistenceSensor (#30235)``

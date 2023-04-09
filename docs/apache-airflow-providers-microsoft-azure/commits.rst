@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.3.1
+.....
+
+Latest change: 2023-04-08
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`a09fd0d121 <https://github.com/apache/airflow/commit/a09fd0d121476964f1c9d7f12960c24517500d2c>`_  2023-04-08   ``Fix AzureDataFactoryPipelineRunLink get_link method (#30514)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ================================================================
+
 5.3.0
 .....
 
-Latest change: 2023-03-29
+Latest change: 2023-04-02
 
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
+`54a59d7cae <https://github.com/apache/airflow/commit/54a59d7cae5d49993e018ad408954c44f15dc509>`_  2023-03-31   ``Add 'WasbBlobAsyncSensor' (#30197)``
 `0e69ca7c0f <https://github.com/apache/airflow/commit/0e69ca7c0f87045264a82c2b2daa953506579d5f>`_  2023-03-29   ``Fix ADF job failure during deferral (#30248)``
 `c39097c07a <https://github.com/apache/airflow/commit/c39097c07a50fdc0baad08573d319627291f5f91>`_  2023-03-29   ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
 `c99201afa2 <https://github.com/apache/airflow/commit/c99201afa294ffe680a5f24b0893d8efdeb53272>`_  2023-03-17   ``Add deferrable 'AzureDataFactoryRunPipelineOperator' (#30147)``

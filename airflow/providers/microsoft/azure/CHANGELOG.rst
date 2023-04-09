@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureDataFactoryPipelineRunLink get_link method (#30514)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
 5.3.0
 .....
 
