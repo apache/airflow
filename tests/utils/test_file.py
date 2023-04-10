@@ -200,4 +200,6 @@ class TestListPyFilesPath:
         assert "airflow.models" in modules
         assert "airflow.sensors" in modules
         # this one is a local import, we don't want it.
-        assert "airflow.operators" not in modules
+        assert "airflow.local_import" not in modules
+        # this one is in a comment, we don't want it
+        assert "airflow.in_comment" not in modules

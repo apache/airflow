@@ -7,7 +7,9 @@ from __future__ import annotations
 import  \
         datetime,   \
 enum,time
-
+"""
+import airflow.in_comment
+"""
 # from import
 from airflow.utils import file
 # multiline airflow import
@@ -16,4 +18,4 @@ import airflow.decorators, airflow.models\
 
 def f():
     # local import
-    import airflow.operators
+    import airflow.local_import
