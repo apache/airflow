@@ -21,6 +21,7 @@ name: ODBC
 description: |
     `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
+suspended: false
 versions:
   - 3.2.1
   - 3.2.0

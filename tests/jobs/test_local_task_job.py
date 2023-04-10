@@ -36,8 +36,9 @@ import pytest
 from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs.local_task_job import SIGSEGV_MESSAGE, LocalTaskJob
-from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import SIGSEGV_MESSAGE, LocalTaskJobRunner
+from airflow.jobs.scheduler_job import SchedulerJobRunner
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -112,7 +113,11 @@ class TestLocalTaskJob:
 
         ti = dr.get_task_instance(task_id=op1.task_id)
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
+            dag_id=ti.dag_id,
+            executor=SequentialExecutor(),
+        )
 
         essential_attr = ["dag_id", "job_type", "start_date", "hostname"]
 
@@ -133,13 +138,18 @@ class TestLocalTaskJob:
         ti.hostname = "blablabla"
         session.commit()
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
+            dag_id=ti.dag_id,
+            executor=SequentialExecutor(),
+        )
         ti.task = op1
         ti.refresh_from_task(op1)
         job1.task_runner = StandardTaskRunner(job1)
         job1.task_runner.process = mock.Mock()
+        job1.job_runner.task_runner = job1.task_runner
         with pytest.raises(AirflowException):
-            job1.heartbeat_callback()
+            job1.job_runner.heartbeat_callback()
 
         job1.task_runner.process.pid = 1
         ti.state = State.RUNNING
@@ -150,11 +160,11 @@ class TestLocalTaskJob:
         assert ti.pid != os.getpid()
         assert not ti.run_as_user
         assert not job1.task_runner.run_as_user
-        job1.heartbeat_callback(session=None)
+        job1.job_runner.heartbeat_callback(session=None)
 
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException):
-            job1.heartbeat_callback()
+            job1.job_runner.heartbeat_callback()
 
         # Now, set the ti.pid to None and test that no error
         # is raised.
@@ -164,7 +174,7 @@ class TestLocalTaskJob:
         assert ti.pid != job1.task_runner.process.pid
         assert not ti.run_as_user
         assert not job1.task_runner.run_as_user
-        job1.heartbeat_callback()
+        job1.job_runner.heartbeat_callback()
 
     @mock.patch("subprocess.check_call")
     @mock.patch("airflow.jobs.local_task_job.psutil")
@@ -179,16 +189,21 @@ class TestLocalTaskJob:
         ti.hostname = get_hostname()
         session.commit()
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
+            dag_id=ti.dag_id,
+            executor=SequentialExecutor(),
+        )
         ti.task = op1
         ti.refresh_from_task(op1)
         job1.task_runner = StandardTaskRunner(job1)
         job1.task_runner.process = mock.Mock()
         job1.task_runner.process.pid = 2
+        job1.job_runner.task_runner = job1.task_runner
         # Here, ti.pid is 2, the parent process of ti.pid is a mock(different).
         # And task_runner process is 2. Should fail
         with pytest.raises(AirflowException, match="PID of job runner does not match"):
-            job1.heartbeat_callback()
+            job1.job_runner.heartbeat_callback()
 
         job1.task_runner.process.pid = 1
         # We make the parent process of ti.pid to equal the task_runner process id
@@ -200,13 +215,13 @@ class TestLocalTaskJob:
         assert ti.run_as_user
         session.merge(ti)
         session.commit()
-        job1.heartbeat_callback(session=None)
+        job1.job_runner.heartbeat_callback(session=None)
 
         # Here the task_runner process id is changed to 2
         # while parent process of ti.pid is kept at 1, which is different
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException, match="PID of job runner does not match"):
-            job1.heartbeat_callback()
+            job1.job_runner.heartbeat_callback()
 
         # Here we set the ti.pid to None and test that no error is
         # raised
@@ -216,7 +231,7 @@ class TestLocalTaskJob:
         assert ti.run_as_user
         assert job1.task_runner.run_as_user == ti.run_as_user
         assert ti.pid != job1.task_runner.process.pid
-        job1.heartbeat_callback()
+        job1.job_runner.heartbeat_callback()
 
     @conf_vars({("core", "default_impersonation"): "testuser"})
     @mock.patch("subprocess.check_call")
@@ -232,16 +247,21 @@ class TestLocalTaskJob:
         ti.hostname = get_hostname()
         session.commit()
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
+            dag_id=ti.dag_id,
+            executor=SequentialExecutor(),
+        )
         ti.task = op1
         ti.refresh_from_task(op1)
         job1.task_runner = StandardTaskRunner(job1)
         job1.task_runner.process = mock.Mock()
         job1.task_runner.process.pid = 2
+        job1.job_runner.task_runner = job1.task_runner
         # Here, ti.pid is 2, the parent process of ti.pid is a mock(different).
         # And task_runner process is 2. Should fail
         with pytest.raises(AirflowException, match="PID of job runner does not match"):
-            job1.heartbeat_callback()
+            job1.job_runner.heartbeat_callback()
 
         job1.task_runner.process.pid = 1
         # We make the parent process of ti.pid to equal the task_runner process id
@@ -253,13 +273,13 @@ class TestLocalTaskJob:
         assert job1.task_runner.run_as_user == "testuser"
         session.merge(ti)
         session.commit()
-        job1.heartbeat_callback(session=None)
+        job1.job_runner.heartbeat_callback(session=None)
 
         # Here the task_runner process id is changed to 2
         # while parent process of ti.pid is kept at 1, which is different
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException, match="PID of job runner does not match"):
-            job1.heartbeat_callback()
+            job1.job_runner.heartbeat_callback()
 
         # Now, set the ti.pid to None and test that no error
         # is raised.
@@ -269,7 +289,7 @@ class TestLocalTaskJob:
         assert job1.task_runner.run_as_user == "testuser"
         assert ti.run_as_user is None
         assert ti.pid != job1.task_runner.process.pid
-        job1.heartbeat_callback()
+        job1.job_runner.heartbeat_callback()
 
     def test_heartbeat_failed_fast(self):
         """
@@ -300,11 +320,15 @@ class TestLocalTaskJob:
             ti.pid = 1
             session.commit()
 
-            job = LocalTaskJob(task_instance=ti, executor=MockExecutor(do_update=False))
+            job = BaseJob(
+                job_runner=LocalTaskJobRunner(task_instance=ti),
+                dag_id=ti.dag_id,
+                executor=MockExecutor(do_update=False),
+            )
             job.heartrate = 2
             heartbeat_records = []
-            job.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
-            job._execute()
+            job.job_runner.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
+            job.run()
             assert len(heartbeat_records) > 2
             for i in range(1, len(heartbeat_records)):
                 time1 = heartbeat_records[i - 1]
@@ -330,7 +354,9 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
+        )
 
         with timeout(30):
             job1.run()
@@ -365,7 +391,11 @@ class TestLocalTaskJob:
 
         ti_run = TaskInstance(task=task, run_id=dr.run_id)
         ti_run.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti_run),
+            dag_id=ti_run.dag_id,
+            executor=SequentialExecutor(),
+        )
         with patch.object(StandardTaskRunner, "start", return_value=None) as mock_method:
             job1.run()
             mock_method.assert_not_called()
@@ -384,7 +414,11 @@ class TestLocalTaskJob:
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti_run),
+            dag_id=ti_run.dag_id,
+            executor=SequentialExecutor(),
+        )
         job1.id = 95
 
         mock_return_code.side_effect = [None, -9, None]
@@ -405,7 +439,11 @@ class TestLocalTaskJob:
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti_run),
+            dag_id=ti_run.dag_id,
+            executor=SequentialExecutor(),
+        )
 
         time_start = time.time()
 
@@ -447,7 +485,14 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(
+                task_instance=ti,
+                ignore_ti_state=True,
+            ),
+            dag_id=ti.dag_id,
+            executor=SequentialExecutor(),
+        )
         with timeout(30):
             # This should be _much_ shorter to run.
             # If you change this limit, make the timeout in the callable above bigger
@@ -478,7 +523,14 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(
+                task_instance=ti,
+                ignore_ti_state=True,
+            ),
+            dag_id=ti.dag_id,
+            executor=SequentialExecutor(),
+        )
         with timeout(30):
             # This should be _much_ shorter to run.
             # If you change this limit, make the timeout in the callable above bigger
@@ -507,7 +559,11 @@ class TestLocalTaskJob:
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True),
+            executor=SequentialExecutor(),
+            dag_id=ti.dag_id,
+        )
         job1.run()
 
         ti.refresh_from_db()
@@ -538,7 +594,14 @@ class TestLocalTaskJob:
         ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
-        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job = BaseJob(
+            job_runner=LocalTaskJobRunner(
+                task_instance=ti,
+                ignore_ti_state=True,
+            ),
+            executor=SequentialExecutor(),
+            dag_id=ti.dag_id,
+        )
 
         with timeout(30):
             job.run()  # This should run fast because of the return_code=None
@@ -609,7 +672,14 @@ class TestLocalTaskJob:
         thread.daemon = True
         thread.start()
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(
+                task_instance=ti,
+                ignore_ti_state=True,
+            ),
+            dag_id=ti.dag_id,
+            executor=SequentialExecutor(),
+        )
         job1.run()
 
         ti.refresh_from_db()
@@ -690,8 +760,8 @@ class TestLocalTaskJob:
                 "test_dagrun_fast_follow",
             )
 
-            scheduler_job = SchedulerJob(subdir=os.devnull)
-            scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler_job = BaseJob(job_runner=SchedulerJobRunner(subdir=os.devnull))
+            scheduler_job.job_runner.dagbag.bag_dag(dag, root_dag=dag)
 
             dag_run = dag.create_dagrun(run_id="test_dagrun_fast_follow", state=State.RUNNING)
 
@@ -704,10 +774,13 @@ class TestLocalTaskJob:
 
             ti = TaskInstance(task=dag.get_task(task_ids_to_run[0]), execution_date=dag_run.execution_date)
             ti.refresh_from_db()
-            job1 = LocalTaskJob(
-                task_instance=ti,
-                ignore_ti_state=True,
+            job1 = BaseJob(
+                job_runner=LocalTaskJobRunner(
+                    task_instance=ti,
+                    ignore_ti_state=True,
+                ),
                 executor=SequentialExecutor(),
+                dag_id=ti.dag_id,
             )
             job1.task_runner = StandardTaskRunner(job1)
 
@@ -718,16 +791,19 @@ class TestLocalTaskJob:
                     task=dag.get_task(task_ids_to_run[1]), execution_date=dag_run.execution_date
                 )
                 ti.refresh_from_db()
-                job2 = LocalTaskJob(
-                    task_instance=ti,
-                    ignore_ti_state=True,
+                job2 = BaseJob(
+                    job_runner=LocalTaskJobRunner(
+                        task_instance=ti,
+                        ignore_ti_state=True,
+                    ),
+                    dag_id=ti.dag_id,
                     executor=SequentialExecutor(),
                 )
                 job2.task_runner = StandardTaskRunner(job2)
                 job2.run()
                 self.validate_ti_states(dag_run, second_run_state, error_message)
-            if scheduler_job.processor_agent:
-                scheduler_job.processor_agent.end()
+            if scheduler_job.job_runner.processor_agent:
+                scheduler_job.job_runner.processor_agent.end()
 
     @conf_vars({("scheduler", "schedule_after_task_execution"): "True"})
     def test_mini_scheduler_works_with_wait_for_upstream(self, caplog, get_test_dag):
@@ -754,7 +830,14 @@ class TestLocalTaskJob:
             session.merge(ti2_k)
             session.merge(ti2_l)
 
-        job1 = LocalTaskJob(task_instance=ti2_k, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = BaseJob(
+            job_runner=LocalTaskJobRunner(
+                task_instance=ti2_k,
+                ignore_ti_state=True,
+            ),
+            executor=SequentialExecutor(),
+            dag_id=ti2_k.dag_id,
+        )
         job1.task_runner = StandardTaskRunner(job1)
         job1.run()
 
@@ -795,7 +878,14 @@ class TestLocalTaskJob:
         dag_run = dag_maker.create_dagrun()
         ti = TaskInstance(task=task, run_id=dag_run.run_id)
         ti.refresh_from_db()
-        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job = BaseJob(
+            job_runner=LocalTaskJobRunner(
+                task_instance=ti,
+                ignore_ti_state=True,
+            ),
+            executor=SequentialExecutor(),
+            dag_id=ti.dag_id,
+        )
         settings.engine.dispose()
         with timeout(10):
             with pytest.raises(AirflowException, match=r"Segmentation Fault detected"):
@@ -811,7 +901,7 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-@mock.patch("airflow.jobs.local_task_job.get_task_runner")
+@mock.patch("airflow.task.task_runner.get_task_runner")
 def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
     codes: list[int | None] = 9 * [None] + [0]
     mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
@@ -825,7 +915,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
     ti = dr.task_instances[0]
     ti.refresh_from_task(task)
 
-    job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
+    job = BaseJob(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id, executor=MockExecutor())
     with assert_queries_count(18):
         job.run()
 
@@ -940,5 +1030,12 @@ class TestSigtermOnRunner:
         dag.create_dagrun(state=State.RUNNING, run_id=run_id, execution_date=execution_date)
         ti = TaskInstance(task=task, execution_date=execution_date)
         ti.refresh_from_db()
-        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job = BaseJob(
+            job_runner=LocalTaskJobRunner(
+                task_instance=ti,
+                ignore_ti_state=True,
+            ),
+            executor=SequentialExecutor(),
+            dag_id=ti.dag_id,
+        )
         job.run()

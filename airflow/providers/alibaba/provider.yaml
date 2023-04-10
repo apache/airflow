@@ -21,6 +21,7 @@ name: Alibaba
 description: |
     Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
 
+suspended: false
 versions:
   - 2.3.0
   - 2.2.0
