@@ -185,6 +185,26 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
+_PARTIAL_DEFAULTS = {
+    "owner": DEFAULT_OWNER,
+    "trigger_rule": DEFAULT_TRIGGER_RULE,
+    "depends_on_past": False,
+    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+    "wait_for_downstream": False,
+    "retries": DEFAULT_RETRIES,
+    "queue": DEFAULT_QUEUE,
+    "pool_slots": DEFAULT_POOL_SLOTS,
+    "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
+    "retry_delay": DEFAULT_RETRY_DELAY,
+    "retry_exponential_backoff": False,
+    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "weight_rule": DEFAULT_WEIGHT_RULE,
+    "inlets": (),
+    "outlets": (),
+}
+
+
 # This is what handles the actual mapping.
 def partial(
     operator_class: type[BaseOperator],
@@ -242,7 +262,7 @@ def partial(
         task_id = task_group.child_id(task_id)
 
     # Merge DAG and task group level defaults into user-supplied values.
-    default_partial_kwargs, partial_params = get_merged_defaults(
+    dag_default_args, partial_params = get_merged_defaults(
         dag=dag,
         task_group=task_group,
         task_params=params,
@@ -292,34 +312,11 @@ def partial(
         "doc_yaml": doc_yaml,
     }
 
-    DEFAULT_VALUES: dict[str, Any] = {
-        "owner": DEFAULT_OWNER,
-        "trigger_rule": DEFAULT_TRIGGER_RULE,
-        "depends_on_past": False,
-        "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-        "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
-        "wait_for_downstream": False,
-        "retries": DEFAULT_RETRIES,
-        "queue": DEFAULT_QUEUE,
-        "pool_slots": DEFAULT_POOL_SLOTS,
-        "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
-        "retry_delay": DEFAULT_RETRY_DELAY,
-        "retry_exponential_backoff": False,
-        "priority_weight": DEFAULT_PRIORITY_WEIGHT,
-        "weight_rule": DEFAULT_WEIGHT_RULE,
-        "inlets": [],
-        "outlets": [],
-    }
+    # Inject DAG-level default args into args provided to this function.
+    partial_kwargs.update((k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k) is NOTSET)
 
-    # Override NOTSET kwargs by dag default values
-    for k, v in default_partial_kwargs.items():
-        if partial_kwargs.get(k) is NOTSET:
-            partial_kwargs[k] = v
-
-    # Override NOTSET kwargs which don't have a dag default value by Airflow default value or None
-    partial_kwargs = {
-        k: v if v is not NOTSET else DEFAULT_VALUES.get(k, None) for k, v in partial_kwargs.items()
-    }
+    # Fill fields not provided by the user with default values.
+    partial_kwargs = {k: _PARTIAL_DEFAULTS.get(k) if v is NOTSET else v for k, v in partial_kwargs.items()}
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
