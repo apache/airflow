@@ -334,13 +334,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ) -> set[str]:
         """Generic function to get readable or writable DAGs for user."""
         if not user_actions:
-            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+            user_actions = [
+                permissions.ACTION_CAN_EDIT,
+                permissions.ACTION_CAN_READ,
+                permissions.ACTION_CAN_PAUSE,
+            ]
 
         if user.is_anonymous:
             roles = user.roles
         else:
-            if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (
-                permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags(user)
+            if (
+                (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user))
+                or (permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags(user))
+                or (permissions.ACTION_CAN_PAUSE in user_actions and self.can_pause_all_dags(user))
             ):
                 return {dag.dag_id for dag in session.query(DagModel.dag_id)}
             user_query = (
@@ -455,10 +461,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def has_all_dags_access(self, user) -> bool:
         """
-        Has all the dag access in any of the 3 cases:
+        Has all the dag access in any of the 4 cases:
         1. Role needs to be in (Admin, Viewer, User, Op).
         2. Has can_read action on dags resource.
         3. Has can_edit action on dags resource.
+        4. Has can_pause action on dags resource.
         """
         if not user:
             user = g.user
@@ -466,6 +473,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             self._has_role(["Admin", "Viewer", "Op", "User"], user)
             or self.can_read_all_dags(user)
             or self.can_edit_all_dags(user)
+            or self.can_pause_all_dags(user)
         )
 
     def can_edit_all_dags(self, user=None) -> bool:
@@ -475,6 +483,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def can_read_all_dags(self, user=None) -> bool:
         """Has can_read action on DAG resource"""
         return self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
+
+    def can_pause_all_dags(self, user=None) -> bool:
+        """Has can_pause action on DAG resource"""
+        return self.has_access(permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG, user)
 
     def clean_perms(self) -> None:
         """FAB leaves faulty permissions that need to be cleaned up"""
