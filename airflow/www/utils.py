@@ -18,8 +18,6 @@
 from __future__ import annotations
 
 import json
-import logging
-import sys
 import textwrap
 import time
 from typing import TYPE_CHECKING, Any, Sequence
@@ -27,8 +25,6 @@ from urllib.parse import urlencode
 
 from flask import request, url_for
 from flask.helpers import flash
-from flask_appbuilder._compat import as_unicode
-from flask_appbuilder.const import LOGMSG_ERR_DBI_DEL_GENERIC, LOGMSG_WAR_DBI_DEL_INTEGRITY
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
 from flask_appbuilder.models.sqla import Model, filters as fab_sqlafilters
@@ -41,7 +37,6 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import func, types
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -62,8 +57,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.fab_security.sqla.manager import SecurityManager
-
-log = logging.getLogger(__name__)
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -828,45 +821,14 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        try:
-            self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
-            return super().delete(item, raise_exception=raise_exception)
-        except IntegrityError as e:
-            self.message = (as_unicode(self.delete_integrity_error_message), "warning")
-            log.warning(LOGMSG_WAR_DBI_DEL_INTEGRITY.format(str(e)))
-            self.session.rollback()
-            if raise_exception:
-                raise e
-            return False
-        except Exception as e:
-            self.message = (
-                as_unicode(self.general_error_message + " " + str(sys.exc_info()[0])),
-                "danger",
-            )
-            log.exception(LOGMSG_ERR_DBI_DEL_GENERIC.format(str(e)))
-            self.session.rollback()
-            if raise_exception:
-                raise e
-            return False
+        self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
+        return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
-        try:
-            for item in items:
-                self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
-            return super().delete_all(items)
-        except IntegrityError as e:
-            self.message = (as_unicode(self.delete_integrity_error_message), "warning")
-            log.warning(LOGMSG_WAR_DBI_DEL_INTEGRITY.format(str(e)))
-            self.session.rollback()
-            return False
-        except Exception as e:
-            self.message = (
-                as_unicode(self.general_error_message + " " + str(sys.exc_info()[0])),
-                "danger",
-            )
-            log.exception(LOGMSG_ERR_DBI_DEL_GENERIC.format(str(e)))
-            self.session.rollback()
-            return False
+        self.session.query(TaskInstance).where(
+            TaskInstance.run_id.in_(item.run_id for item in items)
+        ).delete()
+        return super().delete_all(items)
 
 
 # This class is used directly (i.e. we can't tell Fab to use a different
