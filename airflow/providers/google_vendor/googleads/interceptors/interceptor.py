@@ -239,7 +239,7 @@ class Interceptor:
                     try:
                         if not self._error_protos:
                             self._error_protos = import_module(
-                                f"google.ads.googleads.{self._api_version}.errors."
+                                f"airflow.providers.google_vendor.googleads.{self._api_version}.errors."
                                 "types.errors"
                             )
 
