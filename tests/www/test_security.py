@@ -753,6 +753,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) not in all_perms
         assert ("can_edit", dag_resource_name) not in all_perms
+        assert ("can_pause", dag_resource_name) not in all_perms
 
     security_manager.create_dag_specific_permissions()
 
@@ -764,6 +765,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) in all_perms
         assert ("can_edit", dag_resource_name) in all_perms
+        assert ("can_pause", dag_resource_name) in all_perms
 
     security_manager._sync_dag_view_permissions.assert_called_once_with(
         permissions.resource_name_for_dag("has_access_control"),
