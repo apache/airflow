@@ -820,6 +820,11 @@ def test_access_control_is_set_on_init(
                 dag_id="access_control_test",
                 user=user,
             )
+            assert_user_does_not_have_dag_perms(
+                perms=[permissions.ACTION_CAN_PAUSE],
+                dag_id="access_control_test",
+                user=user,
+            )
 
             security_manager.bulk_sync_roles([{"role": negated_role, "perms": []}])
             set_user_single_role(app, user, role_name=negated_role)
