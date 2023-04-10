@@ -1474,7 +1474,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for attempt in run_with_db_retries(logger=self.log):
             with attempt:
                 self.log.debug(
-                    "Running SchedulerJob.adopt_or_reset_orphaned_tasks with retries. Try %d of %d",
+                    "Running SchedulerJob._fail_tasks_stuck_in_queued with retries. Try %d of %d",
                     attempt.retry_state.attempt_number,
                     MAX_DB_RETRIES,
                 )
