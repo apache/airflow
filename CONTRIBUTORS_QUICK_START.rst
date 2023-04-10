@@ -392,9 +392,9 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-3. Setup postgresql database in
-   Database Management tool(e.g. DBeaver, DataGrip, etc.) with Host ``127.0.0.1``, port ``25433``, user ``postgres`` and password
-   ``airflow``, default schema ``airflow``.
+3. Setup a PostgreSQL database in your database management tool of choice
+   (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
+   user ``postgres``,  password ``airflow``, and default schema ``airflow``.
 
    .. raw:: html
 
