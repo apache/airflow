@@ -24,8 +24,8 @@ import pendulum
 import pytest
 from sqlalchemy.orm import contains_eager
 
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.triggerer_job import TriggererJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
@@ -232,7 +232,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         )[0]
         ti.trigger = Trigger("none", {})
         ti.trigger.created_date = now
-        ti.triggerer_job = BaseJob(job_runner=TriggererJobRunner())
+        ti.triggerer_job = Job(job_runner=TriggererJobRunner())
         ti.triggerer_job.state = "running"
         session.commit()
         response = self.client.get(

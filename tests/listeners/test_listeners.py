@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest as pytest
 
 from airflow import AirflowException
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
 from airflow.listeners.listener import get_listener_manager
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
@@ -80,7 +80,7 @@ def test_multiple_listeners(create_task_instance, session=None):
     lm.add_listener(full_listener)
     lm.add_listener(lifecycle_listener)
 
-    job = BaseJob(job_runner=MockJobRunner())
+    job = Job(job_runner=MockJobRunner())
     try:
         job.run()
     except NotImplementedError:

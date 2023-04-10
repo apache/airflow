@@ -240,8 +240,8 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     if pre_create_dag_runs:
         os.environ["AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE"] = "False"
 
-    from airflow.jobs.base_job import BaseJob
-    from airflow.jobs.scheduler_job import SchedulerJobRunner
+    from airflow.jobs.job import Job
+    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
     from airflow.models.dagbag import DagBag
     from airflow.utils import db
 
@@ -277,9 +277,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     ShortCircuitExecutor = get_executor_under_test(executor_class)
 
     executor = ShortCircuitExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
-    scheduler_job = BaseJob(
-        job_runner=SchedulerJobRunner(dag_ids=dag_ids, do_pickle=False), executor=executor
-    )
+    scheduler_job = Job(job_runner=SchedulerJobRunner(dag_ids=dag_ids, do_pickle=False), executor=executor)
     executor.scheduler_job = scheduler_job
 
     total_tasks = sum(len(dag.tasks) for dag in dags)
@@ -310,7 +308,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
                     reset_dag(dag, session)
 
             executor.reset(dag_ids)
-            scheduler_job = BaseJob(
+            scheduler_job = Job(
                 job_runner=SchedulerJobRunner(dag_ids=dag_ids, do_pickle=False), executor=executor
             )
             executor.scheduler_job = scheduler_job

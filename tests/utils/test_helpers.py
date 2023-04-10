@@ -23,7 +23,7 @@ from itertools import product
 import pytest
 
 from airflow import AirflowException
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
     at_most_one,

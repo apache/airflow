@@ -2455,7 +2455,7 @@ class DAG(LoggingMixin):
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
         """
-        from airflow.jobs.backfill_job import BackfillJobRunner
+        from airflow.jobs.backfill_job_runner import BackfillJobRunner
 
         if not executor and local:
             from airflow.executors.local_executor import LocalExecutor
@@ -2465,9 +2465,9 @@ class DAG(LoggingMixin):
             from airflow.executors.executor_loader import ExecutorLoader
 
             executor = ExecutorLoader.get_default_executor()
-        from airflow.jobs.base_job import BaseJob
+        from airflow.jobs.job import Job
 
-        job = BaseJob(
+        job = Job(
             job_runner=BackfillJobRunner(
                 self,
                 start_date=start_date,

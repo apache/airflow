@@ -37,8 +37,8 @@ from airflow.exceptions import (
     TaskConcurrencyLimitReached,
 )
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import Job
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -69,7 +69,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
-    job: BaseJob  # backfill_job can only run with BaseJob class not the Pydantic serialized version
+    job: Job  # backfill_job can only run with Job class not the Pydantic serialized version
 
     @attr.define
     class _DagRunTaskStatus:

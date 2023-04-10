@@ -46,7 +46,7 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.jobs.base_job import perform_heartbeat
+from airflow.jobs.job import perform_heartbeat
 from airflow.models import errors
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
@@ -68,7 +68,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
 if TYPE_CHECKING:
-    from airflow.jobs.dag_processor_job import DagProcessorJobRunner
+    from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 
 
 class DagParsingStat(NamedTuple):
@@ -385,7 +385,7 @@ class DagFileProcessorManager(LoggingMixin):
         signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
     ):
-        from airflow.jobs.dag_processor_job import DagProcessorJobRunner
+        from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 
         super().__init__()
         # known files; this will be updated every `dag_dir_list_interval` and stuff added/removed accordingly

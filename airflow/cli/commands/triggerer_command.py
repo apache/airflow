@@ -28,8 +28,8 @@ from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.triggerer_job import TriggererJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
 from airflow.utils.serve_logs import serve_logs
@@ -56,7 +56,7 @@ def triggerer(args):
     settings.MASK_SECRETS_IN_LOGS = True
     print(settings.HEADER)
     triggerer_job_runner = TriggererJobRunner(capacity=args.capacity)
-    job = BaseJob(job_runner=triggerer_job_runner)
+    job = Job(job_runner=triggerer_job_runner)
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(

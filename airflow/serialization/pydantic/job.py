@@ -19,7 +19,7 @@ from typing import Optional
 
 from pydantic import BaseModel as BaseModelPydantic
 
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
 
 
 def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str) -> BaseJobRunner:
@@ -28,8 +28,8 @@ def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str)
     return job_runner
 
 
-class BaseJobPydantic(BaseModelPydantic):
-    """Serializable representation of the BaseJob ORM SqlAlchemyModel used by internal API"""
+class JobPydantic(BaseModelPydantic):
+    """Serializable representation of the Job ORM SqlAlchemyModel used by internal API"""
 
     id: Optional[int]
     dag_id: Optional[str]

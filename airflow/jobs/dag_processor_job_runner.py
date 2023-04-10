@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from airflow.dag_processing.manager import DagFileProcessorManager
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

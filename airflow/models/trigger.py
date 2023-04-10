@@ -60,8 +60,8 @@ class Trigger(Base):
     triggerer_id = Column(Integer, nullable=True)
 
     triggerer_job = relationship(
-        "BaseJob",
-        primaryjoin="BaseJob.id == Trigger.triggerer_id",
+        "Job",
+        primaryjoin="Job.id == Trigger.triggerer_id",
         foreign_keys=triggerer_id,
         uselist=False,
     )
@@ -201,7 +201,7 @@ class Trigger(Base):
         Takes a triggerer_id and the capacity for that triggerer and assigns unassigned
         triggers until that capacity is reached, or there are no more unassigned triggers.
         """
-        from airflow.jobs.base_job import BaseJob  # To avoid circular import
+        from airflow.jobs.job import Job  # To avoid circular import
 
         count = session.query(func.count(cls.id)).filter(cls.triggerer_id == triggerer_id).scalar()
         capacity -= count
@@ -211,10 +211,10 @@ class Trigger(Base):
 
         alive_triggerer_ids = [
             row[0]
-            for row in session.query(BaseJob.id).filter(
-                BaseJob.end_date.is_(None),
-                BaseJob.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
-                BaseJob.job_type == "TriggererJob",
+            for row in session.query(Job.id).filter(
+                Job.end_date.is_(None),
+                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
+                Job.job_type == "TriggererJob",
             )
         ]
 

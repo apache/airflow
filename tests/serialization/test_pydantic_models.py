@@ -19,17 +19,17 @@ from __future__ import annotations
 
 from pydantic import parse_raw_as
 
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import LocalTaskJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
     DatasetEvent,
     DatasetModel,
     TaskOutletDatasetReference,
 )
-from airflow.serialization.pydantic.base_job import BaseJobPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -76,15 +76,15 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
 def test_serializing_pydantic_local_task_job(session, create_task_instance):
     dag_id = "test-dag"
     ti = create_task_instance(dag_id=dag_id, session=session)
-    ltj = BaseJob(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id)
+    ltj = Job(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id)
     ltj.state = State.RUNNING
     session.commit()
-    pydantic_job = BaseJobPydantic.from_orm(ltj)
+    pydantic_job = JobPydantic.from_orm(ltj)
 
     json_string = pydantic_job.json()
     print(json_string)
 
-    deserialized_model = parse_raw_as(BaseJobPydantic, json_string)
+    deserialized_model = parse_raw_as(JobPydantic, json_string)
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.job_type == "LocalTaskJob"
     assert deserialized_model.state == State.RUNNING

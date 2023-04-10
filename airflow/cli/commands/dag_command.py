@@ -35,7 +35,7 @@ from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
@@ -391,15 +391,13 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
 
         if not dag:
             raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-        queries.append(BaseJob.dag_id == args.dag_id)
+        queries.append(Job.dag_id == args.dag_id)
 
     if args.state:
-        queries.append(BaseJob.state == args.state)
+        queries.append(Job.state == args.state)
 
     fields = ["dag_id", "state", "job_type", "start_date", "end_date"]
-    all_jobs = (
-        session.query(BaseJob).filter(*queries).order_by(BaseJob.start_date.desc()).limit(args.limit).all()
-    )
+    all_jobs = session.query(Job).filter(*queries).order_by(Job.start_date.desc()).limit(args.limit).all()
     all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs]
 
     AirflowConsole().print_as(

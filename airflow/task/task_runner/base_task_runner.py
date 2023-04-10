@@ -23,8 +23,8 @@ import subprocess
 import threading
 from typing import cast
 
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import LocalTaskJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.platform import IS_WINDOWS
 
@@ -53,7 +53,7 @@ class BaseTaskRunner(LoggingMixin):
            should be LocalTaskJobRunner
     """
 
-    def __init__(self, base_job: BaseJob):
+    def __init__(self, base_job: Job):
         self.job_runner: LocalTaskJobRunner = cast(LocalTaskJobRunner, base_job.job_runner)
         if not hasattr(self.job_runner, "task_instance"):
             raise ValueError(

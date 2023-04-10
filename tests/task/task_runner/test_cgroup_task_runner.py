@@ -32,12 +32,12 @@ class TestCgroupTaskRunner:
         and when task finishes, CgroupTaskRunner.on_finish() calls
         super().on_finish() to delete the temp cfg file.
         """
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = ["sleep", "1000"]
+        base_job = mock.Mock()
+        base_job.task_instance = mock.MagicMock()
+        base_job.task_instance.run_as_user = None
+        base_job.task_instance.command_as_list.return_value = ["sleep", "1000"]
 
-        runner = CgroupTaskRunner(local_task_job)
+        runner = CgroupTaskRunner(base_job)
         assert mock_super_init.called
 
         runner.on_finish()

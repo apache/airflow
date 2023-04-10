@@ -33,8 +33,8 @@ from typing import TYPE_CHECKING, Deque
 from sqlalchemy import func
 
 from airflow.configuration import conf
-from airflow.jobs.base_job import perform_heartbeat
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
