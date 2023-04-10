@@ -505,7 +505,6 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             ],
         ) as user:
             mock_is_logged_in.return_value = True
