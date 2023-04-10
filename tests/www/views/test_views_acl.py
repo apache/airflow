@@ -102,11 +102,13 @@ def acl_app(app):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
         "User": [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
@@ -189,6 +191,11 @@ def user_edit_one_dag(acl_app):
         ],
     ) as user:
         yield user
+
+
+@pytest.fixture()
+def user_edit_one_dag_client(acl_app, user_edit_one_dag):
+    return client_with_login(acl_app, username="user_edit_one_dag", password="user_edit_one_dag")
 
 
 @pytest.mark.usefixtures("user_edit_one_dag")
@@ -446,9 +453,9 @@ def test_code_success(client_all_dags_codes):
     check_content_in_response("example_bash_operator", resp)
 
 
-def test_code_failure(dag_test_client):
+def test_code_failure(dag_faker_client):
     url = "code?dag_id=example_bash_operator"
-    resp = dag_test_client.get(url, follow_redirects=True)
+    resp = dag_faker_client.get(url, follow_redirects=True)
     check_content_not_in_response("example_bash_operator", resp)
 
 
@@ -734,6 +741,13 @@ def test_failed_success(client_all_dags_edit_tis):
 def test_paused_post_success(dag_test_client):
     resp = dag_test_client.post("paused?dag_id=example_bash_operator&is_paused=false", follow_redirects=True)
     check_content_in_response("OK", resp)
+
+
+def test_paused_post_failed(user_edit_one_dag_client):
+    resp = user_edit_one_dag_client.post(
+        "paused?dag_id=example_bash_operator&is_paused=false", follow_redirects=False
+    )
+    check_content_not_in_response("OK", resp, resp_code=302)
 
 
 @pytest.fixture(scope="module")
