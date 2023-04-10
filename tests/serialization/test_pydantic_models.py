@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from pydantic import parse_raw_as
 
-from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import LocalTaskJobRunner
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
     DatasetEvent,
@@ -51,6 +52,8 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     deserialized_model = parse_raw_as(TaskInstancePydantic, json_string)
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
+    assert deserialized_model.try_number == ti.try_number
+    assert deserialized_model.execution_date == ti.execution_date
     assert deserialized_model.next_kwargs == {"foo": "bar"}
 
 
@@ -73,7 +76,7 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
 def test_serializing_pydantic_local_task_job(session, create_task_instance):
     dag_id = "test-dag"
     ti = create_task_instance(dag_id=dag_id, session=session)
-    ltj = LocalTaskJob(task_instance=ti)
+    ltj = BaseJob(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id)
     ltj.state = State.RUNNING
     session.commit()
     pydantic_job = BaseJobPydantic.from_orm(ltj)
@@ -83,8 +86,8 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
 
     deserialized_model = parse_raw_as(BaseJobPydantic, json_string)
     assert deserialized_model.dag_id == dag_id
+    assert deserialized_model.job_type == "LocalTaskJob"
     assert deserialized_model.state == State.RUNNING
-    assert deserialized_model.task_instance.task_id == ti.task_id
 
 
 def test_serializing_pydantic_dataset_event(session, create_task_instance, create_dummy_dag):

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import (
     Connection,
     DagModel,
@@ -56,7 +55,7 @@ from airflow.www.fab_security.sqla.models import Permission, Resource, assoc_per
 
 def clear_db_runs():
     with create_session() as session:
-        session.query(TriggererJob).delete()
+        session.query(BaseJob).delete()
         session.query(Trigger).delete()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()

@@ -14,13 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel as BaseModelPydantic
 
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.jobs.job_runner import BaseJobRunner
+
+
+def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str) -> BaseJobRunner:
+    if job_runner is None:
+        raise ValueError(f"In order to run {job_type} you need to initialize the {job_type}Runner first.")
+    return job_runner
 
 
 class BaseJobPydantic(BaseModelPydantic):
@@ -32,11 +37,13 @@ class BaseJobPydantic(BaseModelPydantic):
     job_type: Optional[str]
     start_date: Optional[datetime]
     end_date: Optional[datetime]
-    latest_heartbeat: Optional[datetime]
+    latest_heartbeat: datetime
     executor_class: Optional[str]
     hostname: Optional[str]
     unixname: Optional[str]
-    task_instance: TaskInstancePydantic
+
+    # not an ORM field
+    heartrate: Optional[int]
 
     class Config:
         """Make sure it deals automatically with ORM classes of SQL Alchemy"""
