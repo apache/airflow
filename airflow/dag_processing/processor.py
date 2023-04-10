@@ -192,7 +192,14 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         modules = get_airflow_modules_in(self.file_path)
         for module in modules:
-            importlib.import_module(module)
+            try:
+                importlib.import_module(module)
+            except Exception as e:
+                # only log as warning because an error here is not preventing anything from working,
+                # and if it's serious, it's going to be surfaced to the user when the dag is actually parsed.
+                self.log.warning(
+                    f"error when try to pre-import module '{module}' found in {self.file_path}: {e}"
+                )
 
         context = self._get_multiprocessing_context()
 

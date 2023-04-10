@@ -1,0 +1,19 @@
+# using .nopy extension so that the file won't get reformatted
+# because we want to assert that we can parse crappy formatting.
+
+from __future__ import annotations
+
+# multiline import
+import  \
+        datetime,   \
+enum,time
+
+# from import
+from airflow.utils import file
+# multiline airflow import
+import airflow.decorators, airflow.models\
+, airflow.sensors
+
+def f():
+    # local import
+    import airflow.operators

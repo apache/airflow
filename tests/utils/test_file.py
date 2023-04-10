@@ -188,3 +188,16 @@ class TestListPyFilesPath:
 
         # With safe_mode is False, the user defined callable won't be invoked
         assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)
+
+    def test_get_modules(self):
+        file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.nopy")
+
+        modules = file_utils.get_airflow_modules_in(file_path)
+
+        assert len(modules) == 4
+        assert "airflow.utils" in modules
+        assert "airflow.decorators" in modules
+        assert "airflow.models" in modules
+        assert "airflow.sensors" in modules
+        # this one is a local import, we don't want it.
+        assert "airflow.operators" not in modules
