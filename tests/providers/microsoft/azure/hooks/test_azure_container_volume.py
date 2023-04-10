@@ -50,7 +50,7 @@ class TestAzureContainerVolumeHook:
                 conn_type="wasb",
                 login="login",
                 password="key",
-                extra=json.dumps({"extra__azure_container_volume__connection_string": "a=b;AccountKey=1"}),
+                extra=json.dumps({"connection_string": "a=b;AccountKey=1"}),
             )
         )
         hook = AzureContainerVolumeHook(
@@ -75,7 +75,7 @@ class TestAzureContainerVolumeHook:
         assert list(AzureContainerVolumeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
             "login",
             "password",
-            "extra__azure_container_volume__connection_string",
+            "connection_string",
         ]
         if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
             raise Exception(

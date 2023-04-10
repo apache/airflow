@@ -264,8 +264,8 @@ class TestAzureCosmosDbHook:
         assert list(AzureCosmosDBHook.get_ui_field_behaviour()["placeholders"].keys()) == [
             "login",
             "password",
-            "extra__azure_cosmos__database_name",
-            "extra__azure_cosmos__collection_name",
+            "database_name",
+            "collection_name",
         ]
         if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
             raise Exception(

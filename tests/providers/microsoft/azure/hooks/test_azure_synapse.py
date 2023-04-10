@@ -51,8 +51,8 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "extra__azure_synapse__tenantId": "tenantId",
-                "extra__azure_synapse__subscriptionId": "subscriptionId",
+                "tenantId": "tenantId",
+                "subscriptionId": "subscriptionId",
             }
         ),
     )
@@ -62,7 +62,7 @@ def setup_module():
         host="https://testsynapse.dev.azuresynapse.net",
         extra=json.dumps(
             {
-                "extra__azure_synapse__subscriptionId": "subscriptionId",
+                "subscriptionId": "subscriptionId",
             }
         ),
     )
@@ -74,7 +74,7 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "extra__azure_synapse__tenantId": "tenantId",
+                "tenantId": "tenantId",
             }
         ),
     )
@@ -86,7 +86,7 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "extra__azure_synapse__subscriptionId": "subscriptionId",
+                "subscriptionId": "subscriptionId",
             }
         ),
     )

@@ -50,7 +50,7 @@ class TestAzureBatchHook:
             Connection(
                 conn_id=self.test_vm_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
+                extra=json.dumps({"account_url": self.test_account_url}),
             )
         )
         # connect with cloud service
@@ -58,7 +58,7 @@ class TestAzureBatchHook:
             Connection(
                 conn_id=self.test_cloud_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
+                extra=json.dumps({"account_url": self.test_account_url}),
             )
         )
 
