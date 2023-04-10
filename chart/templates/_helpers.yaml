@@ -248,7 +248,14 @@ If release name contains chart name it will be used as a full name.
 
 {{/* This helper will change when customers deploy a new image */}}
 {{- define "airflow_image" -}}
-  {{- printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
+  {{- $repository := .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
+  {{- $tag := .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
+  {{- $digest := .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
+  {{- if $digest }}
+    {{- printf "%s@%s" $repository $digest -}}
+  {{- else }}
+    {{- printf "%s:%s" $repository $tag -}}
+  {{- end }}
 {{- end }}
 
 {{- define "pod_template_image" -}}
@@ -256,8 +263,15 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{/* This helper is used for airflow containers that do not need the users code */}}
-{{- define "default_airflow_image" -}}
-  {{- printf "%s:%s" .Values.defaultAirflowRepository .Values.defaultAirflowTag }}
+{{ define "default_airflow_image" -}}
+  {{- $repository := .Values.defaultAirflowRepository -}}
+  {{- $tag := .Values.defaultAirflowTag -}}
+  {{- $digest := .Values.defaultAirflowDigest -}}
+  {{- if $digest }}
+    {{- printf "%s@%s" $repository $digest -}}
+  {{- else }}
+    {{- printf "%s:%s" $repository $tag -}}
+  {{- end }}
 {{- end }}
 
 {{ define "airflow_image_for_migrations" -}}
