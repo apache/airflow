@@ -33,6 +33,7 @@ from tests.listeners import (
     partial_listener,
     throwing_listener,
 )
+from tests.utils.test_helpers import MockJobRunner
 
 LISTENERS = [
     class_listener,
@@ -79,7 +80,7 @@ def test_multiple_listeners(create_task_instance, session=None):
     lm.add_listener(full_listener)
     lm.add_listener(lifecycle_listener)
 
-    job = BaseJob()
+    job = BaseJob(job_runner=MockJobRunner())
     try:
         job.run()
     except NotImplementedError:

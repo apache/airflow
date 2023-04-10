@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.jobs.local_task_job import LocalTaskJobRunner
 from airflow.task.task_runner import CORE_TASK_RUNNERS, get_task_runner
 from airflow.utils.module_loading import import_string
 
@@ -38,7 +39,9 @@ class TestGetTaskRunner:
         ti.get_template_context.return_value = {"ti": ti}
         ti.get_dagrun.return_value.get_log_template.return_value.filename = "blah"
         local_task_job = mock.MagicMock(task_instance=ti)
-        task_runner = get_task_runner(local_task_job)
+        local_task_job.job_runner = LocalTaskJobRunner(ti)
+        local_task_job.job_runner.job = local_task_job
+        task_runner = get_task_runner(local_task_job.job_runner)
 
         assert "StandardTaskRunner" == task_runner.__class__.__name__
 
@@ -46,7 +49,7 @@ class TestGetTaskRunner:
         "airflow.task.task_runner._TASK_RUNNER_NAME",
         "tests.task.task_runner.test_task_runner.custom_task_runner",
     )
-    def test_should_support_custom_task_runner(self):
+    def test_should_support_custom_legacy_task_runner(self):
         local_task_job = mock.MagicMock(
             **{"task_instance.get_template_context.return_value": {"ti": mock.MagicMock()}}
         )
@@ -54,6 +57,6 @@ class TestGetTaskRunner:
 
         task_runner = get_task_runner(local_task_job)
 
-        custom_task_runner.assert_called_once_with(local_task_job)
+        custom_task_runner.assert_called_once_with(local_task_job.job)
 
         assert custom_task_runner.return_value == task_runner

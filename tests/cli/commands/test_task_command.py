@@ -245,7 +245,7 @@ class TestCliTasks:
             # verify that the file was in different location when run
             assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
         """
         Test that we can run with existing dag_run_id
@@ -260,7 +260,7 @@ class TestCliTasks:
             task0_id,
             self.run_id,
         ]
-
+        mock_local_job.return_value.job_type = "LocalTaskJob"
         task_command.task_run(self.parser.parse_args(args0), dag=self.dag)
         mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
@@ -275,7 +275,7 @@ class TestCliTasks:
             external_executor_id=None,
         )
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_run_raises_when_theres_no_dagrun(self, mock_local_job):
         """
         Test that run raises when there's run_id but no dag_run
@@ -638,8 +638,9 @@ class TestLogsfromTaskRunCommand:
             assert "logging_mixin.py" not in log_line
         return log_line
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_external_executor_id_present_for_fork_run_task(self, mock_local_job):
+        mock_local_job.return_value.job_type = "LocalTaskJob"
         args = self.parser.parse_args(self.task_args)
         args.external_executor_id = "ABCD12345"
 
@@ -657,8 +658,9 @@ class TestLogsfromTaskRunCommand:
             external_executor_id="ABCD12345",
         )
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_external_executor_id_present_for_process_run_task(self, mock_local_job):
+        mock_local_job.return_value.job_type = "LocalTaskJob"
         args = self.parser.parse_args(self.task_args)
         args.external_executor_id = "ABCD12345"
 

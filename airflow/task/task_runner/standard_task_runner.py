@@ -24,6 +24,7 @@ import os
 import psutil
 from setproctitle import setproctitle
 
+from airflow.jobs.base_job import BaseJob
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -34,10 +35,10 @@ from airflow.utils.process_utils import reap_process_group, set_new_process_grou
 class StandardTaskRunner(BaseTaskRunner):
     """Standard runner for all tasks."""
 
-    def __init__(self, local_task_job):
-        super().__init__(local_task_job)
+    def __init__(self, base_job: BaseJob):
+        super().__init__(base_job=base_job)
         self._rc = None
-        self.dag = local_task_job.task_instance.task.dag
+        self.dag = self.job_runner.task_instance.task.dag
 
     def start(self):
         if CAN_FORK and not self.run_as_user:
@@ -135,7 +136,7 @@ class StandardTaskRunner(BaseTaskRunner):
             # deleted at os._exit()
             os._exit(return_code)
 
-    def return_code(self, timeout: int = 0) -> int | None:
+    def return_code(self, timeout: float = 0) -> int | None:
         # We call this multiple times, but we can only wait on the process once
         if self._rc is not None or not self.process:
             return self._rc
@@ -172,3 +173,8 @@ class StandardTaskRunner(BaseTaskRunner):
                 "Job %s was killed before it finished (likely due to running out of memory)",
                 self._task_instance.job_id,
             )
+
+    def get_process_pid(self) -> int:
+        if self.process is None:
+            raise RuntimeError("Process is not started yet")
+        return self.process.pid

@@ -16,9 +16,12 @@
 # under the License.
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Iterable, Optional, Union
 
 from pydantic import BaseModel as BaseModelPydantic
+
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 
 class TaskInstancePydantic(BaseModelPydantic):
@@ -27,12 +30,13 @@ class TaskInstancePydantic(BaseModelPydantic):
     task_id: str
     dag_id: str
     run_id: str
-    map_index: str
+    map_index: int
     start_date: Optional[datetime]
     end_date: Optional[datetime]
+    execution_date: Optional[datetime]
     duration: Optional[float]
     state: Optional[str]
-    _try_number: int
+    try_number: int
     max_tries: int
     hostname: str
     unixname: str
@@ -57,3 +61,54 @@ class TaskInstancePydantic(BaseModelPydantic):
         """Make sure it deals automatically with ORM classes of SQL Alchemy"""
 
         orm_mode = True
+
+    def xcom_pull(
+        self,
+        task_ids: Optional[Union[str, Iterable[str]]] = None,
+        dag_id: Optional[str] = None,
+        key: str = XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        *,
+        map_indexes: Optional[Union[int, Iterable[int]]] = None,
+        default: Any = None,
+    ) -> Any:
+        """
+        Pull an XCom value for this task instance.
+
+        TODO: make it works for AIP-44
+        :param task_ids: task id or list of task ids, if None, the task_id of the current task is used
+        :param dag_id: dag id, if None, the dag_id of the current task is used
+        :param key: the key to identify the XCom value
+        :param include_prior_dates: whether to include prior execution dates
+        :param map_indexes: map index or list of map indexes, if None, the map_index of the current task
+            is used
+        :param default: the default value to return if the XCom value does not exist
+        :return: Xcom value
+        """
+        return None
+
+    def xcom_push(
+        self,
+        key: str,
+        value: Any,
+        execution_date: Optional[datetime] = None,
+    ) -> None:
+        """
+        Push an XCom value for this task instance.
+
+        TODO: make it works for AIP-44
+        :param key: the key to identify the XCom value
+        :param value: the value of the XCom
+        :param execution_date: the execution date to push the XCom for
+        """
+        pass
+
+    def get_dagrun(self) -> DagRunPydantic:
+        """
+        Get the DagRun for this task instance.
+
+        TODO: make it works for AIP-44
+
+        :return: Pydantic serialized version of DaGrun
+        """
+        return DagRunPydantic()

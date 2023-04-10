@@ -33,7 +33,8 @@ from typing import TYPE_CHECKING, Deque
 from sqlalchemy import func
 
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.base_job import perform_heartbeat
+from airflow.jobs.job_runner import BaseJobRunner
 from airflow.models.trigger import Trigger
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -232,9 +233,9 @@ def setup_queue_listener():
         return None
 
 
-class TriggererJob(BaseJob):
+class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     """
-    TriggererJob continuously runs active triggers in asyncio, watching
+    TriggererJobRunner continuously runs active triggers in asyncio, watching
     for them to fire off their events and then dispatching that information
     to their dependent tasks/DAGs.
 
@@ -243,7 +244,7 @@ class TriggererJob(BaseJob):
      - A subthread runs all the async code
     """
 
-    __mapper_args__ = {"polymorphic_identity": "TriggererJob"}
+    job_type = "TriggererJob"
 
     def __init__(self, capacity=None, *args, **kwargs):
         # Call superclass
@@ -275,7 +276,7 @@ class TriggererJob(BaseJob):
         else:
             self.listener = setup_queue_listener()
         # Set up runner async thread
-        self.runner = TriggerRunner()
+        self.trigger_runner = TriggerRunner()
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -297,7 +298,7 @@ class TriggererJob(BaseJob):
         Called when there is an external kill command (via the heartbeat
         mechanism, for example)
         """
-        self.runner.stop = True
+        self.trigger_runner.stop = True
 
     def _kill_listener(self):
         if self.listener:
@@ -308,35 +309,36 @@ class TriggererJob(BaseJob):
     def _exit_gracefully(self, signum, frame) -> None:
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         # The first time, try to exit nicely
-        if not self.runner.stop:
+        if not self.trigger_runner.stop:
             self.log.info("Exiting gracefully upon receiving signal %s", signum)
-            self.runner.stop = True
+            self.trigger_runner.stop = True
             self._kill_listener()
         else:
             self.log.warning("Forcing exit due to second exit signal %s", signum)
             sys.exit(os.EX_SOFTWARE)
 
-    def _execute(self) -> None:
+    def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
         try:
             # set job_id so that it can be used in log file names
-            self.runner.job_id = self.id
+            self.trigger_runner.job_id = self.job.id
 
             # Kick off runner thread
-            self.runner.start()
+            self.trigger_runner.start()
             # Start our own DB loop in the main thread
             self._run_trigger_loop()
         except Exception:
-            self.log.exception("Exception when executing TriggererJob._run_trigger_loop")
+            self.log.exception("Exception when executing TriggererJobRunner._run_trigger_loop")
             raise
         finally:
             self.log.info("Waiting for triggers to clean up")
             # Tell the subthread to stop and then wait for it.
             # If the user interrupts/terms again, _graceful_exit will allow them
             # to force-kill here.
-            self.runner.stop = True
-            self.runner.join(30)
+            self.trigger_runner.stop = True
+            self.trigger_runner.join(30)
             self.log.info("Exited trigger loop")
+        return None
 
     def _run_trigger_loop(self) -> None:
         """
@@ -344,7 +346,7 @@ class TriggererJob(BaseJob):
 
         This runs synchronously and handles all database reads/writes.
         """
-        while not self.runner.stop:
+        while not self.trigger_runner.stop:
             # Clean out unused triggers
             Trigger.clean_unused()
             # Load/delete triggers
@@ -353,8 +355,7 @@ class TriggererJob(BaseJob):
             self.handle_events()
             # Handle failed triggers
             self.handle_failed_triggers()
-            # Handle heartbeat
-            self.heartbeat(only_if_necessary=True)
+            perform_heartbeat(self.job, only_if_necessary=True)
             # Collect stats
             self.emit_metrics()
             # Idle sleep
@@ -366,18 +367,18 @@ class TriggererJob(BaseJob):
         adds them to our runner, and then removes ones from it we no longer
         need.
         """
-        Trigger.assign_unassigned(self.id, self.capacity)
-        ids = Trigger.ids_for_triggerer(self.id)
-        self.runner.update_triggers(set(ids))
+        Trigger.assign_unassigned(self.job.id, self.capacity)
+        ids = Trigger.ids_for_triggerer(self.job.id)
+        self.trigger_runner.update_triggers(set(ids))
 
     def handle_events(self):
         """
         Handles outbound events from triggers - dispatching them into the Trigger
         model where they are then pushed into the relevant task instances.
         """
-        while self.runner.events:
+        while self.trigger_runner.events:
             # Get the event and its trigger ID
-            trigger_id, event = self.runner.events.popleft()
+            trigger_id, event = self.trigger_runner.events.popleft()
             # Tell the model to wake up its tasks
             Trigger.submit_event(trigger_id=trigger_id, event=event)
             # Emit stat event
@@ -388,15 +389,15 @@ class TriggererJob(BaseJob):
         Handles "failed" triggers - ones that errored or exited before they
         sent an event. Task Instances that depend on them need failing.
         """
-        while self.runner.failed_triggers:
+        while self.trigger_runner.failed_triggers:
             # Tell the model to fail this trigger's deps
-            trigger_id, saved_exc = self.runner.failed_triggers.popleft()
+            trigger_id, saved_exc = self.trigger_runner.failed_triggers.popleft()
             Trigger.submit_failure(trigger_id=trigger_id, exc=saved_exc)
             # Emit stat event
             Stats.incr("triggers.failed")
 
     def emit_metrics(self):
-        Stats.gauge("triggers.running", len(self.runner.triggers))
+        Stats.gauge("triggers.running", len(self.trigger_runner.triggers))
 
 
 class TriggerDetails(TypedDict):

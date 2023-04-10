@@ -23,6 +23,7 @@ from itertools import product
 import pytest
 
 from airflow import AirflowException
+from airflow.jobs.job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
     at_most_one,
@@ -323,3 +324,16 @@ class TestHelpers:
         d1 = {"a": None, "b": "", "c": "hi", "d": l1}
         d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]]}
         assert prune_dict(d2, mode=mode) == expected
+
+
+class MockJobRunner(BaseJobRunner):
+    job_type = "MockJob"
+
+    def __init__(self, func=None):
+        self.func = func
+        super().__init__()
+
+    def _execute(self):
+        if self.func is not None:
+            return self.func()
+        return None

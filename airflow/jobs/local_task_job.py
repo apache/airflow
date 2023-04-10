@@ -24,12 +24,13 @@ from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.base_job import perform_heartbeat
+from airflow.jobs.job_runner import BaseJobRunner
 from airflow.models.taskinstance import TaskInstance, TaskReturnCode
 from airflow.stats import Stats
-from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -66,10 +67,10 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJob(BaseJob):
+class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
-    __mapper_args__ = {"polymorphic_identity": "LocalTaskJob"}
+    job_type = "LocalTaskJob"
 
     def __init__(
         self,
@@ -80,14 +81,13 @@ class LocalTaskJob(BaseJob):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
-        pickle_id: str | None = None,
+        pickle_id: int | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
         *args,
         **kwargs,
     ):
         self.task_instance = task_instance
-        self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
         self.wait_for_past_depends_before_skipping = wait_for_past_depends_before_skipping
@@ -107,6 +107,8 @@ class LocalTaskJob(BaseJob):
         super().__init__(*args, **kwargs)
 
     def _execute(self) -> int | None:
+        from airflow.task.task_runner import get_task_runner
+
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
@@ -146,7 +148,7 @@ class LocalTaskJob(BaseJob):
             wait_for_past_depends_before_skipping=self.wait_for_past_depends_before_skipping,
             ignore_task_deps=self.ignore_task_deps,
             ignore_ti_state=self.ignore_ti_state,
-            job_id=self.id,
+            job_id=str(self.job.id),
             pool=self.pool,
             external_executor_id=self.external_executor_id,
         ):
@@ -177,9 +179,9 @@ class LocalTaskJob(BaseJob):
                     min(
                         (
                             heartbeat_time_limit
-                            - (timezone.utcnow() - self.latest_heartbeat).total_seconds() * 0.75
+                            - (timezone.utcnow() - self.job.latest_heartbeat).total_seconds() * 0.75
                         ),
-                        self.heartrate,
+                        self.job.heartrate if self.job.heartrate is not None else heartbeat_time_limit,
                     ),
                 )
 
@@ -188,12 +190,12 @@ class LocalTaskJob(BaseJob):
                     self.handle_task_exit(return_code)
                     return return_code
 
-                self.heartbeat()
+                perform_heartbeat(self.job, only_if_necessary=False)
 
                 # If it's been too long since we've heartbeat, then it's possible that
                 # the scheduler rescheduled this task, so kill launched processes.
                 # This can only really happen if the worker can't read the DB for a long time
-                time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                time_since_last_heartbeat = (timezone.utcnow() - self.job.latest_heartbeat).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
                     Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
                     self.log.error("Heartbeat time limit exceeded!")
@@ -250,7 +252,7 @@ class LocalTaskJob(BaseJob):
                     fqdn,
                 )
                 raise AirflowException("Hostname of job runner does not match")
-            current_pid = self.task_runner.process.pid
+            current_pid = self.task_runner.get_process_pid()
             recorded_pid = ti.pid
             same_process = recorded_pid == current_pid
 
@@ -293,5 +295,6 @@ class LocalTaskJob(BaseJob):
 
     def _log_return_code_metric(self, return_code: int):
         Stats.incr(
-            f"local_task_job.task_exit.{self.id}.{self.dag_id}.{self.task_instance.task_id}.{return_code}"
+            "local_task_job.task_exit."
+            f"{self.job.id}.{self.task_instance.dag_id}.{self.task_instance.task_id}.{return_code}"
         )

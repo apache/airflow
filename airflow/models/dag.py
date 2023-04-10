@@ -2455,7 +2455,7 @@ class DAG(LoggingMixin):
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
         """
-        from airflow.jobs.backfill_job import BackfillJob
+        from airflow.jobs.backfill_job import BackfillJobRunner
 
         if not executor and local:
             from airflow.executors.local_executor import LocalExecutor
@@ -2465,24 +2465,28 @@ class DAG(LoggingMixin):
             from airflow.executors.executor_loader import ExecutorLoader
 
             executor = ExecutorLoader.get_default_executor()
-        job = BackfillJob(
-            self,
-            start_date=start_date,
-            end_date=end_date,
-            mark_success=mark_success,
+        from airflow.jobs.base_job import BaseJob
+
+        job = BaseJob(
+            job_runner=BackfillJobRunner(
+                self,
+                start_date=start_date,
+                end_date=end_date,
+                mark_success=mark_success,
+                donot_pickle=donot_pickle,
+                ignore_task_deps=ignore_task_deps,
+                ignore_first_depends_on_past=ignore_first_depends_on_past,
+                pool=pool,
+                delay_on_limit_secs=delay_on_limit_secs,
+                verbose=verbose,
+                conf=conf,
+                rerun_failed_tasks=rerun_failed_tasks,
+                run_backwards=run_backwards,
+                run_at_least_once=run_at_least_once,
+                continue_on_failures=continue_on_failures,
+                disable_retry=disable_retry,
+            ),
             executor=executor,
-            donot_pickle=donot_pickle,
-            ignore_task_deps=ignore_task_deps,
-            ignore_first_depends_on_past=ignore_first_depends_on_past,
-            pool=pool,
-            delay_on_limit_secs=delay_on_limit_secs,
-            verbose=verbose,
-            conf=conf,
-            rerun_failed_tasks=rerun_failed_tasks,
-            run_backwards=run_backwards,
-            run_at_least_once=run_at_least_once,
-            continue_on_failures=continue_on_failures,
-            disable_retry=disable_retry,
         )
         job.run()
 

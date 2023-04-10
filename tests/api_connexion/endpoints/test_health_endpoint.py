@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.scheduler_job import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -52,6 +53,7 @@ class TestGetHealth(TestHealthTestBase):
                 job_type="SchedulerJob",
                 state=State.RUNNING,
                 latest_heartbeat=last_scheduler_heartbeat_for_testing_1,
+                job_runner=SchedulerJobRunner(),
             )
         )
         session.commit()
@@ -71,6 +73,7 @@ class TestGetHealth(TestHealthTestBase):
                 job_type="SchedulerJob",
                 state=State.RUNNING,
                 latest_heartbeat=last_scheduler_heartbeat_for_testing_2,
+                job_runner=SchedulerJobRunner(),
             )
         )
         session.commit()
@@ -88,9 +91,9 @@ class TestGetHealth(TestHealthTestBase):
         assert "unhealthy" == resp_json["scheduler"]["status"]
         assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None
 
-    @mock.patch("airflow.api_connexion.endpoints.health_endpoint.SchedulerJob.most_recent_job")
-    def test_unhealthy_metadatabase_status(self, mock_scheduler_most_recent_job):
-        mock_scheduler_most_recent_job.side_effect = Exception
+    @mock.patch.object(SchedulerJobRunner, "most_recent_job")
+    def test_unhealthy_metadatabase_status(self, most_recent_job_mock):
+        most_recent_job_mock.side_effect = Exception
         resp_json = self.client.get("/api/v1/health").json
         assert "unhealthy" == resp_json["metadatabase"]["status"]
         assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None

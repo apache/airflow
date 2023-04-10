@@ -32,7 +32,7 @@ from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.triggerer_job import TriggererJobRunner
 from airflow.models import DAG, DagRun, TaskInstance, Trigger
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
@@ -403,7 +403,7 @@ class TestFileTaskLogHandler:
         assert isinstance(ti, TaskInstance)
         if is_a_trigger:
             ti.is_trigger_log_context = True
-            job = TriggererJob()
+            job = BaseJob(job_runner=TriggererJobRunner())
             t = Trigger("", {})
             t.triggerer_job = job
             ti.triggerer = t
@@ -475,7 +475,7 @@ class TestLogUrl:
         )
         ti.hostname = "hostname"
         trigger = Trigger("", {})
-        job = BaseJob()
+        job = BaseJob(job_runner=TriggererJobRunner())
         job.id = 123
         trigger.triggerer_job = job
         ti.trigger = trigger

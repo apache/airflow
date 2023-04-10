@@ -23,6 +23,7 @@ import json
 import pytest
 
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.scheduler_job import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www import app as application
@@ -65,6 +66,7 @@ def heartbeat_healthy():
         job_type="SchedulerJob",
         state="running",
         latest_heartbeat=last_heartbeat,
+        job_runner=SchedulerJobRunner(),
     )
     with create_session() as session:
         session.add(job)
@@ -85,6 +87,7 @@ def heartbeat_too_slow():
         job_type="SchedulerJob",
         state="running",
         latest_heartbeat=last_heartbeat,
+        job_runner=SchedulerJobRunner(),
     )
     with create_session() as session:
         session.query(BaseJob).filter(

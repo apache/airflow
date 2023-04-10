@@ -43,6 +43,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job_runner import BaseJobRunner
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -60,6 +61,7 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -93,9 +95,9 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
-class SchedulerJob(BaseJob):
+class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
-    SchedulerJob runs for a specific time interval and schedules jobs that are ready to run.
+    SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
 
     It figures out the latest runs for each task and sees if the dependencies
     for the next schedules are met.
@@ -116,8 +118,10 @@ class SchedulerJob(BaseJob):
     :param log: override the default Logger
     """
 
-    __mapper_args__ = {"polymorphic_identity": "SchedulerJob"}
+    job_type = "SchedulerJob"
     heartrate: int = conf.getint("scheduler", "SCHEDULER_HEARTBEAT_SEC")
+
+    job: BaseJob  # scheduler can only run with BaseJob class not the Pydantic serialized version
 
     def __init__(
         self,
@@ -167,6 +171,10 @@ class SchedulerJob(BaseJob):
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
         self._paused_dag_without_running_dagruns: set = set()
 
+    @provide_session
+    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+        Stats.incr("scheduler_heartbeat", 1, 1)
+
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
@@ -196,7 +204,7 @@ class SchedulerJob(BaseJob):
 
         self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
 
-        self.executor.debug_dump()
+        self.job.executor.debug_dump()
         self.log.info("-" * 80)
 
     def is_alive(self, grace_multiplier: float | None = None) -> bool:
@@ -212,11 +220,12 @@ class SchedulerJob(BaseJob):
         """
         if grace_multiplier is not None:
             # Accept the same behaviour as superclass
-            return super().is_alive(grace_multiplier=grace_multiplier)
+            return self.job.is_alive(grace_multiplier=grace_multiplier)
         scheduler_health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
         return (
-            self.state == State.RUNNING
-            and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < scheduler_health_check_threshold
+            self.job.state == State.RUNNING
+            and (timezone.utcnow() - self.job.latest_heartbeat).total_seconds()
+            < scheduler_health_check_threshold
         )
 
     def __get_concurrency_maps(
@@ -526,7 +535,7 @@ class SchedulerJob(BaseJob):
                 {
                     TI.state: TaskInstanceState.QUEUED,
                     TI.queued_dttm: timezone.utcnow(),
-                    TI.queued_by_job_id: self.id,
+                    TI.queued_by_job_id: self.job.id,
                 },
                 synchronize_session=False,
             )
@@ -556,7 +565,7 @@ class SchedulerJob(BaseJob):
             queue = ti.queue
             self.log.info("Sending %s to executor with priority %s and queue %s", ti.key, priority, queue)
 
-            self.executor.queue_command(
+            self.job.executor.queue_command(
                 ti,
                 command,
                 priority=priority,
@@ -582,10 +591,10 @@ class SchedulerJob(BaseJob):
         :param session:
         :return: Number of task instance with state changed.
         """
-        if self.max_tis_per_query == 0:
-            max_tis = self.executor.slots_available
+        if self.job.max_tis_per_query == 0:
+            max_tis = self.job.executor.slots_available
         else:
-            max_tis = min(self.max_tis_per_query, self.executor.slots_available)
+            max_tis = min(self.job.max_tis_per_query, self.job.executor.slots_available)
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         self._enqueue_task_instances_with_queued_state(queued_tis, session=session)
@@ -596,7 +605,7 @@ class SchedulerJob(BaseJob):
         if not self._standalone_dag_processor and not self.processor_agent:
             raise ValueError("Processor agent is not started.")
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
-        event_buffer = self.executor.get_event_buffer()
+        event_buffer = self.job.executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
 
         # Report execution
@@ -683,7 +692,7 @@ class SchedulerJob(BaseJob):
             # but that is handled by the zombie detection.
 
             ti_queued = ti.try_number == buffer_key.try_number and ti.state == TaskInstanceState.QUEUED
-            ti_requeued = ti.queued_by_job_id != self.id or self.executor.has_task(ti)
+            ti_requeued = ti.queued_by_job_id != self.job.id or self.job.executor.has_task(ti)
 
             if ti_queued and not ti_requeued:
                 Stats.incr(
@@ -712,13 +721,13 @@ class SchedulerJob(BaseJob):
                         msg=msg % (ti, state, ti.state, info),
                         processor_subdir=ti.dag_model.processor_subdir,
                     )
-                    self.executor.send_callback(request)
+                    self.job.executor.send_callback(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
         return len(event_buffer)
 
-    def _execute(self) -> None:
+    def _execute(self) -> int | None:
         from airflow.dag_processing.manager import DagFileProcessorAgent
 
         self.log.info("Starting the scheduler")
@@ -747,19 +756,19 @@ class SchedulerJob(BaseJob):
             )
 
         try:
-            self.executor.job_id = self.id
+            self.job.executor.job_id = self.job.id
             if self.processor_agent:
                 self.log.debug("Using PipeCallbackSink as callback sink.")
-                self.executor.callback_sink = PipeCallbackSink(
+                self.job.executor.callback_sink = PipeCallbackSink(
                     get_sink_pipe=self.processor_agent.get_callbacks_pipe
                 )
             else:
                 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                self.executor.callback_sink = DatabaseCallbackSink()
+                self.job.executor.callback_sink = DatabaseCallbackSink()
 
-            self.executor.start()
+            self.job.executor.start()
 
             self.register_signals()
 
@@ -789,7 +798,7 @@ class SchedulerJob(BaseJob):
             raise
         finally:
             try:
-                self.executor.end()
+                self.job.executor.end()
             except Exception:
                 self.log.exception("Exception when executing Executor.end")
             if self.processor_agent:
@@ -798,6 +807,7 @@ class SchedulerJob(BaseJob):
                 except Exception:
                     self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
+        return None
 
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
@@ -898,14 +908,14 @@ class SchedulerJob(BaseJob):
                 with create_session() as session:
                     num_queued_tis = self._do_scheduling(session)
 
-                    self.executor.heartbeat()
+                    self.job.executor.heartbeat()
                     session.expunge_all()
                     num_finished_events = self._process_executor_events(session=session)
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
-                self.heartbeat(only_if_necessary=True)
+                self.job.heartbeat(only_if_necessary=True)
 
                 # Run any pending timed events
                 next_event = timers.run(blocking=False)
@@ -993,7 +1003,7 @@ class SchedulerJob(BaseJob):
             session.expunge_all()
             # END: schedule TIs
 
-            if self.executor.slots_available <= 0:
+            if self.job.executor.slots_available <= 0:
                 # We know we can't do anything here, so don't even try!
                 self.log.debug("Executor full, skipping critical section")
                 num_queued_tis = 0
@@ -1098,7 +1108,7 @@ class SchedulerJob(BaseJob):
                     external_trigger=False,
                     session=session,
                     dag_hash=dag_hash,
-                    creating_job_id=self.id,
+                    creating_job_id=self.job.id,
                 )
                 active_runs_of_dags[dag.dag_id] += 1
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs_of_dags[dag.dag_id]):
@@ -1199,7 +1209,7 @@ class SchedulerJob(BaseJob):
                     external_trigger=False,
                     session=session,
                     dag_hash=dag_hash,
-                    creating_job_id=self.id,
+                    creating_job_id=self.job.id,
                 )
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
@@ -1383,7 +1393,7 @@ class SchedulerJob(BaseJob):
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.executor.send_callback(callback)
+            self.job.executor.send_callback(callback)
         else:
             self.log.debug("callback is empty")
 
@@ -1410,7 +1420,7 @@ class SchedulerJob(BaseJob):
             dag_id=dag.dag_id,
             processor_subdir=dag_model.processor_subdir,
         )
-        self.executor.send_callback(request)
+        self.job.executor.send_callback(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
@@ -1425,10 +1435,6 @@ class SchedulerJob(BaseJob):
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
-
-    @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
-        Stats.incr("scheduler_heartbeat", 1, 1)
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
@@ -1451,11 +1457,11 @@ class SchedulerJob(BaseJob):
                 self.log.debug("Calling SchedulerJob.adopt_or_reset_orphaned_tasks method")
                 try:
                     num_failed = (
-                        session.query(SchedulerJob)
+                        session.query(BaseJob)
                         .filter(
-                            SchedulerJob.job_type == "SchedulerJob",
-                            SchedulerJob.state == State.RUNNING,
-                            SchedulerJob.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
+                            BaseJob.job_type == "SchedulerJob",
+                            BaseJob.state == State.RUNNING,
+                            BaseJob.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
                         )
                         .update({"state": State.FAILED})
                     )
@@ -1473,7 +1479,7 @@ class SchedulerJob(BaseJob):
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
                         # released.
                         .outerjoin(TI.queued_by_job)
-                        .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
+                        .filter(or_(TI.queued_by_job_id.is_(None), BaseJob.state != State.RUNNING))
                         .join(TI.dag_run)
                         .filter(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
@@ -1486,7 +1492,7 @@ class SchedulerJob(BaseJob):
                     tis_to_reset_or_adopt = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
                     ).all()
-                    to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
+                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
                     reset_tis_message = []
                     for ti in to_reset:
@@ -1495,7 +1501,7 @@ class SchedulerJob(BaseJob):
                         ti.queued_by_job_id = None
 
                     for ti in set(tis_to_reset_or_adopt) - set(to_reset):
-                        ti.queued_by_job_id = self.id
+                        ti.queued_by_job_id = self.job.id
 
                     Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
                     Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_reset_or_adopt) - len(to_reset))
@@ -1549,7 +1555,7 @@ class SchedulerJob(BaseJob):
         or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
         to be handled by the DAG processor.
         """
-        from airflow.jobs.local_task_job import LocalTaskJob
+        from airflow.jobs.base_job import BaseJob
 
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
@@ -1558,16 +1564,17 @@ class SchedulerJob(BaseJob):
             zombies: list[tuple[TI, str, str]] = (
                 session.query(TI, DM.fileloc, DM.processor_subdir)
                 .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(LocalTaskJob, TI.job_id == LocalTaskJob.id)
+                .join(BaseJob, TI.job_id == BaseJob.id)
                 .join(DM, TI.dag_id == DM.dag_id)
                 .filter(TI.state == TaskInstanceState.RUNNING)
                 .filter(
                     or_(
-                        LocalTaskJob.state != State.RUNNING,
-                        LocalTaskJob.latest_heartbeat < limit_dttm,
+                        BaseJob.state != State.RUNNING,
+                        BaseJob.latest_heartbeat < limit_dttm,
                     )
                 )
-                .filter(TI.queued_by_job_id == self.id)
+                .filter(BaseJob.job_type == "LocalTaskJob")
+                .filter(TI.queued_by_job_id == self.job.id)
                 .all()
             )
 
@@ -1583,7 +1590,7 @@ class SchedulerJob(BaseJob):
                 msg=str(zombie_message_details),
             )
             self.log.error("Detected zombie job: %s", request)
-            self.executor.send_callback(request)
+            self.job.executor.send_callback(request)
             Stats.incr(
                 "zombies_killed", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
             )
