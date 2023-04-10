@@ -360,12 +360,11 @@ class SerializedDagModel(Base):
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
 
     @classmethod
-    @provide_session
     def get_latest_version_hash_and_updated_datetime(
         cls,
         dag_id: str,
         *,
-        session: Session = NEW_SESSION,
+        session: Session,
     ) -> tuple[str, datetime] | None:
         """
         Get the latest DAG version for a given DAG ID, as well as the date when the Serialized DAG associated
