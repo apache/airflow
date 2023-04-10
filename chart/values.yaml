@@ -51,6 +51,9 @@ defaultAirflowRepository: apache/airflow
 # Default airflow tag to deploy
 defaultAirflowTag: "2.5.3"
 
+# Default airflow digest. If specified, it takes precedence over tag
+defaultAirflowDigest: ~
+
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 airflowVersion: "2.5.3"
 
@@ -59,6 +62,8 @@ images:
   airflow:
     repository: ~
     tag: ~
+    # Specifying digest takes precedence over tag.
+    digest: ~
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs

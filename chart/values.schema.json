@@ -80,6 +80,15 @@
             "default": "2.5.3",
             "x-docsSection": "Common"
         },
+        "defaultAirflowDigest": {
+            "description": "Default airflow digest to deploy. Overrides tag.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
+            "x-docsSection": "Common"
+        },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
@@ -471,6 +480,14 @@
                         },
                         "tag": {
                             "description": "The airflow image tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "digest": {
+                            "description": "The airflow image digest. If set, it will override the tag.",
                             "type": [
                                 "string",
                                 "null"
