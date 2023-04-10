@@ -16,6 +16,11 @@ from airflow.utils import file
 import airflow.decorators, airflow.models\
 , airflow.sensors
 
+if prod:
+    import airflow.if_branch
+else:
+    import airflow.else_branch
+
 def f():
     # local import
     import airflow.local_import

@@ -203,3 +203,14 @@ class TestListPyFilesPath:
         assert "airflow.local_import" not in modules
         # this one is in a comment, we don't want it
         assert "airflow.in_comment" not in modules
+        # we don't want imports under conditions
+        assert "airflow.if_branch" not in modules
+        assert "airflow.else_branch" not in modules
+
+    def test_get_modules_from_invalid_file(self):
+        file_path = os.path.join(TEST_DAGS_FOLDER, "README.md")  # just getting a non-python file
+
+        # should not error
+        modules = file_utils.get_airflow_modules_in(file_path)
+
+        assert len(modules) == 0

@@ -378,7 +378,10 @@ def get_airflow_modules_in(file_path: str) -> [str]:
     """Returns a list of the airflow modules that are imported in the given file"""
     with open(file_path, "rb") as dag_file:
         content = dag_file.read()
-    parsed = ast.parse(content)
+    try:
+        parsed = ast.parse(content)
+    except SyntaxError:
+        return []
 
     modules = []
     for st in parsed.body:
