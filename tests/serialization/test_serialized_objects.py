@@ -23,6 +23,7 @@ from airflow.exceptions import SerializationError
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.state import State
 from tests import REPO_ROOT
 
@@ -82,6 +83,7 @@ def test_strict_mode():
         BaseSerialization.serialize(obj, strict=True)  # now raises
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_use_pydantic_models():
     """If use_pydantic_models=True the TaskInstance object should be serialized to TaskInstancePydantic."""
 
