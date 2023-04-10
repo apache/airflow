@@ -24,7 +24,7 @@ import os
 import psutil
 from setproctitle import setproctitle
 
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -35,7 +35,7 @@ from airflow.utils.process_utils import reap_process_group, set_new_process_grou
 class StandardTaskRunner(BaseTaskRunner):
     """Standard runner for all tasks."""
 
-    def __init__(self, base_job: BaseJob):
+    def __init__(self, base_job: Job):
         super().__init__(base_job=base_job)
         self._rc = None
         self.dag = self.job_runner.task_instance.task.dag

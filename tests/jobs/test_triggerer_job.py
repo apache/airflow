@@ -29,8 +29,8 @@ import pytest
 
 from airflow import DAG
 from airflow.config_templates import airflow_local_settings
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.triggerer_job import TriggererJobRunner, TriggerRunner, setup_queue_listener
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner, setup_queue_listener
 from airflow.logging_config import configure_logging
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
@@ -125,7 +125,7 @@ def test_trigger_logging_sensitive_info(session, capsys):
     trigger = SuccessTrigger()
     op = SensitiveArgOperator(task_id="sensitive_arg_task", password="some_password")
     create_trigger_in_db(session, trigger, operator=op)
-    job = BaseJob(job_runner=TriggererJobRunner())
+    job = Job(job_runner=TriggererJobRunner())
     job.job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
     job.job_runner.daemon = True
@@ -150,7 +150,7 @@ def test_trigger_logging_sensitive_info(session, capsys):
 def test_is_alive():
     """Checks the heartbeat logic"""
     # Current time
-    triggerer_job = BaseJob(job_runner=TriggererJobRunner(None), heartrate=10, state=State.RUNNING)
+    triggerer_job = Job(job_runner=TriggererJobRunner(None), heartrate=10, state=State.RUNNING)
     assert triggerer_job.is_alive()
 
     # Slightly old, but still fresh
@@ -170,7 +170,7 @@ def test_is_alive():
 def test_is_needed(session):
     """Checks the triggerer-is-needed logic"""
     # No triggers, no need
-    triggerer_job = BaseJob(job_runner=TriggererJobRunner(None), heartrate=10, state=State.RUNNING)
+    triggerer_job = Job(job_runner=TriggererJobRunner(None), heartrate=10, state=State.RUNNING)
     assert triggerer_job.job_runner.is_needed() is False
     # Add a trigger, it's needed
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
@@ -192,7 +192,7 @@ def test_capacity_decode():
         None,
     ]
     for input_str in variants:
-        job = BaseJob(job_runner=TriggererJobRunner(capacity=input_str))
+        job = Job(job_runner=TriggererJobRunner(capacity=input_str))
         assert job.job_runner.capacity == input_str or job.job_runner.capacity == 1000
 
     # Negative cases
@@ -217,7 +217,7 @@ def test_trigger_lifecycle(session):
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
     # Make a TriggererJobRunner and have it retrieve DB tasks
-    job = BaseJob(job_runner=TriggererJobRunner())
+    job = Job(job_runner=TriggererJobRunner())
     job.job_runner.load_triggers()
     # Make sure it turned up in TriggerRunner's queue
     assert [x for x, y in job.job_runner.trigger_runner.to_create] == [1]
@@ -339,7 +339,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
 
     session.commit()
 
-    job = BaseJob(job_runner=TriggererJob_())
+    job = Job(job_runner=TriggererJob_())
     job.job_runner.trigger_runner = TriggerRunner_()
     thread = Thread(target=job.job_runner._execute)
     thread.start()
@@ -372,7 +372,7 @@ def test_trigger_from_dead_triggerer(session):
     session.add(trigger_orm)
     session.commit()
     # Make a TriggererJobRunner and have it retrieve DB tasks
-    job = BaseJob(job_runner=TriggererJobRunner())
+    job = Job(job_runner=TriggererJobRunner())
     job.job_runner.load_triggers()
     # Make sure it turned up in TriggerRunner's queue
     assert [x for x, y in job.job_runner.trigger_runner.to_create] == [1]
@@ -390,7 +390,7 @@ def test_trigger_from_expired_triggerer(session):
     trigger_orm.triggerer_id = 42
     session.add(trigger_orm)
     # Use a TriggererJobRunner with an expired heartbeat
-    triggerer_job_orm = BaseJob(job_runner=TriggererJobRunner())
+    triggerer_job_orm = Job(job_runner=TriggererJobRunner())
     triggerer_job_orm.id = 42
     triggerer_job_orm.start_date = timezone.utcnow() - datetime.timedelta(hours=1)
     triggerer_job_orm.end_date = None
@@ -398,7 +398,7 @@ def test_trigger_from_expired_triggerer(session):
     session.add(triggerer_job_orm)
     session.commit()
     # Make a TriggererJobRunner and have it retrieve DB tasks
-    job = BaseJob(job_runner=TriggererJobRunner())
+    job = Job(job_runner=TriggererJobRunner())
     job.job_runner.load_triggers()
     # Make sure it turned up in TriggerRunner's queue
     assert [x for x, y in job.job_runner.trigger_runner.to_create] == [1]
@@ -413,7 +413,7 @@ def test_trigger_firing(session):
     trigger = SuccessTrigger()
     create_trigger_in_db(session, trigger)
     # Make a TriggererJobRunner and have it retrieve DB tasks
-    job = BaseJob(job_runner=TriggererJobRunner())
+    job = Job(job_runner=TriggererJobRunner())
     job.job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
     job.job_runner.daemon = True
@@ -441,7 +441,7 @@ def test_trigger_failing(session):
     trigger = FailureTrigger()
     create_trigger_in_db(session, trigger)
     # Make a TriggererJobRunner and have it retrieve DB tasks
-    job = BaseJob(job_runner=TriggererJobRunner())
+    job = Job(job_runner=TriggererJobRunner())
     job.job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
     job.job_runner.daemon = True
@@ -506,7 +506,7 @@ def test_invalid_trigger(session, dag_maker):
     session.commit()
 
     # Make a TriggererJobRunner and have it retrieve DB tasks
-    job = BaseJob(job_runner=TriggererJobRunner())
+    job = Job(job_runner=TriggererJobRunner())
     job.job_runner.load_triggers()
 
     # Make sure it turned up in the failed queue
@@ -525,11 +525,11 @@ def test_invalid_trigger(session, dag_maker):
 
 
 @pytest.mark.parametrize("should_wrap", (True, False))
-@patch("airflow.jobs.triggerer_job.configure_trigger_log_handler")
+@patch("airflow.jobs.triggerer_job_runner.configure_trigger_log_handler")
 def test_handler_config_respects_donot_wrap(mock_configure, should_wrap):
-    from airflow.jobs import triggerer_job
+    from airflow.jobs import triggerer_job_runner
 
-    triggerer_job.DISABLE_WRAPPER = not should_wrap
+    triggerer_job_runner.DISABLE_WRAPPER = not should_wrap
     TriggererJobRunner()
     if should_wrap:
         mock_configure.assert_called()
@@ -537,7 +537,7 @@ def test_handler_config_respects_donot_wrap(mock_configure, should_wrap):
         mock_configure.assert_not_called()
 
 
-@patch("airflow.jobs.triggerer_job.setup_queue_listener")
+@patch("airflow.jobs.triggerer_job_runner.setup_queue_listener")
 def test_triggerer_job_always_creates_listener(mock_setup):
     mock_setup.assert_not_called()
     TriggererJobRunner()

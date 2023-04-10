@@ -20,8 +20,8 @@ import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.scheduler_job import SchedulerJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -36,10 +36,10 @@ class HealthServer(BaseHTTPRequestHandler):
             try:
                 with create_session() as session:
                     scheduler_job = (
-                        session.query(BaseJob)
+                        session.query(Job)
                         .filter_by(job_type=SchedulerJobRunner.job_type)
                         .filter_by(hostname=get_hostname())
-                        .order_by(BaseJob.latest_heartbeat.desc())
+                        .order_by(Job.latest_heartbeat.desc())
                         .first()
                     )
                 if scheduler_job and scheduler_job.is_alive():

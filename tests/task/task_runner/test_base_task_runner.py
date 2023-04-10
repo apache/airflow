@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import LocalTaskJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.baseoperator import BaseOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 
@@ -40,7 +40,7 @@ def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, im
 
     ti = dr.task_instances[0]
     task_runner = LocalTaskJobRunner(ti)
-    job = BaseJob(job_runner=task_runner, dag_id=ti.dag_id)
+    job = Job(job_runner=task_runner, dag_id=ti.dag_id)
     runner = BaseTaskRunner(job)
     # So we don't try to delete it -- cos the file won't exist
     del runner._cfg_path

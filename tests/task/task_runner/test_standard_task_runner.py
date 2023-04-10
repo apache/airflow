@@ -28,8 +28,8 @@ from unittest.mock import patch
 import psutil
 import pytest
 
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import LocalTaskJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
@@ -94,10 +94,10 @@ class TestStandardTaskRunner:
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
     def test_start_and_terminate(self, mock_init):
         mock_init.return_value = "/tmp/any"
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = [
+        base_job = mock.Mock()
+        base_job.task_instance = mock.MagicMock()
+        base_job.task_instance.run_as_user = None
+        base_job.task_instance.command_as_list.return_value = [
             "airflow",
             "tasks",
             "run",
@@ -105,9 +105,9 @@ class TestStandardTaskRunner:
             "task1",
             "2016-01-01",
         ]
-        local_task_job.job_runner = LocalTaskJobRunner(local_task_job.task_instance)
+        base_job.job_runner = LocalTaskJobRunner(base_job.task_instance)
 
-        runner = StandardTaskRunner(local_task_job)
+        runner = StandardTaskRunner(base_job)
         runner.start()
         # Wait until process sets its pgid to be equal to pid
         with timeout(seconds=1):
@@ -150,9 +150,7 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = BaseJob(
-            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
-        )
+        job1 = Job(job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id)
         runner = StandardTaskRunner(job1)
         runner.start()
 
@@ -195,9 +193,7 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = BaseJob(
-            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
-        )
+        job1 = Job(job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id)
         runner = StandardTaskRunner(job1)
         runner.start()
 
@@ -220,12 +216,12 @@ class TestStandardTaskRunner:
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
     def test_start_and_terminate_run_as_user(self, mock_init):
         mock_init.return_value = "/tmp/any"
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.task_id = "task_id"
-        local_task_job.task_instance.dag_id = "dag_id"
-        local_task_job.task_instance.run_as_user = getuser()
-        local_task_job.task_instance.command_as_list.return_value = [
+        base_job = mock.Mock()
+        base_job.task_instance = mock.MagicMock()
+        base_job.task_instance.task_id = "task_id"
+        base_job.task_instance.dag_id = "dag_id"
+        base_job.task_instance.run_as_user = getuser()
+        base_job.task_instance.command_as_list.return_value = [
             "airflow",
             "tasks",
             "test",
@@ -233,8 +229,8 @@ class TestStandardTaskRunner:
             "task1",
             "2016-01-01",
         ]
-        local_task_job.job_runner = LocalTaskJobRunner(local_task_job.task_instance)
-        runner = StandardTaskRunner(local_task_job)
+        base_job.job_runner = LocalTaskJobRunner(base_job.task_instance)
+        runner = StandardTaskRunner(base_job)
 
         runner.start()
         time.sleep(0.5)
@@ -261,12 +257,12 @@ class TestStandardTaskRunner:
         -9 and a log message.
         """
         mock_init.return_value = "/tmp/any"
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.task_id = "task_id"
-        local_task_job.task_instance.dag_id = "dag_id"
-        local_task_job.task_instance.run_as_user = getuser()
-        local_task_job.task_instance.command_as_list.return_value = [
+        base_job = mock.Mock()
+        base_job.task_instance = mock.MagicMock()
+        base_job.task_instance.task_id = "task_id"
+        base_job.task_instance.dag_id = "dag_id"
+        base_job.task_instance.run_as_user = getuser()
+        base_job.task_instance.command_as_list.return_value = [
             "airflow",
             "tasks",
             "test",
@@ -274,10 +270,10 @@ class TestStandardTaskRunner:
             "task1",
             "2016-01-01",
         ]
-        local_task_job.job_runner = LocalTaskJobRunner(local_task_job.task_instance)
+        base_job.job_runner = LocalTaskJobRunner(base_job.task_instance)
 
         # Kick off the runner
-        runner = StandardTaskRunner(local_task_job)
+        runner = StandardTaskRunner(base_job)
         runner.start()
         time.sleep(0.2)
 
@@ -323,9 +319,7 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = BaseJob(
-            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
-        )
+        job1 = Job(job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id)
         runner = StandardTaskRunner(job1)
         runner.start()
 
@@ -383,9 +377,7 @@ class TestStandardTaskRunner:
             start_date=DEFAULT_DATE,
         )
         ti = TaskInstance(task=task, run_id="test")
-        job1 = BaseJob(
-            job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id
-        )
+        job1 = Job(job_runner=LocalTaskJobRunner(task_instance=ti, ignore_ti_state=True), dag_id=ti.dag_id)
         runner = StandardTaskRunner(job1)
         runner.start()
 

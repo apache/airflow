@@ -25,8 +25,8 @@ from distributed import LocalCluster
 
 from airflow.exceptions import AirflowException
 from airflow.executors.dask_executor import DaskExecutor
-from airflow.jobs.backfill_job import BackfillJobRunner
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.backfill_job_runner import BackfillJobRunner
+from airflow.jobs.job import Job
 from airflow.models import DagBag
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
@@ -108,7 +108,7 @@ class TestDaskExecutor(TestBaseDask):
         """
         dag = self.dagbag.get_dag("example_bash_operator")
 
-        job = BaseJob(
+        job = Job(
             job_runner=BackfillJobRunner(
                 dag=dag,
                 start_date=DEFAULT_DATE,
