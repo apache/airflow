@@ -766,7 +766,6 @@ def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
             role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             ],
         ) as user:
             assert security_manager.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
