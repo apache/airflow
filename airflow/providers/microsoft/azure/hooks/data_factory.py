@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import inspect
 import time
+import warnings
 from functools import wraps
 from typing import Any, Callable, TypeVar, Union, cast
 
@@ -84,9 +85,15 @@ def provide_targeted_factory(func: Callable) -> Callable:
                 self = args[0]
                 conn = self.get_connection(self.conn_id)
                 extras = conn.extra_dejson
-                default_value = extras.get(default_key) or extras.get(
-                    f"extra__azure_data_factory__{default_key}"
-                )
+                default_value = extras.get(default_key)
+                if not default_value and extras.get(f"extra__azure_data_factory__{default_key}"):
+                    warnings.warn(
+                        f"`extra__azure_data_factory__{default_key}` is deprecated in azure connection extra,"
+                        f" please use `{default_key}` instead",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    default_value = extras.get(f"extra__azure_data_factory__{default_key}")
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
 
@@ -138,6 +145,12 @@ def get_field(extras: dict, field_name: str, strict: bool = False):
         return extras[field_name] or None
     prefixed_name = f"{backcompat_prefix}{field_name}"
     if prefixed_name in extras:
+        warnings.warn(
+            f"`{prefixed_name}` is deprecated in azure connection extra,"
+            f" please use `{field_name}` instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return extras[prefixed_name] or None
     if strict:
         raise KeyError(f"Field {field_name} not found in extras")
@@ -1073,6 +1086,14 @@ def provide_targeted_factory_async(func: T) -> T:
                 default_value = extras.get(default_key) or extras.get(
                     f"extra__azure_data_factory__{default_key}"
                 )
+                if not default_value and extras.get(f"extra__azure_data_factory__{default_key}"):
+                    warnings.warn(
+                        f"`extra__azure_data_factory__{default_key}` is deprecated in azure connection extra,"
+                        f" please use `{default_key}` instead",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    default_value = extras.get(f"extra__azure_data_factory__{default_key}")
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
 
