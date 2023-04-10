@@ -29,7 +29,13 @@ from unittest.mock import patch
 import pytest
 
 from airflow import settings
-from airflow.utils.log.secrets_masker import RedactedIO, SecretsMasker, mask_secret, should_hide_value_for_key
+from airflow.utils.log.secrets_masker import (
+    RedactedIO,
+    SecretsMasker,
+    mask_secret,
+    redact,
+    should_hide_value_for_key,
+)
 from tests.test_utils.config import conf_vars
 
 settings.MASK_SECRETS_IN_LOGS = True
@@ -273,6 +279,25 @@ class TestSecretsMasker:
 
         # We shouldn't have logged a warning here
         assert caplog.messages == []
+
+    @pytest.mark.parametrize(
+        ("val", "expected", "max_depth"),
+        [
+            (["abc"], ["***"], None),
+            (["abc"], ["***"], 1),
+            ([[[["abc"]]]], [[[["***"]]]], None),
+            ([[[[["abc"]]]]], [[[[["***"]]]]], None),
+            # Items below max depth aren't redacted
+            ([[[[[["abc"]]]]]], [[[[[["abc"]]]]]], None),
+            ([["abc"]], [["abc"]], 1),
+        ],
+    )
+    def test_redact_max_depth(self, val, expected, max_depth):
+        secrets_masker = SecretsMasker()
+        secrets_masker.add_mask("abc")
+        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
+            got = redact(val, max_depth=max_depth)
+            assert got == expected
 
 
 class TestShouldHideValueForKey:

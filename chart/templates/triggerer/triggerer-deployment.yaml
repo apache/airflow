@@ -136,8 +136,8 @@ spec:
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-            {{- include "custom_airflow_environment" . | nindent 10 }}
-            {{- include "standard_airflow_environment" . | nindent 10 }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
             {{- if .Values.triggerer.waitForMigrations.env }}
               {{- tpl (toYaml .Values.triggerer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -177,8 +177,8 @@ spec:
             {{- end }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-            {{- include "custom_airflow_environment" . | nindent 10 }}
-            {{- include "standard_airflow_environment" . | nindent 10 }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}
@@ -187,11 +187,11 @@ spec:
             periodSeconds: {{ .Values.triggerer.livenessProbe.periodSeconds }}
             exec:
               command:
-                  {{- if .Values.triggerer.livenessProbe.command }}
-                    {{- toYaml .Values.triggerer.livenessProbe.command | nindent 16 }}
-                  {{- else }}
-                    {{- include "triggerer_liveness_check_command" . | nindent 16 }}
-                  {{- end }}
+                {{- if .Values.triggerer.livenessProbe.command }}
+                  {{- toYaml .Values.triggerer.livenessProbe.command | nindent 16 }}
+                {{- else }}
+                  {{- include "triggerer_liveness_check_command" . | indent 14 }}
+                {{- end }}
         {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
           {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:

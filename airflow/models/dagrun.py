@@ -266,13 +266,18 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def active_runs_of_dags(cls, dag_ids=None, only_running=False, session=None) -> dict[str, int]:
+    def active_runs_of_dags(
+        cls,
+        dag_ids: Iterable[str] | None = None,
+        only_running: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> dict[str, int]:
         """Get the number of active dag runs for each dag."""
         query = session.query(cls.dag_id, func.count("*"))
         if dag_ids is not None:
             # 'set' called to avoid duplicate dag_ids, but converted back to 'list'
             # because SQLAlchemy doesn't accept a set here.
-            query = query.filter(cls.dag_id.in_(list(set(dag_ids))))
+            query = query.filter(cls.dag_id.in_(set(dag_ids)))
         if only_running:
             query = query.filter(cls.state == State.RUNNING)
         else:
@@ -596,7 +601,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
+                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="task_failure",
                 )
 
@@ -617,7 +622,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=False,
-                    processor_subdir=dag_model.processor_subdir,
+                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="success",
                 )
 
@@ -638,7 +643,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
+                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="all_tasks_deadlocked",
                 )
 
@@ -1230,7 +1235,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get_latest_runs(cls, session=None) -> list[DagRun]:
+    def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
         """Returns the latest DagRun for each DAG"""
         subquery = (
             session.query(cls.dag_id, func.max(cls.execution_date).label("execution_date"))

@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from time import sleep
+from typing import NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow.compat.functools import cached_property
@@ -36,7 +37,7 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
@@ -121,7 +122,7 @@ class BaseJob(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def most_recent_job(cls, session=None) -> BaseJob | None:
+    def most_recent_job(cls, session: Session = NEW_SESSION) -> BaseJob | None:
         """
         Return the most recent job of this type, if any, based on last heartbeat received.
 
@@ -160,7 +161,7 @@ class BaseJob(Base, LoggingMixin):
         )
 
     @provide_session
-    def kill(self, session=None):
+    def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.end_date = timezone.utcnow()
@@ -176,10 +177,10 @@ class BaseJob(Base, LoggingMixin):
         """Will be called when an external kill command is received."""
 
     @provide_session
-    def heartbeat_callback(self, session=None) -> None:
+    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         """Callback that is called during heartbeat. This method should be overwritten."""
 
-    def heartbeat(self, only_if_necessary: bool = False):
+    def heartbeat(self, only_if_necessary: bool = False) -> None:
         """
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
@@ -245,7 +246,7 @@ class BaseJob(Base, LoggingMixin):
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 
-    def run(self):
+    def run(self) -> int | None:
         """Starts the job."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         # Adding an entry in the DB
@@ -275,5 +276,5 @@ class BaseJob(Base, LoggingMixin):
         Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
         return ret
 
-    def _execute(self):
+    def _execute(self) -> int | None:
         raise NotImplementedError("This method needs to be overridden")
