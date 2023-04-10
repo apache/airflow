@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Only restrict spark binary passed via extra (#30213)``
+* ``Validate host and schema for Spark JDBC Hook (#30223)``
+* ``Add spark3-submit to list of allowed spark-binary values (#30068)``
+
 4.0.0
 .....
 

@@ -85,15 +85,15 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           {{- if .Values.migrateDatabaseJob.command }}
-          command: {{ tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
+          command: {{- tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
           {{- end }}
           {{- if .Values.migrateDatabaseJob.args }}
-          args: {{ tpl (toYaml .Values.migrateDatabaseJob.args) . | nindent 12 }}
+          args: {{- tpl (toYaml .Values.migrateDatabaseJob.args) . | nindent 12 }}
           {{- end }}
           {{- if .Values.migrateDatabaseJob.applyCustomEnv }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env: {{- include "custom_airflow_environment" . | indent 10 }}
-          {{ else }}
+          {{- else }}
           env:
           {{- end }}
             - name: PYTHONUNBUFFERED
@@ -106,7 +106,7 @@ spec:
             {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.migrateDatabaseJob.extraVolumeMounts }}
-              {{ tpl (toYaml .Values.migrateDatabaseJob.extraVolumeMounts) . | nindent 12 }}
+              {{- tpl (toYaml .Values.migrateDatabaseJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.migrateDatabaseJob.extraContainers }}
           {{- toYaml .Values.migrateDatabaseJob.extraContainers | nindent 8 }}
