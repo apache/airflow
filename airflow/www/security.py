@@ -762,6 +762,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
             ):
                 can_access_all_dags = self.has_access(*perm)
                 if can_access_all_dags:
