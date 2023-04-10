@@ -338,7 +338,7 @@ Note if this is not the first time you clone the repo make sure main branch is r
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
 git checkout main
-git rebase --pull
+git pull --rebase
 ```
 
 - Then you can go to the directory and build the necessary documentation packages
