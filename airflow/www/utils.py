@@ -814,7 +814,7 @@ class CustomSQLAInterface(SQLAInterface):
 
 class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """Custom interface to allow faster deletion.
-    
+
     The ``delete`` and ``delete_all`` methods are overridden to speed up
     deletion when a DAG run has a lot of related task instances. Relying on
     SQLAlchemy's cascading deletion is comparatively slow in this situation.
