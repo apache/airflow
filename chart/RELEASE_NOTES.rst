@@ -32,10 +32,10 @@ Significant Changes
 Default PgBouncer and PgBouncer Exporter images have been updated (#29919)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The pgbouncer and pgbouncer-images are based on newer software/os. They are also multi-platform AMD/ARM images:
+The PgBouncer and PgBouncer Exporter images are based on newer software/os. They are also multi-platform AMD/ARM images:
 
-  * pgbouncer: 1.16.1 based on alpine 3.14 (airflow-pgbouncer-2023.02.24-1.16.1)
-  * pgbouncer-exporter: 0.14.0 based on alpine 3.17 (apache/airflow:airflow-pgbouncer-exporter-2023.02.21-0.14.0)
+  * ``pgbouncer``: 1.16.1 based on alpine 3.14 (``airflow-pgbouncer-2023.02.24-1.16.1``)
+  * ``pgbouncer-exporter``: 0.14.0 based on alpine 3.17 (``apache/airflow:airflow-pgbouncer-exporter-2023.02.21-0.14.0``)
 
 Default Airflow image is updated to ``2.5.3`` (#30411)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -45,12 +45,12 @@ The default Airflow image that is used with the Chart is now ``2.5.3``, previous
 New Features
 ^^^^^^^^^^^^
 
-- Add support for hostAliases for Airflow webserver and scheduler (#30051)
+- Add support for ``hostAliases`` for Airflow webserver and scheduler (#30051)
 - Add support for annotations on StatsD Deployment and cleanup CronJob (#30126)
 - Add support for annotations in logs PVC (#29270)
 - Add support for annotations in extra ConfigMap and Secrets (#30303)
-- Add support for podAnnotations to PgBouncer (#30168)
-- Add support for ttlSecondsAfterFinished on migrateDatabaseJob and createUserJob (#29314)
+- Add support for pod annotations to PgBouncer (#30168)
+- Add support for ``ttlSecondsAfterFinished`` on ``migrateDatabaseJob`` and ``createUserJob`` (#29314)
 - Add support for using SHA digest of Docker images (#30214)
 
 Improvements
