@@ -2,7 +2,7 @@
 # Please do not solve it but run `breeze setup regenerate-command-images`.
 # This command should fix the conflict and regenerate help images that you have conflict with.
 main:83de6a9bf2b1afecd1f9ce4cd0493733
-build-docs:61ddf42565c6e39b2a1b228b2a0e89de
+build-docs:093cf82ab80aee65c6ada9b16ac60612
 ci:find-newer-dependencies:8fa2b57f5f0523c928743b235ee3ab5a
 ci:fix-ownership:fee2c9ec9ef19686792002ae054fecdd
 ci:free-space:47234aa0a60b0efd84972e6e797379f8
