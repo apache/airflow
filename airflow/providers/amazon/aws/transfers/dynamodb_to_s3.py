@@ -31,6 +31,7 @@ from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -127,21 +128,25 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.export_time = export_time
         self.export_format = export_format
 
-    def execute(self, context: Context) -> None:
-        hook = DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
-        if self.export_time:
-            self._export_table_to_point_in_time(hook=hook)
-        else:
-            self._export_entire_data(hook=hook)
+    @cached_property
+    def hook(self):
+        """Create DynamoDBHook"""
+        return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
-    def _export_table_to_point_in_time(self, hook: DynamoDBHook):
+    def execute(self, context: Context) -> None:
+        if self.export_time:
+            self._export_table_to_point_in_time()
+        else:
+            self._export_entire_data()
+
+    def _export_table_to_point_in_time(self):
         """
         Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
          state at this point in time.
         """
         terminal_status = ["COMPLETED", "FAILED"]
         sleep_time = 30  # unit: seconds
-        client = hook.conn.meta.client
+        client = self.hook.conn.meta.client
         while True:
             response = client.export_table_to_point_in_time(
                 TableArn=self.dynamodb_table_name,
@@ -158,16 +163,12 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     @staticmethod
     def _get_export_status(response: dict) -> str:
-        """
-        Get export status from response safely.
-        """
+        """Get export status from response safely."""
         return response.get("ExportDescription", {}).get("ExportStatus")
 
-    def _export_entire_data(self, hook: DynamoDBHook):
-        """
-        Export all data from the table.
-        """
-        table = hook.get_conn().Table(self.dynamodb_table_name)
+    def _export_entire_data(self):
+        """Export all data from the table."""
+        table = self.hook.get_conn().Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         f: IO[Any]
