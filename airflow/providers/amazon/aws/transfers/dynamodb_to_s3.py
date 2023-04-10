@@ -151,7 +151,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             response = client.export_table_to_point_in_time(
                 TableArn=self.dynamodb_table_name,
                 ExportTime=self.export_time,
-                ClientToken="string",
                 S3Bucket=self.s3_bucket_name,
                 S3Prefix=self.s3_key_prefix,
                 ExportFormat=self.export_format,
