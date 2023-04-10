@@ -813,11 +813,11 @@ class CustomSQLAInterface(SQLAInterface):
 
 
 class DagRunCustomSQLAInterface(CustomSQLAInterface):
-    """
-    Overwrite of custom delete and delete_all methods for speeding up
-    the DagRun deletion when DagRun has a lot of task instances.
-    The default cascade deletion was performing very slowly when task instances were more than 10k.
-
+    """Custom interface to allow faster deletion.
+    
+    The ``delete`` and ``delete_all`` methods are overridden to speed up
+    deletion when a DAG run has a lot of related task instances. Relying on
+    SQLAlchemy's cascading deletion is comparatively slow in this situation.
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
