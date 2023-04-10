@@ -929,7 +929,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             executor.end()
 
         self.log.info("Backfill done for DAG %s. Exiting.", self.dag)
-        return
 
     @provide_session
     def reset_state_for_orphaned_tasks(
