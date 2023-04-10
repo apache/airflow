@@ -374,7 +374,7 @@ def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.Zi
     return all(s in content for s in (b"dag", b"airflow"))
 
 
-def get_airflow_modules_in(file_path: str) -> [str]:
+def get_airflow_modules_in(file_path: str) -> list[str]:
     """Returns a list of the airflow modules that are imported in the given file"""
     with open(file_path, "rb") as dag_file:
         content = dag_file.read()
@@ -387,7 +387,7 @@ def get_airflow_modules_in(file_path: str) -> [str]:
     for st in parsed.body:
         if isinstance(st, ast.Import):
             modules.extend([n.name for n in st.names])
-        elif isinstance(st, ast.ImportFrom):
+        elif isinstance(st, ast.ImportFrom) and st.module:
             modules.append(st.module)
 
     return [m for m in modules if m.startswith("airflow.")]
