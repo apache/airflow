@@ -20,9 +20,9 @@ from __future__ import annotations
 import pytest
 
 from airflow.exceptions import SerializationError
-from airflow.models.pydantic.taskinstance import TaskInstancePydantic
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.utils.state import State
 from tests import REPO_ROOT
 

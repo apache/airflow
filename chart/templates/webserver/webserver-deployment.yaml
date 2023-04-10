@@ -63,8 +63,8 @@ spec:
       maxUnavailable: 0
     {{- else }}
     type: Recreate
-    {{- end}}
-    {{- end}}
+    {{- end }}
+    {{- end }}
   selector:
     matchLabels:
       tier: airflow
@@ -94,10 +94,9 @@ spec:
           {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
-{{- if .Values.webserver.hostAliases }}
-      hostAliases:
-{{ toYaml .Values.webserver.hostAliases | indent 8 }}
-{{- end }}
+      {{- if .Values.webserver.hostAliases }}
+      hostAliases: {{- toYaml .Values.webserver.hostAliases | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
       {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
@@ -196,7 +195,7 @@ spec:
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:
-              path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url}}
               httpHeaders:
