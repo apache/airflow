@@ -71,7 +71,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         )
 
         if self.sort_key_value:
-            key[self.sort_key_name] = self.sort_key_value
+            key = {self.partition_key_name: self.partition_key_value, self.sort_key_name: self.sort_key_value}
             msg += f"\nSort Key: {self.sort_key_name}={self.sort_key_value}"
 
         msg += f"\nattribute: {self.attribute_name}={self.attribute_value}"
@@ -79,6 +79,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.log.info(msg)
         table = self.hook.conn.Table(self.table_name)
         self.log.info(f"Table: {table}")
+        self.log.info(f"Key: {key}")
         response = table.get_item(Key=key)
         self.log.info(f"Response: {response}")
         self.log.info(f"Want: {self.attribute_name} = {self.attribute_value}")
