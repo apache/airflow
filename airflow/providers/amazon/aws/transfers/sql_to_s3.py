@@ -176,7 +176,7 @@ class SqlToS3Operator(BaseOperator):
             with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
 
                 self.log.info("Writing data to temp file")
-                getattr(data_df, file_options.function)(tmp_file.name, **self.pd_kwargs)
+                getattr(df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 
                 self.log.info("Uploading data to S3")
                 object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
