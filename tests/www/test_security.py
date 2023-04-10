@@ -527,7 +527,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     # get_permitted_dag_ids() don't return DAGs to which the user has CAN_EDIT action
     username = "Monsieur User"
     role_name = "MyRole1"
-    permission_action = [permissions.ACTION_CAN_EDIT]
+    permission_action = perm_action
     dag_id = "dag_id"
     with app.app_context():
         with create_user_scope(
@@ -564,6 +564,7 @@ def test_sync_perm_for_dag_creates_permissions_on_resources(security_manager):
     security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
     assert security_manager.get_permission(permissions.ACTION_CAN_READ, prefixed_test_dag_id) is not None
     assert security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id) is not None
+    assert security_manager.get_permission(permissions.ACTION_CAN_PAUSE, prefixed_test_dag_id) is not None
 
 
 def test_sync_perm_for_dag_creates_permissions_for_specified_roles(app, security_manager):
@@ -724,6 +725,15 @@ def test_has_all_dag_access(app, security_manager):
             permissions=[(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)],
         ) as user:
             assert _has_all_dags_access(user)
+
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username="user",
+            role_name="pause_all",
+            permissions=[(permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG)],
+        ) as user:
+            assert security_manager.has_all_dags_access(user)
 
     with app.app_context():
         with create_user_scope(
