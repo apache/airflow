@@ -684,18 +684,19 @@ def _create_db_from_orm(session):
     from airflow.www.fab_security.sqla.models import Model
     from airflow.www.session import AirflowDatabaseSessionInterface
 
-    def _create_flask_session_tbl():
+    def _create_flask_session_tbl(sql_database_uri):
         flask_app = Flask(__name__)
-        flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+        flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
         flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         db = SQLAlchemy(flask_app)
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
         db.create_all()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        Base.metadata.create_all(settings.engine)
-        Model.metadata.create_all(settings.engine)
-        _create_flask_session_tbl()
+        engine = session.get_bind().engine
+        Base.metadata.create_all(engine)
+        Model.metadata.create_all(engine)
+        _create_flask_session_tbl(engine.url)
         # stamp the migration head
         config = _get_alembic_config()
         command.stamp(config, "head")
