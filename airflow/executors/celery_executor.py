@@ -425,7 +425,6 @@ class CeleryExecutor(BaseExecutor):
         if it doesn't.
         :param ti: Task Instance to clean up
         """
-        print(f"\n\nti: {type(ti)}\n\n")
         task_instance_key = ti.key
         self.running.discard(task_instance_key)
         celery_async_result = self.tasks.pop(task_instance_key, None)
