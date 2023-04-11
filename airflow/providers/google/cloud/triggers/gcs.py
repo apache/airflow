@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import Any, AsyncIterator
 
 from aiohttp import ClientSession
 
 from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils import timezone
 
 
 class GCSBlobTrigger(BaseTrigger):
@@ -97,3 +99,101 @@ class GCSBlobTrigger(BaseTrigger):
             if object_response:
                 return "success"
             return "pending"
+
+
+class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
+    """
+    A trigger that makes an async call to GCS to check whether the object is updated in a bucket.
+
+    :param bucket: google cloud storage bucket name cloud storage where the objects are residing.
+    :param object_name: the file or folder present in the bucket
+    :param ts: datetime object
+    :param poke_interval: polling period in seconds to check for file/folder
+    :param google_cloud_conn_id: reference to the Google Connection
+    :param hook_params: DIct object has delegate_to and impersonation_chain
+    """
+
+    def __init__(
+        self,
+        bucket: str,
+        object_name: str,
+        ts: datetime,
+        poke_interval: float,
+        google_cloud_conn_id: str,
+        hook_params: dict[str, Any],
+    ):
+        super().__init__()
+        self.bucket = bucket
+        self.object_name = object_name
+        self.ts = ts
+        self.poke_interval = poke_interval
+        self.google_cloud_conn_id: str = google_cloud_conn_id
+        self.hook_params = hook_params
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes GCSCheckBlobUpdateTimeTrigger arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger",
+            {
+                "bucket": self.bucket,
+                "object_name": self.object_name,
+                "ts": self.ts,
+                "poke_interval": self.poke_interval,
+                "google_cloud_conn_id": self.google_cloud_conn_id,
+                "hook_params": self.hook_params,
+            },
+        )
+
+    async def run(self) -> AsyncIterator["TriggerEvent"]:
+        """Simple loop until the object updated time is greater than ts datetime in bucket."""
+        try:
+            hook = self._get_async_hook()
+            while True:
+                status, res = await self._is_blob_updated_after(
+                    hook=hook, bucket_name=self.bucket, object_name=self.object_name, ts=self.ts
+                )
+                if status:
+                    yield TriggerEvent(res)
+                await asyncio.sleep(self.poke_interval)
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+
+    def _get_async_hook(self) -> GCSAsyncHook:
+        return GCSAsyncHook(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
+
+    async def _is_blob_updated_after(
+        self, hook: GCSAsyncHook, bucket_name: str, object_name: str, ts: datetime
+    ) -> tuple[bool, dict[str, Any]]:
+        """
+        Checks if the object in the bucket is updated.
+
+        :param hook: GCSAsyncHook Hook class
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
+        :param object_name: The name of the blob_name to check in the Google cloud
+            storage bucket.
+        :param ts: context datetime to compare with blob object updated time
+        """
+        async with ClientSession() as session:
+            client = await hook.get_storage_client(session)
+            bucket = client.get_bucket(bucket_name)
+            blob = await bucket.get_blob(blob_name=object_name)
+            if blob is None:
+                res = {
+                    "message": f"Object ({object_name}) not found in Bucket ({bucket_name})",
+                    "status": "error",
+                }
+                return True, res
+
+            blob_updated_date = blob.updated  # type: ignore[attr-defined]
+            blob_updated_time = datetime.strptime(blob_updated_date, "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+                tzinfo=timezone.utc
+            )  # Blob updated time is in string format so converting the string format
+            # to datetime object to compare the last updated time
+
+            if blob_updated_time is not None:
+                if not ts.tzinfo:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                self.log.info("Verify object date: %s > %s", blob_updated_time, ts)
+                if blob_updated_time > ts:
+                    return True, {"status": "success", "message": "success"}
+            return False, {"status": "pending", "message": "pending"}

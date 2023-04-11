@@ -225,6 +225,10 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSenso
     :start-after: [START howto_sensor_object_update_exists_task]
     :end-before: [END howto_sensor_object_update_exists_task]
 
+You can set the ``deferrable`` param to True if you want this sensor to run asynchronously - leading to efficient
+utilization of resources in your Airflow deployment. However the triggerer component needs to be up and running
+for this functionality to work.
+
 More information
 """"""""""""""""
 
