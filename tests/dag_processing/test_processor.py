@@ -93,8 +93,8 @@ class TestDagFileProcessor:
         self.scheduler_job = None
 
     def teardown_method(self) -> None:
-        if self.scheduler_job and self.scheduler_job.processor_agent:
-            self.scheduler_job.processor_agent.end()
+        if self.scheduler_job and self.scheduler_job.job_runner.processor_agent:
+            self.scheduler_job.job_runner.processor_agent.end()
             self.scheduler_job = None
         self.clean_db()
 

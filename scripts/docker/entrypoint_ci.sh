@@ -52,7 +52,9 @@ function wait_for_asset_compilation() {
         echo
         local counter=0
         while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
-            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            if (( counter % 5 == 2 )); then
+                echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            fi
             sleep 1
             ((counter=counter+1))
             if [[ ${counter} == "30" ]]; then
@@ -394,7 +396,7 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
     SELECTED_TESTS=("${@}")
 else
     CLI_TESTS=("tests/cli")
-    API_TESTS=("tests/api" "tests/api_connexion")
+    API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
@@ -424,7 +426,7 @@ else
     )
 
     NO_PROVIDERS_INTEGRATION_TESTS=(
-        "tests/integration/api"
+        "tests/integration/api_experimental"
         "tests/integration/cli"
         "tests/integration/executors"
         "tests/integration/security"
