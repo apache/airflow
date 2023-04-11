@@ -109,15 +109,16 @@ class TestDaskExecutor(TestBaseDask):
         dag = self.dagbag.get_dag("example_bash_operator")
 
         job = Job(
-            job_runner=BackfillJobRunner(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE,
-                ignore_first_depends_on_past=True,
-            ),
             executor=DaskExecutor(cluster_address=self.cluster.scheduler_address),
         )
-        run_job(job)
+        job_runner = BackfillJobRunner(
+            job=job,
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_first_depends_on_past=True,
+        )
+        run_job(job=job, execute_callable=job_runner._execute)
 
     def teardown_method(self):
         self.cluster.close(timeout=5)

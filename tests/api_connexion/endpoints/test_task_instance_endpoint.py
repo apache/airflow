@@ -232,7 +232,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         )[0]
         ti.trigger = Trigger("none", {})
         ti.trigger.created_date = now
-        ti.triggerer_job = Job(job_runner=TriggererJobRunner())
+        ti.triggerer_job = Job()
+        TriggererJobRunner(job=ti.triggerer_job)
         ti.triggerer_job.state = "running"
         session.commit()
         response = self.client.get(
