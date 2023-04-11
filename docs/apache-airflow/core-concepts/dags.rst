@@ -148,10 +148,14 @@ This means you can define multiple DAGs per Python file, or even spread one very
 
 Note, though, that when Airflow comes to load DAGs from a Python file, it will only pull any objects at the *top level* that are a DAG instance. For example, take this DAG file::
 
-    dag_1 = DAG('this_dag_will_be_discovered')
+    with DAG('this_dag_will_be_discovered') as dag:
+      pass
+
+    my_dag = DAG('this_dag_will_also_be_discovered')
 
     def my_function():
-        dag_2 = DAG('but_this_dag_will_not')
+        with DAG('but_this_dag_will_not') as dag:
+          pass
 
     my_function()
 
@@ -448,32 +452,32 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         from airflow.models import DAG
         from airflow.operators.empty import EmptyOperator
 
-        dag = DAG(
+        with DAG(
             dag_id="branch_without_trigger",
             schedule="@once",
             start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
-        )
+        ) as dag:
 
-        run_this_first = EmptyOperator(task_id="run_this_first", dag=dag)
-
-
-        @task.branch(task_id="branching")
-        def do_branching():
-            return "branch_a"
+          run_this_first = EmptyOperator(task_id="run_this_first")
 
 
-        branching = do_branching()
+          @task.branch(task_id="branching")
+          def do_branching():
+              return "branch_a"
 
-        branch_a = EmptyOperator(task_id="branch_a", dag=dag)
-        follow_branch_a = EmptyOperator(task_id="follow_branch_a", dag=dag)
 
-        branch_false = EmptyOperator(task_id="branch_false", dag=dag)
+          branching = do_branching()
 
-        join = EmptyOperator(task_id="join", dag=dag)
+          branch_a = EmptyOperator(task_id="branch_a")
+          follow_branch_a = EmptyOperator(task_id="follow_branch_a")
 
-        run_this_first >> branching
-        branching >> branch_a >> follow_branch_a >> join
-        branching >> branch_false >> join
+          branch_false = EmptyOperator(task_id="branch_false")
+
+          join = EmptyOperator(task_id="join")
+
+          run_this_first >> branching
+          branching >> branch_a >> follow_branch_a >> join
+          branching >> branch_false >> join
 
     ``join`` is downstream of ``follow_branch_a`` and ``branch_false``. The ``join`` task will show up as skipped because its ``trigger_rule`` is set to ``all_success`` by default, and the skip caused by the branching operation cascades down to skip a task marked as ``all_success``.
 
@@ -648,20 +652,20 @@ This is especially useful if your tasks are built dynamically from configuration
     ### My great DAG
     """
     import pendulum
+    from airflow.operators.empty import EmptyOperator
 
-    dag = DAG(
+    with DAG(
         "my_dag",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule="@daily",
         catchup=False,
-    )
-    dag.doc_md = __doc__
-
-    t = BashOperator("foo", dag=dag)
-    t.doc_md = """\
-    #Title"
-    Here's a [url](www.airbnb.com)
-    """
+        doc_md=__doc__
+    ) as dag:
+      t = EmptyOperator(task_id="foo")
+      t.doc_md = """\
+      #Title"
+      Here's a [url](www.airbnb.com)
+      """
 
 
 .. _concepts:subdags:
