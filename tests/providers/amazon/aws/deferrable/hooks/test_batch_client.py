@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import sys
 
-import botocore
 import pytest
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientAsyncHook
@@ -41,7 +41,9 @@ class TestBatchClientAsyncHook:
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_client_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.poll_job_status")
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.check_job_success")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.check_job_success"
+    )
     async def test_monitor_job_with_success(self, mock_poll_job_status, mock_client, mock_check_job_success):
         """Tests that the  monitor_job method returns expected event once successful"""
         mock_poll_job_status.return_value = True
@@ -76,15 +78,13 @@ class TestBatchClientAsyncHook:
         exceed the threshold
         """
         mock_poll_job_status.return_value = True
-        mock_client.return_value.__aenter__.return_value.describe_jobs.side_effect = (
-            botocore.exceptions.ClientError(
-                error_response={
-                    "Error": {
-                        "Code": "TooManyRequestsException",
-                    }
+        mock_client.return_value.__aenter__.return_value.describe_jobs.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "TooManyRequestsException",
                 },
-                operation_name="get job description",
-            )
+            },
+            operation_name="get job description",
         )
         """status_retries = 2 ensures that exponential_delay block is covered in batch_client.py
         otherwise the code coverage will drop"""
@@ -103,11 +103,14 @@ class TestBatchClientAsyncHook:
         """Test that the get_job_description method raises  correct exception when the error code
         from boto3 api is not TooManyRequestsException"""
         mock_poll_job_status.return_value = True
-        mock_client.return_value.__aenter__.return_value.describe_jobs.side_effect = (
-            botocore.exceptions.ClientError(
-                error_response={"Error": {"Code": "InvalidClientTokenId", "Message": "Malformed Token"}},
-                operation_name="get job description",
-            )
+        mock_client.return_value.__aenter__.return_value.describe_jobs.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "InvalidClientTokenId",
+                    "Message": "Malformed Token",
+                },
+            },
+            operation_name="get job description",
         )
         hook = BatchClientAsyncHook(job_id=self.JOB_ID, waiters=None, status_retries=1)
         with pytest.raises(AirflowException) as exc_info:
@@ -119,7 +122,9 @@ class TestBatchClientAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_check_job_success(self, mock_get_job_description):
         """Tests that the check_job_success method returns True when job succeeds"""
         mock_get_job_description.return_value = {"status": "SUCCEEDED"}
@@ -128,7 +133,9 @@ class TestBatchClientAsyncHook:
         assert result is True
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_check_job_raises_exception_failed(self, mock_get_job_description):
         """Tests that the check_job_success method raises exception correctly as per job state"""
         mock_job = {"status": "FAILED"}
@@ -140,7 +147,9 @@ class TestBatchClientAsyncHook:
         assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) failed" + ": " + str(mock_job)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_check_job_raises_exception_pending(self, mock_get_job_description):
         """Tests that the check_job_success method raises exception correctly as per job state"""
         mock_job = {"status": "PENDING"}
@@ -148,12 +157,12 @@ class TestBatchClientAsyncHook:
         hook = BatchClientAsyncHook(job_id=self.JOB_ID, waiters=None)
         with pytest.raises(AirflowException) as exc_info:
             await hook.check_job_success(job_id=self.JOB_ID)
-        assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) is not complete" + ": " + str(
-            mock_job
-        )
+        assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) is not complete" + ": " + str(mock_job)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_check_job_raises_exception_strange(self, mock_get_job_description):
         """Tests that the check_job_success method raises exception correctly as per job state"""
         mock_job = {"status": "STRANGE"}
@@ -166,7 +175,9 @@ class TestBatchClientAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_check_job_raises_exception_runnable(self, mock_get_job_description):
         """Tests that the check_job_success method raises exception correctly as per job state"""
         mock_job = {"status": "RUNNABLE"}
@@ -174,12 +185,12 @@ class TestBatchClientAsyncHook:
         hook = BatchClientAsyncHook(job_id=self.JOB_ID, waiters=None)
         with pytest.raises(AirflowException) as exc_info:
             await hook.check_job_success(job_id=self.JOB_ID)
-        assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) is not complete" + ": " + str(
-            mock_job
-        )
+        assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) is not complete" + ": " + str(mock_job)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_check_job_raises_exception_submitted(self, mock_get_job_description):
         """Tests that the check_job_success method raises exception correctly as per job state"""
         mock_job = {"status": "SUBMITTED"}
@@ -187,12 +198,12 @@ class TestBatchClientAsyncHook:
         hook = BatchClientAsyncHook(job_id=self.JOB_ID, waiters=None)
         with pytest.raises(AirflowException) as exc_info:
             await hook.check_job_success(job_id=self.JOB_ID)
-        assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) is not complete" + ": " + str(
-            mock_job
-        )
+        assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) is not complete" + ": " + str(mock_job)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_poll_job_status_raises_for_max_retries(self, mock_get_job_description):
         mock_job = {"status": "RUNNABLE"}
         mock_get_job_description.return_value = mock_job
@@ -202,7 +213,9 @@ class TestBatchClientAsyncHook:
         assert str(exc_info.value) == f"AWS Batch job ({self.JOB_ID}) status checks exceed " "max_retries"
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_job_description"
+    )
     async def test_poll_job_status_in_match_status(self, mock_get_job_description):
         mock_job = {"status": "SUCCEEDED"}
         mock_get_job_description.return_value = mock_job
