@@ -29,8 +29,10 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
@@ -48,9 +50,9 @@ def _resolve_dagrun_model():
     return DagRun
 
 
-class BaseJob(Base, LoggingMixin):
+class Job(Base, LoggingMixin):
     """
-    Abstract class to be derived for jobs.
+    The ORM class representing Job stored in the database.
 
     Jobs are processing items with state and duration that aren't task instances.
     For instance a BackfillJob is a collection of task instance runs,
@@ -72,8 +74,6 @@ class BaseJob(Base, LoggingMixin):
     hostname = Column(String(500))
     unixname = Column(String(1000))
 
-    __mapper_args__ = {"polymorphic_on": job_type, "polymorphic_identity": "BaseJob"}
-
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
         Index("idx_job_state_heartbeat", state, latest_heartbeat),
@@ -82,13 +82,13 @@ class BaseJob(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         "TaskInstance",
-        primaryjoin="BaseJob.id == foreign(TaskInstance.queued_by_job_id)",
+        primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
         backref=backref("queued_by_job", uselist=False),
     )
 
     dag_runs = relationship(
         "DagRun",
-        primaryjoin=lambda: BaseJob.id == foreign(_resolve_dagrun_model().creating_job_id),
+        primaryjoin=lambda: Job.id == foreign(_resolve_dagrun_model().creating_job_id),
         backref="creating_job",
     )
 
@@ -100,8 +100,10 @@ class BaseJob(Base, LoggingMixin):
 
     heartrate = conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
 
-    def __init__(self, executor=None, heartrate=None, *args, **kwargs):
+    def __init__(self, job_runner: BaseJobRunner, executor=None, heartrate=None, **kwargs):
+        # Save init parameters as DB fields
         self.hostname = get_hostname()
+        self.job_type = job_runner.job_type
         if executor:
             self.executor = executor
             self.executor_class = executor.__class__.__name__
@@ -114,35 +116,13 @@ class BaseJob(Base, LoggingMixin):
         self.unixname = getuser()
         self.max_tis_per_query: int = conf.getint("scheduler", "max_tis_per_query")
         get_listener_manager().hook.on_starting(component=self)
-        super().__init__(*args, **kwargs)
+        self._job_runner = job_runner
+        self._job_runner.job = self
+        super().__init__(**kwargs)
 
     @cached_property
     def executor(self):
         return ExecutorLoader.get_default_executor()
-
-    @classmethod
-    @provide_session
-    def most_recent_job(cls, session: Session = NEW_SESSION) -> BaseJob | None:
-        """
-        Return the most recent job of this type, if any, based on last heartbeat received.
-
-        Jobs in "running" state take precedence over others to make sure alive
-        job is returned if it is available.
-        This method should be called on a subclass (i.e. on SchedulerJob) to
-        return jobs of that type.
-
-        :param session: Database session
-        """
-        return (
-            session.query(cls)
-            .order_by(
-                # Put "running" jobs at the front.
-                case({State.RUNNING: 0}, value=cls.state, else_=1),
-                cls.latest_heartbeat.desc(),
-            )
-            .limit(1)
-            .first()
-        )
 
     def is_alive(self, grace_multiplier=2.1):
         """
@@ -163,7 +143,7 @@ class BaseJob(Base, LoggingMixin):
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
-        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+        job = session.query(Job).filter(Job.id == self.id).first()
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
@@ -175,10 +155,6 @@ class BaseJob(Base, LoggingMixin):
 
     def on_kill(self):
         """Will be called when an external kill command is received."""
-
-    @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
-        """Callback that is called during heartbeat. This method should be overwritten."""
 
     def heartbeat(self, only_if_necessary: bool = False) -> None:
         """
@@ -238,7 +214,7 @@ class BaseJob(Base, LoggingMixin):
                 # At this point, the DB has updated.
                 previous_heartbeat = self.latest_heartbeat
 
-                self.heartbeat_callback(session=session)
+                self.job_runner.heartbeat_callback(session=session)
                 self.log.debug("[heartbeat]")
         except OperationalError:
             Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
@@ -256,9 +232,8 @@ class BaseJob(Base, LoggingMixin):
             session.add(self)
             session.commit()
             make_transient(self)
-
             try:
-                ret = self._execute()
+                ret = self.job_runner._execute()
                 # In case of max runs or max duration
                 self.state = State.SUCCESS
             except SystemExit:
@@ -276,5 +251,44 @@ class BaseJob(Base, LoggingMixin):
         Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
         return ret
 
-    def _execute(self) -> int | None:
-        raise NotImplementedError("This method needs to be overridden")
+    @property
+    def job_runner(self) -> BaseJobRunner:
+        """Returns the job runner instance."""
+        return self._job_runner
+
+    @provide_session
+    def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
+        """Returns the most recent job of this type, if any, based on last heartbeat received."""
+        return most_recent_job(self.job_type, session=session)
+
+
+@provide_session
+def perform_heartbeat(job: Job | JobPydantic, only_if_necessary: bool, session: Session = NEW_SESSION):
+    if isinstance(job, Job):
+        job.heartbeat()
+    else:
+        # TODO (potiuk): Make it works over internal API as a follow up
+        Job.get(job.id, session=session).heartbeat(only_if_necessary=only_if_necessary)
+
+
+@provide_session
+def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None:
+    """
+    Return the most recent job of this type, if any, based on last heartbeat received.
+
+    Jobs in "running" state take precedence over others to make sure alive
+    job is returned if it is available.
+
+    :param job_type: job type to query for to get the most recent job for
+    :param session: Database session
+    """
+    return (
+        session.query(Job)
+        .filter(Job.job_type == job_type)
+        .order_by(
+            # Put "running" jobs at the front.
+            case({State.RUNNING: 0}, value=Job.state, else_=1),
+            Job.latest_heartbeat.desc(),
+        )
+        .first()
+    )
