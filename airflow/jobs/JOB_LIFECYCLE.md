@@ -27,7 +27,7 @@ the job is run remotely and communicates via internal API (this part is a work-i
 will keep on updating these lifecycle diagrams).
 
 Those chart apply to all kinds of CLI components Airflow runs (Scheduler, DagFileProcessor, Triggerer,
-Worker) that can run the job. The AIP-44 implementation is not yet complete, but when complete it will
+Worker) that run a job. The AIP-44 implementation is not yet complete, but when complete it will
 apply to some of the components (DagFileProcessor, Triggerer, Worker) and not to others (Scheduler).
 
 ## In-Process Job Runner
