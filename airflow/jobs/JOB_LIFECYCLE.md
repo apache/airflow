@@ -24,7 +24,7 @@ As part of AIP-44 implementation we separated the ORM Job instance from the code
 introducing a concept of Job Runners. The Job Runner is a class that is responsible for running
 the code and it might execute either in-process when direct database is used, or remotely when
 the job is run remotely and communicates via internal API (this part is a work-in-progress and we
-will keep on updating the state.
+will keep on updating these lifecycle diagrams).
 
 Those chart apply to all kinds of CLI components Airflow runs (Scheduler, DagFileProcessor, Triggerer,
 Worker) that can run the job. The AIP-44 implementation is not yet complete, but when complete it will
