@@ -51,10 +51,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: standard-rwo
+  storageClassName: standard
   resources:
     requests:
-      storage: 500Gi
+      storage: 5Gi
 """
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

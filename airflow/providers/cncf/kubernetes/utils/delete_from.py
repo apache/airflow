@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 
 from kubernetes import client
+from kubernetes.client import ApiClient
 
 DEFAULT_DELETION_BODY = client.V1DeleteOptions(
     propagation_policy="Background",
@@ -30,11 +31,12 @@ DEFAULT_DELETION_BODY = client.V1DeleteOptions(
 
 
 def delete_from_dict(
-    k8s_client,
-    yml_document,
-    verbose=False,
-    namespace="default",
-    body=None,
+    *,
+    k8s_client: ApiClient,
+    yml_document: dict,
+    verbose: bool = False,
+    namespace: str = "default",
+    body: dict | None = None,
     **kwargs,
 ):
 
@@ -50,9 +52,9 @@ def delete_from_dict(
                 yml_doc["kind"] = kind
             try:
                 _delete_from_yaml_single_item(
-                    k8s_client,
-                    yml_doc,
-                    verbose,
+                    k8s_client=k8s_client,
+                    yml_document=yml_doc,
+                    verbose=verbose,
                     namespace=namespace,
                     body=body,
                     **kwargs,
@@ -63,9 +65,9 @@ def delete_from_dict(
 
         try:
             _delete_from_yaml_single_item(
-                k8s_client,
-                yml_document,
-                verbose,
+                k8s_client=k8s_client,
+                yml_document=yml_document,
+                verbose=verbose,
                 namespace=namespace,
                 body=body,
                 **kwargs,
@@ -78,11 +80,12 @@ def delete_from_dict(
 
 
 def _delete_from_yaml_single_item(
-    k8s_client,
-    yml_document,
-    verbose=False,
-    namespace="default",
-    body=None,
+    *,
+    k8s_client: ApiClient,
+    yml_document: dict,
+    verbose: bool = False,
+    namespace: str = "default",
+    body: dict | None = None,
     **kwargs,
 ):
     if body is None:
@@ -107,19 +110,20 @@ def _delete_from_yaml_single_item(
     kind = re.sub("([a-z0-9])([A-Z])", r"\1_\2", kind).lower()
 
     # Decide which namespace we are going to use for deleting the object
-    # IMPORTANT: Its ignore namespace in args:
+    # IMPORTANT: the docs namespace takes precedence over the namespace in args
     #    create_from_yaml_single_item have same behaviour
     if "namespace" in yml_document["metadata"]:
         namespace = yml_document["metadata"]["namespace"]
     name = yml_document["metadata"]["name"]
 
     # Expect the user to delete namespaced objects more often
+    resp: client.V1Status
     if hasattr(k8s_api, f"delete_namespaced_{kind}"):
-        resp: client.V1Status = getattr(k8s_api, f"delete_namespaced_{kind}")(
+        resp = getattr(k8s_api, f"delete_namespaced_{kind}")(
             name=name, namespace=namespace, body=body, **kwargs
         )
     else:
-        resp: client.V1Status = getattr(k8s_api, f"delete_{kind}")(name=name, body=body, **kwargs)
+        resp = getattr(k8s_api, f"delete_{kind}")(name=name, body=body, **kwargs)
     if verbose:
         print(f"{kind} deleted. status='{str(resp.status)}'")
     return resp
@@ -131,7 +135,7 @@ class FailToDeleteError(Exception):
     handling a yaml file during deletion of the resource.
     """
 
-    def __init__(self, api_exceptions):
+    def __init__(self, api_exceptions: list):
         self.api_exceptions = api_exceptions
 
     def __str__(self):

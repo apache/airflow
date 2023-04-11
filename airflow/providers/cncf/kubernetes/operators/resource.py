@@ -71,18 +71,13 @@ class KubernetesResourceBaseOperator(BaseOperator):
         if self._namespace:
             return self._namespace
         else:
-            tmp = self.hook.get_namespace()
-            if tmp:
-                return tmp
-            else:
-                return "default"
+            return self.hook.get_namespace() or "default"
 
 
 class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
     """Create a resource in a kubernetes."""
 
     def execute(self, context) -> None:
-        print(self.yaml_conf)
         create_from_yaml(
             k8s_client=self.client,
             yaml_objects=[yaml.safe_load(self.yaml_conf)],
@@ -94,7 +89,6 @@ class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
     """Delete a resource in a kubernetes."""
 
     def execute(self, context) -> None:
-        print(self.yaml_conf)
         delete_from_dict(
             k8s_client=self.client,
             yml_document=yaml.safe_load(self.yaml_conf),
