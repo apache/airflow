@@ -22,8 +22,10 @@ import pytest
 from airflow import AirflowException
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.operators.bash import BashOperator
+from airflow.settings import _ENABLE_AIP_52
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 class TestSetupTearDownTask:
     def test_marking_functions_as_setup_task(self, dag_maker):
         @setup
