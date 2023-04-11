@@ -251,7 +251,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 raise AirflowRescheduleException(reschedule_date)
             else:
                 time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))
-                try_number += 1
+            try_number += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
