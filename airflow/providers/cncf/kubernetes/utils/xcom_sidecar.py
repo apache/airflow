@@ -42,12 +42,18 @@ class PodDefaults:
         resources=k8s.V1ResourceRequirements(
             requests={
                 "cpu": "1m",
-            }
+                "memory": "10Mi",
+            },
         ),
     )
 
 
-def add_xcom_sidecar(pod: k8s.V1Pod, *, sidecar_container_image=None) -> k8s.V1Pod:
+def add_xcom_sidecar(
+    pod: k8s.V1Pod,
+    *,
+    sidecar_container_image: str | None = None,
+    sidecar_container_resources: k8s.V1ResourceRequirements | dict | None = None,
+) -> k8s.V1Pod:
     """Adds sidecar"""
     pod_cp = copy.deepcopy(pod)
     pod_cp.spec.volumes = pod.spec.volumes or []
@@ -56,6 +62,8 @@ def add_xcom_sidecar(pod: k8s.V1Pod, *, sidecar_container_image=None) -> k8s.V1P
     pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
     sidecar = copy.deepcopy(PodDefaults.SIDECAR_CONTAINER)
     sidecar.image = sidecar_container_image or PodDefaults.SIDECAR_CONTAINER.image
+    if sidecar_container_resources:
+        sidecar.resources = sidecar_container_resources
     pod_cp.spec.containers.append(sidecar)
 
     return pod_cp

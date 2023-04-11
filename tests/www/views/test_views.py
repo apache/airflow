@@ -408,7 +408,7 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/log?execution_date=invalid",
+            "/log?dag_id=tutorial&execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
