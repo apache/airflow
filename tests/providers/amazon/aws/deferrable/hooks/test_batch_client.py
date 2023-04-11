@@ -67,7 +67,7 @@ class TestBatchClientAsyncHook:
         assert str(exc_info.value) == "AWS Batch job - job_id was not found"
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_client_async")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.parse_job_description")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.poll_job_status")
     async def test_hit_api_throttle(self, mock_poll_job_status, mock_client):
         """
@@ -75,7 +75,7 @@ class TestBatchClientAsyncHook:
         exceed the threshold
         """
         mock_poll_job_status.return_value = True
-        mock_client.return_value.__aenter__.return_value.describe_jobs.side_effect = (
+        mock_client.side_effect = (
             botocore.exceptions.ClientError(
                 error_response={
                     "Error": {
