@@ -25,7 +25,7 @@ from pytest import raises
 from sqlalchemy.exc import OperationalError
 
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs.job import Job, most_recent_job
+from airflow.jobs.job import Job, most_recent_job, perform_heartbeat, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -38,7 +38,7 @@ from tests.utils.test_helpers import MockJobRunner
 class TestJob:
     def test_state_success(self):
         job = Job(job_runner=MockJobRunner())
-        job.run()
+        run_job(job)
 
         assert job.state == State.SUCCESS
         assert job.end_date is not None
@@ -47,7 +47,7 @@ class TestJob:
         import sys
 
         job = Job(job_runner=MockJobRunner(lambda: sys.exit(0)))
-        job.run()
+        run_job(job)
 
         assert job.state == State.SUCCESS
         assert job.end_date is not None
@@ -57,7 +57,7 @@ class TestJob:
         import sys
 
         job = Job(job_runner=MockJobRunner(lambda: sys.exit(0)))
-        job.run()
+        run_job(job)
 
         assert job.state == State.SUCCESS
         assert job.end_date is not None
@@ -69,7 +69,7 @@ class TestJob:
         get_listener_manager().add_listener(lifecycle_listener)
 
         job = Job(job_runner=MockJobRunner(lambda: sys.exit(0)))
-        job.run()
+        run_job(job)
 
         assert lifecycle_listener.started_component is job
         assert lifecycle_listener.stopped_component is job
@@ -80,7 +80,7 @@ class TestJob:
 
         job = Job(job_runner=MockJobRunner(abort))
         with raises(RuntimeError):
-            job.run()
+            run_job(job)
 
         assert job.state == State.FAILED
         assert job.end_date is not None
@@ -195,5 +195,5 @@ class TestJob:
             hb_callback.assert_called_once_with(session=ANY)
 
             hb_callback.reset_mock()
-            job.heartbeat(only_if_necessary=True)
+            perform_heartbeat(job=job, only_if_necessary=True)
             assert hb_callback.called is False

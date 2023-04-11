@@ -38,7 +38,7 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -632,7 +632,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
-            self.job.heartbeat(only_if_necessary=is_unit_test)
+            perform_heartbeat(job=self.job, only_if_necessary=is_unit_test)
             # execute the tasks in the queue
             executor.heartbeat()
 

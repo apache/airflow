@@ -26,7 +26,7 @@ from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 
@@ -81,6 +81,6 @@ def dag_processor(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
-                job.run()
+                run_job(job)
     else:
-        job.run()
+        run_job(job)

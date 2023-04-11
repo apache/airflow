@@ -25,7 +25,7 @@ import sys
 import pytest
 
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
@@ -113,7 +113,7 @@ class BaseImpersonationTest:
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        Job(job_runner=BackfillJobRunner(dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)).run()
+        run_job(Job(job_runner=BackfillJobRunner(dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)))
         run_id = DagRun.generate_run_id(DagRunType.BACKFILL_JOB, execution_date=DEFAULT_DATE)
         ti = TaskInstance(task=dag.get_task(task_id), run_id=run_id)
         ti.refresh_from_db()

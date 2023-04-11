@@ -74,6 +74,7 @@ from airflow.exceptions import (
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
+from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
 from airflow.models.dagcode import DagCode
@@ -2488,7 +2489,7 @@ class DAG(LoggingMixin):
             ),
             executor=executor,
         )
-        job.run()
+        run_job(job)
 
     def cli(self):
         """Exposes a CLI specific to this DAG"""

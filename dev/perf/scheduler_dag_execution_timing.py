@@ -28,6 +28,8 @@ from operator import attrgetter
 
 import rich_click as click
 
+from airflow.jobs.job import run_job
+
 MAX_DAG_RUNS_ALLOWED = 1
 
 
@@ -291,7 +293,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     # Need a lambda to refer to the _latest_ value for scheduler_job, not just
     # the initial one
-    code_to_test = lambda: scheduler_job.run()
+    code_to_test = lambda: run_job(scheduler_job)
 
     for count in range(repeat):
         gc.disable()

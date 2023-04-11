@@ -45,7 +45,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest, Pool, TaskInstance
@@ -206,7 +206,7 @@ class TestSchedulerJob:
             )
         )
         self.scheduler_job.heartrate = 0
-        self.scheduler_job.run()
+        run_job(self.scheduler_job)
 
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
@@ -216,7 +216,7 @@ class TestSchedulerJob:
             job_runner=SchedulerJobRunner(subdir=empty_dir, num_runs=1),
             executor=MockExecutor(do_update=False),
         )
-        self.scheduler_job.run()
+        run_job(self.scheduler_job)
         shutil.rmtree(empty_dir)
 
         # Remove potential noise created by previous tests.
@@ -1545,7 +1545,7 @@ class TestSchedulerJob:
         self.scheduler_job = Job(job_runner=SchedulerJobRunner(subdir=os.devnull, num_runs=1))
         self.scheduler_job.executor = mock.MagicMock(slots_available=8)
 
-        self.scheduler_job.run()
+        run_job(self.scheduler_job)
 
         self.scheduler_job.executor.end.assert_called_once()
         self.scheduler_job.job_runner.processor_agent.end.assert_called_once()
@@ -1562,7 +1562,7 @@ class TestSchedulerJob:
         self.scheduler_job.executor.end = mock.MagicMock(side_effect=Exception("triple oops"))
 
         with pytest.raises(Exception):
-            self.scheduler_job.run()
+            run_job(self.scheduler_job)
 
         self.scheduler_job.job_runner.processor_agent.end.assert_called_once()
         self.scheduler_job.executor.end.assert_called_once()
@@ -2216,7 +2216,7 @@ class TestSchedulerJob:
             job_runner=SchedulerJobRunner(num_runs=1, subdir=dag.fileloc),
             executor=self.null_exec,
         )
-        self.scheduler_job.run()
+        run_job(self.scheduler_job)
 
         first_run = DagRun.find(dag_id=dag_id, execution_date=DEFAULT_DATE)[0]
         ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
@@ -2287,7 +2287,7 @@ class TestSchedulerJob:
                     job_runner=SchedulerJobRunner(subdir=dag.fileloc, num_runs=1),
                     executor=self.null_exec,
                 )
-                self.scheduler_job.run()
+                run_job(self.scheduler_job)
 
                 # zero tasks ran
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
@@ -2299,11 +2299,11 @@ class TestSchedulerJob:
                 # That behavior still exists, but now it will only do so if after the
                 # start date
                 bf_exec = MockExecutor()
-                backfill = Job(
+                backfill_job = Job(
                     BackfillJobRunner(dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE),
                     executor=bf_exec,
                 )
-                backfill.run()
+                run_job(backfill_job)
 
                 # one task ran
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
@@ -2319,7 +2319,7 @@ class TestSchedulerJob:
                     job_runner=SchedulerJobRunner(dag.fileloc, num_runs=1),
                     executor=self.null_exec,
                 )
-                self.scheduler_job.run()
+                run_job(self.scheduler_job)
 
                 # still one task
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
@@ -2358,7 +2358,7 @@ class TestSchedulerJob:
                 job_runner=SchedulerJobRunner(subdir=dag.fileloc, num_runs=3),
                 executor=self.null_exec,
             )
-            self.scheduler_job.run()
+            run_job(self.scheduler_job)
 
             session = settings.Session()
             tiq = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id)
@@ -2393,7 +2393,7 @@ class TestSchedulerJob:
                 ),
                 executor=self.null_exec,
             )
-            self.scheduler_job.run()
+            run_job(self.scheduler_job)
 
             # zero tasks ran
             dag_id = "test_start_date_scheduling"
@@ -2841,7 +2841,7 @@ class TestSchedulerJob:
             # Since the DAG is not in the directory watched by scheduler job,
             # it would've been marked as deleted and not being scheduled.
             with mock.patch.object(DagModel, "deactivate_deleted_dags"):
-                self.scheduler_job.run()
+                run_job(self.scheduler_job)
 
         do_schedule()
         with create_session() as session:
@@ -2895,7 +2895,7 @@ class TestSchedulerJob:
 
         self.scheduler_job = Job(job_runner=SchedulerJobRunner(dag_id=dag.dag_id, num_runs=1))
         self.scheduler_job.heartrate = 0
-        self.scheduler_job.run()
+        run_job(self.scheduler_job)
 
         session = settings.Session()
         ti = (
@@ -4483,7 +4483,7 @@ class TestSchedulerJob:
         heartbeat_spy = mock.patch.object(job_runner, "heartbeat", new=watch_heartbeat)
 
         with heartbeat_spy, set_state_spy, do_scheduling_spy, executor_events_spy:
-            job_runner.job.run()
+            run_job(job_runner.job)
 
     @pytest.mark.long_running
     @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])

@@ -43,7 +43,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -915,7 +915,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
-                self.job.heartbeat(only_if_necessary=True)
+                perform_heartbeat(job=self.job, only_if_necessary=True)
 
                 # Run any pending timed events
                 next_event = timers.run(blocking=False)
