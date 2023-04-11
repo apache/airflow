@@ -21,7 +21,7 @@ from unittest import mock
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
+from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
 
 
 class TestRedshiftCreateClusterOperator:
@@ -257,6 +258,56 @@ class TestResumeClusterOperator:
             redshift_operator.execute(None)
         assert mock_conn.resume_cluster.call_count == 10
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async")
+    def test_resume_cluster(self, mock_async_client, mock_async_resume_cluster, mock_sync_cluster_status):
+        """Test Resume cluster operator run"""
+        mock_sync_cluster_status.return_value = "paused"
+        mock_async_client.return_value.resume_cluster.return_value = {
+            "Cluster": {"ClusterIdentifier": "test_cluster", "ClusterStatus": "resuming"}
+        }
+        mock_async_resume_cluster.return_value = {"status": "success", "cluster_state": "available"}
+
+        redshift_operator = RedshiftResumeClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            redshift_operator.execute({})
+
+        assert isinstance(
+            exc.value.trigger, RedshiftClusterTrigger
+        ), "Trigger is not a RedshiftClusterTrigger"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async")
+    def test_resume_cluster_failure(
+        self, mock_async_client, mock_async_resume_cluster, mock_sync_cluster_statue
+    ):
+        """Test Resume cluster operator Failure"""
+        mock_sync_cluster_statue.return_value = "paused"
+        mock_async_client.return_value.resume_cluster.return_value = {
+            "Cluster": {"ClusterIdentifier": "test_cluster", "ClusterStatus": "resuming"}
+        }
+        mock_async_resume_cluster.return_value = {"status": "success", "cluster_state": "available"}
+
+        redshift_operator = RedshiftResumeClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            deferrable=True,
+        )
+
+        with pytest.raises(AirflowException):
+            redshift_operator.execute_complete(
+                context=None, event={"status": "error", "message": "test failure message"}
+            )
+
 
 class TestPauseClusterOperator:
     def test_init(self):
@@ -310,6 +361,39 @@ class TestPauseClusterOperator:
         with pytest.raises(returned_exception):
             redshift_operator.execute(None)
         assert mock_conn.pause_cluster.call_count == 10
+
+    def test_pause_cluster_deferrable_mode(self):
+        """Test Pause cluster operator with defer when deferrable param is true"""
+
+        redshift_operator = RedshiftPauseClusterOperator(
+            task_id="task_test", cluster_identifier="test_cluster", deferrable=True
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            redshift_operator.execute(context=None)
+
+        assert isinstance(
+            exc.value.trigger, RedshiftClusterTrigger
+        ), "Trigger is not a RedshiftClusterTrigger"
+
+    def test_pause_cluster_execute_complete_success(self):
+        """Asserts that logging occurs as expected"""
+        task = RedshiftPauseClusterOperator(
+            task_id="task_test", cluster_identifier="test_cluster", deferrable=True
+        )
+        with mock.patch.object(task.log, "info") as mock_log_info:
+            task.execute_complete(context=None, event={"status": "success"})
+        mock_log_info.assert_called_with("Paused cluster successfully")
+
+    def test_pause_cluster_execute_complete_fail(self):
+        redshift_operator = RedshiftPauseClusterOperator(
+            task_id="task_test", cluster_identifier="test_cluster", deferrable=True
+        )
+
+        with pytest.raises(AirflowException):
+            redshift_operator.execute_complete(
+                context=None, event={"status": "error", "message": "test failure message"}
+            )
 
 
 class TestDeleteClusterOperator:

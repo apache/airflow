@@ -44,7 +44,7 @@ Run Flow
 To run an AppFlow flow keeping all filters as is, use:
 :class:`~airflow.providers.amazon.aws.operators.appflow.AppflowRunOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_appflow.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_appflow_run]
@@ -61,7 +61,7 @@ Run Flow Full
 To run an AppFlow flow removing all filters, use:
 :class:`~airflow.providers.amazon.aws.operators.appflow.AppflowRunFullOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_appflow.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_appflow_run_full]
@@ -78,7 +78,7 @@ Run Flow Daily
 To run an AppFlow flow filtering daily records, use:
 :class:`~airflow.providers.amazon.aws.operators.appflow.AppflowRunDailyOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_appflow.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_appflow_run_daily]
@@ -95,7 +95,7 @@ Run Flow Before
 To run an AppFlow flow filtering future records and selecting the past ones, use:
 :class:`~airflow.providers.amazon.aws.operators.appflow.AppflowRunBeforeOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_appflow.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_appflow_run_before]
@@ -112,7 +112,7 @@ Run Flow After
 To run an AppFlow flow filtering past records and selecting the future ones, use:
 :class:`~airflow.providers.amazon.aws.operators.appflow.AppflowRunAfterOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_appflow.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_appflow_run_after]
@@ -129,7 +129,7 @@ Skipping Tasks For Empty Runs
 To skip tasks when some AppFlow run return zero records, use:
 :class:`~airflow.providers.amazon.aws.operators.appflow.AppflowRecordsShortCircuitOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_appflow.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_appflow_shortcircuit]
