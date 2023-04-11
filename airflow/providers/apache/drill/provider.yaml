@@ -21,6 +21,7 @@ name: Apache Drill
 description: |
     `Apache Drill <https://drill.apache.org/>`__.
 
+suspended: false
 versions:
   - 2.3.2
   - 2.3.1

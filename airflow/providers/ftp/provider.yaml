@@ -21,6 +21,7 @@ name: File Transfer Protocol (FTP)
 description: |
     `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
+suspended: false
 versions:
   - 3.3.1
   - 3.3.0

@@ -52,7 +52,9 @@ function wait_for_asset_compilation() {
         echo
         local counter=0
         while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
-            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            if (( counter % 5 == 2 )); then
+                echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            fi
             sleep 1
             ((counter=counter+1))
             if [[ ${counter} == "30" ]]; then
@@ -305,17 +307,31 @@ EXTRA_PYTEST_ARGS=(
     "--teardown-timeout=${TEST_TIMEOUT}"
     "--output=${WARNINGS_FILE}"
     "--disable-warnings"
-    # Only display summary for non-expected case
+    # Only display summary for non-expected cases
+    #
     # f - failed
     # E - error
     # X - xpassed (passed even if expected to fail)
-    # The following cases are not displayed:
     # s - skipped
+    #
+    # The following cases are not displayed:
     # x - xfailed (expected to fail and failed)
     # p - passed
     # P - passed with output
-    "-rfEX"
+    #
+    "-rfEXs"
 )
+
+if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
+    for provider in ${SUSPENDED_PROVIDERS_FOLDERS=}; do
+        echo "Skipping tests for suspended provider: ${provider}"
+        EXTRA_PYTEST_ARGS+=(
+            "--ignore=tests/providers/${provider}"
+            "--ignore=tests/system/providers/${provider}"
+            "--ignore=tests/integration/providers/${provider}"
+        )
+    done
+fi
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
@@ -380,7 +396,7 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
     SELECTED_TESTS=("${@}")
 else
     CLI_TESTS=("tests/cli")
-    API_TESTS=("tests/api" "tests/api_connexion")
+    API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
@@ -410,7 +426,7 @@ else
     )
 
     NO_PROVIDERS_INTEGRATION_TESTS=(
-        "tests/integration/api"
+        "tests/integration/api_experimental"
         "tests/integration/cli"
         "tests/integration/executors"
         "tests/integration/security"
