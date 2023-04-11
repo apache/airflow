@@ -22,6 +22,7 @@ from unittest import mock
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
     GoogleDisplayVideo360ReportSensor,
+    GoogleDisplayVideo360RunQuerySensor,
 )
 
 API_VERSION = "api_version"
@@ -44,6 +45,23 @@ class TestGoogleDisplayVideo360ReportSensor:
             impersonation_chain=None,
         )
         hook_mock.return_value.get_query.assert_called_once_with(query_id=report_id)
+
+
+class TestGoogleDisplayVideo360RunQuerySensor:
+    @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360Hook")
+    @mock.patch("airflow.providers.google.marketing_platform.sensors.display_video.BaseSensorOperator")
+    def test_poke(self, mock_base_op, hook_mock):
+        query_id = "QUERY_ID"
+        report_id = "REPORT_ID"
+        op = GoogleDisplayVideo360RunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
+        op.poke(context=None)
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version="v2",
+            impersonation_chain=None,
+        )
+        hook_mock.return_value.get_report.assert_called_once_with(query_id=query_id, report_id=report_id)
 
 
 class TestGoogleDisplayVideo360Sensor:

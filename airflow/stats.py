@@ -158,10 +158,10 @@ class Timer(TimerProtocol):
     """
 
     # pystatsd and dogstatsd both have a timer class, but present different API
-    # so we can't use this as a mixin on those, instead this class is contains the "real" timer
+    # so we can't use this as a mixin on those, instead this class contains the "real" timer
 
-    _start_time: int | None
-    duration: int | None
+    _start_time: float | None
+    duration: float | None
 
     def __init__(self, real_timer: Timer | None = None) -> None:
         self.real_timer = real_timer
@@ -176,12 +176,13 @@ class Timer(TimerProtocol):
         """Start the timer."""
         if self.real_timer:
             self.real_timer.start()
-        self._start_time = int(time.perf_counter())
+        self._start_time = time.perf_counter()
         return self
 
     def stop(self, send: bool = True) -> None:
         """Stop the timer, and optionally send it to stats backend."""
-        self.duration = int(time.perf_counter()) - (self._start_time or 0)
+        if self._start_time is not None:
+            self.duration = time.perf_counter() - self._start_time
         if send and self.real_timer:
             self.real_timer.stop()
 
