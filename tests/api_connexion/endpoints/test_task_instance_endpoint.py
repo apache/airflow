@@ -881,7 +881,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert expected in response.json["detail"]
+        assert expected == response.json["detail"]
 
     @pytest.mark.parametrize(
         "payload, expected",
