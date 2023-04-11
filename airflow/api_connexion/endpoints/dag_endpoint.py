@@ -107,7 +107,6 @@ def get_dags(
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
     ]
 )
@@ -134,7 +133,6 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
     ]
 )

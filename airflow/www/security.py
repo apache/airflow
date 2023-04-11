@@ -325,6 +325,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Gets the DAG IDs editable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_EDIT])
 
+    def get_pausable_dag_ids(self, user) -> set[str]:
+        """Gets the DAG IDs pausable by authenticated user."""
+        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_PAUSE])
+
     @provide_session
     def get_accessible_dag_ids(
         self,
@@ -387,7 +391,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         user = g.user
         if action == permissions.ACTION_CAN_READ:
             return any(self.get_readable_dag_ids(user))
-        return any(self.get_editable_dag_ids(user))
+        elif action == permissions.ACTION_CAN_PAUSE:
+            return any(self.get_pausable_dag_ids(user))
+        else:
+            return any(self.get_editable_dag_ids(user))
 
     def can_read_dag(self, dag_id: str, user=None) -> bool:
         """Determines whether a user has DAG read access."""
