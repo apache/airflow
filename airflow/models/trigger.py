@@ -21,7 +21,7 @@ from traceback import format_exception
 from typing import Any, Iterable
 
 from sqlalchemy import Column, Integer, String, func, or_
-from sqlalchemy.orm import joinedload, relationship
+from sqlalchemy.orm import Session, joinedload, relationship
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base
@@ -29,9 +29,9 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class Trigger(Base):
@@ -60,15 +60,20 @@ class Trigger(Base):
     triggerer_id = Column(Integer, nullable=True)
 
     triggerer_job = relationship(
-        "BaseJob",
-        primaryjoin="BaseJob.id == Trigger.triggerer_id",
+        "Job",
+        primaryjoin="Job.id == Trigger.triggerer_id",
         foreign_keys=triggerer_id,
         uselist=False,
     )
 
     task_instance = relationship("TaskInstance", back_populates="trigger", lazy="joined", uselist=False)
 
-    def __init__(self, classpath: str, kwargs: dict[str, Any], created_date: datetime.datetime | None = None):
+    def __init__(
+        self,
+        classpath: str,
+        kwargs: dict[str, Any],
+        created_date: datetime.datetime | None = None,
+    ) -> None:
         super().__init__()
         self.classpath = classpath
         self.kwargs = kwargs
@@ -76,7 +81,7 @@ class Trigger(Base):
 
     @classmethod
     @internal_api_call
-    def from_object(cls, trigger: BaseTrigger):
+    def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """
         Alternative constructor that creates a trigger row based directly
         off of a Trigger object.
@@ -87,7 +92,7 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def bulk_fetch(cls, ids: Iterable[int], session=None) -> dict[int, Trigger]:
+    def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """
         Fetches all the Triggers by ID and returns a dict mapping
         ID -> Trigger instance
@@ -106,7 +111,7 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def clean_unused(cls, session=None):
+    def clean_unused(cls, session: Session = NEW_SESSION) -> None:
         """
         Deletes all triggers that have no tasks/DAGs dependent on them
         (triggers have a one-to-many relationship to both)
@@ -115,7 +120,7 @@ class Trigger(Base):
         for attempt in run_with_db_retries():
             with attempt:
                 session.query(TaskInstance).filter(
-                    TaskInstance.state != State.DEFERRED, TaskInstance.trigger_id.isnot(None)
+                    TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.isnot(None)
                 ).update({TaskInstance.trigger_id: None})
         # Get all triggers that have no task instances depending on them...
         ids = [
@@ -133,13 +138,13 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def submit_event(cls, trigger_id, event, session=None):
+    def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
         """
         Takes an event from an instance of itself, and triggers all dependent
         tasks to resume.
         """
         for task_instance in session.query(TaskInstance).filter(
-            TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
+            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
         ):
             # Add the event's payload into the kwargs for the task
             next_kwargs = task_instance.next_kwargs or {}
@@ -148,12 +153,12 @@ class Trigger(Base):
             # Remove ourselves as its trigger
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued
-            task_instance.state = State.SCHEDULED
+            task_instance.state = TaskInstanceState.SCHEDULED
 
     @classmethod
     @internal_api_call
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, session=None):
+    def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
         """
         Called when a trigger has failed unexpectedly, and we need to mark
         everything that depended on it as failed. Notably, we have to actually
@@ -170,7 +175,7 @@ class Trigger(Base):
         in-process, but we can't do that right now.
         """
         for task_instance in session.query(TaskInstance).filter(
-            TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
+            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
         ):
             # Add the error and set the next_method to the fail state
             traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
@@ -179,24 +184,24 @@ class Trigger(Base):
             # Remove ourselves as its trigger
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued
-            task_instance.state = State.SCHEDULED
+            task_instance.state = TaskInstanceState.SCHEDULED
 
     @classmethod
     @internal_api_call
     @provide_session
-    def ids_for_triggerer(cls, triggerer_id, session=None):
+    def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
         """Retrieves a list of triggerer_ids."""
         return [row[0] for row in session.query(cls.id).filter(cls.triggerer_id == triggerer_id)]
 
     @classmethod
     @internal_api_call
     @provide_session
-    def assign_unassigned(cls, triggerer_id, capacity, session=None):
+    def assign_unassigned(cls, triggerer_id, capacity, session: Session = NEW_SESSION) -> None:
         """
         Takes a triggerer_id and the capacity for that triggerer and assigns unassigned
         triggers until that capacity is reached, or there are no more unassigned triggers.
         """
-        from airflow.jobs.base_job import BaseJob  # To avoid circular import
+        from airflow.jobs.job import Job  # To avoid circular import
 
         count = session.query(func.count(cls.id)).filter(cls.triggerer_id == triggerer_id).scalar()
         capacity -= count
@@ -206,10 +211,10 @@ class Trigger(Base):
 
         alive_triggerer_ids = [
             row[0]
-            for row in session.query(BaseJob.id).filter(
-                BaseJob.end_date.is_(None),
-                BaseJob.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
-                BaseJob.job_type == "TriggererJob",
+            for row in session.query(Job.id).filter(
+                Job.end_date.is_(None),
+                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
+                Job.job_type == "TriggererJob",
             )
         ]
 

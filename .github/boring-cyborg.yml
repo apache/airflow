@@ -339,7 +339,8 @@ firstPRWelcomeComment: >
 
 # Comment to be posted to congratulate user on their first merged PR
 firstPRMergeComment: >
-  Awesome work, congrats on your first merged pull request!
+  Awesome work, congrats on your first merged pull request! You are invited to check our
+  [Issue Tracker](https://github.com/apache/airflow/issues) for additional contributions.
 
 # Comment to be posted to on first time issues
 firstIssueWelcomeComment: >

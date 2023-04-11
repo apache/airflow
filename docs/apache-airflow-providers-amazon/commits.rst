@@ -28,14 +28,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.4.1
+.....
+
+Latest change: 2023-04-05
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`fa4fb1f5fe <https://github.com/apache/airflow/commit/fa4fb1f5fe6f8dfd00d9956197e01efa0a95e24a>`_  2023-04-05   ``Revert "Add AWS deferrable BatchOperator (#29300)" (#30489)``
+`c1b5eafc82 <https://github.com/apache/airflow/commit/c1b5eafc8201b8c84f34fdf21fa1d000b97c13e8>`_  2023-04-05   ``Add more info to quicksight error messages (#30466)``
+`77c272e6e8 <https://github.com/apache/airflow/commit/77c272e6e8ecda0ce48917064e58ba14f6a15844>`_  2023-04-05   ``Add AWS deferrable BatchOperator (#29300)``
+`2736765956 <https://github.com/apache/airflow/commit/2736765956cc22b343609c87380df350fc4ab7ed>`_  2023-04-05   ``add template field for s3 bucket (#30472)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+`9fc0f20132 <https://github.com/apache/airflow/commit/9fc0f20132e7d4d4d5cd4d918612af7e9ddf34dd>`_  2023-04-03   ``Add s3_bucket to template fields in SFTP to S3 operator (#30444)``
+`8bf4f62ae6 <https://github.com/apache/airflow/commit/8bf4f62ae6ff56bc695e92aeb876f17b0d33bfe5>`_  2023-04-03   ``Fix 'RedshiftResumeClusterOperator' deferrable implementation (#30370)``
+=================================================================================================  ===========  ==========================================================================
+
 7.4.0
 .....
 
-Latest change: 2023-03-21
+Latest change: 2023-04-02
 
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `46d9a0c294 <https://github.com/apache/airflow/commit/46d9a0c294ea72574a79f0fb567eb9dc97cf96c1>`_  2023-03-21   ``Make update config behavior optional in GlueJobOperator (#30162)``
 `2a42cb46af <https://github.com/apache/airflow/commit/2a42cb46af66c7d6a95a718726cb9206258a0c14>`_  2023-03-21   ``Move and convert all AWS example dags to system tests (#30003)``
 `05c0841880 <https://github.com/apache/airflow/commit/05c0841880ccfc25c9e525cafde3e46d7c6f9fce>`_  2023-03-21   ``custom waiters with dynamic values, applied to appflow (#29911)``
