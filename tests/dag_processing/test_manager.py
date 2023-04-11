@@ -203,7 +203,7 @@ class TestDagFileProcessorManager:
         parent_pipe.close()
 
     @pytest.mark.backend("mysql", "postgres")
-    @mock.patch("airflow.dag_processing.processor.get_airflow_modules_in")
+    @mock.patch("airflow.dag_processing.processor.iter_airflow_imports")
     def test_start_new_processes_with_same_filepath(self, _):
         """
         Test that when a processor already exist with a filepath, a new processor won't be created
