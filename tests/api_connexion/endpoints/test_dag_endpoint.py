@@ -60,17 +60,34 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_PAUSE, permissions.RESOURCE_DAG),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
     create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_1",
-        access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+    create_user(  # type: ignore
+        app,
+        username="test_granular_no_pause_permissions",
+        role_name="TestGranularDagNoPause",
     )
     app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
-        access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+        access_control={
+            "TestGranularDag": [
+                permissions.ACTION_CAN_EDIT,
+                permissions.ACTION_CAN_READ,
+                permissions.ACTION_CAN_PAUSE,
+            ]
+        },
+    )
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+        "TEST_DAG_2",
+        access_control={
+            "TestGranularDagNoPause": [
+                permissions.ACTION_CAN_EDIT,
+                permissions.ACTION_CAN_READ,
+            ],
+        },
     )
 
     with DAG(
@@ -1105,6 +1122,17 @@ class TestPatchDag(TestDagEndpoint):
         )
         assert response.status_code == 200
 
+    def test_should_respond_403_on_patch_with_granular_dag_access(self):
+        self._create_dag_models(2)
+        response = self.client.patch(
+            "/api/v1/dags/TEST_DAG_2",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={"REMOTE_USER": "test_granular_no_pause_permissions"},
+        )
+        assert response.status_code == 403
+
     def test_should_respond_400_on_invalid_request(self):
         patch_body = {
             "is_paused": True,
@@ -1696,6 +1724,17 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == 200
         assert len(response.json["dags"]) == 1
         assert response.json["dags"][0]["dag_id"] == "TEST_DAG_1"
+
+    def test_should_respond_403_with_granular_dag_access(self):
+        self._create_dag_models(3)
+        response = self.client.patch(
+            "api/v1/dags?dag_id_pattern=~",
+            json={
+                "is_paused": False,
+            },
+            environ_overrides={"REMOTE_USER": "test_granular_no_pause_permissions"},
+        )
+        assert response.status_code == 403
 
     @pytest.mark.parametrize(
         "url, expected_dag_ids",

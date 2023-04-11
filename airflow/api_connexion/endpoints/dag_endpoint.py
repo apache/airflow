@@ -116,7 +116,7 @@ def get_dags(
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-@security.requires_access_dag("PUT")
+@security.requires_access_dag("PATCH")
 @provide_session
 def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
     """Update the specific DAG."""
@@ -138,7 +138,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     return dag_schema.dump(dag)
 
 
-@security.requires_access_dag("PUT")
+@security.requires_access_dag("PATCH")
 @format_parameters({"limit": check_limit})
 @provide_session
 def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
