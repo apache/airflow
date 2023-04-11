@@ -305,7 +305,6 @@ def execute_job(job: Job | JobPydantic) -> int | None:
        the runner should not modify the job state.
 
     :meta private:
-
     """
     ret = None
     try:
