@@ -163,7 +163,7 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          securityContext: {{ $containerSecurityContext or .Values.webserver.securityContexts.container .Values.securityContexts.container | nindent 12 }}
+          securityContext: {{ or $containerSecurityContext .Values.webserver.securityContexts.container .Values.securityContexts.container | nindent 12 }}
           {{- if .Values.webserver.command }}
           command: {{ tpl (toYaml .Values.webserver.command) . | nindent 12 }}
           {{- end }}
