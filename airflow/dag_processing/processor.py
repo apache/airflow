@@ -197,7 +197,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 # only log as warning because an error here is not preventing anything from working,
                 # and if it's serious, it's going to be surfaced to the user when the dag is actually parsed.
                 self.log.warning(
-                    "error when try to pre-import module '%s' found in %s: %s", module, self.file_path, e
+                    "Error when trying to pre-import module '%s' found in %s: %s", module, self.file_path, e
                 )
 
         context = self._get_multiprocessing_context()
