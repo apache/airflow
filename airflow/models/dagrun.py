@@ -1261,7 +1261,12 @@ class DagRun(Base, LoggingMixin):
         )
 
     @provide_session
-    def schedule_tis(self, schedulable_tis: Iterable[TI], session: Session = NEW_SESSION) -> int:
+    def schedule_tis(
+        self,
+        schedulable_tis: Iterable[TI],
+        session: Session = NEW_SESSION,
+        max_tis_per_query: int | None = None,
+    ) -> int:
         """
         Set the given task instances in to the scheduled state.
 
@@ -1288,7 +1293,6 @@ class DagRun(Base, LoggingMixin):
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
         count = 0
-        max_tis_per_query = airflow_conf.getint("scheduler", "max_tis_per_query")
 
         if schedulable_ti_ids:
             schedulable_ti_ids_chunks = chunks(
