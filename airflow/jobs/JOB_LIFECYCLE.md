@@ -17,7 +17,7 @@
  under the License.
  -->
 
-Those sequence diagrams explain what is the lifecycle of the Job with relation to the database
+These sequence diagrams explain the lifecycle of a Job with relation to the database
 operation in the context of the internal API of Airflow.
 
 As part of AIP-44 implementation we separated the ORM Job instance from the code the job runs,
