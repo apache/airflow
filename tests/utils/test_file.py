@@ -192,7 +192,7 @@ class TestListPyFilesPath:
     def test_get_modules(self):
         file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.nopy")
 
-        modules = file_utils.get_airflow_modules_in(file_path)
+        modules = list(file_utils.iter_airflow_imports(file_path))
 
         assert len(modules) == 4
         assert "airflow.utils" in modules
@@ -211,6 +211,6 @@ class TestListPyFilesPath:
         file_path = os.path.join(TEST_DAGS_FOLDER, "README.md")  # just getting a non-python file
 
         # should not error
-        modules = file_utils.get_airflow_modules_in(file_path)
+        modules = list(file_utils.iter_airflow_imports(file_path))
 
         assert len(modules) == 0
