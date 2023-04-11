@@ -27,7 +27,7 @@ from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
-from flask_appbuilder.models.sqla import filters as fab_sqlafilters
+from flask_appbuilder.models.sqla import Model, filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
@@ -810,6 +810,25 @@ class CustomSQLAInterface(SQLAInterface):
         return super().get_col_default(col_name)
 
     filter_converter_class = AirflowFilterConverter
+
+
+class DagRunCustomSQLAInterface(CustomSQLAInterface):
+    """Custom interface to allow faster deletion.
+
+    The ``delete`` and ``delete_all`` methods are overridden to speed up
+    deletion when a DAG run has a lot of related task instances. Relying on
+    SQLAlchemy's cascading deletion is comparatively slow in this situation.
+    """
+
+    def delete(self, item: Model, raise_exception: bool = False) -> bool:
+        self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
+        return super().delete(item, raise_exception=raise_exception)
+
+    def delete_all(self, items: list[Model]) -> bool:
+        self.session.query(TaskInstance).where(
+            TaskInstance.run_id.in_(item.run_id for item in items)
+        ).delete()
+        return super().delete_all(items)
 
 
 # This class is used directly (i.e. we can't tell Fab to use a different
