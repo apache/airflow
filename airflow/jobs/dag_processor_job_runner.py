@@ -17,48 +17,50 @@
 
 from __future__ import annotations
 
-import os
-from datetime import timedelta
+from typing import Any
 
 from airflow.dag_processing.manager import DagFileProcessorManager
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import Job, perform_heartbeat
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class DagProcessorJob(BaseJob):
+def empty_callback(_: Any) -> None:
+    pass
+
+
+class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     """
-    :param dag_directory: Directory where DAG definitions are kept. All
-        files in file_paths should be under this directory
-    :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
-    :param processor_timeout: How long to wait before timing out a DAG file processor
-    :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
-    :param async_mode: Whether to start agent in async mode
+    DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
+
+    :param job: Job instance to use
+    :param processor: DagFileProcessorManager instance to use
     """
 
-    __mapper_args__ = {"polymorphic_identity": "DagProcessorJob"}
+    job_type = "DagProcessorJob"
 
     def __init__(
         self,
-        dag_directory: os.PathLike,
-        max_runs: int,
-        processor_timeout: timedelta,
-        dag_ids: list[str] | None,
-        pickle_dags: bool,
+        job: Job,
+        processor: DagFileProcessorManager,
         *args,
         **kwargs,
     ):
-        self.processor = DagFileProcessorManager(
-            dag_directory=dag_directory,
-            max_runs=max_runs,
-            processor_timeout=processor_timeout,
-            dag_ids=dag_ids,
-            pickle_dags=pickle_dags,
-            job=self,
-        )
         super().__init__(*args, **kwargs)
+        self.job = job
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
+        self.processor = processor
+        self.processor.heartbeat = lambda: perform_heartbeat(
+            job=self.job,
+            heartbeat_callback=empty_callback,
+            only_if_necessary=False,
+        )
 
-    def _execute(self) -> None:
+    def _execute(self) -> int | None:
         self.log.info("Starting the Dag Processor Job")
         try:
             self.processor.start()
@@ -68,3 +70,4 @@ class DagProcessorJob(BaseJob):
         finally:
             self.processor.terminate()
             self.processor.end()
+        return None
