@@ -128,7 +128,7 @@ class DagRun(Base, LoggingMixin):
     log_template_id = Column(
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
-        default=select([func.max(LogTemplate.__table__.c.id)]),
+        default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
