@@ -328,6 +328,8 @@ Please vote accordingly:
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
 
+Consider this my (binding) +1.
+
 For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update your path to rat):
 
 tar -xvf airflow-chart-${VERSION_WITHOUT_RC}-source.tar.gz
