@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from unittest import mock
 
 import pytest
 from gcloud.aio.storage import Bucket, Storage
@@ -158,7 +157,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch(
+    @async_mock.patch(
         "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger._is_blob_updated_after"
     )
     async def test_gcs_blob_update_trigger_success(self, mock_blob_updated):
@@ -172,7 +171,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         assert TriggerEvent({"status": "success", "message": "success"}) == actual
 
     @pytest.mark.asyncio
-    @mock.patch(
+    @async_mock.patch(
         "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger._is_blob_updated_after"
     )
     async def test_gcs_blob_update_trigger_pending(self, mock_blob_updated):
@@ -189,14 +188,14 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch(
+    @async_mock.patch(
         "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger._is_blob_updated_after"
     )
     async def test_gcs_blob_update_trigger_exception(self, mock_object_exists):
         """
         Tests the GCSCheckBlobUpdateTimeTrigger does fire if there is an exception.
         """
-        mock_object_exists.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
+        mock_object_exists.side_effect = AsyncMock(side_effect=Exception("Test exception"))
 
         task = [i async for i in self.TRIGGER.run()]
         assert len(task) == 1
@@ -223,10 +222,10 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         Tests to check if a particular object in Google Cloud Storage
         is found or not
         """
-        hook = mock.AsyncMock(GCSAsyncHook)
-        storage = mock.AsyncMock(Storage)
+        hook = AsyncMock(GCSAsyncHook)
+        storage = AsyncMock(Storage)
         hook.get_storage_client.return_value = storage
-        bucket = mock.AsyncMock(Bucket)
+        bucket = AsyncMock(Bucket)
         storage.get_bucket.return_value = bucket
         bucket.get_blob.return_value.updated = blob_object_update_datetime
         trigger = GCSCheckBlobUpdateTimeTrigger(
@@ -258,10 +257,10 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         Tests to check if a particular object in Google Cloud Storage
         is found or not
         """
-        hook = mock.AsyncMock(GCSAsyncHook)
-        storage = mock.AsyncMock(Storage)
+        hook = AsyncMock(GCSAsyncHook)
+        storage = AsyncMock(Storage)
         hook.get_storage_client.return_value = storage
-        bucket = mock.AsyncMock(Bucket)
+        bucket = AsyncMock(Bucket)
         storage.get_bucket.return_value = bucket
         bucket.get_blob.return_value = blob_object
 

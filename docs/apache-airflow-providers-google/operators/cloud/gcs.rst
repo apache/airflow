@@ -229,6 +229,12 @@ You can set the ``deferrable`` param to True if you want this sensor to run asyn
 utilization of resources in your Airflow deployment. However the triggerer component needs to be up and running
 for this functionality to work.
 
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_object_update_exists_task_async]
+    :end-before: [END howto_sensor_object_update_exists_task_async]
+
 More information
 """"""""""""""""
 

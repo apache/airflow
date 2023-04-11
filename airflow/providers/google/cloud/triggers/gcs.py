@@ -110,7 +110,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
     :param ts: datetime object
     :param poke_interval: polling period in seconds to check for file/folder
     :param google_cloud_conn_id: reference to the Google Connection
-    :param hook_params: DIct object has delegate_to and impersonation_chain
+    :param hook_params: dict object that has delegate_to and impersonation_chain
     """
 
     def __init__(
