@@ -31,6 +31,7 @@ import pytest
 import time_machine
 
 from airflow import settings
+from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
@@ -473,41 +474,17 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_get_dag_details(self):
         args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
+        dag_id = "example_complex"
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        # Check if DAG Details field are present
-        dag_details_fields = [
-            "has_task_concurrency_limits",
-            "tags",
-            "file_token",
-            "description",
-            "last_expired",
-            "root_dag_id",
-            "is_active",
-            "last_pickled",
-            "scheduler_lock",
-            "next_dagrun_create_after",
-            "next_dagrun_data_interval_start:",
-            "last_parsed_time",
-            "fileloc",
-            "default_view",
-            "max_active_tasks",
-            "is_subdag",
-            "owners",
-            "has_import_errors",
-            "dag_id",
-            "pickle_id",
-            "schedule_interval",
-            "timetable_description",
-            "next_dagrun_data_interval_end",
-            "is_paused",
-            "next_dagrun",
-            "max_active_runs",
-        ]
+        with create_session() as session:
+            dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+            dag_detail_fields = dag_schema.dump(dag)
 
-        for field in dag_details_fields:
+        # Check if DAG Details field are present
+        for field in dag_detail_fields:
             assert field in out
 
         # Check if identifying values are present
