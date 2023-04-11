@@ -225,11 +225,17 @@ Jinja templating can be used in same way as described for the PythonOperator.
 PythonSensor
 ============
 
-Use the :class:`~airflow.sensors.python.PythonSensor` to use arbitrary callable for sensing. The callable
-should return True when it succeeds, False otherwise.
+Sensors can be used in two ways. One is to use the :class:`~airflow.sensors.python.PythonSensor` to use arbitrary callable for sensing. The callable
+should return True when it succeeds, False otherwise. The other uses the Taskflow API utilizing the :class:`~airflow.decorators.task.sensor` as a decorator on a function.
 
 .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_python_sensors]
     :end-before: [END example_python_sensors]
+
+.. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START wait_function]
+    :end-before: [END wait_function]

@@ -21,6 +21,7 @@ name: IBM Cloudant
 description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
+suspended: false
 versions:
   - 3.1.0
   - 3.0.0

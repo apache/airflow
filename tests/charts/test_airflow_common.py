@@ -234,24 +234,51 @@ class TestAirflowCommon:
             assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
 
     @pytest.mark.parametrize(
-        "use_default_image,expected_image",
+        "expected_image,tag,digest",
         [
-            (True, "apache/airflow:2.1.0"),
-            (False, "apache/airflow:user-image"),
+            ("apache/airflow:user-tag", "user-tag", None),
+            ("apache/airflow@user-digest", None, "user-digest"),
+            ("apache/airflow@user-digest", "user-tag", "user-digest"),
         ],
     )
-    def test_should_use_correct_image(self, use_default_image, expected_image):
+    def test_should_use_correct_image(self, expected_image, tag, digest):
         docs = render_chart(
             values={
-                "defaultAirflowRepository": "apache/airflow",
-                "defaultAirflowTag": "2.1.0",
                 "images": {
                     "airflow": {
                         "repository": "apache/airflow",
-                        "tag": "user-image",
+                        "tag": tag,
+                        "digest": digest,
                     },
-                    "useDefaultImageForMigration": use_default_image,
                 },
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
+
+    @pytest.mark.parametrize(
+        "expected_image,tag,digest",
+        [
+            ("apache/airflow:user-tag", "user-tag", None),
+            ("apache/airflow@user-digest", None, "user-digest"),
+            ("apache/airflow@user-digest", "user-tag", "user-digest"),
+        ],
+    )
+    def test_should_use_correct_default_image(self, expected_image, tag, digest):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": tag,
+                "defaultAirflowDigest": digest,
+                "images": {"useDefaultImageForMigration": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
