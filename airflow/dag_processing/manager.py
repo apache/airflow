@@ -35,7 +35,7 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import Any, Callable, NamedTuple, cast
 
 from setproctitle import setproctitle
 from sqlalchemy.orm import Session
@@ -46,7 +46,6 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
-from airflow.jobs.job import perform_heartbeat
 from airflow.models import errors
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
@@ -66,9 +65,6 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
-
-if TYPE_CHECKING:
-    from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 
 
 class DagParsingStat(NamedTuple):
@@ -385,8 +381,6 @@ class DagFileProcessorManager(LoggingMixin):
         signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
     ):
-        from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-
         super().__init__()
         # known files; this will be updated every `dag_dir_list_interval` and stuff added/removed accordingly
         self._file_paths: list[str] = []
@@ -399,9 +393,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._async_mode = async_mode
         self._parsing_start_time: float | None = None
         self._dag_directory = dag_directory
-        self._job_runner = DagProcessorJobRunner(
-            processor=self,
-        )
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
         # attempting to send (this is to avoid deadlocks!)
@@ -465,10 +456,7 @@ class DagFileProcessorManager(LoggingMixin):
             if self._direct_scheduler_conn is not None
             else {}
         )
-
-    @property
-    def job_runner(self) -> DagProcessorJobRunner:
-        return self._job_runner
+        self.heartbeat: Callable[[], None] = lambda: None
 
     def register_exit_signals(self):
         """Register signals that stop child processes."""
@@ -585,11 +573,7 @@ class DagFileProcessorManager(LoggingMixin):
         while True:
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
-            # we cannot (for now) define job in _job_runner nicely due to circular references of
-            # job and job runner, so we have to use getattr, but we might address it in the future
-            # change when decoupling these two even more
-            if getattr(self._job_runner, "job", None) is not None:
-                perform_heartbeat(self._job_runner.job, only_if_necessary=False)
+            self.heartbeat()
             if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
                 agent_signal = self._direct_scheduler_conn.recv()
 

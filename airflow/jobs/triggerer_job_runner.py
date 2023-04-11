@@ -34,8 +34,9 @@ from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import perform_heartbeat
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
@@ -246,10 +247,19 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
     job_type = "TriggererJob"
 
-    def __init__(self, capacity=None, *args, **kwargs):
-        # Call superclass
-        super().__init__(*args, **kwargs)
-
+    def __init__(
+        self,
+        job: Job | JobPydantic,
+        capacity=None,
+    ):
+        super().__init__()
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
+        self.job = job
+        self.job.job_type = self.job_type
         if capacity is None:
             self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
         elif isinstance(capacity, int) and capacity > 0:
@@ -355,7 +365,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.handle_events()
             # Handle failed triggers
             self.handle_failed_triggers()
-            perform_heartbeat(self.job, only_if_necessary=True)
+            perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
             # Collect stats
             self.emit_metrics()
             # Idle sleep

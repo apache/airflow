@@ -248,7 +248,8 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_local_task_job(args, ti: TaskInstance) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
-    local_task_job_runner = LocalTaskJobRunner(
+    job_runner = LocalTaskJobRunner(
+        job=Job(dag_id=ti.dag_id),
         task_instance=ti,
         mark_success=args.mark_success,
         pickle_id=args.pickle,
@@ -260,12 +261,8 @@ def _run_task_by_local_task_job(args, ti: TaskInstance) -> TaskReturnCode | None
         pool=args.pool,
         external_executor_id=_extract_external_executor_id(args),
     )
-    local_task_job = Job(
-        job_runner=local_task_job_runner,
-        dag_id=ti.dag_id,
-    )
     try:
-        ret = run_job(local_task_job)
+        ret = run_job(job=job_runner.job, execute_callable=job_runner._execute)
     finally:
         if args.shut_down_logging:
             logging.shutdown()

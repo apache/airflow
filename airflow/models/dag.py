@@ -2468,28 +2468,27 @@ class DAG(LoggingMixin):
             executor = ExecutorLoader.get_default_executor()
         from airflow.jobs.job import Job
 
-        job = Job(
-            job_runner=BackfillJobRunner(
-                self,
-                start_date=start_date,
-                end_date=end_date,
-                mark_success=mark_success,
-                donot_pickle=donot_pickle,
-                ignore_task_deps=ignore_task_deps,
-                ignore_first_depends_on_past=ignore_first_depends_on_past,
-                pool=pool,
-                delay_on_limit_secs=delay_on_limit_secs,
-                verbose=verbose,
-                conf=conf,
-                rerun_failed_tasks=rerun_failed_tasks,
-                run_backwards=run_backwards,
-                run_at_least_once=run_at_least_once,
-                continue_on_failures=continue_on_failures,
-                disable_retry=disable_retry,
-            ),
-            executor=executor,
+        job = Job(executor=executor)
+        job_runner = BackfillJobRunner(
+            job=job,
+            dag=self,
+            start_date=start_date,
+            end_date=end_date,
+            mark_success=mark_success,
+            donot_pickle=donot_pickle,
+            ignore_task_deps=ignore_task_deps,
+            ignore_first_depends_on_past=ignore_first_depends_on_past,
+            pool=pool,
+            delay_on_limit_secs=delay_on_limit_secs,
+            verbose=verbose,
+            conf=conf,
+            rerun_failed_tasks=rerun_failed_tasks,
+            run_backwards=run_backwards,
+            run_at_least_once=run_at_least_once,
+            continue_on_failures=continue_on_failures,
+            disable_retry=disable_retry,
         )
-        run_job(job)
+        run_job(job=job, execute_callable=job_runner._execute)
 
     def cli(self):
         """Exposes a CLI specific to this DAG"""

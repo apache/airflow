@@ -80,9 +80,10 @@ def test_multiple_listeners(create_task_instance, session=None):
     lm.add_listener(full_listener)
     lm.add_listener(lifecycle_listener)
 
-    job = Job(job_runner=MockJobRunner())
+    job = Job()
+    job_runner = MockJobRunner(job=job)
     try:
-        run_job(job)
+        run_job(job=job, execute_callable=job_runner._execute)
     except NotImplementedError:
         pass  # just for lifecycle
 

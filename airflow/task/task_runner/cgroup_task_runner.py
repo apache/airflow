@@ -25,7 +25,7 @@ import uuid
 import psutil
 from cgroupspy import trees
 
-from airflow.jobs.job import Job
+from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.platform import getuser
@@ -62,8 +62,8 @@ class CgroupTaskRunner(BaseTaskRunner):
     airflow ALL= (root) NOEXEC: !/bin/chmod /CGROUPS_FOLDER/cpu/airflow/* *
     """
 
-    def __init__(self, base_job: Job):
-        super().__init__(base_job=base_job)
+    def __init__(self, job_runner: LocalTaskJobRunner):
+        super().__init__(job_runner=job_runner)
         self.process = None
         self._finished_running = False
         self._cpu_shares = None

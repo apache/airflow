@@ -59,5 +59,5 @@ def get_task_runner(local_task_job_runner: LocalTaskJobRunner) -> BaseTaskRunner
                 f'The task runner could not be loaded. Please check "task_runner" key in "core" section. '
                 f'Current value: "{_TASK_RUNNER_NAME}".'
             )
-    task_runner = task_runner_class(local_task_job_runner.job)
+    task_runner = task_runner_class(local_task_job_runner)
     return task_runner
