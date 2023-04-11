@@ -115,6 +115,7 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
     delete_user(app, username="test_granular_permissions")  # type: ignore
+    delete_user(app, username="test_granular_no_pause_permissions")  # type: ignore
 
 
 class TestDagEndpoint:

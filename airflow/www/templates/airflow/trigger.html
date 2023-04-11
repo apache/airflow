@@ -286,7 +286,6 @@
     {% if dag.get_is_paused() %}
     <div class="form-group">
       <label class="switch-label">
-        <!-- <input class="switch-input" name="unpause" id="unpause" type="checkbox" checked> -->
         <input class="switch-input" name="unpause" id="unpause" type="checkbox"{{' disabled' if not can_pause_dag else '' }}{{' checked' if can_pause_dag or not dag_is_paused else '' }}>
         <span class="switch" aria-hidden="true"></span>
         Unpause DAG when triggered
