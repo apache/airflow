@@ -106,17 +106,4 @@ class TestKubernetesCreateOperator:
 
         op.execute(context)
         mock_kubernetes_hook.assert_called_once_with()
-
-        mock_delete_namespaced_persistent_volume_claim(
-            name="test_pvc",
-            namespace="default",
-            body={
-                "api_version": None,
-                "dry_run": None,
-                "grace_period_seconds": 5,
-                "kind": None,
-                "orphan_dependents": None,
-                "preconditions": None,
-                "propagation_policy": "Background",
-            },
-        )
+        mock_delete_namespaced_persistent_volume_claim.assert_called_once()
