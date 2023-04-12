@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest as pytest
 
 from airflow import AirflowException
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
@@ -33,6 +33,7 @@ from tests.listeners import (
     partial_listener,
     throwing_listener,
 )
+from tests.utils.test_helpers import MockJobRunner
 
 LISTENERS = [
     class_listener,
@@ -79,9 +80,10 @@ def test_multiple_listeners(create_task_instance, session=None):
     lm.add_listener(full_listener)
     lm.add_listener(lifecycle_listener)
 
-    job = BaseJob()
+    job = Job()
+    job_runner = MockJobRunner(job=job)
     try:
-        job.run()
+        run_job(job=job, execute_callable=job_runner._execute)
     except NotImplementedError:
         pass  # just for lifecycle
 
