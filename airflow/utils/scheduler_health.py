@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from airflow.configuration import conf
-from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
+
+log = logging.getLogger(__name__)
 
 
 class HealthServer(BaseHTTPRequestHandler):
@@ -32,10 +36,10 @@ class HealthServer(BaseHTTPRequestHandler):
             try:
                 with create_session() as session:
                     scheduler_job = (
-                        session.query(SchedulerJob)
+                        session.query(Job)
+                        .filter_by(job_type=SchedulerJobRunner.job_type)
                         .filter_by(hostname=get_hostname())
-                        .order_by(SchedulerJob.latest_heartbeat.desc())
-                        .limit(1)
+                        .order_by(Job.latest_heartbeat.desc())
                         .first()
                     )
                 if scheduler_job and scheduler_job.is_alive():
@@ -44,6 +48,7 @@ class HealthServer(BaseHTTPRequestHandler):
                 else:
                     self.send_error(503)
             except Exception:
+                log.exception("Exception when executing Health check")
                 self.send_error(503)
         else:
             self.send_error(404)

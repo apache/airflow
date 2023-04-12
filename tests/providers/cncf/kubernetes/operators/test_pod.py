@@ -190,7 +190,7 @@ class TestKubernetesPodOperator:
         self.run_pod(k)
         hook_mock.assert_called_once_with(
             cluster_context=None,
-            conn_id=None,
+            conn_id="kubernetes_default",
             config_file=file_path,
             in_cluster=None,
         )

@@ -24,6 +24,28 @@
 Changelog
 ---------
 
+7.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'RedshiftResumeClusterOperator' deferrable implementation (#30370)``
+
+Misc
+~~~~
+
+* ``Add more info to quicksight error messages (#30466)``
+* ``add template field for s3 bucket (#30472)``
+* ``Add s3_bucket to template fields in SFTP to S3 operator (#30444)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add AWS deferrable BatchOperator (#29300)``
+   * ``Revert "Add AWS deferrable BatchOperator (#29300)" (#30489)``
+   * ``Add mechanism to suspend providers (#30422)``
+
 7.4.0
 .....
 

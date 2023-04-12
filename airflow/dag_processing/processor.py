@@ -645,7 +645,7 @@ class DagFileProcessor(LoggingMixin):
     ) -> None:
         """
         Execute on failure callbacks.
-        These objects can come from SchedulerJob or from DagFileProcessorManager.
+        These objects can come from SchedulerJobRunner or from DagProcessorJobRunner.
 
         :param dagbag: Dag Bag of dags
         :param callback_requests: failure callbacks to execute

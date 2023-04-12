@@ -684,18 +684,19 @@ def _create_db_from_orm(session):
     from airflow.www.fab_security.sqla.models import Model
     from airflow.www.session import AirflowDatabaseSessionInterface
 
-    def _create_flask_session_tbl():
+    def _create_flask_session_tbl(sql_database_uri):
         flask_app = Flask(__name__)
-        flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+        flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
         flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         db = SQLAlchemy(flask_app)
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
         db.create_all()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        Base.metadata.create_all(settings.engine)
-        Model.metadata.create_all(settings.engine)
-        _create_flask_session_tbl()
+        engine = session.get_bind().engine
+        Base.metadata.create_all(engine)
+        Model.metadata.create_all(engine)
+        _create_flask_session_tbl(engine.url)
         # stamp the migration head
         config = _get_alembic_config()
         command.stamp(config, "head")
@@ -1160,7 +1161,7 @@ def _create_table_as(
     if dialect_name == "mssql":
         cte = source_query.cte("source")
         moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
-        ins = moved_data_tbl.insert().from_select(list(cte.columns), select([cte]))
+        ins = moved_data_tbl.insert().from_select(list(cte.columns), select(cte))
 
         stmt = ins.compile(bind=session.get_bind())
         cte_sql = stmt.ctes[cte]
@@ -1199,7 +1200,7 @@ def _move_dangling_data_to_new_table(
 
     target_table = source_table.to_metadata(source_table.metadata, name=target_table_name)
     log.debug("checking whether rows were moved for table %s", target_table_name)
-    moved_rows_exist_query = select([1]).select_from(target_table).limit(1)
+    moved_rows_exist_query = select(1).select_from(target_table).limit(1)
     first_moved_row = session.execute(moved_rows_exist_query).all()
     session.commit()
 
