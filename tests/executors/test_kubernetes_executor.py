@@ -861,26 +861,23 @@ class TestKubernetesExecutor:
 
     @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
     @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
-    def test_cleanup_stuck_queued_task(
-        self, mock_delete_pod, mock_kube_client, create_task_instance_of_operator
-    ):
+    def test_cleanup_stuck_queued_tasks(self, mock_delete_pod, mock_kube_client, dag_maker, session):
         """Delete any pods associated with a task stuck in queued."""
         executor = KubernetesExecutor()
         executor.start()
         executor.scheduler_job_id = "123"
-        ti = create_task_instance_of_operator(
-            EmptyOperator, dag_id="test_k8s_cleanup_stuck_tasks", task_id="test_task"
-        )
+        with dag_maker(dag_id="test_clear"):
+            op = BashOperator(task_id="bash", bash_command=["echo 0", "echo 1"])
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance(op.task_id, session)
         ti.retries = 1
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
         ti.refresh_from_db()
-        executor.cleanup_stuck_queued_task(ti)
-        ti.refresh_from_db()
-        executor.sync()
+        tis = [ti]
+        executor.cleanup_stuck_queued_tasks(tis)
         mock_delete_pod.assert_called_once()
         assert executor.running == set()
-
         executor.end()
 
     @pytest.mark.parametrize(

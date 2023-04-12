@@ -827,35 +827,44 @@ class KubernetesExecutor(BaseExecutor):
         tis_to_flush.extend(pod_ids.values())
         return tis_to_flush
 
-    def cleanup_stuck_queued_task(self, ti: TaskInstance) -> None:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.
-        :param ti: Task Instance to clean up
+
+        :param tis: List of Task Instances to clean up
+        :return: List of readable task instances for a warning message
         """
-        selector = PodGenerator.build_selector_for_k8s_executor_pod(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            try_number=ti.try_number,
-            map_index=ti.map_index,
-            run_id=ti.run_id,
-            airflow_worker=ti.queued_by_job_id,
-        )
-        namespace = self._get_pod_namespace(ti)
-        pod_list = self.kube_client.list_namespaced_pod(
-            namespace=namespace,
-            label_selector=selector,
-        ).items
-        if not pod_list:
-            raise RuntimeError("Cannot find pod for ti %s", ti)
-        elif len(pod_list) > 1:
-            raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
-        self.kube_scheduler.delete_pod(pod_id=pod_list[0].metadata.name, namespace=namespace)
-        self.log.info(
-            "Deleted pod %s from namespace %s. Pod was stuck in queued for longer than `task_queued_timeout`."
-        )
+        readable_tis = []
+        for ti in tis:
+            readable_tis.append(repr(ti))
+            selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                run_id=ti.run_id,
+                airflow_worker=ti.queued_by_job_id,
+            )
+            namespace = self._get_pod_namespace(ti)
+            pod_list = self.kube_client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=selector,
+            ).items
+            if not pod_list:
+                # Remove from list of tis that were cleaned up
+                readable_tis.pop()
+                self.log.warning("Cannot find pod for ti %s", ti)
+                continue
+            elif len(pod_list) > 1:
+                # Remove from list of tis that were cleaned up
+                readable_tis.pop()
+                self.log.warning("Found multiple pods for ti %s: %s", ti, pod_list)
+                continue
+            self.kube_scheduler.delete_pod(pod_id=pod_list[0].metadata.name, namespace=namespace)
+        return readable_tis
 
     def adopt_launched_task(
         self, kube_client: client.CoreV1Api, pod: k8s.V1Pod, pod_ids: dict[TaskInstanceKey, k8s.V1Pod]

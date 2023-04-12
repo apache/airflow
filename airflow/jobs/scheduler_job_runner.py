@@ -1464,6 +1464,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
         """
         Mark tasks stuck in queued for longer than `task_queued_timeout` as failed.
+
+        If one of the configuration settings `kubernetes.worker_pods_pending_timeout`,
+        `celery.stalled_task_timeout`, or `celery.task_adoption_timeout` is set and
+        has a higher value than `scheduler.task_queued_timeout`, that value will be
+        used as `task_queued_timeout`.
+
         Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
         track of a task, a cluster can't further scale up its workers, etc.), but tasks
         should not be stuck in queued for a long time. This will mark tasks stuck in
@@ -1486,18 +1492,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tasks_stuck_in_queued: list[TaskInstance] = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
                     ).all()
-                    tasks_stuck_in_queued_messages = []
-                    for ti in tasks_stuck_in_queued:
-                        tasks_stuck_in_queued_messages.append(repr(ti))
-                        msg = (
-                            "TI %s was in the queued state for longer than %s.",
-                            repr(ti),
-                            self._task_queued_timeout,
-                        )
-                        ti.handle_failure(error=msg, session=session)
-                        self.executor.cleanup_stuck_queued_task(ti)
-                    if tasks_stuck_in_queued_messages:
-                        task_instance_str = "\n\t".join(tasks_stuck_in_queued_messages)
+                    tis_for_warning_message = self.executor.cleanup_stuck_queued_tasks(
+                        tis=tasks_stuck_in_queued
+                    )
+                    if tis_for_warning_message:
+                        task_instance_str = "\n\t".join(tis_for_warning_message)
                         self.log.warning(
                             "Marked the following %s task instances stuck in queued as failed. If the task instance has available retries, it will be retried.\n\t%s",
                             len(tasks_stuck_in_queued),

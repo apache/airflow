@@ -217,10 +217,11 @@ class TestCeleryExecutor:
             yield app.control.revoke
 
     @pytest.mark.backend("mysql", "postgres")
-    def test_cleanup_stuck_queued_task(self, session):
+    @mock.patch("airflow.executors.celery_executor.CeleryExecutor.fail")
+    def test_cleanup_stuck_queued_tasks(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_cleanup_stuck_queued_task_failed"):
+        with DAG("test_cleanup_stuck_queued_tasks_failed"):
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         ti = TaskInstance(task=task, run_id=None)
@@ -228,17 +229,18 @@ class TestCeleryExecutor:
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
         ti.queued_by_job_id = 1
-        session.flush()
+        tis = [ti]
         with _prepare_app() as app:
             app.control.revoke = mock.MagicMock()
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
             executor.running = {ti.key}
             executor.tasks = {ti.key: AsyncResult("231")}
+            executor.cleanup_stuck_queued_tasks(tis)
             executor.sync()
-            executor.cleanup_stuck_queued_task(ti)
         assert executor.tasks == {}
         assert app.control.revoke.called_with("231")
+        assert mock_fail.called_once()
 
 
 def test_operation_timeout_config():

@@ -1589,9 +1589,7 @@ class TestSchedulerJob:
 
         self.scheduler_job._fail_tasks_stuck_in_queued()
 
-        self.scheduler_job.executor.cleanup_stuck_queued_task.assert_called_once()
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
-        assert ti.state == State.FAILED
+        self.scheduler_job.executor.cleanup_stuck_queued_tasks.assert_called_once()
 
     def test_retry_stuck_queued_tasks(self, dag_maker):
         session = settings.Session()

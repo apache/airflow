@@ -417,22 +417,28 @@ class CeleryExecutor(BaseExecutor):
 
         return not_adopted_tis
 
-    def cleanup_stuck_queued_task(self, ti: TaskInstance) -> None:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.
-        :param ti: Task Instance to clean up
+
+        :param tis: List of Task Instances to clean up
+        :return: List of readable task instances for a warning message
         """
-        task_instance_key = ti.key
-        self.running.discard(task_instance_key)
-        celery_async_result = self.tasks.pop(task_instance_key, None)
-        if celery_async_result:
-            try:
-                app.control.revoke(celery_async_result.task_id)
-            except Exception as ex:
-                self.log.error("Error revoking task instance %s from celery: %s", task_instance_key, ex)
+        readable_tis = []
+        for ti in tis:
+            readable_tis.append(repr(ti))
+            task_instance_key = ti.key
+            self.fail(task_instance_key, None)
+            celery_async_result = self.tasks.pop(task_instance_key, None)
+            if celery_async_result:
+                try:
+                    app.control.revoke(celery_async_result.task_id)
+                except Exception as ex:
+                    self.log.error("Error revoking task instance %s from celery: %s", task_instance_key, ex)
+        return readable_tis
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
