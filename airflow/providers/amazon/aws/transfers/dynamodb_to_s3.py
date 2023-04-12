@@ -134,7 +134,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     @cached_property
     def hook(self):
         """Create DynamoDBHook"""
-        return DynamoDBHook(aws_conn_id=self.source_aws_conn_id, client_type="dynamodb")
+        return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
     def execute(self, context: Context) -> None:
         if self.export_time:

@@ -271,7 +271,7 @@ class TestCustomDynamoDBServiceWaiters:
             yield m
 
     def test_service_waiters(self):
-        hook_waiters = DynamoDBHook(aws_conn_id=None, client_type="dynamodb").list_waiters()
+        hook_waiters = DynamoDBHook(aws_conn_id=None).list_waiters()
         assert "export_table" in hook_waiters
 
     @staticmethod
@@ -288,7 +288,7 @@ class TestCustomDynamoDBServiceWaiters:
             self.export_table_to_point_in_time(self.STATUS_IN_PROGRESS),
             self.export_table_to_point_in_time(self.STATUS_COMPLETED),
         ]
-        waiter = DynamoDBHook(aws_conn_id=None, client_type="dynamodb").get_waiter("export_table")
+        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
         waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
 
     def test_export_table_to_point_in_time_failed(self, mock_export_table_to_point_in_time):
@@ -297,6 +297,6 @@ class TestCustomDynamoDBServiceWaiters:
             self.export_table_to_point_in_time(self.STATUS_IN_PROGRESS),
             self.export_table_to_point_in_time(self.STATUS_FAILED),
         ]
-        waiter = DynamoDBHook(aws_conn_id=None, client_type="dynamodb").get_waiter("export_table")
+        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
         with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
             waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
