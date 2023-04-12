@@ -39,7 +39,6 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -219,28 +218,15 @@ class PodManager(LoggingMixin):
 
     def __init__(
         self,
-        kube_client: client.CoreV1Api = None,
-        in_cluster: bool = True,
-        cluster_context: str | None = None,
+        kube_client: client.CoreV1Api,
     ):
         """
         Creates the launcher.
 
         :param kube_client: kubernetes client
-        :param in_cluster: whether we are in cluster
-        :param cluster_context: context of the cluster
         """
         super().__init__()
-        if kube_client:
-            self._client = kube_client
-        else:
-            self._client = get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
-            warnings.warn(
-                "`kube_client` not supplied to PodManager. "
-                "This will be a required argument in a future release. "
-                "Please use KubernetesHook to create the client before calling.",
-                DeprecationWarning,
-            )
+        self._client = kube_client
         self._watch = watch.Watch()
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:

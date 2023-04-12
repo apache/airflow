@@ -56,10 +56,10 @@ spec:
     {{- end }}
         matchLabels:
           app: keda-operator
-    {{- end}}
+    {{- end }}
     {{- if .Values.pgbouncer.extraNetworkPolicies}}
       {{- toYaml .Values.pgbouncer.extraNetworkPolicies | nindent 4 }}
-    {{- end}}
+    {{- end }}
     ports:
     - protocol: TCP
       port: {{ .Values.ports.pgbouncer }}
