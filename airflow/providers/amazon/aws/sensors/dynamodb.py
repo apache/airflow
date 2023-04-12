@@ -81,10 +81,13 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.log.info(f"Table: {table}")
         self.log.info(f"Key: {key}")
         response = table.get_item(Key=key)
-        self.log.info(f"Response: {response}")
-        self.log.info(f"Want: {self.attribute_name} = {self.attribute_value}")
-        self.log.info(f'Got: {response["Item"][self.attribute_name]} = {self.attribute_value}')
-        return response["Item"][self.attribute_name] == self.attribute_value
+        try:
+            self.log.info(f"Response: {response}")
+            self.log.info(f"Want: {self.attribute_name} = {self.attribute_value}")
+            self.log.info(f'Got: {response["Item"][self.attribute_name]} = {self.attribute_value}')
+            return response["Item"][self.attribute_name] == self.attribute_value
+        except KeyError:
+            return False
 
     @cached_property
     def hook(self) -> DynamoDBHook:

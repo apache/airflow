@@ -54,6 +54,8 @@ class TestDynamoDBValueSensor:
             ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
         )
 
+        assert not self.sensor.poke(None)
+
         items = [{self.pk_name: self.pk_value, self.attribute_name: self.attribute_value}]
         hook.write_batch_data(items)
 
@@ -75,6 +77,8 @@ class TestDynamoDBValueSensor:
             ],
             ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
         )
+
+        assert not self.sensor.poke(None)
 
         items = [
             {
