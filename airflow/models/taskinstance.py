@@ -1330,6 +1330,18 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(State.RUNNING, self))
+
+        if not self.end_date:
+            # if the task has an end date, it means that this is not its first round.
+            # we send the adoption time metric only on the first try, otherwise it gets more complex.
+            adoption_time = (timezone.utcnow() - self.start_date).total_seconds()
+            Stats.timing(f"dag.{self.task.dag_id}.{self.task.task_id}.adoption_time", adoption_time)
+            Stats.timing(
+                "task.adoption_time",
+                adoption_time,
+                tags={"task_id": self.task.task_id, "dag_id": self.task.dag_id},
+            )
+
         self.state = State.RUNNING
         self.external_executor_id = external_executor_id
         self.end_date = None
