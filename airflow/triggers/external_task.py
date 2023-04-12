@@ -80,7 +80,7 @@ class TaskStateTrigger(BaseTrigger):
         while True:
             num_tasks = await self.count_tasks()
             if num_tasks == len(self.execution_dates):
-                yield TriggerEvent(True)
+                yield TriggerEvent(self.serialize())
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async
