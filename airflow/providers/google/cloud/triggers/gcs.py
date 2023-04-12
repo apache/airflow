@@ -200,3 +200,76 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
                 if blob_updated_time > target_date:
                     return True, {"status": "success", "message": "success"}
             return False, {"status": "pending", "message": "pending"}
+
+
+class GCSPrefixBlobTrigger(GCSBlobTrigger):
+    """
+    A trigger that fires and it looks for all the objects in the given bucket
+    which matches the given prefix if not found sleep for certain interval and checks again.
+
+    :param bucket: the bucket in the google cloud storage where the objects are residing.
+    :param prefix: The prefix of the blob_names to match in the Google cloud storage bucket
+    :param google_cloud_conn_id: reference to the Google Connection
+    :param poke_interval: polling period in seconds to check
+    """
+
+    def __init__(
+        self,
+        bucket: str,
+        prefix: str,
+        poke_interval: float,
+        google_cloud_conn_id: str,
+        hook_params: dict[str, Any],
+    ):
+        super().__init__(
+            bucket=bucket,
+            object_name=prefix,
+            poke_interval=poke_interval,
+            google_cloud_conn_id=google_cloud_conn_id,
+            hook_params=hook_params,
+        )
+        self.prefix = prefix
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes GCSPrefixBlobTrigger arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger",
+            {
+                "bucket": self.bucket,
+                "prefix": self.prefix,
+                "poke_interval": self.poke_interval,
+                "google_cloud_conn_id": self.google_cloud_conn_id,
+                "hook_params": self.hook_params,
+            },
+        )
+
+    async def run(self) -> AsyncIterator["TriggerEvent"]:
+        """Simple loop until the matches are found for the given prefix on the bucket."""
+        try:
+            hook = self._get_async_hook()
+            while True:
+                res = await self._list_blobs_with_prefix(
+                    hook=hook, bucket_name=self.bucket, prefix=self.prefix
+                )
+                if len(res) > 0:
+                    yield TriggerEvent(
+                        {"status": "success", "message": "Successfully completed", "matches": res}
+                    )
+                await asyncio.sleep(self.poke_interval)
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+            return
+
+    async def _list_blobs_with_prefix(self, hook: GCSAsyncHook, bucket_name: str, prefix: str) -> list[str]:
+        """
+        Returns list of blobs which matches the given prefix for the given bucket.
+
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
+        :param prefix: The prefix of the blob_names to match in the Google cloud
+            storage bucket.
+        """
+        async with ClientSession() as session:
+            client = await hook.get_storage_client(session)
+            bucket = client.get_bucket(bucket_name)
+            object_response = await bucket.list_blobs(prefix=prefix)
+            return object_response
