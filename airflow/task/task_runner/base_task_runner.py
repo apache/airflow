@@ -21,9 +21,7 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
-from typing import cast
 
-from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.platform import IS_WINDOWS
@@ -31,7 +29,6 @@ from airflow.utils.platform import IS_WINDOWS
 if not IS_WINDOWS:
     # ignored to avoid flake complaining on Linux
     from pwd import getpwnam  # noqa
-
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -49,19 +46,13 @@ class BaseTaskRunner(LoggingMixin):
 
     Invoke the `airflow tasks run` command with raw mode enabled in a subprocess.
 
-    :param base_job: The job associated with running the associated task instance. The job_runner for it
-           should be LocalTaskJobRunner
+    :param job_runner: The LocalTaskJobRunner associated with the task runner
     """
 
-    def __init__(self, base_job: Job):
-        self.job_runner: LocalTaskJobRunner = cast(LocalTaskJobRunner, base_job.job_runner)
-        if not hasattr(self.job_runner, "task_instance"):
-            raise ValueError(
-                "BaseTaskRunner can only be used with LocalTaskJobRunner and "
-                "have task_instance field defined"
-            )
-        super().__init__(self.job_runner.task_instance)
-        self._task_instance = self.job_runner.task_instance
+    def __init__(self, job_runner: LocalTaskJobRunner):
+        self.job_runner = job_runner
+        super().__init__(job_runner.task_instance)
+        self._task_instance = job_runner.task_instance
 
         popen_prepend = []
         if self._task_instance.run_as_user:
@@ -104,7 +95,7 @@ class BaseTaskRunner(LoggingMixin):
             raw=True,
             pickle_id=self.job_runner.pickle_id,
             mark_success=self.job_runner.mark_success,
-            job_id=base_job.id,
+            job_id=self.job_runner.job.id,
             pool=self.job_runner.pool,
             cfg_path=cfg_path,
         )

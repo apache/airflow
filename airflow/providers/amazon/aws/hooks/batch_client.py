@@ -414,43 +414,76 @@ class BatchClientHook(AwsBaseHook):
         return matching_jobs[0]
 
     def get_job_awslogs_info(self, job_id: str) -> dict[str, str] | None:
+        all_info = self.get_job_all_awslogs_info(job_id)
+        if not all_info:
+            return None
+        if len(all_info) > 1:
+            self.log.warning(
+                f"AWS Batch job ({job_id}) has more than one log stream, " f"only returning the first one."
+            )
+        return all_info[0]
+
+    def get_job_all_awslogs_info(self, job_id: str) -> list[dict[str, str]]:
         """
         Parse job description to extract AWS CloudWatch information.
 
         :param job_id: AWS Batch Job ID
         """
-        job_container_desc = self.get_job_description(job_id=job_id).get("container", {})
-        log_configuration = job_container_desc.get("logConfiguration", {})
+        job_desc = self.get_job_description(job_id=job_id)
 
-        # In case if user select other "logDriver" rather than "awslogs"
-        # than CloudWatch logging should be disabled.
-        # If user not specify anything than expected that "awslogs" will use
-        # with default settings:
-        #   awslogs-group = /aws/batch/job
-        #   awslogs-region = `same as AWS Batch Job region`
-        log_driver = log_configuration.get("logDriver", "awslogs")
-        if log_driver != "awslogs":
-            self.log.warning(
-                "AWS Batch job (%s) uses logDriver (%s). AWS CloudWatch logging disabled.", job_id, log_driver
+        job_node_properties = job_desc.get("nodeProperties", {})
+        job_container_desc = job_desc.get("container", {})
+
+        if job_node_properties:
+            # one log config per node
+            log_configs = [
+                p.get("container", {}).get("logConfiguration", {})
+                for p in job_node_properties.get("nodeRangeProperties", {})
+            ]
+            # one stream name per attempt
+            stream_names = [a.get("container", {}).get("logStreamName") for a in job_desc.get("attempts", [])]
+        elif job_container_desc:
+            log_configs = [job_container_desc.get("logConfiguration", {})]
+            stream_name = job_container_desc.get("logStreamName")
+            stream_names = [stream_name] if stream_name is not None else []
+        else:
+            raise AirflowException(
+                f"AWS Batch job ({job_id}) is not a supported job type. "
+                "Supported job types: container, array, multinode."
             )
-            return None
 
-        awslogs_stream_name = job_container_desc.get("logStreamName")
-        if not awslogs_stream_name:
-            # In case of call this method on very early stage of running AWS Batch
-            # there is possibility than AWS CloudWatch Stream Name not exists yet.
-            # AWS CloudWatch Stream Name also not created in case of misconfiguration.
-            self.log.warning("AWS Batch job (%s) doesn't create AWS CloudWatch Stream.", job_id)
-            return None
+        # If the user selected another logDriver than "awslogs", then CloudWatch logging is disabled.
+        if any([c.get("logDriver", "awslogs") != "awslogs" for c in log_configs]):
+            self.log.warning(
+                f"AWS Batch job ({job_id}) uses non-aws log drivers. AWS CloudWatch logging disabled."
+            )
+            return []
+
+        if not stream_names:
+            # If this method is called very early after starting the AWS Batch job,
+            # there is a possibility that the AWS CloudWatch Stream Name would not exist yet.
+            # This can also happen in case of misconfiguration.
+            self.log.warning(f"AWS Batch job ({job_id}) doesn't have any AWS CloudWatch Stream.")
+            return []
 
         # Try to get user-defined log configuration options
-        log_options = log_configuration.get("options", {})
+        log_options = [c.get("options", {}) for c in log_configs]
 
-        return {
-            "awslogs_stream_name": awslogs_stream_name,
-            "awslogs_group": log_options.get("awslogs-group", "/aws/batch/job"),
-            "awslogs_region": log_options.get("awslogs-region", self.conn_region_name),
-        }
+        # cross stream names with options (i.e. attempts X nodes) to generate all log infos
+        result = []
+        for stream in stream_names:
+            for option in log_options:
+                result.append(
+                    {
+                        "awslogs_stream_name": stream,
+                        # If the user did not specify anything, the default settings are:
+                        #   awslogs-group = /aws/batch/job
+                        #   awslogs-region = `same as AWS Batch Job region`
+                        "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
+                        "awslogs_region": option.get("awslogs-region", self.conn_region_name),
+                    }
+                )
+        return result
 
     @staticmethod
     def add_jitter(delay: int | float, width: int | float = 1, minima: int | float = 0) -> float:
