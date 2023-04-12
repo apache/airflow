@@ -875,6 +875,14 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 403
 
+    def test_should_raise_400_for_no_json(self):
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json["detail"] == "Request body must not be empty"
+
     @pytest.mark.parametrize(
         "payload, expected",
         [
