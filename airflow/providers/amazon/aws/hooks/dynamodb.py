@@ -46,6 +46,7 @@ class DynamoDBHook(AwsBaseHook):
         self.table_keys = table_keys
         self.table_name = table_name
         kwargs["resource_type"] = "dynamodb"
+        kwargs["client_type"] = "dynamodb"
         super().__init__(*args, **kwargs)
 
     def write_batch_data(self, items: Iterable) -> bool:
