@@ -39,7 +39,7 @@ from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-CUSTOM_WAITER_NAME = "EXPORT_TABLE_WAITER"
+CUSTOM_WAITER_NAME = "export_table"
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -140,47 +140,12 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         else:
             self._export_entire_data()
 
-    def _create_or_get_waiter(self):
-        """Create or get a waiter"""
-        if CUSTOM_WAITER_NAME in self.hook.list_waiters():
-            return self.hook.get_waiter(CUSTOM_WAITER_NAME)
-        else:
-            with open(self.hook.waiter_path, "r+") as config_file:
-                model_config = json.load(config_file)
-                model_config["waiters"][CUSTOM_WAITER_NAME] = {
-                    "operation": "ExportTableToPointInTime",
-                    "delay": 30,
-                    "maxAttempts": 60,
-                    "acceptors": [
-                        {
-                            "matcher": "path",
-                            "expected": "COMPLETED",
-                            "argument": "ExportDescription.ExportStatus",
-                            "state": "success",
-                        },
-                        {
-                            "matcher": "path",
-                            "expected": "FAILED",
-                            "argument": "ExportDescription.ExportStatus",
-                            "state": "failure",
-                        },
-                        {
-                            "matcher": "path",
-                            "expected": "IN_PROGRESS",
-                            "argument": "ExportDescription.ExportStatus",
-                            "state": "retry",
-                        },
-                    ],
-                }
-            json.dump(model_config, config_file)
-        return self.hook.get_waiter(CUSTOM_WAITER_NAME)
-
     def _export_table_to_point_in_time(self):
         """
         Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
          state at this point in time.
         """
-        waiter = self._create_or_get_waiter()
+        waiter = self.hook.get_waiter(CUSTOM_WAITER_NAME)
         waiter.wait(
             TableArn=self.dynamodb_table_name,
             ExportTime=self.export_time,

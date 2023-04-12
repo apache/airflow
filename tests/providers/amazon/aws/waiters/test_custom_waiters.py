@@ -26,6 +26,7 @@ from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
 from moto import mock_eks
 
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, EcsTaskDefinitionStates
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
@@ -249,3 +250,53 @@ class TestCustomECSServiceWaiters:
         ]
         waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_inactive")
         waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+
+
+class TestCustomDynamoDBServiceWaiters:
+    """Test waiters from ``amazon/aws/waiters/dynamodb.json``."""
+
+    STATUS_COMPLETED = "COMPLETED"
+    STATUS_FAILED = "FAILED"
+    STATUS_IN_PROGRESS = "IN_PROGRESS"
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.client = boto3.client("dynamodb", region_name="eu-west-3")
+        monkeypatch.setattr(DynamoDBHook, "conn", self.client)
+
+    @pytest.fixture
+    def mock_export_table_to_point_in_time(self):
+        """Mock ``DynamoDBHook.Client.export_table_to_point_in_time`` method."""
+        with mock.patch.object(self.client, "export_table_to_point_in_time") as m:
+            yield m
+
+    def test_service_waiters(self):
+        hook_waiters = DynamoDBHook(aws_conn_id=None, client_type="dynamodb").list_waiters()
+        assert "export_table" in hook_waiters
+
+    @staticmethod
+    def export_table_to_point_in_time(status: str):
+        """
+        Helper function for generate minimal ExportTableToPointInTime response for single job.
+        https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExportTableToPointInTime.html
+        """
+        return {"ExportDescription": {"ExportStatus": status}}
+
+    def test_export_table_to_point_in_time_completed(self, mock_export_table_to_point_in_time):
+        """Test state transition from `in progress` to `completed` during init."""
+        mock_export_table_to_point_in_time.side_effect = [
+            self.export_table_to_point_in_time(self.STATUS_IN_PROGRESS),
+            self.export_table_to_point_in_time(self.STATUS_COMPLETED),
+        ]
+        waiter = DynamoDBHook(aws_conn_id=None, client_type="dynamodb").get_waiter("export_table")
+        waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
+
+    def test_export_table_to_point_in_time_failed(self, mock_export_table_to_point_in_time):
+        """Test state transition from `in progress` to `failed` during init."""
+        mock_export_table_to_point_in_time.side_effect = [
+            self.export_table_to_point_in_time(self.STATUS_IN_PROGRESS),
+            self.export_table_to_point_in_time(self.STATUS_FAILED),
+        ]
+        waiter = DynamoDBHook(aws_conn_id=None, client_type="dynamodb").get_waiter("export_table")
+        with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
+            waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
