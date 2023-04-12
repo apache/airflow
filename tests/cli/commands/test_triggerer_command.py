@@ -45,4 +45,4 @@ class TestTriggererCommand:
         triggerer_command.triggerer(args)
         mock_serve.return_value.__enter__.assert_called_once()
         mock_serve.return_value.__exit__.assert_called_once()
-        mock_triggerer_job_runner.assert_called_once_with(capacity=42)
+        mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=42)
