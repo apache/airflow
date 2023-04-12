@@ -1583,13 +1583,14 @@ class TestSchedulerJob:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
 
-        self.scheduler_job = SchedulerJob(num_runs=0)
-        self.scheduler_job._task_queued_timeout = 300
-        self.scheduler_job.executor = mock.MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        self.job_runner._task_queued_timeout = 300
+        self.job_runner.executor = mock.MagicMock()
 
-        self.scheduler_job._fail_tasks_stuck_in_queued()
+        self.job_runner._fail_tasks_stuck_in_queued()
 
-        self.scheduler_job.executor.cleanup_stuck_queued_tasks.assert_called_once()
+        self.job_runner.executor.cleanup_stuck_queued_tasks.assert_called_once()
 
     def test_retry_stuck_queued_tasks(self, dag_maker):
         session = settings.Session()
