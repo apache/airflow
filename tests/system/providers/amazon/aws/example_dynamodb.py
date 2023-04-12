@@ -42,7 +42,7 @@ TABLE_KEY_SCHEMA = [
 TABLE_THROUGHPUT = {"ReadCapacityUnits": 10, "WriteCapacityUnits": 10}
 
 
-@task(trigger_rule=TriggerRule.ALL_DONE)
+@task
 def create_table(table_name: str):
     ddb = boto3.resource("dynamodb")
     table = ddb.create_table(
@@ -55,7 +55,7 @@ def create_table(table_name: str):
     table.put_item(Item={"PK": "Test", "SK": "2022-07-12T11:11:25-0400", "Value": "Testing"})
 
 
-@task
+@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_table(table_name: str):
     ddb = boto3.resource("dynamodb")
     table = ddb.delete_table(TableName=table_name)
