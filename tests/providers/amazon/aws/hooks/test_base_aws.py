@@ -283,32 +283,34 @@ class TestSessionFactory:
         config_for_credentials_test,
     )
     @pytest.mark.parametrize("region_name", ["ap-southeast-2", "sa-east-1"])
-    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory._refresh_credentials")
-    async def test_async_get_credentials_from_role_arn(self, mock_refresh, conn_id, conn_extra, region_name):
-        """Test RefreshableCredentials with assume_role for async_conn"""
+    async def test_async_get_credentials_from_role_arn(self, conn_id, conn_extra, region_name):
+        """Test RefreshableCredentials with assume_role for async_conn."""
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory._refresh_credentials"
+        ) as mock_refresh:
 
-        def side_effect():
-            return {
-                "access_key": "mock-AccessKeyId",
-                "secret_key": "mock-SecretAccessKey",
-                "token": "mock-SessionToken",
-                "expiry_time": datetime.now(timezone.utc).isoformat(),
+            def side_effect():
+                return {
+                    "access_key": "mock-AccessKeyId",
+                    "secret_key": "mock-SecretAccessKey",
+                    "token": "mock-SessionToken",
+                    "expiry_time": datetime.now(timezone.utc).isoformat(),
+                }
+
+            mock_refresh.side_effect = side_effect
+            extra = {
+                **conn_extra,
+                "role_arn": "arn:aws:iam::123456:role/role_arn",
+                "region_name": region_name,
             }
-
-        mock_refresh.side_effect = side_effect
-        extra = {
-            **conn_extra,
-            "role_arn": "arn:aws:iam::123456:role/role_arn",
-            "region_name": region_name,
-        }
-        conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
-        sf = BaseSessionFactory(conn=conn)
-        session = sf.create_session(deferrable=True)
-        assert session.region_name == region_name
-        # Validate method of botocore credentials provider.
-        # It shouldn't be 'explicit' which refers in this case to initial credentials.
-        credentials = await session.get_credentials()
-        assert credentials.method == "sts-assume-role"
+            conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
+            sf = BaseSessionFactory(conn=conn)
+            session = sf.create_session(deferrable=True)
+            assert session.region_name == region_name
+            # Validate method of botocore credentials provider.
+            # It shouldn't be 'explicit' which refers in this case to initial credentials.
+            credentials = await session.get_credentials()
+            assert credentials.method == "sts-assume-role"
 
 
 class TestAwsBaseHook:
