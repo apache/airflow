@@ -53,15 +53,8 @@ Package apache-airflow-providers-apache-hdfs
 `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
-.. note::
 
-   The ``snakebite-py3`` used by the provider is an old package and it has an old version of ``argparse`` in
-   its dependencies and it might cause in some cases running airflow commands raises the error similar to
-   ``TypeError: __init__() got an unexpected keyword argument 'encoding'``. In this case make
-   sure to remove ``argparse`` with ``pip uninstall argparse`` command to get rid of this error.
-
-
-Release: 3.2.0
+Release: 3.2.1
 
 Provider package
 ----------------

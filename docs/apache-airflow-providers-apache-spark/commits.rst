@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.1
+.....
+
+Latest change: 2023-03-22
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`5d1f201bb0 <https://github.com/apache/airflow/commit/5d1f201bb0411d7060fd4fe49807fd49495f973e>`_  2023-03-22   ``Only restrict spark binary passed via extra (#30213)``
+`d9dea5ce17 <https://github.com/apache/airflow/commit/d9dea5ce17f0c5859dc705bba8e6ef22e5659955>`_  2023-03-22   ``Validate host and schema for Spark JDBC Hook (#30223)``
+`b3259877fa <https://github.com/apache/airflow/commit/b3259877fac7330d2b65ca7f96fcfc27243582d6>`_  2023-03-15   ``Add spark3-submit to list of allowed spark-binary values (#30068)``
+=================================================================================================  ===========  =====================================================================
+
 4.0.0
 .....
 
-Latest change: 2022-11-13
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `9358928815 <https://github.com/apache/airflow/commit/93589288156d56aff4b1f822b77695e3c58e4568>`_  2022-11-13   ``Remove custom spark home and custom binarires for spark (#27646)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``

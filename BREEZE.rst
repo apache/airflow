@@ -554,18 +554,28 @@ command takes care about it. This is needed when you want to run webserver insid
 Breeze cleanup
 --------------
 
-Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
-disk usage by the images. If you need to clean-up the images periodically you can run
-``breeze setup cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--all``).
+Sometimes you need to cleanup your docker environment (and it is recommended you do that regularly). There
+are several reasons why you might want to do that.
+
+Breeze uses docker images heavily and those images are rebuild periodically and might leave dangling, unused
+images in docker cache. This might cause extra disk usage. Also running various docker compose commands
+(for example running tests with ``breeze testing tests``) might create additional docker networks that might
+prevent new networks from being created. Those networks are not removed automatically by docker-compose.
+Also Breeze uses it's own cache to keep information about all images.
+
+All those unused images, networks and cache can be removed by running ``breeze cleanup`` command. By default
+it will not remove the most recent images that you might need to run breeze commands, but you
+can also remove those breeze images to clean-up everything by adding ``--all`` command (note that you will
+need to build the images again from scratch - pulling from the registry might take a while).
+
+Breeze will ask you to confirm each step, unless you specify ``--answer yes`` flag.
 
 Those are all available flags of ``cleanup`` command:
-
 
 .. image:: ./images/breeze/output_cleanup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
   :width: 100%
-  :alt: Breeze setup cleanup
+  :alt: Breeze cleanup
 
 Running arbitrary commands in container
 ---------------------------------------
@@ -778,14 +788,24 @@ For example this will only run provider tests for airbyte and http providers:
 
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
-types passed to ``--test-types`` flag.
+types passed to ``--parallel-test-types`` flag.
 
 For example this will run API and WWW tests in parallel:
 
 .. code-block:: bash
 
-    breeze testing tests --test-types "API WWW" --run-in-parallel
+    breeze testing tests --parallel-test-types "API WWW" --run-in-parallel
 
+There are few special types of tests that you can run:
+
+* ``All`` - all tests are run in single pytest run.
+* ``PlainAsserts`` - some tests of ours fail when ``--assert=rewrite`` feature of pytest is used. This
+  is in order to get better output of ``assert`` statements This is a special test type that runs those
+  select tests tests with ``--assert=plain`` flag.
+* ``Postgres`` - runs all tests that require Postgres database
+* ``MySQL`` - runs all tests that require MySQL database
+* ``Quarantine`` - runs all tests that are in quarantine (marked with ``@pytest.mark.quarantined``
+  decorator)
 
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
@@ -1017,7 +1037,7 @@ Run selected tests:
 
 .. code-block::bash
 
-    breeze k8s tests kubernetes_tests/test_kubernetes_executor.py
+    breeze k8s tests test_kubernetes_executor.py
 
 All parameters of the command are here:
 
@@ -1042,7 +1062,7 @@ output during test execution.
 
 .. code-block::bash
 
-    breeze k8s tests -- kubernetes_tests/test_kubernetes_executor.py -s
+    breeze k8s tests -- test_kubernetes_executor.py -s
 
 Running k8s complete tests
 ..........................
@@ -1061,7 +1081,7 @@ Run selected tests:
 
 .. code-block::bash
 
-    breeze k8s run-complete-tests kubernetes_tests/test_kubernetes_executor.py
+    breeze k8s run-complete-tests test_kubernetes_executor.py
 
 All parameters of the command are here:
 
@@ -1086,7 +1106,7 @@ output during test execution.
 
 .. code-block::bash
 
-    breeze k8s run-complete-tests -- kubernetes_tests/test_kubernetes_executor.py -s
+    breeze k8s run-complete-tests -- test_kubernetes_executor.py -s
 
 
 Entering k8s shell
@@ -1110,7 +1130,7 @@ be created and airflow deployed to it before running the tests):
 
 .. code-block::bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest kubernetes_tests/test_kubernetes_executor.py
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
     platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/.k8s-env/bin/python
     cachedir: .pytest_cache
@@ -1118,8 +1138,8 @@ be created and airflow deployed to it before running the tests):
     plugins: anyio-3.6.1
     collected 2 items
 
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
     .build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233

@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HDFSHook HAClient is invalid (#30164)``
+
 3.2.0
 .....
 

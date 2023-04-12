@@ -22,8 +22,11 @@ Module to convert Airflow configs in config.yml to default_airflow.cfg file
 from __future__ import annotations
 
 import os
+import re
+from pathlib import Path
 
 import yaml
+from packaging.version import parse as parse_version
 
 FILE_HEADER = """#
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -105,6 +108,10 @@ def _write_section(configfile, section_name, section):
 
 def _write_option(configfile, idx, option_name, option):
     option_description = None
+    version_added = option["version_added"]
+    if version_added is not None and parse_version(version_added) > airflow_version:
+        # skip if option is going to be added in the future version
+        return
     if option["description"] is not None:
         option_description = list(filter(lambda x: x is not None, option["description"].splitlines()))
 
@@ -144,6 +151,13 @@ if __name__ == "__main__":
     )
     airflow_default_config_path = os.path.join(airflow_config_dir, "default_airflow.cfg")
     airflow_config_yaml_file_path = os.path.join(airflow_config_dir, "config.yml")
+
+    airflow_version = parse_version(
+        re.search(  # type: ignore[union-attr,arg-type]
+            r"__version__ = \"([0-9\.]*)(\.dev[0-9]*)?\"",
+            (Path(__file__).parents[3] / "airflow" / "__init__.py").read_text(),
+        ).groups(0)[0]
+    )
 
     write_config(
         yaml_config_file_path=airflow_config_yaml_file_path, default_cfg_file_path=airflow_default_config_path

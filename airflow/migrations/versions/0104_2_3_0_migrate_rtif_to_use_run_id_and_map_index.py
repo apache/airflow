@@ -99,7 +99,7 @@ def _multi_table_update(dialect_name, target, column):
     if dialect_name == "sqlite":
         # Most SQLite versions don't support multi table update (and SQLA doesn't know about it anyway), so we
         # need to do a Correlated subquery update
-        sub_q = select([dag_run.c[column.name]]).where(condition)
+        sub_q = select(dag_run.c[column.name]).where(condition)
 
         return target.update().values({column: sub_q})
     else:

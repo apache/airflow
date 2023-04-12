@@ -366,6 +366,20 @@ class TestServiceAccountAnnotations:
                 "example": "statsd",
             },
         ),
+        (
+            {
+                "pgbouncer": {
+                    "enabled": True,
+                    "podAnnotations": {
+                        "example": "pgbouncer",
+                    },
+                },
+            },
+            "templates/pgbouncer/pgbouncer-deployment.yaml",
+            {
+                "example": "pgbouncer",
+            },
+        ),
     ],
 )
 class TestPerComponentPodAnnotations:
