@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException, DagRunAlreadyExists
 from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -410,19 +411,14 @@ class TestDagRunOperator:
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
-
-        task.execute_complete(
-            context={},
-            event=(
-                "airflow.triggers.external_task.DagStateTrigger",
-                {
-                    "dag_id": "down_stream",
-                    "execution_dates": [DEFAULT_DATE],
-                    "poll_interval": 20,
-                    "states": ["success", "failed"],
-                },
-            ),
+        trigger = DagStateTrigger(
+            dag_id="down_stream",
+            execution_dates=[DEFAULT_DATE],
+            poll_interval=20,
+            states=["success", "failed"],
         )
+
+        task.execute_complete(context={}, event=trigger.serialize())
 
     def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure(self):
         """Test TriggerDagRunOperator wait_for_completion dag run in non defined state."""
@@ -444,18 +440,16 @@ class TestDagRunOperator:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
 
+        trigger = DagStateTrigger(
+            dag_id="down_stream",
+            execution_dates=[DEFAULT_DATE],
+            poll_interval=20,
+            states=["success", "failed"],
+        )
         with pytest.raises(AirflowException) as exception:
             task.execute_complete(
                 context={},
-                event=(
-                    "airflow.triggers.external_task.DagStateTrigger",
-                    {
-                        "dag_id": "down_stream",
-                        "execution_dates": [DEFAULT_DATE],
-                        "poll_interval": 20,
-                        "states": ["success", "failed"],
-                    },
-                ),
+                event=trigger.serialize(),
             )
             assert "which is not in" in str(exception)
 
@@ -480,18 +474,14 @@ class TestDagRunOperator:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
 
+        trigger = DagStateTrigger(
+            dag_id="down_stream",
+            execution_dates=[DEFAULT_DATE],
+            poll_interval=20,
+            states=["success", "failed"],
+        )
+
         with pytest.raises(AirflowException) as exception:
-            task.execute_complete(
-                context={},
-                event=(
-                    "airflow.triggers.external_task.DagStateTrigger",
-                    {
-                        "dag_id": "down_stream",
-                        "execution_dates": [DEFAULT_DATE],
-                        "poll_interval": 20,
-                        "states": ["success", "failed"],
-                    },
-                ),
-            )
+            task.execute_complete(context={}, event=trigger.serialize())
 
             assert "failed with failed state" in str(exception)
