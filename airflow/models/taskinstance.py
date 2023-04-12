@@ -542,7 +542,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        return prune_dict({"dag_id": self.dag_id, "run_id": str(self.run_id), "task_id": self.task_id})
+        return prune_dict({"dag_id": self.dag_id, "task_id": self.task_id})
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:

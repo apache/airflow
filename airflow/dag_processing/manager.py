@@ -1212,7 +1212,7 @@ class DagFileProcessorManager(LoggingMixin):
                 Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "timeout"})
                 Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_path})
                 # Deprecated; may be removed in a future Airflow release.
-                Stats.incr("dag_file_processor_timeouts", tags={"file_path": file_path})
+                Stats.incr("dag_file_processor_timeouts")
                 processor.kill()
 
                 # Clean up processor references

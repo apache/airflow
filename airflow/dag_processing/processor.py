@@ -174,7 +174,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 ), Stats.timer() as timer:
                     _handle_dag_file_processing()
             log.info("Processing %s took %.3f seconds", file_path, timer.duration)
-            Stats.timing("dag.processor.parse.time", dt=timer.duration, tags={"file_path": file_path})
         except Exception:
             # Log exceptions through the logging framework.
             log.exception("Got an exception! Propagating...")
