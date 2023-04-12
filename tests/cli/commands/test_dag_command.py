@@ -31,7 +31,6 @@ import pytest
 import time_machine
 
 from airflow import settings
-from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
@@ -474,14 +473,13 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_get_dag_details(self):
         args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
-        dag_id = "example_complex"
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        with create_session() as session:
-            dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
-            dag_detail_fields = dag_schema.dump(dag)
+        dag_detail_fields = [
+            column.name for column in DagModel.__table__.columns if column.name != "processor_subdir"
+        ]
 
         # Check if DAG Details field are present
         for field in dag_detail_fields:
