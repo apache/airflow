@@ -80,6 +80,7 @@ class SqlToS3Operator(BaseOperator):
                 CA cert bundle than the one used by botocore.
     :param file_format: the destination file format, only string 'csv', 'json' or 'parquet' is accepted.
     :param pd_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
+    :param groupby_kwargs: argument to include in DataFrame ``groupby()``.
     """
 
     template_fields: Sequence[str] = (
