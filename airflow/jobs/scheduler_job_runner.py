@@ -161,9 +161,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
 
-        # Since the functionality for stalled_task_timeout, task_adoption_timeout, and worker_pods_pending_timeout
-        # are now handled by a single config (task_queued_timeout), we can't deprecate them as we normally would.
-        # So, we'll read each config and take the max value in order to ensure we're not undercutting a legitimate
+        # Since the functionality for stalled_task_timeout, task_adoption_timeout, and
+        # worker_pods_pending_timeout are now handled by a single config (task_queued_timeout),
+        # we can't deprecate them as we normally would. So, we'll read each config and take
+        # the max value in order to ensure we're not undercutting a legitimate
         # use of any of these configs.
         stalled_task_timeout = conf.getfloat("celery", "stalled_task_timeout", fallback=0)
         if stalled_task_timeout:
@@ -1498,7 +1499,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if tis_for_warning_message:
                         task_instance_str = "\n\t".join(tis_for_warning_message)
                         self.log.warning(
-                            "Marked the following %s task instances stuck in queued as failed. If the task instance has available retries, it will be retried.\n\t%s",
+                            "Marked the following %s task instances stuck in queued as failed. "
+                            "If the task instance has available retries, it will be retried.\n\t%s",
                             len(tasks_stuck_in_queued),
                             task_instance_str,
                         )
