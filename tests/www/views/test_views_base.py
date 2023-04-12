@@ -22,7 +22,8 @@ import json
 
 import pytest
 
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www import app as application
@@ -61,19 +62,19 @@ def test_doc_urls(admin_client, monkeypatch):
 def heartbeat_healthy():
     # case-1: healthy scheduler status
     last_heartbeat = timezone.utcnow()
-    job = BaseJob(
-        job_type="SchedulerJob",
+    job = Job(
         state="running",
         latest_heartbeat=last_heartbeat,
     )
+    SchedulerJobRunner(job=job),
     with create_session() as session:
         session.add(job)
     yield "healthy", last_heartbeat.isoformat()
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
-            BaseJob.state == "running",
-            BaseJob.latest_heartbeat == last_heartbeat,
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
+            Job.state == "running",
+            Job.latest_heartbeat == last_heartbeat,
         ).delete()
 
 
@@ -81,22 +82,22 @@ def heartbeat_healthy():
 def heartbeat_too_slow():
     # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
     last_heartbeat = timezone.utcnow() - datetime.timedelta(minutes=1)
-    job = BaseJob(
-        job_type="SchedulerJob",
+    job = Job(
         state="running",
         latest_heartbeat=last_heartbeat,
     )
+    SchedulerJobRunner(job=job),
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
         ).update({"latest_heartbeat": last_heartbeat - datetime.timedelta(seconds=1)})
         session.add(job)
     yield "unhealthy", last_heartbeat.isoformat()
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
-            BaseJob.state == "running",
-            BaseJob.latest_heartbeat == last_heartbeat,
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
+            Job.state == "running",
+            Job.latest_heartbeat == last_heartbeat,
         ).delete()
 
 
@@ -104,9 +105,9 @@ def heartbeat_too_slow():
 def heartbeat_not_running():
     # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
-            BaseJob.state == "running",
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
+            Job.state == "running",
         ).delete()
     yield "unhealthy", None
 
