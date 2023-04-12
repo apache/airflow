@@ -46,6 +46,7 @@ API versions of google-ads.
 
 * ``Update DV360 operators to use API v2 (#30326)``
 * ``Fix dynamic imports in google ads vendored in library (#30544)``
+* ``Fix one more dynamic import needed for vendored-in google ads (#30564)``
 
 Features
 ~~~~~~~~
