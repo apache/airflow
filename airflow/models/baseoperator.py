@@ -925,12 +925,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @classmethod
     def as_setup(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Setup tasks are disabled.")
+
         op = cls(*args, **kwargs)
         op._is_setup = True
         return op
 
     @classmethod
     def as_teardown(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Teardown tasks are disabled.")
+
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
         op = cls(*args, **kwargs)
         op._is_teardown = True

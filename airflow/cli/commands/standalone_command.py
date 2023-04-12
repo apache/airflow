@@ -30,8 +30,10 @@ from termcolor import colored
 from airflow.configuration import AIRFLOW_HOME, conf, make_group_other_inaccessible
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import most_recent_job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import db
 
 
@@ -215,8 +217,8 @@ class StandaloneCommand:
         """
         return (
             self.port_open(self.web_server_port)
-            and self.job_running(SchedulerJob)
-            and self.job_running(TriggererJob)
+            and self.job_running(SchedulerJobRunner)
+            and self.job_running(TriggererJobRunner)
         )
 
     def port_open(self, port):
@@ -235,13 +237,13 @@ class StandaloneCommand:
             return False
         return True
 
-    def job_running(self, job):
+    def job_running(self, job_runner_class: type[BaseJobRunner]):
         """
         Checks if the given job name is running and heartbeating correctly.
 
         Used to tell if scheduler is alive.
         """
-        recent = job.most_recent_job()
+        recent = most_recent_job(job_runner_class.job_type)
         if not recent:
             return False
         return recent.is_alive()
