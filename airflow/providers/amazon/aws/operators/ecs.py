@@ -388,6 +388,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
         AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
         failed in the code running in ECS).
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
     ui_color = "#f0ede4"
@@ -443,6 +447,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         reattach: bool = False,
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -474,6 +480,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.retry_args = quota_retry
         self.task_log_fetcher: EcsTaskLogFetcher | None = None
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     @provide_session
     def execute(self, context, session=None):
@@ -596,7 +604,16 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         waiter = self.client.get_waiter("tasks_stopped")
         waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
-        waiter.wait(cluster=self.cluster, tasks=[self.arn])
+        waiter.wait(
+            cluster=self.cluster,
+            tasks=[self.arn],
+            WaiterConfig=prune_dict(
+                {
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                }
+            ),
+        )
 
         return
 
