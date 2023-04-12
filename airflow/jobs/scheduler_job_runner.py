@@ -1493,6 +1493,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tasks_stuck_in_queued: list[TaskInstance] = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
                     ).all()
+                    print(f"\n\ntis: {tasks_stuck_in_queued}\n\n")
                     tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(
                         tis=tasks_stuck_in_queued
                     )
