@@ -70,21 +70,25 @@ class TestBatchClientAsyncHook:
         assert str(exc_info.value) == "AWS Batch job - job_id was not found"
 
     @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.parse_job_description")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_client_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.poll_job_status")
-    async def test_hit_api_throttle(self, mock_poll_job_status, mock_client):
+    async def test_hit_api_throttle(self, mock_poll_job_status, mock_client, mock_parse_job_description):
         """
         Tests that the get_job_description method raises  correct exception when retries
         exceed the threshold
         """
         mock_poll_job_status.return_value = True
-        mock_client.return_value.__aenter__.return_value.describe_jobs.side_effect = ClientError(
+        mock_parse_job_description.side_effect = ClientError(
             {
                 "Error": {
                     "Code": "TooManyRequestsException",
                 },
             },
             operation_name="get job description",
+        )
+        mock_client.return_value.__aenter__.return_value.describe_jobs.return_value = (
+            self.BATCH_API_SUCCESS_RESPONSE
         )
         """status_retries = 2 ensures that exponential_delay block is covered in batch_client.py
         otherwise the code coverage will drop"""
@@ -97,13 +101,14 @@ class TestBatchClientAsyncHook:
         )
 
     @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.parse_job_description")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_client_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.poll_job_status")
-    async def test_client_error(self, mock_poll_job_status, mock_client):
+    async def test_client_error(self, mock_poll_job_status, mock_client, mock_parse_job_description):
         """Test that the get_job_description method raises  correct exception when the error code
         from boto3 api is not TooManyRequestsException"""
         mock_poll_job_status.return_value = True
-        mock_client.return_value.__aenter__.return_value.describe_jobs.side_effect = ClientError(
+        mock_parse_job_description.side_effect = ClientError(
             {
                 "Error": {
                     "Code": "InvalidClientTokenId",
@@ -111,6 +116,9 @@ class TestBatchClientAsyncHook:
                 },
             },
             operation_name="get job description",
+        )
+        mock_client.return_value.__aenter__.return_value.describe_jobs.return_value = (
+            self.BATCH_API_SUCCESS_RESPONSE
         )
         hook = BatchClientAsyncHook(job_id=self.JOB_ID, waiters=None, status_retries=1)
         with pytest.raises(AirflowException) as exc_info:
