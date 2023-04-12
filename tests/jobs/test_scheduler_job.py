@@ -1592,27 +1592,6 @@ class TestSchedulerJob:
 
         self.job_runner.executor.cleanup_stuck_queued_tasks.assert_called_once()
 
-    def test_retry_stuck_queued_tasks(self, dag_maker):
-        session = settings.Session()
-        with dag_maker("test_retry_stuck_queued_tasks"):
-            op1 = EmptyOperator(task_id="op1", retries=1)
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
-        session.commit()
-
-        self.scheduler_job = SchedulerJob(num_runs=0)
-        self.scheduler_job._task_queued_timeout = 300
-        self.scheduler_job.executor = mock.MagicMock()
-
-        self.scheduler_job._fail_tasks_stuck_in_queued()
-
-        self.scheduler_job.executor.cleanup_stuck_queued_task.assert_called_once()
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
-        assert ti.state == State.UP_FOR_RETRY
-
     @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
     def test_executor_end_called(self, mock_processor_agent):
         """
