@@ -964,6 +964,8 @@ class TestDagProcessorJobRunner:
         assert SerializedDagModel.has_dag("test_zip_dag")
         # assert code not deleted
         assert DagCode.has_dag(dag.fileloc)
+        # assert dag still active
+        assert dag.get_is_active()
 
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmpdir):
         """Test DagProcessorJobRunner._refresh_dag_dir method"""
