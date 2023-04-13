@@ -836,6 +836,9 @@ class KubernetesExecutor(BaseExecutor):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
+        if TYPE_CHECKING:
+            assert self.kube_client
+            assert self.kube_scheduler
         readable_tis = []
         for ti in tis:
             selector = PodGenerator.build_selector_for_k8s_executor_pod(

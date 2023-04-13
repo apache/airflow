@@ -297,10 +297,8 @@ class BaseExecutor(LoggingMixin):
         """
         self.log.debug("Changing state: %s", key)
         try:
-            print(f"\n\n removing key {key}")
             self.running.remove(key)
         except KeyError:
-            print(f"Key error!")
             self.log.debug("Could not find key: %s", str(key))
         self.event_buffer[key] = state, info
 
@@ -378,7 +376,7 @@ class BaseExecutor(LoggingMixin):
         """This method is called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked
