@@ -31,6 +31,7 @@ import pytest
 import time_machine
 
 from airflow import settings
+from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
@@ -477,9 +478,7 @@ class TestCliDags:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        dag_detail_fields = [
-            column.name for column in DagModel.__table__.columns if column.name != "processor_subdir"
-        ]
+        dag_detail_fields = DAGSchema().fields.keys()
 
         # Check if DAG Details field are present
         for field in dag_detail_fields:
