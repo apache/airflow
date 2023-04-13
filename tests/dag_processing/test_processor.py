@@ -435,9 +435,7 @@ class TestDagFileProcessor:
         mock_log.exception.assert_called_once_with(
             "Could not send SLA Miss email notification for DAG %s", dag_id
         )
-        mock_stats_incr.assert_called_once_with(
-            "sla_email_notification_failure", tags={"dag_id": dag_id, "email": str({email})}
-        )
+        mock_stats_incr.assert_called_once_with("sla_email_notification_failure", tags={"dag_id": dag_id})
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_deleted_task(self, mock_get_dagbag, create_dummy_dag):
