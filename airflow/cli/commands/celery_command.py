@@ -103,7 +103,7 @@ def _serve_logs(skip_serve_logs: bool = False):
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs):
     # Setup levels at which logs go to stderr and stdout if required
-    if conf.get("logging", "celery_logging_split", fallback=None):
+    if conf.getboolean("logging", "celery_logging_split", fallback=False):
         celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
 
         class NoErrorOrAboveFilter(logging.Filter):
