@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
-from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from moto import mock_dynamodb
+
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 
 
 class TestDynamoDBValueSensor:

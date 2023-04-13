@@ -19,14 +19,13 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
+
+from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow import DAG
-
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-
 
 DAG_ID = "example_dynamodbvaluesensor"
 sys_test_context_task = SystemTestContextBuilder().build()
@@ -58,7 +57,7 @@ def create_table(table_name: str):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_table(table_name: str):
     ddb = boto3.resource("dynamodb")
-    table = ddb.delete_table(TableName=table_name)
+    ddb.delete_table(TableName=table_name)
     boto3.client("dynamodb").get_waiter("table_not_exists").wait()
 
 
