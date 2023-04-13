@@ -20,7 +20,7 @@ import logging
 import os
 import struct
 from datetime import datetime
-from typing import Iterable
+from typing import Collection, Iterable
 
 from sqlalchemy import BigInteger, Column, String, Text, delete
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
@@ -126,7 +126,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: list[str], session: Session = NEW_SESSION) -> None:
+    def remove_deleted_code(cls, alive_dag_filelocs: Collection[str], session: Session = NEW_SESSION) -> None:
         """Deletes code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
