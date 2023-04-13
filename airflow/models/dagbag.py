@@ -640,7 +640,7 @@ class DagBag(LoggingMixin):
             except OperationalError:
                 raise
             except Exception:
-                log.exception("Failed to write serialized DAG: %s", dag.full_filepath)
+                log.exception("Failed to write serialized DAG: %s", dag.fileloc)
                 dagbag_import_error_traceback_depth = conf.getint(
                     "core", "dagbag_import_error_traceback_depth"
                 )
