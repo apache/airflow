@@ -27,7 +27,6 @@ Prerequisite Tasks
 
 .. _howto/operator:GoogleDisplayVideo360CreateReportOperator:
 
-
 Creating a Query
 ^^^^^^^^^^^^^^^^
 
@@ -64,7 +63,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allow you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
 
-.. _howto/operator:GoogleDisplayVideo360RunQuerySensor:
+.. _howto/operator:GoogleDisplayVideo360DeleteReportOperator:
 
 Deleting a report
 ^^^^^^^^^^^^^^^^^
@@ -75,14 +74,14 @@ To delete Display&Video 360 report use
 .. exampleinclude:: /../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_google_display_video_deletequery_report_operator]
-    :end-before: [END howto_google_display_video_deletequery_report_operator]
+    :start-after: [START howto_google_display_video_delete_query_report_operator]
+    :end-before: [END howto_google_display_video_delete_query_report_operator]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`
 parameters which allow you to dynamically determine values.
 
-.. _howto/operator:GoogleDisplayVideo360ReportSensor:
+.. _howto/operator:GoogleDisplayVideo360RunQuerySensor:
 
 Waiting for query
 ^^^^^^^^^^^^^^^^^
@@ -117,6 +116,8 @@ To download a report to GCS bucket use
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportV2Operator`
 parameters which allow you to dynamically determine values.
+
+.. _howto/operator:GoogleDisplayVideo360DownloadLineItemsOperator:
 
 Downloading Line Items
 ^^^^^^^^^^^^^^^^^^^^^^
