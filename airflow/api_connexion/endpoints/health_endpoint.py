@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from airflow.api_connexion.schemas.health_schema import health_schema
 from airflow.api_connexion.types import APIResponse
-from airflow.jobs.scheduler_job import SchedulerJobRunner
-from airflow.jobs.triggerer_job import TriggererJobRunner
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"

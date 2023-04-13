@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.scheduler_job import SchedulerJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -37,25 +37,20 @@ class TestHealthTestBase:
         self.app = minimal_app_for_api
         self.client = self.app.test_client()  # type:ignore
         with create_session() as session:
-            session.query(BaseJob).delete()
+            session.query(Job).delete()
 
     def teardown_method(self):
         with create_session() as session:
-            session.query(BaseJob).delete()
+            session.query(Job).delete()
 
 
 class TestGetHealth(TestHealthTestBase):
     @provide_session
     def test_healthy_scheduler_status(self, session):
         last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
-        session.add(
-            BaseJob(
-                job_type="SchedulerJob",
-                state=State.RUNNING,
-                latest_heartbeat=last_scheduler_heartbeat_for_testing_1,
-                job_runner=SchedulerJobRunner(),
-            )
-        )
+        job = Job(state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_1)
+        SchedulerJobRunner(job=job)
+        session.add(job)
         session.commit()
         resp_json = self.client.get("/api/v1/health").json
         assert "healthy" == resp_json["metadatabase"]["status"]
@@ -68,14 +63,9 @@ class TestGetHealth(TestHealthTestBase):
     @provide_session
     def test_unhealthy_scheduler_is_slow(self, session):
         last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
-        session.add(
-            BaseJob(
-                job_type="SchedulerJob",
-                state=State.RUNNING,
-                latest_heartbeat=last_scheduler_heartbeat_for_testing_2,
-                job_runner=SchedulerJobRunner(),
-            )
-        )
+        job = Job(state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_2)
+        SchedulerJobRunner(job=job)
+        session.add(job)
         session.commit()
         resp_json = self.client.get("/api/v1/health").json
         assert "healthy" == resp_json["metadatabase"]["status"]

@@ -42,8 +42,8 @@ from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.job_runner import BaseJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -121,10 +121,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     job_type = "SchedulerJob"
     heartrate: int = conf.getint("scheduler", "SCHEDULER_HEARTBEAT_SEC")
 
-    job: BaseJob  # scheduler can only run with BaseJob class not the Pydantic serialized version
-
     def __init__(
         self,
+        job: Job,
         subdir: str = settings.DAGS_FOLDER,
         num_runs: int = conf.getint("scheduler", "num_runs"),
         num_times_parse_dags: int = -1,
@@ -132,11 +131,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         do_pickle: bool = False,
         log: logging.Logger | None = None,
         processor_poll_interval: float | None = None,
-        *args,
-        **kwargs,
     ):
+        super().__init__()
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
+        self.job = job
+        self.job.job_type = self.job_type
         self.subdir = subdir
-
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
         # number of times. This is only to support testing, and isn't something a user is likely to want to
@@ -157,7 +161,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self.do_pickle = do_pickle
-        super().__init__(*args, **kwargs)
 
         if log:
             self._log = log
@@ -915,7 +918,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
-                self.job.heartbeat(only_if_necessary=True)
+                perform_heartbeat(
+                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                )
 
                 # Run any pending timed events
                 next_event = timers.run(blocking=False)
@@ -1457,11 +1462,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.debug("Calling SchedulerJob.adopt_or_reset_orphaned_tasks method")
                 try:
                     num_failed = (
-                        session.query(BaseJob)
+                        session.query(Job)
                         .filter(
-                            BaseJob.job_type == "SchedulerJob",
-                            BaseJob.state == State.RUNNING,
-                            BaseJob.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
+                            Job.job_type == "SchedulerJob",
+                            Job.state == State.RUNNING,
+                            Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
                         )
                         .update({"state": State.FAILED})
                     )
@@ -1479,7 +1484,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
                         # released.
                         .outerjoin(TI.queued_by_job)
-                        .filter(or_(TI.queued_by_job_id.is_(None), BaseJob.state != State.RUNNING))
+                        .filter(or_(TI.queued_by_job_id.is_(None), Job.state != State.RUNNING))
                         .join(TI.dag_run)
                         .filter(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
@@ -1555,7 +1560,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
         to be handled by the DAG processor.
         """
-        from airflow.jobs.base_job import BaseJob
+        from airflow.jobs.job import Job
 
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
@@ -1564,16 +1569,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             zombies: list[tuple[TI, str, str]] = (
                 session.query(TI, DM.fileloc, DM.processor_subdir)
                 .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(BaseJob, TI.job_id == BaseJob.id)
+                .join(Job, TI.job_id == Job.id)
                 .join(DM, TI.dag_id == DM.dag_id)
                 .filter(TI.state == TaskInstanceState.RUNNING)
                 .filter(
                     or_(
-                        BaseJob.state != State.RUNNING,
-                        BaseJob.latest_heartbeat < limit_dttm,
+                        Job.state != State.RUNNING,
+                        Job.latest_heartbeat < limit_dttm,
                     )
                 )
-                .filter(BaseJob.job_type == "LocalTaskJob")
+                .filter(Job.job_type == "LocalTaskJob")
                 .filter(TI.queued_by_job_id == self.job.id)
                 .all()
             )

@@ -14,29 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
-
-from airflow.jobs.job import Job
-
-
-class JobSchema(SQLAlchemySchema):
-    """Sla Miss Schema."""
-
-    class Meta:
-        """Meta."""
-
-        model = Job
-
-    id = auto_field(dump_only=True)
-    dag_id = auto_field(dump_only=True)
-    state = auto_field(dump_only=True)
-    job_type = auto_field(dump_only=True)
-    start_date = auto_field(dump_only=True)
-    end_date = auto_field(dump_only=True)
-    latest_heartbeat = auto_field(dump_only=True)
-    executor_class = auto_field(dump_only=True)
-    hostname = auto_field(dump_only=True)
-    unixname = auto_field(dump_only=True)
