@@ -248,9 +248,7 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 1
-        mock_stats_incr.assert_called_with(
-            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
-        )
+        mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
@@ -300,9 +298,7 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 2
-        mock_stats_incr.assert_called_with(
-            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
-        )
+        mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
 
     @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")

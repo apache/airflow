@@ -269,7 +269,7 @@ class TestSchedulerJob:
             [
                 mock.call(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id},
+                    tags={"dag_id": dag_id, "task_id": ti1.task_id},
                 ),
                 mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
                 mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
@@ -332,7 +332,7 @@ class TestSchedulerJob:
             [
                 mock.call(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": dag_id, "run_id": run_id, "task_id": task_id},
+                    tags={"dag_id": dag_id, "task_id": task_id},
                 ),
                 mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": task_id}),
                 mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id}),
@@ -386,7 +386,6 @@ class TestSchedulerJob:
             "scheduler.tasks.killed_externally",
             tags={
                 "dag_id": "test_process_executor_events_with_callback",
-                "run_id": "test",
                 "task_id": "dummy_task",
             },
         )
