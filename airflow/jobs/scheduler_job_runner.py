@@ -1484,6 +1484,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     query = session.query(TI).filter(
                         TI.state == State.QUEUED,
                         TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
+                        TI.queued_by_job_id == self.job_id,
                     )
                     tasks_stuck_in_queued: list[TaskInstance] = query.all()
                     tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(
