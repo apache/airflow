@@ -360,6 +360,24 @@ class SerializedDagModel(Base):
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
 
     @classmethod
+    def get_latest_version_hash_and_updated_datetime(
+        cls,
+        dag_id: str,
+        *,
+        session: Session,
+    ) -> tuple[str, datetime] | None:
+        """
+        Get the latest DAG version for a given DAG ID, as well as the date when the Serialized DAG associated
+        to DAG was last updated in serialized_dag table.
+
+        :meta private:
+        :param dag_id: DAG ID
+        :param session: ORM Session
+        :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
+        """
+        return session.query(cls.dag_hash, cls.last_updated).filter(cls.dag_id == dag_id).one_or_none()
+
+    @classmethod
     @provide_session
     def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
