@@ -26,6 +26,8 @@ from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
@@ -33,22 +35,20 @@ from airflow.utils.cli import setup_locations, setup_logging
 log = logging.getLogger(__name__)
 
 
-def _create_dag_processor_job(args: Any) -> Job:
+def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Creates DagFileProcessorProcess instance."""
-    from airflow.dag_processing.manager import DagFileProcessorManager
-
     processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
     processor_timeout = timedelta(seconds=processor_timeout_seconds)
 
-    processor = DagFileProcessorManager(
-        processor_timeout=processor_timeout,
-        dag_directory=args.subdir,
-        max_runs=args.num_runs,
-        dag_ids=[],
-        pickle_dags=args.do_pickle,
-    )
-    return Job(
-        job_runner=processor.job_runner,
+    return DagProcessorJobRunner(
+        job=Job(),
+        processor=DagFileProcessorManager(
+            processor_timeout=processor_timeout,
+            dag_directory=args.subdir,
+            max_runs=args.num_runs,
+            dag_ids=[],
+            pickle_dags=args.do_pickle,
+        ),
     )
 
 
@@ -62,7 +62,7 @@ def dag_processor(args):
     if sql_conn.startswith("sqlite"):
         raise SystemExit("Standalone DagProcessor is not supported when using sqlite.")
 
-    job = _create_dag_processor_job(args)
+    job_runner = _create_dag_processor_job_runner(args)
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(
@@ -81,6 +81,6 @@ def dag_processor(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
-                run_job(job)
+                run_job(job=job_runner.job, execute_callable=job_runner._execute)
     else:
-        run_job(job)
+        run_job(job=job_runner.job, execute_callable=job_runner._execute)

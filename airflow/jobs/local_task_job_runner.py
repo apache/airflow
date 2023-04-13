@@ -25,8 +25,9 @@ from sqlalchemy.orm import Session
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import perform_heartbeat
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models.taskinstance import TaskInstance, TaskReturnCode
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
@@ -74,7 +75,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
     def __init__(
         self,
-        task_instance: TaskInstance,
+        job: Job | JobPydantic,
+        task_instance: TaskInstance,  # TODO add TaskInstancePydantic
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -84,9 +86,16 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         pickle_id: int | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
-        *args,
-        **kwargs,
     ):
+        BaseJobRunner.__init__(self)
+        LoggingMixin.__init__(self, context=task_instance)
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
+        self.job = job
+        self.job.job_type = self.job_type
         self.task_instance = task_instance
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
@@ -97,14 +106,11 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self.pickle_id = pickle_id
         self.mark_success = mark_success
         self.external_executor_id = external_executor_id
-
         # terminating state is used so that a job don't try to
         # terminate multiple times
         self.terminating = False
 
         self._state_change_checks = 0
-
-        super().__init__(*args, **kwargs)
 
     def _execute(self) -> int | None:
         from airflow.task.task_runner import get_task_runner
@@ -190,7 +196,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     self.handle_task_exit(return_code)
                     return return_code
 
-                perform_heartbeat(self.job, only_if_necessary=False)
+                perform_heartbeat(
+                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
+                )
 
                 # If it's been too long since we've heartbeat, then it's possible that
                 # the scheduler rescheduled this task, so kill launched processes.

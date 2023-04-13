@@ -140,14 +140,17 @@ def test_assign_unassigned(session, create_task_instance):
     """
     Tests that unassigned triggers of all appropriate states are assigned.
     """
-    finished_triggerer = Job(job_runner=TriggererJobRunner(None), heartrate=10, state=State.SUCCESS)
+    finished_triggerer = Job(heartrate=10, state=State.SUCCESS)
+    TriggererJobRunner(finished_triggerer)
     finished_triggerer.end_date = timezone.utcnow() - datetime.timedelta(hours=1)
     session.add(finished_triggerer)
     assert not finished_triggerer.is_alive()
-    healthy_triggerer = Job(job_runner=TriggererJobRunner(None), heartrate=10, state=State.RUNNING)
+    healthy_triggerer = Job(heartrate=10, state=State.RUNNING)
+    TriggererJobRunner(healthy_triggerer)
     session.add(healthy_triggerer)
     assert healthy_triggerer.is_alive()
-    new_triggerer = Job(job_runner=TriggererJobRunner(None), heartrate=10, state=State.RUNNING)
+    new_triggerer = Job(heartrate=10, state=State.RUNNING)
+    TriggererJobRunner(new_triggerer)
     session.add(new_triggerer)
     assert new_triggerer.is_alive()
     session.commit()

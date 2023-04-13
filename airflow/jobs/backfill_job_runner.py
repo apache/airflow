@@ -69,8 +69,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
-    job: Job  # backfill_job can only run with Job class not the Pydantic serialized version
-
     @attr.define
     class _DagRunTaskStatus:
         """
@@ -110,6 +108,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
     def __init__(
         self,
+        job: Job,
         dag: DAG,
         start_date=None,
         end_date=None,
@@ -126,8 +125,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         run_at_least_once=False,
         continue_on_failures=False,
         disable_retry=False,
-        *args,
-        **kwargs,
     ) -> None:
         """
         Create a BackfillJobRunner.
@@ -151,6 +148,14 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param args:
         :param kwargs:
         """
+        super().__init__()
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
+        self.job = job
+        self.job.job_type = self.job_type
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
@@ -168,7 +173,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         self.run_at_least_once = run_at_least_once
         self.continue_on_failures = continue_on_failures
         self.disable_retry = disable_retry
-        super().__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status: _DagRunTaskStatus, session: Session) -> None:
         """
@@ -632,7 +636,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
-            perform_heartbeat(job=self.job, only_if_necessary=is_unit_test)
+            perform_heartbeat(
+                job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=is_unit_test
+            )
             # execute the tasks in the queue
             executor.heartbeat()
 
