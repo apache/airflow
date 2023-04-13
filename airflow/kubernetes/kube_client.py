@@ -138,5 +138,5 @@ def get_kube_client(
     if ssl_ca_cert:
         configuration.ssl_ca_cert = ssl_ca_cert
 
-    api_client = client.ApiClient(configuration)
+    api_client = client.ApiClient(configuration=configuration)
     return client.CoreV1Api(api_client)

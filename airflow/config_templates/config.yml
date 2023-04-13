@@ -2572,8 +2572,8 @@ kubernetes_executor:
   options:
     api_client_retry_configuration:
       description: |
-        Settings to configure the Retry hook, consumed by Kubernetes client.
-      version_added: 2.6.0
+        Kwargs to override the default urllib3 Retry used in the kubernetes API client
+      version_added: 2.6.1
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'
       default: ""
