@@ -623,6 +623,19 @@ class TestScheduler:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    def test_scheduler_pod_hostaliases(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}],
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
+        assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
 
 class TestSchedulerNetworkPolicy:
     def test_should_add_component_specific_labels(self):

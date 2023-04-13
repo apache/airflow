@@ -77,13 +77,22 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.5.1",
+            "default": "2.5.3",
+            "x-docsSection": "Common"
+        },
+        "defaultAirflowDigest": {
+            "description": "Default airflow digest to deploy. Overrides tag.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.5.1",
+            "default": "2.5.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -459,6 +468,7 @@
                 "airflow": {
                     "description": "Configuration of the airflow image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The airflow image repository.",
@@ -470,6 +480,14 @@
                         },
                         "tag": {
                             "description": "The airflow image tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "digest": {
+                            "description": "The airflow image digest. If set, it will override the tag.",
                             "type": [
                                 "string",
                                 "null"
@@ -503,6 +521,7 @@
                 "pod_template": {
                     "description": "Configuration of the pod_template image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The pod_template image repository. If ``config.kubernetes.worker_container_repository`` is set, k8s executor will use config value instead.",
@@ -535,6 +554,7 @@
                 "flower": {
                     "description": "Configuration of the flower image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The flower image repository.",
@@ -567,6 +587,7 @@
                 "statsd": {
                     "description": "Configuration of the StatsD image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The StatsD image repository.",
@@ -593,6 +614,7 @@
                 "redis": {
                     "description": "Configuration of the redis image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The redis image repository.",
@@ -619,6 +641,7 @@
                 "pgbouncer": {
                     "description": "Configuration of the PgBouncer image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The PgBouncer image repository.",
@@ -645,6 +668,7 @@
                 "pgbouncerExporter": {
                     "description": "Configuration of the PgBouncer exporter image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The PgBouncer exporter image repository.",
@@ -671,6 +695,7 @@
                 "gitSync": {
                     "description": "Configuration of the gitSync image.",
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The gitSync image repository.",
@@ -883,6 +908,14 @@
                             "type": "string"
                         }
                     },
+                    "annotations": {
+                        "description": "Annotations for the secret",
+                        "type": "object",
+                        "default": null,
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
@@ -915,6 +948,14 @@
                 "properties": {
                     "labels": {
                         "description": "Labels for the configmap",
+                        "type": "object",
+                        "default": null,
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "annotations": {
+                        "description": "Annotations for the configmap",
                         "type": "object",
                         "default": null,
                         "additionalProperties": {
@@ -1656,6 +1697,28 @@
             "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
+                "hostAliases": {
+                    "description": "HostAliases for the scheduler pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for scheduler container.",
                     "type": "object",
@@ -3108,6 +3171,28 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "hostAliases": {
+                    "description": "HostAliases for the webserver pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "allowPodLogReading": {
                     "description": "Allow webserver to read k8s pod logs. Useful when you don't have an external log store.",
                     "type": "boolean",
@@ -4201,6 +4286,14 @@
                         "type": "string"
                     }
                 },
+                "annotations": {
+                    "description": "Annotations to add to the StatsD deployment.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "args": {
                     "description": "Args to use when running statsd-exporter (templated).",
                     "type": [
@@ -4308,6 +4401,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "podAnnotations": {
+                    "description": "Add annotations for the PgBouncer Pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "podDisruptionBudget": {
                     "description": "PgBouncer PodDisruptionBudget.",
@@ -5045,6 +5146,14 @@
                         "-c",
                         "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"
                     ]
+                },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the cleanup cronjob.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for cleanup pods.",

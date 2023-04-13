@@ -70,8 +70,6 @@ Extra (optional)
 
     * ``use_beeline``
       Specify as ``True`` if using the Beeline CLI. Default is ``False``.
-    * ``auth``
-      Specify the auth type for use with Hive Beeline CLI.
     * ``proxy_user``
       Specify a proxy user as an ``owner`` or ``login`` or keep blank if using a
       custom proxy user.

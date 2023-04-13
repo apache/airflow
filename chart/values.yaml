@@ -49,16 +49,21 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.5.1"
+defaultAirflowTag: "2.5.3"
+
+# Default airflow digest. If specified, it takes precedence over tag
+defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.5.1"
+airflowVersion: "2.5.3"
 
 # Images
 images:
   airflow:
     repository: ~
     tag: ~
+    # Specifying digest takes precedence over tag.
+    digest: ~
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
@@ -574,7 +579,18 @@ workers:
   # Add additional init containers into workers.
   extraInitContainers: []
 
-  # Mount additional volumes into worker.
+  # Mount additional volumes into worker. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -636,6 +652,15 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  #  hostAliases for the scheduler pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
+
   # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
@@ -704,7 +729,18 @@ scheduler:
   # Add additional init containers into scheduler.
   extraInitContainers: []
 
-  # Mount additional volumes into scheduler.
+  # Mount additional volumes into scheduler. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -885,7 +921,18 @@ migrateDatabaseJob:
   # Launch additional containers into database migration job
   extraContainers: []
 
-  # Mount additional volumes into database migration job
+  # Mount additional volumes into database migration job. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -900,6 +947,14 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  #  hostAliases for the webserver pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
   allowPodLogReading: true
   livenessProbe:
     initialDelaySeconds: 15
@@ -986,7 +1041,18 @@ webserver:
   # Add additional init containers into webserver.
   extraInitContainers: []
 
-  # Mount additional volumes into webserver.
+  # Mount additional volumes into webserver. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -1409,6 +1475,9 @@ statsd:
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
 
+  # Annotations to add to the StatsD Deployment.
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1477,6 +1546,8 @@ pgbouncer:
 
   # annotations to be added to the PgBouncer deployment
   annotations: {}
+
+  podAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1711,6 +1782,8 @@ cleanup:
   # Args to use when running the cleanup cronjob (templated).
   args: ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"]
 
+  # jobAnnotations are annotations on the cleanup CronJob
+  jobAnnotations: {}
 
   # Select certain nodes for airflow cleanup pods.
   nodeSelector: {}
@@ -1822,10 +1895,20 @@ config:
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
   celery_kubernetes_executor:
     kubernetes_queue: 'kubernetes'
+  # The `kubernetes` section is deprecated in Airflow >= 2.5.0 due to an airflow.cfg schema change.
+  # The `kubernetes` section can be removed once the helm chart no longer supports Airflow < 2.5.0.
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
+    # The following `airflow_` entries are for Airflow 1, and can be removed when it is no longer supported.
     airflow_configmap: '{{ include "airflow_config" . }}'
     airflow_local_settings_configmap: '{{ include "airflow_config" . }}'
+    pod_template_file: '{{ include "airflow_pod_template_file" . }}/pod_template_file.yaml'
+    worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
+    worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
+    multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
+  # The `kubernetes_executor` section duplicates the `kubernetes` section in Airflow >= 2.5.0 due to an airflow.cfg schema change.
+  kubernetes_executor:
+    namespace: '{{ .Release.Namespace }}'
     pod_template_file: '{{ include "airflow_pod_template_file" . }}/pod_template_file.yaml'
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
@@ -1942,6 +2025,10 @@ dags:
 
     extraVolumeMounts: []
     env: []
+    # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
+    # - name: ""
+    #   value: ""
+
     resources: {}
     #  limits:
     #   cpu: 100m

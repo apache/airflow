@@ -17,16 +17,18 @@
 """Mask sensitive information from logs"""
 from __future__ import annotations
 
-import collections
+import collections.abc
 import logging
 import re
 import sys
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     Generator,
     Iterable,
+    Iterator,
     List,
     TextIO,
     Tuple,
@@ -36,15 +38,12 @@ from typing import (
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
+from airflow.typing_compat import TypeGuard
 
-try:
-    # kubernetes provider may not be installed
+if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
-except ImportError:
-    V1EnvVar = type("V1EnvVar", (), {})  # keep mypy happy about the V1EnvVar check
 
-
-Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
+Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)
@@ -110,9 +109,9 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: Redactable, name: str | None = None) -> Redacted:
+def redact(value: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
     """Redact any secrets found in ``value``."""
-    return _secrets_masker().redact(value, name)
+    return _secrets_masker().redact(value, name, max_depth)
 
 
 @cache
@@ -126,6 +125,19 @@ def _secrets_masker() -> SecretsMasker:
         "https://airflow.apache.org/docs/apache-airflow/stable/logging-monitoring/logging-tasks.html"
         "#advanced-configuration"
     )
+
+
+@cache
+def _get_v1_env_var_type() -> type:
+    try:
+        from kubernetes.client import V1EnvVar
+    except ImportError:
+        return type("V1EnvVar", (), {})
+    return V1EnvVar
+
+
+def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
+    return isinstance(v, _get_v1_env_var_type())
 
 
 class SecretsMasker(logging.Filter):
@@ -195,40 +207,42 @@ class SecretsMasker(logging.Filter):
 
         return True
 
-    def _redact_all(self, item: Redactable, depth: int) -> Redacted:
-        if depth > self.MAX_RECURSION_DEPTH or isinstance(item, str):
+    def _redact_all(self, item: Redactable, depth: int, max_depth: int) -> Redacted:
+        if depth > max_depth or isinstance(item, str):
             return "***"
         if isinstance(item, dict):
-            return {dict_key: self._redact_all(subval, depth + 1) for dict_key, subval in item.items()}
+            return {
+                dict_key: self._redact_all(subval, depth + 1, max_depth) for dict_key, subval in item.items()
+            }
         elif isinstance(item, (tuple, set)):
             # Turn set in to tuple!
-            return tuple(self._redact_all(subval, depth + 1) for subval in item)
+            return tuple(self._redact_all(subval, depth + 1, max_depth) for subval in item)
         elif isinstance(item, list):
-            return list(self._redact_all(subval, depth + 1) for subval in item)
+            return list(self._redact_all(subval, depth + 1, max_depth) for subval in item)
         else:
             return item
 
-    def _redact(self, item: Redactable, name: str | None, depth: int) -> Redacted:
+    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
         # Avoid spending too much effort on redacting on deeply nested
         # structures. This also avoid infinite recursion if a structure has
         # reference to self.
-        if depth > self.MAX_RECURSION_DEPTH:
+        if depth > max_depth:
             return item
         try:
             if name and should_hide_value_for_key(name):
-                return self._redact_all(item, depth)
+                return self._redact_all(item, depth, max_depth)
             if isinstance(item, dict):
                 to_return = {
-                    dict_key: self._redact(subval, name=dict_key, depth=(depth + 1))
+                    dict_key: self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth)
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            elif isinstance(item, V1EnvVar):
+            elif _is_v1_env_var(item):
                 tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:
-                    return self._redact(item=tmp, name=name, depth=depth)
+                    return self._redact(item=tmp, name=name, depth=depth, max_depth=max_depth)
                 return tmp
             elif isinstance(item, str):
                 if self.replacer:
@@ -239,9 +253,13 @@ class SecretsMasker(logging.Filter):
                 return item
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
-                return tuple(self._redact(subval, name=None, depth=(depth + 1)) for subval in item)
+                return tuple(
+                    self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
+                )
             elif isinstance(item, list):
-                return [self._redact(subval, name=None, depth=(depth + 1)) for subval in item]
+                return [
+                    self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
+                ]
             else:
                 return item
         # I think this should never happen, but it does not hurt to leave it just in case
@@ -257,14 +275,14 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
-    def redact(self, item: Redactable, name: str | None = None) -> Redacted:
+    def redact(self, item: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
         """Redact an any secrets found in ``item``, if it is a string.
 
         If ``name`` is given, and it's a "sensitive" name (see
         :func:`should_hide_value_for_key`) then all string values in the item
         is redacted.
         """
-        return self._redact(item, name, depth=0)
+        return self._redact(item, name, depth=0, max_depth=max_depth or self.MAX_RECURSION_DEPTH)
 
     @cached_property
     def _mask_adapter(self) -> None | Callable:
@@ -335,11 +353,61 @@ class RedactedIO(TextIO):
 
     def __init__(self):
         self.target = sys.stdout
-        self.fileno = sys.stdout.fileno
+
+    def __enter__(self) -> TextIO:
+        return self.target.__enter__()
+
+    def __exit__(self, t, v, b) -> None:
+        return self.target.__exit__(t, v, b)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.target)
+
+    def __next__(self) -> str:
+        return next(self.target)
+
+    def close(self) -> None:
+        return self.target.close()
+
+    def fileno(self) -> int:
+        return self.target.fileno()
+
+    def flush(self) -> None:
+        return self.target.flush()
+
+    def isatty(self) -> bool:
+        return self.target.isatty()
+
+    def read(self, n: int = -1) -> str:
+        return self.target.read(n)
+
+    def readable(self) -> bool:
+        return self.target.readable()
+
+    def readline(self, n: int = -1) -> str:
+        return self.target.readline(n)
+
+    def readlines(self, n: int = -1) -> list[str]:
+        return self.target.readlines(n)
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        return self.target.seek(offset, whence)
+
+    def seekable(self) -> bool:
+        return self.target.seekable()
+
+    def tell(self) -> int:
+        return self.target.tell()
+
+    def truncate(self, s: int | None = None) -> int:
+        return self.target.truncate(s)
+
+    def writable(self) -> bool:
+        return self.target.writable()
 
     def write(self, s: str) -> int:
         s = redact(s)
         return self.target.write(s)
 
-    def flush(self) -> None:
-        return self.target.flush()
+    def writelines(self, lines) -> None:
+        self.target.writelines(lines)

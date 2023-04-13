@@ -42,6 +42,16 @@ core:
       type: string
       example: ~
       default: "airflow.utils.net.getfqdn"
+    might_contain_dag_callable:
+      description: |
+         A callable to check if a python file has airflow dags defined or not
+         with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
+         return True if it has dags otherwise False
+         If this is not provided, Airflow uses its own heuristic rules.
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.utils.file.might_contain_dag_via_default_heuristic"
     default_timezone:
       description: |
         Default timezone in case supplied date times are naive
@@ -249,7 +259,7 @@ core:
       default: "True"
     dag_discovery_safe_mode:
       description: |
-        When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
+        If enabled, Airflow will only scan files containing both ``DAG`` and ``airflow`` (case-insensitive).
       version_added: 1.10.3
       type: string
       example: ~
@@ -428,14 +438,14 @@ core:
       example: '{"some_param": "some_value"}'
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
     internal_api_url:
       description: |
-        (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
-      version_added: 2.6.0
+        (experimental) Airflow Internal API url. Only used if [core] database_access_isolation is True.
+      version_added: 2.7.0
       type: string
       default: ~
       example: 'http://localhost:8080'
@@ -866,6 +876,25 @@ metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
   options:
+    metrics_allow_list:
+      description: |
+        If you want to avoid emitting all the available metrics, you can configure an
+        allow list of prefixes (comma separated) to send only the metrics that start
+        with the elements of the list (e.g: "scheduler,executor,dagrun")
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: ""
+    metrics_block_list:
+      description: |
+        If you want to avoid emitting all the available metrics, you can configure a
+        block list of prefixes (comma separated) to filter out metrics that start with
+        the elements of the list (e.g: "scheduler,executor,dagrun").
+        If metrics_allow_list and metrics_block_list are both configured, metrics_block_list is ignored.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -891,25 +920,6 @@ metrics:
       type: string
       example: ~
       default: "airflow"
-    statsd_allow_list:
-      description: |
-        If you want to avoid sending all the available metrics to StatsD,
-        you can configure an allow list of prefixes (comma separated) to send only the metrics that
-        start with the elements of the list (e.g: "scheduler,executor,dagrun")
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ""
-    statsd_block_list:
-      description: |
-        If you want to avoid sending all the available metrics to StatsD,
-        you can configure a block list of prefixes (comma separated) to filter out metrics that
-        start with the elements of the list (e.g: "scheduler,executor,dagrun").
-        If statsd_allow_list and statsd_block_list are both configured, statsd_block_list is ignored
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: ""
     stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
@@ -967,6 +977,37 @@ metrics:
       type: boolean
       example: ~
       default: "False"
+    otel_on:
+      description: |
+        Enables sending metrics to OpenTelemetry.
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "False"
+    otel_host:
+      description: ~
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "localhost"
+    otel_port:
+      description: ~
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "8889"
+    otel_prefix:
+      description: ~
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: "airflow"
+    otel_interval_milliseconds:
+      description: ~
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "60000"
 secrets:
   description: ~
   options:
@@ -1633,7 +1674,7 @@ webserver:
     run_internal_api:
       description: |
         Boolean for running Internal API in the webserver.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
@@ -2719,6 +2760,13 @@ kubernetes_executor:
       type: integer
       example: ~
       default: "100"
+    ssl_ca_cert:
+      description: |
+        Path to a CA certificate to be used by the Kubernetes client to verify the server's SSL certificate.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
 sensors:
   description: ~
   options:

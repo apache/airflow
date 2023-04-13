@@ -109,7 +109,7 @@ class SelectiveUnitTestTypes(Enum):
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
     *all_selective_test_types(),
-    "Helm",
+    "PlainAsserts",
     "Postgres",
     "MySQL",
     "Quarantine",
@@ -257,6 +257,7 @@ AIRFLOW_SOURCES_TO = "/opt/airflow"
 
 DEFAULT_EXTRAS = [
     # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+    "aiobotocore",
     "amazon",
     "async",
     "celery",
@@ -280,6 +281,7 @@ DEFAULT_EXTRAS = [
     "sendgrid",
     "sftp",
     "slack",
+    "snowflake",
     "ssh",
     "statsd",
     "virtualenv",

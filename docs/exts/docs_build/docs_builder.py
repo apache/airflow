@@ -298,7 +298,7 @@ class AirflowDocsBuilder:
 
 def get_available_providers_packages():
     """Get list of all available providers packages to build."""
-    return [provider["package-name"] for provider in ALL_PROVIDER_YAMLS]
+    return [provider["package-name"] for provider in ALL_PROVIDER_YAMLS if not provider.get("suspended")]
 
 
 def get_available_packages():

@@ -328,6 +328,8 @@ Please vote accordingly:
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
 
+Consider this my (binding) +1.
+
 For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update your path to rat):
 
 tar -xvf airflow-chart-${VERSION_WITHOUT_RC}-source.tar.gz
@@ -347,6 +349,8 @@ EOF
 ```
 
 Note, you need to update the `helm gpg verify` output and verify the end of the voting period in the body.
+
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
 # Verify the release candidate by PMCs
 

@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add non login-password auth support for SimpleHttpOpeator (#29206)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
 3.3.0
 .....
 

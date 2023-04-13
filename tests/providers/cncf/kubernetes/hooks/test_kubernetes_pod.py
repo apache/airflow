@@ -76,6 +76,18 @@ class TestKubernetesHook:
             ("disable_tcp_keepalive_empty", {"disable_tcp_keepalive": ""}),
             ("sidecar_container_image", {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"}),
             ("sidecar_container_image_empty", {"xcom_sidecar_container_image": ""}),
+            (
+                "sidecar_container_resources",
+                {
+                    "xcom_sidecar_container_resources": json.dumps(
+                        {
+                            "requests": {"cpu": "1m", "memory": "10Mi"},
+                            "limits": {"cpu": "1m", "memory": "50Mi"},
+                        }
+                    ),
+                },
+            ),
+            ("sidecar_container_resources_empty", {"xcom_sidecar_container_resources": ""}),
         ]:
             db.merge_conn(Connection(conn_type="kubernetes", conn_id=conn_id, extra=json.dumps(extra)))
 
@@ -341,6 +353,27 @@ class TestKubernetesHook:
         hook = KubernetesHook(conn_id=conn_id)
         assert hook.get_xcom_sidecar_container_image() == expected
 
+    @pytest.mark.parametrize(
+        "conn_id, expected",
+        (
+            pytest.param(
+                "sidecar_container_resources",
+                {
+                    "requests": {"cpu": "1m", "memory": "10Mi"},
+                    "limits": {
+                        "cpu": "1m",
+                        "memory": "50Mi",
+                    },
+                },
+                id="sidecar-with-resources",
+            ),
+            pytest.param("sidecar_container_resources_empty", None, id="sidecar-without-resources"),
+        ),
+    )
+    def test_get_xcom_sidecar_container_resources(self, conn_id, expected):
+        hook = KubernetesHook(conn_id=conn_id)
+        assert hook.get_xcom_sidecar_container_resources() == expected
+
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     def test_client_types(self, mock_kube_config_merger, mock_kube_config_loader):
@@ -357,6 +390,31 @@ class TestKubernetesHook:
             kubernetes_hook.get_conn()
             mock_get_client.assert_called_with(cluster_context="test")
             assert kubernetes_hook.get_namespace() == "test"
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.client.CustomObjectsApi")
+    def test_delete_custom_object(
+        self, mock_custom_object_api, mock_kube_config_merger, mock_kube_config_loader
+    ):
+        hook = KubernetesHook()
+        hook.delete_custom_object(
+            group="group",
+            version="version",
+            plural="plural",
+            name="name",
+            namespace="namespace",
+            _preload_content="_preload_content",
+        )
+
+        mock_custom_object_api.return_value.delete_namespaced_custom_object.assert_called_once_with(
+            group="group",
+            version="version",
+            plural="plural",
+            name="name",
+            namespace="namespace",
+            _preload_content="_preload_content",
+        )
 
 
 class TestKubernetesHookIncorrectConfiguration:

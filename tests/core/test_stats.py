@@ -67,9 +67,10 @@ class TestStats:
         self.statsd_client.assert_not_called()
 
     def test_timer(self):
-        with self.stats.timer("empty_timer"):
+        with self.stats.timer("empty_timer") as t:
             pass
         self.statsd_client.timer.assert_called_once_with("empty_timer")
+        assert type(t.duration) == float
 
     def test_empty_timer(self):
         with self.stats.timer():
@@ -130,7 +131,7 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_allow_list"): "name1,name2",
+                ("metrics", "metrics_allow_list"): "name1,name2",
             }
         ):
             importlib.reload(airflow.stats)
@@ -143,7 +144,7 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_block_list"): "name1,name2",
+                ("metrics", "metrics_block_list"): "name1,name2",
             }
         ):
             importlib.reload(airflow.stats)
@@ -156,8 +157,8 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_allow_list"): "name1,name2",
-                ("metrics", "statsd_block_list"): "name1,name2",
+                ("metrics", "metrics_allow_list"): "name1,name2",
+                ("metrics", "metrics_block_list"): "name1,name2",
             }
         ):
             importlib.reload(airflow.stats)

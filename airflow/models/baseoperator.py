@@ -75,7 +75,6 @@ from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -89,8 +88,10 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
@@ -686,6 +687,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    _is_setup = False
+    _is_teardown = False
+    _on_failure_fail_dagrun = False
+
     def __init__(
         self,
         task_id: str,
@@ -915,19 +920,32 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
+        if SetupTeardownContext.active:
+            SetupTeardownContext.update_context_map(self)
+
     @classmethod
     def as_setup(cls, *args, **kwargs):
-        from airflow.utils.setup_teardown import SetupTeardownContext
+        from airflow.settings import _ENABLE_AIP_52
 
-        with SetupTeardownContext.setup():
-            return cls(*args, **kwargs)
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Setup tasks are disabled.")
+
+        op = cls(*args, **kwargs)
+        op._is_setup = True
+        return op
 
     @classmethod
     def as_teardown(cls, *args, **kwargs):
-        from airflow.utils.setup_teardown import SetupTeardownContext
+        from airflow.settings import _ENABLE_AIP_52
 
-        with SetupTeardownContext.teardown():
-            return cls(*args, **kwargs)
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Teardown tasks are disabled.")
+
+        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        op = cls(*args, **kwargs)
+        op._is_teardown = True
+        op._on_failure_fail_dagrun = on_failure_fail_dagrun
+        return op
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1472,6 +1490,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "template_fields",
                     "template_fields_renderers",
                     "params",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()

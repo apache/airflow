@@ -338,7 +338,7 @@ Note if this is not the first time you clone the repo make sure main branch is r
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
 git checkout main
-git rebase --pull
+git pull --rebase
 ```
 
 - Then you can go to the directory and build the necessary documentation packages
@@ -544,6 +544,8 @@ the voting PMCs might decide to exclude certain packages from the release if som
 problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
+
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
 ## Verify the release by PMC members
 

@@ -146,45 +146,6 @@ const Dag = () => {
           )}
           <Tr borderBottomWidth={2} borderBottomColor="gray.300">
             <Td>
-              <Heading size="sm">DAG Runs Summary</Heading>
-            </Td>
-            <Td />
-          </Tr>
-          <Tr>
-            <Td>Total Runs Displayed</Td>
-            <Td>{durations.length}</Td>
-          </Tr>
-          {stateSummary}
-          {firstStart && (
-            <Tr>
-              <Td>First Run Start</Td>
-              <Td>
-                <Time dateTime={firstStart} />
-              </Td>
-            </Tr>
-          )}
-          {lastStart && (
-            <Tr>
-              <Td>Last Run Start</Td>
-              <Td>
-                <Time dateTime={lastStart} />
-              </Td>
-            </Tr>
-          )}
-          <Tr>
-            <Td>Max Run Duration</Td>
-            <Td>{formatDuration(max)}</Td>
-          </Tr>
-          <Tr>
-            <Td>Mean Run Duration</Td>
-            <Td>{formatDuration(avg)}</Td>
-          </Tr>
-          <Tr>
-            <Td>Min Run Duration</Td>
-            <Td>{formatDuration(min)}</Td>
-          </Tr>
-          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
-            <Td>
               <Heading size="sm">DAG Summary</Heading>
             </Td>
             <Td />
