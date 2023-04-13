@@ -66,7 +66,7 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
         "ca_cert": tls_params.get("tls_ca_cert"),
         "client_cert": tls_params.get("tls_client_cert"),
         "client_key": tls_params.get("tls_client_key"),
-        "verify": tls_params.get("tls_verify") or True,
+        "verify": tls_params.get("tls_verify", True),
         "assert_hostname": tls_params.get("tls_hostname"),
         "ssl_version": tls_params.get("tls_ssl_version"),
     }
