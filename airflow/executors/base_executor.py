@@ -389,7 +389,10 @@ class BaseExecutor(LoggingMixin):
         readable_tis = []
         for ti in tis:
             readable_tis.append(repr(ti))
-            self.fail(ti.key, None)
+
+        self.log.warning(
+            "These tasks would have been failed on an executor that supports the configuration setting `[scheduler] task_queued_timeout`, but the current executor does not support it."
+        )
         return readable_tis
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:

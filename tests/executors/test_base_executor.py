@@ -106,18 +106,6 @@ def setup_dagrun(dag_maker):
     return dag_maker.create_dagrun(execution_date=date)
 
 
-def test_cleanup_stuck_queued_tasks(dag_maker):
-    executor = BaseExecutor()
-    dagrun = setup_dagrun(dag_maker)
-    tis = dagrun.task_instances
-    for ti in tis:
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
-        executor.running.add(ti.key)
-    executor.cleanup_stuck_queued_tasks(tis)
-    assert executor.running == set()
-
-
 def test_try_adopt_task_instances(dag_maker):
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances
