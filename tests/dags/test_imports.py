@@ -16,6 +16,7 @@
 # under the License.
 
 # fmt: off
+
 # this file contains sample code than only needs to pass the lexer
 # it is "badly" formatted on purpose to test edge cases.
 
