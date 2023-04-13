@@ -61,7 +61,8 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
 
 # Perform side-effects unless someone has explicitly opted out before import
-# WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
+# WARNING: Use with care, `_AIRFLOW__AS_LIBRARY` will prevent proper intialization (configs, syspath, logger...).
+#          It might be needed if you intend to use airflow as third-party package.
 if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
     settings.initialize()
 
