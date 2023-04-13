@@ -866,7 +866,7 @@ class TestKubernetesExecutor:
         executor = KubernetesExecutor()
         executor.start()
         executor.scheduler_job_id = "123"
-        with dag_maker(dag_id="test_clear"):
+        with dag_maker(dag_id="test_cleanup_stuck_queued_tasks"):
             op = BashOperator(task_id="bash", bash_command=["echo 0", "echo 1"])
         dag_run = dag_maker.create_dagrun()
         ti = dag_run.get_task_instance(op.task_id, session)

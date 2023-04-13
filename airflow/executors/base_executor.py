@@ -297,8 +297,10 @@ class BaseExecutor(LoggingMixin):
         """
         self.log.debug("Changing state: %s", key)
         try:
+            print(f"\n\n removing key {key}")
             self.running.remove(key)
         except KeyError:
+            print(f"Key error!")
             self.log.debug("Could not find key: %s", str(key))
         self.event_buffer[key] = state, info
 
@@ -386,7 +388,11 @@ class BaseExecutor(LoggingMixin):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        raise NotImplementedError()
+        readable_tis = []
+        for ti in tis:
+            readable_tis.append(repr(ti))
+            self.fail(ti.key, None)
+        return readable_tis
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
