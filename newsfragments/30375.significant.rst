@@ -1,4 +1,4 @@
-Simplify logic to resolve tasks stuck in queued despite stalled_task_timeout
+Consolidate handling of tasks stuck in queued under new ``task_queued_timeout`` config
 
 Logic for handling tasks stuck in the queued state has been consolidated, and the all configurations 
 responsible for timing out stuck queued tasks have been deprecated and merged into 
