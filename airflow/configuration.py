@@ -237,7 +237,8 @@ class AirflowConfigParser(ConfigParser):
     }
 
     # A mapping of new configurations to a list of old configurations for when one configuration
-    # deprecates more than one other deprecation.
+    # deprecates more than one other deprecation. The deprecation logic for these configurations
+    # is defined in SchedulerJobRunner.
     many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
         ("scheduler", "task_queued_timeout"): [
             ("celery", "stalled_task_timeout", "2.6.0"),

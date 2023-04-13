@@ -1466,11 +1466,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Mark tasks stuck in queued for longer than `task_queued_timeout` as failed.
 
-        If one of the configuration settings `kubernetes.worker_pods_pending_timeout`,
-        `celery.stalled_task_timeout`, or `celery.task_adoption_timeout` is set and
-        has a higher value than `scheduler.task_queued_timeout`, that value will be
-        used as `task_queued_timeout`.
-
         Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
         track of a task, a cluster can't further scale up its workers, etc.), but tasks
         should not be stuck in queued for a long time. This will mark tasks stuck in

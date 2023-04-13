@@ -838,7 +838,6 @@ class KubernetesExecutor(BaseExecutor):
         """
         readable_tis = []
         for ti in tis:
-            readable_tis.append(repr(ti))
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -853,15 +852,12 @@ class KubernetesExecutor(BaseExecutor):
                 label_selector=selector,
             ).items
             if not pod_list:
-                # Remove from list of tis that were cleaned up
-                readable_tis.pop()
                 self.log.warning("Cannot find pod for ti %s", ti)
                 continue
             elif len(pod_list) > 1:
-                # Remove from list of tis that were cleaned up
-                readable_tis.pop()
                 self.log.warning("Found multiple pods for ti %s: %s", ti, pod_list)
                 continue
+            readable_tis.append(repr(ti))
             self.kube_scheduler.delete_pod(pod_id=pod_list[0].metadata.name, namespace=namespace)
         return readable_tis
 
