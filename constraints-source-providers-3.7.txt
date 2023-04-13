@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-13T18:16:08Z
+# This constraints file was automatically generated on 2023-04-13T21:27:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -385,7 +385,7 @@ psycopg2-binary==2.9.6
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 py-partiql-parser==0.1.0
-py4j==0.10.9.5
+py4j==0.10.9.7
 pyOpenSSL==23.1.1
 pyarrow==9.0.0
 pyasn1-modules==0.2.8
@@ -409,7 +409,7 @@ pyodbc==4.0.38
 pyparsing==3.0.9
 pypsrp==0.8.1
 pyrsistent==0.19.3
-pyspark==3.3.2
+pyspark==3.4.0
 pyspnego==0.8.0
 pytest-asyncio==0.21.0
 pytest-capture-warnings==0.0.4
