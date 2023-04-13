@@ -70,9 +70,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
             + f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
         )
 
-        if self.sort_key_value:
-            assert self.sort_key_name is not None
-            assert self.sort_key_value is not None
+        if self.sort_key_name and self.sort_key_value:
             key = {self.partition_key_name: self.partition_key_value, self.sort_key_name: self.sort_key_value}
             msg += f"\nSort Key: {self.sort_key_name}={self.sort_key_value}"
 
