@@ -190,7 +190,16 @@ class _VaultClient(LoggingMixin):
         :return: Vault Client
 
         """
-        _client = hvac.Client(url=self.url, **self.kwargs)
+        adapter = HTTPAdapter(max_retries=Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[412, 500, 502, 503],
+                raise_on_status=False,
+        ))
+        session = Session()
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)        
+        _client = hvac.Client(url=self.url, session=session, **self.kwargs)
         if self.auth_type == "approle":
             self._auth_approle(_client)
         elif self.auth_type == "aws_iam":
