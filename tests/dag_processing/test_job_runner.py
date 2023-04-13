@@ -964,6 +964,41 @@ class TestDagProcessorJobRunner:
         assert SerializedDagModel.has_dag("test_zip_dag")
         # assert code not deleted
         assert DagCode.has_dag(dag.fileloc)
+        # assert dag still active
+        assert dag.get_is_active()
+
+    def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmpdir):
+        """Test DagProcessorJobRunner._refresh_dag_dir method"""
+        manager = DagProcessorJobRunner(
+            job=Job(),
+            processor=DagFileProcessorManager(
+                dag_directory=TEST_DAG_FOLDER,
+                max_runs=1,
+                processor_timeout=timedelta(days=365),
+                signal_conn=MagicMock(),
+                dag_ids=[],
+                pickle_dags=False,
+                async_mode=True,
+            ),
+        )
+        dagbag = DagBag(dag_folder=tmpdir, include_examples=False)
+        zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
+        dagbag.process_file(zipped_dag_path)
+        dag = dagbag.get_dag("test_zip_dag")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag)
+        manager.processor.last_dag_dir_refresh_time = timezone.utcnow() - timedelta(minutes=10)
+
+        # Mock might_contain_dag to mimic deleting the python file from the zip
+        with mock.patch("airflow.dag_processing.manager.might_contain_dag", return_value=False):
+            manager.processor._refresh_dag_dir()
+
+        # Assert dag removed from SDM
+        assert not SerializedDagModel.has_dag("test_zip_dag")
+        # assert code deleted
+        assert not DagCode.has_dag(dag.fileloc)
+        # assert dag deactivated
+        assert not dag.get_is_active()
 
     @conf_vars(
         {
