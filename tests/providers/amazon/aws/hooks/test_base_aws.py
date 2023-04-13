@@ -47,6 +47,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from tests.test_utils.config import conf_vars
 
+pytest.importorskip("aiobotocore")
+
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
 MOCK_BOTO3_SESSION = mock.MagicMock(return_value="Mock boto3.session.Session")
