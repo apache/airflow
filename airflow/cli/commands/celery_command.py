@@ -102,14 +102,16 @@ def _serve_logs(skip_serve_logs: bool = False):
 
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs):
-    """Reconfigure the logger: 
-       * logs of severity error, and above goes to stderr, 
-       * logs of severity lower than error goes to stdout."""
+    """Reconfigure the logger:
+    * logs of severity error, and above goes to stderr,
+    * logs of severity lower than error goes to stdout.
+    """
     if conf.getboolean("logging", "celery_logging_split", fallback=False):
         celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
 
         class NoErrorOrAboveFilter(logging.Filter):
-            """This filter prevents error of severity higer than warning to be reported."""
+            """This filter prevents error of severity higher than warning to be reported."""
+
             def filter(self, record):
                 return record.levelno <= logging.WARNING
 
