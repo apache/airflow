@@ -190,7 +190,7 @@ class TestListPyFilesPath:
         assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)
 
     def test_get_modules(self):
-        file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.nopy")
+        file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.py")
 
         modules = list(file_utils.iter_airflow_imports(file_path))
 
