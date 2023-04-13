@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
@@ -45,8 +45,8 @@ class DynamoDBValueSensor(BaseSensorOperator):
         partition_key_value: str,
         attribute_name: str,
         attribute_value: str,
-        sort_key_name: Optional[str] = None,
-        sort_key_value: Optional[str] = None,
+        sort_key_name: str | None = None,
+        sort_key_value: str | None = None,
         aws_conn_id: str | None = DynamoDBHook.default_conn_name,
         region_name: str | None = None,
         **kwargs: Any,
@@ -71,6 +71,8 @@ class DynamoDBValueSensor(BaseSensorOperator):
         )
 
         if self.sort_key_value:
+            assert self.sort_key_name is not None
+            assert self.sort_key_value is not None
             key = {self.partition_key_name: self.partition_key_value, self.sort_key_name: self.sort_key_value}
             msg += f"\nSort Key: {self.sort_key_name}={self.sort_key_value}"
 
@@ -78,13 +80,13 @@ class DynamoDBValueSensor(BaseSensorOperator):
 
         self.log.info(msg)
         table = self.hook.conn.Table(self.table_name)
-        self.log.info(f"Table: {table}")
-        self.log.info(f"Key: {key}")
+        self.log.info("Table: %s", table)
+        self.log.info("Key: %s", key)
         response = table.get_item(Key=key)
         try:
-            self.log.info(f"Response: {response}")
-            self.log.info(f"Want: {self.attribute_name} = {self.attribute_value}")
-            self.log.info(f'Got: {response["Item"][self.attribute_name]} = {self.attribute_value}')
+            self.log.info("Response: %s", response)
+            self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
+            self.log.info("Got: {response['Item'][self.attribute_name]} = %s", self.attribute_value)
             return response["Item"][self.attribute_name] == self.attribute_value
         except KeyError:
             return False
