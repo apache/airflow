@@ -110,7 +110,7 @@ def logger_setup_handler(logger, **kwargs):
         celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
 
         class NoErrorOrAboveFilter(logging.Filter):
-            """Allow only logs *lower* than warning to be reported."""
+            """Allow only logs with level warning or lower to be reported."""
 
             def filter(self, record):
                 return record.levelno <= logging.WARNING
