@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import logging
 import multiprocessing
 import os
@@ -188,8 +189,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def start(self) -> None:
         """Launch the process and start processing the DAG."""
-        import importlib
-
         for module in iter_airflow_imports(self.file_path):
             try:
                 importlib.import_module(module)
