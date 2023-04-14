@@ -2324,6 +2324,16 @@ scheduler:
       version_added: 2.0.0
       type: boolean
       default: "True"
+    parsing_pre_import_modules:
+      description: |
+        The scheduler reads dag files to extract the airflow modules that are going to be used,
+        and imports them ahead of time to avoid having to re-do it for each parsing process.
+        This flag can be set to False to disable this behavior in case an airflow module needs to be freshly
+        imported each time (at the cost of increased DAG parsing time).
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
     parsing_processes:
       description: |
         The scheduler can run multiple processes in parallel to parse dags.
@@ -2343,7 +2353,6 @@ scheduler:
           same host. This is useful when running with Scheduler in HA mode where each scheduler can
           parse different DAG files.
         * ``alphabetical``: Sort by filename
-
       version_added: 2.1.0
       type: string
       example: ~

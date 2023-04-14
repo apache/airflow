@@ -181,7 +181,7 @@ repos:
         entry: ruff --fix --no-update-check --force-exclude
         additional_dependencies: ['ruff==0.0.226']
         files: \.pyi?$
-        exclude: ^.*/.*_vendor/
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.13.0
     hooks:
@@ -905,7 +905,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: mypy-providers
