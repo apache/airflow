@@ -729,7 +729,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             result = subprocess.check_output(
                 [self.python, "-c", "from airflow import __version__; print(__version__)"],
                 text=True,
-                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},  # Required to avoid `result` polluted by airflow init logs.
+                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},  # Required to avoid `result` polluted by Airflow logs.
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:
