@@ -1,1 +1,0 @@
-The Hive Macros (``hive.max_partition``, ``hive.closest_ds_partition``) are available only when Hive Provider is installed. Please install Hive Provider > 5.1.0 when using those macros.

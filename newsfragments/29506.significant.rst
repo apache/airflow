@@ -1,6 +1,0 @@
-Default permissions of file task handler log directories and files has been changed to "owner + group" writeable.
-
-Default setting handles case where impersonation is needed and both users (airflow and the impersonated user)
-have the same group set as main group. Previously the default was also other-writeable and the user might choose
-to use the other-writeable setting if they wish by configuring ``file_task_handler_new_folder_permissions``
-and ``file_task_handler_new_file_permissions`` in ``logging`` section.

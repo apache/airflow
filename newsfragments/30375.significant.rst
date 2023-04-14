@@ -1,9 +1,0 @@
-Consolidate handling of tasks stuck in queued under new ``task_queued_timeout`` config
-
-Logic for handling tasks stuck in the queued state has been consolidated, and the all configurations
-responsible for timing out stuck queued tasks have been deprecated and merged into
-``[scheduler] task_queued_timeout``. The configurations that have been deprecated are
-``[kubernetes] worker_pods_pending_timeout``, ``[celery] stalled_task_timeout``, and
-``[celery] task_adoption_timeout``. If any of these configurations are set, the longest timeout will be
-respected. For example, if ``[celery] stalled_task_timeout`` is 1200, and ``[scheduler] task_queued_timeout``
-is 600, Airflow will set ``[scheduler] task_queued_timeout`` to 1200.
