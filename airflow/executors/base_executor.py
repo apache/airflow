@@ -376,7 +376,7 @@ class BaseExecutor(LoggingMixin):
         """This method is called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
         Tasks can get stuck in queued. If such a task is detected, it will be marked
@@ -386,14 +386,7 @@ class BaseExecutor(LoggingMixin):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        readable_tis = []
-        for ti in tis:
-            readable_tis.append(repr(ti))
-
-        self.log.warning(
-            "These tasks would have been failed on an executor that supports the configuration setting `[scheduler] task_queued_timeout`, but the current executor does not support it."
-        )
-        return readable_tis
+        raise NotImplementedError()
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

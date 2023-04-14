@@ -41,6 +41,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackR
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -1473,6 +1474,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         available retries, it will be retried.
         """
         self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
+
+        if type(self.job.executor).cleanup_stuck_queued_tasks == BaseExecutor.cleanup_stuck_queued_tasks:
+            self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
+            return
+
         for attempt in run_with_db_retries(logger=self.log):
             with attempt:
                 self.log.debug(
