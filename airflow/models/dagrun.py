@@ -553,6 +553,7 @@ class DagRun(Base, LoggingMixin):
                     bool(self.tis)
                     and all(not t.task.depends_on_past for t in self.tis)
                     and all(t.task.max_active_tis_per_dag is None for t in self.tis)
+                    and all(t.task.max_active_tis_per_dagrun is None for t in self.tis)
                     and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
                 )
 
