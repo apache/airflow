@@ -87,6 +87,7 @@ class DockerHook(BaseHook):
         ca_cert: str | None = None,
         client_cert: str | None = None,
         client_key: str | None = None,
+        verify: bool = True,
         assert_hostname: str | bool | None = None,
         ssl_version: str | None = None,
     ) -> TLSConfig | bool:
@@ -96,6 +97,7 @@ class DockerHook(BaseHook):
         :param ca_cert: Path to a PEM-encoded CA (Certificate Authority) certificate file.
         :param client_cert: Path to PEM-encoded certificate file.
         :param client_key: Path to PEM-encoded key file.
+        :param verify: Set ``True`` to verify the validity of the provided certificate.
         :param assert_hostname: Hostname to match against the docker server certificate
             or ``False`` to disable the check.
         :param ssl_version: Version of SSL to use when communicating with docker daemon.
@@ -106,7 +108,7 @@ class DockerHook(BaseHook):
             return TLSConfig(
                 ca_cert=ca_cert,
                 client_cert=(client_cert, client_key),
-                verify=True,
+                verify=verify,
                 ssl_version=ssl_version,
                 assert_hostname=assert_hostname,
             )
