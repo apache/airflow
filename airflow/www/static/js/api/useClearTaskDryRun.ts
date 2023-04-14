@@ -19,6 +19,7 @@
 
 import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
+import type { MinimalTaskInstance } from "src/types";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import { getMetaValue } from "../utils";
 
@@ -91,11 +92,15 @@ const useClearTaskDryRun = ({
         params.append("map_index", mi.toString());
       });
 
-      return axios.post<AxiosResponse, string[]>(clearUrl, params.toString(), {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      });
+      return axios.post<AxiosResponse, MinimalTaskInstance[]>(
+        clearUrl,
+        params.toString(),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
     }
   );
 
