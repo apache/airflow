@@ -530,7 +530,7 @@ class TestDatabricksHook:
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_delete_run(self, mock_requests):
-        mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
+        mock_requests.post.return_value.json.return_value = {}
 
         self.hook.delete_run(RUN_ID)
 
