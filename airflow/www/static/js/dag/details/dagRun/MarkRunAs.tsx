@@ -29,57 +29,62 @@ import {
 } from "@chakra-ui/react";
 import { MdArrowDropDown } from "react-icons/md";
 import { getMetaValue } from "src/utils";
-import { useClearRun, useQueueRun } from "src/api";
+import { useMarkFailedRun, useMarkSuccessRun } from "src/api";
+import type { RunState } from "src/types";
+
+import { SimpleStatus } from "../../StatusBox";
 
 const canEdit = getMetaValue("can_edit") === "True";
 const dagId = getMetaValue("dag_id");
 
 interface Props extends MenuButtonProps {
   runId: string;
+  state?: RunState;
 }
 
-const ClearRun = ({ runId, ...otherProps }: Props) => {
-  const { mutateAsync: onClear, isLoading: isClearLoading } = useClearRun(
-    dagId,
-    runId
-  );
+const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
+  const { mutateAsync: markFailed, isLoading: isMarkFailedLoading } =
+    useMarkFailedRun(dagId, runId);
+  const { mutateAsync: markSuccess, isLoading: isMarkSuccessLoading } =
+    useMarkSuccessRun(dagId, runId);
 
-  const { mutateAsync: onQueue, isLoading: isQueueLoading } = useQueueRun(
-    dagId,
-    runId
-  );
-
-  const clearExistingTasks = () => {
-    onClear({ confirmed: true });
+  const markAsFailed = () => {
+    markFailed({ confirmed: true });
   };
 
-  const queueNewTasks = () => {
-    onQueue({ confirmed: true });
+  const markAsSuccess = () => {
+    markSuccess({ confirmed: true });
   };
 
-  const clearLabel = "Clear tasks or add new tasks";
+  const markLabel = "Manually set dag run state";
   return (
     <Menu>
       <MenuButton
         as={Button}
         colorScheme="blue"
         transition="all 0.2s"
-        title={clearLabel}
-        aria-label={clearLabel}
-        disabled={!canEdit || isClearLoading || isQueueLoading}
+        title={markLabel}
+        aria-label={markLabel}
+        disabled={!canEdit || isMarkFailedLoading || isMarkSuccessLoading}
         {...otherProps}
       >
         <Flex>
-          Clear
+          Mark state as...
           <MdArrowDropDown size="16px" />
         </Flex>
       </MenuButton>
       <MenuList>
-        <MenuItem onClick={clearExistingTasks}>Clear existing tasks</MenuItem>
-        <MenuItem onClick={queueNewTasks}>Queue up new tasks</MenuItem>
+        <MenuItem onClick={markAsFailed} isDisabled={state === "failed"}>
+          <SimpleStatus state="failed" mr={2} />
+          failed
+        </MenuItem>
+        <MenuItem onClick={markAsSuccess} isDisabled={state === "success"}>
+          <SimpleStatus state="success" mr={2} />
+          success
+        </MenuItem>
       </MenuList>
     </Menu>
   );
 };
 
-export default ClearRun;
+export default MarkRunAs;
