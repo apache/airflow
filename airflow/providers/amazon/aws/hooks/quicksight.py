@@ -156,16 +156,17 @@ class QuickSightHook(AwsBaseHook):
         sec = 0
         status = self.get_status(aws_account_id, data_set_id, ingestion_id)
         while status in self.NON_TERMINAL_STATES and status != target_state:
+            time.sleep(check_interval)
             self.log.info("Current status is %s", status)
-            if status in self.FAILED_STATES:
+            status = self.get_status(aws_account_id, data_set_id, ingestion_id)
+             if status in self.FAILED_STATES:
                 info = self.get_error_info(aws_account_id, data_set_id, ingestion_id)
                 raise AirflowException(f"The Amazon QuickSight Ingestion failed. Error info: {info}")
             if status == "CANCELLED":
                 raise AirflowException("The Amazon QuickSight SPICE ingestion cancelled!")
-            # wait and try again
-            time.sleep(check_interval)
-            sec += check_interval
-            status = self.get_status(aws_account_id, data_set_id, ingestion_id)
+        # wait and try again
+        sec += check_interval
+        status = self.get_status(aws_account_id, data_set_id, ingestion_id)
 
         self.log.info("QuickSight Ingestion completed")
         return status
