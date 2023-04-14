@@ -97,6 +97,8 @@ integrations:
   - integration-name: Amazon DynamoDB
     external-doc-url: https://aws.amazon.com/dynamodb/
     logo: /integration-logos/aws/Amazon-DynamoDB_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/dynamodb.rst
     tags: [aws]
   - integration-name: Amazon EC2
     external-doc-url: https://aws.amazon.com/ec2/
@@ -347,6 +349,9 @@ sensors:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms
+  - integration-name: Amazon DynamoDB
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.dynamodb
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2
