@@ -2565,6 +2565,13 @@ kubernetes_executor:
     previous_name: kubernetes
     version: 2.5.0
   options:
+    api_client_retry_configuration:
+      description: |
+        Kwargs to override the default urllib3 Retry used in the kubernetes API client
+      version_added: 2.6.0
+      type: string
+      example: '{ "total": 3, "backoff_factor": 0.5 }'
+      default: ""
     pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.

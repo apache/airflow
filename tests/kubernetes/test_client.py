@@ -23,6 +23,7 @@ from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive, get_kube_client
+from tests.test_utils.config import conf_vars
 
 
 class TestClient:
@@ -42,6 +43,7 @@ class TestClient:
     @mock.patch("airflow.kubernetes.kube_client.conf")
     def test_load_config_disable_ssl(self, conf, config):
         conf.getboolean.return_value = False
+        conf.getjson.return_value = {"total": 3, "backoff_factor": 0.5}
         client = get_kube_client(in_cluster=False)
         conf.getboolean.assert_called_with("kubernetes_executor", "verify_ssl")
         assert not client.api_client.configuration.verify_ssl
@@ -50,6 +52,7 @@ class TestClient:
     @mock.patch("airflow.kubernetes.kube_client.conf")
     def test_load_config_ssl_ca_cert(self, conf, config):
         conf.get.return_value = "/path/to/ca.crt"
+        conf.getjson.return_value = {"total": 3, "backoff_factor": 0.5}
         client = get_kube_client(in_cluster=False)
         conf.get.assert_called_with("kubernetes_executor", "ssl_ca_cert")
         assert client.api_client.configuration.ssl_ca_cert == "/path/to/ca.crt"
@@ -81,3 +84,11 @@ class TestClient:
         else:
             configuration = Configuration()
         assert not configuration.verify_ssl
+
+    @mock.patch("kubernetes.config.incluster_config.InClusterConfigLoader")
+    @conf_vars({("kubernetes", "api_client_retry_configuration"): '{"total": 3, "backoff_factor": 0.5}'})
+    def test_api_client_retry_configuration_correct_values(self, mock_in_cluster_loader):
+        get_kube_client(in_cluster=True)
+        client_configuration = mock_in_cluster_loader().load_and_set.call_args[0][0]
+        assert client_configuration.retries.total == 3
+        assert client_configuration.retries.backoff_factor == 0.5
