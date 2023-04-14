@@ -43,7 +43,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -121,10 +121,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     job_type = "SchedulerJob"
     heartrate: int = conf.getint("scheduler", "SCHEDULER_HEARTBEAT_SEC")
 
-    job: Job  # scheduler can only run with Job class not the Pydantic serialized version
-
     def __init__(
         self,
+        job: Job,
         subdir: str = settings.DAGS_FOLDER,
         num_runs: int = conf.getint("scheduler", "num_runs"),
         num_times_parse_dags: int = -1,
@@ -132,11 +131,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         do_pickle: bool = False,
         log: logging.Logger | None = None,
         processor_poll_interval: float | None = None,
-        *args,
-        **kwargs,
     ):
+        super().__init__()
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
+        self.job = job
+        self.job.job_type = self.job_type
         self.subdir = subdir
-
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
         # number of times. This is only to support testing, and isn't something a user is likely to want to
@@ -157,7 +161,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self.do_pickle = do_pickle
-        super().__init__(*args, **kwargs)
 
         if log:
             self._log = log
@@ -307,7 +310,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             states=list(EXECUTION_STATES), session=session
         )
 
-        num_tasks_in_executor = 0
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
 
@@ -520,7 +522,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Stats.gauge(f"pool.starving_tasks.{pool_name}", num_starving_tasks)
 
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
-        Stats.gauge("scheduler.tasks.running", num_tasks_in_executor)
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
         if len(executable_tis) > 0:
@@ -915,7 +916,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
-                self.job.heartbeat(only_if_necessary=True)
+                perform_heartbeat(
+                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                )
 
                 # Run any pending timed events
                 next_event = timers.run(blocking=False)
