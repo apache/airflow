@@ -332,7 +332,11 @@ class PlainXComArg(XComArg):
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        from airflow.models.taskinstance import TaskInstance
+
         ti = context["ti"]
+        assert isinstance(ti, TaskInstance), "Wait for AIP-44 implementation to complete"
+
         task_id = self.operator.task_id
         map_indexes = ti.get_relevant_upstream_map_indexes(
             self.operator,
