@@ -189,15 +189,22 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def start(self) -> None:
         """Launch the process and start processing the DAG."""
-        for module in iter_airflow_imports(self.file_path):
-            try:
-                importlib.import_module(module)
-            except Exception as e:
-                # only log as warning because an error here is not preventing anything from working,
-                # and if it's serious, it's going to be surfaced to the user when the dag is actually parsed.
-                self.log.warning(
-                    "Error when trying to pre-import module '%s' found in %s: %s", module, self.file_path, e
-                )
+        if conf.getboolean("scheduler", "parsing_pre_import_modules", fallback=True):
+            # Read the file to pre-import airflow modules used.
+            # This prevents them from being re-imported from zero in each "processing" process
+            # and saves CPU time and memory.
+            for module in iter_airflow_imports(self.file_path):
+                try:
+                    importlib.import_module(module)
+                except Exception as e:
+                    # only log as warning because an error here is not preventing anything from working, and
+                    # if it's serious, it's going to be surfaced to the user when the dag is actually parsed.
+                    self.log.warning(
+                        "Error when trying to pre-import module '%s' found in %s: %s",
+                        module,
+                        self.file_path,
+                        e,
+                    )
 
         context = self._get_multiprocessing_context()
 
