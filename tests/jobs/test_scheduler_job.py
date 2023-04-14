@@ -1264,6 +1264,68 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    def test_find_executable_task_instances_task_concurrency_per_dagrun_for_first(self, dag_maker):
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_task_concurrency_per_dagrun_for_first"
+
+        with dag_maker(dag_id=dag_id):
+            op1a = EmptyOperator(task_id="dummy1-a", priority_weight=2, max_active_tis_per_dagrun=1)
+            op1b = EmptyOperator(task_id="dummy1-b", priority_weight=1)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+
+        ti1a = dr1.get_task_instance(op1a.task_id, session)
+        ti1b = dr1.get_task_instance(op1b.task_id, session)
+        ti2a = dr2.get_task_instance(op1a.task_id, session)
+        ti1a.state = State.RUNNING
+        ti1b.state = State.SCHEDULED
+        ti2a.state = State.SCHEDULED
+        session.flush()
+
+        # Schedule ti with higher priority,
+        # because it's running in a different DAG run with 0 active tis
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        assert 1 == len(res)
+        assert res[0].key == ti2a.key
+
+        session.rollback()
+
+    def test_find_executable_task_instances_not_enough_task_concurrency_per_dagrun_for_first(self, dag_maker):
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        session = settings.Session()
+
+        dag_id = (
+            "SchedulerJobTest"
+            ".test_find_executable_task_instances_not_enough_task_concurrency_per_dagrun_for_first"
+        )
+
+        with dag_maker(dag_id=dag_id):
+            op1a = EmptyOperator.partial(
+                task_id="dummy1-a", priority_weight=2, max_active_tis_per_dagrun=1
+            ).expand_kwargs([{"inputs": 1}, {"inputs": 2}])
+            op1b = EmptyOperator(task_id="dummy1-b", priority_weight=1)
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ti1a0 = dr.get_task_instance(op1a.task_id, session, map_index=0)
+        ti1a1 = dr.get_task_instance(op1a.task_id, session, map_index=1)
+        ti1b = dr.get_task_instance(op1b.task_id, session)
+        ti1a0.state = State.RUNNING
+        ti1a1.state = State.SCHEDULED
+        ti1b.state = State.SCHEDULED
+        session.flush()
+
+        # Schedule ti with lower priority,
+        # because the one with higher priority is limited by a concurrency limit
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        assert 1 == len(res)
+        assert res[0].key == ti1b.key
+
+        session.rollback()
+
     def test_find_executable_task_instances_negative_open_pool_slots(self, dag_maker):
         """
         Pools with negative open slots should not block other pools.
@@ -1419,7 +1481,9 @@ class TestSchedulerJob:
         session.flush()
 
         assert State.RUNNING == dr1.state
-        assert 2 == DAG.get_num_task_instances(dag_id, dag.task_ids, states=[State.RUNNING], session=session)
+        assert 2 == DAG.get_num_task_instances(
+            dag_id, task_ids=dag.task_ids, states=[State.RUNNING], session=session
+        )
 
         # create second dag run
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
@@ -1440,7 +1504,7 @@ class TestSchedulerJob:
         ti3.refresh_from_db()
         ti4.refresh_from_db()
         assert 3 == DAG.get_num_task_instances(
-            dag_id, dag.task_ids, states=[State.RUNNING, State.QUEUED], session=session
+            dag_id, task_ids=dag.task_ids, states=[State.RUNNING, State.QUEUED], session=session
         )
         assert State.RUNNING == ti1.state
         assert State.RUNNING == ti2.state
@@ -4104,6 +4168,54 @@ class TestSchedulerJob:
         """
         with dag_maker(dag_id="test_scheduler_process_execute_task_with_max_active_tis_per_dag"):
             BashOperator(task_id="dummy", max_active_tis_per_dag=2, bash_command="echo Hi")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        self.job_runner.processor_agent = mock.MagicMock()
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+        )
+        assert dr is not None
+
+        with create_session() as session:
+            ti = dr.get_task_instances(session=session)[0]
+            ti.state = state
+            ti.start_date = start_date
+            ti.end_date = end_date
+
+            self.job_runner._schedule_dag_run(dr, session)
+            assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 1
+
+            session.refresh(ti)
+            assert ti.state == State.SCHEDULED
+
+    @pytest.mark.parametrize(
+        "state,start_date,end_date",
+        [
+            [State.NONE, None, None],
+            [
+                State.UP_FOR_RETRY,
+                timezone.utcnow() - datetime.timedelta(minutes=30),
+                timezone.utcnow() - datetime.timedelta(minutes=15),
+            ],
+            [
+                State.UP_FOR_RESCHEDULE,
+                timezone.utcnow() - datetime.timedelta(minutes=30),
+                timezone.utcnow() - datetime.timedelta(minutes=15),
+            ],
+        ],
+    )
+    def test_dag_file_processor_process_task_instances_with_max_active_tis_per_dagrun(
+        self, state, start_date, end_date, dag_maker
+    ):
+        """
+        Test if _process_task_instances puts the right task instances into the
+        mock_list.
+        """
+        with dag_maker(dag_id="test_scheduler_process_execute_task_with_max_active_tis_per_dagrun"):
+            BashOperator(task_id="dummy", max_active_tis_per_dagrun=2, bash_command="echo Hi")
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
