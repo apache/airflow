@@ -19,7 +19,7 @@
 
 import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
-import type { TaskState } from "src/types";
+import type { TaskState, MinimalTaskInstance } from "src/types";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import { getMetaValue } from "../utils";
 
@@ -74,7 +74,9 @@ const useMarkTaskDryRun = ({
       mapIndexes.forEach((mi: number) => {
         params.append("map_index", mi.toString());
       });
-      return axios.get<AxiosResponse, string[]>(confirmUrl, { params });
+      return axios.get<AxiosResponse, MinimalTaskInstance[]>(confirmUrl, {
+        params,
+      });
     }
   );
 
