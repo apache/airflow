@@ -1636,6 +1636,43 @@ class TestSchedulerJob:
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
 
+    def test_fail_stuck_queued_tasks(self, dag_maker, session):
+        with dag_maker("test_fail_stuck_queued_tasks"):
+            op1 = EmptyOperator(task_id="op1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.commit()
+        executor = MagicMock()
+        executor.cleanup_stuck_queued_tasks = mock.MagicMock()
+        scheduler_job = Job(executor=executor)
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        job_runner._task_queued_timeout = 300
+
+        job_runner._fail_tasks_stuck_in_queued()
+
+        job_runner.job.executor.cleanup_stuck_queued_tasks.assert_called_once()
+
+    def test_fail_stuck_queued_tasks_raises_not_implemented(self, dag_maker, session, caplog):
+        with dag_maker("test_fail_stuck_queued_tasks"):
+            op1 = EmptyOperator(task_id="op1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.commit()
+        from airflow.executors.local_executor import LocalExecutor
+
+        scheduler_job = Job(executor=LocalExecutor())
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        job_runner._task_queued_timeout = 300
+        with caplog.at_level(logging.DEBUG):
+            job_runner._fail_tasks_stuck_in_queued()
+        assert "Executor doesn't support cleanup of stuck queued tasks. Skipping." in caplog.text
+
     @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
     def test_executor_end_called(self, mock_processor_agent):
         """
@@ -2201,7 +2238,6 @@ class TestSchedulerJob:
         advance_execution_date=False,
         session=None,
     ):
-
         """
         Helper for testing DagRun states with simple two-task DAGs.
         This is hackish: a dag run is created but its tasks are
@@ -3040,7 +3076,6 @@ class TestSchedulerJob:
 
         default_args = {"depends_on_past": False, "start_date": start_date}
         with dag_maker(dag_name1, schedule="* * * * *", max_active_runs=1, default_args=default_args) as dag1:
-
             run_this_1 = EmptyOperator(task_id="run_this_1")
             run_this_2 = EmptyOperator(task_id="run_this_2")
             run_this_2.set_upstream(run_this_1)
@@ -4660,6 +4695,7 @@ class TestSchedulerJob:
         Note: This doesn't currently account for tasks that go into retry -- the scheduler would be detected
         as idle in that circumstance
         """
+
         # Spy on _do_scheduling and _process_executor_events so we can notice
         # if nothing happened, and abort early! Given we are using
         # SequentialExecutor this shouldn't be possible -- if there is nothing
@@ -5168,7 +5204,6 @@ class TestSchedulerJobQueriesCount:
                 ("core", "min_serialized_dag_fetch_interval"): "100",
             }
         ):
-
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             dagbag.sync_to_db()
 
