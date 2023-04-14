@@ -234,6 +234,11 @@ class AirflowConfigParser(ConfigParser):
         ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
         ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
         ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
+        ("scheduler", "task_queued_timeout_check_interval"): (
+            "kubernetes_executor",
+            "worker_pods_pending_timeout_check_interval",
+            "2.6.0",
+        ),
     }
 
     # A mapping of new configurations to a list of old configurations for when one configuration
