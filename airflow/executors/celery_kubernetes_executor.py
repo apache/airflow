@@ -199,6 +199,14 @@ class CeleryKubernetesExecutor(LoggingMixin):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return [
+            *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
+            *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
+        ]
+
     def end(self) -> None:
         """End celery and kubernetes executor."""
         self.celery_executor.end()

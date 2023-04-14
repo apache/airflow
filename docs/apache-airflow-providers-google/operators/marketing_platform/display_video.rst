@@ -27,29 +27,6 @@ Prerequisite Tasks
 
 .. _howto/operator:GoogleDisplayVideo360CreateReportOperator:
 
-Creating a report
-^^^^^^^^^^^^^^^^^
-
-This Operator is Deprecated and will be removed soon. Please look at ``GoogleDisplayVideo360CreateQueryOperator``.
-
-To create Display&Video 360 report use
-:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateReportOperator`.
-
-.. exampleinclude:: /../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_createquery_report_operator]
-    :end-before: [END howto_google_display_video_createquery_report_operator]
-
-Use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateReportOperator`
-parameters which allow you to dynamically determine values. You can provide body definition using ``
-.json`` file as this operator supports this template extension.
-The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
-
-.. _howto/operator:GoogleDisplayVideo360DeleteReportOperator:
-
-
 Creating a Query
 ^^^^^^^^^^^^^^^^
 
@@ -86,7 +63,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allow you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
 
-.. _howto/operator:GoogleDisplayVideo360RunQuerySensor:
+.. _howto/operator:GoogleDisplayVideo360DeleteReportOperator:
 
 Deleting a report
 ^^^^^^^^^^^^^^^^^
@@ -97,35 +74,14 @@ To delete Display&Video 360 report use
 .. exampleinclude:: /../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_google_display_video_deletequery_report_operator]
-    :end-before: [END howto_google_display_video_deletequery_report_operator]
+    :start-after: [START howto_google_display_video_delete_query_report_operator]
+    :end-before: [END howto_google_display_video_delete_query_report_operator]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`
 parameters which allow you to dynamically determine values.
 
-.. _howto/operator:GoogleDisplayVideo360ReportSensor:
-
-Waiting for report
-^^^^^^^^^^^^^^^^^^
-
-This Operator is Deprecated and will be removed soon. Please look:
-.. _howto/operators:GoogleDisplayVideo360RunQuerySensor
-
-To wait for the report use
-:class:`~airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor`.
-
-.. exampleinclude:: /../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_wait_report_operator]
-    :end-before: [END howto_google_display_video_wait_report_operator]
-
-Use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor`
-parameters which allow you to dynamically determine values.
-
-.. _howto/operator:GoogleDisplayVideo360DownloadReportOperator:
+.. _howto/operator:GoogleDisplayVideo360RunQuerySensor:
 
 Waiting for query
 ^^^^^^^^^^^^^^^^^
@@ -148,44 +104,18 @@ parameters which allow you to dynamically determine values.
 Downloading a report
 ^^^^^^^^^^^^^^^^^^^^
 
-This Operator is Deprecated and will be removed soon. Please look:
-.. _howto/operators:GoogleDisplayVideo360DownloadReportV2Operator
-
 To download a report to GCS bucket use
-:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportOperator`.
+:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportV2Operator`.
 
 .. exampleinclude:: /../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_google_display_video_getquery_report_operator]
-    :end-before: [END howto_google_display_video_getquery_report_operator]
+    :start-after: [START howto_google_display_video_get_report_operator]
+    :end-before: [END howto_google_display_video_get_report_operator]
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportV2Operator`
 parameters which allow you to dynamically determine values.
-
-
-.. _howto/operator:GoogleDisplayVideo360RunReportOperator:
-
-Running a report
-^^^^^^^^^^^^^^^^
-
-This Operator is Deprecated and will be removed soon. Please look:
-.. _howto/operators:GoogleDisplayVideo360RunQueryOperator
-
-To run Display&Video 360 report use
-:class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunReportOperator`.
-
-.. exampleinclude:: /../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_google_display_video_runquery_report_operator]
-    :end-before: [END howto_google_display_video_runquery_report_operator]
-
-Use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunReportOperator`
-parameters which allow you to dynamically determine values.
-
 
 .. _howto/operator:GoogleDisplayVideo360DownloadLineItemsOperator:
 
