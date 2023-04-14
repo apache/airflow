@@ -200,8 +200,8 @@ _PARTIAL_DEFAULTS = {
     "retry_exponential_backoff": False,
     "priority_weight": DEFAULT_PRIORITY_WEIGHT,
     "weight_rule": DEFAULT_WEIGHT_RULE,
-    "inlets": (),
-    "outlets": (),
+    "inlets": [],
+    "outlets": [],
 }
 
 
