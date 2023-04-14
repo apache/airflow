@@ -618,7 +618,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                                 "Not scheduling since DAG max_active_tasks limit is reached."
                             )
 
-                        if task.max_active_tis_per_dag:
+                        if task.max_active_tis_per_dag is not None:
                             num_running_task_instances_in_task = DAG.get_num_task_instances(
                                 dag_id=self.dag_id,
                                 task_ids=[task.task_id],
@@ -631,7 +631,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                                     "Not scheduling since Task concurrency limit is reached."
                                 )
 
-                        if task.max_active_tis_per_dagrun:
+                        if task.max_active_tis_per_dagrun is not None:
                             num_running_task_instances_in_task_dagrun = DAG.get_num_task_instances(
                                 dag_id=self.dag_id,
                                 run_id=ti.run_id,

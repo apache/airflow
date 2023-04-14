@@ -29,7 +29,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, Iterator
+from typing import TYPE_CHECKING, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -255,7 +255,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             < scheduler_health_check_threshold
         )
 
-    def __get_concurrency_maps(self, states: list[TaskInstanceState], session: Session) -> ConcurrencyMap:
+    def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
         """
         Get the concurrency maps.
 
@@ -266,7 +266,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.query(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
             .filter(TI.state.in_(states))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
-        ).all()
+        )
         return ConcurrencyMap.from_concurrency_map(
             {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
         )
@@ -323,7 +323,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        concurrency_map = self.__get_concurrency_maps(states=list(EXECUTION_STATES), session=session)
+        concurrency_map = self.__get_concurrency_maps(states=EXECUTION_STATES, session=session)
 
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
