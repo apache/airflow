@@ -552,10 +552,12 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     if not check_backend_and_executor_compatibility(shell_params):
         msg = [
-            f"{backend} : {', '.join(executors)}\n" for backend, executors in ALLOWED_EXECUTORS_FOR_A_BACKEND
+            f"{backend} : {', '.join(executors)}\n"
+            for backend, executors in ALLOWED_EXECUTORS_FOR_A_BACKEND.items()
         ]
         get_console().print(
-            f"\n[error]{shell_params.backend} in not compatible with {shell_params.executor}"
+            f"\n[error]backend: {shell_params.backend} in not"
+            f" compatible with executor: {shell_params.executor}"
             f"Please refer to below list for compatibility[/]\n"
             f"{''.join(msg)}"
         )
