@@ -35,17 +35,39 @@ import {
   AccordionPanel,
   AccordionItem,
   AccordionIcon,
-  Code,
 } from "@chakra-ui/react";
 
 import { useContainerRef } from "src/context/containerRef";
+import { Table } from "src/components/Table";
+import type { MinimalTaskInstance } from "src/types";
 
 interface Props extends ModalProps {
-  affectedTasks?: string[];
+  affectedTasks?: MinimalTaskInstance[];
   header: ReactNode | string;
   subheader?: ReactNode | string;
   submitButton: ReactNode;
 }
+
+const columns = [
+  {
+    Header: "Task name",
+    accessor: "taskId",
+  },
+  {
+    Header: "Map Index",
+    accessor: "mapIndex",
+  },
+  {
+    Header: "Run Id",
+    accessor: "runId",
+  },
+];
+
+const AffectedTasksTable = ({
+  affectedTasks,
+}: {
+  affectedTasks: MinimalTaskInstance[];
+}) => <Table data={affectedTasks} columns={columns} />;
 
 const ActionModal = ({
   isOpen,
@@ -87,11 +109,7 @@ const ActionModal = ({
                 </AccordionButton>
                 <AccordionPanel>
                   <Box maxHeight="400px" overflowY="auto">
-                    {(affectedTasks || []).map((ti) => (
-                      <Code width="100%" key={ti} fontSize="lg">
-                        {ti}
-                      </Code>
-                    ))}
+                    <AffectedTasksTable affectedTasks={affectedTasks} />
                   </Box>
                 </AccordionPanel>
               </AccordionItem>
