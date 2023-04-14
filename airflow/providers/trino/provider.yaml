@@ -21,6 +21,7 @@ name: Trino
 description: |
     `Trino <https://trino.io/>`__
 
+suspended: false
 versions:
   - 4.3.2
   - 4.3.1

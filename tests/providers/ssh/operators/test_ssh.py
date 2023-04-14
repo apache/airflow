@@ -28,6 +28,7 @@ from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
+from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = "unit_tests_ssh_test_op"
@@ -66,18 +67,30 @@ class TestSSHOperator:
             exec_ssh_client_command.return_value = (0, b"airflow", "")
             yield exec_ssh_client_command
 
-    def test_hook_created_correctly(self):
+    @pytest.mark.parametrize(
+        "cmd_timeout, cmd_timeout_expected",
+        [(45, 45), ("Not Set", 10), (None, None)],
+    )
+    def test_hook_created_correctly(self, cmd_timeout, cmd_timeout_expected):
         conn_timeout = 20
-        cmd_timeout = 45
-        task = SSHOperator(
-            task_id="test",
-            command=COMMAND,
-            conn_timeout=conn_timeout,
-            cmd_timeout=cmd_timeout,
-            ssh_conn_id="ssh_default",
-        )
+        if cmd_timeout == "Not Set":
+            task = SSHOperator(
+                task_id="test",
+                command=COMMAND,
+                conn_timeout=conn_timeout,
+                ssh_conn_id="ssh_default",
+            )
+        else:
+            task = SSHOperator(
+                task_id="test",
+                command=COMMAND,
+                conn_timeout=conn_timeout,
+                cmd_timeout=cmd_timeout,
+                ssh_conn_id="ssh_default",
+            )
         ssh_hook = task.get_hook()
         assert conn_timeout == ssh_hook.conn_timeout
+        assert cmd_timeout_expected == ssh_hook.cmd_timeout
         assert "ssh_default" == ssh_hook.ssh_conn_id
 
     @pytest.mark.parametrize(
@@ -96,7 +109,7 @@ class TestSSHOperator:
             result = task.execute(None)
             assert result == expected
             self.exec_ssh_client_command.assert_called_with(
-                mock.ANY, COMMAND, timeout=10, environment={"TEST": "value"}, get_pty=False
+                mock.ANY, COMMAND, timeout=NOTSET, environment={"TEST": "value"}, get_pty=False
             )
 
     @mock.patch("os.environ", {"AIRFLOW_CONN_" + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})

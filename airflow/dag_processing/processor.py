@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import logging
 import multiprocessing
 import os
@@ -50,6 +51,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.file import iter_airflow_imports
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -187,8 +189,24 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
     def start(self) -> None:
         """Launch the process and start processing the DAG."""
-        start_method = self._get_multiprocessing_start_method()
-        context = multiprocessing.get_context(start_method)
+        if conf.getboolean("scheduler", "parsing_pre_import_modules", fallback=True):
+            # Read the file to pre-import airflow modules used.
+            # This prevents them from being re-imported from zero in each "processing" process
+            # and saves CPU time and memory.
+            for module in iter_airflow_imports(self.file_path):
+                try:
+                    importlib.import_module(module)
+                except Exception as e:
+                    # only log as warning because an error here is not preventing anything from working, and
+                    # if it's serious, it's going to be surfaced to the user when the dag is actually parsed.
+                    self.log.warning(
+                        "Error when trying to pre-import module '%s' found in %s: %s",
+                        module,
+                        self.file_path,
+                        e,
+                    )
+
+        context = self._get_multiprocessing_context()
 
         _parent_channel, _child_channel = context.Pipe(duplex=False)
         process = context.Process(
@@ -646,7 +664,7 @@ class DagFileProcessor(LoggingMixin):
     ) -> None:
         """
         Execute on failure callbacks.
-        These objects can come from SchedulerJob or from DagFileProcessorManager.
+        These objects can come from SchedulerJobRunner or from DagProcessorJobRunner.
 
         :param dagbag: Dag Bag of dags
         :param callback_requests: failure callbacks to execute
@@ -806,19 +824,13 @@ class DagFileProcessor(LoggingMixin):
         self.execute_callbacks(dagbag, callback_requests, session)
         session.commit()
 
-        # Save individual DAGs in the ORM
-        dagbag.sync_to_db(processor_subdir=self._dag_directory, session=session)
-        session.commit()
+        serialize_errors = DagFileProcessor.save_dag_to_db(
+            dags=dagbag.dags,
+            dag_directory=self._dag_directory,
+            pickle_dags=pickle_dags,
+        )
 
-        if pickle_dags:
-            paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
-
-            unpaused_dags: list[DAG] = [
-                dag for dag_id, dag in dagbag.dags.items() if dag_id not in paused_dag_ids
-            ]
-
-            for dag in unpaused_dags:
-                dag.pickle(session)
+        dagbag.import_errors.update(dict(serialize_errors))
 
         # Record import errors into the ORM
         try:
@@ -837,3 +849,28 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Error logging DAG warnings.")
 
         return len(dagbag.dags), len(dagbag.import_errors)
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def save_dag_to_db(
+        dags: dict[str, DAG],
+        dag_directory: str,
+        pickle_dags: bool = False,
+        session=NEW_SESSION,
+    ):
+
+        import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
+        session.commit()
+
+        dag_ids = list(dags)
+
+        if pickle_dags:
+            paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dag_ids)
+
+            unpaused_dags: list[DAG] = [dag for dag_id, dag in dags.items() if dag_id not in paused_dag_ids]
+
+            for dag in unpaused_dags:
+                dag.pickle(session)
+
+        return import_errors

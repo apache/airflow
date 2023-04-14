@@ -25,7 +25,6 @@ from typing import Any, Callable
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
-from airflow.models import Variable, XCom
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -35,14 +34,18 @@ log = logging.getLogger(__name__)
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DagModel
+    from airflow.models.dagwarning import DagWarning
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
+        DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
         DagFileProcessorManager.clear_nonexistent_import_errors,
+        DagWarning.purge_inactive_dag_warnings,
         XCom.get_value,
         XCom.get_one,
         XCom.get_many,
@@ -50,6 +53,13 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.set,
         Variable.update,
         Variable.delete,
+        Trigger.from_object,
+        Trigger.bulk_fetch,
+        Trigger.clean_unused,
+        Trigger.submit_event,
+        Trigger.submit_failure,
+        Trigger.ids_for_triggerer,
+        Trigger.assign_unassigned,
     ]
     return {f"{func.__module__}.{func.__qualname__}": func for func in functions}
 
@@ -73,7 +83,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     try:
         if body.get("params"):
             params_json = json.loads(str(body.get("params")))
-            params = BaseSerialization.deserialize(params_json)
+            params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
     except Exception as err:
         log.error("Error deserializing parameters.")
         log.error(err)
@@ -82,7 +92,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     log.debug("Calling method %.", {method_name})
     try:
         output = handler(**params)
-        output_json = BaseSerialization.serialize(output)
+        output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
         log.debug("Returning response")
         return Response(
             response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}

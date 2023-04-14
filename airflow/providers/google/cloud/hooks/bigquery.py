@@ -34,6 +34,7 @@ from typing import Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.api_core.page_iterator import HTTPIterator
 from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -46,7 +47,7 @@ from google.cloud.bigquery import (
     SchemaField,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
-from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
+from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
@@ -240,8 +241,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query. The DbApiHook method must be overridden because Pandas
         doesn't support PEP 249 connections, except for SQLite. See:
 
-        https://github.com/pydata/pandas/blob/master/pandas/io/sql.py#L447
-        https://github.com/pydata/pandas/issues/6900
+        https://github.com/pandas-dev/pandas/blob/055d008615272a1ceca9720dc365a2abd316f353/pandas/io/sql.py#L415
+        https://github.com/pandas-dev/pandas/issues/6900
 
         :param sql: The BigQuery SQL to execute.
         :param parameters: The parameters to render the SQL query with (not
@@ -1006,7 +1007,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         max_results: int | None = None,
         page_token: str | None = None,
         retry: Retry = DEFAULT_RETRY,
-    ) -> list[DatasetListItem]:
+        return_iterator: bool = False,
+    ) -> list[DatasetListItem] | HTTPIterator:
         """
         Method returns full list of BigQuery datasets in the current project
 
@@ -1026,8 +1028,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ``next_page_token`` of the :class:`~google.api_core.page_iterator.HTTPIterator`.
         :param page_token: str
         :param retry: How to retry the RPC.
+        :param return_iterator: Instead of returning a list[Row], returns a HTTPIterator
+            which can be used to obtain the next_page_token property.
         """
-        datasets = self.get_client(project_id=project_id).list_datasets(
+        iterator = self.get_client(project_id=project_id).list_datasets(
             project=project_id,
             include_all=include_all,
             filter=filter_,
@@ -1035,8 +1039,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             page_token=page_token,
             retry=retry,
         )
-        datasets_list = list(datasets)
 
+        # If iterator is requested, we cannot perform a list() on it to log the number
+        # of datasets because we will have started iteration
+        if return_iterator:
+            return iterator
+
+        datasets_list = list(iterator)
         self.log.info("Datasets List: %s", len(datasets_list))
         return datasets_list
 
@@ -1232,7 +1241,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         start_index: int | None = None,
         project_id: str | None = None,
         location: str | None = None,
-    ) -> list[Row]:
+        retry: Retry = DEFAULT_RETRY,
+        return_iterator: bool = False,
+    ) -> list[Row] | RowIterator:
         """
         List the rows of the table.
         See https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
@@ -1247,6 +1258,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param start_index: zero based index of the starting row to read.
         :param project_id: Project ID for the project which the client acts on behalf of.
         :param location: Default location for job.
+        :param retry: How to retry the RPC.
+        :param return_iterator: Instead of returning a list[Row], returns a RowIterator
+            which can be used to obtain the next_page_token property.
         :return: list of rows
         """
         location = location or self.location
@@ -1265,14 +1279,17 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
 
-        result = self.get_client(project_id=project_id, location=location).list_rows(
+        iterator = self.get_client(project_id=project_id, location=location).list_rows(
             table=Table.from_api_repr(table),
             selected_fields=selected_fields,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
+            retry=retry,
         )
-        return list(result)
+        if return_iterator:
+            return iterator
+        return list(iterator)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_schema(self, dataset_id: str, table_id: str, project_id: str | None = None) -> dict:
@@ -2455,7 +2472,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_dataset_tables_list(*args, **kwargs)
 
-    def get_datasets_list(self, *args, **kwargs) -> list:
+    def get_datasets_list(self, *args, **kwargs) -> list | HTTPIterator:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`
@@ -3047,6 +3064,24 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_client = await self.get_job_instance(project_id, job_id, session)
             job_query_response = await job_client.get_query_results(cast(Session, session))
             return job_query_response
+
+    async def create_job_for_partition_get(
+        self,
+        dataset_id: str | None,
+        project_id: str | None = None,
+    ):
+        """Create a new job and get the job_id using gcloud-aio."""
+        async with ClientSession() as session:
+            self.log.info("Executing create_job..")
+            job_client = await self.get_job_instance(project_id, "", session)
+
+            query_request = {
+                "query": "SELECT partition_id "
+                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`",
+                "useLegacySql": False,
+            }
+            job_query_resp = await job_client.query(query_request, cast(Session, session))
+            return job_query_resp["jobReference"]["jobId"]
 
     def get_records(self, query_results: dict[str, Any]) -> list[Any]:
         """

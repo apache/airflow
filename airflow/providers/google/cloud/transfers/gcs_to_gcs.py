@@ -150,7 +150,7 @@ class GCSToGCSOperator(BaseOperator):
         )
 
     The following Operator would move all the Avro files from ``sales/sales-2019``
-     and ``sales/sales-2020` folder in ``data`` bucket to the same folder in the
+     and ``sales/sales-2020`` folder in ``data`` bucket to the same folder in the
      ``data_backup`` bucket, deleting the original files in the process. ::
 
         move_files = GCSToGCSOperator(
@@ -374,7 +374,7 @@ class GCSToGCSOperator(BaseOperator):
 
     def _copy_file(self, hook, source_object):
         destination_object = self.destination_object or source_object
-        if self.destination_object[-1] == "/":
+        if self.destination_object and self.destination_object[-1] == "/":
             file_name = source_object.split("/")[-1]
             destination_object += file_name
         self._copy_single_object(

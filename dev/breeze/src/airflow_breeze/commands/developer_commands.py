@@ -312,6 +312,11 @@ def start_airflow(
     "Implies --clean-build",
     is_flag=True,
 )
+@click.option(
+    "--one-pass-only",
+    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
+    is_flag=True,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -320,6 +325,7 @@ def build_docs(
     spellcheck_only: bool,
     for_production: bool,
     clean_build: bool,
+    one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
@@ -554,8 +560,14 @@ def enter_shell(**kwargs) -> RunCommandResult:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            get_console().print("\n[error]MySQL is not supported on ARM architecture.[/]\n")
-            sys.exit(1)
+            if shell_params.mysql_version == "8":
+                get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+            else:
+                get_console().print(
+                    f"\n[error]Only MySQL 8.0 is supported on ARM architecture, "
+                    f"but got {shell_params.mysql_version}[/]\n"
+                )
+                sys.exit(1)
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)

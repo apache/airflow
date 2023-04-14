@@ -461,7 +461,8 @@ environment with enabled integrations and in the CI. See `CI <CI.rst>`_ for deta
 When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
 switch when starting Breeze. You can specify multiple integrations by repeating the ``--integration`` switch
-or using the ``--integration all`` switch that enables all integrations.
+or using the ``--integration all-testable`` switch that enables all testable integrations and
+``--integration all`` switch that enables all integrations.
 
 NOTE: Every integration requires a separate container with the corresponding integration image.
 These containers take precious resources on your PC, mainly the memory. The started integrations are not stopped
@@ -500,11 +501,17 @@ To start ``mongo`` and ``cassandra`` integrations, enter:
 
     breeze --integration mongo --integration cassandra
 
+To start all testable integrations, enter:
+
+.. code-block:: bash
+
+    breeze --integration all-testable
+
 To start all integrations, enter:
 
 .. code-block:: bash
 
-    breeze --integration all
+    breeze --integration all-testable
 
 Note that Kerberos is a special kind of integration. Some tests run differently when
 Kerberos integration is enabled (they retrieve and use a Kerberos authentication token) and differently when the
@@ -569,7 +576,7 @@ Runs all integration tests:
 
   .. code-block:: bash
 
-       breeze testing integration-tests  --db-reset --integration all
+       breeze testing integration-tests  --db-reset --integration all-testable
 
 Runs all mongo DB tests:
 
@@ -1147,15 +1154,15 @@ The virtualenv required will be created automatically when the scripts are run.
     ========================================================================================= test session starts ==========================================================================================
     platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/python
     cachedir: .pytest_cache
-    rootdir: /Users/jarek/IdeaProjects/airflow, configfile: pytest.ini
+    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes_tests
     plugins: anyio-3.6.1, instafail-0.4.2, xdist-2.5.0, forked-1.4.0, timeouts-1.2.1, cov-3.0.0
     setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
     collected 55 items
 
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
 
 8b) You can enter an interactive shell to run tests one-by-one
 
@@ -1232,11 +1239,12 @@ and this is where KUBECONFIG env should point to.
 
 You can iterate with tests while you are in the virtualenv. All the tests requiring Kubernetes cluster
 are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
-print output generated test logs and print statements to the terminal immediately.
+print output generated test logs and print statements to the terminal immediately. You should have
+kubernetes_tests as your working directory.
 
 .. code-block:: bash
 
-    pytest kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+    pytest test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
 
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 Airflow to KinD cluster.

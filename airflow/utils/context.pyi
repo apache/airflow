@@ -37,6 +37,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
 
 KNOWN_CONTEXT_KEYS: set[str]
@@ -57,7 +60,7 @@ class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any
     dag: DAG
-    dag_run: DagRun
+    dag_run: DagRun | DagRunPydantic
     data_interval_end: DateTime
     data_interval_start: DateTime
     ds: str
@@ -82,14 +85,14 @@ class Context(TypedDict, total=False):
     prev_start_date_success: DateTime | None
     run_id: str
     task: BaseOperator
-    task_instance: TaskInstance
+    task_instance: TaskInstance | TaskInstancePydantic
     task_instance_key_str: str
     test_mode: bool
     templates_dict: Mapping[str, Any] | None
-    ti: TaskInstance
+    ti: TaskInstance | TaskInstancePydantic
     tomorrow_ds: str
     tomorrow_ds_nodash: str
-    triggering_dataset_events: Mapping[str, Collection[DatasetEvent]]
+    triggering_dataset_events: Mapping[str, Collection[DatasetEvent | DatasetEventPydantic]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str

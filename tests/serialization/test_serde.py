@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import enum
 from dataclasses import dataclass
+from importlib import import_module
 from typing import ClassVar
 
 import attr
@@ -30,13 +31,18 @@ from airflow.serialization.serde import (
     DATA,
     SCHEMA_ID,
     VERSION,
-    _compile_patterns,
+    _get_patterns,
     _match,
     deserialize,
     serialize,
 )
-from airflow.utils.module_loading import qualname
+from airflow.utils.module_loading import import_string, iter_namespace, qualname
 from tests.test_utils.config import conf_vars
+
+
+@pytest.fixture()
+def recalculate_patterns():
+    _get_patterns.cache_clear()
 
 
 class Z:
@@ -74,12 +80,17 @@ class W:
     x: int
 
 
-class TestSerDe:
-    @pytest.fixture(autouse=True)
-    def ensure_clean_allow_list(self):
-        _compile_patterns()
-        yield
+@dataclass
+class V:
+    __version__: ClassVar[int] = 1
+    w: W
+    s: list
+    t: tuple
+    c: int
 
+
+@pytest.mark.usefixtures("recalculate_patterns")
+class TestSerDe:
     def test_ser_primitives(self):
         i = 10
         e = serialize(i)
@@ -102,17 +113,34 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
-    def test_ser_iterables(self):
+    def test_ser_collections(self):
         i = [1, 2]
-        e = serialize(i)
+        e = deserialize(serialize(i))
         assert i == e
 
         i = ("a", "b", "a", "c")
-        e = serialize(i)
+        e = deserialize(serialize(i))
         assert i == e
 
         i = {2, 3}
-        e = serialize(i)
+        e = deserialize(serialize(i))
+        assert i == e
+
+        i = frozenset({6, 7})
+        e = deserialize(serialize(i))
+        assert i == e
+
+    def test_der_collections_compat(self):
+        i = [1, 2]
+        e = deserialize(i)
+        assert i == e
+
+        i = ("a", "b", "a", "c")
+        e = deserialize(i)
+        assert i == e
+
+        i = {2, 3}
+        e = deserialize(i)
         assert i == e
 
     def test_ser_plain_dict(self):
@@ -173,8 +201,8 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "airflow[.].*",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_for_imports(self):
-        _compile_patterns()
         i = Z(10)
         e = serialize(i)
         with pytest.raises(ImportError) as ex:
@@ -187,8 +215,8 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "tests.*",
         }
     )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_replace(self):
-        _compile_patterns()
         assert _match("tests.airflow.deep")
         assert _match("testsfault") is False
 
@@ -232,3 +260,52 @@ class TestSerDe:
         dataset = Dataset("mytest://dataset")
         obj = deserialize(serialize(dataset))
         assert dataset.uri == obj.uri
+
+    def test_serializers_importable_and_str(self):
+        """test if all distributed serializers are lazy loading and can be imported"""
+        import airflow.serialization.serializers
+
+        for _, name, _ in iter_namespace(airflow.serialization.serializers):
+            mod = import_module(name)
+            for s in getattr(mod, "serializers", list()):
+                if not isinstance(s, str):
+                    raise TypeError(f"{s} is not of type str. This is required for lazy loading")
+                try:
+                    import_string(s)
+                except ImportError:
+                    raise AttributeError(f"{s} cannot be imported (located in {name})")
+
+    def test_stringify(self):
+        i = V(W(10), ["l1", "l2"], (1, 2), 10)
+        e = serialize(i)
+        s = deserialize(e, full=False)
+
+        assert f"{qualname(V)}@version={V.__version__}" in s
+        # asdict from dataclasses removes class information
+        assert "w={'x': 10}" in s
+        assert "s=['l1', 'l2']" in s
+        assert "t=(1,2)" in s
+        assert "c=10" in s
+        e["__data__"]["t"] = (1, 2)
+
+        s = deserialize(e, full=False)
+
+    @pytest.mark.parametrize(
+        "obj, expected",
+        [
+            (
+                Z(10),
+                {
+                    "__classname__": "tests.serialization.test_serde.Z",
+                    "__version__": 1,
+                    "__data__": {"x": 10},
+                },
+            ),
+            (
+                W(2),
+                {"__classname__": "tests.serialization.test_serde.W", "__version__": 2, "__data__": {"x": 2}},
+            ),
+        ],
+    )
+    def test_serialized_data(self, obj, expected):
+        assert expected == serialize(obj)

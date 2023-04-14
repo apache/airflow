@@ -28,13 +28,13 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_operators import MockOperator
+from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
 
 
 def test_task_mapping_with_dag():
@@ -83,6 +83,20 @@ def test_task_mapping_default_args():
 
     assert mapped.partial_kwargs["owner"] == "test"
     assert mapped.start_date == pendulum.instance(default_args["start_date"])
+
+
+def test_task_mapping_override_default_args():
+    default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
+    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+        literal = ["a", "b", "c"]
+        mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
+
+    # retries should be 1 because it is provided as a partial arg
+    assert mapped.partial_kwargs["retries"] == 1
+    # start_date should be equal to default_args["start_date"] because it is not provided as partial arg
+    assert mapped.start_date == pendulum.instance(default_args["start_date"])
+    # owner should be equal to Airflow default owner (airflow) because it is not provided at all
+    assert mapped.owner == "airflow"
 
 
 def test_map_unknown_arg_raises():
@@ -388,7 +402,9 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
 def test_mapped_render_nested_template_fields(dag_maker, session):
     with dag_maker(session=session):
-        MockOperator.partial(task_id="t").expand(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
+        MockOperatorWithNestedFields.partial(
+            task_id="t", arg2=NestedFields(field_1="{{ ti.task_id }}", field_2="value_2")
+        ).expand(arg1=["{{ ti.task_id }}", ["s", "{{ ti.task_id }}"]])
 
     dr = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions()
@@ -398,10 +414,14 @@ def test_mapped_render_nested_template_fields(dag_maker, session):
     ti = tis[("t", 0)]
     ti.run(session=session)
     assert ti.task.arg1 == "t"
+    assert ti.task.arg2.field_1 == "t"
+    assert ti.task.arg2.field_2 == "value_2"
 
     ti = tis[("t", 1)]
     ti.run(session=session)
     assert ti.task.arg1 == ["s", "t"]
+    assert ti.task.arg2.field_1 == "t"
+    assert ti.task.arg2.field_2 == "value_2"
 
 
 @pytest.mark.parametrize(

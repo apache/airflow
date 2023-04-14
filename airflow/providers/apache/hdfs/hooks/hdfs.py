@@ -51,7 +51,10 @@ class HDFSHook(BaseHook):
     hook_name = "HDFS"
 
     def __init__(
-        self, hdfs_conn_id: str = "hdfs_default", proxy_user: str | None = None, autoconfig: bool = False
+        self,
+        hdfs_conn_id: str | set[str] = "hdfs_default",
+        proxy_user: str | None = None,
+        autoconfig: bool = False,
     ):
         super().__init__()
         if not snakebite_loaded:
@@ -60,7 +63,7 @@ class HDFSHook(BaseHook):
                 "snakebite is not compatible with Python 3 "
                 "(as of August 2015). Please help by submitting a PR!"
             )
-        self.hdfs_conn_id = hdfs_conn_id
+        self.hdfs_conn_id = {hdfs_conn_id} if isinstance(hdfs_conn_id, str) else hdfs_conn_id
         self.proxy_user = proxy_user
         self.autoconfig = autoconfig
 
@@ -73,7 +76,7 @@ class HDFSHook(BaseHook):
         use_sasl = conf.get("core", "security") == "kerberos"
 
         try:
-            connections = self.get_connections(self.hdfs_conn_id)
+            connections = [self.get_connection(i) for i in self.hdfs_conn_id]
 
             if not effective_user:
                 effective_user = connections[0].login

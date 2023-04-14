@@ -45,6 +45,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :param poll_interval: polling period in seconds to check for the status
+    :param location: The location of the project.
     """
 
     def __init__(
@@ -55,6 +56,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
         delegate_to: str | None = None,
         poll_interval: float = 4.0,
+        location: str = "global",
     ):
         super().__init__()
         self.id_ = id_
@@ -67,6 +69,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
             )
         self.delegate_to = delegate_to
         self.poll_interval = poll_interval
+        self.location = location
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes CloudBuildCreateBuildTrigger arguments and classpath."""
@@ -79,6 +82,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                 "impersonation_chain": self.impersonation_chain,
                 "delegate_to": self.delegate_to,
                 "poll_interval": self.poll_interval,
+                "location": self.location,
             },
         )
 
@@ -91,6 +95,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                 cloud_build_instance = await hook.get_cloud_build(
                     id_=self.id_,
                     project_id=self.project_id,
+                    location=self.location,
                 )
                 if cloud_build_instance._pb.status in (Build.Status.SUCCESS,):
                     yield TriggerEvent(

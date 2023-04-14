@@ -307,7 +307,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
 )
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
-    dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+    dm = session.query(DagModel).filter(DagModel.is_active, DagModel.dag_id == dag_id).first()
     if not dm:
         raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
     if dm.has_import_errors:

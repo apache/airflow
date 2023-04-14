@@ -22,12 +22,11 @@ import enum
 import warnings
 from typing import Sequence
 
-from google.cloud.bigtable import Client
+from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
-from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -56,9 +55,9 @@ class BigtableHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: Client | None = None
 
-    def _get_client(self, project_id: str):
+    def _get_client(self, project_id: str) -> Client:
         if not self._client:
             self._client = Client(
                 project=project_id,
@@ -69,7 +68,7 @@ class BigtableHook(GoogleBaseHook):
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance(self, instance_id: str, project_id: str) -> Instance:
+    def get_instance(self, instance_id: str, project_id: str) -> Instance | None:
         """
         Retrieves and returns the specified Cloud Bigtable instance if it exists.
         Otherwise, returns None.
@@ -113,10 +112,10 @@ class BigtableHook(GoogleBaseHook):
         project_id: str,
         replica_clusters: list[dict[str, str]] | None = None,
         instance_display_name: str | None = None,
-        instance_type: enums.Instance.Type = enums.Instance.Type.TYPE_UNSPECIFIED,
+        instance_type: enums.Instance.Type = enums.Instance.Type.UNSPECIFIED,  # type: ignore[assignment]
         instance_labels: dict | None = None,
         cluster_nodes: int | None = None,
-        cluster_storage_type: enums.StorageType = enums.StorageType.STORAGE_TYPE_UNSPECIFIED,
+        cluster_storage_type: enums.StorageType = enums.StorageType.UNSPECIFIED,  # type: ignore[assignment]
         timeout: float | None = None,
     ) -> Instance:
         """
@@ -142,9 +141,6 @@ class BigtableHook(GoogleBaseHook):
         :param timeout: (optional) timeout (in seconds) for instance creation.
                         If None is not specified, Operator will wait indefinitely.
         """
-        cluster_storage_type = enums.StorageType(cluster_storage_type)
-        instance_type = enums.Instance.Type(instance_type)
-
         instance = Instance(
             instance_id,
             self._get_client(project_id=project_id),
@@ -200,8 +196,6 @@ class BigtableHook(GoogleBaseHook):
         :param timeout: (optional) timeout (in seconds) for instance update.
             If None is not specified, Operator will wait indefinitely.
         """
-        instance_type = enums.Instance.Type(instance_type)
-
         instance = Instance(
             instance_id=instance_id,
             client=self._get_client(project_id=project_id),
@@ -253,7 +247,10 @@ class BigtableHook(GoogleBaseHook):
             BigTable exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
         """
-        table = self.get_instance(instance_id=instance_id, project_id=project_id).table(table_id=table_id)
+        instance = self.get_instance(instance_id=instance_id, project_id=project_id)
+        if instance is None:
+            raise RuntimeError("Instance %s did not exist; unable to delete table %s" % instance_id, table_id)
+        table = instance.table(table_id=table_id)
         table.delete()
 
     @staticmethod

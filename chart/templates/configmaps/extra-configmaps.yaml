@@ -29,20 +29,23 @@ metadata:
     release: {{ $Global.Release.Name }}
     chart: "{{ $Global.Chart.Name }}-{{ $Global.Chart.Version }}"
     heritage: {{ $Global.Release.Service }}
-{{- with $Global.Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-{{- if $configMapContent.labels }}
-{{ toYaml $configMapContent.labels | indent 4 }}
-{{- end }}
+    {{- with $Global.Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if $configMapContent.labels }}
+      {{- toYaml $configMapContent.labels | nindent 4 }}
+    {{- end }}
   annotations:
     "helm.sh/hook": "pre-install,pre-upgrade"
     "helm.sh/hook-delete-policy": "before-hook-creation"
     "helm.sh/hook-weight": "0"
+    {{- if $configMapContent.annotations }}
+      {{- toYaml $configMapContent.annotations | nindent 4 }}
+    {{- end }}
 {{- if $configMapContent.data }}
 data:
   {{- with $configMapContent.data }}
-  {{- tpl . $Global | nindent 2 }}
+    {{- tpl . $Global | nindent 2 }}
   {{- end }}
 {{- end }}
 {{- end }}

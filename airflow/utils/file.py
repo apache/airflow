@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import io
 import logging
 import os
@@ -335,17 +336,32 @@ def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
-def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None):
+def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
+    """
+    Check whether a Python file contains Airflow DAGs.
+    When safe_mode is off (with False value), this function always returns True.
+
+    If might_contain_dag_callable isn't specified, it uses airflow default heuristic
+    """
+    if not safe_mode:
+        return True
+
+    might_contain_dag_callable = conf.getimport(
+        "core",
+        "might_contain_dag_callable",
+        fallback="airflow.utils.file.might_contain_dag_via_default_heuristic",
+    )
+    return might_contain_dag_callable(file_path=file_path, zip_file=zip_file)
+
+
+def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool:
     """
     Heuristic that guesses whether a Python file contains an Airflow DAG definition.
 
     :param file_path: Path to the file to be checked.
-    :param safe_mode: Is safe mode active?. If no, this function always returns True.
     :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
     :return: True, if file might contain DAGs.
     """
-    if not safe_mode:
-        return True
     if zip_file:
         with zip_file.open(file_path) as current_file:
             content = current_file.read()
@@ -356,3 +372,23 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile
             content = dag_file.read()
     content = content.lower()
     return all(s in content for s in (b"dag", b"airflow"))
+
+
+def _find_imported_modules(module: ast.Module) -> Generator[str, None, None]:
+    for st in module.body:
+        if isinstance(st, ast.Import):
+            for n in st.names:
+                yield n.name
+        elif isinstance(st, ast.ImportFrom) and st.module is not None:
+            yield st.module
+
+
+def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
+    """Find Airflow modules imported in the given file."""
+    try:
+        parsed = ast.parse(Path(file_path).read_bytes())
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return
+    for m in _find_imported_modules(parsed):
+        if m.startswith("airflow."):
+            yield m

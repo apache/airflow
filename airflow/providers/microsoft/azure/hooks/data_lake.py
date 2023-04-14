@@ -271,10 +271,10 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
         return {
             "connection_string": PasswordField(
-                lazy_gettext("ADLS gen2 Connection String (optional)"), widget=BS3PasswordFieldWidget()
+                lazy_gettext("ADLS Gen2 Connection String (optional)"), widget=BS3PasswordFieldWidget()
             ),
             "tenant_id": StringField(
-                lazy_gettext("Tenant Id (Active Directory Auth)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Tenant ID (Active Directory)"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -284,17 +284,17 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
-                "login": "ADLS gen2 Storage Login (optional)",
-                "password": "ADLS gen2 Storage Key (optional)",
-                "host": "Account Name (Active Directory Auth)",
+                "login": "Client ID (Active Directory)",
+                "password": "ADLS Gen2 Key / Client Secret (Active Directory)",
+                "host": "ADLS Gen2 Account Name",
             },
             "placeholders": {
                 "extra": "additional options for use with FileService and AzureFileVolume",
-                "login": "account name",
-                "password": "secret",
-                "host": "account url",
-                "connection_string": "connection string auth",
-                "tenant_id": "tenant",
+                "login": "client id",
+                "password": "key / secret",
+                "host": "storage account name",
+                "connection_string": "connection string (overrides auth)",
+                "tenant_id": "tenant id",
             },
         }
 
@@ -321,13 +321,13 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             app_secret = conn.password
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return DataLakeServiceClient(
-                account_url=f"https://{conn.login}.dfs.core.windows.net", credential=token_credential, **extra
+                account_url=f"https://{conn.host}.dfs.core.windows.net", credential=token_credential, **extra
             )
+
+        # otherwise, use key auth
         credential = conn.password
         return DataLakeServiceClient(
-            account_url=f"https://{conn.login}.dfs.core.windows.net",
-            credential=credential,
-            **extra,
+            account_url=f"https://{conn.host}.dfs.core.windows.net", credential=credential, **extra
         )
 
     def _get_field(self, extra_dict, field_name):

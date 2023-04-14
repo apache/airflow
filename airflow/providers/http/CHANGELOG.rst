@@ -24,6 +24,33 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+* ``Add non login-password auth support for SimpleHttpOpeator (#29206)``
+
+Bug Fixes
+~~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add HttpHookAsync for deferrable implementation (#29038)``
+
 4.1.1
 .....
 
