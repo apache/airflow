@@ -214,6 +214,7 @@ def partial(
     weight_rule: str = DEFAULT_WEIGHT_RULE,
     sla: timedelta | None = None,
     max_active_tis_per_dag: int | None = None,
+    max_active_tis_per_dagrun: int | None = None,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
@@ -274,6 +275,7 @@ def partial(
     partial_kwargs.setdefault("weight_rule", weight_rule)
     partial_kwargs.setdefault("sla", sla)
     partial_kwargs.setdefault("max_active_tis_per_dag", max_active_tis_per_dag)
+    partial_kwargs.setdefault("max_active_tis_per_dagrun", max_active_tis_per_dagrun)
     partial_kwargs.setdefault("on_execute_callback", on_execute_callback)
     partial_kwargs.setdefault("on_failure_callback", on_failure_callback)
     partial_kwargs.setdefault("on_retry_callback", on_retry_callback)
@@ -578,6 +580,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param run_as_user: unix username to impersonate while running the task
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across execution_dates.
+    :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
+        task instances per DAG run.
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -729,6 +733,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
         max_active_tis_per_dag: int | None = None,
+        max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
         inlets: Any | None = None,
@@ -872,6 +877,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
+        self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push = do_xcom_push
 
         self.doc_md = doc_md
