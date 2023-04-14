@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
+from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
@@ -343,6 +344,27 @@ def dag_list_dags(args) -> None:
             "owner": x.owner,
             "paused": x.get_is_paused(),
         },
+    )
+
+
+@cli_utils.action_cli
+@suppress_logs_and_warning
+@provide_session
+def dag_details(args, session=NEW_SESSION):
+    """Get DAG details given a DAG id"""
+    dag = DagModel.get_dagmodel(args.dag_id, session=session)
+    if not dag:
+        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+    dag_detail = dag_schema.dump(dag)
+
+    if args.output in ["table", "plain"]:
+        data = [{"property_name": key, "property_value": value} for key, value in dag_detail.items()]
+    else:
+        data = [dag_detail]
+
+    AirflowConsole().print_as(
+        data=data,
+        output=args.output,
     )
 
 
