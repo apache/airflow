@@ -1572,8 +1572,7 @@ class TestSchedulerJob:
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
 
-    def test_fail_stuck_queued_tasks(self, dag_maker):
-        session = settings.Session()
+    def test_fail_stuck_queued_tasks(self, dag_maker, session):
         with dag_maker("test_fail_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1")
 
@@ -1582,15 +1581,33 @@ class TestSchedulerJob:
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
-
-        scheduler_job = Job(executor=mock.MagicMock(slots_available=8))
+        executor = MagicMock()
+        executor.cleanup_stuck_queued_tasks = mock.MagicMock()
+        scheduler_job = Job(executor=executor)
         job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
         job_runner._task_queued_timeout = 300
-        job_runner.executor = mock.MagicMock()
 
         job_runner._fail_tasks_stuck_in_queued()
 
         job_runner.job.executor.cleanup_stuck_queued_tasks.assert_called_once()
+
+    def test_fail_stuck_queued_tasks_raises_not_implemented(self, dag_maker, session, caplog):
+        with dag_maker("test_fail_stuck_queued_tasks"):
+            op1 = EmptyOperator(task_id="op1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.commit()
+        from airflow.executors.local_executor import LocalExecutor
+
+        scheduler_job = Job(executor=LocalExecutor())
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        job_runner._task_queued_timeout = 300
+        with caplog.at_level(logging.DEBUG):
+            job_runner._fail_tasks_stuck_in_queued()
+        assert "Executor doesn't support cleanup of stuck queued tasks. Skipping." in caplog.text
 
     @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
     def test_executor_end_called(self, mock_processor_agent):
