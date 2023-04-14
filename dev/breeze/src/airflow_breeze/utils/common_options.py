@@ -38,6 +38,8 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
     SINGLE_PLATFORMS,
+    ALLOWED_EXECUTORS,
+    DEFAULT_ALLOWED_EXECUTORS,
     get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -551,4 +553,11 @@ option_debug_resources = click.option(
     is_flag=True,
     help="Whether to show resource information while running in parallel.",
     envvar="DEBUG_RESOURCES",
+)
+option_executor = click.option(
+    "--executor",
+    type=click.Choice([ALLOWED_EXECUTORS], case_sensitive=False),
+    help="Specify the executor to use with airflow.",
+    default=DEFAULT_ALLOWED_EXECUTORS,
+    show_default=True,
 )
