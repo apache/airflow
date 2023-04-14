@@ -26,6 +26,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_CACHE,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
+    ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
@@ -37,9 +38,8 @@ from airflow_breeze.global_constants import (
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
-    SINGLE_PLATFORMS,
-    ALLOWED_EXECUTORS,
     DEFAULT_ALLOWED_EXECUTORS,
+    SINGLE_PLATFORMS,
     get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (

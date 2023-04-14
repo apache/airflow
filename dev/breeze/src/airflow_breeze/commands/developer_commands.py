@@ -46,6 +46,7 @@ from airflow_breeze.utils.common_options import (
     option_backend,
     option_db_reset,
     option_dry_run,
+    option_executor,
     option_force_build,
     option_forward_credentials,
     option_github_repository,
@@ -65,7 +66,6 @@ from airflow_breeze.utils.common_options import (
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
-    option_executor
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
@@ -253,7 +253,7 @@ def start_airflow(
     platform: str | None,
     extra_args: tuple,
     github_repository: str,
-    executor: str
+    executor: str,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -290,7 +290,7 @@ def start_airflow(
         image_tag=image_tag,
         platform=platform,
         extra_args=extra_args,
-        executor=executor
+        executor=executor,
     )
     sys.exit(result.returncode)
 
