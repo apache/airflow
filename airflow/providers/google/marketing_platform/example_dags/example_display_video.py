@@ -30,20 +30,16 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateQueryOperator,
-    GoogleDisplayVideo360CreateReportOperator,
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
     GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadLineItemsOperator,
-    GoogleDisplayVideo360DownloadReportOperator,
     GoogleDisplayVideo360DownloadReportV2Operator,
     GoogleDisplayVideo360RunQueryOperator,
-    GoogleDisplayVideo360RunReportOperator,
     GoogleDisplayVideo360SDFtoGCSOperator,
     GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
-    GoogleDisplayVideo360ReportSensor,
     GoogleDisplayVideo360RunQuerySensor,
 )
 
@@ -59,24 +55,6 @@ BQ_DATA_SET = os.environ.get("GMP_BQ_DATA_SET", "airflow_test")
 GMP_PARTNER_ID = os.environ.get("GMP_PARTNER_ID", 123)
 ENTITY_TYPE = os.environ.get("GMP_ENTITY_TYPE", "LineItem")
 ERF_SOURCE_OBJECT = GoogleDisplayVideo360Hook.erf_uri(GMP_PARTNER_ID, ENTITY_TYPE)
-
-REPORT = {
-    "kind": "doubleclickbidmanager#query",
-    "metadata": {
-        "title": "Polidea Test Report",
-        "dataRange": "LAST_7_DAYS",
-        "format": "CSV",
-        "sendNotification": False,
-    },
-    "params": {
-        "type": "TYPE_GENERAL",
-        "groupBys": ["FILTER_DATE", "FILTER_PARTNER"],
-        "filters": [{"type": "FILTER_PARTNER", "value": 1486931}],
-        "metrics": ["METRIC_IMPRESSIONS", "METRIC_CLICKS"],
-        "includeInviteData": True,
-    },
-    "schedule": {"frequency": "ONE_TIME"},
-}
 
 REPORT_V2 = {
     "metadata": {
@@ -108,48 +86,6 @@ DOWNLOAD_LINE_ITEMS_REQUEST: dict = {"filterType": ADVERTISER_ID, "format": "CSV
 # [END howto_display_video_env_variables]
 
 START_DATE = datetime(2021, 1, 1)
-
-with models.DAG(
-    "example_display_video",
-    start_date=START_DATE,
-    catchup=False,
-) as dag1:
-    # [START howto_google_display_video_createquery_report_operator]
-    create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
-    report_id = cast(str, XComArg(create_report, key="report_id"))
-    # [END howto_google_display_video_createquery_report_operator]
-
-    # [START howto_google_display_video_runquery_report_operator]
-    run_report = GoogleDisplayVideo360RunReportOperator(
-        report_id=report_id, parameters=PARAMETERS, task_id="run_report"
-    )
-    # [END howto_google_display_video_runquery_report_operator]
-
-    # [START howto_google_display_video_wait_report_operator]
-    wait_for_report = GoogleDisplayVideo360ReportSensor(task_id="wait_for_report", report_id=report_id)
-    # [END howto_google_display_video_wait_report_operator]
-
-    # [START howto_google_display_video_getquery_report_operator]
-    get_report = GoogleDisplayVideo360DownloadReportOperator(
-        report_id=report_id,
-        task_id="get_report",
-        bucket_name=BUCKET,
-        report_name="test1.csv",
-    )
-    # [END howto_google_display_video_getquery_report_operator]
-
-    # [START howto_google_display_video_deletequery_report_operator]
-    delete_report = GoogleDisplayVideo360DeleteReportOperator(report_id=report_id, task_id="delete_report")
-    # [END howto_google_display_video_deletequery_report_operator]
-
-    run_report >> wait_for_report >> get_report >> delete_report
-
-    # Task dependencies created via `XComArgs`:
-    #   create_report >> run_report
-    #   create_report >> wait_for_report
-    #   create_report >> get_report
-    #   create_report >> delete_report
-
 
 with models.DAG(
     "example_display_video_misc",
