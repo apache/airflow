@@ -2573,7 +2573,7 @@ kubernetes_executor:
     api_client_retry_configuration:
       description: |
         Kwargs to override the default urllib3 Retry used in the kubernetes API client
-      version_added: 2.6.1
+      version_added: 2.6.0
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'
       default: ""
