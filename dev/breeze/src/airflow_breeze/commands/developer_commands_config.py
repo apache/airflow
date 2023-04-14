@@ -123,6 +123,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--force-build",
                 "--image-tag",
                 "--mount-sources",
+                "--executor",
             ],
         },
     ],

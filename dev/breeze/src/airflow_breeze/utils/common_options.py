@@ -556,7 +556,7 @@ option_debug_resources = click.option(
 )
 option_executor = click.option(
     "--executor",
-    type=click.Choice([ALLOWED_EXECUTORS], case_sensitive=False),
+    type=click.Choice(ALLOWED_EXECUTORS, case_sensitive=False),
     help="Specify the executor to use with airflow.",
     default=DEFAULT_ALLOWED_EXECUTORS,
     show_default=True,

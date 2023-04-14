@@ -39,9 +39,13 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
-DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
+MYSQL_BACKENDS = "mysql"
+SQLITE_BACKENDS = "sqlite"
+POSTGRES_BACKENDS = "postgres"
+MSSQL_BACKENDS = "mssql"
+ALLOWED_BACKENDS = [SQLITE_BACKENDS, MYSQL_BACKENDS, POSTGRES_BACKENDS, MSSQL_BACKENDS]
+ALLOWED_PROD_BACKENDS = [MYSQL_BACKENDS, POSTGRES_BACKENDS, MSSQL_BACKENDS]
+DEFAULT_BACKEND = SQLITE_BACKENDS
 TESTABLE_INTEGRATIONS = [
     "cassandra",
     "celery",
@@ -73,11 +77,18 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
 ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
+
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 DEFAULT_ALLOWED_EXECUTORS = ALLOWED_EXECUTORS[2]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
+ALLOWED_EXECUTORS_FOR_A_BACKEND = {
+    MYSQL_BACKENDS: ALLOWED_EXECUTORS,
+    SQLITE_BACKENDS: ALLOWED_EXECUTORS[2],
+    POSTGRES_BACKENDS: ALLOWED_EXECUTORS,
+    MSSQL_BACKENDS: ALLOWED_EXECUTORS,
+}
 
 MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"

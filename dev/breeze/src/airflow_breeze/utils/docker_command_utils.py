@@ -639,6 +639,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
     "AIRFLOW_VERSION": "airflow_version",
+    "AIRFLOW__CORE__EXECUTOR": "executor",
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",

@@ -29,6 +29,7 @@ import click
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
+    ALLOWED_EXECUTORS_FOR_A_BACKEND,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
@@ -548,6 +549,18 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     shell_params = ShellParams(**filter_out_none(**kwargs))
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+
+    if not check_backend_and_executor_compatibility(shell_params):
+        msg = [
+            f"{backend} : {', '.join(executors)}\n" for backend, executors in ALLOWED_EXECUTORS_FOR_A_BACKEND
+        ]
+        get_console().print(
+            f"\n[error]{shell_params.backend} in not compatible with {shell_params.executor}"
+            f"Please refer to below list for compatibility[/]\n"
+            f"{''.join(msg)}"
+        )
+        sys.exit(1)
+
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
@@ -615,3 +628,8 @@ def find_airflow_container() -> str | None:
     else:
         stop_exec_on_error(1)
         return None
+
+
+def check_backend_and_executor_compatibility(shell_params: ShellParams) -> bool:
+    """Check if the backend selected is compatible with executor"""
+    return shell_params.executor in ALLOWED_EXECUTORS_FOR_A_BACKEND[shell_params.backend]

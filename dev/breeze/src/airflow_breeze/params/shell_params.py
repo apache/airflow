@@ -32,6 +32,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    DEFAULT_ALLOWED_EXECUTORS,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
     MOUNT_REMOVE,
@@ -115,6 +116,7 @@ class ShellParams:
     dry_run: bool = False
     verbose: bool = False
     upgrade_boto: bool = False
+    executor: str = DEFAULT_ALLOWED_EXECUTORS
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
