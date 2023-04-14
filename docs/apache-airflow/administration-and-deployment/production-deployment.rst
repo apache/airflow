@@ -38,7 +38,7 @@ You can change the backend using the following config
     sql_alchemy_conn = my_conn_string
 
 Once you have changed the backend, airflow needs to create all the tables required for operation.
-Create an empty DB and give airflow's user the permission to ``CREATE/ALTER`` it.
+Create an empty DB and give Airflow's user permission to ``CREATE/ALTER`` it.
 Once that is done, you can run -
 
 .. code-block:: bash
@@ -65,8 +65,8 @@ the :doc:`Celery executor <../core-concepts/executor/celery>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
-the same configuration and dags. Airflow sends simple instructions such as "execute task X of dag Y", but
-does not send any dag files or configuration. You can use a simple cronjob or any other mechanism to sync
+the same configuration and DAGs. Airflow sends simple instructions such as "execute task X of DAG Y", but
+does not send any DAG files or configuration. You can use a simple cronjob or any other mechanism to sync
 DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
 
 
@@ -146,10 +146,10 @@ command and the worker command in separate containers - where only the ``airflow
 access to the Keytab file (preferably configured as secret resource). Those two containers should share
 a volume where the temporary token should be written by the ``airflow kerberos`` and read by the workers.
 
-In the Kubernetes environment, this can be realized by the concept of side-car, where both Kerberos
-token refresher and worker are part of the same Pod. Only the Kerberos side-car has access to
+In the Kubernetes environment, this can be realized by the concept of sidecar, where both Kerberos
+token refresher and worker are part of the same Pod. Only the Kerberos sidecar has access to
 Keytab secret and both containers in the same Pod share the volume, where temporary token is written by
-the side-car container and read by the worker container.
+the sidecar container and read by the worker container.
 
 This concept is implemented in :doc:`the Helm Chart for Apache Airflow <helm-chart:index>`.
 

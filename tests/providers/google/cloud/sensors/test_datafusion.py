@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized.parameterized import parameterized
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.datafusion import PipelineStates
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
 
@@ -39,15 +37,16 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 FAILURE_STATUSES = {"FAILED"}
 
 
-class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
-    @parameterized.expand(
+class TestCloudDataFusionPipelineStateSensor:
+    @pytest.mark.parametrize(
+        "expected_status, current_status, sensor_return",
         [
             (PipelineStates.COMPLETED, PipelineStates.COMPLETED, True),
             (PipelineStates.COMPLETED, PipelineStates.RUNNING, False),
-        ]
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
-    def test_poke(self, expected_status, current_status, sensor_return, mock_hook):
+    def test_poke(self, mock_hook, expected_status, current_status, sensor_return):
         mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
 
         task = CloudDataFusionPipelineStateSensor(
@@ -101,4 +100,29 @@ class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
             match=f"Pipeline with id '{PIPELINE_ID}' state is: FAILED. Terminating sensor...",
         ):
             mock_hook.return_value.get_pipeline_workflow.return_value = {"status": "FAILED"}
+            task.poke(mock.MagicMock())
+
+    @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
+    def test_not_found_exception(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
+        mock_hook.return_value.get_pipeline_workflow.side_effect = AirflowNotFoundException()
+
+        task = CloudDataFusionPipelineStateSensor(
+            task_id="test_task_id",
+            pipeline_name=PIPELINE_NAME,
+            pipeline_id=PIPELINE_ID,
+            project_id=PROJECT_ID,
+            expected_statuses={PipelineStates.COMPLETED},
+            failure_statuses=FAILURE_STATUSES,
+            instance_name=INSTANCE_NAME,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match="Specified Pipeline ID was not found.",
+        ):
             task.poke(mock.MagicMock())

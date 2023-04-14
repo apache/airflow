@@ -163,7 +163,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
         If a key is provided, a value must be provided as well.
     :param value: The value portion of the key/value pair for a tag to be added.
         If a value is provided, a key must be provided as well.
-    :param tag_set: A List of key/value pairs.
+    :param tag_set: A dictionary containing the tags, or a List of key/value pairs.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -179,7 +179,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
         bucket_name: str,
         key: str | None = None,
         value: str | None = None,
-        tag_set: list[dict[str, str]] | None = None,
+        tag_set: dict | list[dict[str, str]] | None = None,
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:

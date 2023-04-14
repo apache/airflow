@@ -254,3 +254,38 @@ following value for ``impersonation_chain`` argument...
         ]
 
 ...then requests will be executed using ``impersonation-chain-4`` account's privileges.
+
+
+Domain-wide delegation
+-----------------------------------------
+Some Google operators, hooks and sensors support `domain-wide delegation <https://developers.google.com/cloud-search/docs/guides/delegation>`_, in addition to direct impersonation of a service account.
+Delegation allows a user or service account to grant another service account the ability to act on their behalf.
+This means that the user or service account that is delegating their permissions can continue to access and manage their own resources, while the delegated service account can also access and manage those resources.
+
+For example:
+
+.. code-block:: python
+
+        PROJECT_ID = os.environ.get("TF_VAR_project_id", "your_project_id")
+
+        SPREADSHEET = {
+            "properties": {"title": "Test1"},
+            "sheets": [{"properties": {"title": "Sheet1"}}],
+        }
+
+        from airflow.providers.google.suite.operators.sheets import (
+            GoogleSheetsCreateSpreadsheetOperator,
+        )
+
+        create_spreadsheet_operator = GoogleSheetsCreateSpreadsheetOperator(
+            task_id="create-spreadsheet",
+            gcp_conn_id="google_cloud_default",
+            spreadsheet=SPREADSHEET,
+            delegate_to=f"projects/-/serviceAccounts/SA@{PROJECT_ID}.iam.gserviceaccount.com",
+        )
+
+Note that as domain-wide delegation is currently supported by most of the Google operators and hooks, its usage should be limited only to Google Workspace (gsuite) and marketing platform operators and hooks. It is deprecated in the following usages:
+
+* All of Google Cloud operators and hooks.
+* Firebase hooks.
+* All transfer operators that involve Google cloud in different providers, for example: :class:`airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs`.

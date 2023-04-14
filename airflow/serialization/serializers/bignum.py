@@ -17,35 +17,39 @@
 # under the License.
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
+    import decimal
+
     from airflow.serialization.serde import U
 
 
-serializers = [Decimal]
+serializers = ["decimal.Decimal"]
 deserializers = serializers
 
 __version__ = 1
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
-    if isinstance(o, Decimal):
-        name = qualname(o)
-        _, _, exponent = o.as_tuple()
-        if exponent >= 0:  # No digits after the decimal point.
-            return int(o), name, __version__, True
-            # Technically lossy due to floating point errors, but the best we
-            # can do without implementing a custom encode function.
-        return float(o), name, __version__, True
+    from decimal import Decimal
 
-    return "", "", 0, False
+    if not isinstance(o, Decimal):
+        return "", "", 0, False
+    name = qualname(o)
+    _, _, exponent = o.as_tuple()
+    if isinstance(exponent, int) and exponent >= 0:  # No digits after the decimal point.
+        return int(o), name, __version__, True
+    # Technically lossy due to floating point errors, but the best we
+    # can do without implementing a custom encode function.
+    return float(o), name, __version__, True
 
 
-def deserialize(classname: str, version: int, data: object) -> Decimal:
+def deserialize(classname: str, version: int, data: object) -> decimal.Decimal:
+    from decimal import Decimal
+
     if version > __version__:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
 

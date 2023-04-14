@@ -21,6 +21,7 @@ name: Slack
 description: |
     `Slack <https://slack.com/>`__
 
+suspended: false
 versions:
   - 7.2.0
   - 7.1.1
@@ -76,3 +77,6 @@ connection-types:
     connection-type: slack
   - hook-class-name: airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
     connection-type: slackwebhook
+
+notifications:
+  - airflow.providers.slack.notifications.slack_notifier.SlackNotifier

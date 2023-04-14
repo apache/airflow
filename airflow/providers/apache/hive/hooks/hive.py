@@ -99,12 +99,13 @@ class HiveCliHook(BaseHook):
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
+        auth: str | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
-        self.auth = conn.extra_dejson.get("auth", "noSasl")
+        self.auth = auth
         self.conn = conn
         self.run_as = run_as
         self.sub_process: Any = None
@@ -141,6 +142,7 @@ class HiveCliHook(BaseHook):
 
         if self.use_beeline:
             hive_bin = "beeline"
+            self._validate_beeline_parameters(conn)
             jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
             if conf.get("core", "security") == "kerberos":
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
@@ -164,6 +166,22 @@ class HiveCliHook(BaseHook):
         hive_params_list = self.hive_cli_params.split()
 
         return [hive_bin] + cmd_extra + hive_params_list
+
+    def _validate_beeline_parameters(self, conn):
+        if ":" in conn.host or "/" in conn.host or ";" in conn.host:
+            raise Exception(
+                f"The host used in beeline command ({conn.host}) should not contain ':/;' characters)"
+            )
+        try:
+            int_port = int(conn.port)
+            if int_port <= 0 or int_port > 65535:
+                raise Exception(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
+        except (ValueError, TypeError) as e:
+            raise Exception(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")
+        if ";" in conn.schema:
+            raise Exception(
+                f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
+            )
 
     @staticmethod
     def _prepare_hiveconf(d: dict[Any, Any]) -> list[Any]:

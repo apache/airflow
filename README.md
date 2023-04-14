@@ -21,7 +21,7 @@
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 [![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
-[![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/main.svg)](https://codecov.io/github/apache/airflow?branch=main)
+[![Coverage Status](https://codecov.io/github/apache/airflow/coverage.svg?branch=main)](https://app.codecov.io/gh/apache/airflow/branch/main)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
@@ -32,6 +32,7 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors)
+[![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/6)](https://ossrank.com/p/6)
 
 [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
@@ -86,7 +87,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)           | Stable version (2.5.0)       |
+|                     | Main version (dev)           | Stable version (2.5.3)       |
 |---------------------|------------------------------|------------------------------|
 | Python              | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10          |
 | Platform            | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
@@ -158,15 +159,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.5.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.0/constraints-3.7.txt"
+pip install 'apache-airflow==2.5.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.3/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.5.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.0/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.5.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.3/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -275,7 +276,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.5.0                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.5.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -305,7 +306,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.5.0` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.5.3` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 
@@ -403,6 +404,8 @@ might decide to add additional limits (and justify them with comment)
 
 ## Release process for Providers
 
+### Minimum supported version of Airflow
+
 Providers released by the community (with roughly monthly cadence) have
 limitation of a minimum supported version of Airflow. The minimum version of
 Airflow is the `MINOR` version (2.2, 2.3 etc.) indicating that the providers
@@ -422,6 +425,8 @@ and for people who are using supported version of Airflow this is not a breaking
 will be able to use the new version without breaking their workflows. When we upgraded min-version to
 2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump `MINOR` version of the
 provider when we increase minimum Airflow version.
+
+### Mixed governance model
 
 Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
 compatibilities in their integrations (for example cloud providers, or specific service providers). But,
@@ -471,6 +476,38 @@ of the contributors to perform the cherry-picks and carry-on testing of the olde
 
 The availability of stakeholder that can manage "service-oriented" maintenance and agrees to such a
 responsibility, will also drive our willingness to accept future, new providers to become community managed.
+
+### Suspending releases for providers
+
+In case a provider is found to require old dependencies that are not compatible with upcoming versions of
+the Apache Airflow or with newer dependencies required by other providers, the provider's release
+process can be suspended.
+
+This means:
+
+* The provider's status is set to "suspended"
+* No new releases of the provider will be made until the problem with dependencies is solved
+* Sources of the provider remain in the repository for now (in the future we might add process to remove them)
+* No new changes will be accepted for the provider (other than the ones that fix the dependencies)
+* The provider will be removed from the list of Apache Airflow extras in the next Airflow release
+  (including patch-level release if it is possible/easy to cherry-pick the suspension change)
+* Tests of the provider will not be run on our CI (in main branch)
+* Dependencies of the provider will not be installed in our main branch CI image nor included in constraints
+* We can still decide to apply security fixes to released providers - by adding fixes to the main branch
+  but cherry-picking, testing and releasing them in the patch-level branch of the provider similar to the
+  mixed governance model described above.
+
+The suspension may be triggered by any committer after the following criteria are met:
+
+* The maintainers of dependencies of the provider are notified about the issue and are given a reasonable
+  time to resolve it (at least 1 week)
+* Other options to resolve the issue have been exhausted and there are good reasons for upgrading
+  the old dependencies in question
+* Explanation why we need to suspend the provider is stated in a public discussion in the devlist. Followed
+  by LAZY CONSENSUS or VOTE (with the majority of the voters agreeing that we should suspend the provider)
+
+The suspension will be lifted when the dependencies of the provider are made compatible with the Apache
+Airflow and with other providers.
 
 ## Contributing
 

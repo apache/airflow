@@ -230,9 +230,9 @@ class SecurityManager(BaseSecurityManager):
             return False
 
     def get_user_by_id(self, pk):
-        return self.get_session.query(self.user_model).get(pk)
+        return self.get_session.get(self.user_model, pk)
 
-    def add_role(self, name: str) -> Role | None:
+    def add_role(self, name: str) -> Role:
         role = self.find_role(name)
         if role is None:
             try:
@@ -248,7 +248,7 @@ class SecurityManager(BaseSecurityManager):
         return role
 
     def update_role(self, role_id, name: str) -> Role | None:
-        role = self.get_session.query(self.role_model).get(role_id)
+        role = self.get_session.get(self.role_model, role_id)
         if not role:
             return None
         try:
@@ -546,7 +546,7 @@ class SecurityManager(BaseSecurityManager):
                 return True
         return False
 
-    def add_permission_to_role(self, role: Role, permission: Permission) -> None:
+    def add_permission_to_role(self, role: Role, permission: Permission | None) -> None:
         """
         Add an existing permission pair to a role.
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { PropsWithChildren, useRef } from 'react';
+import React, { PropsWithChildren, useRef } from "react";
 import {
   AlertDialog,
   AlertDialogBody,
@@ -28,9 +28,9 @@ import {
   Button,
   Code,
   Text,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 
-import { useContainerRef } from 'src/context/containerRef';
+import { useContainerRef } from "src/context/containerRef";
 
 interface Props extends PropsWithChildren {
   isOpen: boolean;
@@ -43,7 +43,14 @@ interface Props extends PropsWithChildren {
 }
 
 const ConfirmDialog = ({
-  isOpen, onClose, title = 'Wait a minute', description, affectedTasks, onConfirm, isLoading = false, children,
+  isOpen,
+  onClose,
+  title = "Wait a minute",
+  description,
+  affectedTasks,
+  onConfirm,
+  isLoading = false,
+  children,
 }: Props) => {
   const initialFocusRef = useRef<HTMLButtonElement>(null);
   const containerRef = useContainerRef();
@@ -68,18 +75,22 @@ const ConfirmDialog = ({
             {children}
             <Text mb={2}>{description}</Text>
             {affectedTasks.map((ti) => (
-              <Code width="100%" key={ti} fontSize="lg">{ti}</Code>
+              <Code width="100%" key={ti} fontSize="lg">
+                {ti}
+              </Code>
             ))}
-            {!affectedTasks.length && (
-              <Text>No task instances to change.</Text>
-            )}
+            {!affectedTasks.length && <Text>No task instances to change.</Text>}
           </AlertDialogBody>
 
           <AlertDialogFooter>
-            <Button onClick={onClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={onConfirm} ml={3} ref={initialFocusRef} isLoading={isLoading}>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button
+              colorScheme="blue"
+              onClick={onConfirm}
+              ml={3}
+              ref={initialFocusRef}
+              isLoading={isLoading}
+            >
               Confirm
             </Button>
           </AlertDialogFooter>

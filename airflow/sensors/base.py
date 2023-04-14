@@ -20,7 +20,9 @@ from __future__ import annotations
 import datetime
 import functools
 import hashlib
+import logging
 import time
+import traceback
 from datetime import timedelta
 from typing import Any, Callable, Iterable
 
@@ -28,10 +30,13 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
+    AirflowFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTimeout,
 )
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
@@ -100,6 +105,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
     :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
+    :param silent_fail: If true, and poke method raises an exception different from
+        AirflowSensorTimeout, AirflowTaskTimeout, AirflowSkipException
+        and AirflowFailException, the sensor will log the error and continue
+        its execution. Otherwise, the sensor task fails, and it can be retried
+        based on the provided `retries` parameter.
     """
 
     ui_color: str = "#e6f1f2"
@@ -118,6 +128,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         mode: str = "poke",
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
+        silent_fail: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -127,6 +138,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
+        self.silent_fail = silent_fail
         self._validate_input_values()
 
     @staticmethod
@@ -196,7 +208,22 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         xcom_value = None
         while True:
-            poke_return = self.poke(context)
+            try:
+                poke_return = self.poke(context)
+            except (
+                AirflowSensorTimeout,
+                AirflowTaskTimeout,
+                AirflowSkipException,
+                AirflowFailException,
+            ) as e:
+                raise e
+            except Exception as e:
+                if self.silent_fail:
+                    logging.error("Sensor poke failed: \n %s", traceback.format_exc())
+                    poke_return = False
+                else:
+                    raise e
+
             if poke_return:
                 if isinstance(poke_return, PokeReturnValue):
                     xcom_value = poke_return.xcom_value
@@ -257,11 +284,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     def prepare_for_execution(self) -> BaseOperator:
         task = super().prepare_for_execution()
+
         # Sensors in `poke` mode can block execution of DAGs when running
         # with single process executor, thus we change the mode to`reschedule`
         # to allow parallel task being scheduled and executed
-        if conf.get("core", "executor") == "DebugExecutor":
-            self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+        executor, _ = ExecutorLoader.import_default_executor_cls()
+        if executor.change_sensor_mode_to_reschedule:
+            self.log.warning("%s changes sensor mode to 'reschedule'.", executor.__name__)
             task.mode = "reschedule"
         return task
 

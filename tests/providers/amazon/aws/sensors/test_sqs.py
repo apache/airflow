@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from moto import mock_sqs
@@ -70,7 +71,7 @@ class TestSqsSensor:
 
         assert self.mock_context["ti"].method_calls == context_calls, "context call  should be same"
 
-    @mock.patch.object(SqsHook, "get_conn")
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_delete_raise_airflow_exception(self, mock_conn):
         message = {
             "Messages": [
@@ -103,7 +104,7 @@ class TestSqsSensor:
 
         assert "Delete SQS Messages failed" in ctx.value.args[0]
 
-    @mock.patch.object(SqsHook, "get_conn")
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_receive_raise_exception(self, mock_conn):
         mock_conn.return_value.receive_message.side_effect = Exception("test exception")
         with pytest.raises(Exception) as ctx:
@@ -111,7 +112,7 @@ class TestSqsSensor:
 
         assert "test exception" in ctx.value.args[0]
 
-    @mock.patch.object(SqsHook, "get_conn")
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_visibility_timeout(self, mock_conn):
         # Check without visibility_timeout parameter
         self.sqs_hook.create_queue(QUEUE_NAME)
@@ -155,7 +156,7 @@ class TestSqsSensor:
             sensor.poke(self.mock_context)
         assert "Override this method to define custom filters" in ctx.value.args[0]
 
-    @mock.patch.object(SqsHook, "get_conn")
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_message_filtering_literal_values(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         matching = [{"id": 11, "body": "a matching message"}]
@@ -194,7 +195,7 @@ class TestSqsSensor:
         ]
         mock_conn.assert_has_calls(calls_delete_message_batch)
 
-    @mock.patch.object(SqsHook, "get_conn")
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_message_filtering_jsonpath(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         matching = [
@@ -240,7 +241,7 @@ class TestSqsSensor:
         ]
         mock_conn.assert_has_calls(calls_delete_message_batch)
 
-    @mock.patch.object(SqsHook, "get_conn")
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_message_filtering_jsonpath_values(self, mock_conn):
         self.sqs_hook.create_queue(QUEUE_NAME)
         matching = [
@@ -288,7 +289,7 @@ class TestSqsSensor:
         ]
         mock_conn.assert_has_calls(calls_delete_message_batch)
 
-    @mock.patch.object(SqsHook, "get_conn")
+    @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_do_not_delete_message_on_received(self, mock_conn):
 
         self.sqs_hook.create_queue(QUEUE_NAME)

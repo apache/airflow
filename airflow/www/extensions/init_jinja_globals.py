@@ -43,7 +43,7 @@ def init_jinja_globals(app):
     if not default_ui_timezone:
         default_ui_timezone = server_timezone
 
-    expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME", fallback=True)
+    expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME")
     hostname = get_hostname() if expose_hostname else "redact"
 
     try:

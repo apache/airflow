@@ -30,7 +30,7 @@ List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
 running at a glance. To hide completed tasks set show_recent_stats_for_completed_runs = False
 
-In order to filter DAGs (e.g by team), you can add tags in each dag.
+In order to filter DAGs (e.g by team), you can add tags in each DAG.
 The filter is saved in a cookie and can be reset by the reset button.
 For example:
 
@@ -147,6 +147,8 @@ DAG runs.
 
 ------------
 
+.. _ui:task-duration:
+
 Task Duration
 .............
 The duration of your different tasks over the past N runs. This view lets
@@ -157,6 +159,20 @@ DAG over many runs.
 ------------
 
 .. image:: img/duration.png
+
+------------
+
+.. _ui:landing-times:
+
+Landing Times
+.............
+Airflow landing times are calculated from the task's scheduled time to
+the time the task finishes, either with success or another state (see
+:ref:`concepts:task-instances`).
+
+------------
+
+.. image:: img/landing_times.png
 
 ------------
 

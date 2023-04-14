@@ -20,7 +20,7 @@ Serialization
 
 To support data exchange, like arguments, between tasks, Airflow needs to serialize the data to be exchanged and
 deserialize it again when required in a downstream task. Serialization also happens so that the webserver and
-the scheduler (as opposed to the dag processor) do no need to read the DAG file. This is done for security purposes
+the scheduler (as opposed to the DAG processor) do no need to read the DAG file. This is done for security purposes
 and efficiency.
 
 Serialization is a surprisingly hard job. Python out of the box only has support for serialization of primitives,
@@ -47,9 +47,9 @@ but its keys need to be of primitive form. In case you are implementing a regist
 not to have circular imports. Typically, this can be avoided by using ``str`` for populating the list of serializers.
 Like so: ``serializers = ["my.company.Foo"]`` instead of ``serializers = [Foo]``.
 
-::
+.. note::
 
-  Note: Serialization and deserialization is dependent on speed. Use built-in functions like ``dict`` as much as you can and stay away from using classes and other complex structures.
+  Serialization and deserialization is dependent on speed. Use built-in functions like ``dict`` as much as you can and stay away from using classes and other complex structures.
 
 Airflow Object
 --------------

@@ -16,6 +16,8 @@ adls
 afterall
 AgentKey
 aio
+aiobotocore
+AioSession
 Airbnb
 airbnb
 Airbyte
@@ -123,6 +125,7 @@ backfill
 backfillable
 backfilled
 backfilling
+backfilljob
 BackfillJobTest
 Backfills
 backfills
@@ -283,18 +286,21 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+containerd
 ContainerGroup
 containerinstance
 ContainerPort
 contentUrl
 contextmgr
 contrib
+coroutine
 coverals
 cp
 cpu
 cpus
 crd
 createDisposition
+CreateQueryOperator
 creationTimestamp
 credssp
 Cron
@@ -347,6 +353,9 @@ DataFrame
 Dataframe
 dataframe
 dataframes
+DataFusion
+Datafusion
+datafusion
 Datalake
 Datanodes
 datapipe
@@ -435,6 +444,7 @@ discoverability
 discoverable
 diskTypes
 displayName
+DisplayVideo
 distcp
 distro
 distros
@@ -461,6 +471,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+DownloadReportV
 downscaling
 Drillbit
 Drivy
@@ -630,6 +641,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+GoogleDisplayVideo
 gpu
 gpus
 greenlet
@@ -640,6 +652,7 @@ Grpc
 gRPC
 grpc
 GSoD
+gsuite
 Gunicorn
 gz
 Gzip
@@ -857,11 +870,8 @@ LineItem
 lineterminator
 linter
 linux
-ListColumnSpecsPager
-ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
-ListTableSpecsPager
 Liveness
 liveness
 livy
@@ -1025,6 +1035,7 @@ os
 OSS
 oss
 ot
+otel
 overridable
 oversubscription
 Pagerduty
@@ -1245,6 +1256,8 @@ rtype
 ru
 runAsUser
 runnable
+RunQueryOperator
+RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
@@ -1363,7 +1376,6 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
-StartManualTransferRunsResponse
 starttls
 StatefulSet
 StatefulSets
@@ -1430,7 +1442,6 @@ symlink
 symlinking
 symlinks
 sync'ed
-SynthesizeSpeechResponse
 sys
 syspath
 Systemd
@@ -1502,8 +1513,6 @@ tooltip
 tooltips
 traceback
 tracebacks
-TransferConfig
-TransferRun
 travis
 triage
 triaging
@@ -1613,6 +1622,7 @@ Webhook
 webhook
 WebhookClient
 webhooks
+webpack
 webpage
 webProperty
 Webserver

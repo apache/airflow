@@ -37,11 +37,17 @@ if __name__ == "__main__":
     from common_precommit_utils import filter_out_providers_on_non_main_branch
 
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
-    from airflow_breeze.global_constants import MOUNT_SELECTED
-    from airflow_breeze.utils.console import get_console
-    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-    from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed
-    from airflow_breeze.utils.run_utils import get_ci_image_for_pre_commits, run_command
+    from airflow_breeze.global_constants import MOUNT_SELECTED  # isort: skip
+    from airflow_breeze.utils.console import get_console  # isort: skip
+    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags  # isort: skip
+    from airflow_breeze.utils.path_utils import create_mypy_volume_if_needed  # isort: skip
+    from airflow_breeze.utils.run_utils import (
+        get_ci_image_for_pre_commits,
+        run_command,
+    )
+    from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
+
+    suspended_providers_folders = get_suspended_providers_folders()
 
     files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
     if files_to_test == ["--namespace-packages"]:
@@ -58,6 +64,8 @@ if __name__ == "__main__":
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
             "-e",
+            f"SUSPENDED_PROVIDERS_FOLDERS={' '.join(suspended_providers_folders)}",
+            "-e",
             "BACKEND=sqlite",
             "--pull",
             "never",
@@ -70,6 +78,7 @@ if __name__ == "__main__":
     if cmd_result.returncode != 0:
         get_console().print(
             "[warning]If you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.7` and try again."
+            "run `breeze ci-image build --python 3.7` and try again. "
+            "You can also run `breeze stop --cleanup-mypy-cache` to clean up the cache used."
         )
     sys.exit(cmd_result.returncode)

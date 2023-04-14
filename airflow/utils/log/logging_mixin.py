@@ -24,9 +24,7 @@ import re
 import sys
 from io import IOBase
 from logging import Handler, Logger, StreamHandler
-from typing import IO, cast
-
-from airflow.settings import IS_K8S_EXECUTOR_POD
+from typing import IO, Any, TypeVar, cast
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
@@ -59,6 +57,9 @@ def remove_escape_codes(text: str) -> str:
     return ANSI_ESCAPE.sub("", text)
 
 
+_T = TypeVar("_T")
+
+
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name"""
 
@@ -67,12 +68,21 @@ class LoggingMixin:
     def __init__(self, context=None):
         self._set_context(context)
 
+    @staticmethod
+    def _get_log(obj: Any, clazz: type[_T]) -> Logger:
+        if obj._log is None:
+            obj._log = logging.getLogger(f"{clazz.__module__}.{clazz.__name__}")
+        return obj._log
+
+    @classmethod
+    def logger(cls) -> Logger:
+        """Returns a logger."""
+        return LoggingMixin._get_log(cls, cls)
+
     @property
     def log(self) -> Logger:
         """Returns a logger."""
-        if self._log is None:
-            self._log = logging.getLogger(self.__class__.__module__ + "." + self.__class__.__name__)
-        return self._log
+        return LoggingMixin._get_log(self, self.__class__)
 
     def _set_context(self, context):
         if context is not None:
@@ -191,6 +201,8 @@ class RedirectStdHandler(StreamHandler):
     @property
     def stream(self):
         """Returns current stream."""
+        from airflow.settings import IS_K8S_EXECUTOR_POD
+
         if IS_K8S_EXECUTOR_POD:
             return self._orig_stream
         if self._use_stderr:

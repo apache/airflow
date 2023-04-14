@@ -17,13 +17,11 @@
  * under the License.
  */
 
-import React, { ReactNode } from 'react';
-import {
-  Box, Tooltip,
-} from '@chakra-ui/react';
-import { MdInfo } from 'react-icons/md';
-import { useContainerRef } from 'src/context/containerRef';
-import type { IconBaseProps } from 'react-icons';
+import React, { ReactNode } from "react";
+import { Box, Tooltip } from "@chakra-ui/react";
+import { MdInfo } from "react-icons/md";
+import { useContainerRef } from "src/context/containerRef";
+import type { IconBaseProps } from "react-icons";
 
 interface InfoTooltipProps extends IconBaseProps {
   label: ReactNode;

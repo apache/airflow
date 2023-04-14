@@ -30,7 +30,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
-from types import FunctionType
+from types import ClassMethodDescriptorType, FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -75,7 +75,6 @@ from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -89,8 +88,10 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
@@ -149,7 +150,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
 def get_merged_defaults(
     dag: DAG | None,
     task_group: TaskGroup | None,
-    task_params: dict | None,
+    task_params: collections.abc.MutableMapping | None,
     task_default_args: dict | None,
 ) -> tuple[dict, ParamsDict]:
     args, params = _get_parent_defaults(dag, task_group)
@@ -169,7 +170,7 @@ def get_merged_defaults(
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
-    class_method = None
+    class_method: ClassMethodDescriptorType | None = None
 
     def __get__(
         self, obj: BaseOperator, cls: type[BaseOperator] | None = None
@@ -194,7 +195,7 @@ def partial(
     end_date: datetime | None = None,
     owner: str = DEFAULT_OWNER,
     email: None | str | Iterable[str] = None,
-    params: dict | None = None,
+    params: collections.abc.MutableMapping | None = None,
     resources: dict[str, Any] | None = None,
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
@@ -213,6 +214,7 @@ def partial(
     weight_rule: str = DEFAULT_WEIGHT_RULE,
     sla: timedelta | None = None,
     max_active_tis_per_dag: int | None = None,
+    max_active_tis_per_dagrun: int | None = None,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
@@ -273,6 +275,7 @@ def partial(
     partial_kwargs.setdefault("weight_rule", weight_rule)
     partial_kwargs.setdefault("sla", sla)
     partial_kwargs.setdefault("max_active_tis_per_dag", max_active_tis_per_dag)
+    partial_kwargs.setdefault("max_active_tis_per_dagrun", max_active_tis_per_dagrun)
     partial_kwargs.setdefault("on_execute_callback", on_execute_callback)
     partial_kwargs.setdefault("on_failure_callback", on_failure_callback)
     partial_kwargs.setdefault("on_retry_callback", on_retry_callback)
@@ -577,6 +580,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param run_as_user: unix username to impersonate while running the task
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across execution_dates.
+    :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
+        task instances per DAG run.
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -686,6 +691,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    _is_setup = False
+    _is_teardown = False
+    _on_failure_fail_dagrun = False
+
     def __init__(
         self,
         task_id: str,
@@ -704,7 +713,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
-        params: dict | None = None,
+        params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str = DEFAULT_WEIGHT_RULE,
@@ -724,6 +733,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
         max_active_tis_per_dag: int | None = None,
+        max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
         inlets: Any | None = None,
@@ -867,6 +877,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
+        self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push = do_xcom_push
 
         self.doc_md = doc_md
@@ -914,6 +925,33 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             self.template_fields = [self.template_fields]
+
+        if SetupTeardownContext.active:
+            SetupTeardownContext.update_context_map(self)
+
+    @classmethod
+    def as_setup(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Setup tasks are disabled.")
+
+        op = cls(*args, **kwargs)
+        op._is_setup = True
+        return op
+
+    @classmethod
+    def as_teardown(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Teardown tasks are disabled.")
+
+        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        op = cls(*args, **kwargs)
+        op._is_teardown = True
+        op._on_failure_fail_dagrun = on_failure_fail_dagrun
+        return op
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1458,6 +1496,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "template_fields",
                     "template_fields_renderers",
                     "params",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()

@@ -24,7 +24,13 @@ from enum import Enum
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_SOURCES_ROOT,
+    SYSTEM_TESTS_PROVIDERS_ROOT,
+    TESTS_PROVIDERS_ROOT,
+)
+from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -54,7 +60,7 @@ from airflow_breeze.global_constants import (
     SelectiveUnitTestTypes,
     all_selective_test_types,
 )
-from airflow_breeze.utils.console import get_stderr_console
+from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
@@ -154,14 +160,14 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"\.py$",
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
-            "^.pre-commit-config.yaml$",
-            "^airflow",
-            "^chart",
-            "^tests",
-            "^kubernetes_tests",
+            r"^.pre-commit-config.yaml$",
+            r"^airflow",
+            r"^chart",
+            r"^tests",
+            r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
-            "^tests/system/",
+            r"^tests/system/",
         ],
     }
 )
@@ -180,16 +186,13 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/cli",
         ],
         SelectiveUnitTestTypes.PROVIDERS: [
-            "^airflow/providers/",
-            "^tests/providers/",
+            r"^airflow/providers/",
+            r"^tests/system/providers/",
+            r"^tests/providers/",
         ],
-        SelectiveUnitTestTypes.WWW: ["^airflow/www", "^tests/www"],
+        SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
-
-TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
-AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 
 def find_provider_affected(changed_file: str) -> str | None:
@@ -229,13 +232,39 @@ def add_dependent_providers(
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
     all_providers: set[str] = set()
+    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+    all_providers_affected = False
+    suspended_providers: set[str] = set()
     for changed_file in changed_files:
         provider = find_provider_affected(changed_file)
         if provider == "Providers":
-            return set()
-        if provider is not None:
-            all_providers.add(provider)
-    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+            all_providers_affected = True
+        elif provider is not None:
+            if provider not in dependencies:
+                suspended_providers.add(provider)
+            else:
+                all_providers.add(provider)
+    if all_providers_affected:
+        return set()
+    if suspended_providers:
+        # We check for suspended providers only after we have checked if all providers are affected.
+        # No matter if we found that we are modifying a suspended provider individually, if all providers are
+        # affected, then it means that we are ok to proceed because likely we are running some kind of
+        # global refactoring that affects multiple providers including the suspended one. This is a
+        # potential escape hatch if someone would like to modify suspended provider,
+        # but it can be found at the review time and is anyway harmless as the provider will not be
+        # released nor tested nor used in CI anyway.
+        get_console().print("[error]You are modifying suspended providers.\n")
+        get_console().print(
+            "[info]Some providers modified by this change have been suspended, "
+            "and before attempting such changes you should fix the reason for suspension."
+        )
+        get_console().print(
+            "[info]When fixing it, you should set suspended = false in provider.yaml "
+            "to make changes to the provider."
+        )
+        get_console().print(f"Suspended providers: {suspended_providers}")
+        sys.exit(1)
     for provider in list(all_providers):
         add_dependent_providers(all_providers, provider, dependencies)
     return all_providers
@@ -298,16 +327,16 @@ class SelectiveChecks:
     @cached_property
     def full_tests_needed(self) -> bool:
         if not self._commit_ref:
-            get_stderr_console().print("[warning]Running everything as commit is missing[/]")
+            get_console().print("[warning]Running everything as commit is missing[/]")
             return True
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
-            get_stderr_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
+            get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
         if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
-            get_stderr_console().print("[warning]Running everything because env files changed[/]")
+            get_console().print("[warning]Running everything because env files changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
-            get_stderr_console().print(
+            get_console().print(
                 "[warning]Full tests needed because "
                 f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
             )
@@ -437,24 +466,24 @@ class SelectiveChecks:
         self._match_files_with_regexps(matched_files, regexps)
         count = len(matched_files)
         if count > 0:
-            get_stderr_console().print(f"[warning]{match_group} matched {count} files.[/]")
-            get_stderr_console().print(matched_files)
+            get_console().print(f"[warning]{match_group} matched {count} files.[/]")
+            get_console().print(matched_files)
         else:
-            get_stderr_console().print(f"[warning]{match_group} did not match any file.[/]")
+            get_console().print(f"[warning]{match_group} did not match any file.[/]")
         return matched_files
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
-            get_stderr_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
+            get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
             return True
         matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES)
         if len(matched_files) > 0:
-            get_stderr_console().print(
+            get_console().print(
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
             )
             return True
         else:
-            get_stderr_console().print(
+            get_console().print(
                 f"[warning]{source_area} disabled because it did not match any changed files[/]"
             )
             return False
@@ -478,6 +507,10 @@ class SelectiveChecks:
     @cached_property
     def run_www_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.WWW_FILES)
+
+    @cached_property
+    def run_amazon_tests(self) -> bool:
+        return "amazon" in self.parallel_test_types or "Providers" in self.parallel_test_types.split(" ")
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -506,7 +539,7 @@ class SelectiveChecks:
         count = len(matched_files)
         if count > 0:
             test_types.add(test_type.value)
-            get_stderr_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
+            get_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
         return matched_files
 
     def _get_test_types_to_run(self) -> list[str]:
@@ -534,11 +567,11 @@ class SelectiveChecks:
         )
         count_remaining_files = len(remaining_files)
         if count_remaining_files > 0:
-            get_stderr_console().print(
+            get_console().print(
                 f"[warning]We should run all tests. There are {count_remaining_files} changed "
                 "files that seems to fall into Core/Other category[/]"
             )
-            get_stderr_console().print(remaining_files)
+            get_console().print(remaining_files)
             candidate_test_types.update(all_selective_test_types())
         else:
             if "Providers" in candidate_test_types:
@@ -546,16 +579,16 @@ class SelectiveChecks:
                 if len(affected_providers) != 0:
                     candidate_test_types.remove("Providers")
                     candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-            get_stderr_console().print(
+            get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
         sorted_candidate_test_types = list(sorted(candidate_test_types))
-        get_stderr_console().print("[warning]Selected test type candidates to run:[/]")
-        get_stderr_console().print(sorted_candidate_test_types)
+        get_console().print("[warning]Selected test type candidates to run:[/]")
+        get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
     @cached_property
-    def test_types(self) -> str:
+    def parallel_test_types(self) -> str:
         if not self.run_tests:
             return ""
         if self.full_tests_needed:
@@ -566,7 +599,7 @@ class SelectiveChecks:
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
                 if test_type.startswith("Providers"):
-                    get_stderr_console().print(
+                    get_console().print(
                         f"[warning]Removing {test_type} because the target branch "
                         f"is {self._default_branch} and not main[/]"
                     )
@@ -597,9 +630,17 @@ class SelectiveChecks:
         return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
 
     @cached_property
+    def skip_provider_tests(self) -> bool:
+        return self._default_branch != "main"
+
+    @cached_property
     def cache_directive(self) -> str:
         return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
 
     @cached_property
     def debug_resources(self) -> bool:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
+
+    @cached_property
+    def suspended_providers_folders(self) -> str:
+        return " ".join(get_suspended_providers_folders())

@@ -21,7 +21,13 @@ name: Amazon
 description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
+suspended: false
 versions:
+  - 7.4.1
+  - 7.4.0
+  - 7.3.0
+  - 7.2.1
+  - 7.2.0
   - 7.1.0
   - 7.0.0
   - 6.2.0
@@ -53,6 +59,7 @@ dependencies:
   - apache-airflow>=2.3.0
   - apache-airflow-providers-common-sql>=1.3.1
   - boto3>=1.24.0
+  - asgiref
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:
   # https://github.com/kislyuk/watchtower/blob/develop/Changes.rst#changes-for-v300-2022-01-26
@@ -90,6 +97,8 @@ integrations:
   - integration-name: Amazon DynamoDB
     external-doc-url: https://aws.amazon.com/dynamodb/
     logo: /integration-logos/aws/Amazon-DynamoDB_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/dynamodb.rst
     tags: [aws]
   - integration-name: Amazon EC2
     external-doc-url: https://aws.amazon.com/ec2/
@@ -340,6 +349,9 @@ sensors:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms
+  - integration-name: Amazon DynamoDB
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.dynamodb
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2
@@ -559,7 +571,13 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sql_to_s3
-
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Common SQL
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_sql.rst
+    python-module: airflow.providers.amazon.aws.transfers.s3_to_sql
+  - source-integration-name: Amazon Web Services
+    target-integration-name: Amazon Web Services
+    python-module: airflow.providers.amazon.aws.transfers.base
 
 extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink
@@ -590,3 +608,9 @@ additional-extras:
   - name: pandas
     dependencies:
       - pandas>=0.17.1
+  # There is conflict between boto3 and aiobotocore dependency botocore.
+  # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+  # boto3 have native aync support and we move away from aio aiobotocore
+  - name: aiobotocore
+    dependencies:
+      - aiobotocore>=2.1.1

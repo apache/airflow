@@ -28,7 +28,9 @@ import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import partial
+from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
 from urllib.parse import quote
@@ -83,6 +85,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
@@ -91,7 +94,7 @@ from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
+from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
@@ -120,6 +123,7 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
 
@@ -136,8 +140,26 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
+    # This is a workaround because mypy doesn't work with hybrid_property
+    # TODO: remove this hack and move hybrid_property back to main import block
+    # See https://github.com/python/mypy/issues/4430
+    hybrid_property = property
+else:
+    from sqlalchemy.ext.hybrid import hybrid_property
+
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+
+class TaskReturnCode(Enum):
+    """
+    Enum to signal manner of exit for task run command.
+
+    :meta private:
+    """
+
+    DEFERRED = 100
+    """When task exits with deferral to trigger."""
 
 
 @contextlib.contextmanager
@@ -246,9 +268,9 @@ def clear_task_instances(
         session.execute(delete_qry)
 
     if job_ids:
-        from airflow.jobs.base_job import BaseJob
+        from airflow.jobs.job import Job
 
-        for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
+        for job in session.query(Job).filter(Job.id.in_(job_ids)).all():
             job.state = TaskInstanceState.RESTARTING
 
     if activate_dag_runs is not None:
@@ -442,7 +464,7 @@ class TaskInstance(Base, LoggingMixin):
         viewonly=True,
     )
 
-    trigger = relationship("Trigger", uselist=False)
+    trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
@@ -450,6 +472,12 @@ class TaskInstance(Base, LoggingMixin):
     task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
+
+    is_trigger_log_context: bool = False
+    """Indicate to FileTaskHandler that logging context should be set up for trigger logging.
+
+    :meta private:
+    """
 
     def __init__(
         self,
@@ -543,7 +571,7 @@ class TaskInstance(Base, LoggingMixin):
         self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
-    @property
+    @hybrid_property
     def try_number(self):
         """
         Return the try number that this task number will be when it is actually
@@ -588,12 +616,12 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping=False,
         ignore_ti_state=False,
         local=False,
-        pickle_id=None,
+        pickle_id: int | None = None,
         raw=False,
         job_id=None,
         pool=None,
         cfg_path=None,
-    ):
+    ) -> list[str]:
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -601,15 +629,17 @@ class TaskInstance(Base, LoggingMixin):
         """
         dag: DAG | DagModel
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
-        if hasattr(self, "task") and hasattr(self.task, "dag"):
+        if hasattr(self, "task") and hasattr(self.task, "dag") and self.task.dag is not None:
             dag = self.task.dag
         else:
             dag = self.dag_model
 
         should_pass_filepath = not pickle_id and dag
-        path = None
+        path: PurePath | None = None
         if should_pass_filepath:
             if dag.is_subdag:
+                if TYPE_CHECKING:
+                    assert dag.parent_dag is not None
                 path = dag.parent_dag.relative_fileloc
             else:
                 path = dag.relative_fileloc
@@ -617,7 +647,6 @@ class TaskInstance(Base, LoggingMixin):
             if path:
                 if not path.is_absolute():
                     path = "DAGS_FOLDER" / path
-                path = str(path)
 
         return TaskInstance.generate_command(
             self.dag_id,
@@ -652,7 +681,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         local: bool = False,
         pickle_id: int | None = None,
-        file_path: str | None = None,
+        file_path: PurePath | str | None = None,
         raw: bool = False,
         job_id: str | None = None,
         pool: str | None = None,
@@ -708,7 +737,7 @@ class TaskInstance(Base, LoggingMixin):
         if raw:
             cmd.extend(["--raw"])
         if file_path:
-            cmd.extend(["--subdir", file_path])
+            cmd.extend(["--subdir", os.fspath(file_path)])
         if cfg_path:
             cmd.extend(["--cfg-path", cfg_path])
         if map_index != -1:
@@ -1233,7 +1262,12 @@ class TaskInstance(Base, LoggingMixin):
         self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
-            Stats.incr("previously_succeeded", 1, 1)
+            Stats.incr(
+                "previously_succeeded",
+                1,
+                1,
+                tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id},
+            )
 
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
@@ -1291,7 +1325,10 @@ class TaskInstance(Base, LoggingMixin):
                 session.commit()
                 return False
 
-        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
+        if self.next_kwargs is not None:
+            self.log.info("Resuming after deferral")
+        else:
+            self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
         self._try_number += 1
 
         if not test_mode:
@@ -1353,7 +1390,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> TaskReturnCode | None:
         """
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
@@ -1382,6 +1419,12 @@ class TaskInstance(Base, LoggingMixin):
 
         self.task = self.task.prepare_for_execution()
         context = self.get_template_context(ignore_param_exceptions=False)
+
+        # We lose previous state because it's changed in other process in LocalTaskJob.
+        # We could probably pass it through here though...
+        get_listener_manager().hook.on_task_instance_running(
+            previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
+        )
         try:
             if not mark_success:
                 self._execute_task_with_callbacks(context, test_mode)
@@ -1403,7 +1446,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self)
                 session.commit()
-            return
+            return TaskReturnCode.DEFERRED
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
@@ -1415,7 +1458,7 @@ class TaskInstance(Base, LoggingMixin):
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
-            return
+            return None
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
@@ -1432,7 +1475,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.clear_next_method_args()
                 session.merge(self)
                 session.commit()
-                return
+                return None
             else:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
@@ -1460,7 +1503,12 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self).task = self.task
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
+                get_listener_manager().hook.on_task_instance_success(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+                )
+
             session.commit()
+        return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:
@@ -1531,12 +1579,13 @@ class TaskInstance(Base, LoggingMixin):
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
-
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", 1, 1)
-        Stats.incr("ti_successes")
+        Stats.incr(
+            "ti_successes", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
+        )
 
     def _run_finished_callback(
         self,
@@ -1788,6 +1837,10 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode is None:
             test_mode = self.test_mode
 
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+        )
+
         if error:
             if isinstance(error, BaseException):
                 tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
@@ -1800,7 +1853,9 @@ class TaskInstance(Base, LoggingMixin):
         self.end_date = timezone.utcnow()
         self.set_duration()
         Stats.incr(f"operator_failures_{self.operator}")
-        Stats.incr("ti_failures")
+        Stats.incr(
+            "ti_failures", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
+        )
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
@@ -2427,18 +2482,17 @@ class TaskInstance(Base, LoggingMixin):
         return LazyXComAccess.build_from_xcom_query(query)
 
     @provide_session
-    def get_num_running_task_instances(self, session: Session) -> int:
+    def get_num_running_task_instances(self, session: Session, same_dagrun=False) -> int:
         """Return Number of running TIs from the DB"""
         # .count() is inefficient
-        return (
-            session.query(func.count())
-            .filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.state == State.RUNNING,
-            )
-            .scalar()
+        num_running_task_instances_query = session.query(func.count()).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.state == State.RUNNING,
         )
+        if same_dagrun:
+            num_running_task_instances_query.filter(TaskInstance.run_id == self.run_id)
+        return num_running_task_instances_query.scalar()
 
     def init_run_context(self, raw: bool = False) -> None:
         """Sets the log context."""
@@ -2561,7 +2615,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @Sentry.enrich_errors
     @provide_session
-    def schedule_downstream_tasks(self, session=None):
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION) -> None:
         """
         The mini-scheduler for scheduling downstream tasks of this task instance
         :meta: private
@@ -2601,7 +2655,17 @@ class TaskInstance(Base, LoggingMixin):
                 task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
             }
 
-            schedulable_tis = [ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids]
+            schedulable_tis = [
+                ti
+                for ti in info.schedulable_tis
+                if ti.task_id not in skippable_task_ids
+                and not (
+                    ti.task.inherits_from_empty_operator
+                    and not ti.task.on_execute_callback
+                    and not ti.task.on_success_callback
+                    and not ti.task.outlets
+                )
+            ]
             for schedulable_ti in schedulable_tis:
                 if not hasattr(schedulable_ti, "task"):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
@@ -2663,18 +2727,20 @@ class TaskInstance(Base, LoggingMixin):
         :return: Specific map index or map indexes to pull, or ``None`` if we
             want to "whole" return value (i.e. no mapped task groups involved).
         """
+        # This value should never be None since we already know the current task
+        # is in a mapped task group, and should have been expanded, despite that,
+        # we need to check that it is not None to satisfy Mypy.
+        # But this value can be 0 when we expand an empty list, for that it is
+        # necessary to check that ti_count is not 0 to avoid dividing by 0.
+        if not ti_count:
+            return None
+
         # Find the innermost common mapped task group between the current task
         # If the current task and the referenced task does not have a common
         # mapped task group, the two are in different task mapping contexts
         # (like another_task above), and we should use the "whole" value.
         common_ancestor = _find_common_ancestor_mapped_group(self.task, upstream)
         if common_ancestor is None:
-            return None
-
-        # This value should never be None since we already know the current task
-        # is in a mapped task group, and should have been expanded. The check
-        # exists mainly to satisfy Mypy.
-        if ti_count is None:
             return None
 
         # At this point we know the two tasks share a mapped task group, and we
@@ -2695,6 +2761,25 @@ class TaskInstance(Base, LoggingMixin):
         further_count = ti_count // ancestor_ti_count
         map_index_start = ancestor_map_index * further_count
         return range(map_index_start, map_index_start + further_count)
+
+    def clear_db_references(self, session):
+        """
+        Clear DB references to XCom, TaskFail and RenderedTaskInstanceFields.
+
+        :param session: ORM Session
+
+        :meta private:
+        """
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        tables = [TaskFail, XCom, RenderedTaskInstanceFields]
+        for table in tables:
+            session.query(table).filter(
+                table.dag_id == self.dag_id,
+                table.task_id == self.task_id,
+                table.run_id == self.run_id,
+                table.map_index == self.map_index,
+            ).delete()
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
@@ -2872,6 +2957,6 @@ class TaskInstanceNote(Base):
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.jobs.base_job import BaseJob
+    from airflow.jobs.job import Job
 
-    TaskInstance.queued_by_job = relationship(BaseJob)
+    TaskInstance.queued_by_job = relationship(Job)

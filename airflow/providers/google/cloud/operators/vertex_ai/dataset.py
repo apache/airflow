@@ -18,6 +18,7 @@
 """This module contains Google Vertex AI operators."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -26,15 +27,15 @@ from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import Dataset, ExportDataConfig, ImportDataConfig
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
 from airflow.providers.google.cloud.links.vertex_ai import VertexAIDatasetLink, VertexAIDatasetListLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CreateDatasetOperator(BaseOperator):
+class CreateDatasetOperator(GoogleCloudBaseOperator):
     """
     Creates a Dataset.
 
@@ -84,6 +85,10 @@ class CreateDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -114,7 +119,7 @@ class CreateDatasetOperator(BaseOperator):
         return dataset
 
 
-class GetDatasetOperator(BaseOperator):
+class GetDatasetOperator(GoogleCloudBaseOperator):
     """
     Get a Dataset.
 
@@ -165,6 +170,10 @@ class GetDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -193,7 +202,7 @@ class GetDatasetOperator(BaseOperator):
             self.log.info("The Dataset ID %s does not exist.", self.dataset_id)
 
 
-class DeleteDatasetOperator(BaseOperator):
+class DeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     Deletes a Dataset.
 
@@ -241,6 +250,10 @@ class DeleteDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -267,7 +280,7 @@ class DeleteDatasetOperator(BaseOperator):
             self.log.info("The Dataset ID %s does not exist.", self.dataset_id)
 
 
-class ExportDataOperator(BaseOperator):
+class ExportDataOperator(GoogleCloudBaseOperator):
     """
     Exports data from a Dataset.
 
@@ -318,6 +331,10 @@ class ExportDataOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -342,7 +359,7 @@ class ExportDataOperator(BaseOperator):
         self.log.info("Export was done successfully")
 
 
-class ImportDataOperator(BaseOperator):
+class ImportDataOperator(GoogleCloudBaseOperator):
     """
     Imports data into a Dataset.
 
@@ -394,6 +411,10 @@ class ImportDataOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -418,7 +439,7 @@ class ImportDataOperator(BaseOperator):
         self.log.info("Import was done successfully")
 
 
-class ListDatasetsOperator(BaseOperator):
+class ListDatasetsOperator(GoogleCloudBaseOperator):
     """
     Lists Datasets in a Location.
 
@@ -480,6 +501,10 @@ class ListDatasetsOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
@@ -505,7 +530,7 @@ class ListDatasetsOperator(BaseOperator):
         return [Dataset.to_dict(result) for result in results]
 
 
-class UpdateDatasetOperator(BaseOperator):
+class UpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     Updates a Dataset.
 
@@ -559,6 +584,10 @@ class UpdateDatasetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 

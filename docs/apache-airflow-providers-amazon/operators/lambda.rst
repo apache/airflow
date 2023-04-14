@@ -47,13 +47,13 @@ To create an AWS lambda function you can use
     :start-after: [START howto_operator_create_lambda_function]
     :end-before: [END howto_operator_create_lambda_function]
 
-.. _howto/operator:AwsLambdaInvokeFunctionOperator:
+.. _howto/operator:LambdaInvokeFunctionOperator:
 
 Invoke an AWS Lambda function
 =============================
 
 To invoke an AWS lambda function you can use
-:class:`~airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator`.
+:class:`~airflow.providers.amazon.aws.operators.lambda_function.LambdaInvokeFunctionOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
     :language: python

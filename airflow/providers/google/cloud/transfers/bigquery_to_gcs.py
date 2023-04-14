@@ -18,6 +18,7 @@
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import Conflict
@@ -38,6 +39,9 @@ class BigQueryToGCSOperator(BaseOperator):
     """
     Transfers a BigQuery table to a Google Cloud Storage bucket.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryToGCSOperator`
     .. seealso::
         For more details about these parameters:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
@@ -89,6 +93,7 @@ class BigQueryToGCSOperator(BaseOperator):
         "export_format",
         "labels",
         "impersonation_chain",
+        "job_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#e4e6f0"
@@ -126,6 +131,10 @@ class BigQueryToGCSOperator(BaseOperator):
         self.field_delimiter = field_delimiter
         self.print_header = print_header
         self.gcp_conn_id = gcp_conn_id
+        if delegate_to:
+            warnings.warn(
+                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+            )
         self.delegate_to = delegate_to
         self.labels = labels
         self.location = location
@@ -184,12 +193,12 @@ class BigQueryToGCSOperator(BaseOperator):
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=configuration["extract"]["sourceTable"]["projectId"],
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
-            nowait=True,
+            nowait=self.deferrable,
         )
 
     def execute(self, context: Context):
