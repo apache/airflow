@@ -129,11 +129,22 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
     def _pod_events(self, kube_client: client.CoreV1Api, query_kwargs: dict):
         watcher = watch.Watch()
-
-        if self.namespace == ALL_NAMESPACES:
-            return watcher.stream(kube_client.list_pod_for_all_namespaces, **query_kwargs)
-        else:
-            return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
+        try:
+            if self.namespace == ALL_NAMESPACES:
+                return watcher.stream(kube_client.list_pod_for_all_namespaces, **query_kwargs)
+            else:
+                return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
+        except ApiException as e:
+            if e.status == 410:  # Resource version is too old
+                if self.namespace == ALL_NAMESPACES:
+                    pods = kube_client.list_pod_for_all_namespaces(watch=False)
+                else:
+                    pods = kube_client.list_namespaced_pod(namespace=self.namespace, watch=False)
+                resource_version = pods.metadata.resource_version
+                query_kwargs["resource_version"] = resource_version
+                return self._pod_events(kube_client=kube_client, query_kwargs=query_kwargs)
+            else:
+                raise
 
     def _run(
         self,

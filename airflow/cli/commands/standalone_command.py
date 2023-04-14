@@ -30,10 +30,10 @@ from termcolor import colored
 from airflow.configuration import AIRFLOW_HOME, conf, make_group_other_inaccessible
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job import most_recent_job
-from airflow.jobs.job_runner import BaseJobRunner
-from airflow.jobs.scheduler_job import SchedulerJobRunner
-from airflow.jobs.triggerer_job import TriggererJobRunner
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import most_recent_job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import db
 
 
