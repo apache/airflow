@@ -184,6 +184,43 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
+
+        # Since the functionality for stalled_task_timeout, task_adoption_timeout, and
+        # worker_pods_pending_timeout are now handled by a single config (task_queued_timeout),
+        # we can't deprecate them as we normally would. So, we'll read each config and take
+        # the max value in order to ensure we're not undercutting a legitimate
+        # use of any of these configs.
+        stalled_task_timeout = conf.getfloat("celery", "stalled_task_timeout", fallback=0)
+        if stalled_task_timeout:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The '[celery] stalled_task_timeout' config option is deprecated. "
+                "Please update your config to use '[scheduler] task_queued_timeout' instead.",
+                DeprecationWarning,
+            )
+        task_adoption_timeout = conf.getfloat("celery", "task_adoption_timeout", fallback=0)
+        if task_adoption_timeout:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The '[celery] task_adoption_timeout' config option is deprecated. "
+                "Please update your config to use '[scheduler] task_queued_timeout' instead.",
+                DeprecationWarning,
+            )
+        worker_pods_pending_timeout = conf.getfloat(
+            "kubernetes_executor", "worker_pods_pending_timeout", fallback=0
+        )
+        if worker_pods_pending_timeout:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The '[kubernetes_executor] worker_pods_pending_timeout' config option is deprecated. "
+                "Please update your config to use '[scheduler] task_queued_timeout' instead.",
+                DeprecationWarning,
+            )
+        task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
+        self._task_queued_timeout = max(
+            stalled_task_timeout, task_adoption_timeout, worker_pods_pending_timeout, task_queued_timeout
+        )
+
         self.do_pickle = do_pickle
 
         if log:
@@ -336,7 +373,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         pool_num_starving_tasks: dict[str, int] = Counter()
 
         for loop_count in itertools.count(start=1):
-
             num_starved_pools = len(starved_pools)
             num_starved_dags = len(starved_dags)
             num_starved_tasks = len(starved_tasks)
@@ -933,7 +969,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             conf.getfloat("scheduler", "zombie_detection_interval", fallback=10.0),
             self._find_zombies,
         )
+
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
+            self._fail_tasks_stuck_in_queued,
+        )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
@@ -948,7 +990,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for loop_count in itertools.count(start=1):
             with Stats.timer("scheduler.scheduler_loop_duration") as timer:
-
                 if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
                     # For the sqlite case w/ 1 thread, wait until the processor
@@ -1134,7 +1175,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
@@ -1214,7 +1254,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # instead of falling in a loop of Integrity Error.
             exec_date = exec_dates[dag.dag_id]
             if (dag.dag_id, exec_date) not in existing_dagruns:
-
                 previous_dag_run = (
                     session.query(DagRun)
                     .filter(
@@ -1472,6 +1511,42 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             processor_subdir=dag_model.processor_subdir,
         )
         self.job.executor.send_callback(request)
+
+    @provide_session
+    def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+        """
+        Mark tasks stuck in queued for longer than `task_queued_timeout` as failed.
+
+        Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
+        track of a task, a cluster can't further scale up its workers, etc.), but tasks
+        should not be stuck in queued for a long time. This will mark tasks stuck in
+        queued for longer than `self._task_queued_timeout` as failed. If the task has
+        available retries, it will be retried.
+        """
+        self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
+
+        tasks_stuck_in_queued = (
+            session.query(TI)
+            .filter(
+                TI.state == State.QUEUED,
+                TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
+                TI.queued_by_job_id == self.job.id,
+            )
+            .all()
+        )
+        try:
+            tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(tis=tasks_stuck_in_queued)
+            if tis_for_warning_message:
+                task_instance_str = "\n\t".join(tis_for_warning_message)
+                self.log.warning(
+                    "Marked the following %s task instances stuck in queued as failed. "
+                    "If the task instance has available retries, it will be retried.\n\t%s",
+                    len(tasks_stuck_in_queued),
+                    task_instance_str,
+                )
+        except NotImplementedError:
+            self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
+            ...
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
