@@ -1,15 +1,31 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Audit Logs in Airflow
 ========================
+
 
 Overview
 ---------
 
-
-Audit logs are a critical component of any system that needs to maintain a high level of security and compliance. 
+Audit logs are a critical component of any system that needs to maintain a high level of security and compliance.
 They provide a way to track user actions and system events, which can be used to troubleshoot issues, detect security breaches, and ensure regulatory compliance.
 
-
-In Airflow, audit logs are used to track user actions and system events that occur during the execution of DAGs and tasks. 
+In Airflow, audit logs are used to track user actions and system events that occur during the execution of DAGs and tasks.
 They are stored in a database and can be accessed through the Airflow UI.
 
 
@@ -44,7 +60,7 @@ Airflow provides a set of predefined events that can be tracked in audit logs. T
 - ``action_clear``: Clearing a task's state
 
 
-In addition to these predefined events, Airflow allows you to define custom events that can be tracked in audit logs. 
+In addition to these predefined events, Airflow allows you to define custom events that can be tracked in audit logs.
 This can be done by calling the ``log`` method of the ``TaskInstance`` object.
 
 
