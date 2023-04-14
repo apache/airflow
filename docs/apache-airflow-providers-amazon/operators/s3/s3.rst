@@ -25,7 +25,7 @@ You can use Amazon S3 to store and retrieve any amount of data at any time, from
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

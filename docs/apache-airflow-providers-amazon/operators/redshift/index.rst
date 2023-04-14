@@ -17,15 +17,12 @@
 
 
 
-Amazon AWS Operators
-======================
+Amazon Redshift Operators
+=========================
 
 
 .. toctree::
     :maxdepth: 1
     :glob:
 
-    emr/index
-    redshift/index
-    s3/index
     *

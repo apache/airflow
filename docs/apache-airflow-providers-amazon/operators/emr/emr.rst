@@ -30,7 +30,7 @@ Storage Service (Amazon S3) and Amazon DynamoDB.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

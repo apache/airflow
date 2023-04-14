@@ -26,7 +26,7 @@ Amazon EKS.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
