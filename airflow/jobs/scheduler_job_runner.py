@@ -1482,33 +1482,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
             return
 
-        for attempt in run_with_db_retries(logger=self.log):
-            with attempt:
-                self.log.debug(
-                    "Running SchedulerJob._fail_tasks_stuck_in_queued with retries. Try %d of %d",
-                    attempt.retry_state.attempt_number,
-                    MAX_DB_RETRIES,
-                )
-                try:
-                    query = session.query(TI).filter(
-                        TI.state == State.QUEUED,
-                        TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
-                        TI.queued_by_job_id == self.job.id,
-                    )
-                    tasks_stuck_in_queued: list[TaskInstance] = query.all()
-                    tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(
-                        tis=tasks_stuck_in_queued
-                    )
-                    if tis_for_warning_message:
-                        task_instance_str = "\n\t".join(tis_for_warning_message)
-                        self.log.warning(
-                            "Marked the following %s task instances stuck in queued as failed. "
-                            "If the task instance has available retries, it will be retried.\n\t%s",
-                            len(tasks_stuck_in_queued),
-                            task_instance_str,
-                        )
-                except OperationalError:
-                    self.log.warning("Failed to mark tasks stuck in queued as failed")
+        tasks_stuck_in_queued = (
+            session.query(TI)
+            .filter(
+                TI.state == State.QUEUED,
+                TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
+                TI.queued_by_job_id == self.job.id,
+            )
+            .all()
+        )
+        tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(tis=tasks_stuck_in_queued)
+        if tis_for_warning_message:
+            task_instance_str = "\n\t".join(tis_for_warning_message)
+            self.log.warning(
+                "Marked the following %s task instances stuck in queued as failed. "
+                "If the task instance has available retries, it will be retried.\n\t%s",
+                len(tasks_stuck_in_queued),
+                task_instance_str,
+            )
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
