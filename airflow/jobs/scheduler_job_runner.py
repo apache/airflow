@@ -25,11 +25,11 @@ import signal
 import sys
 import time
 import warnings
-from collections import defaultdict
-from dataclasses import dataclass, field
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, DefaultDict, Iterator
+from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -86,10 +86,6 @@ DR = DagRun
 DM = DagModel
 
 
-def default_int_dict() -> DefaultDict[Any, int]:
-    return defaultdict(int)
-
-
 @dataclass
 class ConcurrencyMap:
     """
@@ -100,15 +96,13 @@ class ConcurrencyMap:
     to # of task instances in the given state list in each DAG run.
     """
 
-    dag_active_tasks_map: DefaultDict[str, int] = field(default_factory=default_int_dict)
-    task_concurrency_map: DefaultDict[tuple[str, str], int] = field(default_factory=default_int_dict)
-    task_dagrun_concurrency_map: DefaultDict[tuple[str, str, str], int] = field(
-        default_factory=default_int_dict
-    )
+    dag_active_tasks_map: dict[str, int]
+    task_concurrency_map: dict[tuple[str, str], int]
+    task_dagrun_concurrency_map: dict[tuple[str, str, str], int]
 
     @classmethod
     def from_concurrency_map(cls, mapping: dict[tuple[str, str, str], int]) -> ConcurrencyMap:
-        instance = cls(task_dagrun_concurrency_map=defaultdict(int, mapping))
+        instance = cls(Counter(), Counter(), Counter(mapping))
         for (d, r, t), c in mapping.items():
             instance.dag_active_tasks_map[d] += c
             instance.task_concurrency_map[(d, t)] += c
