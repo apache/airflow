@@ -2402,6 +2402,14 @@ scheduler:
       type: float
       example: ~
       default: "600.0"
+    task_queued_timeout_check_interval:
+      description: |
+        How often to check for tasks that have been in the queued state for
+        longer than `[scheduler] task_queued_timeout`.
+      version_added: 2.6.0
+      type: float
+      example: ~
+      default: "120.0"
 triggerer:
   description: ~
   options:

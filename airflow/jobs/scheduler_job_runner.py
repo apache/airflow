@@ -902,8 +902,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Check on start up, then every configured interval
         self.adopt_or_reset_orphaned_tasks()
 
-        timers.call_regular_interval(self._task_queued_timeout, self._fail_tasks_stuck_in_queued)
-
         timers.call_regular_interval(
             conf.getfloat("scheduler", "orphaned_tasks_check_interval", fallback=300.0),
             self.adopt_or_reset_orphaned_tasks,
@@ -923,7 +921,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             conf.getfloat("scheduler", "zombie_detection_interval", fallback=10.0),
             self._find_zombies,
         )
+
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
+            self._fail_tasks_stuck_in_queued,
+        )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
