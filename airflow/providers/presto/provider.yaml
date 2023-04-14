@@ -21,6 +21,7 @@ name: Presto
 description: |
     `Presto <https://prestodb.github.io/>`__
 
+suspended: false
 versions:
   - 4.2.2
   - 4.2.1

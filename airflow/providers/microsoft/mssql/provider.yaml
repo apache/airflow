@@ -21,6 +21,7 @@ name: Microsoft SQL Server (MSSQL)
 description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
+suspended: false
 versions:
   - 3.3.2
   - 3.3.1

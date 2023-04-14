@@ -21,6 +21,7 @@ name: Apache Hive
 description: |
   `Apache Hive <https://hive.apache.org/>`__
 
+suspended: false
 versions:
   - 6.0.0
   - 5.1.3

@@ -235,6 +235,7 @@ def partial(
     weight_rule: str | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
+    max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
@@ -296,6 +297,7 @@ def partial(
         "weight_rule": weight_rule,
         "sla": sla,
         "max_active_tis_per_dag": max_active_tis_per_dag,
+        "max_active_tis_per_dagrun": max_active_tis_per_dagrun,
         "on_execute_callback": on_execute_callback,
         "on_failure_callback": on_failure_callback,
         "on_retry_callback": on_retry_callback,
@@ -607,6 +609,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param run_as_user: unix username to impersonate while running the task
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across execution_dates.
+    :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
+        task instances per DAG run.
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -758,6 +762,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
         max_active_tis_per_dag: int | None = None,
+        max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
         inlets: Any | None = None,
@@ -901,6 +906,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
+        self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push = do_xcom_push
 
         self.doc_md = doc_md
@@ -954,12 +960,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @classmethod
     def as_setup(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Setup tasks are disabled.")
+
         op = cls(*args, **kwargs)
         op._is_setup = True
         return op
 
     @classmethod
     def as_teardown(cls, *args, **kwargs):
+        from airflow.settings import _ENABLE_AIP_52
+
+        if not _ENABLE_AIP_52:
+            raise AirflowException("AIP-52 Teardown tasks are disabled.")
+
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
         op = cls(*args, **kwargs)
         op._is_teardown = True
