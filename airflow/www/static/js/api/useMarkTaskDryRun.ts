@@ -18,41 +18,48 @@
  */
 
 import axios, { AxiosResponse } from "axios";
-import { useMutation } from "react-query";
+import { useQuery } from "react-query";
 import type { TaskState } from "src/types";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import { getMetaValue } from "../utils";
-import useErrorToast from "../utils/useErrorToast";
 
 const confirmUrl = getMetaValue("confirm_url");
 
-export default function useConfirmMarkTask({
+const useMarkTaskDryRun = ({
   dagId,
   runId,
   taskId,
   state,
+  past,
+  future,
+  upstream,
+  downstream,
+  mapIndexes = [],
 }: {
   dagId: string;
   runId: string;
   taskId: string;
   state: TaskState;
-}) {
-  const errorToast = useErrorToast();
-  return useMutation(
-    ["confirmStateChange", dagId, runId, taskId, state],
-    ({
+  past: boolean;
+  future: boolean;
+  upstream: boolean;
+  downstream: boolean;
+  mapIndexes?: number[];
+}) =>
+  useQuery(
+    [
+      "confirmStateChange",
+      dagId,
+      runId,
+      taskId,
+      state,
       past,
       future,
       upstream,
       downstream,
-      mapIndexes = [],
-    }: {
-      past: boolean;
-      future: boolean;
-      upstream: boolean;
-      downstream: boolean;
-      mapIndexes: number[];
-    }) => {
+      mapIndexes,
+    ],
+    () => {
       const params = new URLSearchParamsWrapper({
         dag_id: dagId,
         dag_run_id: runId,
@@ -68,9 +75,7 @@ export default function useConfirmMarkTask({
         params.append("map_index", mi.toString());
       });
       return axios.get<AxiosResponse, string[]>(confirmUrl, { params });
-    },
-    {
-      onError: (error: Error) => errorToast({ error }),
     }
   );
-}
+
+export default useMarkTaskDryRun;
