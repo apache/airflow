@@ -77,6 +77,9 @@ class BaseSessionFactory(LoggingMixin):
     User can also derive from this class to have full control of boto3 session
     creation or to support custom federation.
 
+    Note: Not all features implemented for synchronous sessions are available for async
+    sessions.
+
     .. seealso::
         - :ref:`howto/connection:aws:session-factory`
     """
