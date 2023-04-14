@@ -18,6 +18,7 @@
 """Transfers data from AWS Redshift into a S3 Bucket."""
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from airflow.exceptions import AirflowException
@@ -143,8 +144,17 @@ class RedshiftToS3Operator(BaseOperator):
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
+        # TODO: remove in provider 8.0.0
+        if "''" in select_query:
+            logging.warning(
+                "Skip adding escape characters for select query. This check will be removed soon, "
+                "consider deleting the '' and let Airflow add the escape characters"
+            )
+            escape = ""
+        else:
+            escape = "$$"
         return f"""
-                    UNLOAD ($$\n{select_query}$$\n)
+                    UNLOAD ({escape}\n{select_query}{escape}\n)
                     TO 's3://{self.s3_bucket}/{s3_key}'
                     credentials
                     '{credentials_block}'

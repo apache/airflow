@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import io
+from contextlib import redirect_stdout
 from copy import deepcopy
 from unittest import mock
 
@@ -397,17 +399,25 @@ class TestRedshiftToS3Transfer:
         assert_equal_ignore_multiple_spaces(self, mock_rs.execute_statement.call_args[1]["Sql"], unload_query)
 
     @pytest.mark.parametrize(
-        "select_query, expected_unload_query",
+        "select_query, expected_unload_query, warning",
         [
-            ("SELECT * FROM schema.table", "UNLOAD ($$\nSELECT * FROM schema.table$$\n)"),
+            ("SELECT * FROM schema.table", "UNLOAD ($$\nSELECT * FROM schema.table$$\n)", False),
             (
                 "SELECT * FROM schema.table WHERE foo='boo'",
                 "UNLOAD ($$\nSELECT * FROM schema.table WHERE foo='boo'$$\n)",
+                False,
+            ),
+            (
+                "SELECT * FROM schema.table WHERE foo=''boo''",
+                "UNLOAD (\nSELECT * FROM schema.table WHERE foo=''boo''\n)",
+                True,
             ),
         ],
     )
     @mock.patch("boto3.session.Session")
-    def test_build_unload_query_single_quotes(self, mock_session, select_query, expected_unload_query):
+    def test_build_unload_query_single_quotes(
+        self, mock_session, select_query, expected_unload_query, warning
+    ):
         op = RedshiftToS3Operator(
             s3_bucket="s3_bucket",
             s3_key="s3_key",
@@ -416,5 +426,10 @@ class TestRedshiftToS3Transfer:
             dag=None,
         )
         credentials_block = build_credentials_block(mock_session.return_value)
-        unload_query = op._build_unload_query(credentials_block, select_query, "s3_key", "HEADER")
+        with redirect_stdout(io.StringIO()) as stdout:
+            unload_query = op._build_unload_query(credentials_block, select_query, "s3_key", "HEADER")
+            stdout = stdout.getvalue()
         assert expected_unload_query in unload_query
+        warning_msg = "Skip adding escape characters for select query. This check will be removed soon, "
+        "consider deleting the '' and let Airflow add the escape characters"
+        assert (warning_msg in stdout) == warning
