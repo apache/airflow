@@ -40,6 +40,8 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_ALLOWED_EXECUTORS,
     SINGLE_PLATFORMS,
+    ALLOWED_EXECUTORS,
+    DEFAULT_ALLOWED_EXECUTORS,
     get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
