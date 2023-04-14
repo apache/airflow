@@ -17,83 +17,86 @@
  * under the License.
  */
 
-import axios from "axios";
-import { useMutation, useQueryClient } from "react-query";
+import axios, { AxiosResponse } from "axios";
+import { useQuery } from "react-query";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import { getMetaValue } from "../utils";
-import { useAutoRefresh } from "../context/autorefresh";
-import useErrorToast from "../utils/useErrorToast";
 
 const csrfToken = getMetaValue("csrf_token");
-const successUrl = getMetaValue("success_url");
+const clearUrl = getMetaValue("clear_url");
 
-export default function useMarkSuccessTask({
+const useClearTaskDryRun = ({
   dagId,
   runId,
   taskId,
+  executionDate,
+  isGroup,
+  past,
+  future,
+  upstream,
+  downstream,
+  recursive,
+  failed,
+  mapIndexes = [],
 }: {
   dagId: string;
   runId: string;
   taskId: string;
-}) {
-  const queryClient = useQueryClient();
-  const errorToast = useErrorToast();
-  const { startRefresh } = useAutoRefresh();
-  return useMutation(
-    ["markSuccess", dagId, runId, taskId],
-    ({
+  executionDate: string;
+  isGroup: boolean;
+  past: boolean;
+  future: boolean;
+  upstream: boolean;
+  downstream: boolean;
+  recursive: boolean;
+  failed: boolean;
+  mapIndexes?: number[];
+}) =>
+  useQuery(
+    [
+      "clearTask",
+      dagId,
+      runId,
+      taskId,
+      mapIndexes,
       past,
       future,
       upstream,
       downstream,
-      mapIndexes = [],
-    }: {
-      past: boolean;
-      future: boolean;
-      upstream: boolean;
-      downstream: boolean;
-      mapIndexes?: number[];
-    }) => {
+      recursive,
+      failed,
+    ],
+    () => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
-        task_id: taskId,
-        confirmed: true,
+        confirmed: false,
+        execution_date: executionDate,
         past,
         future,
         upstream,
         downstream,
+        recursive,
+        only_failed: failed,
       });
+
+      if (isGroup) {
+        params.append("group_id", taskId);
+      } else {
+        params.append("task_id", taskId);
+      }
 
       mapIndexes.forEach((mi: number) => {
         params.append("map_index", mi.toString());
       });
 
-      return axios.post(successUrl, params.toString(), {
+      return axios.post<AxiosResponse, string[]>(clearUrl, params.toString(), {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
       });
-    },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries("gridData");
-        queryClient.invalidateQueries([
-          "mappedInstances",
-          dagId,
-          runId,
-          taskId,
-        ]);
-        queryClient.invalidateQueries([
-          "confirmStateChange",
-          dagId,
-          runId,
-          taskId,
-        ]);
-        startRefresh();
-      },
-      onError: (error: Error) => errorToast({ error }),
     }
   );
-}
+
+export default useClearTaskDryRun;
