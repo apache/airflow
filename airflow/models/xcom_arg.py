@@ -33,6 +33,7 @@ from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.state import State
 from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -309,11 +310,19 @@ class PlainXComArg(XComArg):
         return super().zip(*others, fillvalue=fillvalue)
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        from airflow.models.taskinstance import TaskInstance
         from airflow.models.taskmap import TaskMap
         from airflow.models.xcom import XCom
 
         task = self.operator
         if isinstance(task, MappedOperator):
+            state_query = session.query(TaskInstance.state).filter(
+                TaskInstance.dag_id == task.dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id == task.task_id,
+            )
+            if any(state in State.unfinished for state, in state_query):
+                return None  # Not all of the expanded tis are done yet.
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
