@@ -20,7 +20,7 @@ from datetime import datetime
 
 import boto3
 
-from airflow.adecorators import task
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
