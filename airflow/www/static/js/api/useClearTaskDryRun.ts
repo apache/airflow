@@ -25,7 +25,7 @@ import { getMetaValue } from "../utils";
 const csrfToken = getMetaValue("csrf_token");
 const clearUrl = getMetaValue("clear_url");
 
-export default function useClearTaskDryRun({
+const useClearTaskDryRun = ({
   dagId,
   runId,
   taskId,
@@ -51,8 +51,8 @@ export default function useClearTaskDryRun({
   recursive: boolean;
   failed: boolean;
   mapIndexes?: number[];
-}) {
-  return useQuery(
+}) =>
+  useQuery(
     [
       "clearTask",
       dagId,
@@ -98,4 +98,5 @@ export default function useClearTaskDryRun({
       });
     }
   );
-}
+
+export default useClearTaskDryRun;

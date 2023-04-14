@@ -61,7 +61,6 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
     <Menu>
       <MenuButton
         as={Button}
-        variant="outline"
         colorScheme="blue"
         transition="all 0.2s"
         title={markLabel}

@@ -60,7 +60,7 @@ const ActionModal = ({
   const containerRef = useContainerRef();
   return (
     <Modal
-      size="3xl"
+      size="6xl"
       isOpen={isOpen}
       onClose={onClose}
       portalProps={{ containerRef }}
