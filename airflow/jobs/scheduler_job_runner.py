@@ -25,11 +25,11 @@ import signal
 import sys
 import time
 import warnings
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, DefaultDict, Iterator
+from typing import TYPE_CHECKING, Collection, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -333,7 +333,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_tasks: set[tuple[str, str]] = set()
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
 
-        pool_num_starving_tasks: DefaultDict[str, int] = defaultdict(int)
+        pool_num_starving_tasks: dict[str, int] = Counter()
 
         for loop_count in itertools.count(start=1):
 
@@ -1129,8 +1129,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .all()
         )
 
-        active_runs_of_dags = defaultdict(
-            int,
+        active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags(dag_ids=(dm.dag_id for dm in dag_models), session=session),
         )
 
@@ -1287,8 +1286,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Find DagRuns in queued state and decide moving them to running state."""
         dag_runs = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
 
-        active_runs_of_dags = defaultdict(
-            int,
+        active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
         )
 
