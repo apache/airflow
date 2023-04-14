@@ -143,6 +143,13 @@ def cancel_run_endpoint(host):
     return f"https://{host}/api/2.1/jobs/runs/cancel"
 
 
+def delete_run_endpoint(host):
+    """
+    Utility function to generate delete run endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/runs/delete"
+
+
 def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
@@ -514,6 +521,21 @@ class TestDatabricksHook:
 
         mock_requests.post.assert_called_once_with(
             cancel_run_endpoint(HOST),
+            json={"run_id": RUN_ID},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_delete_run(self, mock_requests):
+        mock_requests.post.return_value.json.return_value = {}
+
+        self.hook.delete_run(RUN_ID)
+
+        mock_requests.post.assert_called_once_with(
+            delete_run_endpoint(HOST),
             json={"run_id": RUN_ID},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
