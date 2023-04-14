@@ -40,6 +40,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -151,7 +152,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             warnings.warn(
                 "The 'processor_poll_interval' parameter is deprecated. "
                 "Please use 'scheduler_idle_sleep_time'.",
-                DeprecationWarning,
+                RemovedInAirflow3Warning,
+                stacklevel=2,
             )
             scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
@@ -169,7 +171,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if stalled_task_timeout:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
-                "The '[celery] stalled_task_timeout' parameter is deprecated. "
+                "The '[celery] stalled_task_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
             )
@@ -177,7 +179,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if task_adoption_timeout:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
-                "The '[celery] task_adoption_timeout' parameter is deprecated. "
+                "The '[celery] task_adoption_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
             )
@@ -187,7 +189,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if worker_pods_pending_timeout:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
-                "The '[kubernetes_executor] worker_pods_pending_timeout' parameter is deprecated. "
+                "The '[kubernetes_executor] worker_pods_pending_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
             )
