@@ -45,9 +45,8 @@ we have a dedicated #newbie-questions Slack channel where you can ask any questi
 you want - it's a safe space where it is expected that people asking questions do not know
 a lot about Airflow (yet!).
 
-If you look for more structured mentoring experience, you can apply to Apache Software Foundation's
-`Official Mentoring Programme <http://community.apache.org/mentoringprogramme.html>`_. Feel free
-to follow it and apply to the programme and follow up with the community.
+To check on how mentoring works for the projects under Apache Software Foundation's
+`Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
 
 Report Bugs
 -----------

@@ -21,6 +21,10 @@
         "type": "string"
       }
     },
+    "suspended": {
+      "description": "If set to true, the provider is suspended and it's not a candidate for release nor contributes dependencies to constraint calculations/CI image. Tests are excluded.",
+      "type:": "boolean"
+    },
     "dependencies": {
       "description": "Dependencies that should be added to the provider",
       "type": "array",
@@ -326,6 +330,7 @@
     "name",
     "package-name",
     "description",
+    "suspended",
     "dependencies",
     "versions"
   ]
