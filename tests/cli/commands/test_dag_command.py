@@ -31,6 +31,7 @@ import pytest
 import time_machine
 
 from airflow import settings
+from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
@@ -469,6 +470,25 @@ class TestCliDags:
 
         assert "airflow/example_dags/example_complex.py" in out
         assert "example_complex" in out
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_get_dag_details(self):
+        args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_details(args)
+            out = temp_stdout.getvalue()
+
+        dag_detail_fields = DAGSchema().fields.keys()
+
+        # Check if DAG Details field are present
+        for field in dag_detail_fields:
+            assert field in out
+
+        # Check if identifying values are present
+        dag_details_values = ["airflow", "airflow/example_dags/example_complex.py", "16", "example_complex"]
+
+        for value in dag_details_values:
+            assert value in out
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags(self):
