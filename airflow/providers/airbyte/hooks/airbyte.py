@@ -102,7 +102,7 @@ class AirbyteHook(HttpHook):
         :param job_id: Required. Id of the Airbyte job
         """
         return self.run(
-            endpoint=f"api/{self.api_version}/jobs/get",
+            endpoint=f"api/{self.api_version}/jobs/get_light",
             json={"id": job_id},
             headers={"accept": "application/json"},
         )
