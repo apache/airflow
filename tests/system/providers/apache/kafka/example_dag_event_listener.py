@@ -78,7 +78,6 @@ with DAG(
         producer_function=_producer_function,
     )
 
-
 with DAG(
     dag_id="fizzbuzz-listener-dag",
     description="listen for messages with mod 3 and mod 5 are zero",
@@ -107,6 +106,7 @@ with DAG(
             if message & 5 == 0:
                 print(f"encountered {message} BUZZ !")
 
+    # [START howto_sensor_await_message_trigger_function]
     listen_for_message = AwaitMessageTriggerFunctionSensor(
         kafka_config_id="fizz_buzz",
         task_id="listen_for_message",
@@ -114,6 +114,7 @@ with DAG(
         apply_function="event_listener.await_function",
         event_triggered_function=pick_downstream_dag,
     )
+    # [END howto_sensor_await_message_trigger_function]
 
 with DAG(
     dag_id="fizz-buzz",
@@ -127,3 +128,9 @@ with DAG(
         print("FIZZ BUZZ")
 
     fizz_buzz_task = PythonOperator(task_id="fizz_buzz", python_callable=_fizz_buzz)
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

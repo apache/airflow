@@ -37,7 +37,7 @@ from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
 #     Connection(
 #         conn_id="t1-3",
 #         conn_type="kafka",
-#         extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092"}),
+#         extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}),
 #     )
 # )
 
@@ -156,16 +156,19 @@ with DAG(
     tags=["example"],
 ) as dag:
 
+    # [START howto_operator_produce_to_topic]
     t1 = ProduceToTopicOperator(
         kafka_config_id="t1-3",
         task_id="produce_to_topic",
         topic="test_1",
         producer_function="hello_kafka.producer_function",
     )
+    # [END howto_operator_produce_to_topic]
 
     t1.doc_md = "Takes a series of messages from a generator function and publishes"
     "them to the `test_1` topic of our kafka cluster."
 
+    # [START howto_operator_consume_from_topic]
     t2 = ConsumeFromTopicOperator(
         kafka_config_id="t2",
         task_id="consume_from_topic",
@@ -176,6 +179,7 @@ with DAG(
         max_messages=10,
         max_batch_size=2,
     )
+    # [END howto_operator_consume_from_topic]
 
     t2.doc_md = "Reads a series of messages from the `test_1` topic, and processes"
     "them with a consumer function with a keyword argument."
@@ -213,6 +217,7 @@ with DAG(
     t4.doc_md = "Does the same thing as the t2 task, but passes the callable directly"
     "instead of using the string notation."
 
+    # [START howto_sensor_await_message]
     t5 = AwaitMessageSensor(
         kafka_config_id="t5",
         task_id="awaiting_message",
@@ -220,6 +225,7 @@ with DAG(
         apply_function="hello_kafka.await_function",
         xcom_push_key="retrieved_message",
     )
+    # [END howto_sensor_await_message]
 
     t5.doc_md = "A deferable task. Reads the topic `test_1` until a message with a value"
     "divisible by 5 is encountered."
@@ -230,3 +236,9 @@ with DAG(
 
     t1 >> t2
     t3 >> [t4, t4b] >> t5 >> t6
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

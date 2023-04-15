@@ -20,6 +20,7 @@ from typing import Any
 
 from confluent_kafka.admin import AdminClient
 
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 
@@ -27,7 +28,7 @@ class KafkaHook(BaseHook):
     """A base hook for interacting with Apache Kafka"""
 
     conn_name_attr = "kafka_config_id"
-    default_conn_name = "kafka_config_default"
+    default_conn_name = "kafka_default"
     conn_type = "kafka"
     hook_name = "Apache Kafka"
 
@@ -35,7 +36,7 @@ class KafkaHook(BaseHook):
         """Initialize our Base"""
         super().__init__()
         self.kafka_config_id = kafka_config_id
-        self.get_conn()
+        self.get_conn
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -48,12 +49,13 @@ class KafkaHook(BaseHook):
             },
         }
 
-    def get_conn(self) -> dict[Any, Any]:
+    @cached_property
+    def get_conn(self) -> Any:
         """get the configuration object"""
         config = self.get_connection(self.kafka_config_id).extra_dejson
 
         if not (config.get("bootstrap.servers", None)):
-            raise ValueError("config['bootsrap.servers'] must be provided.")
+            raise ValueError("config['bootstrap.servers'] must be provided.")
 
         return config
 
@@ -67,4 +69,3 @@ class KafkaHook(BaseHook):
             False, str(e)
 
         return False, "Failed to establish connection."
-

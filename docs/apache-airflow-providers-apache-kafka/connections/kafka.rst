@@ -17,10 +17,10 @@
 
 .. _howto/connection: kafka
 
-Apache Impala Connection
+Apache Kafka Connection
 ========================
 
-The Apache Impala connection type configures a connection to Apache Kafka via the ``confluent-kafka`` Python package.
+The Apache Kafka connection type configures a connection to Apache Kafka via the ``confluent-kafka`` Python package.
 
 Default Connection IDs
 ----------------------
@@ -30,8 +30,9 @@ Kafka hooks and operators use ``kafka_default`` by default.
 Configuring the Connection
 --------------------------
 
-Connections are configured as a json serializable string within the provided field. A full list of parameters
-are described in the Confluent Kafka python library <https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md>.
+Connections are configured as a json serializable string within provided to the ``extra`` field. A full list of parameters
+are described in the `Confluent Kafka python library <https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md>`_.
 
+If you are defining the Airflow connection from the Airflow UI, the ``extra`` field will be renamed to ``Config Dict``.
 
 Most operators and hooks will check that at the minimum ``bootstrap.servers`` key exists and has a value set to be valid.

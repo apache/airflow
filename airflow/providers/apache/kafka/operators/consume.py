@@ -34,7 +34,7 @@ class ConsumeFromTopicOperator(BaseOperator):
     using the user supplied callable function. The consumer will continue to read in batches until it reaches
     the end of the log or reads a maximum number of messages is reached.
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: A list of topics or regex patterns the consumer should subscribe to.
     :param apply_function: The function that should be applied to fetched one at a time.
         name of dag file executing the function and the function name delimited by a `.`
@@ -57,6 +57,10 @@ class ConsumeFromTopicOperator(BaseOperator):
         defaults to 1000
     :param poll_timeout: How long the Kafka consumer should wait before determining no more messages are
         available, defaults to 60
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ConsumeFromTopicOperator`
     """
 
     BLUE = "#ffefeb"
@@ -66,13 +70,13 @@ class ConsumeFromTopicOperator(BaseOperator):
         "apply_function",
         "apply_function_args",
         "apply_function_kwargs",
-        "config",
+        "kafka_config_id",
     )
 
     def __init__(
         self,
-        kafka_config_id: str,
         topics: str | Sequence[str],
+        kafka_config_id: str = "kafka_default",
         apply_function: Callable[..., Any] | str | None = None,
         apply_function_batch: Callable[..., Any] | str | None = None,
         apply_function_args: Sequence[Any] | None = None,
@@ -104,7 +108,7 @@ class ConsumeFromTopicOperator(BaseOperator):
 
         if self.max_messages and self.max_batch_size > self.max_messages:
             self.log.warning(
-                "max_batch_size (%s) > max_messages" " (%s). Setting max_messages to" " %s ",
+                "max_batch_size (%s) > max_messages (%s). Setting max_messages to %s ",
                 self.max_batch_size,
                 self.max_messages,
                 self.max_batch_size,

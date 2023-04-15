@@ -42,7 +42,7 @@ class ProduceToTopicOperator(BaseOperator):
 
     Registers a producer to a kafka topic and publishes messages to the log.
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topic: The topic the producer should produce to, defaults to None
     :param producer_function: The function that generates key/value pairs as messages for production,
         defaults to None
@@ -56,7 +56,9 @@ class ProduceToTopicOperator(BaseOperator):
         defaults to 0
     :raises AirflowException: _description_
 
-
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ProduceToTopicOperator`
     """
 
     template_fields = (
@@ -64,14 +66,14 @@ class ProduceToTopicOperator(BaseOperator):
         "producer_function",
         "producer_function_args",
         "producer_function_kwargs",
-        "kafka_config",
+        "kafka_config_id",
     )
 
     def __init__(
         self,
         topic: str,
-        kafka_config_id: str,
         producer_function: str | Callable[..., Any],
+        kafka_config_id: str = "kafka_default",
         producer_function_args: Sequence[Any] | None = None,
         producer_function_kwargs: dict[Any, Any] | None = None,
         delivery_callback: str | None = None,
@@ -99,12 +101,12 @@ class ProduceToTopicOperator(BaseOperator):
         if not (self.topic and self.producer_function):
             raise AirflowException(
                 "topic and producer_function must be provided. Got topic="
-                + f"{self.topic} and producer_function={self.producer_function}"
+                f"{self.topic} and producer_function={self.producer_function}"
             )
 
         return
 
-    def execute(self, context) -> Any:
+    def execute(self, context) -> None:
 
         # Get producer and callable
         producer = KafkaProducerHook(kafka_config_id=self.kafka_config_id).get_producer()

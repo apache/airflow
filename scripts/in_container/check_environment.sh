@@ -160,6 +160,9 @@ if [[ ${INTEGRATION_PINOT} == "true" ]]; then
     CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain' | grep OK"
     check_service "Pinot (Broker API)" "${CMD}" 50
 fi
+if [[ ${INTEGRATION_KAFKA} == "true" ]]; then
+    check_service "Kakfa Cluster" "run_nc broker 9092" 50
+fi
 
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo

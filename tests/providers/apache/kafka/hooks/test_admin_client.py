@@ -22,7 +22,6 @@ import logging
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.apache.kafka.hooks.base import KafkaHook
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.utils import db
 
@@ -63,9 +62,18 @@ class TestSampleHook:
         with pytest.raises(ValueError):
             KafkaAdminClientHook(kafka_config_id="kafka_bad")
 
-    def test_create_topic(self, mocker):
-        """test topic creation"""
+    def test_get_conn(self):
+        """test get_conn"""
 
-        mocker.patch.object(KafkaHook, "get_conn", return_value={"socket.timeout.ms": 10})
+        # Standard Init
+        k = KafkaAdminClientHook(kafka_config_id="kafka_default")
+
+        c = k.get_conn
+
+        assert isinstance(c, dict)
+        assert c.get("bootstrap.servers") == "localhost:9092"
+
+    def test_create_topic(self):
+        """test topic creation"""
         h = KafkaAdminClientHook(kafka_config_id="kafka_default")
         h.create_topic(topics=[("test_1", 3, 3), ("test_2", 1, 1)])

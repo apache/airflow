@@ -40,7 +40,7 @@ class AwaitMessageTrigger(BaseTrigger):
         - else continue to next message
 
 
-    :param kafka_config_id: The connection object to use, defaults to "kafka_config_default"
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: The topic (or topic regex) that should be searched for messages
     :param apply_function: the location of the function to apply to messages for determination of matching
         criteria. (In python dot notation as a string)
@@ -52,14 +52,13 @@ class AwaitMessageTrigger(BaseTrigger):
     :param poll_interval: How long the the trigger should sleep after reaching the end of the Kafka log
         (seconds), defaults to 5
 
-
     """
 
     def __init__(
         self,
-        kafka_config_id: str,
         topics: Sequence[str],
         apply_function: str,
+        kafka_config_id: str = "kafka_default",
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
         poll_timeout: float = 1,
