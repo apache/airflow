@@ -2142,6 +2142,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
             (priority, "priority", self.priority, (str,)),
+            (location, "location", self.location, (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
             (query_params, "queryParameters", None, list),
             (udf_config, "userDefinedFunctionResources", None, list),
