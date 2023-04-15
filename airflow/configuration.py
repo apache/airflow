@@ -234,6 +234,22 @@ class AirflowConfigParser(ConfigParser):
         ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
         ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
         ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
+        ("scheduler", "task_queued_timeout_check_interval"): (
+            "kubernetes_executor",
+            "worker_pods_pending_timeout_check_interval",
+            "2.6.0",
+        ),
+    }
+
+    # A mapping of new configurations to a list of old configurations for when one configuration
+    # deprecates more than one other deprecation. The deprecation logic for these configurations
+    # is defined in SchedulerJobRunner.
+    many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
+        ("scheduler", "task_queued_timeout"): [
+            ("celery", "stalled_task_timeout", "2.6.0"),
+            ("celery", "task_adoption_timeout", "2.6.0"),
+            ("kubernetes_executor", "worker_pods_pending_timeout", "2.6.0"),
+        ]
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -548,12 +564,10 @@ class AirflowConfigParser(ConfigParser):
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:  # type: ignore[override]
-
         ...
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, **kwargs) -> str | None:  # type: ignore[override]
-
         ...
 
     def get(  # type: ignore[override, misc]
@@ -1070,7 +1084,7 @@ class AirflowConfigParser(ConfigParser):
             # This ensures the ones from config file is hidden too
             # if they are not provided through env, cmd and secret
             hidden = "< hidden >"
-            for (section, key) in self.sensitive_config_values:
+            for section, key in self.sensitive_config_values:
                 if not config_sources.get(section):
                     continue
                 if config_sources[section].get(key, None):
@@ -1089,7 +1103,7 @@ class AirflowConfigParser(ConfigParser):
         display_source: bool,
         raw: bool,
     ):
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             value: str | None = self._get_secret_option_from_config_sources(config_sources, section, key)
             if value:
                 if not display_sensitive:
@@ -1110,7 +1124,7 @@ class AirflowConfigParser(ConfigParser):
         display_source: bool,
         raw: bool,
     ):
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             opt = self._get_cmd_option_from_config_sources(config_sources, section, key)
             if not opt:
                 continue
@@ -1188,7 +1202,7 @@ class AirflowConfigParser(ConfigParser):
         :return: None, the given config_sources is filtered if necessary,
             otherwise untouched.
         """
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             # Don't bother if we don't have section / key
             if section not in config_sources or key not in config_sources[section]:
                 continue
@@ -1222,7 +1236,7 @@ class AirflowConfigParser(ConfigParser):
         include_cmds: bool,
         include_secret: bool,
     ):
-        for (source_name, config) in configs:
+        for source_name, config in configs:
             for section in config.sections():
                 AirflowConfigParser._replace_section_config_with_display_sources(
                     config,
@@ -1249,7 +1263,7 @@ class AirflowConfigParser(ConfigParser):
                 continue
             try:
                 deprecated_section_array = config.items(section=deprecated_section, raw=True)
-                for (key_candidate, _) in deprecated_section_array:
+                for key_candidate, _ in deprecated_section_array:
                     if key_candidate == deprecated_key:
                         return True
             except NoSectionError:

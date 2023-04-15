@@ -753,6 +753,7 @@ jobs:
         run: |
           rm -vf dist/apache_airflow-*.whl
           # remove the provider packages that are not compatible with 2.3
+          rm -vf dist/apache_airflow_providers_openlineage*.whl
           # rm -vf dist/apache_airflow_providers_docker*.whl
           # pip download --no-deps --dest dist apache-airflow-providers-docker==3.1.0
         if: matrix.package-format == 'wheel'

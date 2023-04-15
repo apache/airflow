@@ -461,18 +461,22 @@ class TestDag:
         session.merge(ti4)
         session.commit()
 
-        assert 0 == DAG.get_num_task_instances(test_dag_id, ["fakename"], session=session)
-        assert 4 == DAG.get_num_task_instances(test_dag_id, [test_task_id], session=session)
-        assert 4 == DAG.get_num_task_instances(test_dag_id, ["fakename", test_task_id], session=session)
-        assert 1 == DAG.get_num_task_instances(test_dag_id, [test_task_id], states=[None], session=session)
+        assert 0 == DAG.get_num_task_instances(test_dag_id, task_ids=["fakename"], session=session)
+        assert 4 == DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], session=session)
+        assert 4 == DAG.get_num_task_instances(
+            test_dag_id, task_ids=["fakename", test_task_id], session=session
+        )
+        assert 1 == DAG.get_num_task_instances(
+            test_dag_id, task_ids=[test_task_id], states=[None], session=session
+        )
         assert 2 == DAG.get_num_task_instances(
-            test_dag_id, [test_task_id], states=[State.RUNNING], session=session
+            test_dag_id, task_ids=[test_task_id], states=[State.RUNNING], session=session
         )
         assert 3 == DAG.get_num_task_instances(
-            test_dag_id, [test_task_id], states=[None, State.RUNNING], session=session
+            test_dag_id, task_ids=[test_task_id], states=[None, State.RUNNING], session=session
         )
         assert 4 == DAG.get_num_task_instances(
-            test_dag_id, [test_task_id], states=[None, State.QUEUED, State.RUNNING], session=session
+            test_dag_id, task_ids=[test_task_id], states=[None, State.QUEUED, State.RUNNING], session=session
         )
         session.close()
 

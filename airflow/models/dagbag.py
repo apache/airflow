@@ -192,7 +192,8 @@ class DagBag(LoggingMixin):
 
             # If DAG is in the DagBag, check the following
             # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
-            # 2. check the last_updated column in SerializedDag table to see if Serialized DAG is updated
+            # 2. check the last_updated and hash columns in SerializedDag table to see if
+            # Serialized DAG is updated
             # 3. if (2) is yes, fetch the Serialized DAG.
             # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
             # if it exists and return None.
@@ -201,18 +202,24 @@ class DagBag(LoggingMixin):
                 dag_id in self.dags_last_fetched
                 and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
             ):
-                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(
-                    dag_id=dag_id,
-                    session=session,
+                sd_latest_version_and_updated_datetime = (
+                    SerializedDagModel.get_latest_version_hash_and_updated_datetime(
+                        dag_id=dag_id, session=session
+                    )
                 )
-                if not sd_last_updated_datetime:
+                if not sd_latest_version_and_updated_datetime:
                     self.log.warning("Serialized DAG %s no longer exists", dag_id)
                     del self.dags[dag_id]
                     del self.dags_last_fetched[dag_id]
                     del self.dags_hash[dag_id]
                     return None
 
-                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                sd_latest_version, sd_last_updated_datetime = sd_latest_version_and_updated_datetime
+
+                if (
+                    sd_last_updated_datetime > self.dags_last_fetched[dag_id]
+                    or sd_latest_version != self.dags_hash[dag_id]
+                ):
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
