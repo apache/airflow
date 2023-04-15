@@ -33,18 +33,17 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 
 try:
-    from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+    from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
 except ImportError:
-    pytest.skip("MsSQL not available", allow_module_level=True)
+    pytest.skip("PostgreSQL not available", allow_module_level=True)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-DAG_ID = "example_bigquery_to_mssql"
+DAG_ID = "example_bigquery_to_postgres"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "INVALID BUCKET NAME")
 TABLE = "table_42"
-destination_table = "mssql_table_test"
+destination_table = "postgres_table_test"
 
 with models.DAG(
     DAG_ID,
@@ -53,14 +52,14 @@ with models.DAG(
     catchup=False,
     tags=["example", "bigquery"],
 ) as dag:
-    # [START howto_operator_bigquery_to_mssql]
-    bigquery_to_mssql = BigQueryToMsSqlOperator(
-        task_id="bigquery_to_mssql",
-        source_project_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.{TABLE}",
+    # [START howto_operator_bigquery_to_postgres]
+    bigquery_to_postgres = BigQueryToPostgresOperator(
+        task_id="bigquery_to_postgres",
+        dataset_table=f"{DATASET_NAME}.{TABLE}",
         target_table_name=destination_table,
         replace=False,
     )
-    # [END howto_operator_bigquery_to_mssql]
+    # [END howto_operator_bigquery_to_postgres]
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
@@ -83,7 +82,7 @@ with models.DAG(
         create_dataset
         >> create_table
         # TEST BODY
-        >> bigquery_to_mssql
+        >> bigquery_to_postgres
         # TEST TEARDOWN
         >> delete_dataset
     )

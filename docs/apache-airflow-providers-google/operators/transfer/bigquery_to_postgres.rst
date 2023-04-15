@@ -16,13 +16,13 @@
     under the License.
 
 
-Google Cloud BigQuery Transfer Operator to MySQL
-================================================
+Google Cloud BigQuery Transfer Operator to Postgres
+===================================================
 
 `Google Cloud BigQuery <https://cloud.google.com/bigquery>`__ is Google Cloud's serverless
 data warehouse offering.
-`MySQL <https://www.mysql.com/>`__ is an open-source relational database management system.
-This operator can be used to copy data from a BigQuery table to MySQL.
+`PostgreSQL <https://www.postgresql.org/>`__ is an open-source relational database management system.
+This operator can be used to copy data from a BigQuery table to PostgreSQL.
 
 
 Prerequisite Tasks
@@ -30,16 +30,16 @@ Prerequisite Tasks
 
 .. include::/operators/_partials/prerequisite_tasks.rst
 
-.. _howto/operator:BigQueryToMySqlOperator:
+.. _howto/operator:BigQueryToPostgresOperator:
 
 Operator
 ^^^^^^^^
 
-Copying data from one BigQuery table to another is performed with the
-:class:`~airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator` operator.
+Copying data from BigQuery table to Postgres table is performed with the
+:class:`~airflow.providers.google.cloud.transfers.bigquery_to_postgres.BigQueryToPostgresOperator` operator.
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator`
+:template-fields:`airflow.providers.google.cloud.transfers.bigquery_to_postgres.BigQueryToPostgresOperator`
 to define values dynamically.
 
 You may use the parameter ``selected_fields`` to limit the fields to be copied (all fields by default),
@@ -49,13 +49,13 @@ For more information, please refer to the links above.
 Transferring data
 -----------------
 
-The following Operator copies data from a BigQuery table to MySQL.
+The following Operator copies data from a BigQuery table to PostgreSQL.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_mysql.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_postgres.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_bigquery_to_mysql]
-    :end-before: [END howto_operator_bigquery_to_mysql]
+    :start-after: [START howto_operator_bigquery_to_postgres]
+    :end-before: [END howto_operator_bigquery_to_postgres]
 
 
 Reference
@@ -64,4 +64,4 @@ Reference
 For further information, look at:
 
 * `Google Cloud BigQuery Documentation <https://cloud.google.com/bigquery/docs/>`__
-* `MySQL Documentation <https://dev.mysql.com/doc/>`__
+* `PostgreSQL Documentation <https://www.postgresql.org/docs/>`__
