@@ -53,6 +53,7 @@ interface Props extends MenuButtonProps {
   runId: string;
   taskId: string;
   state?: TaskState;
+  isGroup?: boolean;
   mapIndex?: number;
   isMapped?: boolean;
 }
@@ -60,6 +61,7 @@ interface Props extends MenuButtonProps {
 const MarkInstanceAs = ({
   runId,
   taskId,
+  isGroup,
   mapIndex,
   isMapped,
   state: currentState,
@@ -100,6 +102,7 @@ const MarkInstanceAs = ({
       runId,
       taskId,
       state: newState,
+      isGroup: !!isGroup,
       past,
       future,
       upstream,
@@ -113,6 +116,7 @@ const MarkInstanceAs = ({
       dagId,
       runId,
       taskId,
+      isGroup: !!isGroup,
     });
 
   const { mutateAsync: markSuccessMutation, isLoading: isMarkSuccessLoading } =
@@ -120,6 +124,7 @@ const MarkInstanceAs = ({
       dagId,
       runId,
       taskId,
+      isGroup: !!isGroup,
     });
 
   const resetModal = () => {
