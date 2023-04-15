@@ -114,6 +114,8 @@ def get_provider_id_from_relative_import_or_file(relative_path_or_file: str) -> 
     provider_candidate = relative_path_or_file.replace(os.sep, ".").split(".")
     while len(provider_candidate) > 0:
         candidate_provider_id = ".".join(provider_candidate)
+        if "google_vendor" in candidate_provider_id:
+            candidate_provider_id = candidate_provider_id.replace("google_vendor", "google")
         if candidate_provider_id in ALL_PROVIDERS:
             return candidate_provider_id
         provider_candidate = provider_candidate[:-1]
