@@ -19,6 +19,8 @@
 
 import React, { useState } from "react";
 import {
+  Alert,
+  AlertIcon,
   Flex,
   Button,
   Menu,
@@ -264,6 +266,16 @@ const MarkInstanceAs = ({
             />
           </ButtonGroup>
         </Box>
+        {isGroup && (past || future) && (
+          <Alert status="warning" my={3}>
+            <AlertIcon />
+            Marking a TaskGroup as {capitalize(newState)} in the future and/or
+            past will affect all the tasks of this group across multiple dag
+            runs.
+            <br />
+            This can take a while to complete.
+          </Alert>
+        )}
       </ActionModal>
     </>
   );
