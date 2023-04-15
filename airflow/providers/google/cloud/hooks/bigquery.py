@@ -2056,7 +2056,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table to be updated as a side effect of the query job.
         :param priority: Specifies a priority for the query.
             Possible values include INTERACTIVE and BATCH.
-            If `None`, defaults to `self.use_legacy_sql`.
+            If `None`, defaults to `self.priority`.
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
         :param cluster_fields: Request that the result of this query be stored sorted
