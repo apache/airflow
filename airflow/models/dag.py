@@ -2008,13 +2008,13 @@ class DAG(LoggingMixin):
         # Clear downstream tasks that are in failed/upstream_failed state to resume them.
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
-        subdag = self.partial_subset(
+        task_subset = self.partial_subset(
             task_ids_or_regex=task_ids,
             include_downstream=True,
             include_upstream=False,
         )
 
-        subdag.clear(
+        task_subset.clear(
             start_date=start_date,
             end_date=end_date,
             include_subdags=True,

@@ -2478,7 +2478,7 @@ class Airflow(AirflowBaseView):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if not run_id:
-            flash(f"Cannot mark tasks as {state}, seem that DAG {dag_id} has never run", "error")
+            flash(f"Cannot mark tasks as {state}, as DAG {dag_id} has never run", "error")
             return redirect(origin)
 
         altered = dag.set_task_group_state(

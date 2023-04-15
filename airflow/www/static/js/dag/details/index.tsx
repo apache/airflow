@@ -171,16 +171,15 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 mapIndex={mapIndex}
                 mr={2}
               />
-              {!isGroup && (
-                <MarkInstanceAs
-                  taskId={taskId}
-                  runId={runId}
-                  state={instance?.state}
-                  isMapped={isMapped}
-                  mapIndex={mapIndex}
-                  mr={2}
-                />
-              )}
+              <MarkInstanceAs
+                taskId={taskId}
+                runId={runId}
+                state={instance?.state}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mr={2}
+              />
             </>
           )}
           {taskId && runId && <FilterTasks taskId={taskId} />}
