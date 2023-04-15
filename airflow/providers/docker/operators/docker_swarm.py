@@ -24,7 +24,7 @@ from docker import types
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
-
+from time import sleep
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -178,31 +178,39 @@ class DockerSwarmOperator(DockerOperator):
     def _stream_logs_to_output(self) -> None:
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
-        logs = self.cli.service_logs(
-            self.service["ID"], follow=True, stdout=True, stderr=True, is_tty=self.tty
-        )
-        line = ""
-        while True:
-            try:
-                log = next(logs)
-            except StopIteration:
-                # If the service log stream terminated, stop fetching logs further.
-                break
-            else:
-                try:
-                    log = log.decode()
-                except UnicodeDecodeError:
-                    continue
-                if log == "\n":
-                    self.log.info(line)
-                    line = ""
-                else:
-                    line += log
-        # flush any remaining log stream
-        if line:
-            self.log.info(line)
+        logsBuffer = LogsBuffer()
+        while not self._has_service_terminated():
+            sleep(5) # Avoid overflooding the API
+            logs = self.cli.service_logs(
+                self.service["ID"], follow=False, stdout=True, stderr=True, is_tty=self.tty
+            )
+            logs = b''.join(logs)
+            print_lines =logsBuffer.increase(logs)
+            if print_lines != None:
+                self.log.info(print_lines)
+        self.log.info(logsBuffer.chars_remaining)
 
     def on_kill(self) -> None:
         if self.hook.client_created and self.service is not None:
             self.log.info("Removing docker service: %s", self.service["ID"])
             self.cli.remove_service(self.service["ID"])
+
+
+# A custom logs bytes buffer that keeps the current state of the
+# docker service logs, as these get continuously polled by the client.
+class LogsBuffer:
+    def __init__(self) -> None:
+        self.cur_buffer = bytes()
+        self.chars_remaining=''
+    def increase(self,new_buffer:bytes):
+        new_bytes=new_buffer[len(self.cur_buffer):]
+        self.cur_buffer = b''.join([self.cur_buffer,new_bytes])
+        new_chars =  new_bytes.decode(errors='ignore')
+        lines = (self.chars_remaining + new_chars).splitlines()
+        if len(lines)==1:
+            self.chars_remaining += new_chars
+            print_lines=None
+        else:
+            print_lines = ('\n').join(lines[:-1])
+            self.chars_remaining = lines[-1]
+        return print_lines
