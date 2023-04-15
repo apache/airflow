@@ -76,6 +76,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
+    :param priority: Specifies a priority for the query.
+        Possible values include INTERACTIVE and BATCH.
+        The default value is INTERACTIVE.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
@@ -92,6 +95,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         gcp_conn_id: str = GoogleBaseHook.default_conn_name,
         use_legacy_sql: bool = True,
         location: str | None = None,
+        priority: str = "INTERACTIVE",
         api_resource_configs: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -108,6 +112,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
+        self.priority = priority
         self.running_job_id: str | None = None
         self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
         self.labels = labels
@@ -2000,7 +2005,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query_params: list | None = None,
         labels: dict | None = None,
         schema_update_options: Iterable | None = None,
-        priority: str = "INTERACTIVE",
+        priority: str | None = None,
         time_partitioning: dict | None = None,
         api_resource_configs: dict | None = None,
         cluster_fields: list[str] | None = None,
@@ -2051,7 +2056,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table to be updated as a side effect of the query job.
         :param priority: Specifies a priority for the query.
             Possible values include INTERACTIVE and BATCH.
-            The default value is INTERACTIVE.
+            If `None`, defaults to `self.use_legacy_sql`.
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
         :param cluster_fields: Request that the result of this query be stored sorted
@@ -2075,6 +2080,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         labels = labels or self.labels
         schema_update_options = list(schema_update_options or [])
+
+        if priority:
+            self.priority = priority
 
         if time_partitioning is None:
             time_partitioning = {}
@@ -2133,7 +2141,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
-            (priority, "priority", "INTERACTIVE", (str,)),
+            (priority, "priority", self.priority, (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
             (query_params, "queryParameters", None, list),
             (udf_config, "userDefinedFunctionResources", None, list),
