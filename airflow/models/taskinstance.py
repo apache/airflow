@@ -580,15 +580,18 @@ class TaskInstance(Base, LoggingMixin):
         If the TaskInstance is currently running, this will match the column in the
         database, in all other cases this will be incremented.
         """
-        # This is designed so that task logs end up in the right file. Also, it should return
-        # the right try_number when the task state is not one of the finished states
-        if self.state in State.unfinished:
+        # This is designed so that task logs end up in the right file.
+        if self.state == State.RUNNING:
             return self._try_number
         return self._try_number + 1
 
     @try_number.setter
     def try_number(self, value: int) -> None:
         self._try_number = value
+
+    @property
+    def actual_try_number(self):
+        return self._try_number
 
     @property
     def prev_attempted_tries(self) -> int:
@@ -1935,9 +1938,9 @@ class TaskInstance(Base, LoggingMixin):
             return True
         if not getattr(self, "task", None):
             # Couldn't load the task, don't know number of retries, guess:
-            return self.try_number <= self.max_tries
+            return self.actual_try_number <= self.max_tries
 
-        return self.task.retries and self.try_number <= self.max_tries
+        return self.task.retries and self.actual_try_number <= self.max_tries
 
     def get_template_context(
         self,

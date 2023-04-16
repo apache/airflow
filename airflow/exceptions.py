@@ -66,7 +66,7 @@ class AirflowRescheduleException(AirflowException):
     :param reschedule_date: The date when the task should be rescheduled
     """
 
-    def __init__(self, reschedule_date, poke_number):
+    def __init__(self, reschedule_date, poke_number=1):
         super().__init__()
         self.reschedule_date = reschedule_date
         self.poke_number = poke_number

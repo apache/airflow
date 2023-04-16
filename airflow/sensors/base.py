@@ -215,7 +215,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         xcom_value = None
         while True:
             try:
-                self.log.info("Poke number {}", poke_number)
+                self.log.info("Poke number %s", poke_number)
                 poke_return = self.poke(context)
             except (
                 AirflowSensorTimeout,
@@ -247,8 +247,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     raise AirflowSkipException(message)
                 else:
                     raise AirflowSensorTimeout(message)
+            next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_number)
             if self.reschedule:
-                next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_number)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
                 if _is_metadatabase_mysql() and reschedule_date > _MYSQL_TIMESTAMP_MAX:
                     raise AirflowSensorTimeout(
@@ -257,7 +257,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     )
                 raise AirflowRescheduleException(reschedule_date=reschedule_date, poke_number=poke_number)
             else:
-                time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_number))
+                time.sleep(next_poke_interval)
                 poke_number += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value

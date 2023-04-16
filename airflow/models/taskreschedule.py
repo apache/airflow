@@ -118,7 +118,7 @@ class TaskReschedule(Base):
         if try_number is None:
             # Since the TI state (up_for_reschedule) is in one of the not finished states,
             # we should add 1 to its try_number to get the TaskReschedule try_number
-            try_number = task_instance.try_number + 1
+            try_number = task_instance.actual_try_number + 1
 
         TR = TaskReschedule
         qry = session.query(TR).filter(
