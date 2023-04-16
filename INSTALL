@@ -106,7 +106,7 @@ microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, od
 openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pinot, plexus,
 postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
 sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram,
-trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+trino, vertica, virtualenv, webhdfs, winrm, zendesk
 # END EXTRAS HERE
 
 # For installing Airflow in development environments - see CONTRIBUTING.rst

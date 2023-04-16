@@ -773,13 +773,6 @@
       "common.sql"
     ]
   },
-  "yandex": {
-    "deps": [
-      "apache-airflow>=2.3.0",
-      "yandexcloud>=0.173.0"
-    ],
-    "cross-providers-deps": []
-  },
   "zendesk": {
     "deps": [
       "apache-airflow>=2.3.0",
