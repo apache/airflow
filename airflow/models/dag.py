@@ -1907,6 +1907,14 @@ class DAG(LoggingMixin):
         end_date = resolve_execution_date if not future else None
         start_date = resolve_execution_date if not past else None
 
+        # When state to be set is FAILED with downstream as True then
+        # passing only_failed will clear all failed instances just marked in
+        # downstream. Don't clear and return altered task instances.
+        # When state to be set is FAILED on an already Failed task with downstream as False
+        # then there are no altered objects and hence we don't need to clear them.
+        if state == TaskInstanceState.FAILED and (downstream or not altered):
+            return altered
+
         subdag.clear(
             start_date=start_date,
             end_date=end_date,
