@@ -29,7 +29,7 @@ from tests.charts.helm_template_generator import render_chart
 
 @pytest.fixture(scope="class", autouse=True)
 def isolate_chart(request):
-    chart_dir = Path(__file__).parent / ".." / ".." / "chart"
+    chart_dir = Path(__file__).parents[3] / "chart"
     with TemporaryDirectory(prefix=request.cls.__name__) as tmp_dir:
         temp_chart_dir = Path(tmp_dir) / "chart"
         copytree(chart_dir, temp_chart_dir)

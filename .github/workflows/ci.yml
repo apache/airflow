@@ -167,6 +167,7 @@ jobs:
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       suspended-providers-folders: ${{ steps.selective-checks.outputs.suspended-providers-folders }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
@@ -810,9 +811,13 @@ jobs:
 
   tests-helm:
     timeout-minutes: 80
-    name: "Python unit tests for Helm chart"
+    name: "Unit tests Helm: ${{matrix.helm-test-package}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        helm-test-package: ${{fromJson(needs.build-info.outputs.helm-test-packages)}}
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "Helm"
@@ -835,8 +840,8 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Helm Unit Tests"
-        run: breeze testing helm-tests
+      - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
+        run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
       - name: "Post Helm Tests"
         uses: ./.github/actions/post_tests
 
