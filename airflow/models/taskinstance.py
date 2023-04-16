@@ -580,8 +580,9 @@ class TaskInstance(Base, LoggingMixin):
         If the TaskInstance is currently running, this will match the column in the
         database, in all other cases this will be incremented.
         """
-        # This is designed so that task logs end up in the right file.
-        if self.state == State.RUNNING:
+        # This is designed so that task logs end up in the right file. Also, it should return
+        # the right try_number when the task state is not one of the finished states
+        if self.state in State.unfinished:
             return self._try_number
         return self._try_number + 1
 
@@ -1295,6 +1296,9 @@ class TaskInstance(Base, LoggingMixin):
             # If the task continues after being deferred (next_method is set), use the original start_date
             self.start_date = self.start_date if self.next_method else timezone.utcnow()
             if self.state == State.UP_FOR_RESCHEDULE:
+                # FIXME: unfortunately the state is always queued in this method,
+                #  we should find a way to get the state before queuing the TI state,
+                #  otherwise this block will be never reached as it is the case now.
                 task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
                 if task_reschedule:
                     self.start_date = task_reschedule.start_date
@@ -1757,7 +1761,11 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def _handle_reschedule(
-        self, actual_start_date, reschedule_exception, test_mode=False, session=NEW_SESSION
+        self,
+        actual_start_date,
+        reschedule_exception: AirflowRescheduleException,
+        test_mode=False,
+        session=NEW_SESSION,
     ):
         # Don't record reschedule request in test mode
         if test_mode:
@@ -1783,13 +1791,14 @@ class TaskInstance(Base, LoggingMixin):
         # Log reschedule request
         session.add(
             TaskReschedule(
-                self.task,
-                self.run_id,
-                self._try_number,
-                actual_start_date,
-                self.end_date,
-                reschedule_exception.reschedule_date,
-                self.map_index,
+                task=self.task,
+                run_id=self.run_id,
+                try_number=self._try_number,
+                poke_number=reschedule_exception.poke_number,
+                start_date=actual_start_date,
+                end_date=self.end_date,
+                reschedule_date=reschedule_exception.reschedule_date,
+                map_index=self.map_index,
             )
         )
 

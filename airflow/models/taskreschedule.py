@@ -26,6 +26,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, relationship
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -45,6 +46,7 @@ class TaskReschedule(Base):
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
+    poke_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
     duration = Column(Integer, nullable=False)
@@ -79,6 +81,7 @@ class TaskReschedule(Base):
         task: Operator,
         run_id: str,
         try_number: int,
+        poke_number: int,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         reschedule_date: datetime.datetime,
@@ -89,6 +92,7 @@ class TaskReschedule(Base):
         self.run_id = run_id
         self.map_index = map_index
         self.try_number = try_number
+        self.poke_number = poke_number
         self.start_date = start_date
         self.end_date = end_date
         self.reschedule_date = reschedule_date
@@ -97,7 +101,7 @@ class TaskReschedule(Base):
     @staticmethod
     @provide_session
     def query_for_task_instance(
-        task_instance: TaskInstance,
+        task_instance: TaskInstance | TaskInstancePydantic,
         descending: bool = False,
         session: Session = NEW_SESSION,
         try_number: int | None = None,
@@ -112,7 +116,9 @@ class TaskReschedule(Base):
             looks for the same try_number of the given task_instance.
         """
         if try_number is None:
-            try_number = task_instance.try_number
+            # Since the TI state (up_for_reschedule) is in one of the not finished states,
+            # we should add 1 to its try_number to get the TaskReschedule try_number
+            try_number = task_instance.try_number + 1
 
         TR = TaskReschedule
         qry = session.query(TR).filter(
@@ -130,7 +136,7 @@ class TaskReschedule(Base):
     @staticmethod
     @provide_session
     def find_for_task_instance(
-        task_instance: TaskInstance,
+        task_instance: TaskInstance | TaskInstancePydantic,
         session: Session = NEW_SESSION,
         try_number: int | None = None,
     ) -> list[TaskReschedule]:
