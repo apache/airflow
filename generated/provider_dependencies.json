@@ -126,6 +126,14 @@
       "common.sql"
     ]
   },
+  "apache.kafka": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "asgiref",
+      "confluent-kafka>=1.8.2"
+    ],
+    "cross-providers-deps": []
+  },
   "apache.kylin": {
     "deps": [
       "apache-airflow>=2.3.0",
