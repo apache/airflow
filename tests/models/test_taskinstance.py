@@ -288,6 +288,19 @@ class TestTaskInstance:
         ti.run()
         assert ti.state == State.NONE
 
+    def test_requeue_over_max_active_tis_per_dagrun(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="test_requeue_over_max_active_tis_per_dagrun",
+            task_id="test_requeue_over_max_active_tis_per_dagrun_op",
+            max_active_tis_per_dagrun=0,
+            max_active_runs=1,
+            max_active_tasks=2,
+            dagrun_state=State.QUEUED,
+        )
+
+        ti.run()
+        assert ti.state == State.NONE
+
     def test_requeue_over_pool_concurrency(self, create_task_instance, test_pool):
         ti = create_task_instance(
             dag_id="test_requeue_over_pool_concurrency",

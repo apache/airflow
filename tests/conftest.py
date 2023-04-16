@@ -38,6 +38,8 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
+os.environ["AIRFLOW_ENABLE_AIP_52"] = os.environ.get("AIRFLOW_ENABLE_AIP_52") or "true"
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
@@ -724,6 +726,7 @@ def create_dummy_dag(dag_maker):
         dag_id="dag",
         task_id="op1",
         max_active_tis_per_dag=16,
+        max_active_tis_per_dagrun=None,
         pool="default_pool",
         executor_config={},
         trigger_rule="all_done",
@@ -739,6 +742,7 @@ def create_dummy_dag(dag_maker):
             op = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
+                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
                 executor_config=executor_config,
                 on_success_callback=on_success_callback,
                 on_execute_callback=on_execute_callback,

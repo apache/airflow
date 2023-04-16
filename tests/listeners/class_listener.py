@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from airflow.listeners import hookimpl
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 
 class ClassBasedListener:
@@ -30,23 +30,25 @@ class ClassBasedListener:
     @hookimpl
     def on_starting(self, component):
         self.started_component = component
+        self.state.append(DagRunState.RUNNING)
 
     @hookimpl
     def before_stopping(self, component):
         global stopped_component
         stopped_component = component
+        self.state.append(DagRunState.SUCCESS)
 
     @hookimpl
     def on_task_instance_running(self, previous_state, task_instance, session):
-        self.state.append(State.RUNNING)
+        self.state.append(TaskInstanceState.RUNNING)
 
     @hookimpl
     def on_task_instance_success(self, previous_state, task_instance, session):
-        self.state.append(State.SUCCESS)
+        self.state.append(TaskInstanceState.SUCCESS)
 
     @hookimpl
     def on_task_instance_failed(self, previous_state, task_instance, session):
-        self.state.append(State.FAILED)
+        self.state.append(TaskInstanceState.FAILED)
 
 
 def clear():
