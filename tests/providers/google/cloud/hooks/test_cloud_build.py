@@ -114,6 +114,29 @@ class TestCloudBuildHook:
         "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    def test_create_build_without_waiting_for_result(self, get_conn, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
+
+        self.hook.create_build_without_waiting_for_result(
+            build=BUILD, project_id=PROJECT_ID, location=LOCATION
+        )
+
+        mock_operation = get_conn.return_value.create_build
+
+        mock_operation.assert_called_once_with(
+            request={"parent": PARENT, "project_id": PROJECT_ID, "build": BUILD},
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+        mock_get_id_from_operation.assert_called_once_with(mock_operation())
+
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build_without_wait(self, get_conn, mock_get_id_from_operation):
         get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
@@ -220,7 +243,7 @@ class TestCloudBuildHook:
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-        get_conn.return_value.retry_build.return_value.result.assert_called_once_with()
+        get_conn.return_value.retry_build.return_value.result.assert_called_once_with(timeout=None)
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
@@ -274,7 +297,7 @@ class TestCloudBuildHook:
             metadata=(),
         )
 
-        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with()
+        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with(timeout=None)
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
