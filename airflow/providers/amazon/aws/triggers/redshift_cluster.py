@@ -128,7 +128,7 @@ class RedshiftCreateClusterTrigger(BaseTrigger):
         return RedshiftHook(aws_conn_id=self.aws_conn_id)
 
     async def run(self):
-        async with self.hook.async_conn as client:
+        async with self.hook.async_conn() as client:
             await client.get_waiter("cluster_available").wait(
                 ClusterIdentifier=self.cluster_identifier,
                 WaiterConfig={

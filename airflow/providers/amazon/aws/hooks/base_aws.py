@@ -684,7 +684,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         else:
             return self.get_resource_type(region_name=self.region_name)
 
-    @cached_property
     def async_conn(self):
         """Get an aiobotocore client to use for async operations (cached)."""
         if not self.client_type:
