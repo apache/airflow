@@ -383,7 +383,10 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 # - so that we do not skip any in the future if new directories are added
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
+    # The output of the find command should be sorted to make sure that the order is always the same
+    # when we run the tests, to avoid cross-package side effects causing different test results
+    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
