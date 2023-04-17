@@ -393,7 +393,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.0.1"
+            export AIRFLOW_PIP_VERSION="23.1"
         fi
     fi
 }
@@ -954,7 +954,10 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
+    # The output of the find command should be sorted to make sure that the order is always the same
+    # when we run the tests, to avoid cross-package side effects causing different test results
+    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -1246,7 +1249,7 @@ ARG AIRFLOW_CI_BUILD_EPOCH="4"0
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
-ARG AIRFLOW_PIP_VERSION=23.0.1
+ARG AIRFLOW_PIP_VERSION=23.1
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
