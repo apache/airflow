@@ -203,7 +203,7 @@ Get Task                               DAGs.can_read, Task Instances.can_read   
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
 Triggers Task Instance                 DAGs.can_edit, Task Instances.can_create                                User
 Delete DAG                             DAGs.can_delete                                                         User
-Trigger DAG run                        DAGs.can_edit, DAG Runs.can_create                                      User
+Trigger DAG run                        DAGs.can_trigger, DAG Runs.can_create                                   User
 Clear DAG                              DAGs.can_edit, Task Instances.can_delete                                User
 Clear DAG Run                          DAGs.can_edit, Task Instances.can_delete                                User
 Mark DAG as blocked                    DAGS.can_edit, DAG Runs.can_read                                        User

@@ -286,3 +286,52 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
         resp,
     )
+
+
+def test_user_can_trigger_dags(app):
+    dags_ids = app.dag_bag.dag_ids
+    with create_test_client(
+        app,
+        user_name="test_user",
+        role_name="test_role",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_TRIGGER, permissions.RESOURCE_DAG),
+        ],
+    ) as client:
+        for dag_id in dags_ids:
+            url = f"trigger?dag_id={dag_id}"
+            resp = client.get(url, follow_redirects=True)
+            check_content_in_response(dag_id, resp)
+
+
+def test_user_can_trigger_only_permitted_dags(app):
+    """
+    Test that user with permissions to create particular Dag Run can trigger
+    only those dags and can't trigger others
+    """
+    test_dag_id_with_permission = "example_bash_operator"
+    test_dag_id_without_permission = "example_xcom"
+    # create client and allow trigger only example_bash_operator
+    with create_test_client(
+        app,
+        user_name="test_user",
+        role_name="test_role",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_TRIGGER, permissions.RESOURCE_DAG_PREFIX + test_dag_id_with_permission),
+        ],
+    ) as client:
+        # assert that the user can trigger dag example_bash_operator
+        url = f"trigger?dag_id={test_dag_id_with_permission}"
+        resp = client.get(url, follow_redirects=True)
+        check_content_in_response(test_dag_id_with_permission, resp)
+
+        # assert that the user doesn't have permission to trigger dag
+        url = f"trigger?dag_id={test_dag_id_without_permission}"
+        resp = client.get(url, follow_redirects=True)
+        check_content_in_response("Access is Denied", resp)

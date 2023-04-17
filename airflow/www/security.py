@@ -104,6 +104,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     USER_PERMISSIONS = [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_TRIGGER, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
@@ -324,6 +325,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Gets the DAG IDs editable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_EDIT])
 
+    def get_dag_ids_with_trigger_permission(self, user) -> set[str]:
+        """Gets the DAG IDs which user can trigger"""
+        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_TRIGGER])
+
     @provide_session
     def get_accessible_dag_ids(
         self,
@@ -380,6 +385,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         user = g.user
         if action == permissions.ACTION_CAN_READ:
             return any(self.get_readable_dag_ids(user))
+        if action == permissions.ACTION_CAN_TRIGGER:
+            return any(self.get_dag_ids_with_trigger_permission(user))
         return any(self.get_editable_dag_ids(user))
 
     def can_read_dag(self, dag_id: str, user=None) -> bool:
@@ -399,6 +406,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         root_dag_id = self._get_root_dag_id(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_DELETE, dag_resource_name, user=user)
+
+    def can_trigger_dag(self, dag_id: str, user=None) -> bool:
+        """Determines whether a user has DAG trigger access."""
+        root_dag_id = self._get_root_dag_id(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
+        return self.has_access(permissions.ACTION_CAN_TRIGGER, dag_resource_name, user=user)
 
     def prefixed_dag_id(self, dag_id: str) -> str:
         """Returns the permission name for a DAG id."""
@@ -755,6 +768,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_TRIGGER, permissions.RESOURCE_DAG),
             ):
                 can_access_all_dags = self.has_access(*perm)
                 if can_access_all_dags:

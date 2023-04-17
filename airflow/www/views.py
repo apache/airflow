@@ -797,7 +797,9 @@ class Airflow(AirflowBaseView):
 
             for dag in dags:
                 dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id, g.user)
-                dag.can_trigger = dag.can_edit and can_create_dag_run
+                dag.can_trigger = can_create_dag_run and get_airflow_app().appbuilder.sm.can_trigger_dag(
+                    dag.dag_id, g.user
+                )
                 dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
 
             dagtags = session.query(func.distinct(DagTag.name)).all()
@@ -1869,7 +1871,7 @@ class Airflow(AirflowBaseView):
     @expose("/trigger", methods=["POST", "GET"])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_TRIGGER, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -5806,7 +5808,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
         )
 
         dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id)
-        dag.can_trigger = dag.can_edit and can_create_dag_run
+        dag.can_trigger = can_create_dag_run and get_airflow_app().appbuilder.sm.can_trigger_dag(dag.dag_id)
         dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id)
         context["dag"] = dag
 
