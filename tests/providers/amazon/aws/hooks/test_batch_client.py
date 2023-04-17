@@ -280,7 +280,7 @@ class TestBatchClient:
             "jobs": [
                 {
                     "jobId": JOB_ID,
-                    "container": {},
+                    "container": {"logConfiguration": {}},
                 }
             ]
         }
@@ -288,7 +288,16 @@ class TestBatchClient:
         with caplog.at_level(level=logging.WARNING):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(caplog.records) == 1
-            assert "doesn't create AWS CloudWatch Stream" in caplog.messages[0]
+            assert "doesn't have any AWS CloudWatch Stream" in caplog.messages[0]
+
+    def test_job_not_recognized_job(self):
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID}]}
+        with pytest.raises(AirflowException) as ctx:
+            self.batch_client.get_job_awslogs_info(JOB_ID)
+        # It should not retry when this client error occurs
+        self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
+        msg = "is not a supported job type"
+        assert msg in str(ctx.value)
 
     def test_job_splunk_logs(self, caplog):
         self.client_mock.describe_jobs.return_value = {
@@ -307,7 +316,66 @@ class TestBatchClient:
         with caplog.at_level(level=logging.WARNING):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(caplog.records) == 1
-            assert "uses logDriver (splunk). AWS CloudWatch logging disabled." in caplog.messages[0]
+            assert "uses non-aws log drivers. AWS CloudWatch logging disabled." in caplog.messages[0]
+
+    def test_job_awslogs_multinode_job(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "attempts": [
+                        {"container": {"exitCode": 0, "logStreamName": "test/stream/attempt0"}},
+                        {"container": {"exitCode": 0, "logStreamName": "test/stream/attempt1"}},
+                    ],
+                    "nodeProperties": {
+                        "mainNode": 0,
+                        "nodeRangeProperties": [
+                            {
+                                "targetNodes": "0:",
+                                "container": {
+                                    "logConfiguration": {
+                                        "logDriver": "awslogs",
+                                        "options": {
+                                            "awslogs-group": "/test/batch/job-a",
+                                            "awslogs-region": AWS_REGION,
+                                        },
+                                    }
+                                },
+                            },
+                            {
+                                "targetNodes": "1:",
+                                "container": {
+                                    "logConfiguration": {
+                                        "logDriver": "awslogs",
+                                        "options": {
+                                            "awslogs-group": "/test/batch/job-b",
+                                            "awslogs-region": AWS_REGION,
+                                        },
+                                    }
+                                },
+                            },
+                        ],
+                    },
+                }
+            ]
+        }
+        awslogs = self.batch_client.get_job_all_awslogs_info(JOB_ID)
+        assert len(awslogs) == 4
+        assert all([log["awslogs_region"] == AWS_REGION for log in awslogs])
+
+        combinations = {
+            ("test/stream/attempt0", "/test/batch/job-a"): False,
+            ("test/stream/attempt0", "/test/batch/job-b"): False,
+            ("test/stream/attempt1", "/test/batch/job-a"): False,
+            ("test/stream/attempt1", "/test/batch/job-b"): False,
+        }
+        for log_info in awslogs:
+            # mark combinations that we see
+            combinations[(log_info["awslogs_stream_name"], log_info["awslogs_group"])] = True
+
+        assert len(combinations) == 4
+        # all combinations listed above should have been seen
+        assert all(combinations.values())
 
 
 class TestBatchClientDelays:

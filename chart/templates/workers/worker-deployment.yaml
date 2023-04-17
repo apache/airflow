@@ -187,13 +187,13 @@ spec:
             periodSeconds: {{ .Values.workers.livenessProbe.periodSeconds }}
             exec:
               command:
-                  {{- if .Values.workers.livenessProbe.command }}
-                  {{ toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
-                  {{- else}}
-                  - sh
-                  - -c
-                  - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app airflow.executors.celery_executor.app inspect ping -d celery@$(hostname)
-                  {{- end }}
+                {{- if .Values.workers.livenessProbe.command }}
+                  {{- toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
+                {{- else }}
+                - sh
+                - -c
+                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app airflow.executors.celery_executor.app inspect ping -d celery@$(hostname)
+                {{- end }}
           {{- end }}
           ports:
             - name: worker-logs
@@ -254,7 +254,7 @@ spec:
           {{- if .Values.workers.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{ if .Values.workers.logGroomerSidecar.retentionDays }}
+          {{- if .Values.workers.logGroomerSidecar.retentionDays }}
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
@@ -303,7 +303,7 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
-          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             - name: KRB5_CONFIG
               value:  {{ .Values.kerberos.configPath | quote }}

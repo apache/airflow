@@ -49,16 +49,21 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.5.2"
+defaultAirflowTag: "2.5.3"
+
+# Default airflow digest. If specified, it takes precedence over tag
+defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.5.2"
+airflowVersion: "2.5.3"
 
 # Images
 images:
   airflow:
     repository: ~
     tag: ~
+    # Specifying digest takes precedence over tag.
+    digest: ~
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
@@ -953,16 +958,16 @@ webserver:
   allowPodLogReading: true
   livenessProbe:
     initialDelaySeconds: 15
-    timeoutSeconds: 30
-    failureThreshold: 20
-    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
     scheme: HTTP
 
   readinessProbe:
     initialDelaySeconds: 15
-    timeoutSeconds: 30
-    failureThreshold: 20
-    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
     scheme: HTTP
 
   # Number of webservers
@@ -1541,6 +1546,8 @@ pgbouncer:
 
   # annotations to be added to the PgBouncer deployment
   annotations: {}
+
+  podAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:

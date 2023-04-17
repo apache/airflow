@@ -21,7 +21,9 @@ name: Databricks
 description: |
     `Databricks <https://databricks.com/>`__
 
+suspended: false
 versions:
+  - 4.0.1
   - 4.0.0
   - 3.4.0
   - 3.3.0
@@ -97,6 +99,10 @@ triggers:
     python-modules:
       - airflow.providers.databricks.triggers.databricks
 
+sensors:
+  - integration-name: Databricks
+    python-modules:
+      - airflow.providers.databricks.sensors.databricks_sql
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook

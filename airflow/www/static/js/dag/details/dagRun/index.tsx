@@ -19,7 +19,6 @@
 import React, { useRef } from "react";
 import {
   Flex,
-  Text,
   Box,
   Button,
   Divider,
@@ -43,10 +42,6 @@ import Time from "src/components/Time";
 import RunTypeIcon from "src/components/RunTypeIcon";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
-import MarkFailedRun from "./MarkFailedRun";
-import MarkSuccessRun from "./MarkSuccessRun";
-import QueueRun from "./QueueRun";
-import ClearRun from "./ClearRun";
 import DatasetTriggerEvents from "./DatasetTriggerEvents";
 
 const dagId = getMetaValue("dag_id");
@@ -94,20 +89,6 @@ const DagRun = ({ runId }: Props) => {
       overflowY="auto"
       pb={4}
     >
-      <Flex justifyContent="space-between" alignItems="center">
-        <Flex>
-          <MarkFailedRun dagId={dagId} runId={runId} />
-          <MarkSuccessRun dagId={dagId} runId={runId} />
-        </Flex>
-        <Flex justifyContent="flex-end" alignItems="center">
-          <Text fontWeight="bold" mr={2}>
-            Re-run:
-          </Text>
-          <ClearRun dagId={dagId} runId={runId} />
-          <QueueRun dagId={dagId} runId={runId} />
-        </Flex>
-      </Flex>
-      <Divider my={3} />
       <Box px={4}>
         <NotesAccordion
           dagId={dagId}

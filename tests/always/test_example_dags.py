@@ -18,38 +18,69 @@ from __future__ import annotations
 
 import os
 from glob import glob
+from pathlib import Path
 
 import pytest
 
 from airflow.models import DagBag
+from airflow.settings import _ENABLE_AIP_52
+from airflow.utils import yaml
 from tests.test_utils.asserts import assert_queries_count
 
-ROOT_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
+AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[3]
+AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
 
-def example_dags():
+def get_suspended_providers_folders() -> list[str]:
+    """
+    Returns a list of suspended providers folders that should be
+    skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
+    """
+    suspended_providers = []
+    for provider_path in AIRFLOW_PROVIDERS_ROOT.glob("**/provider.yaml"):
+        provider_yaml = yaml.safe_load(provider_path.read_text())
+        if provider_yaml.get("suspended"):
+            suspended_providers.append(
+                provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
+                .as_posix()
+                .replace("airflow/providers/", "")
+            )
+    return suspended_providers
+
+
+def example_not_suspended_dags():
     example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/providers/**/example_*.py"]
+    suspended_providers_folders = get_suspended_providers_folders()
+    possible_prefixes = ["airflow/providers/", "tests/system/providers/"]
+    suspended_providers_folders = [
+        f"{prefix}{provider}" for prefix in possible_prefixes for provider in suspended_providers_folders
+    ]
     for example_dir in example_dirs:
-        yield from glob(f"{ROOT_FOLDER}/{example_dir}", recursive=True)
+        candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
+        for candidate in candidates:
+            if any(candidate.startswith(s) for s in suspended_providers_folders):
+                continue
+            # we will also suspend AIP-52 DAGs unless it is enabled
+            if not _ENABLE_AIP_52 and "example_setup_teardown" in candidate:
+                continue
+            yield candidate
 
 
 def example_dags_except_db_exception():
     return [
         dag_file
-        for dag_file in example_dags()
+        for dag_file in example_not_suspended_dags()
         if any(not dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
     ]
 
 
 def relative_path(path):
-    return os.path.relpath(path, ROOT_FOLDER)
+    return os.path.relpath(path, AIRFLOW_SOURCES_ROOT.as_posix())
 
 
-@pytest.mark.parametrize("example", example_dags(), ids=relative_path)
+@pytest.mark.parametrize("example", example_not_suspended_dags(), ids=relative_path)
 def test_should_be_importable(example):
     dagbag = DagBag(
         dag_folder=example,
