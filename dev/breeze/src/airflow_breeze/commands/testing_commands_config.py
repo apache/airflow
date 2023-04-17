@@ -88,6 +88,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--helm-test-package",
                 "--github-repository",
             ],
         },

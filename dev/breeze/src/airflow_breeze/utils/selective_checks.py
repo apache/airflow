@@ -58,6 +58,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     GithubEvents,
     SelectiveUnitTestTypes,
+    all_helm_test_packages,
     all_selective_test_types,
 )
 from airflow_breeze.utils.console import get_console
@@ -644,3 +645,7 @@ class SelectiveChecks:
     @cached_property
     def suspended_providers_folders(self) -> str:
         return " ".join(get_suspended_providers_folders())
+
+    @cached_property
+    def helm_test_packages(self) -> str:
+        return json.dumps(all_helm_test_packages())
