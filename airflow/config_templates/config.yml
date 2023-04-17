@@ -1692,6 +1692,13 @@ webserver:
       type: string
       example: ~
       default: "5 per 40 second"
+    caching_hash_method:
+      description: |
+        The caching algorithm used by the webserver. Must be a valid hashlib function name.
+      version_added:
+      type: string
+      example: "sha256"
+      default: "md5"
 
 email:
   description: |
