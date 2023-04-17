@@ -21,7 +21,7 @@ import contextlib
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Union, overload
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, XComNotFound
@@ -316,12 +316,19 @@ class PlainXComArg(XComArg):
 
         task = self.operator
         if isinstance(task, MappedOperator):
-            state_query = session.query(TaskInstance.state).filter(
+            unfinished_ti_count_query = session.query(func.count(TaskInstance.map_index)).filter(
                 TaskInstance.dag_id == task.dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id == task.task_id,
+                # Special NULL treatment is needed because 'state' can be NULL.
+                # The "IN" part would produce "NULL NOT IN ..." and eventually
+                # "NULl = NULL", which is a big no-no in SQL.
+                or_(
+                    TaskInstance.state.is_(None),
+                    TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                ),
             )
-            if any(state in State.unfinished for state, in state_query):
+            if unfinished_ti_count_query.scalar():
                 return None  # Not all of the expanded tis are done yet.
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
