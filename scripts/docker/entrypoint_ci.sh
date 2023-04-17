@@ -52,7 +52,9 @@ function wait_for_asset_compilation() {
         echo
         local counter=0
         while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
-            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            if (( counter % 5 == 2 )); then
+                echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            fi
             sleep 1
             ((counter=counter+1))
             if [[ ${counter} == "30" ]]; then
@@ -204,6 +206,12 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
                 installable_files+=( "${file}" )
             fi
         done
+        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
+            echo
+            echo "${COLOR_BLUE}Also adding airflow in specified version ${USE_AIRFLOW_VERSION} to make sure it is not upgraded by >= limits${COLOR_RESET}"
+            echo
+            installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
+        fi
         if (( ${#installable_files[@]} )); then
             pip install --root-user-action ignore "${installable_files[@]}"
         fi
@@ -276,6 +284,10 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
+# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# but may still be present in the local directory if the user has old breeze image
+rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" != "true" ]]; then
@@ -283,8 +295,13 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
-export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.txt"
+else
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+fi
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -301,17 +318,31 @@ EXTRA_PYTEST_ARGS=(
     "--teardown-timeout=${TEST_TIMEOUT}"
     "--output=${WARNINGS_FILE}"
     "--disable-warnings"
-    # Only display summary for non-expected case
+    # Only display summary for non-expected cases
+    #
     # f - failed
     # E - error
     # X - xpassed (passed even if expected to fail)
-    # The following cases are not displayed:
     # s - skipped
+    #
+    # The following cases are not displayed:
     # x - xfailed (expected to fail and failed)
     # p - passed
     # P - passed with output
-    "-rfEX"
+    #
+    "-rfEXs"
 )
+
+if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
+    for provider in ${SUSPENDED_PROVIDERS_FOLDERS=}; do
+        echo "Skipping tests for suspended provider: ${provider}"
+        EXTRA_PYTEST_ARGS+=(
+            "--ignore=tests/providers/${provider}"
+            "--ignore=tests/system/providers/${provider}"
+            "--ignore=tests/integration/providers/${provider}"
+        )
+    done
+fi
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
@@ -335,6 +366,21 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     )
 fi
 
+if [[ ${COLLECT_ONLY:="false"} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "--collect-only"
+        "-qqqq"
+        "--disable-warnings"
+    )
+fi
+
+if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
+    # Test what happens if we do not have ARM packages installed.
+    # This is useful to see if pytest collection works without ARM packages which is important
+    # for the MacOS M1 users running tests in their ARM machines with `breeze testing tests` command
+    python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
+fi
+
 declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
 
@@ -342,7 +388,10 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 # - so that we do not skip any in the future if new directories are added
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
+    # The output of the find command should be sorted to make sure that the order is always the same
+    # when we run the tests, to avoid cross-package side effects causing different test results
+    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -361,7 +410,7 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
     SELECTED_TESTS=("${@}")
 else
     CLI_TESTS=("tests/cli")
-    API_TESTS=("tests/api" "tests/api_connexion")
+    API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
@@ -391,7 +440,7 @@ else
     )
 
     NO_PROVIDERS_INTEGRATION_TESTS=(
-        "tests/integration/api"
+        "tests/integration/api_experimental"
         "tests/integration/cli"
         "tests/integration/executors"
         "tests/integration/security"
@@ -410,7 +459,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
-        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+        else
+            SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
         if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
             SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
@@ -436,12 +489,29 @@ else
                 echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
             fi
         done
+    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
+        # Those tests fail when --asert=rewrite is set, therefore we run them separately
+        # with --assert=plain to make sure they pass.
+        SELECTED_TESTS=(
+            # this on is mysteriously failing dill serialization. It could be removed once
+            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
+            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
+        )
+        EXTRA_PYTEST_ARGS+=("--assert=plain")
+        export PYTEST_PLAIN_ASSERTS="true"
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
+fi
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall aiobotocore -y || true
+    pip install --upgrade boto3 botocore
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS

@@ -159,6 +159,10 @@ class SparkJDBCHook(SparkSubmitHook):
         conn_data = {"url": "", "schema": "", "conn_prefix": "", "user": "", "password": ""}
         try:
             conn = self.get_connection(self._jdbc_conn_id)
+            if "/" in conn.host:
+                raise ValueError("The jdbc host should not contain a '/'")
+            if "?" in conn.schema:
+                raise ValueError("The jdbc schema should not contain a '?'")
             if conn.port:
                 conn_data["url"] = f"{conn.host}:{conn.port}"
             else:

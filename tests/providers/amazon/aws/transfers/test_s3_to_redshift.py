@@ -73,7 +73,7 @@ class TestS3ToRedshiftTransfer:
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -120,7 +120,7 @@ class TestS3ToRedshiftTransfer:
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -170,7 +170,7 @@ class TestS3ToRedshiftTransfer:
                     {copy_statement}
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces(self, "\n".join(mock_run.call_args[0][0]), transaction)
+        assert_equal_ignore_multiple_spaces("\n".join(mock_run.call_args[0][0]), transaction)
 
         assert mock_run.call_count == 1
 
@@ -225,7 +225,7 @@ class TestS3ToRedshiftTransfer:
                     INSERT INTO {schema}.{table} SELECT * FROM #{table};
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces(self, "\n".join(mock_run.call_args[0][0]), transaction)
+        assert_equal_ignore_multiple_spaces("\n".join(mock_run.call_args[0][0]), transaction)
 
         assert mock_run.call_count == 1
 
@@ -274,7 +274,7 @@ class TestS3ToRedshiftTransfer:
         assert secret_key in copy_statement
         assert token in copy_statement
         assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_statement)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_statement)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -322,7 +322,7 @@ class TestS3ToRedshiftTransfer:
 
         assert extra["role_arn"] in copy_statement
         assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_statement)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_statement)
 
     def test_template_fields_overrides(self):
         assert S3ToRedshiftOperator.template_fields == (
@@ -446,4 +446,4 @@ class TestS3ToRedshiftTransfer:
             Id="STATEMENT_ID",
         )
         # test sql arg
-        assert_equal_ignore_multiple_spaces(self, mock_rs.execute_statement.call_args[1]["Sql"], copy_query)
+        assert_equal_ignore_multiple_spaces(mock_rs.execute_statement.call_args[1]["Sql"], copy_query)

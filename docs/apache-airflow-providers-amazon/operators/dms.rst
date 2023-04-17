@@ -34,7 +34,7 @@ different database engines, such as from an Oracle database to a PostgreSQL data
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

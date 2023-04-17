@@ -21,7 +21,9 @@ name: Hypertext Transfer Protocol (HTTP)
 description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
+suspended: false
 versions:
+  - 4.3.0
   - 4.2.0
   - 4.1.1
   - 4.1.0

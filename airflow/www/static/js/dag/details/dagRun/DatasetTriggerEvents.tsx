@@ -16,59 +16,56 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useMemo } from 'react';
-import {
-  Box, Heading, Text,
-} from '@chakra-ui/react';
+import React, { useMemo } from "react";
+import { Box, Heading, Text } from "@chakra-ui/react";
 
 import {
-  DatasetLink, Table, TaskInstanceLink, TimeCell,
-} from 'src/components/Table';
-import { useUpstreamDatasetEvents } from 'src/api';
-import type { DagRun as DagRunType } from 'src/types';
+  DatasetLink,
+  Table,
+  TaskInstanceLink,
+  TimeCell,
+} from "src/components/Table";
+import { useUpstreamDatasetEvents } from "src/api";
+import type { DagRun as DagRunType } from "src/types";
 
 interface Props {
-  runId: DagRunType['runId'];
+  runId: DagRunType["runId"];
 }
 
 const DatasetTriggerEvents = ({ runId }: Props) => {
-  const { data: { datasetEvents = [] }, isLoading } = useUpstreamDatasetEvents({ runId });
+  const {
+    data: { datasetEvents = [] },
+    isLoading,
+  } = useUpstreamDatasetEvents({ runId });
 
   const columns = useMemo(
     () => [
       {
-        Header: 'Dataset URI',
-        accessor: 'datasetUri',
+        Header: "Dataset URI",
+        accessor: "datasetUri",
         Cell: DatasetLink,
       },
       {
-        Header: 'Source Task Instance',
-        accessor: 'sourceTaskId',
+        Header: "Source Task Instance",
+        accessor: "sourceTaskId",
         Cell: TaskInstanceLink,
       },
       {
-        Header: 'When',
-        accessor: 'timestamp',
+        Header: "When",
+        accessor: "timestamp",
         Cell: TimeCell,
       },
     ],
-    [],
+    []
   );
 
-  const data = useMemo(
-    () => datasetEvents,
-    [datasetEvents],
-  );
+  const data = useMemo(() => datasetEvents, [datasetEvents]);
 
   return (
     <Box mt={3} flexGrow={1}>
       <Heading size="md">Dataset Events</Heading>
       <Text>Dataset updates that triggered this DAG run.</Text>
-      <Table
-        data={data}
-        columns={columns}
-        isLoading={isLoading}
-      />
+      <Table data={data} columns={columns} isLoading={isLoading} />
     </Box>
   );
 };

@@ -17,9 +17,7 @@
  * under the License.
  */
 
-import React, {
-  useState, useEffect, useMemo,
-} from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Text,
   Box,
@@ -28,21 +26,21 @@ import {
   Button,
   Checkbox,
   Icon,
-} from '@chakra-ui/react';
-import { MdWarning } from 'react-icons/md';
+} from "@chakra-ui/react";
+import { MdWarning } from "react-icons/md";
 
-import { getMetaValue } from 'src/utils';
-import useTaskLog from 'src/api/useTaskLog';
-import LinkButton from 'src/components/LinkButton';
-import { useTimezone } from 'src/context/timezone';
-import type { Dag, DagRun, TaskInstance } from 'src/types';
-import MultiSelect from 'src/components/MultiSelect';
+import { getMetaValue } from "src/utils";
+import useTaskLog from "src/api/useTaskLog";
+import LinkButton from "src/components/LinkButton";
+import { useTimezone } from "src/context/timezone";
+import type { Dag, DagRun, TaskInstance } from "src/types";
+import MultiSelect from "src/components/MultiSelect";
 
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
-import LogLink from './LogLink';
-import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
-import LogBlock from './LogBlock';
+import LogLink from "./LogLink";
+import { LogLevel, logLevelColorMapping, parseLogs } from "./utils";
+import LogBlock from "./LogBlock";
 
 interface LogLevelOption {
   label: LogLevel;
@@ -55,11 +53,14 @@ interface FileSourceOption {
   value: string;
 }
 
-const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
-const externalLogName = getMetaValue('external_log_name');
-const logUrl = getMetaValue('log_url');
+const showExternalLogRedirect =
+  getMetaValue("show_external_log_redirect") === "True";
+const externalLogName = getMetaValue("external_log_name");
+const logUrl = getMetaValue("log_url");
 
-const getLinkIndexes = (tryNumber: number | undefined): Array<Array<number>> => {
+const getLinkIndexes = (
+  tryNumber: number | undefined
+): Array<Array<number>> => {
   const internalIndexes: Array<number> = [];
   const externalIndexes: Array<number> = [];
 
@@ -79,18 +80,20 @@ const getLinkIndexes = (tryNumber: number | undefined): Array<Array<number>> => 
 
 const logLevelOptions: Array<LogLevelOption> = Object.values(LogLevel).map(
   (value): LogLevelOption => ({
-    label: value, value, color: logLevelColorMapping[value],
-  }),
+    label: value,
+    value,
+    color: logLevelColorMapping[value],
+  })
 );
 
 interface Props {
-  dagId: Dag['id'];
-  dagRunId: DagRun['runId'];
-  taskId: TaskInstance['taskId'];
-  mapIndex?: TaskInstance['mapIndex'];
-  executionDate: DagRun['executionDate'];
-  tryNumber: TaskInstance['tryNumber'];
-  state?: TaskInstance['state'];
+  dagId: Dag["id"];
+  dagRunId: DagRun["runId"];
+  taskId: TaskInstance["taskId"];
+  mapIndex?: TaskInstance["mapIndex"];
+  executionDate: DagRun["executionDate"];
+  tryNumber: TaskInstance["tryNumber"];
+  state?: TaskInstance["state"];
 }
 
 const Logs = ({
@@ -103,10 +106,16 @@ const Logs = ({
   state,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
-  const [selectedTryNumber, setSelectedTryNumber] = useState<number | undefined>();
-  const [wrap, setWrap] = useState(getMetaValue('default_wrap') === 'True');
-  const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
-  const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
+  const [selectedTryNumber, setSelectedTryNumber] = useState<
+    number | undefined
+  >();
+  const [wrap, setWrap] = useState(getMetaValue("default_wrap") === "True");
+  const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>(
+    []
+  );
+  const [fileSourceFilters, setFileSourceFilters] = useState<
+    Array<FileSourceOption>
+  >([]);
   const { timezone } = useTimezone();
 
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
@@ -125,7 +134,7 @@ const Logs = ({
   });
 
   if (mapIndex !== undefined) {
-    params.append('map_index', mapIndex.toString());
+    params.append("map_index", mapIndex.toString());
   }
 
   const {
@@ -133,13 +142,14 @@ const Logs = ({
     fileSources = [],
     warning,
   } = useMemo(
-    () => parseLogs(
-      data,
-      timezone,
-      logLevelFilters.map((option) => option.value),
-      fileSourceFilters.map((option) => option.value),
-    ),
-    [data, fileSourceFilters, logLevelFilters, timezone],
+    () =>
+      parseLogs(
+        data,
+        timezone,
+        logLevelFilters.map((option) => option.value),
+        fileSourceFilters.map((option) => option.value)
+      ),
+    [data, fileSourceFilters, logLevelFilters, timezone]
   );
 
   useEffect(() => {
@@ -149,11 +159,15 @@ const Logs = ({
       setSelectedTryNumber(undefined);
     }
 
-    if (data && fileSourceFilters.length > 0
-      && fileSourceFilters.reduce(
-        (isSourceMissing, option) => (isSourceMissing || !fileSources.includes(option.value)),
-        false,
-      )) {
+    if (
+      data &&
+      fileSourceFilters.length > 0 &&
+      fileSourceFilters.reduce(
+        (isSourceMissing, option) =>
+          isSourceMissing || !fileSources.includes(option.value),
+        false
+      )
+    ) {
       setFileSourceFilters([]);
     }
   }, [data, fileSourceFilters, fileSources, taskTryNumber, tryNumber]);
@@ -169,7 +183,7 @@ const Logs = ({
                 {internalIndexes.map((index) => (
                   <Button
                     key={index}
-                    variant={taskTryNumber === index ? 'solid' : 'ghost'}
+                    variant={taskTryNumber === index ? "solid" : "ghost"}
                     colorScheme="blue"
                     onClick={() => setSelectedTryNumber(index)}
                     data-testid={`log-attempt-select-button-${index}`}
@@ -196,7 +210,7 @@ const Logs = ({
                       }),
                       option: (provided, ...rest) => ({
                         ...provided,
-                        borderLeft: 'solid 4px black',
+                        borderLeft: "solid 4px black",
                         borderColor: rest[0].data.color,
                         mt: 2,
                       }),
@@ -234,20 +248,22 @@ const Logs = ({
                   tryNumber={tryNumber}
                   mapIndex={mapIndex}
                 />
-                <LinkButton
-                  href={`${logUrl}&${params.toString()}`}
-                >
+                <LinkButton href={`${logUrl}&${params.toString()}`}>
                   See More
                 </LinkButton>
               </Flex>
             </Flex>
           </Box>
           {!!warning && (
-            <Flex bg="yellow.200" borderRadius={2} borderColor="gray.400" alignItems="center" p={2}>
+            <Flex
+              bg="yellow.200"
+              borderRadius={2}
+              borderColor="gray.400"
+              alignItems="center"
+              p={2}
+            >
               <Icon as={MdWarning} color="yellow.500" mr={2} />
-              <Text fontSize="sm">
-                {warning}
-              </Text>
+              <Text fontSize="sm">{warning}</Text>
             </Flex>
           )}
           {!!parsedLogs && (
@@ -262,27 +278,17 @@ const Logs = ({
       {externalLogName && externalIndexes.length > 0 && (
         <>
           <Box>
-            <Text>
-              View Logs in
-              {' '}
-              {externalLogName}
-              {' '}
-              (by attempts):
-            </Text>
+            <Text>View Logs in {externalLogName} (by attempts):</Text>
             <Flex flexWrap="wrap">
-              {
-                externalIndexes.map(
-                  (index) => (
-                    <LogLink
-                      key={index}
-                      dagId={dagId}
-                      taskId={taskId}
-                      executionDate={executionDate}
-                      tryNumber={index}
-                    />
-                  ),
-                )
-              }
+              {externalIndexes.map((index) => (
+                <LogLink
+                  key={index}
+                  dagId={dagId}
+                  taskId={taskId}
+                  executionDate={executionDate}
+                  tryNumber={index}
+                />
+              ))}
             </Flex>
           </Box>
           <Divider my={2} />

@@ -17,34 +17,35 @@
  * under the License.
  */
 
-import * as API from './api-generated';
+import type * as API from "./api-generated";
 
-type RunState = 'success' | 'running' | 'queued' | 'failed';
+type RunState = "success" | "running" | "queued" | "failed";
 
-type TaskState = RunState
-| 'removed'
-| 'scheduled'
-| 'shutdown'
-| 'restarting'
-| 'up_for_retry'
-| 'up_for_reschedule'
-| 'upstream_failed'
-| 'skipped'
-| 'deferred'
-| null;
+type TaskState =
+  | RunState
+  | "removed"
+  | "scheduled"
+  | "shutdown"
+  | "restarting"
+  | "up_for_retry"
+  | "up_for_reschedule"
+  | "upstream_failed"
+  | "skipped"
+  | "deferred"
+  | null;
 
 interface Dag {
-  id: string,
-  rootDagId: string,
-  isPaused: boolean,
-  isSubdag: boolean,
-  owners: Array<string>,
-  description: string,
+  id: string;
+  rootDagId: string;
+  isPaused: boolean;
+  isSubdag: boolean;
+  owners: Array<string>;
+  description: string;
 }
 
 interface DagRun {
   runId: string;
-  runType: 'manual' | 'backfill' | 'scheduled' | 'dataset_triggered';
+  runType: "manual" | "backfill" | "scheduled" | "dataset_triggered";
   state: RunState;
   executionDate: string;
   dataIntervalStart: string;
@@ -67,7 +68,7 @@ interface TaskInstance {
   state: TaskState | null;
   mappedStates?: {
     [key: string]: number;
-  },
+  };
   mapIndex?: number;
   tryNumber?: number;
   triggererJob?: Job;
@@ -95,19 +96,28 @@ interface Task {
   isMapped?: boolean;
   operator?: string;
   hasOutletDatasets?: boolean;
+  triggerRule?: API.TriggerRule;
 }
 
-type RunOrdering = ('dataIntervalStart' | 'executionDate' | 'dataIntervalEnd')[];
+type RunOrdering = (
+  | "dataIntervalStart"
+  | "executionDate"
+  | "dataIntervalEnd"
+)[];
 
 interface DepNode {
   id: string;
   value: {
     id?: string;
-    class: 'dag' | 'dataset' | 'trigger' | 'sensor';
+    class: "dag" | "dataset" | "trigger" | "sensor";
     label: string;
     rx: number;
     ry: number;
-  }
+    isOpen?: boolean;
+    isJoinNode?: boolean;
+    childCount?: number;
+  };
+  children?: DepNode[];
 }
 
 interface DepEdge {
@@ -120,16 +130,19 @@ interface DatasetListItem extends API.Dataset {
   totalUpdates: number;
 }
 
+type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
+
 export type {
+  API,
+  MinimalTaskInstance,
   Dag,
   DagRun,
-  RunState,
-  TaskState,
-  TaskInstance,
-  Task,
-  DepNode,
-  DepEdge,
-  API,
-  RunOrdering,
   DatasetListItem,
+  DepEdge,
+  DepNode,
+  RunOrdering,
+  RunState,
+  Task,
+  TaskInstance,
+  TaskState,
 };

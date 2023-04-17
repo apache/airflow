@@ -528,7 +528,7 @@ class TestDatabricksSubmitRunOperator:
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
 
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_spark_python_task_named_parameters(self):
         """
@@ -541,7 +541,7 @@ class TestDatabricksSubmitRunOperator:
             {"new_cluster": NEW_CLUSTER, "spark_python_task": SPARK_PYTHON_TASK, "run_name": TASK_ID}
         )
 
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_spark_submit_task_named_parameters(self):
         """
@@ -554,7 +554,7 @@ class TestDatabricksSubmitRunOperator:
             {"new_cluster": NEW_CLUSTER, "spark_submit_task": SPARK_SUBMIT_TASK, "run_name": TASK_ID}
         )
 
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_dbt_task_named_parameters(self):
         """
@@ -572,7 +572,7 @@ class TestDatabricksSubmitRunOperator:
             {"new_cluster": NEW_CLUSTER, "dbt_task": DBT_TASK, "git_source": git_source, "run_name": TASK_ID}
         )
 
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_dbt_task_mixed_parameters(self):
         """
@@ -591,7 +591,7 @@ class TestDatabricksSubmitRunOperator:
             {"new_cluster": NEW_CLUSTER, "dbt_task": DBT_TASK, "git_source": git_source, "run_name": TASK_ID}
         )
 
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_dbt_task_without_git_source_raises_error(self):
         """
@@ -620,13 +620,13 @@ class TestDatabricksSubmitRunOperator:
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_tasks(self):
         tasks = [{"task_key": 1, "new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}]
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, tasks=tasks)
         expected = utils.normalise_json_content({"run_name": TASK_ID, "tasks": tasks})
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_specified_run_name(self):
         """
@@ -637,7 +637,7 @@ class TestDatabricksSubmitRunOperator:
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
         )
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_pipeline_task(self):
         """
@@ -649,7 +649,7 @@ class TestDatabricksSubmitRunOperator:
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "pipeline_task": pipeline_task, "run_name": RUN_NAME}
         )
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_merging(self):
         """
@@ -670,7 +670,7 @@ class TestDatabricksSubmitRunOperator:
                 "run_name": TASK_ID,
             }
         )
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_templating(self):
         json = {
@@ -687,7 +687,7 @@ class TestDatabricksSubmitRunOperator:
                 "run_name": TASK_ID,
             }
         )
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_git_source(self):
         json = {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
@@ -705,17 +705,18 @@ class TestDatabricksSubmitRunOperator:
                 "git_source": git_source,
             }
         )
-        assert expected == op.json
+        assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_bad_type(self):
         json = {"test": datetime.now()}
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
             r"Type \<(type|class) \'datetime.datetime\'\> used "
             r"for parameter json\[test\] is not a number or a string"
         )
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
+            utils.normalise_json_content(op.json)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_success(self, db_mock_class):

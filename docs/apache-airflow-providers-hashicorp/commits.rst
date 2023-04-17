@@ -28,14 +28,43 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.1
+.....
+
+Latest change: 2023-03-16
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`b3d5a176ba <https://github.com/apache/airflow/commit/b3d5a176baac530a25ec9d1c8838115d9d156f0b>`_  2023-03-16   ``Remove required validations in Hashicorp Vault conn form (#30138)``
+`14d9e90b3a <https://github.com/apache/airflow/commit/14d9e90b3abca6a779a8fd264cfe9bcc081e1d9b>`_  2023-03-16   ``Improve creating Vault connection from the UI and add documentation for this conn (#30057)``
+`63d9266492 <https://github.com/apache/airflow/commit/63d92664927647b29d586db2fc9adcfafddc473d>`_  2023-03-14   ``remove unused key_id variable (#30055)``
+`d2f62d7cd5 <https://github.com/apache/airflow/commit/d2f62d7cd5c2b2c141b5db5594a95e6bf0148442>`_  2023-03-13   ``Simplify dict logic in Hashicorp Vault Hook (#30060)``
+=================================================================================================  ===========  ==============================================================================================
+
+3.3.0
+.....
+
+Latest change: 2023-03-07
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`4a9e1e8a1f <https://github.com/apache/airflow/commit/4a9e1e8a1fcf76c0bd9e2c501b0da0466223f6ac>`_  2023-03-07   ``Prepare docs for hashicorp ad hoc RC2 release (#29942)``
+`4fa91d7540 <https://github.com/apache/airflow/commit/4fa91d7540b93420a6c7c43737e3ac881b418873>`_  2023-03-04   ``Fix empty paths in Vault secrets backend (#29908)``
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
+`dff425bc3d <https://github.com/apache/airflow/commit/dff425bc3d92697bb447010aa9f3b56519a59f1e>`_  2023-02-24   ``Support multiple mount points in Vault backend secret (#29734)``
+=================================================================================================  ===========  ==================================================================
+
 3.2.0
 .....
 
-Latest change: 2022-11-02
+Latest change: 2022-11-15
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
 `1a3f7857f5 <https://github.com/apache/airflow/commit/1a3f7857f50170cbef767b91e2831fee8019e7b1>`_  2022-11-02   ``Pass kwargs from vault hook to hvac client (#26680)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``

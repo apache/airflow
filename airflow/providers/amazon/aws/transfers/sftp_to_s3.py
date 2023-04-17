@@ -52,7 +52,7 @@ class SFTPToS3Operator(BaseOperator):
         if False streams file from SFTP to S3.
     """
 
-    template_fields: Sequence[str] = ("s3_key", "sftp_path")
+    template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket")
 
     def __init__(
         self,

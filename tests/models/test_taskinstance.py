@@ -63,7 +63,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
+from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -84,6 +84,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
@@ -287,6 +288,19 @@ class TestTaskInstance:
         ti.run()
         assert ti.state == State.NONE
 
+    def test_requeue_over_max_active_tis_per_dagrun(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="test_requeue_over_max_active_tis_per_dagrun",
+            task_id="test_requeue_over_max_active_tis_per_dagrun_op",
+            max_active_tis_per_dagrun=0,
+            max_active_runs=1,
+            max_active_tasks=2,
+            dagrun_state=State.QUEUED,
+        )
+
+        ti.run()
+        assert ti.state == State.NONE
+
     def test_requeue_over_pool_concurrency(self, create_task_instance, test_pool):
         ti = create_task_instance(
             dag_id="test_requeue_over_pool_concurrency",
@@ -448,6 +462,28 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
 
+    def test_task_sigterm_calls_on_failure_callback(self, dag_maker, caplog):
+        """
+        Test that ensures that tasks call on_failure_callback when they receive sigterm
+        """
+
+        def task_function(ti):
+            os.kill(ti.pid, signal.SIGTERM)
+
+        with dag_maker():
+            task_ = PythonOperator(
+                task_id="test_on_failure",
+                python_callable=task_function,
+                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task_
+        with pytest.raises(AirflowException):
+            ti.run()
+        assert "on_failure_callback called" in caplog.text
+
     def test_task_sigterm_works_with_retries(self, dag_maker):
         """
         Test that ensures that tasks are retried when they receive sigterm
@@ -471,28 +507,6 @@ class TestTaskInstance:
             ti.run()
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
-
-    def test_task_sigterm_calls_on_failure_callack(self, dag_maker, caplog):
-        """
-        Test that ensures that tasks call on_failure_callback when they receive sigterm
-        """
-
-        def task_function(ti):
-            os.kill(ti.pid, signal.SIGTERM)
-
-        with dag_maker():
-            task_ = PythonOperator(
-                task_id="test_on_failure",
-                python_callable=task_function,
-                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
-            )
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        ti.task = task_
-        with pytest.raises(AirflowException):
-            ti.run()
-        assert "on_failure_callback called" in caplog.text
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
     def test_task_sigterm_doesnt_change_state_of_finished_tasks(self, state, dag_maker):
@@ -1483,7 +1497,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=models.XCOM_RETURN_KEY) is None
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
 
     def test_post_execute_hook(self, dag_maker):
         """
@@ -3857,6 +3871,50 @@ def test_mapped_task_does_not_error_in_mini_scheduler_if_upstreams_are_not_done(
     middle_ti = dag_run.get_task_instance(task_id="middle_task")
     assert middle_ti.state != State.UPSTREAM_FAILED
     assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
+def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, session):
+    """
+    This tests verify that operators with inherits_from_empty_operator are not considered by mini scheduler.
+    Such operators should not run on workers thus the mini scheduler optimization should skip them and not
+    submit them directly to worker.
+    """
+    with dag_maker() as dag:
+
+        @dag.task
+        def first_task():
+            print(2)
+
+        @dag.task
+        def second_task():
+            print(2)
+
+        third_task = EmptyOperator(task_id="third_task")
+        forth_task = EmptyOperator(task_id="forth_task", on_success_callback=lambda x: print("hi"))
+
+        first_task() >> [second_task(), third_task, forth_task]
+        dag_run = dag_maker.create_dagrun()
+        first_ti = dag_run.get_task_instance(task_id="first_task")
+        second_ti = dag_run.get_task_instance(task_id="second_task")
+        third_ti = dag_run.get_task_instance(task_id="third_task")
+        forth_ti = dag_run.get_task_instance(task_id="forth_task")
+        first_ti.state = State.SUCCESS
+        second_ti.state = State.NONE
+        third_ti.state = State.NONE
+        forth_ti.state = State.NONE
+        session.merge(first_ti)
+        session.merge(second_ti)
+        session.merge(third_ti)
+        session.merge(forth_ti)
+        session.commit()
+        first_ti.schedule_downstream_tasks(session=session)
+        second_task = dag_run.get_task_instance(task_id="second_task")
+        third_task = dag_run.get_task_instance(task_id="third_task")
+        forth_task = dag_run.get_task_instance(task_id="forth_task")
+        assert second_task.state == State.SCHEDULED
+        assert third_task.state == State.NONE
+        assert forth_task.state == State.SCHEDULED
+        assert "2 downstream tasks scheduled from follow-on schedule" in caplog.text
 
 
 def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):

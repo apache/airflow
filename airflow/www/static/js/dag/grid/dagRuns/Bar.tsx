@@ -19,30 +19,23 @@
 
 /* global stateColors */
 
-import React from 'react';
-import { isEqual } from 'lodash';
-import {
-  Flex,
-  Box,
-  Tooltip,
-  Text,
-  VStack,
-  useTheme,
-} from '@chakra-ui/react';
+import React from "react";
+import { isEqual } from "lodash";
+import { Flex, Box, Tooltip, Text, VStack, useTheme } from "@chakra-ui/react";
 
-import { useContainerRef } from 'src/context/containerRef';
-import Time from 'src/components/Time';
-import type { SelectionProps } from 'src/dag/useSelection';
-import { hoverDelay, getStatusBackgroundColor } from 'src/utils';
-import RunTypeIcon from 'src/components/RunTypeIcon';
+import { useContainerRef } from "src/context/containerRef";
+import Time from "src/components/Time";
+import type { SelectionProps } from "src/dag/useSelection";
+import { hoverDelay, getStatusBackgroundColor } from "src/utils";
+import RunTypeIcon from "src/components/RunTypeIcon";
 
-import DagRunTooltip from './Tooltip';
-import type { RunWithDuration } from '.';
+import DagRunTooltip from "./Tooltip";
+import type { RunWithDuration } from ".";
 
 const BAR_HEIGHT = 100;
 
 interface Props {
-  run: RunWithDuration
+  run: RunWithDuration;
   max: number;
   index: number;
   totalRuns: number;
@@ -51,11 +44,14 @@ interface Props {
 }
 
 const DagRunBar = ({
-  run, max, index, totalRuns, isSelected, onSelect,
+  run,
+  max,
+  index,
+  totalRuns,
+  isSelected,
+  onSelect,
 }: Props) => {
-  const {
-    runType, runId, duration, state, executionDate,
-  } = run;
+  const { runType, runId, duration, state, executionDate } = run;
   const containerRef = useContainerRef();
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
@@ -63,19 +59,31 @@ const DagRunBar = ({
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
     if (!isSelected) {
-      const els = Array.from(containerRef?.current?.getElementsByClassName(`js-${runId}`) as HTMLCollectionOf<HTMLElement>);
-      els.forEach((e) => { e.style.backgroundColor = hoverBlue; });
+      const els = Array.from(
+        containerRef?.current?.getElementsByClassName(
+          `js-${runId}`
+        ) as HTMLCollectionOf<HTMLElement>
+      );
+      els.forEach((e) => {
+        e.style.backgroundColor = hoverBlue;
+      });
     }
   };
   const onMouseLeave = () => {
-    const els = Array.from(containerRef?.current?.getElementsByClassName(`js-${runId}`) as HTMLCollectionOf<HTMLElement>);
-    els.forEach((e) => { e.style.backgroundColor = ''; });
+    const els = Array.from(
+      containerRef?.current?.getElementsByClassName(
+        `js-${runId}`
+      ) as HTMLCollectionOf<HTMLElement>
+    );
+    els.forEach((e) => {
+      e.style.backgroundColor = "";
+    });
   };
 
   // show the tick on the 4th DagRun and then every 10th tick afterwards
   const inverseIndex = totalRuns - index;
-  const shouldShowTick = inverseIndex === 4
-    || (inverseIndex > 4 && (inverseIndex - 4) % 10 === 0);
+  const shouldShowTick =
+    inverseIndex === 4 || (inverseIndex > 4 && (inverseIndex - 4) % 10 === 0);
 
   const color = stateColors[state];
 
@@ -83,7 +91,7 @@ const DagRunBar = ({
     <Box
       className={`js-${runId}`}
       data-selected={isSelected}
-      bg={isSelected ? 'blue.100' : undefined}
+      bg={isSelected ? "blue.100" : undefined}
       transition="background-color 0.2s"
       px="1px"
       pb="2px"
@@ -124,7 +132,7 @@ const DagRunBar = ({
             data-testid="run"
           >
             {/* Scheduled is the default, hence no icon */}
-            {runType !== 'scheduled' && (
+            {runType !== "scheduled" && (
               <RunTypeIcon
                 runType={runType}
                 size="8px"
@@ -136,12 +144,25 @@ const DagRunBar = ({
         </Tooltip>
       </Flex>
       {shouldShowTick && (
-      <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
-        <Text fontSize="sm" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
-          <Time dateTime={executionDate} format="MMM DD, HH:mm" />
-        </Text>
-        <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
-      </VStack>
+        <VStack
+          position="absolute"
+          top="0"
+          left="8px"
+          spacing={0}
+          zIndex={0}
+          width={0}
+        >
+          <Text
+            fontSize="sm"
+            color="gray.400"
+            whiteSpace="nowrap"
+            transform="rotate(-30deg) translateX(28px)"
+            mt="-23px !important"
+          >
+            <Time dateTime={executionDate} format="MMM DD, HH:mm" />
+          </Text>
+          <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
+        </VStack>
       )}
     </Box>
   );
@@ -149,15 +170,11 @@ const DagRunBar = ({
 
 // The default equality function is a shallow comparison and json objects will return false
 // This custom compare function allows us to do a deeper comparison
-const compareProps = (
-  prevProps: Props,
-  nextProps: Props,
-) => (
-  isEqual(prevProps.run, nextProps.run)
-  && prevProps.max === nextProps.max
-  && prevProps.index === nextProps.index
-  && prevProps.totalRuns === nextProps.totalRuns
-  && prevProps.isSelected === nextProps.isSelected
-);
+const compareProps = (prevProps: Props, nextProps: Props) =>
+  isEqual(prevProps.run, nextProps.run) &&
+  prevProps.max === nextProps.max &&
+  prevProps.index === nextProps.index &&
+  prevProps.totalRuns === nextProps.totalRuns &&
+  prevProps.isSelected === nextProps.isSelected;
 
 export default React.memo(DagRunBar, compareProps);

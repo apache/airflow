@@ -57,6 +57,8 @@ or one of the following cron "presets". For more elaborate scheduling requiremen
 +----------------+--------------------------------------------------------------------+-----------------+
 | ``@once``      | Schedule once and only once                                        |                 |
 +----------------+--------------------------------------------------------------------+-----------------+
+| ``@continuous``| Run as soon as the previous run finishes                           |                 |
++----------------+--------------------------------------------------------------------+-----------------+
 | ``@hourly``    | Run once an hour at the end of the hour                            | ``0 * * * *``   |
 +----------------+--------------------------------------------------------------------+-----------------+
 | ``@daily``     | Run once a day at midnight (24:00)                                 | ``0 0 * * *``   |
@@ -181,7 +183,7 @@ Run the below command
         --end-date END_DATE \
         dag_id
 
-The `backfill command <cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
+The `backfill command <../cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
 
 Re-run Tasks
 ------------
@@ -212,7 +214,7 @@ You can also clear the task through CLI using the command:
         --end-date END_DATE
 
 For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
-For more options, you can check the help of the `clear command <cli-ref.html#clear>`_ :
+For more options, you can check the help of the `clear command <../cli-and-env-variables-ref.html#clear>`_ :
 
 .. code-block:: bash
 

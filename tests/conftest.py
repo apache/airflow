@@ -38,6 +38,8 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
+os.environ["AIRFLOW_ENABLE_AIP_52"] = os.environ.get("AIRFLOW_ENABLE_AIP_52") or "true"
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
@@ -50,6 +52,14 @@ from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa: E402  # isort: 
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+
+# Ignore files that are really test dags to be ignored by pytest
+collect_ignore = [
+    "tests/dags/subdir1/test_ignore_this.py",
+    "tests/dags/test_invalid_dup_task.pyy",
+    "tests/dags_corrupted/test_impersonation_custom.py",
+    "tests/test_utils/perf/dags/elastic_dag.py",
+]
 
 
 @pytest.fixture()
@@ -278,6 +288,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
+    config.addinivalue_line(
+        "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
+    )
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
 
@@ -447,9 +460,12 @@ def frozen_sleep(monkeypatch):
 
 @pytest.fixture(scope="session")
 def app():
-    from airflow.www import app
+    from tests.test_utils.config import conf_vars
 
-    return app.create_app(testing=True)
+    with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+        from airflow.www import app
+
+        yield app.create_app(testing=True)
 
 
 @pytest.fixture
@@ -710,6 +726,7 @@ def create_dummy_dag(dag_maker):
         dag_id="dag",
         task_id="op1",
         max_active_tis_per_dag=16,
+        max_active_tis_per_dagrun=None,
         pool="default_pool",
         executor_config={},
         trigger_rule="all_done",
@@ -725,6 +742,7 @@ def create_dummy_dag(dag_maker):
             op = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
+                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
                 executor_config=executor_config,
                 on_success_callback=on_success_callback,
                 on_execute_callback=on_execute_callback,
@@ -892,7 +910,9 @@ def _clear_db(request):
 
 
 @pytest.fixture(autouse=True)
-def _clear_entry_point_cache():
+def clear_lru_cache():
+    from airflow.executors.executor_loader import ExecutorLoader
     from airflow.utils.entry_points import _get_grouped_entry_points
 
+    ExecutorLoader.validate_database_executor_compatibility.cache_clear()
     _get_grouped_entry_points.cache_clear()

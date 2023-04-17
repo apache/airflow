@@ -67,6 +67,11 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
     ]
 )
 
+# Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
+# See:
+#   - https://endoflife.date/amazon-eks
+#   - https://endoflife.date/azure-kubernetes-service
+#   - https://endoflife.date/google-kubernetes-engine
 ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
@@ -83,7 +88,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.0.1"
+PIP_VERSION = "23.1"
 
 
 @lru_cache(maxsize=None)
@@ -104,10 +109,27 @@ class SelectiveUnitTestTypes(Enum):
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
     *all_selective_test_types(),
-    "Helm",
+    "PlainAsserts",
     "Postgres",
     "MySQL",
     "Quarantine",
+]
+
+
+@lru_cache(maxsize=None)
+def all_helm_test_packages() -> list[str]:
+    return sorted(
+        [
+            candidate.name
+            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
+            if candidate.is_dir()
+        ]
+    )
+
+
+ALLOWED_HELM_TEST_PACKAGES = [
+    "all",
+    *all_helm_test_packages(),
 ]
 
 ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
@@ -252,6 +274,7 @@ AIRFLOW_SOURCES_TO = "/opt/airflow"
 
 DEFAULT_EXTRAS = [
     # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+    "aiobotocore",
     "amazon",
     "async",
     "celery",
@@ -275,6 +298,7 @@ DEFAULT_EXTRAS = [
     "sendgrid",
     "sftp",
     "slack",
+    "snowflake",
     "ssh",
     "statsd",
     "virtualenv",

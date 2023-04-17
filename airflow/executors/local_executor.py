@@ -37,15 +37,18 @@ from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import PARALLELISM, BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKey, TaskInstanceStateType
+from airflow.executors.base_executor import PARALLELISM, BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-# This is a work to be executed by a worker.
-# It can Key and Command - but it can also be None, None which is actually a
-# "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
-ExecutorWorkType = Tuple[Optional[TaskInstanceKey], Optional[CommandType]]
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType
+    from airflow.models.taskinstance import TaskInstanceKey, TaskInstanceStateType
+
+    # This is a work to be executed by a worker.
+    # It can Key and Command - but it can also be None, None which is actually a
+    # "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
+    ExecutorWorkType = Tuple[Optional[TaskInstanceKey], Optional[CommandType]]
 
 
 class LocalWorkerBase(Process, LoggingMixin):
