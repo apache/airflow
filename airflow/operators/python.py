@@ -33,7 +33,12 @@ from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
 
-from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    AirflowException,
+    AirflowSkipException,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
@@ -466,6 +471,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param expect_airflow: expect Airflow to be installed in the target environment. If true, the operator
         will raise warning if Airflow is not installed, and it will attempt to load Airflow
         macros when starting.
+    :param skip_exit_code: If python_callable exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
     """
 
     template_fields: Sequence[str] = tuple({"requirements"} | set(PythonOperator.template_fields))
@@ -486,6 +494,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         templates_dict: dict | None = None,
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
+        skip_exit_code: int | None = None,
         **kwargs,
     ):
         if (
@@ -509,6 +518,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         self.python_version = python_version
         self.system_site_packages = system_site_packages
         self.pip_install_options = pip_install_options
+        self.skip_exit_code = skip_exit_code
         super().__init__(
             python_callable=python_callable,
             use_dill=use_dill,
@@ -544,8 +554,14 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 pip_install_options=self.pip_install_options,
             )
             python_path = tmp_path / "bin" / "python"
-
-            return self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            try:
+                result = self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            except subprocess.CalledProcessError as e:
+                if self.skip_exit_code and e.returncode == self.skip_exit_code:
+                    raise AirflowSkipException(f"Process exited with code {self.skip_exit_code}. Skipping.")
+                else:
+                    raise
+            return result
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
