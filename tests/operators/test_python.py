@@ -47,7 +47,7 @@ from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -131,10 +131,12 @@ class BasePythonTest:
         task.run(start_date=self.default_date, end_date=self.default_date)
         return task
 
-    def run_as_task(self, fn, **kwargs):
+    def run_as_task(self, fn, return_ti=False, **kwargs):
         """Create TaskInstance and run it."""
         ti = self.create_ti(fn, **kwargs)
         ti.run()
+        if return_ti:
+            return ti
         return ti.task
 
     def render_templates(self, fn, **kwargs):
@@ -931,6 +933,34 @@ class TestPythonVirtualenvOperator(BasePythonTest):
             *intentionally_excluded_context_keys,
         }
         assert set(context) == declared_keys
+
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_state",
+        [
+            (None, 99, TaskInstanceState.FAILED),
+            ({"skip_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+        ],
+    )
+    def test_skip_exit_code(self, extra_kwargs, actual_exit_code, expected_state):
+        def f(exit_code):
+            if exit_code != 0:
+                raise SystemExit(exit_code)
+
+        if expected_state == TaskInstanceState.FAILED:
+            with pytest.raises(CalledProcessError):
+                self.run_as_task(
+                    f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs if extra_kwargs else {})
+                )
+        else:
+            ti = self.run_as_task(
+                f,
+                return_ti=True,
+                op_kwargs={"exit_code": actual_exit_code},
+                **(extra_kwargs if extra_kwargs else {}),
+            )
+            assert ti.state == expected_state
 
 
 class TestCurrentContext:
