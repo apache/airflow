@@ -111,4 +111,4 @@ class TaskInstancePydantic(BaseModelPydantic):
 
         :return: Pydantic serialized version of DaGrun
         """
-        return DagRunPydantic()
+        raise NotImplementedError()
