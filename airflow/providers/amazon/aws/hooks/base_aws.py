@@ -670,7 +670,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @cached_property
     def async_conn(self):
-        """Get an aiobotocore client to use for async operations (cached)."""
+        """Get an aiobotocore client to use for async operations."""
         if not self.client_type:
             raise ValueError("client_type must be specified.")
 
