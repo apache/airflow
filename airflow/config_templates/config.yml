@@ -1695,7 +1695,7 @@ webserver:
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.
-      version_added:
+      version_added: 2.6.0
       type: string
       example: "sha256"
       default: "md5"
