@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-16T17:40:25Z
+# This constraints file was automatically generated on 2023-04-17T00:32:11Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -147,7 +147,7 @@ arrow==1.2.3
 asana==3.2.1
 asgiref==3.6.0
 asn1crypto==1.5.1
-astroid==2.15.2
+astroid==2.15.3
 asttokens==2.2.1
 async-timeout==4.0.2
 asynctest==0.13.0
@@ -562,7 +562,7 @@ snowballstemmer==2.2.0
 snowflake-connector-python==3.0.2
 snowflake-sqlalchemy==1.4.7
 sortedcontainers==2.4.0
-soupsieve==2.4
+soupsieve==2.4.1
 sphinx-airflow-theme==0.0.11
 sphinx-argparse==0.4.0
 sphinx-autoapi==2.1.0
