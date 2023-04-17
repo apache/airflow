@@ -794,7 +794,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @cached_property
     def waiter_path(self) -> PathLike[str] | None:
-        path = Path(__file__).parents[1].joinpath(f"waiters/{self.client_type}.json").resolve()
+        filename = self.client_type if self.client_type else self.resource_type
+        path = Path(__file__).parents[1].joinpath(f"waiters/{filename}.json").resolve()
         return path if path.exists() else None
 
     def get_waiter(self, waiter_name: str, parameters: dict[str, str] | None = None) -> Waiter:

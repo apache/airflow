@@ -63,7 +63,7 @@ export default function useClearTask({
       recursive: boolean;
       failed: boolean;
       confirmed: boolean;
-      mapIndexes: number[];
+      mapIndexes?: number[];
     }) => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
@@ -105,10 +105,13 @@ export default function useClearTask({
             runId,
             taskId,
           ]);
+          queryClient.invalidateQueries(["clearTask", dagId, runId, taskId]);
           startRefresh();
         }
       },
-      onError: (error: Error) => errorToast({ error }),
+      onError: (error: Error, { confirmed }) => {
+        if (confirmed) errorToast({ error });
+      },
     }
   );
 }

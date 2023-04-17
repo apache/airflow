@@ -210,7 +210,6 @@ def test_running_retry_attempt_type(loop_duration, total_tries):
     min_seconds_for_test = 5
 
     with time_machine.travel(pendulum.now("UTC"), tick=False) as t:
-
         # set MIN_SECONDS so tests don't break if the value is changed
         RunningRetryAttemptType.MIN_SECONDS = min_seconds_for_test
         a = RunningRetryAttemptType()

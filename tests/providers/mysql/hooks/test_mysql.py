@@ -412,4 +412,4 @@ class TestMySql:
                 SELECT * INTO OUTFILE '{tmp_file}'
                 FROM {table}
             """
-            assert_equal_ignore_multiple_spaces(None, mock_execute.call_args[0][0], query)
+            assert_equal_ignore_multiple_spaces(mock_execute.call_args[0][0], query)
