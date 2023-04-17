@@ -735,10 +735,10 @@ jobs:
       - name: "Prepare airflow package: ${{matrix.package-format}}"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
-        run: pipx install twine && twine check dist/*.whl
+        run: pipx install twine --force && twine check dist/*.whl
         if: matrix.package-format == 'wheel'
       - name: "Verify sdist packages with twine"
-        run: pipx install twine && twine check dist/*.tar.gz
+        run: pipx install twine --force && twine check dist/*.tar.gz
         if: matrix.package-format == 'sdist'
       - name: "Test providers issue generation automatically"
         run: >
