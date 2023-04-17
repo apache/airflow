@@ -173,7 +173,12 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         viewonly=True,
     )
-    dag_run_note = relationship("DagRunNote", back_populates="dag_run", uselist=False)
+    dag_run_note = relationship(
+        "DagRunNote",
+        cascade="save-update, merge, delete, delete-orphan",
+        back_populates="dag_run",
+        uselist=False,
+    )
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
