@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 
 import click
-from packaging.version import Version
 
 from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
@@ -304,6 +303,8 @@ def remove_old_releases(version, repo_root):
 )
 @option_answer
 def publish_release_candidate(version, previous_version, github_token):
+    from packaging.version import Version
+
     if not Version(version).is_prerelease:
         exit("--version value must be a pre-release")
     if Version(previous_version).is_prerelease:
