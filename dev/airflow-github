@@ -229,7 +229,9 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 
     github_handler = Github(github_token)
     milestone_issues: list[Issue] = list(
-        github_handler.search_issues(f'repo:apache/airflow milestone:"Airflow {target_version}"')
+        github_handler.search_issues(
+            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request is:issue'
+        )
     )
 
     num_cherrypicked = 0
