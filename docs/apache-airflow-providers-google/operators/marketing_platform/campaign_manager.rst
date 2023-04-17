@@ -19,8 +19,8 @@ Google Campaign Manager Operators
 =================================
 
 Google Campaign Manager operators allow you to insert, run, get or delete
-reports. For more information about the Campaign Manager API check
-`official documentation <https://developers.google.com/doubleclick-advertisers/v3.3/reports>`__.
+reports. For more information about the Campaign Manager report API check
+`official documentation <https://developers.google.com/doubleclick-advertisers/rest/v4/reports#type>`__.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
@@ -124,7 +124,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 .. _howto/operator:GoogleCampaignManagerBatchInsertConversionsOperator:
 
-Inserting a conversions
+Inserting conversions
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 To insert Campaign Manager conversions you can use the
@@ -143,7 +143,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 .. _howto/operator:GoogleCampaignManagerBatchUpdateConversionsOperator:
 
-Updating a conversions
+Updating conversions
 ^^^^^^^^^^^^^^^^^^^^^^
 
 To update Campaign Manager conversions you can use the

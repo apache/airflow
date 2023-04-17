@@ -23,8 +23,10 @@ from unittest import mock
 
 import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.api_core import page_iterator
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
+from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
 from airflow.exceptions import AirflowException
@@ -431,45 +433,63 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.SchemaField")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_list_rows(self, mock_client, mock_schema, mock_table):
-        self.hook.list_rows(
-            dataset_id=DATASET_ID,
-            table_id=TABLE_ID,
-            max_results=10,
-            selected_fields=["field_1", "field_2"],
-            page_token="page123",
-            start_index=5,
-            location=LOCATION,
-        )
-        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
-        mock_schema.assert_has_calls([mock.call(x, "") for x in ["field_1", "field_2"]])
-        mock_client.return_value.list_rows.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
-            max_results=10,
-            selected_fields=mock.ANY,
-            page_token="page123",
-            start_index=5,
-        )
+        mock_row_iterator = _EmptyRowIterator()
+        mock_client.return_value.list_rows.return_value = mock_row_iterator
+
+        for return_iterator, expected in [(False, []), (True, mock_row_iterator)]:
+            actual = self.hook.list_rows(
+                dataset_id=DATASET_ID,
+                table_id=TABLE_ID,
+                max_results=10,
+                selected_fields=["field_1", "field_2"],
+                page_token="page123",
+                start_index=5,
+                location=LOCATION,
+                return_iterator=return_iterator,
+            )
+            mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+            mock_schema.assert_has_calls([mock.call(x, "") for x in ["field_1", "field_2"]])
+            mock_client.return_value.list_rows.assert_called_once_with(
+                table=mock_table.from_api_repr.return_value,
+                max_results=10,
+                selected_fields=mock.ANY,
+                page_token="page123",
+                start_index=5,
+                retry=DEFAULT_RETRY,
+            )
+            assert actual == expected
+            mock_table.from_api_repr.reset_mock()
+            mock_client.return_value.list_rows.reset_mock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_list_rows_with_empty_selected_fields(self, mock_client, mock_table):
-        self.hook.list_rows(
-            dataset_id=DATASET_ID,
-            table_id=TABLE_ID,
-            max_results=10,
-            page_token="page123",
-            selected_fields=[],
-            start_index=5,
-            location=LOCATION,
-        )
-        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
-        mock_client.return_value.list_rows.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
-            max_results=10,
-            page_token="page123",
-            selected_fields=None,
-            start_index=5,
-        )
+        mock_row_iterator = _EmptyRowIterator()
+        mock_client.return_value.list_rows.return_value = mock_row_iterator
+
+        for return_iterator, expected in [(False, []), (True, mock_row_iterator)]:
+            actual = self.hook.list_rows(
+                dataset_id=DATASET_ID,
+                table_id=TABLE_ID,
+                max_results=10,
+                page_token="page123",
+                selected_fields=[],
+                start_index=5,
+                location=LOCATION,
+                return_iterator=return_iterator,
+            )
+            mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+            mock_client.return_value.list_rows.assert_called_once_with(
+                table=mock_table.from_api_repr.return_value,
+                max_results=10,
+                page_token="page123",
+                selected_fields=None,
+                start_index=5,
+                retry=DEFAULT_RETRY,
+            )
+            assert actual == expected
+            mock_table.from_api_repr.reset_mock()
+            mock_client.return_value.list_rows.reset_mock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_run_table_delete(self, mock_client):
@@ -1552,6 +1572,25 @@ class TestDatasetsOperations(_BigQueryBaseTestClass):
         )
         for exp, res in zip(datasets, result):
             assert res.full_dataset_id == exp["id"]
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_datasets_list_returns_iterator(self, mock_client):
+        client = mock.sentinel.client
+        mock_iterator = page_iterator.HTTPIterator(
+            client, mock.sentinel.api_request, "/foo", mock.sentinel.item_to_value
+        )
+        mock_client.return_value.list_datasets.return_value = mock_iterator
+        actual = self.hook.get_datasets_list(project_id=PROJECT_ID, return_iterator=True)
+
+        mock_client.return_value.list_datasets.assert_called_once_with(
+            project=PROJECT_ID,
+            include_all=False,
+            filter=None,
+            max_results=None,
+            page_token=None,
+            retry=DEFAULT_RETRY,
+        )
+        assert actual == mock_iterator
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_delete_dataset(self, mock_client):

@@ -23,6 +23,7 @@ import pytest
 
 from airflow import settings
 from airflow.models import DAG, TaskInstance as TI, TaskReschedule, clear_task_instances
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.python import PythonSensor
 from airflow.utils.session import create_session
@@ -202,9 +203,9 @@ class TestClearTasks:
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-            clear_task_instances(qry, session)
+            clear_task_instances(qry, session, dag=dag)
 
-        # When dag is None, max_tries will be maximum of original max_tries or try_number.
+        # When no task is found, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # Next try to run will be try 2
@@ -214,6 +215,7 @@ class TestClearTasks:
         assert ti1.max_tries == 2
 
     def test_clear_task_instances_without_dag(self, dag_maker):
+        # Don't write DAG to the database, so no DAG is found by clear_task_instances().
         with dag_maker(
             "test_clear_task_instances_without_dag",
             start_date=DEFAULT_DATE,
@@ -242,7 +244,7 @@ class TestClearTasks:
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
             clear_task_instances(qry, session)
 
-        # When dag is None, max_tries will be maximum of original max_tries or try_number.
+        # When no DAG is found, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # Next try to run will be try 2
@@ -250,6 +252,95 @@ class TestClearTasks:
         assert ti0.max_tries == 1
         assert ti1.try_number == 2
         assert ti1.max_tries == 2
+
+    def test_clear_task_instances_without_dag_param(self, dag_maker, session):
+        with dag_maker(
+            "test_clear_task_instances_without_dag_param",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            session=session,
+        ) as dag:
+            task0 = EmptyOperator(task_id="task0")
+            task1 = EmptyOperator(task_id="task1", retries=2)
+
+        # Write DAG to the database so it can be found by clear_task_instances().
+        SerializedDagModel.write_dag(dag, session=session)
+
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
+
+        ti0.run(session=session)
+        ti1.run(session=session)
+
+        # we use order_by(task_id) here because for the test DAG structure of ours
+        # this is equivalent to topological sort. It would not work in general case
+        # but it works for our case because we specifically constructed test DAGS
+        # in the way that those two sort methods are equivalent
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        clear_task_instances(qry, session)
+
+        ti0.refresh_from_db(session=session)
+        ti1.refresh_from_db(session=session)
+        # Next try to run will be try 2
+        assert ti0.try_number == 2
+        assert ti0.max_tries == 1
+        assert ti1.try_number == 2
+        assert ti1.max_tries == 3
+
+    def test_clear_task_instances_in_multiple_dags(self, dag_maker, session):
+        with dag_maker(
+            "test_clear_task_instances_in_multiple_dags0",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            session=session,
+        ) as dag0:
+            task0 = EmptyOperator(task_id="task0")
+
+        dr0 = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        with dag_maker(
+            "test_clear_task_instances_in_multiple_dags1",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            session=session,
+        ) as dag1:
+            task1 = EmptyOperator(task_id="task1", retries=2)
+
+        # Write secondary DAG to the database so it can be found by clear_task_instances().
+        SerializedDagModel.write_dag(dag1, session=session)
+
+        dr1 = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti0 = dr0.task_instances[0]
+        ti1 = dr1.task_instances[0]
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
+
+        ti0.run(session=session)
+        ti1.run(session=session)
+
+        qry = session.query(TI).filter(TI.dag_id.in_((dag0.dag_id, dag1.dag_id))).all()
+        clear_task_instances(qry, session, dag=dag0)
+
+        ti0.refresh_from_db(session=session)
+        ti1.refresh_from_db(session=session)
+        # Next try to run will be try 2
+        assert ti0.try_number == 2
+        assert ti0.max_tries == 1
+        assert ti1.try_number == 2
+        assert ti1.max_tries == 3
 
     def test_clear_task_instances_with_task_reschedule(self, dag_maker):
         """Test that TaskReschedules are deleted correctly when TaskInstances are cleared"""

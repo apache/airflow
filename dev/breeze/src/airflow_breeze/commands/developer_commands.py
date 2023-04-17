@@ -317,6 +317,11 @@ def start_airflow(
     "Implies --clean-build",
     is_flag=True,
 )
+@click.option(
+    "--one-pass-only",
+    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
+    is_flag=True,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -325,6 +330,7 @@ def build_docs(
     spellcheck_only: bool,
     for_production: bool,
     clean_build: bool,
+    one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):

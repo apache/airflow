@@ -29,41 +29,43 @@ import multiprocessing
 import time
 from collections import defaultdict
 from contextlib import suppress
-from datetime import timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple
 
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
+from sqlalchemy.orm import Session
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
-from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.executors.base_executor import BaseExecutor
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+    # TaskInstance key, command, configuration, pod_template_file
+    KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
+
+    # key, pod state, pod_id, namespace, resource_version
+    KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
+
+    # pod_id, namespace, pod state, annotations, resource_version
+    KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
-
-# TaskInstance key, command, configuration, pod_template_file
-KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
-
-# key, pod state, pod_id, namespace, resource_version
-KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
-
-# pod_id, namespace, pod state, annotations, resource_version
-KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
 
 
 class ResourceVersion:
@@ -125,11 +127,22 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
     def _pod_events(self, kube_client: client.CoreV1Api, query_kwargs: dict):
         watcher = watch.Watch()
-
-        if self.namespace == ALL_NAMESPACES:
-            return watcher.stream(kube_client.list_pod_for_all_namespaces, **query_kwargs)
-        else:
-            return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
+        try:
+            if self.namespace == ALL_NAMESPACES:
+                return watcher.stream(kube_client.list_pod_for_all_namespaces, **query_kwargs)
+            else:
+                return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
+        except ApiException as e:
+            if e.status == 410:  # Resource version is too old
+                if self.namespace == ALL_NAMESPACES:
+                    pods = kube_client.list_pod_for_all_namespaces(watch=False)
+                else:
+                    pods = kube_client.list_namespaced_pod(namespace=self.namespace, watch=False)
+                resource_version = pods.metadata.resource_version
+                query_kwargs["resource_version"] = resource_version
+                return self._pod_events(kube_client=kube_client, query_kwargs=query_kwargs)
+            else:
+                raise
 
     def _run(
         self,
@@ -494,7 +507,7 @@ class KubernetesExecutor(BaseExecutor):
         return pods
 
     @provide_session
-    def clear_not_launched_queued_tasks(self, session=None) -> None:
+    def clear_not_launched_queued_tasks(self, session: Session = NEW_SESSION) -> None:
         """
         Clear tasks that were not yet launched, but were previously queued.
 
@@ -511,6 +524,7 @@ class KubernetesExecutor(BaseExecutor):
         """
         if TYPE_CHECKING:
             assert self.kube_client
+        from airflow.models.taskinstance import TaskInstance
 
         self.log.debug("Clearing tasks that have not been launched")
         query = session.query(TaskInstance).filter(
@@ -581,10 +595,6 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_id=self.scheduler_job_id,
         )
         self.event_scheduler = EventScheduler()
-        self.event_scheduler.call_regular_interval(
-            self.kube_config.worker_pods_pending_timeout_check_interval,
-            self._check_worker_pods_pending_timeout,
-        )
 
         self.event_scheduler.call_regular_interval(
             self.kube_config.worker_pods_queued_check_interval,
@@ -685,7 +695,6 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
-
                     # These codes indicate something is wrong with pod definition; otherwise we assume pod
                     # definition is ok, and that retrying may work
                     if e.status in (400, 422):
@@ -715,38 +724,6 @@ class KubernetesExecutor(BaseExecutor):
         # Run any pending timed events
         next_event = self.event_scheduler.run(blocking=False)
         self.log.debug("Next timed event is in %f", next_event)
-
-    def _check_worker_pods_pending_timeout(self):
-        """Check if any pending worker pods have timed out."""
-        if TYPE_CHECKING:
-            assert self.scheduler_job_id
-
-        timeout = self.kube_config.worker_pods_pending_timeout
-        self.log.debug("Looking for pending worker pods older than %d seconds", timeout)
-
-        kwargs = {
-            "limit": self.kube_config.worker_pods_pending_timeout_batch_size,
-            "field_selector": "status.phase=Pending",
-            "label_selector": f"airflow-worker={self.scheduler_job_id}",
-            **self.kube_config.kube_client_request_args,
-        }
-        pending_pods = self._list_pods(kwargs)
-
-        cutoff = timezone.utcnow() - timedelta(seconds=timeout)
-        for pod in pending_pods:
-            self.log.debug(
-                'Found a pending pod "%s", created "%s"', pod.metadata.name, pod.metadata.creation_timestamp
-            )
-            if pod.metadata.creation_timestamp < cutoff:
-                self.log.error(
-                    (
-                        'Pod "%s" has been pending for longer than %d seconds.'
-                        "It will be deleted and set to failed."
-                    ),
-                    pod.metadata.name,
-                    timeout,
-                )
-                self.kube_scheduler.delete_pod(pod.metadata.name, pod.metadata.namespace)
 
     def _change_state(self, key: TaskInstanceKey, state: str | None, pod_id: str, namespace: str) -> None:
         if TYPE_CHECKING:
@@ -848,6 +825,44 @@ class KubernetesExecutor(BaseExecutor):
         self._adopt_completed_pods(kube_client)
         tis_to_flush.extend(pod_ids.values())
         return tis_to_flush
+
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+        """
+        Handle remnants of tasks that were failed because they were stuck in queued.
+        Tasks can get stuck in queued. If such a task is detected, it will be marked
+        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
+        if it doesn't.
+
+        :param tis: List of Task Instances to clean up
+        :return: List of readable task instances for a warning message
+        """
+        if TYPE_CHECKING:
+            assert self.kube_client
+            assert self.kube_scheduler
+        readable_tis = []
+        for ti in tis:
+            selector = PodGenerator.build_selector_for_k8s_executor_pod(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                try_number=ti.try_number,
+                map_index=ti.map_index,
+                run_id=ti.run_id,
+                airflow_worker=ti.queued_by_job_id,
+            )
+            namespace = self._get_pod_namespace(ti)
+            pod_list = self.kube_client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=selector,
+            ).items
+            if not pod_list:
+                self.log.warning("Cannot find pod for ti %s", ti)
+                continue
+            elif len(pod_list) > 1:
+                self.log.warning("Found multiple pods for ti %s: %s", ti, pod_list)
+                continue
+            readable_tis.append(repr(ti))
+            self.kube_scheduler.delete_pod(pod_id=pod_list[0].metadata.name, namespace=namespace)
+        return readable_tis
 
     def adopt_launched_task(
         self, kube_client: client.CoreV1Api, pod: k8s.V1Pod, pod_ids: dict[TaskInstanceKey, k8s.V1Pod]

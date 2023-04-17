@@ -147,6 +147,8 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context["ti"]
+            if ti.execution_date is None:
+                raise RuntimeError("execution_date is None")
             self.hook.mapred_job_name = self.mapred_job_name_template.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,

@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-======================================================
-Amazon Relational Database Service Documentation (RDS)
-======================================================
+========================================
+Amazon Relational Database Service (RDS)
+========================================
 
 `Amazon Relational Database Service (Amazon RDS) <https://aws.amazon.com/rds/>`__ is a web service that makes it
 easier to set up, operate, and scale a relational database in the cloud.
@@ -27,7 +27,7 @@ common database administration tasks.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
