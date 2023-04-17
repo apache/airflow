@@ -58,7 +58,7 @@ def get_errors_and_hooks(content: Any, max_length: int) -> tuple[list[str], dict
             else:
                 errors.append(f"The id is missing in {hook}")
                 continue
-            if hook_id == "run-mypy":
+            if hook_id == "mypy-dev":
                 needs_image = True
             if "name" not in hook:
                 errors.append(

@@ -144,7 +144,7 @@ class DagStateTrigger(BaseTrigger):
         while True:
             num_dags = await self.count_dags()
             if num_dags == len(self.execution_dates):
-                yield TriggerEvent(True)
+                yield TriggerEvent(self.serialize())
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async

@@ -294,6 +294,8 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators            |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| openlineage         | ``pip install 'apache-airflow[openlineage]'``       | Sending OpenLineage events           |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | papermill           | ``pip install 'apache-airflow[papermill]'``         | Papermill hooks and operators        |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | sftp                | ``pip install 'apache-airflow[sftp]'``              | SFTP hooks, operators and sensors    |              |

@@ -18,28 +18,37 @@
 """Plugin to demonstrate timetable registration and accommodate example DAGs."""
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
 # [START howto_timetable]
-from pandas.tseries.holiday import USFederalHolidayCalendar
 from pendulum import UTC, Date, DateTime, Time
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
+log = logging.getLogger(__name__)
+try:
+    from pandas.tseries.holiday import USFederalHolidayCalendar
+
+    holiday_calendar = USFederalHolidayCalendar()
+except ImportError:
+    log.warning("Could not import pandas. Holidays will not be considered.")
+    holiday_calendar = None
+
 
 class AfterWorkdayTimetable(Timetable):
     def get_next_workday(self, d: DateTime, incr=1) -> DateTime:
-        cal = USFederalHolidayCalendar()
         next_start = d
         while True:
             if next_start.weekday() in (5, 6):  # If next start is in the weekend go to next day
                 next_start = next_start + incr * timedelta(days=1)
                 continue
-            holidays = cal.holidays(start=next_start, end=next_start).to_pydatetime()
-            if next_start in holidays:  # If next start is a holiday go to next day
-                next_start = next_start + incr * timedelta(days=1)
-                continue
+            if holiday_calendar is not None:
+                holidays = holiday_calendar.holidays(start=next_start, end=next_start).to_pydatetime()
+                if next_start in holidays:  # If next start is a holiday go to next day
+                    next_start = next_start + incr * timedelta(days=1)
+                    continue
             break
         return next_start
 

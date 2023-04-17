@@ -100,9 +100,6 @@ services:
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
       - type: bind
-        source: ../../../pytest.ini
-        target: /opt/airflow/pytest.ini
-      - type: bind
         source: ../../../scripts
         target: /opt/airflow/scripts
       - type: bind

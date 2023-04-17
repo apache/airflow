@@ -87,6 +87,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
+from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
@@ -203,6 +204,7 @@ def clear_task_instances(
     task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
+    dag_bag = DagBag(read_dags_from_db=True)
     for ti in tis:
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
@@ -211,15 +213,16 @@ def clear_task_instances(
                 ti.state = TaskInstanceState.RESTARTING
                 job_ids.append(ti.job_id)
         else:
+            ti_dag = dag if dag and dag.dag_id == ti.dag_id else dag_bag.get_dag(ti.dag_id, session=session)
             task_id = ti.task_id
-            if dag and dag.has_task(task_id):
-                task = dag.get_task(task_id)
+            if ti_dag and ti_dag.has_task(task_id):
+                task = ti_dag.get_task(task_id)
                 ti.refresh_from_task(task)
                 task_retries = task.retries
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
-                # Ignore errors when updating max_tries if dag is None or
-                # task not found in dag since database records could be
+                # Ignore errors when updating max_tries if the DAG or
+                # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
@@ -265,9 +268,9 @@ def clear_task_instances(
         session.execute(delete_qry)
 
     if job_ids:
-        from airflow.jobs.base_job import BaseJob
+        from airflow.jobs.job import Job
 
-        for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
+        for job in session.query(Job).filter(Job.id.in_(job_ids)).all():
             job.state = TaskInstanceState.RESTARTING
 
     if activate_dag_runs is not None:
@@ -613,12 +616,12 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping=False,
         ignore_ti_state=False,
         local=False,
-        pickle_id=None,
+        pickle_id: int | None = None,
         raw=False,
         job_id=None,
         pool=None,
         cfg_path=None,
-    ):
+    ) -> list[str]:
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -2479,18 +2482,17 @@ class TaskInstance(Base, LoggingMixin):
         return LazyXComAccess.build_from_xcom_query(query)
 
     @provide_session
-    def get_num_running_task_instances(self, session: Session) -> int:
+    def get_num_running_task_instances(self, session: Session, same_dagrun=False) -> int:
         """Return Number of running TIs from the DB"""
         # .count() is inefficient
-        return (
-            session.query(func.count())
-            .filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.state == State.RUNNING,
-            )
-            .scalar()
+        num_running_task_instances_query = session.query(func.count()).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.state == State.RUNNING,
         )
+        if same_dagrun:
+            num_running_task_instances_query.filter(TaskInstance.run_id == self.run_id)
+        return num_running_task_instances_query.scalar()
 
     def init_run_context(self, raw: bool = False) -> None:
         """Sets the log context."""
@@ -2613,7 +2615,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @Sentry.enrich_errors
     @provide_session
-    def schedule_downstream_tasks(self, session=None):
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION) -> None:
         """
         The mini-scheduler for scheduling downstream tasks of this task instance
         :meta: private
@@ -2955,6 +2957,6 @@ class TaskInstanceNote(Base):
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.jobs.base_job import BaseJob
+    from airflow.jobs.job import Job
 
-    TaskInstance.queued_by_job = relationship(BaseJob)
+    TaskInstance.queued_by_job = relationship(Job)

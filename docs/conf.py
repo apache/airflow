@@ -33,12 +33,14 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 import yaml
+from packaging.version import parse as parse_version
 
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
@@ -386,6 +388,13 @@ html_context = {
 # -- Options for sphinx_jinja ------------------------------------------
 # See: https://github.com/tardyp/sphinx-jinja
 
+airflow_version = parse_version(
+    re.search(  # type: ignore[union-attr,arg-type]
+        r"__version__ = \"([0-9\.]*)(\.dev[0-9]*)?\"",
+        (Path(__file__).parents[1] / "airflow" / "__init__.py").read_text(),
+    ).groups(0)[0]
+)
+
 # Jinja context
 if PACKAGE_NAME == "apache-airflow":
     deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
@@ -394,6 +403,10 @@ if PACKAGE_NAME == "apache-airflow":
     ) in AirflowConfigParser.deprecated_options.items():
         deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
+    for (section, key), deprecated in AirflowConfigParser.many_to_one_deprecated_options.items():
+        for deprecated_section, deprecated_key, since_version in deprecated:
+            deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
+
     configs = default_config_yaml()
 
     # We want the default/example we show in the docs to reflect the value _after_
@@ -401,10 +414,14 @@ if PACKAGE_NAME == "apache-airflow":
     # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
     keys_to_format = ["default", "example"]
     for conf_name, conf_section in configs.items():
-        for option_name, option in conf_section["options"].items():
+        for option_name, option in list(conf_section["options"].items()):
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
+            version_added = option["version_added"]
+            if version_added is not None and parse_version(version_added) > airflow_version:
+                del conf_section["options"][option_name]
+
     # Sort options, config and deprecated options for JINJA variables to display
     for section_name, config in configs.items():
         config["options"] = {k: v for k, v in sorted(config["options"].items())}
@@ -714,6 +731,7 @@ elif PACKAGE_NAME == "docker-stack":
     autoapi_ignore.append("*/airflow/providers/*")
 else:
     autoapi_ignore.append("*/airflow/providers/cncf/kubernetes/backcompat/*")
+    autoapi_ignore.append("*/airflow/providers/google/ads/*")
     autoapi_ignore.append("*/example_dags/*")
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.

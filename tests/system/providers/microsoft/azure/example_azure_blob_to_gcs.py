@@ -46,6 +46,8 @@ with DAG(
 
     wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")
 
+    wait_for_blob_async = WasbBlobSensor(task_id="wait_for_blob_async", deferrable=True)
+
     transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
         task_id="transfer_files_to_gcs",
         # AZURE arg
@@ -60,7 +62,7 @@ with DAG(
     )
     # [END how_to_azure_blob_to_gcs]
 
-    wait_for_blob >> transfer_files_to_gcs
+    wait_for_blob >> wait_for_blob_async >> transfer_files_to_gcs
 
     from tests.system.utils.watcher import watcher
 
