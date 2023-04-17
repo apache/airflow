@@ -95,15 +95,15 @@ class ExternalTaskSensor(BaseSensorOperator):
     cause the sensor to skip if the target fails, but also if it times out.
 
     :param external_dag_id: The dag_id that contains the task you want to
-        wait for
+        wait for. (templated)
     :param external_task_id: The task_id that contains the task you want to
-        wait for.
-    :param external_task_ids: The list of task_ids that you want to wait for.
+        wait for. (templated)
+    :param external_task_ids: The list of task_ids that you want to wait for. (templated)
         If ``None`` (default value) the sensor waits for the DAG. Either
         external_task_id or external_task_ids can be passed to
         ExternalTaskSensor, but not both.
     :param external_task_group_id: The task_group_id that contains the task you want to
-        wait for.
+        wait for. (templated)
     :param allowed_states: Iterable of allowed states, default is ``['success']``
     :param skipped_states: Iterable of states to make this task mark as skipped, default is ``None``
     :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
