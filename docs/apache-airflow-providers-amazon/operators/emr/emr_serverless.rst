@@ -61,7 +61,7 @@ start an EMR Serverless Job.
    :start-after: [START howto_operator_emr_serverless_start_job]
    :end-before: [END howto_operator_emr_serverless_start_job]
 
-.. _howto/operator:EmrServerlessDeleteApplicationOperator:
+.. _howto/operator:EmrServerlessStopApplicationOperator:
 
 Stop an EMR Serverless Application
 ==================================
