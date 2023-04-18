@@ -17,6 +17,7 @@
 """Launches PODs"""
 from __future__ import annotations
 
+import enum
 import json
 import math
 import time
@@ -546,3 +547,11 @@ class PodManager(LoggingMixin):
                 if res:
                     return res
         return res
+
+
+class OnFinishAction(enum.Enum):
+    """Action to take when the pod finishes."""
+
+    KEEP_POD = "keep_pod"
+    DELETE_POD = "delete_pod"
+    DELETE_SUCCEEDED_POD = "delete_succeeded_pod"

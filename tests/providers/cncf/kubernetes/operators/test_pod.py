@@ -558,9 +558,11 @@ class TestKubernetesPodOperator:
         "task_kwargs, should_be_deleted",
         [
             ({}, True),  # default values
-            ({"is_delete_operator_pod": True}, True),  # explicit True is_delete_operator_pod
-            ({"is_delete_operator_pod": False}, False),  # False is_delete_operator_pod
-            ({"is_delete_operator_pod": True, "delete_when_fails": False}, False),  # False delete_when_fails
+            ({"is_delete_operator_pod": True}, True),  # check b/c of is_delete_operator_pod
+            ({"is_delete_operator_pod": False}, False),  # check b/c of is_delete_operator_pod
+            ({"on_finish_action": "delete_pod"}, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, False),
+            ({"on_finish_action": "keep_pod"}, False),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
@@ -1028,12 +1030,32 @@ class TestKubernetesPodOperator:
         [
             ({}, False, True),
             ({}, True, True),
-            ({"is_delete_operator_pod": True}, False, True),
-            ({"is_delete_operator_pod": True}, True, True),
-            ({"is_delete_operator_pod": False}, False, False),
-            ({"is_delete_operator_pod": False}, True, False),
-            ({"is_delete_operator_pod": True, "delete_when_fails": False}, False, True),
-            ({"is_delete_operator_pod": True, "delete_when_fails": False}, True, False),
+            (
+                {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
+                False,
+                True,
+            ),  # check b/c of is_delete_operator_pod
+            (
+                {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
+                True,
+                True,
+            ),  # check b/c of is_delete_operator_pod
+            (
+                {"is_delete_operator_pod": False, "on_finish_action": "delete_pod"},
+                False,
+                False,
+            ),  # check b/c of is_delete_operator_pod
+            (
+                {"is_delete_operator_pod": False, "on_finish_action": "delete_pod"},
+                True,
+                False,
+            ),  # check b/c of is_delete_operator_pod
+            ({"on_finish_action": "keep_pod"}, False, False),
+            ({"on_finish_action": "keep_pod"}, True, False),
+            ({"on_finish_action": "delete_pod"}, False, True),
+            ({"on_finish_action": "delete_pod"}, True, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, False, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, True, False),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
@@ -1057,10 +1079,10 @@ class TestKubernetesPodOperator:
                 k.execute(context=context)
         else:
             k.execute(context=context)
-        if not should_fail and should_be_deleted:
-            mock_patch_already_checked.assert_not_called()
-        else:
+        if should_fail or not should_be_deleted:
             mock_patch_already_checked.assert_called_once()
+        else:
+            mock_patch_already_checked.assert_not_called()
         if should_be_deleted:
             mock_delete_pod.assert_called_once()
         else:

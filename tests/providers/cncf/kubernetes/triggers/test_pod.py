@@ -44,13 +44,12 @@ POLL_INTERVAL = 2
 CLUSTER_CONTEXT = "test-context"
 CONFIG_DICT = {"a": "b"}
 IN_CLUSTER = False
-SHOULD_DELETE_POD = True
-DELETE_WHEN_FAILS = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
 TRIGGER_START_TIME = datetime.now(tz=pytz.UTC)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
+ON_FINISH_ACTION = "delete_pod"
 
 
 @pytest.fixture
@@ -64,11 +63,10 @@ def trigger():
         cluster_context=CLUSTER_CONTEXT,
         config_dict=CONFIG_DICT,
         in_cluster=IN_CLUSTER,
-        should_delete_pod=SHOULD_DELETE_POD,
-        delete_when_fails=DELETE_WHEN_FAILS,
         get_logs=GET_LOGS,
         startup_timeout=STARTUP_TIMEOUT_SECS,
         trigger_start_time=TRIGGER_START_TIME,
+        on_finish_action=ON_FINISH_ACTION,
     )
 
 
@@ -92,11 +90,10 @@ class TestKubernetesPodTrigger:
             "cluster_context": CLUSTER_CONTEXT,
             "config_dict": CONFIG_DICT,
             "in_cluster": IN_CLUSTER,
-            "should_delete_pod": SHOULD_DELETE_POD,
-            "delete_when_fails": DELETE_WHEN_FAILS,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "trigger_start_time": TRIGGER_START_TIME,
+            "on_finish_action": ON_FINISH_ACTION,
         }
 
     @pytest.mark.asyncio
@@ -217,9 +214,11 @@ class TestKubernetesPodTrigger:
         "trigger_kwargs, should_be_deleted",
         [
             ({}, True),
-            ({"should_delete_pod": True}, True),
-            ({"should_delete_pod": False}, False),
-            ({"should_delete_pod": True, "delete_when_fails": False}, False),
+            ({"should_delete_pod": True}, True),  # check b/c of should_delete_pod
+            ({"should_delete_pod": False}, False),  # check b/c of should_delete_pod
+            ({"on_finish_action": "delete_pod"}, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, False),
+            ({"on_finish_action": "keep_pod"}, False),
         ],
     )
     @pytest.mark.asyncio
