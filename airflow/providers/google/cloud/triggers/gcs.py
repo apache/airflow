@@ -67,7 +67,7 @@ class GCSBlobTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator["TriggerEvent"]:
-        """Simple loop until the relevant file/folder is found."""
+        """loop until the relevant file/folder is found."""
         try:
             hook = self._get_async_hook()
             while True:
@@ -107,7 +107,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
 
     :param bucket: google cloud storage bucket name cloud storage where the objects are residing.
     :param object_name: the file or folder present in the bucket
-    :param ts: datetime object
+    :param target_date: context datetime to compare with blob object updated time
     :param poke_interval: polling period in seconds to check for file/folder
     :param google_cloud_conn_id: reference to the Google Connection
     :param hook_params: dict object that has delegate_to and impersonation_chain
@@ -117,7 +117,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         self,
         bucket: str,
         object_name: str,
-        ts: datetime,
+        target_date: datetime,
         poke_interval: float,
         google_cloud_conn_id: str,
         hook_params: dict[str, Any],
@@ -125,7 +125,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         super().__init__()
         self.bucket = bucket
         self.object_name = object_name
-        self.ts = ts
+        self.target_date = target_date
         self.poke_interval = poke_interval
         self.google_cloud_conn_id: str = google_cloud_conn_id
         self.hook_params = hook_params
@@ -137,7 +137,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
             {
                 "bucket": self.bucket,
                 "object_name": self.object_name,
-                "ts": self.ts,
+                "target_date": self.target_date,
                 "poke_interval": self.poke_interval,
                 "google_cloud_conn_id": self.google_cloud_conn_id,
                 "hook_params": self.hook_params,
@@ -145,12 +145,15 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator["TriggerEvent"]:
-        """Simple loop until the object updated time is greater than ts datetime in bucket."""
+        """Loop until the object updated time is greater than target datetime"""
         try:
             hook = self._get_async_hook()
             while True:
                 status, res = await self._is_blob_updated_after(
-                    hook=hook, bucket_name=self.bucket, object_name=self.object_name, ts=self.ts
+                    hook=hook,
+                    bucket_name=self.bucket,
+                    object_name=self.object_name,
+                    target_date=self.target_date,
                 )
                 if status:
                     yield TriggerEvent(res)
@@ -162,7 +165,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         return GCSAsyncHook(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
 
     async def _is_blob_updated_after(
-        self, hook: GCSAsyncHook, bucket_name: str, object_name: str, ts: datetime
+        self, hook: GCSAsyncHook, bucket_name: str, object_name: str, target_date: datetime
     ) -> tuple[bool, dict[str, Any]]:
         """
         Checks if the object in the bucket is updated.
@@ -171,7 +174,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
-        :param ts: context datetime to compare with blob object updated time
+        :param target_date: context datetime to compare with blob object updated time
         """
         async with ClientSession() as session:
             client = await hook.get_storage_client(session)
@@ -191,9 +194,9 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
             # to datetime object to compare the last updated time
 
             if blob_updated_time is not None:
-                if not ts.tzinfo:
-                    ts = ts.replace(tzinfo=timezone.utc)
-                self.log.info("Verify object date: %s > %s", blob_updated_time, ts)
-                if blob_updated_time > ts:
+                if not target_date.tzinfo:
+                    target_date = target_date.replace(tzinfo=timezone.utc)
+                self.log.info("Verify object date: %s > %s", blob_updated_time, target_date)
+                if blob_updated_time > target_date:
                     return True, {"status": "success", "message": "success"}
             return False, {"status": "pending", "message": "pending"}
