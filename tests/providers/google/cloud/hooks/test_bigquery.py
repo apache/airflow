@@ -2243,7 +2243,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
             "etag": "test_etag",
             "schema": {"fields": [{"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"}]},
             "jobReference": {
-                "projectId": "test_astronomer-airflow-providers",
+                "projectId": "test_airflow-airflow-providers",
                 "jobId": "test_jobid",
                 "location": "US",
             },
