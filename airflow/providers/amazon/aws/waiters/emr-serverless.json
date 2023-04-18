@@ -1,0 +1,18 @@
+{
+    "version": 2,
+    "waiters": {
+        "no_job_running": {
+            "operation": "ListJobRuns",
+            "delay": 10,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "length(jobRuns) == `0`",
+                    "expected": true,
+                    "state": "success"
+                }
+            ]
+        }
+    }
+}

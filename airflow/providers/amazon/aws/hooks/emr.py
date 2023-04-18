@@ -24,7 +24,6 @@ from typing import Any, Callable
 
 from botocore.exceptions import ClientError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
@@ -254,7 +253,7 @@ class EmrServerlessHook(AwsBaseHook):
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
 
-    @cached_property
+    @property
     def conn(self):
         """Get the underlying boto3 EmrServerlessAPIService client (cached)"""
         return super().conn
@@ -314,6 +313,32 @@ class EmrServerlessHook(AwsBaseHook):
             stacklevel=2,
         )
         return get_state(response=response, keys=keys)
+
+    def cancel_running_jobs(self, application_id: str, waiter_config: dict = {}):
+        """
+        List all jobs in an intermediate state and cancel them.
+        Then wait for those jobs to reach a terminal state.
+
+        Note: if new jobs are triggered while this operation is ongoing,
+        it's going to time out and return an error.
+        """
+        r = self.conn.list_job_runs(
+            applicationId=application_id, maxResults=50, states=list(self.JOB_INTERMEDIATE_STATES)
+        )
+        job_ids = [jr["id"] for jr in r["jobRuns"]]
+        self.log.info("there are %s job(s) running for app %s", len(job_ids), application_id)
+        if len(job_ids) > 0:
+            self.log.warning(
+                "Cancelling the pending jobs for the application %s so that it can be stopped", application_id
+            )
+            for job_id in job_ids:
+                self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+            self.log.info("now waiting for the cancelled jobs to terminate")
+            self.get_waiter("no_job_running").wait(
+                applicationId=application_id,
+                states=["PENDING", "RUNNING", "SCHEDULED", "SUBMITTED", "CANCELLING"],
+                WaiterConfig=waiter_config,
+            )
 
 
 class EmrContainerHook(AwsBaseHook):
