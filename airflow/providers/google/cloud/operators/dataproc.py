@@ -926,7 +926,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         if not specified the project will be inferred from the provided GCP connection.
     :param dataproc_properties: Map for the Hive properties. Ideal to put in
         default arguments (templated)
-    :param dataproc_jars: HDFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
+    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
@@ -1137,7 +1137,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
     :param query: The query or reference to the query
         file (pg or pig extension). (templated)
-    :param query_uri: The HDFS URI of the script that contains the Pig queries.
+    :param query_uri: The HCFS URI of the script that contains the Pig queries.
     :param variables: Map of named parameters for the query. (templated)
     """
 
@@ -1213,7 +1213,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     Start a Hive query Job on a Cloud DataProc cluster.
 
     :param query: The query or reference to the query file (q extension).
-    :param query_uri: The HDFS URI of the script that contains the Hive queries.
+    :param query_uri: The HCFS URI of the script that contains the Hive queries.
     :param variables: Map of named parameters for the query.
     """
 
@@ -1287,7 +1287,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     Start a Spark SQL query Job on a Cloud DataProc cluster.
 
     :param query: The query or reference to the query file (q extension). (templated)
-    :param query_uri: The HDFS URI of the script that contains the SQL queries.
+    :param query_uri: The HCFS URI of the script that contains the SQL queries.
     :param variables: Map of named parameters for the query. (templated)
     """
 
@@ -1359,7 +1359,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """
     Start a Spark Job on a Cloud DataProc cluster.
 
-    :param main_jar: The HDFS URI of the jar file that contains the main class
+    :param main_jar: The HCFS URI of the jar file that contains the main class
         (use this or the main_class, not both together).
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -1432,7 +1432,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """
     Start a Hadoop Job on a Cloud DataProc cluster.
 
-    :param main_jar: The HDFS URI of the jar file containing the main class
+    :param main_jar: The HCFS URI of the jar file containing the main class
         (use this or the main_class, not both together).
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -1505,7 +1505,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """
     Start a PySpark Job on a Cloud DataProc cluster.
 
-    :param main: [Required] The Hadoop Compatible Filesystem (HDFS) URI of the main
+    :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
             Python file to use as the driver. Must be a .py file. (templated)
     :param arguments: Arguments for the job. (templated)
     :param archives: List of archived files that will be unpacked in the work
