@@ -32,7 +32,7 @@ interface Props {
 
 const InstanceTooltip = ({
   group,
-  instance: { startDate, endDate, state, runId, mappedStates, note },
+  instance: { taskId, startDate, endDate, state, runId, mappedStates, note },
 }: Props) => {
   if (!group) return null;
   const isGroup = !!group.children;
@@ -60,6 +60,7 @@ const InstanceTooltip = ({
 
   return (
     <Box py="2px">
+      <Text>Task Id: {taskId}</Text>
       {group.tooltip && <Text>{group.tooltip}</Text>}
       {isMapped && totalTasks > 0 && (
         <Text>
