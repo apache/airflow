@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import secrets
 import string
@@ -360,6 +361,7 @@ class KubernetesPodOperator(BaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
+        self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
     @cached_property
     def _incluster_namespace(self):
@@ -558,6 +560,20 @@ class KubernetesPodOperator(BaseOperator):
             context=context,
         )
         self.invoke_defer_method()
+
+    def convert_config_file_to_dict(self):
+        """Converts passed config_file to dict format."""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
+        if config_file:
+            with open(config_file) as f:
+                self._config_dict = yaml.safe_load(f)
+        else:
+            self._config_dict = None
 
     def invoke_defer_method(self):
         """Method to easily redefine triggers which are being used in child classes."""
