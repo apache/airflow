@@ -1083,6 +1083,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
+        # cache saves time during scheduling of many dag_runs for same dag
         cached_dags: dict = {}
         for dag_run, callback_to_run in callback_tuples:
             if dag_run.dag_id not in cached_dags.keys():
@@ -1351,6 +1352,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     schedule_delay,
                     tags={"dag_id": dag.dag_id},
                 )
+        # cache saves time during scheduling of many dag_runs for same dag
         cached_dags: dict = {}
 
         for dag_run in dag_runs:
