@@ -23,6 +23,16 @@
 Changelog
 ---------
 
+10.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google has announced sunset of Campaign Manager 360 v3.5 by Apr 20, 2023. For more information
+please check: `<https://developers.google.com/doubleclick-advertisers/deprecation>`_ . As a result, the
+default api version for Campaign Manager 360 operator was updated to the latest v4 version.
+
 9.0.0
 .....
 
@@ -46,6 +56,7 @@ API versions of google-ads.
 
 * ``Update DV360 operators to use API v2 (#30326)``
 * ``Fix dynamic imports in google ads vendored in library (#30544)``
+* ``Fix one more dynamic import needed for vendored-in google ads (#30564)``
 
 Features
 ~~~~~~~~

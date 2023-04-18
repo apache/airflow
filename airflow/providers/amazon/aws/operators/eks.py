@@ -644,7 +644,6 @@ class EksPodOperator(KubernetesPodOperator):
     :param namespace: The namespace in which to execute the pod. (templated)
     :param pod_name: The unique name to give the pod. (templated)
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
-    :param aws_profile: str
     :param region: Which AWS region the connection should use. (templated)
          If this is None or empty then the default boto3 behaviour is used.
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)

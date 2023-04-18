@@ -52,7 +52,9 @@ function wait_for_asset_compilation() {
         echo
         local counter=0
         while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
-            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            if (( counter % 5 == 2 )); then
+                echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            fi
             sleep 1
             ((counter=counter+1))
             if [[ ${counter} == "30" ]]; then
@@ -204,6 +206,12 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
                 installable_files+=( "${file}" )
             fi
         done
+        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
+            echo
+            echo "${COLOR_BLUE}Also adding airflow in specified version ${USE_AIRFLOW_VERSION} to make sure it is not upgraded by >= limits${COLOR_RESET}"
+            echo
+            installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
+        fi
         if (( ${#installable_files[@]} )); then
             pip install --root-user-action ignore "${installable_files[@]}"
         fi
@@ -287,8 +295,13 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
-export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.txt"
+else
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+fi
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -375,7 +388,10 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 # - so that we do not skip any in the future if new directories are added
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
+    # The output of the find command should be sorted to make sure that the order is always the same
+    # when we run the tests, to avoid cross-package side effects causing different test results
+    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -443,7 +459,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
-        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+        else
+            SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
         if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
             SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")

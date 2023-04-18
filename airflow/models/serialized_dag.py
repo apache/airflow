@@ -18,7 +18,6 @@
 """Serialized DAG table in database."""
 from __future__ import annotations
 
-import hashlib
 import logging
 import zlib
 from datetime import datetime, timedelta
@@ -35,6 +34,7 @@ from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -102,7 +102,7 @@ class SerializedDagModel(Base):
         dag_data = SerializedDAG.to_dict(dag)
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
-        self.dag_hash = hashlib.md5(dag_data_json).hexdigest()
+        self.dag_hash = md5(dag_data_json, usedforsecurity=False).hexdigest()
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
@@ -358,6 +358,24 @@ class SerializedDagModel(Base):
         :return: DAG Hash, or None if the DAG is not found
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
+
+    @classmethod
+    def get_latest_version_hash_and_updated_datetime(
+        cls,
+        dag_id: str,
+        *,
+        session: Session,
+    ) -> tuple[str, datetime] | None:
+        """
+        Get the latest DAG version for a given DAG ID, as well as the date when the Serialized DAG associated
+        to DAG was last updated in serialized_dag table.
+
+        :meta private:
+        :param dag_id: DAG ID
+        :param session: ORM Session
+        :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
+        """
+        return session.query(cls.dag_hash, cls.last_updated).filter(cls.dag_id == dag_id).one_or_none()
 
     @classmethod
     @provide_session

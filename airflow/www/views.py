@@ -88,9 +88,9 @@ from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.scheduler_job import SchedulerJobRunner
-from airflow.jobs.triggerer_job import TriggererJobRunner
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
@@ -1050,7 +1050,6 @@ class Airflow(AirflowBaseView):
         )
 
         if conf.getboolean("webserver", "SHOW_RECENT_STATS_FOR_COMPLETED_RUNS", fallback=True):
-
             last_dag_run = (
                 session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label("execution_date"))
                 .join(DagModel, DagModel.dag_id == DagRun.dag_id)
@@ -2122,7 +2121,12 @@ class Airflow(AirflowBaseView):
         if not details:
             return redirect_or_json(origin, "No task instances to clear", status="error", status_code=404)
         elif request.headers.get("Accept") == "application/json":
-            return htmlsafe_json_dumps(details, separators=(",", ":"))
+            if confirmed:
+                return htmlsafe_json_dumps(details, separators=(",", ":"))
+            return htmlsafe_json_dumps(
+                [{"task_id": ti.task_id, "map_index": ti.map_index, "run_id": ti.run_id} for ti in tis],
+                separators=(",", ":"),
+            )
         return self.render_template(
             "airflow/confirm.html",
             endpoint=None,
@@ -2528,8 +2532,13 @@ class Airflow(AirflowBaseView):
         )
 
         if request.headers.get("Accept") == "application/json":
-            details = [str(t) for t in to_be_altered]
-            return htmlsafe_json_dumps(details, separators=(",", ":"))
+            return htmlsafe_json_dumps(
+                [
+                    {"task_id": ti.task_id, "map_index": ti.map_index, "run_id": ti.run_id}
+                    for ti in to_be_altered
+                ],
+                separators=(",", ":"),
+            )
 
         details = "\n".join(str(t) for t in to_be_altered)
 
@@ -4475,7 +4484,6 @@ class ConnectionModelView(AirflowModelView):
                     "warning",
                 )
             else:
-
                 dup_conn = Connection(
                     new_conn_id,
                     selected_conn.conn_type,
@@ -4945,7 +4953,7 @@ class JobModelView(AirflowModelView):
 
     route_base = "/job"
 
-    datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)  # type: ignore
+    datamodel = AirflowModelView.CustomSQLAInterface(Job)  # type: ignore
 
     class_permission_name = permissions.RESOURCE_JOB
     method_permission_name = {
@@ -4999,7 +5007,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     route_base = "/dagrun"
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.DagRun)  # type: ignore
+    datamodel = wwwutils.DagRunCustomSQLAInterface(models.DagRun)  # type: ignore
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
@@ -5683,7 +5691,6 @@ class DagDependenciesView(AirflowBaseView):
         )
 
     def _calculate_graph(self):
-
         nodes_dict: dict[str, Any] = {}
         edge_tuples: set[dict[str, str]] = set()
 

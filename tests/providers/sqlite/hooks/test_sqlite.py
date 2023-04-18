@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
 import sqlalchemy
 
 from airflow.models import Connection
@@ -28,26 +29,35 @@ from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 class TestSqliteHookConn:
     def setup_method(self):
-
-        self.connection = Connection(host="host")
-
         class UnitTestSqliteHook(SqliteHook):
             conn_name_attr = "test_conn_id"
 
         self.db_hook = UnitTestSqliteHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
 
+    @pytest.mark.parametrize(
+        "connection, uri",
+        [
+            (Connection(host="host"), "file:host"),
+            (Connection(host="host", extra='{"mode":"ro"}'), "file:host?mode=ro"),
+            (Connection(host=":memory:"), "file::memory:"),
+            (Connection(), "file:"),
+            (Connection(uri="sqlite://relative/path/to/db?mode=ro"), "file:relative/path/to/db?mode=ro"),
+            (Connection(uri="sqlite:///absolute/path/to/db?mode=ro"), "file:/absolute/path/to/db?mode=ro"),
+            (Connection(uri="sqlite://?mode=ro"), "file:?mode=ro"),
+        ],
+    )
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
-    def test_get_conn(self, mock_connect):
+    def test_get_conn(self, mock_connect, connection, uri):
+        self.db_hook.get_connection = mock.Mock(return_value=connection)
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with("host")
+        mock_connect.assert_called_once_with(uri, uri=True)
 
     @patch("airflow.providers.sqlite.hooks.sqlite.sqlite3.connect")
     def test_get_conn_non_default_id(self, mock_connect):
+        self.db_hook.get_connection = mock.Mock(return_value=Connection(host="host"))
         self.db_hook.test_conn_id = "non_default"
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with("host")
+        mock_connect.assert_called_once_with("file:host", uri=True)
         self.db_hook.get_connection.assert_called_once_with("non_default")
 
 

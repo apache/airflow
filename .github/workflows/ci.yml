@@ -92,6 +92,7 @@ jobs:
             "feluelle",
             "feng-tao",
             "houqp",
+            "hussein-awala",
             "jedcunningham",
             "jgao54",
             "jghoman",
@@ -166,6 +167,7 @@ jobs:
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       suspended-providers-folders: ${{ steps.selective-checks.outputs.suspended-providers-folders }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
@@ -734,10 +736,10 @@ jobs:
       - name: "Prepare airflow package: ${{matrix.package-format}}"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
-        run: pipx install twine && twine check dist/*.whl
+        run: pipx install twine --force && twine check dist/*.whl
         if: matrix.package-format == 'wheel'
       - name: "Verify sdist packages with twine"
-        run: pipx install twine && twine check dist/*.tar.gz
+        run: pipx install twine --force && twine check dist/*.tar.gz
         if: matrix.package-format == 'sdist'
       - name: "Test providers issue generation automatically"
         run: >
@@ -750,8 +752,11 @@ jobs:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Remove airflow package and replace providers with 2.3-compliant versions"
         run: |
-          rm -vf dist/apache_airflow-*.whl dist/apache_airflow_providers_docker*.whl
-          pip download --no-deps --dest dist apache-airflow-providers-docker==3.1.0
+          rm -vf dist/apache_airflow-*.whl
+          # remove the provider packages that are not compatible with 2.3
+          rm -vf dist/apache_airflow_providers_openlineage*.whl
+          # rm -vf dist/apache_airflow_providers_docker*.whl
+          # pip download --no-deps --dest dist apache-airflow-providers-docker==3.1.0
         if: matrix.package-format == 'wheel'
       - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
         run: >
@@ -806,9 +811,13 @@ jobs:
 
   tests-helm:
     timeout-minutes: 80
-    name: "Python unit tests for Helm chart"
+    name: "Unit tests Helm: ${{matrix.helm-test-package}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        helm-test-package: ${{fromJson(needs.build-info.outputs.helm-test-packages)}}
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "Helm"
@@ -831,8 +840,8 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Helm Unit Tests"
-        run: breeze testing helm-tests
+      - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
+        run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
       - name: "Post Helm Tests"
         uses: ./.github/actions/post_tests
 
@@ -845,6 +854,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
+      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
