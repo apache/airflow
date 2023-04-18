@@ -19,6 +19,7 @@ from __future__ import annotations
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
+from urllib.parse import urlparse
 
 import sqlparse
 from packaging.version import Version
@@ -515,3 +516,52 @@ class DbApiHook(BaseForDbApiHook):
             message = str(e)
 
         return status, message
+
+    def get_openlineage_database_info(self, connection):
+        """
+        Should return database specific information needed
+        to generate and parse lineage metadata.
+        This includes information helpful for constructing information schema query
+        and creating correct namespace.
+
+        :param connection: Airflow connection to reduce calls of `get_connection` method
+        :return: A :class:`airflow.providers.openlineage.sqlparser.DatabaseInfo` instance.
+        """
+
+    def get_openlineage_database_dialect(self, connection) -> str:
+        """Method used for SQL parsing.
+
+        For a list of supported dialects check: https://openlineage.io/docs/development/sql#sql-dialects
+        """
+        return "generic"
+
+    def get_openlineage_default_schema(self):
+        """
+        Returns default schema specific to database.
+
+        .. seealso::
+            - :class:`airflow.providers.openlineage.sqlparser.SQLParser`
+        """
+        return self.__schema or "public"
+
+    def get_openlineage_database_specific_lineage(self, task_instance):
+        """
+        Returns additional database specific lineage, e.g.
+        query execution information.
+        This method is called only on completion of the task.
+
+        :param task_instance: this may be used to retrieve additional information
+            that is collected during runtime of the task
+        """
+
+    @staticmethod
+    def get_openlineage_authority_part(connection) -> str:
+        """
+        This method serves as common method for several hooks to get authority part from Airflow Connection.
+
+        The authority represents the hostname and port of the connection
+        and conforms OpenLineage naming convention for a number of databases (e.g. MySQL, Postgres, Trino).
+        """
+        parsed = urlparse(connection.get_uri())
+        authority = f"{parsed.hostname}:{parsed.port}"
+        return authority
