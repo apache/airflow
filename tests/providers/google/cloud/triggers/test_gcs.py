@@ -231,7 +231,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         trigger = GCSCheckBlobUpdateTimeTrigger(
             bucket=TEST_BUCKET,
             object_name=TEST_OBJECT,
-            ts=ts_object,
+            target_date=ts_object,
             poke_interval=TEST_POLLING_INTERVAL,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             hook_params=TEST_HOOK_PARAMS,
