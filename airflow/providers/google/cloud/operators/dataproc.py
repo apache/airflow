@@ -237,46 +237,48 @@ class ClusterGenerator:
         )
 
     def _build_gce_cluster_config(self, cluster_data):
+        config = "gce_cluster_config"
         if self.zone:
             zone_uri = f"https://www.googleapis.com/compute/v1/projects/{self.project_id}/zones/{self.zone}"
-            cluster_data["gce_cluster_config"]["zone_uri"] = zone_uri
+            cluster_data[config]["zone_uri"] = zone_uri
 
         if self.metadata:
-            cluster_data["gce_cluster_config"]["metadata"] = self.metadata
+            cluster_data[config]["metadata"] = self.metadata
 
         if self.network_uri:
-            cluster_data["gce_cluster_config"]["network_uri"] = self.network_uri
+            cluster_data[config]["network_uri"] = self.network_uri
 
         if self.subnetwork_uri:
-            cluster_data["gce_cluster_config"]["subnetwork_uri"] = self.subnetwork_uri
+            cluster_data[config]["subnetwork_uri"] = self.subnetwork_uri
 
         if self.internal_ip_only:
             if not self.subnetwork_uri:
                 raise AirflowException("Set internal_ip_only to true only when you pass a subnetwork_uri.")
-            cluster_data["gce_cluster_config"]["internal_ip_only"] = True
+            cluster_data[config]["internal_ip_only"] = True
 
         if self.tags:
-            cluster_data["gce_cluster_config"]["tags"] = self.tags
+            cluster_data[config]["tags"] = self.tags
 
         if self.service_account:
-            cluster_data["gce_cluster_config"]["service_account"] = self.service_account
+            cluster_data[config]["service_account"] = self.service_account
 
         if self.service_account_scopes:
-            cluster_data["gce_cluster_config"]["service_account_scopes"] = self.service_account_scopes
+            cluster_data[config]["service_account_scopes"] = self.service_account_scopes
 
         return cluster_data
 
     def _build_lifecycle_config(self, cluster_data):
+        lifecycle_config = "lifecycle_config"
         if self.idle_delete_ttl:
-            cluster_data["lifecycle_config"]["idle_delete_ttl"] = {"seconds": self.idle_delete_ttl}
+            cluster_data[lifecycle_config]["idle_delete_ttl"] = {"seconds": self.idle_delete_ttl}
 
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
-            cluster_data["lifecycle_config"]["auto_delete_time"] = utc_auto_delete_time.strftime(
+            cluster_data[lifecycle_config]["auto_delete_time"] = utc_auto_delete_time.strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
             )
         elif self.auto_delete_ttl:
-            cluster_data["lifecycle_config"]["auto_delete_ttl"] = {"seconds": int(self.auto_delete_ttl)}
+            cluster_data[lifecycle_config]["auto_delete_ttl"] = {"seconds": int(self.auto_delete_ttl)}
 
         return cluster_data
 
@@ -678,7 +680,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
                 graceful_decommission_timeout='1h',
                 dag=dag)
 
-    .. seealso::
+    .. see also::
         For more detail on about scaling clusters have a look at the reference:
         https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/scaling-clusters
 
@@ -924,7 +926,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         if not specified the project will be inferred from the provided GCP connection.
     :param dataproc_properties: Map for the Hive properties. Ideal to put in
         default arguments (templated)
-    :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
+    :param dataproc_jars: HDFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
@@ -1135,7 +1137,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
     :param query: The query or reference to the query
         file (pg or pig extension). (templated)
-    :param query_uri: The HCFS URI of the script that contains the Pig queries.
+    :param query_uri: The HDFS URI of the script that contains the Pig queries.
     :param variables: Map of named parameters for the query. (templated)
     """
 
@@ -1211,7 +1213,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     Start a Hive query Job on a Cloud DataProc cluster.
 
     :param query: The query or reference to the query file (q extension).
-    :param query_uri: The HCFS URI of the script that contains the Hive queries.
+    :param query_uri: The HDFS URI of the script that contains the Hive queries.
     :param variables: Map of named parameters for the query.
     """
 
@@ -1285,7 +1287,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     Start a Spark SQL query Job on a Cloud DataProc cluster.
 
     :param query: The query or reference to the query file (q extension). (templated)
-    :param query_uri: The HCFS URI of the script that contains the SQL queries.
+    :param query_uri: The HDFS URI of the script that contains the SQL queries.
     :param variables: Map of named parameters for the query. (templated)
     """
 
@@ -1357,7 +1359,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """
     Start a Spark Job on a Cloud DataProc cluster.
 
-    :param main_jar: The HCFS URI of the jar file that contains the main class
+    :param main_jar: The HDFS URI of the jar file that contains the main class
         (use this or the main_class, not both together).
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -1430,7 +1432,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """
     Start a Hadoop Job on a Cloud DataProc cluster.
 
-    :param main_jar: The HCFS URI of the jar file containing the main class
+    :param main_jar: The HDFS URI of the jar file containing the main class
         (use this or the main_class, not both together).
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
@@ -1503,7 +1505,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """
     Start a PySpark Job on a Cloud DataProc cluster.
 
-    :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
+    :param main: [Required] The Hadoop Compatible Filesystem (HDFS) URI of the main
             Python file to use as the driver. Must be a .py file. (templated)
     :param arguments: Arguments for the job. (templated)
     :param archives: List of archived files that will be unpacked in the work
