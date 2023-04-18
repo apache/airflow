@@ -1482,7 +1482,7 @@ class TestDag:
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
-            tags={"dag_id": "test_dag_callback_crash", "run_id": "manual__2015-01-02T00:00:00+00:00"},
+            tags={"dag_id": "test_dag_callback_crash"},
         )
 
         dag.clear()
