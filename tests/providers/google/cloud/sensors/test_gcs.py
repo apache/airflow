@@ -269,7 +269,7 @@ class TestGCSObjectUpdateSensorAsync:
                 context=context, event={"status": "success", "message": "Job completed"}
             )
         mock_log_info.assert_called_with(
-            "Sensor checks update time for object %s in bucket : %s", TEST_OBJECT, TEST_BUCKET
+            "Checking last updated time for object %s in bucket : %s", TEST_OBJECT, TEST_BUCKET
         )
 
 
