@@ -410,7 +410,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     for a detailed explanation on the different parameters. Most of the configuration
     parameters detailed in the link are available as a parameter to this operator.
 
-    .. seealso::
+    .. see also::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataprocCreateClusterOperator`
 
@@ -680,7 +680,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
                 graceful_decommission_timeout='1h',
                 dag=dag)
 
-    .. seealso::
+    .. see also::
         For more detail on about scaling clusters have a look at the reference:
         https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/scaling-clusters
 
@@ -1131,7 +1131,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
                 variables={'out': 'gs://example/output/{{ds}}'},
                 dag=dag)
 
-    .. seealso::
+    .. see also::
         For more detail on about job submission have a look at the reference:
         https://cloud.google.com/dataproc/reference/rest/v1/projects.regions.jobs
 
@@ -1687,7 +1687,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
     until the WorkflowTemplate is finished executing.
 
-    .. seealso::
+    .. see also::
         Please refer to:
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.workflowTemplates/instantiate
 
@@ -1815,7 +1815,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
     wait until the WorkflowTemplate is finished executing.
 
-    .. seealso::
+    .. see also::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator`
 
