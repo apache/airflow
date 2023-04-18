@@ -938,12 +938,15 @@ class TestPythonVirtualenvOperator(BasePythonTest):
         "extra_kwargs, actual_exit_code, expected_state",
         [
             (None, 99, TaskInstanceState.FAILED),
-            ({"skip_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": (100, 101)}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
         ],
     )
-    def test_skip_exit_code(self, extra_kwargs, actual_exit_code, expected_state):
+    def test_on_skip_exit_code(self, extra_kwargs, actual_exit_code, expected_state):
         def f(exit_code):
             if exit_code != 0:
                 raise SystemExit(exit_code)
