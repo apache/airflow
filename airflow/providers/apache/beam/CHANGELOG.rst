@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+5.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS and Dataflow hooks' param ``delegate_to`` is removed from all Beam operators.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
 4.3.0
 .....
 

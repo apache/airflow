@@ -46,7 +46,6 @@ BODY_LAKE = {
 DATAPLEX_TASK_ID = "testTask001"
 
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO = "test-delegate-to"
 API_VERSION = "v1"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
@@ -65,7 +64,6 @@ class TestDataplexCreateTaskOperator:
             validate_only=None,
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.wait_for_operation.return_value = None
@@ -73,7 +71,6 @@ class TestDataplexCreateTaskOperator:
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -101,13 +98,11 @@ class TestDataplexDeleteTaskOperator:
             task_id="delete_dataplex_task",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -132,13 +127,11 @@ class TestDataplexListTasksOperator:
             task_id="list_dataplex_task",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -168,7 +161,6 @@ class TestDataplexGetTaskOperator:
             task_id="get_dataplex_task",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.wait_for_operation.return_value = None
@@ -176,7 +168,6 @@ class TestDataplexGetTaskOperator:
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -201,13 +192,11 @@ class TestDataplexDeleteLakeOperator:
             task_id="delete_dataplex_lake",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -234,7 +223,6 @@ class TestDataplexCreateLakeOperator:
             validate_only=None,
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.wait_for_operation.return_value = None
@@ -242,7 +230,6 @@ class TestDataplexCreateLakeOperator:
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
