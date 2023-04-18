@@ -345,7 +345,7 @@ class DagRun(Base, LoggingMixin):
 
         return with_row_locks(
             query.limit(max_number), of=cls, session=session, **skip_locked(session=session)
-        )
+        ).all()
 
     @classmethod
     @provide_session
