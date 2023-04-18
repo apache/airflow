@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-17T00:29:12Z
+# This constraints file was automatically generated on 2023-04-18T10:44:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -96,7 +96,7 @@ google-auth==2.17.3
 googleapis-common-protos==1.59.0
 graphviz==0.20.1
 greenlet==2.0.2
-grpcio==1.53.0
+grpcio==1.54.0
 gssapi==1.8.2
 gunicorn==20.1.0
 h11==0.14.0
@@ -116,7 +116,7 @@ kubernetes-asyncio==24.2.2
 kubernetes==23.6.0
 lazy-object-proxy==1.9.0
 ldap3==2.9.1
-limits==3.3.1
+limits==3.4.0
 linkify-it-py==2.0.0
 locket==1.0.0
 lockfile==0.12.2
@@ -153,7 +153,7 @@ prison==0.2.1
 prometheus-client==0.16.0
 prompt-toolkit==3.0.38
 protobuf==3.20.3
-psutil==5.9.4
+psutil==5.9.5
 pure-sasl==0.6.2
 pyarrow==11.0.0
 pyasn1-modules==0.2.8
