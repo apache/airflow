@@ -25,7 +25,11 @@ import click
 from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
-from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES, all_selective_test_types
+from airflow_breeze.global_constants import (
+    ALLOWED_HELM_TEST_PACKAGES,
+    ALLOWED_TEST_TYPE_CHOICES,
+    all_selective_test_types,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -51,7 +55,7 @@ from airflow_breeze.utils.common_options import (
     option_verbose,
 )
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
@@ -545,11 +549,18 @@ def integration_tests(
 @option_github_repository
 @option_verbose
 @option_dry_run
+@click.option(
+    "--helm-test-package",
+    help="Package to tests",
+    default="all",
+    type=BetterChoice(ALLOWED_HELM_TEST_PACKAGES),
+)
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def helm_tests(
     extra_pytest_args: tuple,
     image_tag: str | None,
     mount_sources: str,
+    helm_test_package: str,
     github_repository: str,
 ):
     exec_shell_params = ShellParams(
@@ -560,6 +571,8 @@ def helm_tests(
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
     env_variables["TEST_TYPE"] = "Helm"
+    if helm_test_package != "all":
+        env_variables["HELM_TEST_PACKAGE"] = helm_test_package
     perform_environment_checks()
     cleanup_python_generated_files()
     cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]

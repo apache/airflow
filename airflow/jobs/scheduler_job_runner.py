@@ -784,7 +784,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if ti_queued and not ti_requeued:
                 Stats.incr(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id},
+                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
                 )
                 msg = (
                     "Executor reports task instance %s finished (%s) although the "
@@ -1717,9 +1717,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             self.log.error("Detected zombie job: %s", request)
             self.job.executor.send_callback(request)
-            Stats.incr(
-                "zombies_killed", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
-            )
+            Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI):

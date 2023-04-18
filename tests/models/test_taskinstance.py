@@ -2529,6 +2529,7 @@ class TestTaskInstance:
         ti.task = None
         ti.state = State.QUEUED
         session.flush()
+        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
         assert ti.task is None, "Check critical pre-condition"
 
@@ -2542,10 +2543,8 @@ class TestTaskInstance:
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
-        Stats_incr.assert_any_call(
-            "ti_failures", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
-        )
-        Stats_incr.assert_any_call("operator_failures_EmptyOperator")
+        Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
+        Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
 
     def test_handle_failure_task_undefined(self, create_task_instance):
         """
@@ -2654,10 +2653,23 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        stats_mock.assert_called_with(f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}")
+        stats_mock.assert_called_with(
+            f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
+            tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+        )
         for state in State.task_states:
-            assert call(f"ti.finish.{ti.dag_id}.{ti.task_id}.{state}", count=0) in stats_mock.mock_calls
-        assert call(f"ti.start.{ti.dag_id}.{ti.task_id}") in stats_mock.mock_calls
+            assert (
+                call(
+                    f"ti.finish.{ti.dag_id}.{ti.task_id}.{state}",
+                    count=0,
+                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+                )
+                in stats_mock.mock_calls
+            )
+        assert (
+            call(f"ti.start.{ti.dag_id}.{ti.task_id}", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+            in stats_mock.mock_calls
+        )
         assert stats_mock.call_count == len(State.task_states) + 4
 
     def test_command_as_list(self, create_task_instance):
