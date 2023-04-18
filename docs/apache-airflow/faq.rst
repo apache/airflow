@@ -441,6 +441,17 @@ If the tasks are not related by dependency, you will need to :ref:`build a custo
 Airflow UI
 ^^^^^^^^^^
 
+Why did my task fail with no logs in the UI?
+--------------------------------------------
+Logs are [typically served when a task reaches a terminal state](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/logging-tasks.html#serving-logs-from-workers). Sometimes, a task's normal lifecycle is disrupted, and the task's
+worker is unable to write the task's logs. This typically happens for one of two reasons:
+
+1. [Zombie Tasks](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#zombie-undead-tasks)
+2. Tasks failed after getting stuck in queued (Airflow 2.6.0+)
+
+Setting retries for each task drastically reduces the chance that either of these problems impact a workflow.
+
+
 How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------
 
