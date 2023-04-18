@@ -37,13 +37,13 @@ class ExtractorManager(LoggingMixin):
 
         # Comma-separated extractors in OPENLINEAGE_EXTRACTORS variable.
         # Extractors should implement BaseExtractor
-        from airflow.providers.openlineage.utils import import_from_string
+        from airflow.utils.module_loading import import_string
 
         # TODO: use airflow config with OL backup
         env_extractors = os.getenv("OPENLINEAGE_EXTRACTORS")
         if env_extractors is not None:
             for extractor in env_extractors.split(";"):
-                extractor: type[BaseExtractor] = import_from_string(extractor.strip())
+                extractor: type[BaseExtractor] = import_string(extractor.strip())
                 for operator_class in extractor.get_operator_classnames():
                     self.extractors[operator_class] = extractor
 
