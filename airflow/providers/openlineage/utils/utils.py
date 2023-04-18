@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import os
 from contextlib import suppress
 from functools import wraps
 from typing import TYPE_CHECKING, Any
@@ -28,6 +29,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 import attrs
 from attrs import asdict
 
+from airflow.configuration import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
@@ -395,3 +397,10 @@ def print_exception(f):
             log.exception(e)
 
     return wrapper
+
+
+def is_source_enabled():
+    source_var = conf.get(
+        "openlinege", "disable_source_code", fallback=os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE")
+    )
+    return isinstance(source_var, str) and source_var.lower() not in ("true", "1", "t")
