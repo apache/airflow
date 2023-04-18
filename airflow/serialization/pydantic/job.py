@@ -44,6 +44,7 @@ class JobPydantic(BaseModelPydantic):
 
     # not an ORM field
     heartrate: Optional[int]
+    max_tis_per_query: Optional[int]
 
     class Config:
         """Make sure it deals automatically with ORM classes of SQL Alchemy"""
