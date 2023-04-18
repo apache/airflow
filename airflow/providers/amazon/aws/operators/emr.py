@@ -1016,7 +1016,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EmrServerlessDeleteApplicationOperator`
+        :ref:`howto/operator:EmrServerlessStopApplicationOperator`
 
     :param application_id: ID of the EMR Serverless application to stop.
     :param wait_for_completion: If true, wait for the Application to stop before returning. Default to True
