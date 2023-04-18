@@ -680,7 +680,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
                 graceful_decommission_timeout='1h',
                 dag=dag)
 
-    .. see also::
+    .. seealso::
         For more detail on about scaling clusters have a look at the reference:
         https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/scaling-clusters
 
