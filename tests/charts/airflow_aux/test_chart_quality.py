@@ -16,19 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-import os
+import json
 from pathlib import Path
 
 import yaml
+from jsonschema import validate
 
-CHART_DIR = Path(__file__).resolve().parents[2] / "chart"
-CHART_YAML_PATH = os.path.join(CHART_DIR, "Chart.yaml")
-
-
-def chart_yaml() -> dict:
-    with open(CHART_YAML_PATH) as f:
-        return yaml.safe_load(f)
+CHART_DIR = Path(__file__).resolve().parents[3] / "chart"
 
 
-def chart_version() -> str:
-    return chart_yaml()["version"]
+class TestChartQuality:
+    def test_values_validate_schema(self):
+        values = yaml.safe_load((CHART_DIR / "values.yaml").read_text())
+        schema = json.loads((CHART_DIR / "values.schema.json").read_text())
+
+        # Add extra restrictions just for the tests to make sure
+        # we don't forget to update the schema if we add a new property
+        schema["additionalProperties"] = False
+        schema["minProperties"] = len(schema["properties"].keys())
+
+        # shouldn't raise
+        validate(instance=values, schema=schema)

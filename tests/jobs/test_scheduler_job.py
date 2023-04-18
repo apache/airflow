@@ -269,12 +269,10 @@ class TestSchedulerJob:
             [
                 mock.call(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id},
+                    tags={"dag_id": dag_id, "task_id": ti1.task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator"),
-                mock.call(
-                    "ti_failures", tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id}
-                ),
+                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
             ],
             any_order=True,
         )
@@ -283,7 +281,8 @@ class TestSchedulerJob:
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
     def test_process_executor_events_with_no_callback(self, mock_stats_incr, mock_task_callback, dag_maker):
         dag_id = "test_process_executor_events_with_no_callback"
-        task_id_1 = "dummy_task"
+        task_id = "test_task"
+        run_id = "test_run"
 
         mock_stats_incr.reset_mock()
         executor = MockExecutor(do_update=False)
@@ -295,9 +294,9 @@ class TestSchedulerJob:
 
         session = settings.Session()
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
-            task1 = EmptyOperator(task_id=task_id_1, retries=1)
+            task1 = EmptyOperator(task_id=task_id, retries=1)
         ti1 = dag_maker.create_dagrun(
-            run_id="dr2", execution_date=DEFAULT_DATE + timedelta(hours=1)
+            run_id=run_id, execution_date=DEFAULT_DATE + timedelta(hours=1)
         ).get_task_instance(task1.task_id)
 
         mock_stats_incr.reset_mock()
@@ -333,10 +332,10 @@ class TestSchedulerJob:
             [
                 mock.call(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1},
+                    tags={"dag_id": dag_id, "task_id": task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1}),
+                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": task_id}),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id}),
             ],
             any_order=True,
         )
@@ -387,7 +386,6 @@ class TestSchedulerJob:
             "scheduler.tasks.killed_externally",
             tags={
                 "dag_id": "test_process_executor_events_with_callback",
-                "run_id": "test",
                 "task_id": "dummy_task",
             },
         )

@@ -459,9 +459,7 @@ class DagFileProcessor(LoggingMixin):
                         timestamp=ts,
                     )
                     sla_misses.append(sla_miss)
-                    Stats.incr(
-                        "sla_missed", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
-                    )
+                    Stats.incr("sla_missed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()
@@ -766,7 +764,7 @@ class DagFileProcessor(LoggingMixin):
             return DagBag(file_path, include_examples=False)
         except Exception:
             cls.logger().exception("Failed at reloading the DAG file %s", file_path)
-            Stats.incr("dag_file_refresh_error", 1, 1)
+            Stats.incr("dag_file_refresh_error", tags={"file_path": file_path})
             raise
 
     @provide_session

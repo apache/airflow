@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,19 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from pathlib import Path
+import hashlib
 
-import yaml
-
-CHART_DIR = Path(__file__).resolve().parents[2] / "chart"
-CHART_YAML_PATH = os.path.join(CHART_DIR, "Chart.yaml")
+from airflow import PY39
 
 
-def chart_yaml() -> dict:
-    with open(CHART_YAML_PATH) as f:
-        return yaml.safe_load(f)
-
-
-def chart_version() -> str:
-    return chart_yaml()["version"]
+def md5(data: bytes, *, usedforsecurity: bool | None = None):
+    """
+    Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
+    :param data: The data to hash.
+    :param usedforsecurity: The value to pass to the md5 function's "usedforsecurity" param.
+        Defaults to None.
+    :return: The hashed value.
+    :rtype: _Hash
+    """
+    if PY39 and usedforsecurity is not None:
+        return hashlib.md5(data, usedforsecurity=usedforsecurity)  # type: ignore
+    else:
+        return hashlib.md5(data)

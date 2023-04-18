@@ -18,7 +18,6 @@
 """Serialized DAG table in database."""
 from __future__ import annotations
 
-import hashlib
 import logging
 import zlib
 from datetime import datetime, timedelta
@@ -35,6 +34,7 @@ from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -102,7 +102,7 @@ class SerializedDagModel(Base):
         dag_data = SerializedDAG.to_dict(dag)
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
-        self.dag_hash = hashlib.md5(dag_data_json).hexdigest()
+        self.dag_hash = md5(dag_data_json, usedforsecurity=False).hexdigest()
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
