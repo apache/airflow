@@ -554,9 +554,20 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
+    @pytest.mark.parametrize(
+        "task_kwargs, should_be_deleted",
+        [
+            ({}, True),  # default values
+            ({"is_delete_operator_pod": True}, True),  # explicit True is_delete_operator_pod
+            ({"is_delete_operator_pod": False}, False),  # False is_delete_operator_pod
+            ({"is_delete_operator_pod": True, "delete_when_fails": False}, False),  # False delete_when_fails
+        ],
+    )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
-    def test_pod_delete_after_await_container_error(self, find_pod_mock, delete_pod_mock):
+    def test_pod_delete_after_await_container_error(
+        self, find_pod_mock, delete_pod_mock, task_kwargs, should_be_deleted
+    ):
         """
         When KPO fails unexpectedly during await_container, we should still try to delete the pod,
         and the pod we try to delete should be the one returned from find_pod earlier.
@@ -565,12 +576,15 @@ class TestKubernetesPodOperator:
         cont_status.name = "base"
         cont_status.state.terminated.message = "my-failure"
         find_pod_mock.return_value.status.container_statuses = [cont_status]
-        k = KubernetesPodOperator(task_id="task")
+        k = KubernetesPodOperator(task_id="task", **task_kwargs)
         self.await_pod_mock.side_effect = AirflowException("fake failure")
         with pytest.raises(AirflowException, match="my-failure"):
             context = create_context(k)
             k.execute(context=context)
-        delete_pod_mock.assert_called_with(find_pod_mock.return_value)
+        if should_be_deleted:
+            delete_pod_mock.assert_called_with(find_pod_mock.return_value)
+        else:
+            delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize("should_fail", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
@@ -1009,16 +1023,30 @@ class TestKubernetesPodOperator:
         else:
             mock_await.assert_not_called()
 
-    @pytest.mark.parametrize("should_fail", [True, False])
+    @pytest.mark.parametrize(
+        "task_kwargs, should_fail, should_be_deleted",
+        [
+            ({}, False, True),
+            ({}, True, True),
+            ({"is_delete_operator_pod": True}, False, True),
+            ({"is_delete_operator_pod": True}, True, True),
+            ({"is_delete_operator_pod": False}, False, False),
+            ({"is_delete_operator_pod": False}, True, False),
+            ({"is_delete_operator_pod": True, "delete_when_fails": False}, False, True),
+            ({"is_delete_operator_pod": True, "delete_when_fails": False}, True, False),
+        ],
+    )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.patch_already_checked")
-    def test_mark_checked_if_not_deleted(self, mock_patch_already_checked, mock_delete_pod, should_fail):
+    def test_mark_checked_if_not_deleted(
+        self, mock_patch_already_checked, mock_delete_pod, task_kwargs, should_fail, should_be_deleted
+    ):
         """If we aren't deleting pods mark "checked" if the task completes (successful or otherwise)"""
         dag = DAG("hello2", start_date=pendulum.now())
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=False,
             dag=dag,
+            **task_kwargs,
         )
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = "Failed" if should_fail else "Succeeded"
@@ -1029,8 +1057,14 @@ class TestKubernetesPodOperator:
                 k.execute(context=context)
         else:
             k.execute(context=context)
-        mock_patch_already_checked.assert_called_once()
-        mock_delete_pod.assert_not_called()
+        if not should_fail and should_be_deleted:
+            mock_patch_already_checked.assert_not_called()
+        else:
+            mock_patch_already_checked.assert_called_once()
+        if should_be_deleted:
+            mock_delete_pod.assert_called_once()
+        else:
+            mock_delete_pod.assert_not_called()
 
     @patch(HOOK_CLASS, new=MagicMock)
     def test_patch_already_checked(self):

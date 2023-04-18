@@ -191,6 +191,8 @@ class KubernetesPodOperator(BaseOperator):
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
+    :param delete_when_fails: If False, and is_delete_operator_pod is set to True
+        failed pods will not be deleted.
     :param hostnetwork: If True enable host networking on the pod.
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
@@ -276,6 +278,7 @@ class KubernetesPodOperator(BaseOperator):
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
         is_delete_operator_pod: bool = True,
+        delete_when_fails: bool = True,
         hostnetwork: bool = False,
         tolerations: list[k8s.V1Toleration] | None = None,
         security_context: dict | None = None,
@@ -343,6 +346,7 @@ class KubernetesPodOperator(BaseOperator):
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
+        self.delete_when_fails = delete_when_fails
         self.hostnetwork = hostnetwork
         self.tolerations = (
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
@@ -661,10 +665,15 @@ class KubernetesPodOperator(BaseOperator):
             remote_pod=remote_pod,
         )
 
+    def _should_delete_pod(self, phase) -> bool:
+        if not self.delete_when_fails and phase != PodPhase.SUCCEEDED:
+            return False
+        return self.is_delete_operator_pod
+
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
-        if pod_phase != PodPhase.SUCCEEDED or not self.is_delete_operator_pod:
+        if pod_phase != PodPhase.SUCCEEDED or not self._should_delete_pod(pod_phase):
             self.patch_already_checked(remote_pod, reraise=False)
 
         if pod_phase != PodPhase.SUCCEEDED:
@@ -709,7 +718,7 @@ class KubernetesPodOperator(BaseOperator):
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
-                if self.is_delete_operator_pod:
+                if self._should_delete_pod(pod.status.phase):
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
                 else:

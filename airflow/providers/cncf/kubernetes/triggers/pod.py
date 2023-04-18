@@ -60,6 +60,8 @@ class KubernetesPodTrigger(BaseTrigger):
     :param should_delete_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
+    :param delete_when_fails: If False, and is_delete_operator_pod is set to True
+        failed pods will not be deleted .
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
     """
@@ -76,6 +78,7 @@ class KubernetesPodTrigger(BaseTrigger):
         config_dict: dict | None = None,
         in_cluster: bool | None = None,
         should_delete_pod: bool = True,
+        delete_when_fails: bool = True,
         get_logs: bool = True,
         startup_timeout: int = 120,
     ):
@@ -90,6 +93,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.config_dict = config_dict
         self.in_cluster = in_cluster
         self.should_delete_pod = should_delete_pod
+        self.delete_when_fails = delete_when_fails
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
 
@@ -110,11 +114,17 @@ class KubernetesPodTrigger(BaseTrigger):
                 "config_dict": self.config_dict,
                 "in_cluster": self.in_cluster,
                 "should_delete_pod": self.should_delete_pod,
+                "delete_when_fails": self.delete_when_fails,
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
                 "trigger_start_time": self.trigger_start_time,
             },
         )
+
+    def _should_delete_pod(self, is_succeeded: bool) -> bool:
+        if not self.delete_when_fails and not is_succeeded:
+            return False
+        return self.should_delete_pod
 
     async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
         """Gets current pod status and yields a TriggerEvent"""
@@ -183,7 +193,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         name=self.pod_name,
                         namespace=self.pod_namespace,
                     )
-                if self.should_delete_pod:
+                if self._should_delete_pod(is_succeeded=False):
                     self.log.info("Deleting pod...")
                     await self._get_async_hook().delete_pod(
                         name=self.pod_name,
