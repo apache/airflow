@@ -940,7 +940,7 @@ class TestPythonVirtualenvOperator(BasePythonTest):
             (None, 99, TaskInstanceState.FAILED),
             ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
             ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_on_exit_code": [100, 101]}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": (100, 101)}, 100, TaskInstanceState.SKIPPED),
             ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
             ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
             ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),

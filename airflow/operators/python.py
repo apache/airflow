@@ -26,6 +26,7 @@ import sys
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
+from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -494,7 +495,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         templates_dict: dict | None = None,
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
-        skip_on_exit_code: int | list[int] | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
         if (
@@ -520,7 +521,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         self.pip_install_options = pip_install_options
         self.skip_on_exit_code = (
             skip_on_exit_code
-            if isinstance(skip_on_exit_code, list)
+            if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
             if skip_on_exit_code
             else []
