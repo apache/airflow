@@ -150,7 +150,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         assert kwargs == {
             "bucket": TEST_BUCKET,
             "object_name": TEST_OBJECT,
-            "ts": TEST_TS_OBJECT,
+            "target_date": TEST_TS_OBJECT,
             "poke_interval": TEST_POLLING_INTERVAL,
             "google_cloud_conn_id": TEST_GCP_CONN_ID,
             "hook_params": TEST_HOOK_PARAMS,
