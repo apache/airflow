@@ -52,7 +52,7 @@ const Grid = ({
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const offsetTop = useOffsetTop(scrollRef);
+  const offsetTop = useOffsetTop(tableRef);
   const { selected } = useSelection();
 
   const {
