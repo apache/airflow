@@ -60,5 +60,5 @@ stop:e5aa686b4e53707ced4039d8414d5cd6
 testing:docker-compose-tests:b86c044b24138af0659a05ed6331576c
 testing:helm-tests:936cf28fd84ce4ff5113795fdae9624b
 testing:integration-tests:225ddb6243cce5fc64f4824b87adfd98
-testing:tests:86441445a2b521e8d5aee04d74978451
-testing:2d95034763ee699f2e2fc1804f2fd7f0
+testing:tests:b96f54a7e08986e2309af33141099e8d
+testing:8d1f02ebc1119bdf93e027a4f291237f

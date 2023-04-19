@@ -1049,6 +1049,19 @@ else
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
             ${TEST_TYPE} == "Long" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[\-(.*)\] ]]; then
+        # When providers start with `-` it means that we should run all provider tests except those
+        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            providers_dir="tests/providers/${provider//./\/}"
+            if [[ -d ${providers_dir} ]]; then
+                echo "${COLOR_BLUE}Ignoring ${providers_dir} as it has been deselected.${COLOR_RESET}"
+                EXTRA_PYTEST_ARGS+=("--ignore=tests/providers/${provider//./\/}")
+            else
+                echo "${COLOR_YELLOW}Skipping ${providers_dir} as the directory does not exist.${COLOR_RESET}"
+            fi
+        done
     elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
         SELECTED_TESTS=()
         for provider in ${BASH_REMATCH[1]//,/ }

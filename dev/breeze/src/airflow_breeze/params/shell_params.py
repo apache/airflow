@@ -47,6 +47,7 @@ from airflow_breeze.utils.path_utils import (
     MSSQL_TMP_DIR_NAME,
     SCRIPTS_CI_DIR,
 )
+from airflow_breeze.utils.run_tests import file_name_from_test_type
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 from airflow_breeze.utils.shared_options import get_verbose
 
@@ -267,9 +268,13 @@ class ShellParams:
     @property
     def mssql_data_volume(self) -> str:
         docker_filesystem = get_filesystem_type("/var/lib/docker")
-        # in case of Providers[....], only leave Providers
-        base_test_type = self.test_type.split("[")[0] if self.test_type else None
-        volume_name = f"tmp-mssql-volume-{base_test_type}" if base_test_type else "tmp-mssql-volume"
+        # Make sure the test type is not too long to be used as a volume name in docker-compose
+        # The tmp directory in our self-hosted runners can be quite long, so we should limit the volume name
+        volume_name = (
+            "tmp-mssql-volume-" + file_name_from_test_type(self.test_type)[:20]
+            if self.test_type
+            else "tmp-mssql-volume"
+        )
         if docker_filesystem == "tmpfs":
             return os.fspath(Path.home() / MSSQL_TMP_DIR_NAME / f"{volume_name}-{self.mssql_version}")
         else:

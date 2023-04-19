@@ -588,6 +588,36 @@ class SelectiveChecks:
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
+    @staticmethod
+    def _extract_long_provider_tests(current_test_types: set[str]):
+        """
+        In case there are Provider tests in the list of test to run (either in the form of
+        Providers or Providers[...] we subtract them from the test type,
+        and add them to the list of tests to run individually.
+
+        In case of Providers, we need to replace it with Providers[-<list_of_long_tests>], but
+        in case of Providers[list_of_tests] we need to remove the long tests from the list.
+
+        """
+        long_tests = ["amazon", "google"]
+        for original_test_type in tuple(current_test_types):
+            if original_test_type == "Providers":
+                current_test_types.remove(original_test_type)
+                for long_test in long_tests:
+                    current_test_types.add(f"Providers[{long_test}]")
+                current_test_types.add(f"Providers[-{','.join(long_tests)}]")
+            elif original_test_type.startswith("Providers["):
+                provider_tests_to_run = (
+                    original_test_type.replace("Providers[", "").replace("]", "").split(",")
+                )
+                if any(long_test in provider_tests_to_run for long_test in long_tests):
+                    current_test_types.remove(original_test_type)
+                    for long_test in long_tests:
+                        if long_test in provider_tests_to_run:
+                            current_test_types.add(f"Providers[{long_test}]")
+                            provider_tests_to_run.remove(long_test)
+                    current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
+
     @cached_property
     def parallel_test_types(self) -> str:
         if not self.run_tests:
@@ -606,7 +636,25 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
-        return " ".join(sorted(current_test_types))
+
+        self._extract_long_provider_tests(current_test_types)
+
+        # this should be hard-coded as we want to have very specific sequence of tests
+        sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
+
+        def sort_key(t: str) -> str:
+            # Put the test types in the order we want them to run
+            if t in sorting_order:
+                return str(sorting_order.index(t))
+            else:
+                return str(len(sorting_order)) + t
+
+        return " ".join(
+            sorted(
+                current_test_types,
+                key=sort_key,
+            )
+        )
 
     @cached_property
     def basic_checks_only(self) -> bool:

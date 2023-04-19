@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-import re
 import sys
 from datetime import datetime
 
@@ -65,12 +64,11 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
-    bytes2human,
     check_async_run_results,
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import FILES_DIR, cleanup_python_generated_files
-from airflow_breeze.utils.run_tests import run_docker_compose_tests
+from airflow_breeze.utils.run_tests import file_name_from_test_type, run_docker_compose_tests
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
@@ -143,7 +141,7 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
-    project_name = _file_name_from_test_type(exec_shell_params.test_type)
+    project_name = file_name_from_test_type(exec_shell_params.test_type)
     down_cmd = [
         *DOCKER_COMPOSE_COMMAND,
         "--project-name",
@@ -209,11 +207,6 @@ def _run_test(
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
-def _file_name_from_test_type(test_type: str):
-    test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
-    return re.sub("[,\.]", "_", test_type_no_brackets)[:30]
-
-
 def _run_tests_in_pool(
     tests_to_run: list[str],
     parallelism: int,
@@ -268,43 +261,12 @@ def run_tests_in_parallel(
     parallel_test_types_list: list[str],
     extra_pytest_args: tuple,
     db_reset: bool,
-    full_tests_needed: bool,
     test_timeout: int,
     include_success_outputs: bool,
     debug_resources: bool,
     parallelism: int,
     skip_cleanup: bool,
 ) -> None:
-    import psutil
-
-    memory_available = psutil.virtual_memory()
-    if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
-        # Run heavy tests sequentially
-        heavy_test_types_to_run = {"Core", "Providers"} & set(parallel_test_types_list)
-        if heavy_test_types_to_run:
-            # some of those are requested
-            get_console().print(
-                f"[warning]Running {heavy_test_types_to_run} tests sequentially"
-                f"for {exec_shell_params.backend}"
-                f" backend due to low memory available: {bytes2human(memory_available.available)}"
-            )
-            tests_to_run_sequentially = []
-            for heavy_test_type in heavy_test_types_to_run:
-                for test_type in parallel_test_types_list:
-                    if test_type.startswith(heavy_test_type):
-                        parallel_test_types_list.remove(test_type)
-                        tests_to_run_sequentially.append(test_type)
-            _run_tests_in_pool(
-                tests_to_run=tests_to_run_sequentially,
-                parallelism=1,
-                exec_shell_params=exec_shell_params,
-                extra_pytest_args=extra_pytest_args,
-                test_timeout=test_timeout,
-                db_reset=db_reset,
-                include_success_outputs=include_success_outputs,
-                debug_resources=debug_resources,
-                skip_cleanup=skip_cleanup,
-            )
     _run_tests_in_pool(
         tests_to_run=parallel_test_types_list,
         parallelism=parallelism,
@@ -336,8 +298,9 @@ def run_tests_in_parallel(
 @option_mount_sources
 @click.option(
     "--test-type",
-    help="Type of test to run. Note that with Providers, you can also specify which provider "
-    'tests should be run - for example --test-type "Providers[airbyte,http]"',
+    help="Type of test to run. With Providers, you can specify tests of which providers "
+    "should be run: `Providers[airbyte,http]` or "
+    "excluded from the full test suite: `Providers[-amazon,google]`",
     default="All",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
@@ -360,12 +323,6 @@ def run_tests_in_parallel(
     default=" ".join(all_selective_test_types()) + " PlainAsserts",
     show_default=True,
     envvar="PARALLEL_TEST_TYPES",
-)
-@click.option(
-    "--full-tests-needed",
-    help="Whether full set of tests is run.",
-    is_flag=True,
-    envvar="FULL_TESTS_NEEDED",
 )
 @click.option(
     "--upgrade-boto",
@@ -405,7 +362,6 @@ def command_for_tests(
     debug_resources: bool,
     include_success_outputs: bool,
     parallel_test_types: str,
-    full_tests_needed: bool,
     mount_sources: str,
     extra_pytest_args: tuple,
     upgrade_boto: bool,
@@ -434,16 +390,11 @@ def command_for_tests(
     perform_environment_checks()
     if run_in_parallel:
         test_list = parallel_test_types.split(" ")
-        test_list.sort(key=lambda x: x in ["Providers", "WWW"], reverse=True)
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
             parallel_test_types_list=test_list,
             extra_pytest_args=extra_pytest_args,
             db_reset=db_reset,
-            # Allow to pass information on whether to use full tests in the parallel execution mode
-            # or not - this will allow to skip some heavy tests on more resource-heavy configurations
-            # in case full tests are not required, some of those will be skipped
-            full_tests_needed=full_tests_needed,
             test_timeout=test_timeout,
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,
