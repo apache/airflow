@@ -571,6 +571,8 @@ class BaseSerialization:
             return Dataset(**var)
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
+        elif type_ == DAT.CONNECTION:
+            return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
                 return JobPydantic.parse_obj(var)
