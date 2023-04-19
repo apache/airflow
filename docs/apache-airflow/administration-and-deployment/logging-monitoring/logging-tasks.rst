@@ -66,7 +66,7 @@ This logger is created and configured by :class:`~airflow.utils.log.LoggingMixin
 operators derive from. But also due to the root logger handling, any standard logger (using default settings) that
 propagates logging to the root will also write to the task log.
 
-So if you want to log to the task log from custom code of yours you can do the following:
+So if you want to log to the task log from custom code of yours you can do any of the following:
 
 * Make sure your class extends from :class:`~airflow.utils.log.LoggingMixin` and use the ``self.log`` logger
 * Just use standard ``print`` statements to print to ``stdout`` (not recommended, but in some cases it can be useful)
