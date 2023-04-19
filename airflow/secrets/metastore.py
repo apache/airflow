@@ -22,6 +22,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from airflow.api_internal.internal_api_call import internal_api_call
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
@@ -61,7 +62,7 @@ class MetastoreBackend(BaseSecretsBackend):
         :param key: Variable Key
         :return: Variable Value
         """
-        return MetastoreBackend._fetch_variable(key=key, session=NEW_SESSION)
+        return MetastoreBackend._fetch_variable(key=key, session=session)
 
     @staticmethod
     @internal_api_call
