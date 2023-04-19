@@ -27,7 +27,7 @@ def example_dag():
     @task.sensor(task_id="my_taskflow_sensor")
     def my_taskflow_sensor():
         # Check if the file exists OR you can give any logic
-        if os.path.exists('/path_to_file'):
+        if os.path.exists('/././path_to_file'):
             return True
         else:
             return False
