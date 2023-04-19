@@ -46,7 +46,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME},
 ) as dag:
-
     wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")
 
     wait_for_blob_async = WasbBlobSensor(task_id="wait_for_blob_async", deferrable=True)
@@ -56,8 +55,10 @@ with DAG(
     )
 
     wait_for_blob_prefix_async = WasbPrefixSensor(
-        task_id="wait_for_blob_prefix_async", container_name="azure_container",
-        prefix="prefix_to_check", deferrable=True
+        task_id="wait_for_blob_prefix_async",
+        container_name="azure_container",
+        prefix="prefix_to_check",
+        deferrable=True,
     )
 
     transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
@@ -73,8 +74,13 @@ with DAG(
     )
     # [END how_to_azure_blob_to_gcs]
 
-    wait_for_blob >> wait_for_blob_async >> wait_for_blob_prefix \
-    >> wait_for_blob_prefix_async >> transfer_files_to_gcs
+    (
+        wait_for_blob
+        >> wait_for_blob_async
+        >> wait_for_blob_prefix
+        >> wait_for_blob_prefix_async
+        >> transfer_files_to_gcs
+    )
 
     from tests.system.utils.watcher import watcher
 
