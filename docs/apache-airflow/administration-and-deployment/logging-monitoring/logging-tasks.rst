@@ -68,9 +68,9 @@ propagates logging to the root will also write to the task log.
 
 So if you want to log to the task log from custom code of yours you can do the following:
 
-* make sure your class extends from :class:`~airflow.utils.log.LoggingMixin` and use ``self.log`` logger
-* just use standard print statements to print to stdout (not recommended, but in some cases it can be useful)
-* use the standard logger approach of creating a logger using python module name
+* Make sure your class extends from :class:`~airflow.utils.log.LoggingMixin` and use the ``self.log`` logger
+* Just use standard ``print`` statements to print to ``stdout`` (not recommended, but in some cases it can be useful)
+* Use the standard logger approach of creating a logger using the Python module name
   and using it to write to the task log
 
 This is the usual way loggers are used directly in Python code:
