@@ -52,6 +52,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
+from airflow.serialization.pydantic.connection import ConnectionPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
@@ -295,7 +296,7 @@ class BaseSerialization:
     _datetime_types = (datetime.datetime,)
 
     # Object types that are always excluded in serialization.
-    _excluded_types = (logging.Logger, Connection, type, property)
+    _excluded_types = (logging.Logger, type, property)
 
     _json_schema: Validator | None = None
 
@@ -503,6 +504,8 @@ class BaseSerialization:
                 return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
             elif isinstance(var, Dataset):
                 return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
+            elif isinstance(var, Connection):
+                return cls._encode(_pydantic_model_dump(ConnectionPydantic, var), type_=DAT.CONNECTION)
             else:
                 return cls.default_serialization(strict, var)
         elif isinstance(var, ArgNotSet):
@@ -571,8 +574,6 @@ class BaseSerialization:
             return Dataset(**var)
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
-        elif type_ == DAT.CONNECTION:
-            return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
                 return JobPydantic.parse_obj(var)
@@ -582,6 +583,9 @@ class BaseSerialization:
                 return DagRunPydantic.parse_obj(var)
             elif type_ == DAT.DATA_SET:
                 return DatasetPydantic.parse_obj(var)
+            elif type_ == DAT.CONNECTION:
+                c = ConnectionPydantic.parse_obj(var)
+                return c.to_orm_connection()
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
         else:

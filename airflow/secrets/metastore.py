@@ -41,6 +41,7 @@ class MetastoreBackend(BaseSecretsBackend):
     def get_connection(self, conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
         return MetastoreBackend._fetch_connection(conn_id, session=session)
 
+
     @provide_session
     def get_connections(self, conn_id: str, session: Session = NEW_SESSION) -> list[Connection]:
         warnings.warn(
@@ -62,14 +63,14 @@ class MetastoreBackend(BaseSecretsBackend):
         :param key: Variable Key
         :return: Variable Value
         """
-        return MetastoreBackend._fetch_variable(key=key, session=NEW_SESSION)
+        return MetastoreBackend._fetch_variable(key=key, session=session)
 
     @staticmethod
     @internal_api_call
     @provide_session
     def _fetch_connection(conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
         from airflow.models.connection import Connection
-
+        
         conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id).limit(1))
         session.expunge_all()
         return conn
