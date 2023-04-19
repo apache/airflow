@@ -62,7 +62,7 @@ const DagRun = ({ runId }: Props) => {
     data: { dagRuns },
   } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(detailsRef);
+  const offsetTop = useOffsetTop(detailsRef, "parent");
 
   const run = dagRuns.find((dr) => dr.runId === runId);
   const { onCopy, hasCopied } = useClipboard(formatConf(run?.conf));

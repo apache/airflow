@@ -52,7 +52,7 @@ const Dag = () => {
     data: { dagRuns, groups },
   } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(detailsRef);
+  const offsetTop = useOffsetTop(detailsRef, "parent");
 
   const taskSummary = getTaskSummary({ task: groups });
   const numMap = finalStatesMap();

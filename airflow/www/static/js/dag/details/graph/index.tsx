@@ -85,7 +85,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     setViewport({ x: 0, y: 0, zoom: 1 });
   }, [root, filterDownstream, filterUpstream, setViewport]);
 
-  const offsetTop = useOffsetTop(graphRef);
+  const offsetTop = useOffsetTop(graphRef, "parent", false);
 
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
 

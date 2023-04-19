@@ -39,7 +39,7 @@ interface Props {
 
 const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
   const taskInstanceRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(taskInstanceRef);
+  const offsetTop = useOffsetTop(taskInstanceRef, "parent");
   const isMapIndexDefined = !(mapIndex === undefined);
   const {
     data: { dagRuns, groups },

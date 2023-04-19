@@ -43,10 +43,9 @@ const ExtraLinks = ({ dagId, taskId, executionDate, extraLinks }: Props) => {
     url && /^(?:[a-z]+:)?\/\//.test(url);
 
   return (
-    <Box mb={3}>
+    <Box my={3}>
       <Text as="strong">Extra Links</Text>
-      <Divider my={2} />
-      <Flex flexWrap="wrap">
+      <Flex flexWrap="wrap" my={2}>
         {links.map(({ name, url }) => (
           <Button
             key={name}

@@ -110,9 +110,9 @@ const Details = ({ instance, group, dagId }: Props) => {
           </Table>
         </>
       )}
-
-      <Text as="strong">Task Instance Details</Text>
-      <Divider my={2} />
+      <Text as="strong" mb={2}>
+        Task Instance Details
+      </Text>
       <Table variant="striped">
         <Tbody>
           {tooltip && (

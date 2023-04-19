@@ -38,7 +38,7 @@ interface Props {
 
 const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   const mappedTasksRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(mappedTasksRef);
+  const offsetTop = useOffsetTop(mappedTasksRef, "child", true);
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([]);
@@ -121,7 +121,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   return (
     <Box
       ref={mappedTasksRef}
-      maxHeight={`calc(100% - ${offsetTop}px)`}
+      maxHeight={offsetTop ? `${offsetTop}px` : "100%"}
       overflowY="auto"
     >
       <Table

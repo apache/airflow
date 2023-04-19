@@ -52,7 +52,7 @@ const Grid = ({
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const offsetTop = useOffsetTop(scrollRef);
+  const offsetTop = useOffsetTop(tableRef, "parent", true);
   const { selected } = useSelection();
 
   const {
@@ -131,7 +131,7 @@ const Grid = ({
         transitionProperty="none"
       />
       <Box
-        maxHeight={`calc(100% - ${offsetTop}px)`}
+        maxHeight={offsetTop ? `${offsetTop - 20}px` : "100%"}
         ref={scrollRef}
         overflow="auto"
         position="relative"

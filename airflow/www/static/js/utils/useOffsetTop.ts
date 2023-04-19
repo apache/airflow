@@ -20,8 +20,14 @@
 import { debounce } from "lodash";
 import React, { useEffect, useState } from "react";
 
+const footer = document.getElementsByTagName("footer")[0];
+
 // For an html element, keep it within view height by calculating the top offset and footer height
-const useOffsetTop = (contentRef: React.RefObject<HTMLElement>) => {
+const useOffsetTop = (
+  contentRef: React.RefObject<HTMLElement>,
+  offsetType: "child" | "parent" | "calculate" = "calculate",
+  withFooter: boolean = false
+) => {
   const [top, setTop] = useState(0);
 
   useEffect(() => {
@@ -31,12 +37,23 @@ const useOffsetTop = (contentRef: React.RefObject<HTMLElement>) => {
       // Note: offsetParent() will get the highest level parent with position: static;
       const parentOffset =
         contentRef.current?.offsetParent?.getBoundingClientRect().top || 0;
-      const childOffset = offset - parentOffset;
-      if (childOffset) setTop(childOffset);
+
+      let fullOffset = offset;
+      if (offsetType === "parent") fullOffset = parentOffset;
+      else if (offsetType === "calculate") fullOffset = offset - parentOffset;
+      if (withFooter) {
+        setTop(footer.getBoundingClientRect().top - fullOffset);
+      } else {
+        setTop(fullOffset);
+      }
     }, 25);
-    // set height on load
+
     calculateHeight();
-  }, [contentRef]);
+    window.addEventListener("resize", calculateHeight);
+    return () => {
+      window.removeEventListener("resize", calculateHeight);
+    };
+  }, [contentRef, offsetType, withFooter]);
 
   return top;
 };

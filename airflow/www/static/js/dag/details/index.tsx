@@ -150,7 +150,12 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       : group?.instances.find((ti) => ti.runId === runId);
 
   return (
-    <Flex flexDirection="column" pl={3} height="100%">
+    <Flex
+      flexDirection="column"
+      pl={3}
+      height="100%"
+      position={tab !== "logs" ? "relative" : undefined}
+    >
       <Flex alignItems="center" justifyContent="space-between" ml={6}>
         <Header />
         <Flex>
@@ -225,7 +230,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           )}
         </TabList>
         <TabPanels height="100%">
-          <TabPanel height="100%">
+          <TabPanel height="100%" p={0} m={4}>
             {isDag && <DagContent />}
             {isDagRun && <DagRunContent runId={runId} />}
             {isTaskInstance && (
@@ -250,10 +255,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
             />
           </TabPanel>
           {showLogs && run && (
-            <TabPanel
-              pt={mapIndex !== undefined ? "0px" : undefined}
-              height="100%"
-            >
+            <TabPanel p={0} m={4} height="100%">
               <BackToTaskSummary
                 isMapIndexDefined={mapIndex !== undefined}
                 onClick={() => onSelect({ runId, taskId })}
@@ -270,7 +272,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
             </TabPanel>
           )}
           {showMappedTasks && (
-            <TabPanel height="100%">
+            <TabPanel height="100%" p={0} m={4}>
               <MappedInstances
                 dagId={dagId}
                 runId={runId}
