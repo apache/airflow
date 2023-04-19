@@ -76,6 +76,7 @@ stop an EMR Serverless Application.
    :end-before: [END howto_operator_emr_serverless_stop_application]
 
 .. _howto/operator:EmrServerlessDeleteApplicationOperator:
+
 Delete an EMR Serverless Application
 ====================================
 
