@@ -331,7 +331,7 @@ class EmrServerlessHook(AwsBaseHook):
             self.log.info("now waiting for the cancelled jobs to terminate")
             self.get_waiter("no_job_running").wait(
                 applicationId=application_id,
-                states=["PENDING", "RUNNING", "SCHEDULED", "SUBMITTED", "CANCELLING"],
+                states=list(self.JOB_INTERMEDIATE_STATES.union("CANCELLING")),
                 WaiterConfig=waiter_config,
             )
 
