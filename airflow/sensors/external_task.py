@@ -23,7 +23,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 
 import attr
-from sqlalchemy import func
+from sqlalchemy import func, tuple_
 
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperatorLink
@@ -367,7 +367,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             external_task_group_task_ids = self.get_external_task_group_task_ids(session)
             count = (
                 self._count_query(TI, session, states, dttm_filter)
-                .filter(TI.task_id.in_(external_task_group_task_ids))
+                .filter(tuple_(TI.task_id, TI.map_index).in_(external_task_group_task_ids))
                 .scalar()
             ) / len(external_task_group_task_ids)
         else:
@@ -387,11 +387,16 @@ class ExternalTaskSensor(BaseSensorOperator):
         task_group = refreshed_dag_info.task_group_dict.get(self.external_task_group_id)
 
         if task_group:
-            return [task.task_id for task in task_group]
+            group_tasks = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.external_dag_id,
+                TaskInstance.task_id.in_(task.task_id for task in task_group),
+            )
+
+            return [(t.task_id, t.map_index) for t in group_tasks]
 
         # returning default task_id as group_id itself, this will avoid any failure in case of
         # 'check_existence=False' and will fail on timeout
-        return [self.external_task_group_id]
+        return [(self.external_task_group_id, -1)]
 
     def _handle_execution_date_fn(self, context) -> Any:
         """
