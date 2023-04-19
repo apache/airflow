@@ -63,7 +63,7 @@ write logs, and for the duration of a task, the root logger is configured to wri
 Most operators will write logs to the task log automatically. This is because they
 have a ``log`` logger that you can use to write to the task log.
 This logger is created and configured by :class:`~airflow.utils.log.LoggingMixin` that all
-operators derive from. But also due the root logger handling, any standard logger that (default setting)
+operators derive from. But also due to the root logger handling, any standard logger (using default settings) that
 propagates logging to the root will also write to the task log.
 
 So if you want to log to the task log from a custom code of yours you can do the following:
