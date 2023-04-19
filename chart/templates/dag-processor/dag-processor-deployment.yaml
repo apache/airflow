@@ -173,9 +173,6 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
-        {{- if .Values.dagProcessor.extraContainers }}
-          {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
-        {{- end }}
         {{- if .Values.dagProcessor.logGroomerSidecar.enabled }}
         - name: dag-processor-log-groomer
           resources: {{- toYaml .Values.dagProcessor.logGroomerSidecar.resources | nindent 12 }}
@@ -205,6 +202,9 @@ spec:
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
           {{- end }}
+        {{- if .Values.dagProcessor.extraContainers }}
+          {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
+        {{- end }}
       volumes:
         - name: config
           configMap:
