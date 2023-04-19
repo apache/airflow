@@ -69,7 +69,7 @@ propagates logging to the root will also write to the task log.
 So if you want to log to the task log from custom code of yours you can do any of the following:
 
 * Log with the ``self.log`` logger from BaseOperator
-* Just use standard ``print`` statements to print to ``stdout`` (not recommended, but in some cases it can be useful)
+* Use standard ``print`` statements to print to ``stdout`` (not recommended, but in some cases it can be useful)
 * Use the standard logger approach of creating a logger using the Python module name
   and using it to write to the task log
 
