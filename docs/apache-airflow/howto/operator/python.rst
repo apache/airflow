@@ -239,3 +239,11 @@ should return True when it succeeds, False otherwise. The other uses the Taskflo
     :dedent: 4
     :start-after: [START wait_function]
     :end-before: [END wait_function]
+
+You can also use the @task.sensor decorator from TaskFlow to define your sensor as a TaskFlow sensor.
+
+.. exampleinclude:: /../../airflow/example_dags/example_taskflow_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START example_taskflow_sensor]
+    :end-before: [END example_taskflow_sensor]
