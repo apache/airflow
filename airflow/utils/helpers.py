@@ -45,6 +45,15 @@ T = TypeVar("T")
 S = TypeVar("S")
 
 
+def get_value_with_cache(cache: dict, key: str, insert_fn: Callable, *arg, **kwargs) -> Any:
+    """Returns value from cache or function"""
+    return_value = cache.get(key)
+    if not return_value:
+        return_value = cache[key] = insert_fn(*arg, **kwargs)
+
+    return return_value
+
+
 def validate_key(k: str, max_length: int = 250):
     """Validates value used as a key."""
     if not isinstance(k, str):

@@ -62,6 +62,7 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.helpers import get_value_with_cache
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -1086,10 +1087,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # cache saves time during scheduling of many dag_runs for same dag
         cached_dags: dict = {}
         for dag_run, callback_to_run in callback_tuples:
-            if dag_run.dag_id not in cached_dags.keys():
-                cached_dags[dag_run.dag_id] = self.dagbag.get_dag(dag_run.dag_id, session=session)
-            
-            dag = cached_dags[dag_run.dag_id]
+            dag = get_value_with_cache(
+                cached_dags, dag_run.dag_id, self.dagbag.get_dag, dag_run.dag_id, session=session
+            )
+
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
@@ -1352,14 +1353,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     schedule_delay,
                     tags={"dag_id": dag.dag_id},
                 )
+
         # cache saves time during scheduling of many dag_runs for same dag
         cached_dags: dict = {}
 
         for dag_run in dag_runs:
-            if dag_run.dag_id not in cached_dags.keys():
-                cached_dags[dag_run.dag_id] = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            dag = dag_run.dag = get_value_with_cache(
+                cached_dags, dag_run.dag_id, self.dagbag.get_dag, dag_run.dag_id, session=session
+            )
 
-            dag = dag_run.dag = cached_dags[dag_run.dag_id]
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
