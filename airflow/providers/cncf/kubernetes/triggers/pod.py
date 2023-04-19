@@ -80,7 +80,6 @@ class KubernetesPodTrigger(BaseTrigger):
         cluster_context: str | None = None,
         config_dict: dict | None = None,
         in_cluster: bool | None = None,
-        delete_when_fails: bool = True,
         get_logs: bool = True,
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
@@ -96,8 +95,6 @@ class KubernetesPodTrigger(BaseTrigger):
         self.cluster_context = cluster_context
         self.config_dict = config_dict
         self.in_cluster = in_cluster
-        self.should_delete_pod = should_delete_pod
-        self.delete_when_fails = delete_when_fails
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
 
@@ -111,6 +108,8 @@ class KubernetesPodTrigger(BaseTrigger):
             )
         else:
             self.on_finish_action = OnFinishAction(on_finish_action)
+            # for b/c, we need to set this property as well
+            self.should_delete_pod = self.on_finish_action == OnFinishAction.DELETE_POD
 
         self._hook: AsyncKubernetesHook | None = None
         self._since_time = None
@@ -131,6 +130,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
                 "trigger_start_time": self.trigger_start_time,
+                "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
             },
         )

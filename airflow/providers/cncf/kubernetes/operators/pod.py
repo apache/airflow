@@ -381,6 +381,8 @@ class KubernetesPodOperator(BaseOperator):
             )
         else:
             self.on_finish_action = OnFinishAction(on_finish_action)
+            # for b/c, we need to set this property as well
+            self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
 
         self._config_dict: dict | None = None
 
