@@ -81,56 +81,72 @@ interface Props {
   groups?: Task;
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
+  isGridCollapsed?: boolean;
 }
 
-const DagRuns = ({ groups, openGroupIds, onToggleGroups }: Props) => {
+const DagRuns = ({
+  groups,
+  openGroupIds,
+  onToggleGroups,
+  isGridCollapsed,
+}: Props) => {
   const {
     data: { dagRuns },
   } = useGridData();
   const { selected, onSelect } = useSelection();
   const durations: number[] = [];
-  const runs: RunWithDuration[] = dagRuns.map((dagRun) => {
-    const duration = getDuration(dagRun.startDate, dagRun.endDate);
-    durations.push(duration);
-    return {
-      ...dagRun,
-      duration,
-    };
-  });
+  const runs: RunWithDuration[] = dagRuns
+    .map((dagRun) => {
+      const duration = getDuration(dagRun.startDate, dagRun.endDate);
+      durations.push(duration);
+      return {
+        ...dagRun,
+        duration,
+      };
+    })
+    .filter((dr, i) => {
+      if (isGridCollapsed) {
+        if (selected.runId) return dr.runId === selected.runId;
+        return i === dagRuns.length - 1;
+      }
+      return true;
+    });
 
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(null, durations);
 
   return (
     <Tr>
-      <Th left={0} zIndex={2}>
-        <Flex
-          borderBottomWidth={3}
-          position="relative"
-          height="100%"
-          width="100%"
-          flexDirection="column-reverse"
-          pb={2}
-        >
-          {!!runs.length && (
-            <>
-              {!!(groups && openGroupIds && onToggleGroups) && (
-                <ToggleGroups
-                  groups={groups}
-                  openGroupIds={openGroupIds}
-                  onToggleGroups={onToggleGroups}
-                />
-              )}
-              <DurationTick bottom="120px">Duration</DurationTick>
-              <DurationTick bottom="96px">{formatDuration(max)}</DurationTick>
-              <DurationTick bottom="46px">
-                {formatDuration(max / 2)}
-              </DurationTick>
-              <DurationTick bottom={0}>00:00:00</DurationTick>
-            </>
-          )}
-        </Flex>
-      </Th>
+      {!isGridCollapsed && (
+        <Th left={0} zIndex={2}>
+          <Flex
+            borderBottomWidth={3}
+            position="relative"
+            height="100%"
+            width="100%"
+            flexDirection="column-reverse"
+            pb={2}
+          >
+            {!!runs.length && (
+              <>
+                {!!(groups && openGroupIds && onToggleGroups) && (
+                  <ToggleGroups
+                    groups={groups}
+                    openGroupIds={openGroupIds}
+                    onToggleGroups={onToggleGroups}
+                  />
+                )}
+                <DurationTick bottom="120px">Duration</DurationTick>
+                <DurationTick bottom="96px">{formatDuration(max)}</DurationTick>
+                <DurationTick bottom="46px">
+                  {formatDuration(max / 2)}
+                </DurationTick>
+                <DurationTick bottom={0}>00:00:00</DurationTick>
+              </>
+            )}
+          </Flex>
+        </Th>
+      )}
       <Th align="right" verticalAlign="bottom">
         <Flex
           justifyContent="flex-end"
@@ -144,7 +160,7 @@ const DagRuns = ({ groups, openGroupIds, onToggleGroups }: Props) => {
               index={index}
               totalRuns={runs.length}
               max={max}
-              isSelected={run.runId === selected.runId}
+              isSelected={run.runId === selected.runId && !isGridCollapsed}
               onSelect={onSelect}
             />
           ))}
