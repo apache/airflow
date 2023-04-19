@@ -17,16 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.kubernetes_executor import KubernetesExecutor
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 
 
 class CeleryKubernetesExecutor(LoggingMixin):
@@ -116,7 +118,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: str | None = None,
+        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -126,6 +128,8 @@ class CeleryKubernetesExecutor(LoggingMixin):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance via celery or kubernetes executor."""
+        from airflow.models.taskinstance import SimpleTaskInstance
+
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
@@ -193,6 +197,14 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return [
             *self.celery_executor.try_adopt_task_instances(celery_tis),
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
+        ]
+
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return [
+            *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
+            *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
         ]
 
     def end(self) -> None:

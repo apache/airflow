@@ -21,6 +21,7 @@ name: Opsgenie
 description: |
     `Opsgenie <https://www.opsgenie.com/>`__
 
+suspended: false
 versions:
   - 5.0.0
   - 4.0.0

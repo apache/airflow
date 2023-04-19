@@ -27,6 +27,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--test-type",
                 "--test-timeout",
+                "--collect-only",
                 "--db-reset",
                 "--backend",
                 "--python",
@@ -41,11 +42,10 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--test-types",
+                "--parallel-test-types",
                 "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
-                "--full-tests-needed",
             ],
         },
         {
@@ -54,6 +54,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--mount-sources",
                 "--upgrade-boto",
+                "--remove-arm-packages",
             ],
         },
     ],
@@ -86,6 +87,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--helm-test-package",
                 "--github-repository",
             ],
         },

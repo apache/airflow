@@ -19,8 +19,8 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.9.0-dev
-appVersion: 2.5.2
+version: 1.10.0-dev
+appVersion: 2.5.3
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -47,163 +47,180 @@ annotations:
       url: https://airflow.apache.org/docs/helm-chart/1.8.0/
   artifacthub.io/screenshots: |
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/dags.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/dags.png
     - title: Datasets View
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/datasets.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/datasets.png
     - title: Grid View
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/grid.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/grid.png
     - title: Graph View
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/graph.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/graph.png
     - title: Calendar View
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/calendar.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/calendar.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/variable_hidden.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/variable_hidden.png
     - title: Gantt Chart
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/gantt.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/gantt.png
     - title: Task Duration
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/duration.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/duration.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/code.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/code.png
     - title: Task Instance Context Menu
-      url: https://airflow.apache.org/docs/apache-airflow/2.5.2/_images/context.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.5.3/_images/context.png
   artifacthub.io/changes: |
-    - description: Add annotations on deployments
+    - description: Add support for ``hostAliases`` for Airflow webserver and scheduler
       kind: added
       links:
-      - name: '#28688'
-        url: https://github.com/apache/airflow/pull/28688
-    - description: Add global volume & volumeMounts to the chart
+      - name: '#30051'
+        url: https://github.com/apache/airflow/pull/30051
+    - description: Add support for annotations on StatsD Deployment and cleanup CronJob
       kind: added
       links:
-      - name: '#27781'
-        url: https://github.com/apache/airflow/pull/27781
-    - description: Add support for ``webserverConfigConfigMapName``
+      - name: '#30126'
+        url: https://github.com/apache/airflow/pull/30126
+    - description: Add support for annotations in logs PVC
+      kind: added
+      links:
+      - name: '#29270'
+        url: https://github.com/apache/airflow/pull/29270
+    - description: Add support for annotations in extra ConfigMap and Secrets
+      kind: added
+      links:
+      - name: '#30303'
+        url: https://github.com/apache/airflow/pull/30303
+    - description: Add support for pod annotations to PgBouncer
+      kind: added
+      links:
+      - name: '#30168'
+        url: https://github.com/apache/airflow/pull/30168
+    - description: Add support for ``ttlSecondsAfterFinished`` on ``migrateDatabaseJob``
+        and ``createUserJob``
+      kind: added
+      links:
+      - name: '#29314'
+        url: https://github.com/apache/airflow/pull/29314
+    - description: Add support for using SHA digest of Docker images
+      kind: added
+      links:
+      - name: '#30214'
+        url: https://github.com/apache/airflow/pull/30214
+    - description: Template extra volumes in Helm Chart
       kind: changed
       links:
-      - name: '#27419'
-        url: https://github.com/apache/airflow/pull/27419
-    - description: Enhance chart to allow overriding command-line args to statsd exporter
+      - name: '#29357'
+        url: https://github.com/apache/airflow/pull/29357
+    - description: Make Liveness/Readiness Probe timeouts configurable for PgBouncer Exporter
       kind: changed
       links:
-      - name: '#28041'
-        url: https://github.com/apache/airflow/pull/28041
-    - description: Add support for NodePort in Services
+      - name: '#29752'
+        url: https://github.com/apache/airflow/pull/29752
+    - description: Enable individual trigger logging
       kind: changed
       links:
-      - name: '#26945'
-        url: https://github.com/apache/airflow/pull/26945
-    - description: Add worker log-groomer-sidecar enable option
-      kind: changed
-      links:
-      - name: '#27178'
-        url: https://github.com/apache/airflow/pull/27178
-    - description: Add HostAliases to Pod template file
-      kind: changed
-      links:
-      - name: '#27544'
-        url: https://github.com/apache/airflow/pull/27544
-    - description: Allow PgBouncer replicas to be configurable
-      kind: changed
-      links:
-      - name: '#27439'
-        url: https://github.com/apache/airflow/pull/27439
-    - description: Create scheduler service to serve task logs for LocalKubernetesExecutor
+      - name: '#29482'
+        url: https://github.com/apache/airflow/pull/29482
+    - description: Add ``config.kubernetes_executor`` to values
       kind: fixed
       links:
-      - name: '#28828'
-        url: https://github.com/apache/airflow/pull/28828
-    - description: Fix NOTES.txt to show correct URL
+      - name: '#29818'
+        url: https://github.com/apache/airflow/pull/29818
+    - description: Block extra properties in image config
       kind: fixed
       links:
-      - name: '#28264'
-        url: https://github.com/apache/airflow/pull/28264
-    - description: Add worker service account for LocalKubernetesExecutor
+      - name: '#30217'
+        url: https://github.com/apache/airflow/pull/30217
+    - description: Remove replicas if KEDA is enabled
       kind: fixed
       links:
-      - name: '#28813'
-        url: https://github.com/apache/airflow/pull/28813
-    - description: Remove checks for 1.19 api checks
+      - name: '#29838'
+        url: https://github.com/apache/airflow/pull/29838
+    - description: Mount ``kerberos.keytab`` to worker when enabled
       kind: fixed
       links:
-      - name: '#28461'
-        url: https://github.com/apache/airflow/pull/28461
-    - description: Add airflow_local_settings to all airflow containers
+      - name: '#29526'
+        url: https://github.com/apache/airflow/pull/29526
+    - description: Fix adding annotations for dag persistence PVC
       kind: fixed
       links:
-      - name: '#27779'
-        url: https://github.com/apache/airflow/pull/27779
-    - description: Make custom env vars optional for job templates
+      - name: '#29622'
+        url: https://github.com/apache/airflow/pull/29622
+    - description: Fix ``bitnami/postgresql`` default username and password
       kind: fixed
       links:
-      - name: '#27148'
-        url: https://github.com/apache/airflow/pull/27148
-    - description: Decrease default gitSync wait
+      - name: '#29478'
+        url: https://github.com/apache/airflow/pull/29478
+    - description: Add global volumes in pod template file
       kind: fixed
       links:
-      - name: '#27625'
-        url: https://github.com/apache/airflow/pull/27625
-    - description: Add ``extraVolumeMounts`` to sidecars too
+      - name: '#29295'
+        url: https://github.com/apache/airflow/pull/29295
+    - description: Add log groomer sidecar to triggerer service
       kind: fixed
       links:
-      - name: '#27420'
-        url: https://github.com/apache/airflow/pull/27420
-    - description: Fix PgBouncer after PostgreSQL subchart upgrade
+      - name: '#29392'
+        url: https://github.com/apache/airflow/pull/29392
+    - description: Helm deployment fails when ``postgresql.nameOverride`` is used
       kind: fixed
       links:
-      - name: '#29207'
-        url: https://github.com/apache/airflow/pull/29207
-    - description: 'Docs: Enhance production guide with a few Argo specific guidelines'
+      - name: '#29214'
+        url: https://github.com/apache/airflow/pull/29214
+    - description: 'Docs: Add gitSync optional env description'
       kind: changed
       links:
-      - name: '#29078'
-        url: https://github.com/apache/airflow/pull/29078
-    - description: 'Docs: Add doc note about Pod template images'
+      - name: '#29378'
+        url: https://github.com/apache/airflow/pull/29378
+    - description: 'Docs: Add webserver NodePort example'
       kind: changed
       links:
-      - name: '#29032'
-        url: https://github.com/apache/airflow/pull/29032
-    - description: 'Docs: Update production guide db section'
+      - name: '#29460'
+        url: https://github.com/apache/airflow/pull/29460
+    - description: 'Docs: Include Rancher in Helm chart install instructions'
       kind: changed
       links:
-      - name: '#28610'
-        url: https://github.com/apache/airflow/pull/28610
-    - description: 'Docs: Fix to LoadBalancer snippet'
+      - name: '#28416'
+        url: https://github.com/apache/airflow/pull/28416
+    - description: 'Docs: Change RSA SSH host key to reflect update from Github'
       kind: changed
       links:
-      - name: '#28014'
-        url: https://github.com/apache/airflow/pull/28014
-    - description: 'Docs: Fix gitSync example code'
+      - name: '#30286'
+        url: https://github.com/apache/airflow/pull/30286
+    - description: 'Misc: Update Airflow version to 2.5.3'
       kind: changed
       links:
-      - name: '#28083'
-        url: https://github.com/apache/airflow/pull/28083
-    - description: 'Docs: Correct repo example for cloning via ssh'
+      - name: '#30411'
+        url: https://github.com/apache/airflow/pull/30411
+    - description: 'Misc: Switch to newer versions of PgBouncer and PgBouncer Exporter
+        in chart'
       kind: changed
       links:
-      - name: '#27671'
-        url: https://github.com/apache/airflow/pull/27671
-    - description: 'Misc: Update Airflow version to 2.5.1'
+      - name: '#29919'
+        url: https://github.com/apache/airflow/pull/29919
+    - description: 'Misc: Reformat chart templates'
       kind: changed
       links:
-      - name: '#29074'
-        url: https://github.com/apache/airflow/pull/29074
-    - description: 'Misc: Update git-sync to 3.6.3'
+      - name: '#29917'
+        url: https://github.com/apache/airflow/pull/29917
+    - description: 'Misc: Reformat chart templates part 2'
       kind: changed
       links:
-      - name: '#27848'
-        url: https://github.com/apache/airflow/pull/27848
-    - description: 'Misc: Upgrade ``bitnami/postgresql`` subchart to 12.1.9'
+      - name: '#29941'
+        url: https://github.com/apache/airflow/pull/29941
+    - description: 'Misc: Reformat chart templates part 3'
       kind: changed
       links:
-      - name: '#29071'
-        url: https://github.com/apache/airflow/pull/29071
-    - description: 'Misc: Update redis to 7'
+      - name: '#30312'
+        url: https://github.com/apache/airflow/pull/30312
+    - description: 'Misc: Replace deprecated k8s registry references'
       kind: changed
       links:
-      - name: '#27443'
-        url: https://github.com/apache/airflow/pull/27443
-    - description: 'Misc: Replace helm chart icon'
+      - name: '#29938'
+        url: https://github.com/apache/airflow/pull/29938
+    - description: 'Misc: Fix ``airflow_dags_mount`` formatting'
       kind: changed
       links:
-      - name: '#27704'
-        url: https://github.com/apache/airflow/pull/27704
+      - name: '#29296'
+        url: https://github.com/apache/airflow/pull/29296
+    - description: 'Misc: Fix ``webserver.service.ports`` formatting'
+      kind: changed
+      links:
+      - name: '#29297'
+        url: https://github.com/apache/airflow/pull/29297

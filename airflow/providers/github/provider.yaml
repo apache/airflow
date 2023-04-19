@@ -28,6 +28,7 @@ dependencies:
   # See https://github.com/PyGithub/PyGithub/issues/2436.
   - PyGithub!=1.58
 
+suspended: false
 versions:
   - 2.2.1
   - 2.2.0

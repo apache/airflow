@@ -93,8 +93,8 @@ class TestDagFileProcessor:
         self.scheduler_job = None
 
     def teardown_method(self) -> None:
-        if self.scheduler_job and self.scheduler_job.processor_agent:
-            self.scheduler_job.processor_agent.end()
+        if self.scheduler_job and self.scheduler_job.job_runner.processor_agent:
+            self.scheduler_job.job_runner.processor_agent.end()
             self.scheduler_job = None
         self.clean_db()
 
@@ -248,9 +248,7 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 1
-        mock_stats_incr.assert_called_with(
-            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
-        )
+        mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
@@ -300,9 +298,7 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 2
-        mock_stats_incr.assert_called_with(
-            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test", "task_id": "dummy"}
-        )
+        mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
 
     @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
@@ -404,15 +400,18 @@ class TestDagFileProcessor:
         sending an email
         """
         session = settings.Session()
+        dag_id = "test_sla_miss"
+        task_id = "test_ti"
+        email = "test@test.com"
 
         # Mock the callback function so we can verify that it was not called
         mock_send_email.side_effect = RuntimeError("Could not send an email")
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
-            dag_id="test_sla_miss",
-            task_id="dummy",
-            email="test@test.com",
+            dag_id=dag_id,
+            task_id=task_id,
+            email=email,
             default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=1)},
         )
         mock_stats_incr.reset_mock()
@@ -420,7 +419,7 @@ class TestDagFileProcessor:
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
+        session.merge(SlaMiss(task_id=task_id, dag_id=dag_id, execution_date=test_start_date))
 
         mock_log = mock.Mock()
         mock_get_log.return_value = mock_log
@@ -428,13 +427,11 @@ class TestDagFileProcessor:
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id=dag_id, session=session)
         mock_log.exception.assert_called_once_with(
-            "Could not send SLA Miss email notification for DAG %s", "test_sla_miss"
+            "Could not send SLA Miss email notification for DAG %s", dag_id
         )
-        mock_stats_incr.assert_called_once_with(
-            "sla_email_notification_failure", tags={"dag_id": "test_sla_miss"}
-        )
+        mock_stats_incr.assert_called_once_with("sla_email_notification_failure", tags={"dag_id": dag_id})
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_deleted_task(self, mock_get_dagbag, create_dummy_dag):

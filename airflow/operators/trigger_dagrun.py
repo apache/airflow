@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import time
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -211,13 +211,16 @@ class TriggerDagRunOperator(BaseOperator):
                     return
 
     @provide_session
-    def execute_complete(self, context: Context, session: Session, **kwargs):
-        parsed_execution_date = context["execution_date"]
+    def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
 
+        # This execution date is parsed from the return trigger event
+        provided_execution_date = event[1]["execution_dates"][0]
         try:
             dag_run = (
                 session.query(DagRun)
-                .filter(DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == parsed_execution_date)
+                .filter(
+                    DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_execution_date
+                )
                 .one()
             )
 

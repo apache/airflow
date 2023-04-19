@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from subprocess import DEVNULL
 
@@ -75,3 +76,8 @@ def run_docker_compose_tests(image_name: str, extra_pytest_args: tuple) -> tuple
         check=False,
     )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
+
+
+def file_name_from_test_type(test_type: str):
+    test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
+    return re.sub("[,.]", "_", test_type_no_brackets)[:30]

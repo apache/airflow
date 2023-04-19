@@ -77,13 +77,22 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.5.2",
+            "default": "2.5.3",
+            "x-docsSection": "Common"
+        },
+        "defaultAirflowDigest": {
+            "description": "Default airflow digest to deploy. Overrides tag.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.5.2",
+            "default": "2.5.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -471,6 +480,14 @@
                         },
                         "tag": {
                             "description": "The airflow image tag.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "digest": {
+                            "description": "The airflow image digest. If set, it will override the tag.",
                             "type": [
                                 "string",
                                 "null"
@@ -891,6 +908,14 @@
                             "type": "string"
                         }
                     },
+                    "annotations": {
+                        "description": "Annotations for the secret",
+                        "type": "object",
+                        "default": null,
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
@@ -923,6 +948,14 @@
                 "properties": {
                     "labels": {
                         "description": "Labels for the configmap",
+                        "type": "object",
+                        "default": null,
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "annotations": {
+                        "description": "Annotations for the configmap",
                         "type": "object",
                         "default": null,
                         "additionalProperties": {
@@ -3178,17 +3211,17 @@
                         "timeoutSeconds": {
                             "description": "Webserver Liveness probe timeout seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 5
                         },
                         "failureThreshold": {
                             "description": "Webserver Liveness probe failure threshold.",
                             "type": "integer",
-                            "default": 20
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Webserver Liveness probe period seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "scheme": {
                             "description": "Webserver Liveness probe scheme.",
@@ -3210,17 +3243,17 @@
                         "timeoutSeconds": {
                             "description": "Webserver Readiness probe timeout seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 5
                         },
                         "failureThreshold": {
                             "description": "Webserver Readiness probe failure threshold.",
                             "type": "integer",
-                            "default": 20
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Webserver Readiness probe period seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "scheme": {
                             "description": "Webserver Readiness probe scheme.",
@@ -4368,6 +4401,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "podAnnotations": {
+                    "description": "Add annotations for the PgBouncer Pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "podDisruptionBudget": {
                     "description": "PgBouncer PodDisruptionBudget.",

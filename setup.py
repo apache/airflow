@@ -301,9 +301,7 @@ ldap = [
 ]
 leveldb = ["plyvel"]
 otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
-pandas = [
-    "pandas>=0.17.1",
-]
+pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
@@ -334,7 +332,7 @@ mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==1.0.0",
+    "mypy==1.2.0",
     "types-boto",
     "types-certifi",
     "types-croniter",
@@ -371,6 +369,7 @@ devel_only = [
     "ipdb",
     "jira",
     "jsondiff",
+    "jsonpath_ng>=1.5.3",
     "mongomock",
     "moto[cloudformation, glue]>=4.0",
     "paramiko",
@@ -412,6 +411,8 @@ aiobotocore = [
 
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
+    if provider_name not in PROVIDER_DEPENDENCIES:
+        return []
     return PROVIDER_DEPENDENCIES[provider_name][DEPS]
 
 
@@ -546,7 +547,7 @@ def add_extras_for_all_deprecated_aliases() -> None:
     for alias, extra in EXTRAS_DEPRECATED_ALIASES.items():
         dependencies = EXTRAS_DEPENDENCIES.get(extra) if extra != "" else []
         if dependencies is None:
-            raise Exception(f"The extra {extra} is missing for deprecated alias {alias}")
+            continue
         EXTRAS_DEPENDENCIES[alias] = dependencies
 
 
@@ -601,6 +602,8 @@ ALL_DB_PROVIDERS = [
 def get_all_db_dependencies() -> list[str]:
     _all_db_reqs: set[str] = set()
     for provider in ALL_DB_PROVIDERS:
+        if provider not in PROVIDER_DEPENDENCIES:
+            continue
         for req in PROVIDER_DEPENDENCIES[provider][DEPS]:
             _all_db_reqs.add(req)
     return list(_all_db_reqs)

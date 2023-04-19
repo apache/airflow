@@ -28,7 +28,6 @@ import NotesAccordion from "src/dag/details/NotesAccordion";
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
-import TaskActions from "./taskActions";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -42,7 +41,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
   const taskInstanceRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(taskInstanceRef);
   const isMapIndexDefined = !(mapIndex === undefined);
-  const actionsMapIndexes = isMapIndexDefined ? [mapIndex] : [];
   const {
     data: { dagRuns, groups },
   } = useGridData();
@@ -74,13 +72,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
 
   const { executionDate } = run;
 
-  let taskActionsTitle = `${isGroup ? "Task Group" : "Task"} Actions`;
-  if (isMapped) {
-    taskActionsTitle += ` for ${actionsMapIndexes.length || "all"} mapped task${
-      actionsMapIndexes.length !== 1 ? "s" : ""
-    }`;
-  }
-
   return (
     <Box
       py="4px"
@@ -108,17 +99,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           key={dagId + runId + taskId + instance.mapIndex}
         />
       )}
-      <Box mb={8}>
-        <TaskActions
-          title={taskActionsTitle}
-          runId={runId}
-          taskId={taskId}
-          dagId={dagId}
-          executionDate={executionDate}
-          mapIndexes={actionsMapIndexes}
-          isGroup={isGroup}
-        />
-      </Box>
       {!isMapped && group.extraLinks && (
         <ExtraLinks
           taskId={taskId}
