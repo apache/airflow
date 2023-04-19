@@ -151,7 +151,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Flex alignItems="center" justifyContent="space-between">
+      <Flex alignItems="center" justifyContent="space-between" ml={6}>
         <Header />
         <Flex>
           {runId && !taskId && (
