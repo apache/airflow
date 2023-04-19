@@ -60,7 +60,7 @@ class MetastoreBackend(BaseSecretsBackend):
         :param key: Variable Key
         :return: Variable Value
         """
-        return MetastoreBackend._fetch_variable(key=key, session=NEW_SESSION)
+        return MetastoreBackend._fetch_variable(key=key, session=session)
 
     @staticmethod
     @internal_api_call

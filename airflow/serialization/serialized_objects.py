@@ -478,6 +478,8 @@ class BaseSerialization:
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
+        elif isinstance(var, Connection):
+            return cls._encode(var.to_dict(), type_=DAT.CONNECTION)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if isinstance(var, Job):
                 return cls._encode(JobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
