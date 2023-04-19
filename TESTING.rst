@@ -297,11 +297,17 @@ In case of Providers tests, you can run tests for all providers
 
     breeze testing tests --test-type Providers
 
-You can also limit the set of providers you would like to run tests of
+You can limit the set of providers you would like to run tests of
 
 .. code-block:: bash
 
     breeze testing tests --test-type "Providers[airbyte,http]"
+
+You can also run all providers but exclude the providers you would like to skip
+
+.. code-block:: bash
+
+    breeze testing tests --test-type "Providers[-amazon,google]"
 
 
 Running full Airflow unit test suite in parallel
