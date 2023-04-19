@@ -58,7 +58,7 @@ class TestRedshiftCreateClusterTrigger:
     @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
     async def test_redshift_create_cluster_trigger_run(self, mock_async_conn):
         mock = async_mock.MagicMock()
-        mock_async_conn().__aenter__.return_value = mock
+        mock_async_conn.__aenter__.return_value = mock
         mock.get_waiter().wait = AsyncMock()
 
         redshift_create_cluster_trigger = RedshiftCreateClusterTrigger(
