@@ -60,7 +60,7 @@ Writing to task logs from your code
 Airflow uses standard the Python `logging <https://docs.python.org/3/library/logging.html>`_ framework to
 write logs, and for the duration of a task, the root logger is configured to write to the task's log.
 
-Most operators will write logs to the task log automatically. This is because they derive from they
+Most operators will write logs to the task log automatically. This is because they
 have a ``log`` logger that you can use to write to the task log.
 This logger is created and configured by :class:`~airflow.utils.log.LoggingMixin` that all
 operators derive from. But also due the root logger handling, any standard logger that (default setting)
