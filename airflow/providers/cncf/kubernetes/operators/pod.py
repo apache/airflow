@@ -366,7 +366,7 @@ class KubernetesPodOperator(BaseOperator):
             warnings.warn(
                 "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
             )
-            self.skip_on_exit_code = skip_exit_code
+            self.skip_on_exit_code: int | None = skip_exit_code
         else:
             self.skip_on_exit_code = skip_on_exit_code
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
