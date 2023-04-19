@@ -73,10 +73,7 @@ So if you want to log to the task log from a custom code of yours you can do the
 * use the standard logger approach of creating a logger using python module name
   and using it to write to the task log
 
-The last option is the most flexible, as you can create your own logger and configure it as you see fit
-via advanced configuration options below.
-
-Using task logger directly:
+This is the usual way loggers are used directly in Python code:
 
 .. code-block:: python
 
