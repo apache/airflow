@@ -54,6 +54,39 @@ These patterns can be adjusted by :ref:`config:logging__log_filename_template`.
 
 In addition, you can supply a remote location to store current logs and backups.
 
+Writing to task logs from your code
+-----------------------------------
+
+Most operators will write logs to the task log automatically. This is because they derive from they
+have a ``log`` logger that you can use to write to the task log.
+This logger is created and configured by :class:`~airflow.utils.log.LoggingMixin` that all classic
+operators derive from.
+
+If you want to log to the task log from a custom class of yours you can do the following:
+
+* make sure your class extends from :class:`~airflow.utils.log.LoggingMixin`
+* just use standard print statements to print to stdout
+* use the ``airflow.task`` logger that is configured by default or create logger where ``airflow.task`` is
+  the parent logger
+
+The last option is the most flexible, as you can create your own logger and configure it as you see fit
+via advanced configuration options below.
+
+Using task logger directly:
+
+.. code-block:: python
+
+  logger = logging.getLogger("airflow.task")
+  logger.info("This is a log message")
+
+Using child logger of task logger:
+
+.. code-block:: python
+
+  child_logger = logging.getLogger("airflow.task.child")
+  child_logger.info("This is a child log message")
+
+
 Interleaving of logs
 --------------------
 
