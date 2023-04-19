@@ -253,11 +253,6 @@ class EmrServerlessHook(AwsBaseHook):
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
 
-    @property
-    def conn(self):
-        """Get the underlying boto3 EmrServerlessAPIService client (cached)"""
-        return super().conn
-
     # This method should be replaced with boto waiters which would implement timeouts and backoff nicely.
     def waiter(
         self,
