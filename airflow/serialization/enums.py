@@ -56,3 +56,4 @@ class DagAttributeTypes(str, Enum):
     DAG_RUN = "dag_run"
     DATA_SET = "data_set"
     ARG_NOT_SET = "arg_not_set"
+    CONNECTION = "connection"

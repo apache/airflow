@@ -39,6 +39,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DagModel
     from airflow.models.dagwarning import DagWarning
+    from airflow.secrets.metastore import MetastoreBackend
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
@@ -48,6 +49,8 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_paused_dag_ids,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        MetastoreBackend._fetch_connection,
+        MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
         XCom.get_many,
