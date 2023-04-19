@@ -584,6 +584,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
             Stats.gauge(f"pool.starving_tasks.{pool_name}", num_starving_tasks)
+            # Same metric with tagging
+            Stats.gauge("pool.starving_tasks", num_starving_tasks, tags={"pool_name": pool_name})
 
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
@@ -1561,7 +1563,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
-            # tagged metrics
+            # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
