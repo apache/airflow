@@ -213,7 +213,7 @@ class KubernetesPodOperator(BaseOperator):
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
-    :param skip_exit_code: If task exits with this exit code, leave the task
+    :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     :param base_container_name: The name of the base container in the pod. This container's logs
@@ -292,6 +292,7 @@ class KubernetesPodOperator(BaseOperator):
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
         skip_exit_code: int | None = None,
+        skip_on_exit_code: int | None = None,
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
@@ -361,7 +362,13 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
-        self.skip_exit_code = skip_exit_code
+        if skip_exit_code is not None:
+            warnings.warn(
+                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
+            )
+            self.skip_on_exit_code: int | None = skip_exit_code
+        else:
+            self.skip_on_exit_code = skip_on_exit_code
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.deferrable = deferrable
         self.poll_interval = poll_interval
@@ -675,7 +682,7 @@ class KubernetesPodOperator(BaseOperator):
 
             error_message = get_container_termination_message(remote_pod, self.base_container_name)
             error_message = "\n" + error_message if error_message else ""
-            if self.skip_exit_code is not None:
+            if self.skip_on_exit_code is not None:
                 container_statuses = (
                     remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
                 ) or []
@@ -689,9 +696,10 @@ class KubernetesPodOperator(BaseOperator):
                     and base_container_status.last_state.terminated
                     else None
                 )
-                if exit_code == self.skip_exit_code:
+                if exit_code == self.skip_on_exit_code:
                     raise AirflowSkipException(
-                        f"Pod {pod and pod.metadata.name} returned exit code {self.skip_exit_code}. Skipping."
+                        f"Pod {pod and pod.metadata.name} returned exit code "
+                        f"{self.skip_on_exit_code}. Skipping."
                     )
             raise AirflowException(
                 f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"

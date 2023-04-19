@@ -516,9 +516,9 @@ class TestDockerOperator:
         "extra_kwargs, actual_exit_code, expected_exc",
         [
             (None, 99, AirflowException),
-            ({"skip_exit_code": 100}, 100, AirflowSkipException),
-            ({"skip_exit_code": 100}, 101, AirflowException),
-            ({"skip_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
         ],
     )
     def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
