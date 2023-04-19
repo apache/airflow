@@ -798,17 +798,6 @@ class TestAwsBaseHook:
         assert isinstance(conn_config_empty, AwsConnectionWrapper)
         assert not conn_config_empty
 
-    def test_conn_config_conn_id_not_exists(self):
-        """Test fallback connection config if aws_conn_id not exists."""
-        warning_message = (
-            r"Unable to find AWS Connection ID '.*', switching to empty\. "
-            r"This behaviour is deprecated and will be removed in a future releases"
-        )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            conn_config_fallback_not_exists = AwsBaseHook(aws_conn_id="aws-conn-not-exists").conn_config
-        assert isinstance(conn_config_fallback_not_exists, AwsConnectionWrapper)
-        assert not conn_config_fallback_not_exists
-
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     @pytest.mark.parametrize("hook_region_name", [None, "eu-west-1"])
     @pytest.mark.parametrize(
@@ -831,26 +820,6 @@ class TestAwsBaseHook:
         )
         assert mock_session_factory_instance.create_session.assert_called_once
         assert session == MOCK_BOTO3_SESSION
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.get_session",
-        return_value=MOCK_BOTO3_SESSION,
-    )
-    @pytest.mark.parametrize("region_name", [None, "aws-global", "eu-west-1"])
-    def test_deprecate_private_method__get_credentials(self, mock_boto3_session, region_name):
-        """Test deprecated method AwsGenericHook._get_credentials."""
-        hook = AwsBaseHook(aws_conn_id=None)
-        warning_message = (
-            r"`AwsGenericHook._get_credentials` method deprecated and will be removed in a future releases\. "
-            r"Please use `AwsGenericHook.get_session` method and "
-            r"`AwsGenericHook.conn_config.endpoint_url` property instead\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            session, endpoint = hook._get_credentials(region_name)
-
-        mock_boto3_session.assert_called_once_with(region_name=region_name)
-        assert session == MOCK_BOTO3_SESSION
-        assert endpoint == hook.conn_config.endpoint_url
 
     @pytest.mark.parametrize("verify", [None, "path/to/cert/hook-bundle.pem", False])
     @pytest.mark.parametrize("conn_verify", [None, "path/to/cert/conn-bundle.pem", False])
