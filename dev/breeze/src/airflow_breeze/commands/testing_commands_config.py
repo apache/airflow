@@ -46,7 +46,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
-                "--full-tests-needed",
             ],
         },
         {
