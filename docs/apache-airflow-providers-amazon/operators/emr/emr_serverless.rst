@@ -61,6 +61,20 @@ start an EMR Serverless Job.
    :start-after: [START howto_operator_emr_serverless_start_job]
    :end-before: [END howto_operator_emr_serverless_start_job]
 
+.. _howto/operator:EmrServerlessStopApplicationOperator:
+
+Stop an EMR Serverless Application
+==================================
+
+You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStopApplicationOperator` to
+stop an EMR Serverless Application.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_stop_application]
+   :end-before: [END howto_operator_emr_serverless_stop_application]
+
 .. _howto/operator:EmrServerlessDeleteApplicationOperator:
 
 Delete an EMR Serverless Application
