@@ -106,9 +106,9 @@ class KubernetesPodTrigger(BaseTrigger):
             self.on_finish_action = (
                 OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
             )
+            self.should_delete_pod = should_delete_pod
         else:
             self.on_finish_action = OnFinishAction(on_finish_action)
-            # for b/c, we need to set this property as well
             self.should_delete_pod = self.on_finish_action == OnFinishAction.DELETE_POD
 
         self._hook: AsyncKubernetesHook | None = None
