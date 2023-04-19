@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import shutil
 import warnings
-from typing import Sequence
+from typing import Container, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -143,7 +143,7 @@ class BashOperator(BaseOperator):
         append_env: bool = False,
         output_encoding: str = "utf-8",
         skip_exit_code: int | None = None,
-        skip_on_exit_code: int = 99,
+        skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
         **kwargs,
     ) -> None:
@@ -155,9 +155,14 @@ class BashOperator(BaseOperator):
             warnings.warn(
                 "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
             )
-            self.skip_on_exit_code = skip_exit_code
-        else:
-            self.skip_on_exit_code = skip_on_exit_code
+            skip_on_exit_code = skip_exit_code
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
         self.cwd = cwd
         self.append_env = append_env
 
@@ -199,7 +204,7 @@ class BashOperator(BaseOperator):
             output_encoding=self.output_encoding,
             cwd=self.cwd,
         )
-        if self.skip_on_exit_code is not None and result.exit_code == self.skip_on_exit_code:
+        if self.skip_on_exit_code is not None and result.exit_code in self.skip_on_exit_code:
             raise AirflowSkipException(f"Bash command returned exit code {self.skip_on_exit_code}. Skipping.")
         elif result.exit_code != 0:
             raise AirflowException(
