@@ -237,6 +237,7 @@ class ClusterGenerator:
         )
 
     def _build_gce_cluster_config(self, cluster_data):
+        # This variable is created since same string was being used multiple times
         config = "gce_cluster_config"
         if self.zone:
             zone_uri = f"https://www.googleapis.com/compute/v1/projects/{self.project_id}/zones/{self.zone}"
@@ -268,6 +269,7 @@ class ClusterGenerator:
         return cluster_data
 
     def _build_lifecycle_config(self, cluster_data):
+        # This variable is created since same string was being used multiple times
         lifecycle_config = "lifecycle_config"
         if self.idle_delete_ttl:
             cluster_data[lifecycle_config]["idle_delete_ttl"] = {"seconds": self.idle_delete_ttl}
@@ -410,7 +412,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     for a detailed explanation on the different parameters. Most of the configuration
     parameters detailed in the link are available as a parameter to this operator.
 
-    .. see also::
+    .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataprocCreateClusterOperator`
 
@@ -680,7 +682,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
                 graceful_decommission_timeout='1h',
                 dag=dag)
 
-    .. see also::
+    .. seealso::
         For more detail on about scaling clusters have a look at the reference:
         https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/scaling-clusters
 
@@ -1131,7 +1133,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
                 variables={'out': 'gs://example/output/{{ds}}'},
                 dag=dag)
 
-    .. see also::
+    .. seealso::
         For more detail on about job submission have a look at the reference:
         https://cloud.google.com/dataproc/reference/rest/v1/projects.regions.jobs
 
@@ -1687,7 +1689,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
     until the WorkflowTemplate is finished executing.
 
-    .. see also::
+    .. seealso::
         Please refer to:
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.workflowTemplates/instantiate
 
@@ -1815,7 +1817,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
     wait until the WorkflowTemplate is finished executing.
 
-    .. see also::
+    .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator`
 
