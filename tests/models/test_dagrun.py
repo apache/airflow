@@ -854,6 +854,7 @@ class TestDagRun:
         """
         dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule_interval)
         dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
+        expected_stat_tags = {"dag_id": f"{dag.dag_id}", "run_type": DagRunType.SCHEDULED}
 
         try:
             info = dag.next_dagrun_info(None)
@@ -888,12 +889,9 @@ class TestDagRun:
 
             if expected:
                 true_delay = ti.start_date - dag_run.data_interval_end
-                sched_delay_stat_call = call(
-                    metric_name,
-                    true_delay,
-                )
+                sched_delay_stat_call = call(metric_name, true_delay, tags=expected_stat_tags)
                 sched_delay_stat_call_with_tags = call(
-                    "dagrun.first_task_scheduling_delay", true_delay, tags={"dag_id": f"{dag.dag_id}"}
+                    "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
                 )
                 assert (
                     sched_delay_stat_call in stats_mock.mock_calls
@@ -940,6 +938,7 @@ class TestDagRun:
 @mock.patch.object(Stats, "incr")
 def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type, expected_tis):
     """Test that tasks with specific dates are only created for backfill runs"""
+
     with DAG("test", start_date=DEFAULT_DATE) as dag:
         EmptyOperator(task_id="without")
         EmptyOperator(task_id="with_start_date", start_date=DEFAULT_DATE + datetime.timedelta(1))
@@ -960,7 +959,9 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
     tis = dag_run.task_instances
     assert len(tis) == expected_tis
 
-    Stats_incr.assert_called_with("task_instance_created-EmptyOperator", expected_tis)
+    Stats_incr.assert_called_with(
+        "task_instance_created-EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+    )
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
