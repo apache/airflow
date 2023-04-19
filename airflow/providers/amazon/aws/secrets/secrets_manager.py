@@ -267,23 +267,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         else:
             return secret
 
-    def get_conn_uri(self, conn_id: str) -> str | None:
-        """
-        Return URI representation of Connection conn_id.
-
-        As of Airflow version 2.3.0 this method is deprecated.
-
-        :param conn_id: the connection id
-        :return: deserialized Connection
-        """
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release. Please use method `get_conn_value` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get_conn_value(conn_id)
-
     def get_variable(self, key: str) -> str | None:
         """
         Get Airflow Variable

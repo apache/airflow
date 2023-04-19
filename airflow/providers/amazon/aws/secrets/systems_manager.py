@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import re
-import warnings
 
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -142,26 +141,6 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern)
-
-    def get_conn_uri(self, conn_id: str) -> str | None:
-        """
-        Return URI representation of Connection conn_id.
-
-        As of Airflow version 2.3.0 this method is deprecated.
-
-        :param conn_id: the connection id
-        """
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release. Please use method `get_conn_value` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        value = self.get_conn_value(conn_id)
-        if value is None:
-            return None
-
-        return self.deserialize_connection(conn_id, value).get_uri()
 
     def get_variable(self, key: str) -> str | None:
         """

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
 
 from bson import json_util
@@ -29,11 +28,6 @@ from airflow.providers.mongo.hooks.mongo import MongoHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-_DEPRECATION_MSG = (
-    "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
-)
 
 
 class MongoToS3Operator(BaseOperator):
@@ -66,7 +60,6 @@ class MongoToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_conn_id: str | None = None,
         mongo_conn_id: str = "mongo_default",
         aws_conn_id: str = "aws_default",
         mongo_collection: str,
@@ -81,10 +74,6 @@ class MongoToS3Operator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if s3_conn_id:
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            aws_conn_id = s3_conn_id
-
         self.mongo_conn_id = mongo_conn_id
         self.aws_conn_id = aws_conn_id
         self.mongo_db = mongo_db

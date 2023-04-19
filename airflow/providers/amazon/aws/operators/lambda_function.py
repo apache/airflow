@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.compat.functools import cached_property
@@ -195,21 +194,3 @@ class LambdaInvokeFunctionOperator(BaseOperator):
             )
         self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
         return payload
-
-
-class AwsLambdaInvokeFunctionOperator(LambdaInvokeFunctionOperator):
-    """
-    This class is deprecated.
-    Please use
-    :class:`airflow.providers.amazon.aws.operators.lambda_function.LambdaInvokeFunctionOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated."
-            "Please use"
-            "`airflow.providers.amazon.aws.operators.lambda_function.LambdaInvokeFunctionOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import re
 import sys
-import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Sequence
 
@@ -29,14 +28,12 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-
-# TODO: Remove the following import when EcsProtocol and EcsTaskLogFetcher deprecations are removed.
-from airflow.providers.amazon.aws.hooks import ecs
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
     EcsTaskDefinitionStates,
+    EcsTaskLogFetcher,
     should_retry_eni,
 )
 from airflow.utils.helpers import prune_dict
@@ -620,13 +617,12 @@ class EcsRunTaskOperator(EcsBaseOperator):
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
-    # TODO: When the deprecation wrapper below is removed, please fix the following return type hint.
-    def _get_task_log_fetcher(self) -> ecs.EcsTaskLogFetcher:
+    def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
         if not self.awslogs_group:
             raise ValueError("must specify awslogs_group to fetch task logs")
         log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
 
-        return ecs.EcsTaskLogFetcher(
+        return EcsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
             log_group=self.awslogs_group,
@@ -696,53 +692,3 @@ class EcsRunTaskOperator(EcsBaseOperator):
             cluster=self.cluster, task=self.arn, reason="Task killed by the user"
         )
         self.log.info(response)
-
-
-class EcsOperator(EcsRunTaskOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EcsTaskLogFetcher(ecs.EcsTaskLogFetcher):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher`.
-    """
-
-    # TODO: Note to deprecator, Be sure to fix the use of `ecs.EcsTaskLogFetcher`
-    #       in the Operators above when you remove this wrapper class.
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EcsProtocol(ecs.EcsProtocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.ecs.EcsProtocol`.
-    """
-
-    # TODO: Note to deprecator, Be sure to fix the use of `ecs.EcsProtocol`
-    #       in the Operators above when you remove this wrapper class.
-    def __init__(self):
-        warnings.warn(
-            "This class is deprecated.  Please use `airflow.providers.amazon.aws.hooks.ecs.EcsProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
