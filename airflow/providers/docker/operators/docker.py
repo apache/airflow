@@ -112,6 +112,7 @@ class DockerOperator(BaseOperator):
     :param tls_client_cert: Path to the PEM-encoded certificate
         used to authenticate docker client.
     :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
+    :param tls_verify: Set ``True`` to verify the validity of the provided certificate.
     :param tls_hostname: Hostname to match against
         the docker server certificate or False to disable the check.
     :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
@@ -154,7 +155,7 @@ class DockerOperator(BaseOperator):
         If rolling the logs creates excess files, the oldest file is removed.
         Only effective when max-size is also set. A positive integer. Defaults to 1.
     :param ipc_mode: Set the IPC mode for the container.
-    :param skip_exit_code: If task exits with this exit code, leave the task
+    :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     """
@@ -186,6 +187,7 @@ class DockerOperator(BaseOperator):
         tls_ca_cert: str | None = None,
         tls_client_cert: str | None = None,
         tls_client_key: str | None = None,
+        tls_verify: bool = True,
         tls_hostname: str | bool | None = None,
         tls_ssl_version: str | None = None,
         mount_tmp_dir: bool = True,
@@ -213,6 +215,7 @@ class DockerOperator(BaseOperator):
         log_opts_max_file: str | None = None,
         ipc_mode: str | None = None,
         skip_exit_code: int | None = None,
+        skip_on_exit_code: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -248,6 +251,7 @@ class DockerOperator(BaseOperator):
         self.tls_ca_cert = tls_ca_cert
         self.tls_client_cert = tls_client_cert
         self.tls_client_key = tls_client_key
+        self.tls_verify = tls_verify
         self.tls_hostname = tls_hostname
         self.tls_ssl_version = tls_ssl_version
         self.mount_tmp_dir = mount_tmp_dir
@@ -273,7 +277,13 @@ class DockerOperator(BaseOperator):
         self.log_opts_max_size = log_opts_max_size
         self.log_opts_max_file = log_opts_max_file
         self.ipc_mode = ipc_mode
-        self.skip_exit_code = skip_exit_code
+        if skip_exit_code is not None:
+            warnings.warn(
+                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
+            )
+            self.skip_on_exit_code: int | None = skip_exit_code
+        else:
+            self.skip_on_exit_code = skip_on_exit_code
 
     @cached_property
     def hook(self) -> DockerHook:
@@ -282,6 +292,7 @@ class DockerOperator(BaseOperator):
             ca_cert=self.tls_ca_cert,
             client_cert=self.tls_client_cert,
             client_key=self.tls_client_key,
+            verify=self.tls_verify,
             assert_hostname=self.tls_hostname,
             ssl_version=self.tls_ssl_version,
         )
@@ -373,9 +384,9 @@ class DockerOperator(BaseOperator):
                 self.log.info("%s", log_chunk)
 
             result = self.cli.wait(self.container["Id"])
-            if result["StatusCode"] == self.skip_exit_code:
+            if result["StatusCode"] == self.skip_on_exit_code:
                 raise AirflowSkipException(
-                    f"Docker container returned exit code {self.skip_exit_code}. Skipping."
+                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
                 )
             elif result["StatusCode"] != 0:
                 joined_log_lines = "\n".join(log_lines)

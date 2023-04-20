@@ -28,7 +28,7 @@ Airflow provides operators to run Task Definitions on an ECS cluster.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

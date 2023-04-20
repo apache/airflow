@@ -29,7 +29,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.microsoft.azure.sensors.wasb import (
-    WasbBlobAsyncSensor,
     WasbBlobSensor,
     WasbPrefixSensor,
 )
@@ -120,11 +119,12 @@ class TestWasbBlobAsyncSensor:
             "logical_date": execution_date,
         }
 
-    SENSOR = WasbBlobAsyncSensor(
+    SENSOR = WasbBlobSensor(
         task_id="wasb_blob_async_sensor",
         container_name=TEST_DATA_STORAGE_CONTAINER_NAME,
         blob_name=TEST_DATA_STORAGE_BLOB_NAME,
         timeout=5,
+        deferrable=True,
     )
 
     def test_wasb_blob_sensor_async(self):

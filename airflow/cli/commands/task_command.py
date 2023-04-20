@@ -37,7 +37,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
@@ -248,7 +248,8 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_local_task_job(args, ti: TaskInstance) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
-    local_task_job_runner = LocalTaskJobRunner(
+    job_runner = LocalTaskJobRunner(
+        job=Job(dag_id=ti.dag_id),
         task_instance=ti,
         mark_success=args.mark_success,
         pickle_id=args.pickle,
@@ -260,12 +261,8 @@ def _run_task_by_local_task_job(args, ti: TaskInstance) -> TaskReturnCode | None
         pool=args.pool,
         external_executor_id=_extract_external_executor_id(args),
     )
-    run_job = Job(
-        job_runner=local_task_job_runner,
-        dag_id=ti.dag_id,
-    )
     try:
-        ret = run_job.run()
+        ret = run_job(job=job_runner.job, execute_callable=job_runner._execute)
     finally:
         if args.shut_down_logging:
             logging.shutdown()

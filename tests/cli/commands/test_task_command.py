@@ -246,7 +246,7 @@ class TestCliTasks:
             assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
-    def test_run_with_existing_dag_run_id(self, mock_local_job):
+    def test_run_with_existing_dag_run_id(self, mock_local_job_runner):
         """
         Test that we can run with existing dag_run_id
         """
@@ -260,9 +260,10 @@ class TestCliTasks:
             task0_id,
             self.run_id,
         ]
-        mock_local_job.return_value.job_type = "LocalTaskJob"
+        mock_local_job_runner.return_value.job_type = "LocalTaskJob"
         task_command.task_run(self.parser.parse_args(args0), dag=self.dag)
-        mock_local_job.assert_called_once_with(
+        mock_local_job_runner.assert_called_once_with(
+            job=mock.ANY,
             task_instance=mock.ANY,
             mark_success=False,
             ignore_all_deps=True,
@@ -646,6 +647,7 @@ class TestLogsfromTaskRunCommand:
 
         task_command.task_run(args)
         mock_local_job.assert_called_once_with(
+            job=mock.ANY,
             task_instance=mock.ANY,
             mark_success=False,
             pickle_id=None,
@@ -667,6 +669,7 @@ class TestLogsfromTaskRunCommand:
         with mock.patch.dict(os.environ, {"external_executor_id": "12345FEDCBA"}):
             task_command.task_run(args)
             mock_local_job.assert_called_once_with(
+                job=mock.ANY,
                 task_instance=mock.ANY,
                 mark_success=False,
                 pickle_id=None,

@@ -23,7 +23,7 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job
 
 # Setup environment before any Airflow import
 DAG_FOLDER = os.path.join(os.path.dirname(__file__), "dags")
@@ -124,7 +124,8 @@ def run_scheduler_job(with_db_reset=False) -> None:
 
     if with_db_reset:
         reset_db()
-    Job(job_runner=SchedulerJobRunner(subdir=DAG_FOLDER, do_pickle=False, num_runs=3)).run()
+    job_runner = SchedulerJobRunner(job=Job(), subdir=DAG_FOLDER, do_pickle=False, num_runs=3)
+    run_job(job=job_runner.job, execute_callable=job_runner._execute)
 
 
 def is_query(line: str) -> bool:

@@ -74,6 +74,7 @@ from airflow.exceptions import (
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
+from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
 from airflow.models.dagcode import DagCode
@@ -98,7 +99,6 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -1341,9 +1341,7 @@ class DAG(LoggingMixin):
                     callback(context)
                 except Exception:
                     self.log.exception("failed to invoke dag state update callback")
-                    Stats.incr(
-                        "dag.callback_exceptions", tags={"dag_id": dagrun.dag_id, "run_id": dagrun.run_id}
-                    )
+                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dagrun.dag_id})
 
     def get_active_runs(self):
         """
@@ -2467,28 +2465,27 @@ class DAG(LoggingMixin):
             executor = ExecutorLoader.get_default_executor()
         from airflow.jobs.job import Job
 
-        job = Job(
-            job_runner=BackfillJobRunner(
-                self,
-                start_date=start_date,
-                end_date=end_date,
-                mark_success=mark_success,
-                donot_pickle=donot_pickle,
-                ignore_task_deps=ignore_task_deps,
-                ignore_first_depends_on_past=ignore_first_depends_on_past,
-                pool=pool,
-                delay_on_limit_secs=delay_on_limit_secs,
-                verbose=verbose,
-                conf=conf,
-                rerun_failed_tasks=rerun_failed_tasks,
-                run_backwards=run_backwards,
-                run_at_least_once=run_at_least_once,
-                continue_on_failures=continue_on_failures,
-                disable_retry=disable_retry,
-            ),
-            executor=executor,
+        job = Job(executor=executor)
+        job_runner = BackfillJobRunner(
+            job=job,
+            dag=self,
+            start_date=start_date,
+            end_date=end_date,
+            mark_success=mark_success,
+            donot_pickle=donot_pickle,
+            ignore_task_deps=ignore_task_deps,
+            ignore_first_depends_on_past=ignore_first_depends_on_past,
+            pool=pool,
+            delay_on_limit_secs=delay_on_limit_secs,
+            verbose=verbose,
+            conf=conf,
+            rerun_failed_tasks=rerun_failed_tasks,
+            run_backwards=run_backwards,
+            run_at_least_once=run_at_least_once,
+            continue_on_failures=continue_on_failures,
+            disable_retry=disable_retry,
         )
-        job.run()
+        run_job(job=job, execute_callable=job_runner._execute)
 
     def cli(self):
         """Exposes a CLI specific to this DAG"""
@@ -2790,7 +2787,10 @@ class DAG(LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
-            orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
+            orm_dag.has_task_concurrency_limits = any(
+                t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
+                for t in dag.tasks
+            )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
@@ -2991,12 +2991,13 @@ class DAG(LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_num_task_instances(dag_id, task_ids=None, states=None, session=NEW_SESSION) -> int:
+    def get_num_task_instances(dag_id, run_id=None, task_ids=None, states=None, session=NEW_SESSION) -> int:
         """
         Returns the number of task instances in the given DAG.
 
         :param session: ORM session
         :param dag_id: ID of the DAG to get the task concurrency of
+        :param run_id: ID of the DAG run to get the task concurrency of
         :param task_ids: A list of valid task IDs for the given DAG
         :param states: A list of states to filter by if supplied
         :return: The number of running tasks
@@ -3004,6 +3005,10 @@ class DAG(LoggingMixin):
         qry = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == dag_id,
         )
+        if run_id:
+            qry = qry.filter(
+                TaskInstance.run_id == run_id,
+            )
         if task_ids:
             qry = qry.filter(
                 TaskInstance.task_id.in_(task_ids),
@@ -3375,9 +3380,8 @@ class DagModel(Base):
 
         dag_models = session.query(cls).all()
         for dag_model in dag_models:
-            if dag_model.fileloc is not None:
-                if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
-                    dag_model.is_active = False
+            if dag_model.fileloc is not None and dag_model.fileloc not in alive_dag_filelocs:
+                dag_model.is_active = False
             else:
                 continue
 

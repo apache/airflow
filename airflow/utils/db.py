@@ -1161,7 +1161,7 @@ def _create_table_as(
     if dialect_name == "mssql":
         cte = source_query.cte("source")
         moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
-        ins = moved_data_tbl.insert().from_select(list(cte.columns), select([cte]))
+        ins = moved_data_tbl.insert().from_select(list(cte.columns), select(cte))
 
         stmt = ins.compile(bind=session.get_bind())
         cte_sql = stmt.ctes[cte]
@@ -1200,7 +1200,7 @@ def _move_dangling_data_to_new_table(
 
     target_table = source_table.to_metadata(source_table.metadata, name=target_table_name)
     log.debug("checking whether rows were moved for table %s", target_table_name)
-    moved_rows_exist_query = select([1]).select_from(target_table).limit(1)
+    moved_rows_exist_query = select(1).select_from(target_table).limit(1)
     first_moved_row = session.execute(moved_rows_exist_query).all()
     session.commit()
 

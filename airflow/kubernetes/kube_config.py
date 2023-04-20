@@ -71,13 +71,6 @@ class KubeConfig:
         # interact with cluster components.
         self.executor_namespace = conf.get(self.kubernetes_section, "namespace")
 
-        self.worker_pods_pending_timeout = conf.getint(self.kubernetes_section, "worker_pods_pending_timeout")
-        self.worker_pods_pending_timeout_check_interval = conf.getint(
-            self.kubernetes_section, "worker_pods_pending_timeout_check_interval"
-        )
-        self.worker_pods_pending_timeout_batch_size = conf.getint(
-            self.kubernetes_section, "worker_pods_pending_timeout_batch_size"
-        )
         self.worker_pods_queued_check_interval = conf.getint(
             self.kubernetes_section, "worker_pods_queued_check_interval"
         )

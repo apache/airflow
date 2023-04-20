@@ -905,6 +905,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 schema: dict[str, list] = hook.get_schema(
                     dataset_id=self.dataset_id,
                     table_id=self.table_id,
+                    project_id=self.project_id,
                 )
                 if "fields" in schema:
                     self.selected_fields = ",".join([field["name"] for field in schema["fields"]])

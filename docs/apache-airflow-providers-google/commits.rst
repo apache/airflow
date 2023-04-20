@@ -43,6 +43,8 @@ Latest change: 2023-04-09
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`18ec7f2723 <https://github.com/apache/airflow/commit/18ec7f272356d84ffd145fe3be5ba1d0ff3d50fd>`_  2023-04-10   ``Fix one more dynamic import needed for vendored-in google ads (#30564)``
+`874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
 `71db47a73d <https://github.com/apache/airflow/commit/71db47a73d741015d8ffeaa2276635f19d51f8e7>`_  2023-04-09   ``Update DV360 operators to use API v2 (#30326)``
 `3d2c96e3f5 <https://github.com/apache/airflow/commit/3d2c96e3f5d238955bccba190726d0fba860eb7a>`_  2023-04-08   ``Add deferrable mode to GKEStartPodOperator (#29266)``
 `4703f9a0e5 <https://github.com/apache/airflow/commit/4703f9a0e589557f5176a6f466ae83fe52644cf6>`_  2023-04-08   ``BigQueryHook list_rows/get_datasets_list can return iterator (#30543)``
