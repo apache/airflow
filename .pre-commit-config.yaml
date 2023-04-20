@@ -943,4 +943,11 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-tests-unittest-testcase
+        name: Check that unit tests are not inheriting from unittest.TestCase
+        entry: ./scripts/ci/pre_commit/pre_commit_unittest_testcase.py
+        language: python
+        pass_filenames: true
+        files: ^tests/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
