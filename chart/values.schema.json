@@ -1761,6 +1761,30 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the Airflow workers log groomer sidecar. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the Airflow workers log groomer sidecar.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     }
                 },
@@ -2244,6 +2268,30 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the log groomer sidecar. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the log groomer sidecar.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     }
                 },
@@ -2692,6 +2740,48 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the triggerer. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the triggerer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the triggerer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "logGroomerSidecar": {
+                    "$ref": "#/definitions/logGroomerConfigType",
+                    "description": "Configuration for log groomer sidecar"
                 },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
@@ -4921,7 +5011,7 @@
                     ]
                 }
                 "securityContext": {
-                    "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",
+                    "description": "Security context for the StatsD pod. If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -4931,6 +5021,153 @@
                             "runAsGroup": 0,
                             "fsGroup": 0
                         }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the statsd. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the statsd.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the statsd.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the StatsD pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "annotations": {
+                    "description": "Annotations to add to the StatsD deployment.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "args": {
+                    "description": "Args to use when running statsd-exporter (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+                    ]
+                }
+                "securityContext": {
+                    "description": "Security context for the StatsD pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the statsd. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the statsd.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the statsd.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the StatsD pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "annotations": {
+                    "description": "Annotations to add to the StatsD deployment.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "args": {
+                    "description": "Args to use when running statsd-exporter (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
                     ]
                 }
             }
