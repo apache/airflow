@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+5.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's param ``delegate_to`` is removed from ``GCSToPrestoOperator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
 4.3.2
 .....
 

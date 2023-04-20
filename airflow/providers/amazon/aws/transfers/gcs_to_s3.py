@@ -44,9 +44,6 @@ class GCSToS3Operator(BaseOperator):
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param dest_aws_conn_id: The destination S3 connection
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)
     :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
@@ -97,7 +94,6 @@ class GCSToS3Operator(BaseOperator):
         prefix: str | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         dest_aws_conn_id: str = "aws_default",
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
@@ -114,7 +110,6 @@ class GCSToS3Operator(BaseOperator):
         self.prefix = prefix
         self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.dest_aws_conn_id = dest_aws_conn_id
         self.dest_s3_key = dest_s3_key
         self.dest_verify = dest_verify
@@ -128,7 +123,6 @@ class GCSToS3Operator(BaseOperator):
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 
