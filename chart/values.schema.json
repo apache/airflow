@@ -4602,6 +4602,19 @@
                             ]
                         }
                     }
+                },    
+                "securityContext": {
+                    "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
                 }
             }
         },
