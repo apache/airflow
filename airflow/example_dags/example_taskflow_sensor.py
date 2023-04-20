@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from datetime import datetime
@@ -27,7 +28,7 @@ default_args = {
     "start_date": datetime(2021, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
-    "retries": 1
+    "retries": 1,
 }
 
 
