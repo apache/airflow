@@ -16,44 +16,45 @@
 # under the License.
 
 import os
+from datetime import datetime
 
-from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.sensors.python import PythonSensor
 
 
 default_args = {
-    'depends_on_past': False,
-    'start_date': datetime(2021, 1, 1),
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1
+    "depends_on_past": False,
+    "start_date": datetime(2021, 1, 1),
+    "email_on_failure": False,
+    "email_on_retry": False,
+    "retries": 1
 }
 
 
 def my_taskflow_sensor():
     # Check if the file exists OR you can give any logic
-    if os.path.exists('/././path_to_file'):
+    if os.path.exists("/././path_to_file"):
         return True
     else:
         return False
 
 
 with DAG(
-    'example_dag',
+    "example_dag",
     default_args=default_args,
-    description='Example DAG with PythonSensor',
+    description="Example DAG with PythonSensor",
     schedule_interval=None,
     catchup=False,
 ) as dag:
-    
+
     # [START example_taskflow_sensor]
     t1 = PythonSensor(
-        task_id='my_python_sensor',
+        task_id="my_python_sensor",
         python_callable=my_taskflow_sensor,
         poke_interval=60,  # Check every 60 seconds
         timeout=600,  # Timeout after 600 seconds (10 minutes)
     )
     # [END example_taskflow_sensor]
-    
+
+
     t1
