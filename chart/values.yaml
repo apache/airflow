@@ -2123,6 +2123,10 @@ dags:
     #  runAsUser: 65533
     #  runAsGroup: 0
 
+    # Detailed default security context for dag gitSync for container and pod level
+    securityContexts:
+      container: {}
+
     extraVolumeMounts: []
     env: []
     # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
