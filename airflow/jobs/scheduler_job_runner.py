@@ -1088,7 +1088,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cached_dags: dict = {}
         for dag_run, callback_to_run in callback_tuples:
             dag = get_value_with_cache(
-                cached_dags, dag_run.dag_id, self.dagbag.get_dag, dag_run.dag_id, session=session
+                cached_dags, dag_run.dag_id, lambda: self.dagbag.get_dag(dag_run.dag_id, session=session)
             )
 
             if not dag:
@@ -1359,7 +1359,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for dag_run in dag_runs:
             dag = dag_run.dag = get_value_with_cache(
-                cached_dags, dag_run.dag_id, self.dagbag.get_dag, dag_run.dag_id, session=session
+                cached_dags, dag_run.dag_id, lambda: self.dagbag.get_dag(dag_run.dag_id, session=session)
             )
 
             if not dag:

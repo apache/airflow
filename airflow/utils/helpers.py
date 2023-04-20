@@ -45,11 +45,11 @@ T = TypeVar("T")
 S = TypeVar("S")
 
 
-def get_value_with_cache(cache: dict, key: str, insert_fn: Callable, *arg, **kwargs) -> Any:
+def get_value_with_cache(cache: dict[str, Any], key: str, do_get_value: Callable) -> Any:
     """Returns value from cache or function"""
     return_value = cache.get(key)
     if not return_value:
-        return_value = cache[key] = insert_fn(*arg, **kwargs)
+        return_value = cache[key] = do_get_value()
 
     return return_value
 

@@ -176,23 +176,21 @@ class TestHelpers:
             assert build_airflow_url_with_query(query) == expected_url
 
     @pytest.mark.parametrize(
-        "cache, key, fn_return, excepted_value",
+        "cache, excepted_value",
         [
-            ({}, "key1", 1, 1),
-            ({"key1": 10}, "key1", 2, 10),
+            ({}, 1),
+            ({"key2": 10}, 1),
+            ({"key1": 10}, 10),
+            ({"key1": ""}, 1),
         ],
-        ids=["cache_empty", "cached"],
+        ids=["cache_empty", "missing_cache_item", "cached", "empty_cached_value"],
     )
-    def test_get_value_with_cache(self, cache, key, fn_return, excepted_value):
-        def insert_fn(para1, para2, para3, para4):
-            assert para1 == 1
-            assert para2 == 2
-            assert para3 == 3
-            assert para4 == 4
-            return fn_return
+    def test_get_value_with_cache(self, cache, excepted_value):
+        def do_get_value():
+            return 1
 
-        assert excepted_value == get_value_with_cache(cache, key, insert_fn, 1, 2, para4=4, para3=3)
-        assert excepted_value == cache[key]
+        assert excepted_value == get_value_with_cache(cache, "key1", lambda: do_get_value())
+        assert excepted_value == cache["key1"]
 
     @pytest.mark.parametrize(
         "key_id, message, exception",
