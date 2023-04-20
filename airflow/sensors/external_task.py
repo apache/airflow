@@ -364,7 +364,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 .scalar()
             ) / len(self.external_task_ids)
         elif self.external_task_group_id:
-            external_task_group_task_ids = self.get_external_task_group_task_ids(session)
+            external_task_group_task_ids = self.get_external_task_group_task_ids(session, dttm_filter)
             count = (
                 self._count_query(TI, session, states, dttm_filter)
                 .filter(tuple_(TI.task_id, TI.map_index).in_(external_task_group_task_ids))
@@ -382,7 +382,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
         return query
 
-    def get_external_task_group_task_ids(self, session):
+    def get_external_task_group_task_ids(self, session, dttm_filter):
         refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
         task_group = refreshed_dag_info.task_group_dict.get(self.external_task_group_id)
 
@@ -390,6 +390,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             group_tasks = session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.external_dag_id,
                 TaskInstance.task_id.in_(task.task_id for task in task_group),
+                TaskInstance.execution_date.in_(dttm_filter),
             )
 
             return [(t.task_id, t.map_index) for t in group_tasks]
