@@ -145,7 +145,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
-              {{ toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -195,7 +195,7 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraVolumes }}
-          {{- toYaml .Values.dagProcessor.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraVolumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs

@@ -135,7 +135,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.webserver.extraVolumeMounts }}
-              {{- toYaml .Values.webserver.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.webserver.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
