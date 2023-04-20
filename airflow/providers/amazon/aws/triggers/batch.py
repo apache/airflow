@@ -56,7 +56,6 @@ class BatchOperatorTrigger(BaseTrigger):
         job_name: str,
         job_definition: str,
         job_queue: str,
-        overrides: dict| None = None,  # deprecated
         container_overrides: dict | None = None,
         array_properties: dict | None = None,
         node_overrides: dict | None = None,
@@ -73,7 +72,6 @@ class BatchOperatorTrigger(BaseTrigger):
         self.job_name = job_name
         self.job_definition = job_definition
         self.job_queue = job_queue
-        self.overrides = overrides or {}
         self.container_overrides = container_overrides or {}
         self.array_properties = array_properties or {}
         self.node_overrides = node_overrides or {}
@@ -94,7 +92,6 @@ class BatchOperatorTrigger(BaseTrigger):
                 "job_name": self.job_name,
                 "job_definition": self.job_definition,
                 "job_queue": self.job_queue,
-                "overrides": self.overrides,
                 "container_overrides": self.container_overrides,
                 "array_properties": self.array_properties,
                 "node_overrides": self.node_overrides,

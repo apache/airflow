@@ -140,8 +140,7 @@ class BatchOperator(BaseOperator):
         deferrable: bool = False,
         **kwargs,
     ):
-
-        BaseOperator.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.job_id = job_id
         self.job_name = job_name
         self.job_definition = job_definition
@@ -202,7 +201,7 @@ class BatchOperator(BaseOperator):
                     job_name=self.job_name,
                     job_definition=self.job_definition,
                     job_queue=self.job_queue,
-                    overrides=self.overrides,
+                    container_overrides=self.container_overrides,
                     array_properties=self.array_properties,
                     parameters=self.parameters,
                     waiters=self.waiters,
