@@ -27,7 +27,7 @@ from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
-from flask_appbuilder.models.sqla import filters as fab_sqlafilters
+from flask_appbuilder.models.sqla import Model, filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
@@ -134,24 +134,28 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def get_dag_run_conf(dag_run_conf: Any) -> tuple[str | None, bool]:
+def get_dag_run_conf(
+    dag_run_conf: Any, *, json_encoder: type[json.JSONEncoder] = json.JSONEncoder
+) -> tuple[str | None, bool]:
     conf: str | None = None
 
     conf_is_json: bool = False
     if isinstance(dag_run_conf, str):
         conf = dag_run_conf
     elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
-        conf = json.dumps(dag_run_conf, sort_keys=True)
+        conf = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False)
         conf_is_json = True
 
     return conf, conf_is_json
 
 
-def encode_dag_run(dag_run: DagRun | None) -> dict[str, Any] | None:
+def encode_dag_run(
+    dag_run: DagRun | None, *, json_encoder: type[json.JSONEncoder] = json.JSONEncoder
+) -> dict[str, Any] | None:
     if not dag_run:
         return None
 
-    conf, conf_is_json = get_dag_run_conf(dag_run.conf)
+    conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
 
     return {
         "run_id": dag_run.run_id,
@@ -496,7 +500,7 @@ def dag_run_link(attr):
     """Generates a URL to the Graph view for a DagRun."""
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
-    execution_date = attr.get("dag_run.exectuion_date") or attr.get("execution_date")
+    execution_date = attr.get("dag_run.execution_date") or attr.get("execution_date")
     url = url_for("Airflow.graph", dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
@@ -806,6 +810,25 @@ class CustomSQLAInterface(SQLAInterface):
         return super().get_col_default(col_name)
 
     filter_converter_class = AirflowFilterConverter
+
+
+class DagRunCustomSQLAInterface(CustomSQLAInterface):
+    """Custom interface to allow faster deletion.
+
+    The ``delete`` and ``delete_all`` methods are overridden to speed up
+    deletion when a DAG run has a lot of related task instances. Relying on
+    SQLAlchemy's cascading deletion is comparatively slow in this situation.
+    """
+
+    def delete(self, item: Model, raise_exception: bool = False) -> bool:
+        self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
+        return super().delete(item, raise_exception=raise_exception)
+
+    def delete_all(self, items: list[Model]) -> bool:
+        self.session.query(TaskInstance).where(
+            TaskInstance.run_id.in_(item.run_id for item in items)
+        ).delete()
+        return super().delete_all(items)
 
 
 # This class is used directly (i.e. we can't tell Fab to use a different

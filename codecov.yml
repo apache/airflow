@@ -50,6 +50,8 @@ coverage:
           - v2-4-test
           - v2-5-stable
           - v2-5-test
+          - v2-6-stable
+          - v2-6-test
         if_not_found: success
         if_ci_failed: error
         informational: true
@@ -75,6 +77,8 @@ coverage:
           - v2-4-test
           - v2-5-stable
           - v2-5-test
+          - v2-6-stable
+          - v2-6-test
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error
@@ -84,6 +88,7 @@ coverage:
 
 ignore:
   - "airflow/_vendor"
+  - "airflow/providers/google/ads/_vendor"
   - "airflow/contrib"
   - "airflow/example_dags"
   - "airflow/migrations"

@@ -19,13 +19,20 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING, Any, Union
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
-    from mysql.connector.abstracts import MySQLConnectionAbstract
+    try:
+        from mysql.connector.abstracts import MySQLConnectionAbstract
+    except ModuleNotFoundError:
+        logger.warning("The package 'mysql-connector-python' is not installed. Import skipped")
     from MySQLdb.connections import Connection as MySQLdbConnection
 
 MySQLConnectionTypes = Union["MySQLdbConnection", "MySQLConnectionAbstract"]
@@ -181,7 +188,14 @@ class MySqlHook(DbApiHook):
             return MySQLdb.connect(**conn_config)
 
         if client_name == "mysql-connector-python":
-            import mysql.connector
+            try:
+                import mysql.connector
+            except ModuleNotFoundError:
+                raise AirflowOptionalProviderFeatureException(
+                    "The pip package 'mysql-connector-python' is not installed, therefore the connection "
+                    "wasn't established. Please, consider using default driver or pip install the package "
+                    "'mysql-connector-python'. Warning! It might cause dependency conflicts."
+                )
 
             conn_config = self._get_conn_config_mysql_connector_python(conn)
             return mysql.connector.connect(**conn_config)

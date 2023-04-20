@@ -61,7 +61,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
@@ -128,7 +128,7 @@ class DagRun(Base, LoggingMixin):
     log_template_id = Column(
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
-        default=select([func.max(LogTemplate.__table__.c.id)]),
+        default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
 
@@ -234,6 +234,10 @@ class DagRun(Base, LoggingMixin):
         )
 
     @property
+    def stats_tags(self) -> dict[str, str]:
+        return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+
+    @property
     def logical_date(self) -> datetime:
         return self.execution_date
 
@@ -266,13 +270,18 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def active_runs_of_dags(cls, dag_ids=None, only_running=False, session=None) -> dict[str, int]:
+    def active_runs_of_dags(
+        cls,
+        dag_ids: Iterable[str] | None = None,
+        only_running: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> dict[str, int]:
         """Get the number of active dag runs for each dag."""
         query = session.query(cls.dag_id, func.count("*"))
         if dag_ids is not None:
             # 'set' called to avoid duplicate dag_ids, but converted back to 'list'
             # because SQLAlchemy doesn't accept a set here.
-            query = query.filter(cls.dag_id.in_(list(set(dag_ids))))
+            query = query.filter(cls.dag_id.in_(set(dag_ids)))
         if only_running:
             query = query.filter(cls.state == State.RUNNING)
         else:
@@ -548,6 +557,7 @@ class DagRun(Base, LoggingMixin):
                     bool(self.tis)
                     and all(not t.task.depends_on_past for t in self.tis)
                     and all(t.task.max_active_tis_per_dag is None for t in self.tis)
+                    and all(t.task.max_active_tis_per_dagrun is None for t in self.tis)
                     and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
                 )
 
@@ -556,7 +566,10 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"):
+        with Stats.timer(
+            f"dagrun.dependency-check.{self.dag_id}",
+            tags=self.stats_tags,
+        ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
 
@@ -596,7 +609,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
+                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="task_failure",
                 )
 
@@ -617,7 +630,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=False,
-                    processor_subdir=dag_model.processor_subdir,
+                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="success",
                 )
 
@@ -638,7 +651,7 @@ class DagRun(Base, LoggingMixin):
                     dag_id=self.dag_id,
                     run_id=self.run_id,
                     is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
+                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="all_tasks_deadlocked",
                 )
 
@@ -843,20 +856,25 @@ class DagRun(Base, LoggingMixin):
         )
 
     def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: list[TI]) -> None:
+        """Emit the true scheduling delay stats.
+
+        The true scheduling delay stats is defined as the time when the first
+        task in DAG starts minus the expected DAG run datetime.
+
+        This helper method is used in ``update_state`` when the state of the
+        DAG run is updated to a completed status (either success or failure).
+        It finds the first started task within the DAG, calculates the run's
+        expected start time based on the logical date and timetable, and gets
+        the delay from the difference of these two values.
+
+        The emitted data may contain outliers (e.g. when the first task was
+        cleared, so the second task's start date will be used), but we can get
+        rid of the outliers on the stats side through dashboards tooling.
+
+        Note that the stat will only be emitted for scheduler-triggered DAG runs
+        (i.e. when ``external_trigger`` is *False*).
         """
-        This is a helper method to emit the true scheduling delay stats, which is defined as
-        the time when the first task in DAG starts minus the expected DAG run datetime.
-        This method will be used in the update_state method when the state of the DagRun
-        is updated to a completed status (either success or failure). The method will find the first
-        started task within the DAG and calculate the expected DagRun start time (based on
-        dag.execution_date & dag.timetable), and minus these two values to get the delay.
-        The emitted data may contain outlier (e.g. when the first task was cleared, so
-        the second task's start_date will be used), but we can get rid of the outliers
-        on the stats side through the dashboards tooling built.
-        Note, the stat will only be emitted if the DagRun is a scheduler triggered one
-        (i.e. external_trigger is False).
-        """
-        if self.state == State.RUNNING:
+        if self.state == TaskInstanceState.RUNNING:
             return
         if self.external_trigger:
             return
@@ -870,10 +888,11 @@ class DagRun(Base, LoggingMixin):
                 # We can't emit this metric if there is no following schedule to calculate from!
                 return
 
-            ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
-            ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
-            first_start_date = ordered_tis_by_start_date[0].start_date if ordered_tis_by_start_date else None
-            if first_start_date:
+            try:
+                first_start_date = min(ti.start_date for ti in finished_tis if ti.start_date)
+            except ValueError:  # No start dates at all.
+                pass
+            else:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
                 # execution on DagModel.next_dagrun_create_after. We should add
@@ -882,12 +901,10 @@ class DagRun(Base, LoggingMixin):
                 data_interval_end = dag.get_run_data_interval(self).end
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
-                    Stats.timing(f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay)
                     Stats.timing(
-                        "dagrun.first_task_scheduling_delay",
-                        true_delay,
-                        tags={"dag_id": dag.dag_id},
+                        f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
                     )
+                    Stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
@@ -902,12 +919,9 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        if self.state == State.SUCCESS:
-            Stats.timing(f"dagrun.duration.success.{self.dag_id}", duration)
-            Stats.timing("dagrun.duration.success", duration, tags={"dag_id": self.dag_id})
-        elif self.state == State.FAILED:
-            Stats.timing(f"dagrun.duration.failed.{self.dag_id}", duration)
-            Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": self.dag_id})
+        timer_params = {"dt": duration, "tags": self.stats_tags}
+        Stats.timing(f"dagrun.duration.{self.state.value}.{self.dag_id}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state.value}", **timer_params)
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
@@ -970,14 +984,14 @@ class DagRun(Base, LoggingMixin):
                 should_restore_task = (task is not None) and ti.state == State.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
+                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
                     ti.state = State.NONE
             except AirflowException:
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
                 elif self.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
+                    Stats.incr(f"task_removed_from_dag.{dag.dag_id}", tags=self.stats_tags)
                     ti.state = State.REMOVED
                 continue
 
@@ -1133,7 +1147,7 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                Stats.incr(f"task_instance_created-{task_type}", count)
+                Stats.incr(f"task_instance_created-{task_type}", count, tags=self.stats_tags)
             session.flush()
         except IntegrityError:
             self.log.info(
@@ -1224,7 +1238,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get_latest_runs(cls, session=None) -> list[DagRun]:
+    def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
         """Returns the latest DagRun for each DAG"""
         subquery = (
             session.query(cls.dag_id, func.max(cls.execution_date).label("execution_date"))

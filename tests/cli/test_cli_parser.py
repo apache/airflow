@@ -27,7 +27,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.cli import cli_parser
+from airflow.cli import cli_config, cli_parser
 from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -177,7 +177,7 @@ class TestCli:
 
         all_command_as_args = [
             command_as_args
-            for top_command in cli_parser.dag_cli_commands
+            for top_command in cli_config.dag_cli_commands
             for command_as_args in (
                 [[top_command.name]]
                 if isinstance(top_command, cli_parser.ActionCommand)
@@ -189,12 +189,12 @@ class TestCli:
                 parser.parse_args([*cmd_args, "--help"])
 
     def test_positive_int(self):
-        assert 1 == cli_parser.positive_int(allow_zero=True)("1")
-        assert 0 == cli_parser.positive_int(allow_zero=True)("0")
+        assert 1 == cli_config.positive_int(allow_zero=True)("1")
+        assert 0 == cli_config.positive_int(allow_zero=True)("0")
 
         with pytest.raises(argparse.ArgumentTypeError):
-            cli_parser.positive_int(allow_zero=False)("0")
-            cli_parser.positive_int(allow_zero=True)("-1")
+            cli_config.positive_int(allow_zero=False)("0")
+            cli_config.positive_int(allow_zero=True)("-1")
 
     def test_dag_parser_celery_command_require_celery_executor(self):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
@@ -251,7 +251,7 @@ class TestCli:
         )
 
     @pytest.mark.parametrize("export_format", ["json", "yaml", "unknown"])
-    @patch("airflow.cli.cli_parser.os.path.isdir", return_value=True)
+    @patch("airflow.cli.cli_config.os.path.isdir", return_value=True)
     def test_invalid_choice_raises_for_export_format_in_db_export_archived_command(
         self, mock_isdir, export_format
     ):

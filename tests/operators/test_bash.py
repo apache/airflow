@@ -173,17 +173,25 @@ class TestBashOperator:
         "extra_kwargs,actual_exit_code,expected_exc",
         [
             (None, 99, AirflowSkipException),
-            ({"skip_exit_code": 100}, 100, AirflowSkipException),
-            ({"skip_exit_code": 100}, 101, AirflowException),
-            ({"skip_exit_code": None}, 99, AirflowException),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 99, AirflowException),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
         ],
     )
     def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
         kwargs = dict(task_id="abc", bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
         if extra_kwargs:
             kwargs.update(**extra_kwargs)
-        with pytest.raises(expected_exc):
+        if expected_exc is None:
             BashOperator(**kwargs).execute({})
+        else:
+            with pytest.raises(expected_exc):
+                BashOperator(**kwargs).execute({})
 
     def test_bash_operator_multi_byte_output(self):
         op = BashOperator(

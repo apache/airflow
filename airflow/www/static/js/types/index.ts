@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import * as API from "./api-generated";
+import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
 
@@ -96,6 +96,7 @@ interface Task {
   isMapped?: boolean;
   operator?: string;
   hasOutletDatasets?: boolean;
+  triggerRule?: API.TriggerRule;
 }
 
 type RunOrdering = (
@@ -129,16 +130,19 @@ interface DatasetListItem extends API.Dataset {
   totalUpdates: number;
 }
 
+type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
+
 export type {
+  API,
+  MinimalTaskInstance,
   Dag,
   DagRun,
-  RunState,
-  TaskState,
-  TaskInstance,
-  Task,
-  DepNode,
-  DepEdge,
-  API,
-  RunOrdering,
   DatasetListItem,
+  DepEdge,
+  DepNode,
+  RunOrdering,
+  RunState,
+  Task,
+  TaskInstance,
+  TaskState,
 };

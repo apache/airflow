@@ -88,7 +88,7 @@ class TestRedshiftToS3Transfer:
         assert mock_run.call_count == 1
         assert access_key in unload_query
         assert secret_key in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], unload_query)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
@@ -149,7 +149,7 @@ class TestRedshiftToS3Transfer:
         assert access_key in unload_query
         assert secret_key in unload_query
         assert token in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], unload_query)
 
     @pytest.mark.parametrize(
         "table, table_as_file_name, expected_s3_key",
@@ -215,7 +215,7 @@ class TestRedshiftToS3Transfer:
         assert mock_run.call_count == 1
         assert access_key in unload_query
         assert secret_key in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], unload_query)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
@@ -274,7 +274,7 @@ class TestRedshiftToS3Transfer:
 
         assert mock_run.call_count == 1
         assert extra["role_arn"] in unload_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], unload_query)
 
     def test_template_fields_overrides(self):
         assert RedshiftToS3Operator.template_fields == (
@@ -394,4 +394,4 @@ class TestRedshiftToS3Transfer:
             Id="STATEMENT_ID",
         )
         # test sql arg
-        assert_equal_ignore_multiple_spaces(self, mock_rs.execute_statement.call_args[1]["Sql"], unload_query)
+        assert_equal_ignore_multiple_spaces(mock_rs.execute_statement.call_args[1]["Sql"], unload_query)

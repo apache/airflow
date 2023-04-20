@@ -29,6 +29,7 @@ import { useOffsetTop } from "src/utils";
 
 import renderTaskRows from "./renderTaskRows";
 import DagRuns from "./dagRuns";
+import useSelection from "../useSelection";
 
 interface Props {
   isPanelOpen?: boolean;
@@ -36,6 +37,8 @@ interface Props {
   hoveredTaskState?: string | null;
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
+  isGridCollapsed?: boolean;
+  setIsGridCollapsed?: (collapsed: boolean) => void;
 }
 
 const Grid = ({
@@ -44,15 +47,26 @@ const Grid = ({
   hoveredTaskState,
   openGroupIds,
   onToggleGroups,
+  isGridCollapsed,
+  setIsGridCollapsed,
 }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const offsetTop = useOffsetTop(scrollRef);
+  const offsetTop = useOffsetTop(tableRef);
+  const { selected } = useSelection();
 
   const {
     data: { groups, dagRuns },
   } = useGridData();
-  const dagRunIds = dagRuns.map((dr) => dr.runId);
+  const dagRunIds = dagRuns
+    .map((dr) => dr.runId)
+    .filter((id, i) => {
+      if (isGridCollapsed) {
+        if (selected.runId) return id === selected.runId;
+        return i === dagRuns.length - 1;
+      }
+      return true;
+    });
 
   useEffect(() => {
     const scrollOnResize = new ResizeObserver(() => {
@@ -76,25 +90,45 @@ const Grid = ({
       };
     }
     return () => {};
-  }, [tableRef, isPanelOpen]);
+  }, [tableRef, isGridCollapsed]);
 
   return (
     <Box height="100%" position="relative">
+      {isPanelOpen && (
+        <IconButton
+          fontSize="2xl"
+          variant="ghost"
+          color="gray.400"
+          size="sm"
+          position="absolute"
+          right={0}
+          zIndex={2}
+          top={-8}
+          onClick={() =>
+            setIsGridCollapsed && setIsGridCollapsed(!isGridCollapsed)
+          }
+          title={isGridCollapsed ? "Restore grid" : "Collapse grid"}
+          aria-label={isGridCollapsed ? "Restore grid" : "Collapse grid"}
+          icon={<MdDoubleArrow />}
+          transform={isGridCollapsed ? undefined : "rotateZ(180deg)"}
+          transitionProperty="none"
+        />
+      )}
       <IconButton
         fontSize="2xl"
         variant="ghost"
         color="gray.400"
         size="sm"
+        position="absolute"
+        right={isPanelOpen ? -10 : 0}
+        zIndex={2}
+        top={-8}
         onClick={onPanelToggle}
         title={`${isPanelOpen ? "Hide " : "Show "} Details Panel`}
         aria-label={isPanelOpen ? "Show Details" : "Hide Details"}
         icon={<MdDoubleArrow />}
-        transform={!isPanelOpen ? "rotateZ(180deg)" : undefined}
+        transform={isPanelOpen ? undefined : "rotateZ(180deg)"}
         transitionProperty="none"
-        position="absolute"
-        right={0}
-        zIndex={2}
-        top={-8}
       />
       <Box
         maxHeight={`calc(100% - ${offsetTop}px)`}
@@ -110,6 +144,7 @@ const Grid = ({
               groups={groups}
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
+              isGridCollapsed={isGridCollapsed}
             />
           </Thead>
           <Tbody ref={tableRef}>
@@ -119,6 +154,7 @@ const Grid = ({
               openGroupIds,
               onToggleGroups,
               hoveredTaskState,
+              isGridCollapsed,
             })}
           </Tbody>
         </Table>

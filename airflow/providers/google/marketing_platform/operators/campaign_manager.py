@@ -40,7 +40,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
 
     .. seealso::
         Check official API docs:
-        https://developers.google.com/doubleclick-advertisers/v3.3/reports/delete
+        `https://developers.google.com/doubleclick-advertisers/rest/v4/reports/delete`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -49,7 +49,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
     :param profile_id: The DFA user profile ID.
     :param report_name: The name of the report to delete.
     :param report_id: The ID of the report.
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -80,7 +80,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         profile_id: str,
         report_name: str | None = None,
         report_id: str | None = None,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -127,7 +127,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
 
     .. seealso::
         Check official API docs:
-        https://developers.google.com/doubleclick-advertisers/v3.3/reports/files/get
+        `https://developers.google.com/doubleclick-advertisers/rest/v4/reports/get`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -140,7 +140,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     :param report_name: The report name to set when uploading the local file.
     :param gzip: Option to compress local file or file data for upload
     :param chunk_size: File will be downloaded in chunks of this many bytes.
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -178,7 +178,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         report_name: str | None = None,
         gzip: bool = True,
         chunk_size: int = 10 * 1024 * 1024,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -259,7 +259,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     .. seealso::
         Check official API docs:
-        https://developers.google.com/doubleclick-advertisers/v3.3/reports/insert
+        `https://developers.google.com/doubleclick-advertisers/rest/v4/reports/insert`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -267,7 +267,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     :param profile_id: The DFA user profile ID.
     :param report: Report to be created.
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -298,7 +298,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         *,
         profile_id: str,
         report: dict[str, Any],
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -339,7 +339,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
 
     .. seealso::
         Check official API docs:
-        https://developers.google.com/doubleclick-advertisers/v3.3/reports/run
+        `https://developers.google.com/doubleclick-advertisers/rest/v4/reports/run`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -348,7 +348,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
     :param profile_id: The DFA profile ID.
     :param report_id: The ID of the report.
     :param synchronous: If set and true, tries to run the report synchronously.
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -379,7 +379,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         profile_id: str,
         report_id: str,
         synchronous: bool = False,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -419,15 +419,15 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
 
     .. seealso::
         Check official API docs:
-        https://developers.google.com/doubleclick-advertisers/v3.3/conversions/batchinsert
+        `https://developers.google.com/doubleclick-advertisers/rest/v4/conversions/batchinsert`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GoogleCampaignManagerBatchInsertConversionsOperator`
 
     :param profile_id: User profile ID associated with this request.
-    :param conversions: Conversations to insert, should by type of Conversation:
-        https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+    :param conversions: Conversions to insert, should be type of Conversion:
+        https://developers.google.com/doubleclick-advertisers/rest/v4/conversions
     :param encryption_entity_type: The encryption entity type. This should match the encryption
         configuration for ad serving or Data Transfer.
     :param encryption_entity_id: The encryption entity ID. This should match the encryption
@@ -435,7 +435,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
     :param encryption_source: Describes whether the encrypted cookie was received from ad serving
         (the %m macro) or from Data Transfer.
     :param max_failed_inserts: The maximum number of conversions that failed to be inserted
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -468,7 +468,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         encryption_entity_id: int,
         encryption_source: str,
         max_failed_inserts: int = 0,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -510,15 +510,15 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
 
     .. seealso::
         Check official API docs:
-        https://developers.google.com/doubleclick-advertisers/v3.3/conversions/batchupdate
+        `https://developers.google.com/doubleclick-advertisers/rest/v4/conversions/batchupdate`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GoogleCampaignManagerBatchUpdateConversionsOperator`
 
     :param profile_id: User profile ID associated with this request.
-    :param conversions: Conversations to update, should by type of Conversation:
-        https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+    :param conversions: Conversations to update, should be type of Conversion:
+        https://developers.google.com/doubleclick-advertisers/rest/v4/conversions
     :param encryption_entity_type: The encryption entity type. This should match the encryption
         configuration for ad serving or Data Transfer.
     :param encryption_entity_id: The encryption entity ID. This should match the encryption
@@ -526,7 +526,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
     :param encryption_source: Describes whether the encrypted cookie was received from ad serving
         (the %m macro) or from Data Transfer.
     :param max_failed_updates: The maximum number of conversions that failed to be updated
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -559,7 +559,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         encryption_entity_id: int,
         encryption_source: str,
         max_failed_updates: int = 0,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,

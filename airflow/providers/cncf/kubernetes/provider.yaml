@@ -21,7 +21,10 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
+suspended: false
 versions:
+  - 6.0.0
+  - 5.3.0
   - 5.2.2
   - 5.2.1
   - 5.2.0
@@ -89,6 +92,7 @@ operators:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
+      - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
 
 sensors:
@@ -100,6 +104,11 @@ hooks:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.hooks.kubernetes
+
+triggers:
+  - integration-name: Kubernetes
+    python-modules:
+      - airflow.providers.cncf.kubernetes.triggers.pod
 
 
 connection-types:

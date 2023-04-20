@@ -22,6 +22,7 @@ import ELK, { ElkExtendedEdge, ElkShape } from "elkjs";
 import type { DepNode } from "src/types";
 import type { NodeType } from "src/datasets/Graph/Node";
 import { useQuery } from "react-query";
+import useFilters from "src/dag/useFilters";
 
 interface GenerateProps {
   nodes: DepNode[];
@@ -86,12 +87,14 @@ const generateGraph = ({
   const formatChildNode = (node: any) => {
     const { id, value, children } = node;
     const isOpen = openGroupIds?.includes(value.label);
+    const childCount =
+      children?.filter((c: any) => !c.id.includes("join_id")).length || 0;
     if (isOpen && children.length) {
       return {
         id,
         value: {
           ...value,
-          childCount: children.length,
+          childCount,
           isOpen: true,
         },
         label: value.label,
@@ -109,7 +112,7 @@ const generateGraph = ({
       value: {
         ...value,
         isJoinNode,
-        childCount: children?.length || 0,
+        childCount,
       },
       width: isJoinNode ? 10 : 200,
       height: isJoinNode ? 10 : 60,
@@ -194,9 +197,21 @@ export const useGraphLayout = ({
   nodes,
   openGroupIds,
   arrange = "LR",
-}: LayoutProps) =>
-  useQuery(
-    ["graphLayout", !!nodes?.children, openGroupIds, arrange],
+}: LayoutProps) => {
+  const {
+    filters: { root, filterDownstream, filterUpstream },
+  } = useFilters();
+
+  return useQuery(
+    [
+      "graphLayout",
+      !!nodes?.children,
+      openGroupIds,
+      arrange,
+      root,
+      filterUpstream,
+      filterDownstream,
+    ],
     async () => {
       const font = `bold ${16}px ${
         window.getComputedStyle(document.body).fontFamily
@@ -214,3 +229,4 @@ export const useGraphLayout = ({
       return data as Graph;
     }
   );
+};
