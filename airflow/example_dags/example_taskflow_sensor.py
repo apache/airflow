@@ -17,18 +17,15 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
 
 from airflow import DAG
 from airflow.sensors.python import PythonSensor
 
-
 default_args = {
     "depends_on_past": False,
-    "start_date": datetime(2021, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
-    "retries": 1,
+    "retries": 1
 }
 
 
