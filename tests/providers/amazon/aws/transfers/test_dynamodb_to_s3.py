@@ -344,3 +344,15 @@ class TestDynamodbToS3:
         )
         dynamodb_to_s3_operator.execute(context={})
         _export_table_to_point_in_time.assert_called()
+
+    def test_dynamodb_with_future_date(self):
+        """Test that DynamoDBToS3Operator should raise a exception when future date is passed in
+        export_time parameter"""
+        with pytest.raises(ValueError, match="The export_time parameter cannot be a future time."):
+            DynamoDBToS3Operator(
+                task_id="dynamodb_to_s3",
+                dynamodb_table_name="airflow_rocks",
+                s3_bucket_name="airflow-bucket",
+                file_size=4000,
+                export_time=datetime(year=3000, month=1, day=1),
+            )

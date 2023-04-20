@@ -131,6 +131,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.export_time = export_time
         self.export_format = export_format
 
+        if self.export_time and self.export_time > datetime.now():
+            raise ValueError("The export_time parameter cannot be a future time.")
+
     @cached_property
     def hook(self):
         """Create DynamoDBHook"""
