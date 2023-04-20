@@ -757,6 +757,8 @@ class Airflow(AirflowBaseView):
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
             paused_dags = dags_query.filter(DagModel.is_paused)
+            running_dags = dags_query.join(DagRun, DagRun.dag_id == DagModel.dag_id) \
+                .filter(DagModel.is_active, DagRun.state == State.RUNNING)
 
             is_paused_count = dict(
                 all_dags.with_entities(DagModel.is_paused, func.count(DagModel.dag_id))
@@ -765,6 +767,7 @@ class Airflow(AirflowBaseView):
             )
             status_count_active = is_paused_count.get(False, 0)
             status_count_paused = is_paused_count.get(True, 0)
+            status_count_running = running_dags.count()
             all_dags_count = status_count_active + status_count_paused
             if arg_status_filter == "active":
                 current_dags = active_dags
@@ -772,6 +775,9 @@ class Airflow(AirflowBaseView):
             elif arg_status_filter == "paused":
                 current_dags = paused_dags
                 num_of_all_dags = status_count_paused
+            elif arg_status_filter == "running":
+                current_dags = running_dags
+                num_of_all_dags = status_count_running
             else:
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
@@ -909,6 +915,7 @@ class Airflow(AirflowBaseView):
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
             status_count_paused=status_count_paused,
+            status_count_running=status_count_running,
             tags_filter=arg_tags_filter,
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
