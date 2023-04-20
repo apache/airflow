@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+8.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's parameter ``delegate_to`` is removed from the following operators: ``GCSToS3Operator``, ``GlacierToGCSOperator`` and ``GoogleApiToS3Operator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
 7.4.1
 .....
 

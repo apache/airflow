@@ -87,7 +87,6 @@ class TestS3ToGoogleCloudStorageOperator:
         s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
-            delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
@@ -116,7 +115,6 @@ class TestS3ToGoogleCloudStorageOperator:
         operator.execute(None)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
-            delegate_to=None,
             impersonation_chain=None,
         )
         gcs_mock_hook.return_value.upload.assert_has_calls(
