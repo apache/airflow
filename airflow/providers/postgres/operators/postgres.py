@@ -42,7 +42,7 @@ class PostgresOperator(SQLExecuteQueryOperator):
         For example, you could set the schema via `{"search_path": "CUSTOM_SCHEMA"}`.
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", "postgres_conn_id")
     template_fields_renderers = {"sql": "postgresql"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
