@@ -168,7 +168,6 @@ jobs:
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
-      suspended-providers-folders: ${{ steps.selective-checks.outputs.suspended-providers-folders }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -926,7 +925,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
@@ -969,7 +967,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1010,7 +1007,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1056,7 +1052,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1110,7 +1105,6 @@ jobs:
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
@@ -1154,7 +1148,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1197,7 +1190,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
@@ -1234,7 +1226,6 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
@@ -1294,7 +1285,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1336,7 +1326,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "Quarantined"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
