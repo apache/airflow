@@ -317,21 +317,32 @@ class EmrServerlessHook(AwsBaseHook):
         Note: if new jobs are triggered while this operation is ongoing,
         it's going to time out and return an error.
         """
-        r = self.conn.list_job_runs(
-            applicationId=application_id, maxResults=50, states=list(self.JOB_INTERMEDIATE_STATES)
+        paginator = self.conn.get_paginator("list_job_runs")
+        results_per_response = 50
+        iterator = paginator.paginate(
+            applicationId=application_id,
+            states=list(self.JOB_INTERMEDIATE_STATES),
+            PaginationConfig={
+                "PageSize": results_per_response,
+            },
         )
-        job_ids = [jr["id"] for jr in r["jobRuns"]]
-        self.log.info("there are %s job(s) running for app %s", len(job_ids), application_id)
-        if len(job_ids) > 0:
-            self.log.info(
-                "Cancelling the pending jobs for the application %s so that it can be stopped", application_id
-            )
-            for job_id in job_ids:
-                self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
-            self.log.info("now waiting for the cancelled jobs to terminate")
+        count = 0
+        for r in iterator:
+            job_ids = [jr["id"] for jr in r["jobRuns"]]
+            count += len(job_ids)
+            if len(job_ids) > 0:
+                self.log.info(
+                    "Cancelling %s pending job(s) for the application %s so that it can be stopped",
+                    len(job_ids),
+                    application_id,
+                )
+                for job_id in job_ids:
+                    self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+        if count > 0:
+            self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
             self.get_waiter("no_job_running").wait(
                 applicationId=application_id,
-                states=list(self.JOB_INTERMEDIATE_STATES.union("CANCELLING")),
+                states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
                 WaiterConfig=waiter_config,
             )
 
