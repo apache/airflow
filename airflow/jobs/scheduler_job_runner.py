@@ -59,7 +59,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.timetables.simple import DatasetTriggeredTimetable
+from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1427,7 +1427,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
         # Check if DAG not scheduled then skip interval calculation to same scheduler runtime
-        if dag_run.state in State.finished and (dag.schedule_interval or not isinstance(dag.timetable, NullTimetable)):
+        if dag_run.state in State.finished and (
+            dag.schedule_interval or not isinstance(dag.timetable, NullTimetable)
+        ):
             active_runs = dag.get_num_active_runs(only_running=False, session=session)
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
