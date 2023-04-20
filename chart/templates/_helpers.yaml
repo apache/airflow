@@ -838,8 +838,8 @@ Where `.` is the global variables scope and `.Values.webserver` the local variab
   {{- with index . 1 }}
     {{- if .securityContexts.container -}}
 {{ toYaml .securityContexts.container | print }}
-    {{- else if $.Values.securityContexts.container -}}
-{{ toYaml $.Values.securityContexts.container | print }}
+    {{- else if $.Values.securityContexts.containers -}}
+{{ toYaml $.Values.securityContexts.containers | print }}
     {{- else -}}
 allowPrivilegeEscalation: false
 capabilities:
