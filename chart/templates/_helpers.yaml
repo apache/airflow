@@ -824,7 +824,7 @@ Set the default value for container securityContext
 If no value is passed for securityContexts.container or <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
 
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
-    | <node>.securityContexts.container |  ->  | securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
+    | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
 
