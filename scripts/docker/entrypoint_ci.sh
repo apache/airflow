@@ -19,6 +19,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
+
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
@@ -189,21 +190,55 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             exit 1
         fi
         echo
+        if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+            IFS=\, read -ra selected_providers <<<"${INSTALL_SELECTED_PROVIDERS}"
+            echo
+            echo "${COLOR_BLUE}Selected providers to install: '${selected_providers[*]}'${COLOR_RESET}"
+            echo
+        else
+            echo
+            echo "${COLOR_BLUE}Installing all found providers${COLOR_RESET}"
+            echo
+            selected_providers=()
+        fi
         installable_files=()
         for file in /dist/*.{whl,tar.gz}
         do
-            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
-                # Skip Apache Airflow package - it's just been installed above with extras
-                echo "Skipping ${file}"
+            if [[ ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
+                # Skip Apache Airflow package - it's just been installed above if
+                # --use-airflow-version was set and should be skipped otherwise
+                echo "${COLOR_BLUE}Skipping airflow core package ${file} from provider installation.${COLOR_RESET}"
                 continue
             fi
             if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache_airflow_providers_//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
             if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache-airflow-providers-//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
         done
         if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
@@ -212,6 +247,9 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             echo
             installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
         fi
+        echo
+        echo "${COLOR_BLUE}Installing: ${installable_files[*]}${COLOR_RESET}"
+        echo
         if (( ${#installable_files[@]} )); then
             pip install --root-user-action ignore "${installable_files[@]}"
         fi
