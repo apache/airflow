@@ -27,18 +27,18 @@ class BatchOperatorTrigger(BaseTrigger):
     Checks for the state of a previously submitted job to AWS Batch.
     BatchOperatorTrigger is fired as deferred class with params to poll the job state in Triggerer
 
-    :param job_id: the job ID, usually unknown (None) until the
-        submit_job operation gets the jobId defined by AWS Batch
     :param job_name: the name for the job that will run on AWS Batch (templated)
     :param job_definition: the job definition name on AWS Batch
     :param job_queue: the queue name on AWS Batch
     :param overrides: the `containerOverrides` parameter for boto3 (templated)
+    :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
+    :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
     :param array_properties: the `arrayProperties` parameter for boto3
     :param parameters: the `parameters` for boto3 (templated)
+    :param job_id: the job ID, usually unknown (None) until the
+        submit_job operation gets the jobId defined by AWS Batch
     :param waiters: a :class:`.BatchWaiters` object (see note below);
         if None, polling is used with max_retries and status_retries.
-    :param tags: collection of tags to apply to the AWS Batch job submission
-        if None, no tags are submitted
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
     :param status_retries: number of HTTP retries to get job status, 10;
@@ -47,57 +47,65 @@ class BatchOperatorTrigger(BaseTrigger):
         credential boto3 strategy will be used.
     :param region_name: AWS region name to use .
         Override the region_name in connection (if provided)
+    :param tags: collection of tags to apply to the AWS Batch job submission
+        if None, no tags are submitted
     """
 
     def __init__(
         self,
-        job_id: str | None,
         job_name: str,
         job_definition: str,
         job_queue: str,
-        overrides: dict[str, str],
-        array_properties: dict[str, str],
-        parameters: dict[str, str],
-        waiters: Any,
-        tags: dict[str, str],
-        max_retries: int,
-        status_retries: int,
-        region_name: str | None,
-        aws_conn_id: str | None = "aws_default",
+        overrides: dict| None = None,  # deprecated
+        container_overrides: dict | None = None,
+        array_properties: dict | None = None,
+        node_overrides: dict | None = None,
+        parameters: dict | None = None,
+        job_id: str | None = None,
+        waiters: Any | None = None,
+        max_retries: int | None = None,
+        status_retries: int | None = None,
+        aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        tags: dict | None = None,
     ):
         super().__init__()
-        self.job_id = job_id
         self.job_name = job_name
         self.job_definition = job_definition
         self.job_queue = job_queue
         self.overrides = overrides or {}
+        self.container_overrides = container_overrides or {}
         self.array_properties = array_properties or {}
+        self.node_overrides = node_overrides or {}
         self.parameters = parameters or {}
+        self.job_id = job_id
         self.waiters = waiters
-        self.tags = tags or {}
         self.max_retries = max_retries
         self.status_retries = status_retries
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.tags = tags or {}
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BatchOperatorTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.batch.BatchOperatorTrigger",
             {
-                "job_id": self.job_id,
                 "job_name": self.job_name,
                 "job_definition": self.job_definition,
                 "job_queue": self.job_queue,
                 "overrides": self.overrides,
+                "container_overrides": self.container_overrides,
                 "array_properties": self.array_properties,
+                "node_overrides": self.node_overrides,
                 "parameters": self.parameters,
+                "job_id": self.job_id,
                 "waiters": self.waiters,
-                "tags": self.tags,
                 "max_retries": self.max_retries,
                 "status_retries": self.status_retries,
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
+                "tags": self.tags,
             },
         )
 
