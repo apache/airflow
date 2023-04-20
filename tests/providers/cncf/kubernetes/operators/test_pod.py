@@ -1092,6 +1092,11 @@ class TestKubernetesPodOperator:
             ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_on_exit_code": 100}, 101, AirflowException),
             ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, AirflowException),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
@@ -1111,8 +1116,11 @@ class TestKubernetesPodOperator:
         sidecar_container.last_state.terminated.exit_code = 0
         remote_pod.return_value.status.container_statuses = [base_container, sidecar_container]
 
-        with pytest.raises(expected_exc):
+        if expected_exc is None:
             self.run_pod(k)
+        else:
+            with pytest.raises(expected_exc):
+                self.run_pod(k)
 
 
 class TestSuppress:
