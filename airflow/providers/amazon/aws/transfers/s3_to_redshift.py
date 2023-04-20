@@ -76,6 +76,7 @@ class S3ToRedshiftOperator(BaseOperator):
         "column_list",
         "copy_options",
         "redshift_conn_id",
+        "method",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#99e699"
