@@ -87,12 +87,14 @@ const generateGraph = ({
   const formatChildNode = (node: any) => {
     const { id, value, children } = node;
     const isOpen = openGroupIds?.includes(value.label);
+    const childCount =
+      children?.filter((c: any) => !c.id.includes("join_id")).length || 0;
     if (isOpen && children.length) {
       return {
         id,
         value: {
           ...value,
-          childCount: children.length,
+          childCount,
           isOpen: true,
         },
         label: value.label,
@@ -110,7 +112,7 @@ const generateGraph = ({
       value: {
         ...value,
         isJoinNode,
-        childCount: children?.length || 0,
+        childCount,
       },
       width: isJoinNode ? 10 : 200,
       height: isJoinNode ? 10 : 60,

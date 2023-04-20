@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
     EmrServerlessStartJobOperator,
+    EmrServerlessStopApplicationOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
@@ -108,6 +109,15 @@ with DAG(
         job_run_id=start_job.output,
     )
     # [END howto_sensor_emr_serverless_job]
+    wait_for_job.poke_interval = 10
+
+    # [START howto_operator_emr_serverless_stop_application]
+    stop_app = EmrServerlessStopApplicationOperator(
+        task_id="stop_application",
+        application_id=emr_serverless_app_id,
+    )
+    # [END howto_operator_emr_serverless_stop_application]
+    stop_app.waiter_check_interval_seconds = 1
 
     # [START howto_operator_emr_serverless_delete_application]
     delete_app = EmrServerlessDeleteApplicationOperator(
@@ -134,6 +144,7 @@ with DAG(
         wait_for_app_creation,
         start_job,
         wait_for_job,
+        stop_app,
         # TEST TEARDOWN
         delete_app,
         delete_s3_bucket,
