@@ -741,13 +741,52 @@ jobs:
           --package-format wheel --use-airflow-version wheel
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Remove airflow whl package"
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
+  provider-airflow-compatibility-check:
+    timeout-minutes: 80
+    name: "Providers Airflow 2.3 compatibility check"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: >
+      needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare provider packages: wheel"
+        run: >
+          breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
+          --package-format wheel
+      - name: "Fix incompatible 2.3 provider packages"
         run: |
-          rm -vf dist/apache_airflow-*.whl
-          # remove the provider packages that are not compatible with 2.3
+          # This step should remove the provider packages that are not compatible with 2.3
+          # or replace them with 2.3 compatible versions. Sometimes we have good reasons to bump
+          # the min airflow versions for some providers and then we need to add exclusions here.
+          #
+          # The Removal can be done with:
+          #
+          # rm -vf dist/apache_airflow_providers_<PROVIDER>*.whl
+          #
+          # Then it can be followed by downloading a compatible version from PyPI in case other
+          # providers depend on it and fail with import errors (you need to download compatible version):
+          #
+          # pip download --no-deps --dest dist apache-airflow-providers-<PROVIDER>==3.1.0
+          #
           rm -vf dist/apache_airflow_providers_openlineage*.whl
-          # rm -vf dist/apache_airflow_providers_docker*.whl
-          # pip download --no-deps --dest dist apache-airflow-providers-docker==3.1.0
       - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
         # Extras might be different on S3 so rather than relying on "all" we should get the list of
         # packages to be installed from the current provider_dependencies.json file
