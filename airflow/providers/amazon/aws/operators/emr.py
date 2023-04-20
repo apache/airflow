@@ -1027,7 +1027,8 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         Defaults to 30 seconds.
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to stop an app with running jobs will return an error.
-        If you want to wait for the jobs to finish gracefully, use :ref:`_howto/sensor:EmrServerlessJobSensor`
+        If you want to wait for the jobs to finish gracefully, use
+        :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -1105,7 +1106,8 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         Defaults to 60 seconds.
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to delete an app with running jobs will return an error.
-        If you want to wait for the jobs to finish gracefully, use :ref:`_howto/sensor:EmrServerlessJobSensor`
+        If you want to wait for the jobs to finish gracefully, use
+        :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
     """
 
     template_fields: Sequence[str] = ("application_id",)
