@@ -21,11 +21,9 @@ import os
 from airflow import DAG
 from airflow.sensors.python import PythonSensor
 
-
-default_args = {"depends_on_past": False, "email_on_failure": False, 
+default_args = {"depends_on_past": False, "email_on_failure": False,
                 "email_on_retry": False, "retries": 1
                 }
-
 
 
 def my_taskflow_sensor():
@@ -43,7 +41,6 @@ with DAG(
     schedule_interval=None,
     catchup=False,
 ) as dag:
-
     # [START example_taskflow_sensor]
     t1 = PythonSensor(
         task_id="my_python_sensor",
@@ -53,5 +50,4 @@ with DAG(
     )
     # [END example_taskflow_sensor]
 
-
-    t1
+t1
