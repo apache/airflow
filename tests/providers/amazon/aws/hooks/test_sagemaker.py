@@ -535,7 +535,7 @@ class TestSageMakerHook:
             == expected
         )
 
-    @mock.patch.object(AwsLogsHook, "get_conn")
+    @mock.patch.object(AwsLogsHook, "conn")
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(time, "monotonic")
     def test_describe_training_job_with_logs_in_progress(self, mock_time, mock_client, mock_log_client):
@@ -564,7 +564,7 @@ class TestSageMakerHook:
         assert response == (LogState.JOB_COMPLETE, {}, 50)
 
     @pytest.mark.parametrize("log_state", [LogState.JOB_COMPLETE, LogState.COMPLETE])
-    @mock.patch.object(AwsLogsHook, "get_conn")
+    @mock.patch.object(AwsLogsHook, "conn")
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_describe_training_job_with_complete_states(self, mock_client, mock_log_client, log_state):
         mock_session = mock.Mock()
@@ -591,7 +591,7 @@ class TestSageMakerHook:
         assert response == (LogState.COMPLETE, {}, 0)
 
     @mock.patch.object(SageMakerHook, "check_training_config")
-    @mock.patch.object(AwsLogsHook, "get_conn")
+    @mock.patch.object(AwsLogsHook, "conn")
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "describe_training_job_with_log")
     @mock.patch("time.sleep", return_value=None)
