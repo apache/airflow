@@ -25,10 +25,11 @@ from typing import Generator
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
-# Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the value of the nextForwardToken is the same
-# in subsequent calls.
-# The issue with this approach is, it can take a huge amount of time (e.g. 20 seconds) to retrieve logs using this approach.
-# As an intermediate solution, we decided to stop fetching logs if 3 consecutive responses are empty.
+# Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
+# value of the nextForwardToken is the same in subsequent calls.
+# The issue with this approach is, it can take a huge amount of time (e.g. 20 seconds) to retrieve logs using
+# this approach. As an intermediate solution, we decided to stop fetching logs if 3 consecutive responses
+# are empty.
 # See PR https://github.com/apache/airflow/pull/20814
 NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD = 3
 
