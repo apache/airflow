@@ -37,8 +37,6 @@
 .breeze-help-r3 { fill: #d0b344;font-weight: bold }
 .breeze-help-r4 { fill: #68a0b3;font-weight: bold }
 .breeze-help-r5 { fill: #868887 }
-.breeze-help-r4 { fill: #68a0b3;font-weight: bold }
-.breeze-help-r5 { fill: #868887 }
 .breeze-help-r6 { fill: #98a84b;font-weight: bold }
 .breeze-help-r7 { fill: #8d7b39 }
     </style>
