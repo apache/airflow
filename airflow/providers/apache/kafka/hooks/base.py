@@ -25,7 +25,11 @@ from airflow.hooks.base import BaseHook
 
 
 class KafkaBaseHook(BaseHook):
-    """A base hook for interacting with Apache Kafka"""
+    """
+    A base hook for interacting with Apache Kafka
+    
+    :param kafka_config_id: The connection object to use, defaults to "kafka_default"
+    """
 
     conn_name_attr = "kafka_config_id"
     default_conn_name = "kafka_default"
@@ -65,7 +69,8 @@ class KafkaBaseHook(BaseHook):
     def test_connection(self) -> tuple[bool, str]:
         """Test Connectivity from the UI"""
         try:
-            t = AdminClient(self.get_conn(), timeout=10).list_topics()
+            config = self.get_connection(self.kafka_config_id).extra_dejson
+            t = AdminClient(config, timeout=10).list_topics()
             if t:
                 return True, "Connection successful."
         except Exception as e:

@@ -25,7 +25,7 @@ VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}
 
 
 class AwaitMessageSensor(BaseOperator):
-    """An Airflow operator that defers until a specific message is published to Kafka.
+    """An Airflow sensor that defers until a specific message is published to Kafka.
 
     The operator creates a consumer that reads the Kafka log until it encounters a positive event.
 
@@ -112,8 +112,9 @@ class AwaitMessageSensor(BaseOperator):
 
 
 class AwaitMessageTriggerFunctionSensor(BaseOperator):
-    """An Airflow operator that defers until a specific message is published to
-    Kafka, then triggers a registered function
+    """An Airflow sensor that defers until a specific message is published to
+    Kafka, then triggers a registered function, and goes back to waiting for 
+    a message.
 
 
     The behavior of the consumer for this trigger is as follows:
@@ -180,7 +181,7 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
         if not callable(self.event_triggered_function):
             raise TypeError(
                 "parameter event_triggered_function is expected to be of type callable,"
-                "got {type(event_triggered_function)}"
+                f"got {type(event_triggered_function)}"
             )
 
     def execute(self, context, event=None) -> Any:
