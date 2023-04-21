@@ -30,7 +30,7 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 .. warning::
-  If you are using Remove mysql-connector-python please note that starting this release it is an extra option.
+  If you are using mysql-connector-python please note that starting this release it is an extra option.
   The library will not be installed by default.
 
 * ``Remove mysql-connector-python (#30487)``
