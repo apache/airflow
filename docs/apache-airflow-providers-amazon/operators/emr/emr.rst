@@ -188,6 +188,15 @@ To monitor the state of an EMR job flow you can use
 Wait on an Amazon EMR step state
 ================================
 
+To monitor the state of an EMR job step you can use
+:class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_emr_step]
+    :end-before: [END howto_sensor_emr_step]
+
 Reference
 ---------
 

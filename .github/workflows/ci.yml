@@ -168,7 +168,6 @@ jobs:
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
-      suspended-providers-folders: ${{ steps.selective-checks.outputs.suspended-providers-folders }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -546,6 +545,12 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      - name: "Tests Pytest collection"
+        run: breeze testing tests --run-in-parallel --collect-only
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+          BACKEND: sqlite
+          PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -917,49 +922,13 @@ jobs:
       - name: "Post Helm Tests"
         uses: ./.github/actions/post_tests
 
-  test-pytest-collection:
-    timeout-minutes: 8
-    name: "Test Pytest collection"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, wait-for-ci-images]
-    if: needs.build-info.outputs.image-build == 'true'
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      BACKEND: sqlite
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
-      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      JOB_ID: "test-pytest-collection"
-      COVERAGE: "false"
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
-        id: wait-for-images
-        run: breeze ci-image pull --wait-for-image --tag-as-latest
-        env:
-          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Tests Pytest collection"
-        run: breeze testing tests --run-in-parallel --collect-only
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
-
   tests-postgres:
     timeout-minutes: 130
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -969,7 +938,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1006,11 +974,10 @@ jobs:
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1052,11 +1019,10 @@ jobs:
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1098,7 +1064,7 @@ jobs:
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -1110,7 +1076,6 @@ jobs:
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
@@ -1144,7 +1109,7 @@ jobs:
       MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
@@ -1154,7 +1119,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1187,7 +1151,7 @@ jobs:
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
@@ -1197,7 +1161,6 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
@@ -1229,12 +1192,11 @@ jobs:
     timeout-minutes: 130
     name: Integration Tests Postgres
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
@@ -1280,6 +1242,11 @@ jobs:
           breeze testing integration-tests --integration trino --integration kerberos
           breeze stop
         if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: Kafka"
+        run: |
+          breeze testing integration-tests --integration kafka
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: all-testable"
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
@@ -1290,11 +1257,10 @@ jobs:
     timeout-minutes: 130
     name: Integration Tests MySQL
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1332,11 +1298,10 @@ jobs:
     name: "Quarantined tests"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     continue-on-error: true
-    needs: [build-info, test-pytest-collection]
+    needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "Quarantined"
-      SUSPENDED_PROVIDERS_FOLDERS: "${{ needs.build-info.outputs.suspended-providers-folders }}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
