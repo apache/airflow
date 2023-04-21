@@ -71,6 +71,10 @@ async def mock_awaitable(*args, **kwargs):
 
 
 class TestDataprocHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataprocHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocHook(gcp_conn_id="test")
@@ -496,6 +500,10 @@ class TestDataprocHook:
 
 
 class TestDataprocAsyncHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataprocAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocAsyncHook(gcp_conn_id="test")
@@ -756,9 +764,7 @@ class TestDataprocAsyncHook:
     @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
     async def test_get_operation(self, mock_client):
         mock_client.return_value = None
-        hook = DataprocAsyncHook(
-            gcp_conn_id="google_cloud_default", delegate_to=None, impersonation_chain=None
-        )
+        hook = DataprocAsyncHook(gcp_conn_id="google_cloud_default", impersonation_chain=None)
         await hook.get_operation(region=GCP_LOCATION, operation_name="operation_name")
         mock_client.assert_called_once()
         mock_client.assert_called_with(region=GCP_LOCATION, operation_name="operation_name")

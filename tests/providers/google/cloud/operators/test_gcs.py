@@ -413,13 +413,11 @@ class TestGoogleCloudStorageSync:
             delete_extra_files=True,
             allow_overwrite=True,
             gcp_conn_id="GCP_CONN_ID",
-            delegate_to="DELEGATE_TO",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id="GCP_CONN_ID",
-            delegate_to="DELEGATE_TO",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.sync.assert_called_once_with(

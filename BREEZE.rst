@@ -1579,23 +1579,6 @@ Those are all available flags of ``get-workflow-info`` command:
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
-Tracking backtracking issues for CI builds
-..........................................
-
-When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
-lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
-Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
-diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
-which new dependency might have caused the backtracking. The whole process is described in
-`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
-
-Those are all available flags of ``find-newer-dependencies`` command:
-
-.. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
-  :width: 100%
-  :alt: Breeze ci find-newer-dependencies
-
 Release management tasks
 ------------------------
 
@@ -1693,7 +1676,7 @@ You can also run the verification with an earlier airflow version to check for c
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.1.0
+    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
@@ -1701,6 +1684,32 @@ All the command parameters are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
+
+
+Installing provider packages
+............................
+
+In some cases we want to just see if the provider packages generated can be installed with airflow without
+verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+just prepared provider packages and they are present in ``dist`` folder.
+
+.. code-block:: bash
+
+     breeze release-management install-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_install-provider-packages.svg
+  :width: 100%
+  :alt: Breeze install-provider-packages
+
 
 Generating Provider Issue
 .........................

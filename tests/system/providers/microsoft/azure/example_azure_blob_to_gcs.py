@@ -57,7 +57,6 @@ with DAG(
         object_name=GCP_OBJECT_NAME,
         filename=GCP_BUCKET_FILE_PATH,
         gzip=False,
-        delegate_to=None,
         impersonation_chain=None,
     )
     # [END how_to_azure_blob_to_gcs]
