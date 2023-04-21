@@ -27,7 +27,7 @@ VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}
 class AwaitMessageSensor(BaseOperator):
     """An Airflow sensor that defers until a specific message is published to Kafka.
 
-    The operator creates a consumer that reads the Kafka log until it encounters a positive event.
+    The sensor creates a consumer that reads the Kafka log until it encounters a positive event.
 
     The behavior of the consumer for this trigger is as follows:
     - poll the Kafka topics for a message
