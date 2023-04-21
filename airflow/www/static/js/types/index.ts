@@ -130,16 +130,19 @@ interface DatasetListItem extends API.Dataset {
   totalUpdates: number;
 }
 
+type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
+
 export type {
+  API,
+  MinimalTaskInstance,
   Dag,
   DagRun,
-  RunState,
-  TaskState,
-  TaskInstance,
-  Task,
-  DepNode,
-  DepEdge,
-  API,
-  RunOrdering,
   DatasetListItem,
+  DepEdge,
+  DepNode,
+  RunOrdering,
+  RunState,
+  Task,
+  TaskInstance,
+  TaskState,
 };

@@ -42,14 +42,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = [
-    "cassandra",
-    "celery",
-    "kerberos",
-    "mongo",
-    "pinot",
-    "trino",
-]
+TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd"]
 ALL_INTEGRATIONS = sorted(
     [
@@ -88,7 +81,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.0.1"
+PIP_VERSION = "23.1"
 
 
 @lru_cache(maxsize=None)
@@ -113,6 +106,23 @@ ALLOWED_TEST_TYPE_CHOICES = [
     "Postgres",
     "MySQL",
     "Quarantine",
+]
+
+
+@lru_cache(maxsize=None)
+def all_helm_test_packages() -> list[str]:
+    return sorted(
+        [
+            candidate.name
+            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
+            if candidate.is_dir()
+        ]
+    )
+
+
+ALLOWED_HELM_TEST_PACKAGES = [
+    "all",
+    *all_helm_test_packages(),
 ]
 
 ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]

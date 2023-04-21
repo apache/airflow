@@ -395,9 +395,15 @@ def check_doc_files(yaml_files: dict[str, dict]):
             )
     console.print("[yellow]Suspended providers:[/]")
     console.print(suspended_providers)
+
+    expected_doc_files = chain(
+        DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst"),
+        DOCS_DIR.glob("apache-airflow-providers-*/transfer/**/*.rst"),
+    )
+
     expected_doc_urls = {
         f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
-        for f in DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst")
+        for f in expected_doc_files
         if f.name != "index.rst"
         and "_partials" not in f.parts
         and not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)

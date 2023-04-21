@@ -101,6 +101,7 @@ Some directories in the container are mounted, which means that their contents a
 
 - ``./dags`` - you can put your DAG files here.
 - ``./logs`` - contains logs from task execution and scheduler.
+- ``./config`` - you can add custom log parser or add ``airflow_local_settings.py`` to configure cluster policy.
 - ``./plugins`` - you can put your :doc:`custom plugins </authoring-and-scheduling/plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
@@ -124,7 +125,7 @@ You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
-    mkdir -p ./dags ./logs ./plugins
+    mkdir -p ./dags ./logs ./plugins ./config
     echo -e "AIRFLOW_UID=$(id -u)" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`

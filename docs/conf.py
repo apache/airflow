@@ -403,6 +403,10 @@ if PACKAGE_NAME == "apache-airflow":
     ) in AirflowConfigParser.deprecated_options.items():
         deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
+    for (section, key), deprecated in AirflowConfigParser.many_to_one_deprecated_options.items():
+        for deprecated_section, deprecated_key, since_version in deprecated:
+            deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
+
     configs = default_config_yaml()
 
     # We want the default/example we show in the docs to reflect the value _after_

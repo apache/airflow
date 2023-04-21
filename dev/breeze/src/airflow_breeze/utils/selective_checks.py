@@ -30,7 +30,6 @@ from airflow_breeze.utils.path_utils import (
     SYSTEM_TESTS_PROVIDERS_ROOT,
     TESTS_PROVIDERS_ROOT,
 )
-from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -58,6 +57,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     GithubEvents,
     SelectiveUnitTestTypes,
+    all_helm_test_packages,
     all_selective_test_types,
 )
 from airflow_breeze.utils.console import get_console
@@ -388,11 +388,6 @@ class SelectiveChecks:
         return HELM_VERSION
 
     @cached_property
-    def providers_package_format_exclude(self) -> list[dict[str, str]]:
-        # Exclude sdist format unless full tests are run
-        return [{"package-format": "sdist"}] if not self.full_tests_needed else []
-
-    @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
         if not self.full_tests_needed:
             # Only basic combination so we do not need to exclude anything
@@ -587,6 +582,36 @@ class SelectiveChecks:
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
+    @staticmethod
+    def _extract_long_provider_tests(current_test_types: set[str]):
+        """
+        In case there are Provider tests in the list of test to run (either in the form of
+        Providers or Providers[...] we subtract them from the test type,
+        and add them to the list of tests to run individually.
+
+        In case of Providers, we need to replace it with Providers[-<list_of_long_tests>], but
+        in case of Providers[list_of_tests] we need to remove the long tests from the list.
+
+        """
+        long_tests = ["amazon", "google"]
+        for original_test_type in tuple(current_test_types):
+            if original_test_type == "Providers":
+                current_test_types.remove(original_test_type)
+                for long_test in long_tests:
+                    current_test_types.add(f"Providers[{long_test}]")
+                current_test_types.add(f"Providers[-{','.join(long_tests)}]")
+            elif original_test_type.startswith("Providers["):
+                provider_tests_to_run = (
+                    original_test_type.replace("Providers[", "").replace("]", "").split(",")
+                )
+                if any(long_test in provider_tests_to_run for long_test in long_tests):
+                    current_test_types.remove(original_test_type)
+                    for long_test in long_tests:
+                        if long_test in provider_tests_to_run:
+                            current_test_types.add(f"Providers[{long_test}]")
+                            provider_tests_to_run.remove(long_test)
+                    current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
+
     @cached_property
     def parallel_test_types(self) -> str:
         if not self.run_tests:
@@ -605,7 +630,25 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
-        return " ".join(sorted(current_test_types))
+
+        self._extract_long_provider_tests(current_test_types)
+
+        # this should be hard-coded as we want to have very specific sequence of tests
+        sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
+
+        def sort_key(t: str) -> str:
+            # Put the test types in the order we want them to run
+            if t in sorting_order:
+                return str(sorting_order.index(t))
+            else:
+                return str(len(sorting_order)) + t
+
+        return " ".join(
+            sorted(
+                current_test_types,
+                key=sort_key,
+            )
+        )
 
     @cached_property
     def basic_checks_only(self) -> bool:
@@ -642,5 +685,5 @@ class SelectiveChecks:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
 
     @cached_property
-    def suspended_providers_folders(self) -> str:
-        return " ".join(get_suspended_providers_folders())
+    def helm_test_packages(self) -> str:
+        return json.dumps(all_helm_test_packages())

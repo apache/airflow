@@ -43,6 +43,7 @@ RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
 GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
 CANCEL_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel")
+DELETE_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/delete")
 OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "api/2.1/jobs/runs/get-output")
 
 INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
@@ -350,6 +351,15 @@ class DatabricksHook(BaseDatabricksHook):
         """
         json = {"run_id": run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
+
+    def delete_run(self, run_id: int) -> None:
+        """
+        Deletes a non-active run.
+
+        :param run_id: id of the run
+        """
+        json = {"run_id": run_id}
+        self._do_api_call(DELETE_RUN_ENDPOINT, json)
 
     def restart_cluster(self, json: dict) -> None:
         """
