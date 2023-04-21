@@ -91,7 +91,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
     :param wait_for_completion: Whether wait for the cluster to be in ``available`` state
     :param max_attempt: The maximum number of attempts to be made. Default: 5
     :param poll_interval: The amount of time in seconds to wait between attempts. Default: 60
-    :param deferrable: If True, the operator will run in deferrable mode. 
+    :param deferrable: If True, the operator will run in deferrable mode
     """
 
     template_fields: Sequence[str] = (

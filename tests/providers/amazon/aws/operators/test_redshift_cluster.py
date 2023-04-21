@@ -115,7 +115,7 @@ class TestRedshiftCreateClusterOperator:
 
         # wait_for_completion is False so check waiter is not called
         mock_get_conn.return_value.get_waiter.assert_not_called()
-    
+
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
     def test_create_cluster_deferrable(self, mock_get_conn):
         redshift_operator = RedshiftCreateClusterOperator(
@@ -125,7 +125,6 @@ class TestRedshiftCreateClusterOperator:
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
-            wait_for_completion=True,
             deferrable=True,
         )
 
