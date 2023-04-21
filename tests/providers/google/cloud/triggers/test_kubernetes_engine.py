@@ -58,7 +58,6 @@ OPERATION_NAME = "test-operation-name"
 PROJECT_ID = "test-project-id"
 LOCATION = "us-central1-c"
 GCP_CONN_ID = "test-non-existing-project-id"
-DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["impersonate", "this", "test"]
 TRIGGER_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEOperationTrigger"
 EXC_MSG = "test error msg"
@@ -302,7 +301,6 @@ def operation_trigger():
         project_id=PROJECT_ID,
         location=LOCATION,
         gcp_conn_id=GCP_CONN_ID,
-        delegate_to=DELEGATE_TO,
         impersonation_chain=IMPERSONATION_CHAIN,
         poll_interval=POLL_INTERVAL,
     )
@@ -329,7 +327,6 @@ class TestGKEOperationTrigger:
             "project_id": PROJECT_ID,
             "location": LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
-            "delegate_to": DELEGATE_TO,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "poll_interval": POLL_INTERVAL,
         }

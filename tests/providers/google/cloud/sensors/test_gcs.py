@@ -40,8 +40,6 @@ TEST_BUCKET = "TEST_BUCKET"
 
 TEST_OBJECT = "TEST_OBJECT"
 
-TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
-
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
 
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
@@ -83,7 +81,6 @@ class TestGoogleCloudStorageObjectSensor:
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.return_value = True
@@ -92,7 +89,6 @@ class TestGoogleCloudStorageObjectSensor:
 
         assert result is True
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -216,14 +212,12 @@ class TestGoogleCloudStorageObjectUpdatedSensor:
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.return_value = True
         result = task.poke(mock.MagicMock())
 
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -239,14 +233,12 @@ class TestGoogleCloudStoragePrefixSensor:
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.return_value = ["NOT_EMPTY_LIST"]
         result = task.poke(mock.MagicMock)
 
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -260,7 +252,6 @@ class TestGoogleCloudStoragePrefixSensor:
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.list.return_value = []
         result = task.poke(mock.MagicMock)
@@ -274,7 +265,6 @@ class TestGoogleCloudStoragePrefixSensor:
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poke_interval=0,
         )
@@ -284,7 +274,6 @@ class TestGoogleCloudStoragePrefixSensor:
         response = task.execute(None)
 
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -319,7 +308,6 @@ class TestGCSUploadSessionCompleteSensor:
             min_objects=1,
             allow_delete=False,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             dag=self.dag,
         )
@@ -331,7 +319,6 @@ class TestGCSUploadSessionCompleteSensor:
         self.sensor._get_gcs_hook()
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         assert mock_hook.return_value == self.sensor.hook

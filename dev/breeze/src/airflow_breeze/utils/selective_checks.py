@@ -30,7 +30,6 @@ from airflow_breeze.utils.path_utils import (
     SYSTEM_TESTS_PROVIDERS_ROOT,
     TESTS_PROVIDERS_ROOT,
 )
-from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -389,11 +388,6 @@ class SelectiveChecks:
         return HELM_VERSION
 
     @cached_property
-    def providers_package_format_exclude(self) -> list[dict[str, str]]:
-        # Exclude sdist format unless full tests are run
-        return [{"package-format": "sdist"}] if not self.full_tests_needed else []
-
-    @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
         if not self.full_tests_needed:
             # Only basic combination so we do not need to exclude anything
@@ -689,10 +683,6 @@ class SelectiveChecks:
     @cached_property
     def debug_resources(self) -> bool:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
-
-    @cached_property
-    def suspended_providers_folders(self) -> str:
-        return " ".join(get_suspended_providers_folders())
 
     @cached_property
     def helm_test_packages(self) -> str:
