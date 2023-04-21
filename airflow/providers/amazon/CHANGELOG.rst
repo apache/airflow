@@ -63,6 +63,33 @@ Breaking changes
 
   Removed deprecated and unused param ``s3_conn_id`` from ``ImapAttachmentToS3Operator``, ``MongoToS3Operator`` and ``S3ToSFTPOperator``.
 
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+Features
+~~~~~~~~
+
+* ``add a stop operator to emr serverless (#30720)``
+* ``SqlToS3Operator - Add feature to partition SQL table (#30460)``
+* ``New AWS sensor — DynamoDBValueSensor (#28338)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fixed logging issue (#30703)``
+* ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
+* ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
+* ``Add support in AWS Batch Operator for multinode jobs (#29522)``
+
+Misc
+~~~~
+
+* ``Remove @poke_mode_only from EmrStepSensor (#30774)``
+* ``Organize Amazon providers docs index (#30541)``
+* ``Remove duplicate param docstring in EksPodOperator (#30634)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Decouple "job runner" from BaseJob ORM model (#30255)``
+
 7.4.1
 .....
 

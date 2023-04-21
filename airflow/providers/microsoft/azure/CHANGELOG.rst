@@ -34,6 +34,13 @@ Breaking changes
   In this version of the provider, deprecated GCS hook's param ``delegate_to`` is removed from ``AzureBlobStorageToGCSOperator``.
   Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
 
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+Misc
+~~~~
+
+* ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
+
 5.3.1
 .....
 
@@ -66,6 +73,7 @@ Bug Fixes
 
 Misc
 ~~~~
+
 * ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
 * ``Expose missing params in AzureSynapseHook API docs (#30099)``
 
