@@ -23,6 +23,7 @@ from datetime import date, datetime
 from typing import ClassVar
 
 import numpy as np
+import pandas
 import pendulum
 import pytest
 
@@ -71,6 +72,12 @@ class TestXComEncoder:
         s = json.dumps(dataset, cls=utils_json.XComEncoder)
         obj = json.loads(s, cls=utils_json.XComDecoder)
         assert dataset.uri == obj.uri
+
+    def test_encode_xcom_with_nested_dict_pandas(self):
+        data = ({"foo": 1, "bar": 2, "baz": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})},)
+        s = json.dumps(data, cls=utils_json.XComEncoder)
+        obj = json.loads(s, cls=utils_json.XComDecoder)
+        assert data == obj
 
     def test_orm_deserialize(self):
         x = 14
