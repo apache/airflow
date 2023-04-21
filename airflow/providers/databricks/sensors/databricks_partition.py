@@ -20,19 +20,17 @@
 
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    pass
 
 
 class DatabricksPartitionSensor(BaseSensorOperator):
@@ -71,7 +69,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         "partitions",
     )
 
-    template_ext = Sequence[str] = (".sql",)
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
 
     def __init__(
