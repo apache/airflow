@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from google.api_core.exceptions import NotFound
 from google.cloud.secretmanager_v1.proto.service_pb2 import AccessSecretVersionResponse
 
@@ -34,6 +35,10 @@ INTERNAL_CLIENT_PACKAGE = "airflow.providers.google.cloud._internal_client.secre
 
 
 class TestSecretsManagerHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            SecretsManagerHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
     @patch(
         SECRETS_HOOK_PACKAGE + "SecretsManagerHook.get_credentials_and_project_id",

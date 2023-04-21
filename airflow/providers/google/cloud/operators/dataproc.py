@@ -110,7 +110,6 @@ class ClusterGenerator:
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param worker_disk_size: Disk size for the worker nodes
     :param num_preemptible_workers: The # of preemptible worker nodes to spin up
-    :param labels: dict of labels to add to the cluster
     :param zone: The zone where the cluster will be located. Set to None to auto-zone. (templated)
     :param network_uri: The network uri to be used for machine communication, cannot be
         specified with subnetwork_uri
@@ -412,10 +411,13 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataprocCreateClusterOperator`
 
-    :param project_id: The ID of the google cloud project in which
+    :param project_id: The ID of the Google cloud project in which
         to create the cluster. (templated)
     :param cluster_name: Name of the cluster to create
-    :param labels: Labels that will be assigned to created cluster
+    :param labels: Labels that will be assigned to created cluster. Please, notice that
+        adding labels to ClusterConfig object in cluster_config parameter will not lead
+        to adding labels to the cluster. Labels for the clusters could be only set by passing
+        values to parameter of DataprocCreateCluster operator.
     :param cluster_config: Required. The cluster config to create.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
@@ -927,9 +929,6 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
     :param dataproc_jars: HCFS URIs of jar files to add to the CLASSPATH of the Hive server and Hadoop
         MapReduce (MR) tasks. Can contain Hive SerDes and UDFs. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param labels: The labels to associate with this job. Label keys must contain 1 to 63 characters,
         and must conform to RFC 1035. Label values may be empty, but, if present, must contain 1 to 63
         characters, and must conform to RFC 1035. No more than 32 labels can be associated with a job.
@@ -975,7 +974,6 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         dataproc_properties: dict | None = None,
         dataproc_jars: list[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict | None = None,
         job_error_states: set[str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -988,11 +986,6 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.labels = labels
         self.job_name = job_name
         self.cluster_name = cluster_name
@@ -1060,7 +1053,6 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
                         job_id=job_id,
                         project_id=self.project_id,
                         region=self.region,
-                        delegate_to=self.delegate_to,
                         gcp_conn_id=self.gcp_conn_id,
                         impersonation_chain=self.impersonation_chain,
                         polling_interval_seconds=self.polling_interval_seconds,

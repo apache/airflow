@@ -18,7 +18,6 @@
 """This module contains a BigQuery Hook."""
 from __future__ import annotations
 
-import warnings
 from copy import copy
 from typing import Sequence
 
@@ -58,17 +57,17 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.location = location
@@ -282,13 +281,17 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             location=location,
             impersonation_chain=impersonation_chain,
         )

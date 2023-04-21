@@ -46,10 +46,6 @@ runs:
       run: breeze ci-image build --push --empty-image --run-in-parallel
       env:
         IMAGE_TAG: ${{ env.IMAGE_TAG }}
-    - name: "Candidates for pip resolver backtrack triggers"
-      shell: bash
-      run: breeze ci find-newer-dependencies --max-age 1 --python 3.7
-      if: failure() || cancelled()
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

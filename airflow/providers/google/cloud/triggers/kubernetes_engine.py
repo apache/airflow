@@ -129,7 +129,6 @@ class GKEOperationTrigger(BaseTrigger):
         project_id: str | None,
         location: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
     ):
@@ -139,7 +138,6 @@ class GKEOperationTrigger(BaseTrigger):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
 
@@ -154,7 +152,6 @@ class GKEOperationTrigger(BaseTrigger):
                 "project_id": self.project_id,
                 "location": self.location,
                 "gcp_conn_id": self.gcp_conn_id,
-                "delegate_to": self.delegate_to,
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
             },
@@ -209,7 +206,6 @@ class GKEOperationTrigger(BaseTrigger):
             self._hook = GKEAsyncHook(
                 gcp_conn_id=self.gcp_conn_id,
                 location=self.location,
-                delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
         return self._hook

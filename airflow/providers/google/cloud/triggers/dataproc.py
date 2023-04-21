@@ -38,7 +38,6 @@ class DataprocBaseTrigger(BaseTrigger):
         region: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval_seconds: int = 30,
     ):
@@ -48,13 +47,11 @@ class DataprocBaseTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.polling_interval_seconds = polling_interval_seconds
-        self.delegate_to = delegate_to
 
     def get_async_hook(self):
         return DataprocAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
 
 
@@ -77,10 +74,9 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
     :param polling_interval_seconds: polling period in seconds to check for the status
     """
 
-    def __init__(self, job_id: str, delegate_to: str | None = None, **kwargs):
+    def __init__(self, job_id: str, **kwargs):
         self.job_id = job_id
-        self.delegate_to = delegate_to
-        super().__init__(delegate_to=self.delegate_to, **kwargs)
+        super().__init__(**kwargs)
 
     def serialize(self):
         return (
@@ -90,7 +86,6 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 "project_id": self.project_id,
                 "region": self.region,
                 "gcp_conn_id": self.gcp_conn_id,
-                "delegate_to": self.delegate_to,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
             },
@@ -309,7 +304,6 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                 "project_id": self.project_id,
                 "region": self.region,
                 "gcp_conn_id": self.gcp_conn_id,
-                "delegate_to": self.delegate_to,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
             },
