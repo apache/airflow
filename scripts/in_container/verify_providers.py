@@ -552,6 +552,7 @@ def get_package_class_summary(
             unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN},
             exclude_class_type=BaseSensorOperator,
             false_positive_class_names={
+                "ProduceToTopicOperator",
                 "CloudVisionAddProductToProductSetOperator",
                 "CloudDataTransferServiceGCSToGCSOperator",
                 "CloudDataTransferServiceS3ToGCSOperator",

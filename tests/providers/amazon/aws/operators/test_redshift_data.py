@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 
 CONN_ID = "aws_conn_test"
@@ -96,21 +94,6 @@ class TestRedshiftDataOperator:
         mock_conn.cancel_statement.assert_called_once_with(
             Id=STATEMENT_ID,
         )
-
-    def test_deprecated_await_result_parameter(self):
-        warning_message = (
-            "Parameter `RedshiftDataOperator.await_result` is deprecated and will be removed "
-            "in a future release. Please use method `wait_for_completion` instead."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            op = RedshiftDataOperator(
-                task_id=TASK_ID,
-                aws_conn_id=CONN_ID,
-                sql=SQL,
-                database=DATABASE,
-                await_result=True,
-            )
-        assert op.wait_for_completion
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_return_sql_result(self, mock_conn):
