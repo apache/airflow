@@ -532,13 +532,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
-            now = timezone.utcnow()
             session.query(TI).filter(filter_for_tis).update(
                 # TODO[ha]: should we use func.now()? How does that work with DB timezone
                 # on mysql when it's not UTC?
                 {
                     TI.state: TaskInstanceState.QUEUED,
-                    TI.queued_dttm: now,
+                    TI.queued_dttm: timezone.utcnow(),
                     TI.queued_by_job_id: self.job.id,
                 },
                 synchronize_session=False,
