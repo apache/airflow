@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -15,18 +16,25 @@
     specific language governing permissions and limitations
     under the License.
 
-Package apache-airflow-providers-apache-kafka
 
+Package apache-airflow-providers-apache-kafka
 ------------------------------------------------------
 
-`Kafka <https://kafka.apache.org>`__
+`Apache Kafka  <https://kafka.apache.org/>`__
 
 
-This is detailed commit list of changes for versions provider package: ``kafka``.
+This is detailed commit list of changes for versions provider package: ``apache.kafka``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
 
 
 1.0.0
 .....
 
-Initial release of this provider.
+Latest change: 2023-04-21
+
+=================================================================================================  ===========  ==========================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================
+`522661b6ad <https://github.com/apache/airflow/commit/522661b6ad4479e3c8243b2d2c8a793d1af82c17>`_  2023-04-21   ``Add provider for Apache Kafka (#30175)``
+=================================================================================================  ===========  ==========================================
