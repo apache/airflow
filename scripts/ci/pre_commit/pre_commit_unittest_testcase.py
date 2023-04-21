@@ -28,7 +28,7 @@ def check_test_file(file: str) -> int:
     found = 0
     classes = [c for c in node.body if isinstance(c, ast.ClassDef)]
     for c in classes:
-        # Some classes are returned as an ast.Attribute, some as an ast.Name object. Not quite sur why
+        # Some classes are returned as an ast.Attribute, some as an ast.Name object. Not quite sure why
         parent_classes = [base.attr for base in c.bases if isinstance(base, ast.Attribute)]
         parent_classes.extend([base.id for base in c.bases if isinstance(base, ast.Name)])
 
