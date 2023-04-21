@@ -296,7 +296,6 @@ class TestDataprocWorkflowTrigger:
             "project_id": TEST_PROJECT_ID,
             "region": TEST_REGION,
             "gcp_conn_id": TEST_GCP_CONN_ID,
-            "delegate_to": None,
             "impersonation_chain": None,
             "polling_interval_seconds": TEST_POLL_INTERVAL,
         }
