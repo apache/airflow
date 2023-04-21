@@ -176,6 +176,7 @@ def _fetch_dag_runs(
         "updated_at",
         "external_trigger",
         "conf",
+        "logical_date",
     ]
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     return query.offset(offset).limit(limit).all(), total_entries
