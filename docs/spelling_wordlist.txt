@@ -813,6 +813,8 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+Kafka
+kafka
 Kalibrr
 Kamil
 KEDA

@@ -42,14 +42,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = [
-    "cassandra",
-    "celery",
-    "kerberos",
-    "mongo",
-    "pinot",
-    "trino",
-]
+TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd"]
 ALL_INTEGRATIONS = sorted(
     [
