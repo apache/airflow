@@ -78,7 +78,7 @@ async with self.redshift_hook.async_conn as client:
     )
 ```
 
-In this case, we are using the built-in cluster_available waiter. If we wanted to use a custom waiter, we would change the code slightly to use the get_waiter function from the hook, rather than the aiobotocore client:
+In this case, we are using the built-in cluster_available waiter. If we wanted to use a custom waiter, we would change the code slightly to use the `get_waiter` function from the hook, rather than the aiobotocore client:
 
 ```python
 async with self.redshift_hook.async_conn as client:
@@ -92,7 +92,7 @@ async with self.redshift_hook.async_conn as client:
     )
 ```
 
-Here, we are calling the get_waiter function defined in base_aws.py which takes an optional argument of deferrable (set to True), and the aiobotocore client. cluster_paused is a custom boto waiter defined in redshift.json  in the airflow/providers/amazon/aws/waiters folder. In general, the config file for a custom waiter should be named as <service_name>.json. The config for cluster_paused is shown below:
+Here, we are calling the `get_waiter` function defined in `base_aws.py` which takes an optional argument of `deferrable` (set to `True`), and the `aiobotocore` client. `cluster_paused` is a custom boto waiter defined in `redshift.json`  in the `airflow/providers/amazon/aws/waiters` folder. In general, the config file for a custom waiter should be named as `<service_name>.json`. The config for `cluster_paused` is shown below:
 
 ```json
 {
@@ -128,22 +128,22 @@ Here, we are calling the get_waiter function defined in base_aws.py which takes 
 
 For more information about writing custom waiter, see the [README.md](https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/waiters/README.md) for custom waiters.
 
-In some cases, a built-in or custom waiter may not be able to solve the problem. In such cases, the asynchronous method used to poll the boto3 API would need to be defined in the hook of the service being used. This method is essentially the same as the synchronous version of the method, except that it will use the aiobotocore client, and will be awaited. For the Redshift example, the async describe_clusters method would look as follows:
+In some cases, a built-in or custom waiter may not be able to solve the problem. In such cases, the asynchronous method used to poll the boto3 API would need to be defined in the hook of the service being used. This method is essentially the same as the synchronous version of the method, except that it will use the aiobotocore client, and will be awaited. For the Redshift example, the async `describe_clusters` method would look as follows:
 
 ```python
 async with self.async_conn as client:
     response = client.describe_clusters(ClusterIdentifier=self.cluster_identifier)
 ```
 
-This async method can be used in the Trigger to poll the boto3 API. The polling logic will need to be implemented manually, taking care to use asyncio.sleep() rather than time.sleep().
+This async method can be used in the Trigger to poll the boto3 API. The polling logic will need to be implemented manually, taking care to use `asyncio.sleep()` rather than `time.sleep()`.
 
-The last step in the Trigger is to yield a TriggerEvent that will be used to alert the Triggerer that the Trigger has finished execution. The TriggerEvent can pass information from the trigger to the method_name method named in the self.defer call in the operator. In the Redshift example, the TriggerEvent would look as follows:
+The last step in the Trigger is to yield a `TriggerEvent` that will be used to alert the `Triggerer` that the Trigger has finished execution. The `TriggerEvent` can pass information from the trigger to the `method_name` method named in the `self.defer` call in the operator. In the Redshift example, the `TriggerEvent` would look as follows:
 
 ```
 yield TriggerEvent({"status": "success", "message": "Cluster Created"})
 ```
 
-The object passed through the TrigggerEvent can be captured in the method_name method through an event parameter. This can be used to determine what needs to be done based on the outcome of the Trigger execution. In the Redshift case, we can simply check the status of the event, and raise an Exception if something went wrong.
+The object passed through the `TriggerEvent` can be captured in the `method_name` method through an `event` parameter. This can be used to determine what needs to be done based on the outcome of the Trigger execution. In the Redshift case, we can simply check the status of the event, and raise an Exception if something went wrong.
 
 ```python
 def execute_complete(self, context, event=None):
