@@ -75,7 +75,7 @@ class Neo4jHook(BaseHook):
         :return: Driver
         """
         parsed_uri = urlsplit(uri)
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if parsed_uri.scheme in ["bolt", "neo4j"]:
             kwargs["encrypted"] = encrypted
         return GraphDatabase.driver(uri, auth=(conn.login, conn.password), **kwargs)
