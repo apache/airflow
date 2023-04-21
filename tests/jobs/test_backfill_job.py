@@ -21,6 +21,7 @@ import datetime
 import json
 import logging
 import threading
+from collections import defaultdict
 from unittest import mock
 from unittest.mock import patch
 
@@ -355,6 +356,88 @@ class TestBackfillJob:
                 task_concurrency_limit_reached_at_least_once = True
 
         assert 8 == num_running_task_instances
+        assert task_concurrency_limit_reached_at_least_once
+
+        times_dag_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            DagConcurrencyLimitReached,
+        )
+
+        times_pool_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            NoAvailablePoolSlot,
+        )
+
+        times_task_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            TaskConcurrencyLimitReached,
+        )
+
+        assert 0 == times_pool_limit_reached_in_debug
+        assert 0 == times_dag_concurrency_limit_reached_in_debug
+        assert times_task_concurrency_limit_reached_in_debug > 0
+
+    @pytest.mark.parametrize("with_max_active_tis_per_dag", [False, True])
+    @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
+    def test_backfill_respect_max_active_tis_per_dagrun_limit(
+        self, mock_log, dag_maker, with_max_active_tis_per_dag
+    ):
+        max_active_tis_per_dag = 3
+        max_active_tis_per_dagrun = 2
+        kwargs = {"max_active_tis_per_dagrun": max_active_tis_per_dagrun}
+        if with_max_active_tis_per_dag:
+            kwargs["max_active_tis_per_dag"] = max_active_tis_per_dag
+
+        with dag_maker(dag_id="test_backfill_respect_max_active_tis_per_dag_limit", schedule="@daily") as dag:
+            EmptyOperator.partial(task_id="task1", **kwargs).expand_kwargs([{"x": i} for i in range(10)])
+
+        dag_maker.create_dagrun(state=None)
+
+        executor = MockExecutor()
+
+        job = Job(executor=executor)
+        job_runner = BackfillJobRunner(
+            job=job,
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        run_job(job=job, execute_callable=job_runner._execute)
+
+        assert len(executor.history) > 0
+
+        task_concurrency_limit_reached_at_least_once = False
+
+        def get_running_tis_per_dagrun(running_tis):
+            running_tis_per_dagrun_dict = defaultdict(int)
+            for running_ti in running_tis:
+                running_tis_per_dagrun_dict[running_ti[3].dag_run.id] += 1
+            return running_tis_per_dagrun_dict
+
+        num_running_task_instances = 0
+        for running_task_instances in executor.history:
+            if with_max_active_tis_per_dag:
+                assert len(running_task_instances) <= max_active_tis_per_dag
+            running_tis_per_dagrun_dict = get_running_tis_per_dagrun(running_task_instances)
+            assert all(
+                [
+                    num_running_tis <= max_active_tis_per_dagrun
+                    for num_running_tis in running_tis_per_dagrun_dict.values()
+                ]
+            )
+            num_running_task_instances += len(running_task_instances)
+            task_concurrency_limit_reached_at_least_once = (
+                task_concurrency_limit_reached_at_least_once
+                or any(
+                    [
+                        num_running_tis == max_active_tis_per_dagrun
+                        for num_running_tis in running_tis_per_dagrun_dict.values()
+                    ]
+                )
+            )
+
+        assert 80 == num_running_task_instances  # (7 backfill run + 1 manual run ) * 10 mapped task per run
         assert task_concurrency_limit_reached_at_least_once
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(

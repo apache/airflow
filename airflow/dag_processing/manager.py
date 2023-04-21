@@ -791,7 +791,7 @@ class DagFileProcessorManager(LoggingMixin):
                 alive_dag_filelocs=dag_filelocs,
                 processor_subdir=self.get_dag_directory(),
             )
-            DagModel.deactivate_deleted_dags(self._file_paths)
+            DagModel.deactivate_deleted_dags(dag_filelocs)
 
             from airflow.models.dagcode import DagCode
 

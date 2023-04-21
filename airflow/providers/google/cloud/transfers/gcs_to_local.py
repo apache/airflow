@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
@@ -52,9 +51,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         the contents of the downloaded file to XCom with the key set in this
         parameter. If not set, the downloaded data will not be pushed to XCom. (templated)
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -85,7 +81,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         filename: str | None = None,
         store_to_xcom_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         file_encoding: str = "utf-8",
         **kwargs,
@@ -109,11 +104,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.object_name = object_name
         self.store_to_xcom_key = store_to_xcom_key
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.file_encoding = file_encoding
 
@@ -121,7 +111,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.log.info("Executing download: %s, %s, %s", self.bucket, self.object_name, self.filename)
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

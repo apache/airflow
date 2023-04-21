@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, Sequence
 
 from airflow import AirflowException
@@ -37,7 +36,6 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         pooling_period_seconds: int = 30,
     ):
         super().__init__()
@@ -46,17 +44,11 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.pooling_period_seconds = pooling_period_seconds
 
         self.gcp_hook = CloudComposerAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -68,7 +60,6 @@ class CloudComposerExecutionTrigger(BaseTrigger):
                 "operation_name": self.operation_name,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
-                "delegate_to": self.delegate_to,
                 "pooling_period_seconds": self.pooling_period_seconds,
             },
         )

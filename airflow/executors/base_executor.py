@@ -217,9 +217,19 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("%s in queue", num_queued_tasks)
         self.log.debug("%s open slots", open_slots)
 
-        Stats.gauge("executor.open_slots", open_slots)
-        Stats.gauge("executor.queued_tasks", num_queued_tasks)
-        Stats.gauge("executor.running_tasks", num_running_tasks)
+        Stats.gauge(
+            "executor.open_slots", value=open_slots, tags={"status": "open", "name": self.__class__.__name__}
+        )
+        Stats.gauge(
+            "executor.queued_tasks",
+            value=num_queued_tasks,
+            tags={"status": "queued", "name": self.__class__.__name__},
+        )
+        Stats.gauge(
+            "executor.running_tasks",
+            value=num_running_tasks,
+            tags={"status": "running", "name": self.__class__.__name__},
+        )
 
         self.trigger_tasks(open_slots)
 
@@ -374,6 +384,18 @@ class BaseExecutor(LoggingMixin):
 
     def terminate(self):
         """This method is called when the daemon receives a SIGTERM."""
+        raise NotImplementedError()
+
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
+        """
+        Handle remnants of tasks that were failed because they were stuck in queued.
+        Tasks can get stuck in queued. If such a task is detected, it will be marked
+        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
+        if it doesn't.
+
+        :param tis: List of Task Instances to clean up
+        :return: List of readable task instances for a warning message
+        """
         raise NotImplementedError()
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:

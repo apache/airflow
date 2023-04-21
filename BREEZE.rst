@@ -788,6 +788,15 @@ For example this will only run provider tests for airbyte and http providers:
 
    breeze testing tests --test-type "Providers[airbyte,http]"
 
+You can also exclude tests for some providers from being run when whole "Providers" test type is run.
+
+For example this will run tests for all providers except amazon and google provider tests:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[-amazon,google]"
+
+
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
 types passed to ``--parallel-test-types`` flag.
@@ -1684,7 +1693,7 @@ You can also run the verification with an earlier airflow version to check for c
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.1.0
+    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
@@ -1692,6 +1701,32 @@ All the command parameters are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
+
+
+Installing provider packages
+............................
+
+In some cases we want to just see if the provider packages generated can be installed with airflow without
+verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+just prepared provider packages and they are present in ``dist`` folder.
+
+.. code-block:: bash
+
+     breeze release-management install-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_install-provider-packages.svg
+  :width: 100%
+  :alt: Breeze install-provider-packages
+
 
 Generating Provider Issue
 .........................

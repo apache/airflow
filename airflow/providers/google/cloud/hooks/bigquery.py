@@ -74,7 +74,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     Interact with BigQuery. This hook uses the Google Cloud connection.
 
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
-    :param delegate_to: This performs a task on one host with reference to other hosts.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
@@ -91,20 +90,20 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def __init__(
         self,
         gcp_conn_id: str = GoogleBaseHook.default_conn_name,
-        delegate_to: str | None = None,
         use_legacy_sql: bool = True,
         location: str | None = None,
         api_resource_configs: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.use_legacy_sql = use_legacy_sql

@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.tasks_v2.types import Queue, Task
 
@@ -47,6 +48,10 @@ def mock_patch_return_object(attribute: str, return_value: Any) -> object:
 
 
 class TestCloudTasksHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudTasksHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

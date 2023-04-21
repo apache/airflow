@@ -1010,21 +1010,21 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return response["jobRunId"]
 
 
-class EmrServerlessDeleteApplicationOperator(BaseOperator):
+class EmrServerlessStopApplicationOperator(BaseOperator):
     """
-    Operator to delete EMR Serverless application
+    Operator to stop an EMR Serverless application
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EmrServerlessDeleteApplicationOperator`
+        :ref:`howto/operator:EmrServerlessStopApplicationOperator`
 
-    :param application_id: ID of the EMR Serverless application to delete.
-    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
+    :param application_id: ID of the EMR Serverless application to stop.
+    :param wait_for_completion: If true, wait for the Application to stop before returning. Default to True
     :param aws_conn_id: AWS connection to use
     :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
-        the application be deleted. Defaults to 25 minutes.
+        the application be stopped. Defaults to 5 minutes.
     :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
-        Defaults to 60 seconds.
+        Defaults to 30 seconds.
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -1034,8 +1034,8 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         application_id: str,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
-        waiter_countdown: int = 25 * 60,
-        waiter_check_interval_seconds: int = 60,
+        waiter_countdown: int = 5 * 60,
+        waiter_check_interval_seconds: int = 30,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -1054,28 +1054,76 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         self.log.info("Stopping application: %s", self.application_id)
         self.hook.conn.stop_application(applicationId=self.application_id)
 
-        # This should be replaced with a boto waiter when available.
-        waiter(
-            get_state_callable=self.hook.conn.get_application,
-            get_state_args={
-                "applicationId": self.application_id,
-            },
-            parse_response=["application", "state"],
-            desired_state=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-            failure_states=set(),
-            object_type="application",
-            action="stopped",
-            countdown=self.waiter_countdown,
-            check_interval_seconds=self.waiter_check_interval_seconds,
+        if self.wait_for_completion:
+            # This should be replaced with a boto waiter when available.
+            waiter(
+                get_state_callable=self.hook.conn.get_application,
+                get_state_args={
+                    "applicationId": self.application_id,
+                },
+                parse_response=["application", "state"],
+                desired_state=EmrServerlessHook.APPLICATION_FAILURE_STATES,
+                failure_states=set(),
+                object_type="application",
+                action="stopped",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
+            )
+            self.log.info("EMR serverless application %s stopped successfully", self.application_id)
+
+
+class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperator):
+    """
+    Operator to delete EMR Serverless application
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrServerlessDeleteApplicationOperator`
+
+    :param application_id: ID of the EMR Serverless application to delete.
+    :param wait_for_completion: If true, wait for the Application to be deleted before returning.
+        Defaults to True. Note that this operator will always wait for the application to be STOPPED first.
+    :param aws_conn_id: AWS connection to use
+    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for each step of first,
+        the application to be stopped, and then deleted. Defaults to 25 minutes.
+    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
+        Defaults to 60 seconds.
+    """
+
+    template_fields: Sequence[str] = ("application_id",)
+
+    def __init__(
+        self,
+        application_id: str,
+        wait_for_completion: bool = True,
+        aws_conn_id: str = "aws_default",
+        waiter_countdown: int = 25 * 60,
+        waiter_check_interval_seconds: int = 60,
+        **kwargs,
+    ):
+        self.wait_for_delete_completion = wait_for_completion
+        # super stops the app
+        super().__init__(
+            application_id=application_id,
+            # when deleting an app, we always need to wait for it to stop before we can call delete()
+            wait_for_completion=True,
+            aws_conn_id=aws_conn_id,
+            waiter_countdown=waiter_countdown,
+            waiter_check_interval_seconds=waiter_check_interval_seconds,
+            **kwargs,
         )
 
-        self.log.info("Deleting application: %s", self.application_id)
+    def execute(self, context: Context) -> None:
+        # super stops the app (or makes sure it's already stopped)
+        super().execute(context)
+
+        self.log.info("Now deleting application: %s", self.application_id)
         response = self.hook.conn.delete_application(applicationId=self.application_id)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Application deletion failed: {response}")
 
-        if self.wait_for_completion:
+        if self.wait_for_delete_completion:
             # This should be replaced with a boto waiter when available.
             waiter(
                 get_state_callable=self.hook.conn.get_application,

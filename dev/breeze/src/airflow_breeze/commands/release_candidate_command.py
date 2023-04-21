@@ -262,6 +262,8 @@ def create_issue_for_testing(version, previous_version, github_token):
 
 
 def remove_old_releases(version, repo_root):
+    if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
+        return
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
@@ -301,18 +303,20 @@ def remove_old_releases(version, repo_root):
 )
 @option_answer
 def publish_release_candidate(version, previous_version, github_token):
-    if "rc" not in version:
-        exit("Version must contain 'rc'")
-    if "rc" in previous_version:
-        exit("Previous version must not contain 'rc'")
+    from packaging.version import Version
+
+    if not Version(version).is_prerelease:
+        exit("--version value must be a pre-release")
+    if Version(previous_version).is_prerelease:
+        exit("--previous-version value must be a release not a pre-release")
     if not github_token:
         github_token = os.environ.get("GITHUB_TOKEN")
         if not github_token:
             console_print("GITHUB_TOKEN is not set! Issue generation will fail.")
             confirm_action("Do you want to continue?", abort=True)
-    version_suffix = version[-3:]
+    version_suffix = version[5:]
     version_branch = version[:3].replace(".", "-")
-    version_without_rc = version[:-3]
+    version_without_rc = version[:5]
     os.chdir(AIRFLOW_SOURCES_ROOT)
     airflow_repo_root = os.getcwd()
 

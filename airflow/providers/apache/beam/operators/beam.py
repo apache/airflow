@@ -22,7 +22,6 @@ import copy
 import os
 import stat
 import tempfile
-import warnings
 from abc import ABC, ABCMeta, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
@@ -57,7 +56,6 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     dataflow_hook: DataflowHook | None
     dataflow_config: DataflowConfiguration
     gcp_conn_id: str
-    delegate_to: str | None
     dataflow_support_impersonation: bool = True
 
     def _set_dataflow(
@@ -77,7 +75,6 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     def __set_dataflow_hook(self) -> DataflowHook:
         self.dataflow_hook = DataflowHook(
             gcp_conn_id=self.dataflow_config.gcp_conn_id or self.gcp_conn_id,
-            delegate_to=self.dataflow_config.delegate_to or self.delegate_to,
             poll_sleep=self.dataflow_config.poll_sleep,
             impersonation_chain=self.dataflow_config.impersonation_chain,
             drain_pipeline=self.dataflow_config.drain_pipeline,
@@ -146,10 +143,6 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         When defining labels (labels option), you can also provide a dictionary.
     :param gcp_conn_id: Optional.
         The connection ID to use connecting to Google Cloud Storage if python file is on GCS.
-    :param delegate_to:  Optional.
-        The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param dataflow_config: Dataflow configuration, used when runner type is set to DataflowRunner,
         (optional) defaults to None.
     """
@@ -161,7 +154,6 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         default_pipeline_options: dict | None = None,
         pipeline_options: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
@@ -170,11 +162,6 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self.default_pipeline_options = default_pipeline_options or {}
         self.pipeline_options = pipeline_options or {}
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         if isinstance(dataflow_config, dict):
             self.dataflow_config = DataflowConfiguration(**dataflow_config)
         else:
@@ -273,7 +260,6 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
@@ -282,7 +268,6 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             default_pipeline_options=default_pipeline_options,
             pipeline_options=pipeline_options,
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             dataflow_config=dataflow_config,
             **kwargs,
         )
@@ -310,7 +295,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
         with ExitStack() as exit_stack:
             if self.py_file.lower().startswith("gs://"):
-                gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
+                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
@@ -411,7 +396,6 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         default_pipeline_options: dict | None = None,
         pipeline_options: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
@@ -420,7 +404,6 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
             default_pipeline_options=default_pipeline_options,
             pipeline_options=pipeline_options,
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             dataflow_config=dataflow_config,
             **kwargs,
         )
@@ -441,7 +424,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
         with ExitStack() as exit_stack:
             if self.jar.lower().startswith("gs://"):
-                gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
+                gcs_hook = GCSHook(self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
@@ -568,7 +551,6 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         default_pipeline_options: dict | None = None,
         pipeline_options: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         dataflow_config: DataflowConfiguration | dict | None = None,
         **kwargs,
     ) -> None:
@@ -577,7 +559,6 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             default_pipeline_options=default_pipeline_options,
             pipeline_options=pipeline_options,
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             dataflow_config=dataflow_config,
             **kwargs,
         )
@@ -620,7 +601,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
         with ExitStack() as exit_stack:
             if go_artifact.is_located_on_gcs():
-                gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
+                gcs_hook = GCSHook(self.gcp_conn_id)
                 tmp_dir = exit_stack.enter_context(tempfile.TemporaryDirectory(prefix="apache-beam-go"))
                 go_artifact.download_from_gcs(gcs_hook=gcs_hook, tmp_dir=tmp_dir)
 

@@ -169,7 +169,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.0.0', 'black==22.12.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==22.12.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -190,7 +190,7 @@ repos:
         entry: ruff --fix --no-update-check --force-exclude
         additional_dependencies: ['ruff==0.0.226']
         files: \.pyi?$
-        exclude: ^.*/.*_vendor/
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.13.0
     hooks:
@@ -861,7 +861,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml', 'packaging']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -914,7 +914,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: mypy-providers

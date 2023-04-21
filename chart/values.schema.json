@@ -3211,17 +3211,17 @@
                         "timeoutSeconds": {
                             "description": "Webserver Liveness probe timeout seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 5
                         },
                         "failureThreshold": {
                             "description": "Webserver Liveness probe failure threshold.",
                             "type": "integer",
-                            "default": 20
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Webserver Liveness probe period seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "scheme": {
                             "description": "Webserver Liveness probe scheme.",
@@ -3243,17 +3243,17 @@
                         "timeoutSeconds": {
                             "description": "Webserver Readiness probe timeout seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 5
                         },
                         "failureThreshold": {
                             "description": "Webserver Readiness probe failure threshold.",
                             "type": "integer",
-                            "default": 20
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Webserver Readiness probe period seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "scheme": {
                             "description": "Webserver Readiness probe scheme.",
