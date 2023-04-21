@@ -20,10 +20,11 @@ from typing import Any
 
 from confluent_kafka.admin import AdminClient
 
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 
-class KafkaHook(BaseHook):
+class KafkaBaseHook(BaseHook):
     """A base hook for interacting with Apache Kafka"""
 
     conn_name_attr = "kafka_config_id"
@@ -35,7 +36,7 @@ class KafkaHook(BaseHook):
         """Initialize our Base"""
         super().__init__()
         self.kafka_config_id = kafka_config_id
-        self.get_conn()
+        self.get_conn
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -48,14 +49,18 @@ class KafkaHook(BaseHook):
             },
         }
 
-    def get_conn(self) -> dict[Any, Any]:
+    def _get_client(self, config):
+        raise NotImplementedError
+
+    @cached_property
+    def get_conn(self) -> Any:
         """get the configuration object"""
         config = self.get_connection(self.kafka_config_id).extra_dejson
 
         if not (config.get("bootstrap.servers", None)):
             raise ValueError("config['bootstrap.servers'] must be provided.")
 
-        return config
+        return self._get_client(config)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test Connectivity from the UI"""

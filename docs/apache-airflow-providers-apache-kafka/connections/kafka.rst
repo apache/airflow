@@ -22,10 +22,15 @@ Apache Kafka Connection
 
 The Apache Kafka connection type configures a connection to Apache Kafka via the ``confluent-kafka`` Python package.
 
+.. |Kafka Connection| image:: kafka_connection.png
+    :width: 400
+    :alt: Kafka Connection Screenshot
+
+
 Default Connection IDs
 ----------------------
 
-Kafka hooks and operators use ``kafka_default`` by default.
+Kafka hooks and operators use ``kafka_default`` by default, this connection is very minimal and should not be assumed useful for more than the most trivial of testing.
 
 Configuring the Connection
 --------------------------

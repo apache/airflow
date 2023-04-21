@@ -42,7 +42,7 @@ class TestSensors:
     def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id="kafka_default",
+                conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
                     {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
@@ -52,7 +52,7 @@ class TestSensors:
 
     def test_await_message_good(self):
         sensor = AwaitMessageSensor(
-            kafka_config_id="kafka_default", topics=["test"], task_id="test", apply_function=_return_true
+            kafka_config_id="kafka_d", topics=["test"], task_id="test", apply_function=_return_true
         )
 
         # execute marks the task as deferred
@@ -61,14 +61,14 @@ class TestSensors:
 
     def test_await_execute_complete(self):
         sensor = AwaitMessageSensor(
-            kafka_config_id="kafka_default", topics=["test"], task_id="test", apply_function=_return_true
+            kafka_config_id="kafka_d", topics=["test"], task_id="test", apply_function=_return_true
         )
 
         assert "test" == sensor.execute_complete(context={}, event="test")
 
     def test_await_message_trigger_event(self):
         sensor = AwaitMessageTriggerFunctionSensor(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             topics=["test"],
             task_id="test",
             apply_function=_return_true,
@@ -81,7 +81,7 @@ class TestSensors:
 
     def test_await_message_trigger_event_execute_complete(self):
         sensor = AwaitMessageTriggerFunctionSensor(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             topics=["test"],
             task_id="test",
             apply_function=_return_true,

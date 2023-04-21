@@ -56,9 +56,9 @@ class AwaitMessageTrigger(BaseTrigger):
 
     def __init__(
         self,
-        kafka_config_id: str,
         topics: Sequence[str],
         apply_function: str,
+        kafka_config_id: str = "kafka_default",
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
         poll_timeout: float = 1,

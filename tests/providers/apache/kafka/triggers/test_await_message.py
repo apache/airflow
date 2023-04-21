@@ -58,7 +58,7 @@ class TestTrigger:
     def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id="kafka_default",
+                conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
                     {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
@@ -68,7 +68,7 @@ class TestTrigger:
 
     def test_trigger_serialization(self):
         trigger = AwaitMessageTrigger(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             apply_function="test.noop",
             topics=["noop"],
             apply_function_args=[1, 2],
@@ -83,7 +83,7 @@ class TestTrigger:
 
         assert classpath == "airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger"
         assert kwargs == dict(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             apply_function="test.noop",
             topics=["noop"],
             apply_function_args=[1, 2],
@@ -98,7 +98,7 @@ class TestTrigger:
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             apply_function="tests.providers.apache.kafka.triggers.test_await_message.apply_function_true",
             topics=["noop"],
             poll_timeout=0.0001,
@@ -116,7 +116,7 @@ class TestTrigger:
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             apply_function="tests.providers.apache.kafka.triggers.test_await_message.apply_function_false",
             topics=["noop"],
             poll_timeout=0.0001,

@@ -20,10 +20,10 @@ from typing import Sequence
 
 from confluent_kafka import Consumer
 
-from airflow.providers.apache.kafka.hooks.base import KafkaHook
+from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
 
-class KafkaConsumerHook(KafkaHook):
+class KafkaConsumerHook(KafkaBaseHook):
     """
     A hook for creating a Kafka Consumer
 
@@ -31,20 +31,17 @@ class KafkaConsumerHook(KafkaHook):
     :param topics: A list of topics to subscribe to.
     """
 
-    def __init__(self, topics: Sequence[str], kafka_config_id=KafkaHook.default_conn_name) -> None:
+    def __init__(self, topics: Sequence[str], kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
 
         super().__init__(kafka_config_id=kafka_config_id)
         self.topics = topics
-        if not self.get_conn().get("group.id", None):
-            raise ValueError("The 'group.id' parameter must be set in the config dictionary'. Got <None>")
 
-        if not self.get_conn().get("bootstrap.servers", None):
-            raise ValueError("config['bootstrap.servers'] must be provided.")
+    def _get_client(self, config) -> Consumer:
+        return Consumer(config)
 
     def get_consumer(self) -> Consumer:
         """Returns a Consumer that has been subscribed to topics."""
-        consumer = Consumer(self.get_conn())
+        consumer = self.get_conn
         consumer.subscribe(self.topics)
 
-        self.log.info("Consumer %s", consumer)
         return consumer

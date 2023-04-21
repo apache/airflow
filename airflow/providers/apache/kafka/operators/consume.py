@@ -52,7 +52,7 @@ class ConsumeFromTopicOperator(BaseOperator):
         batch has processed by the apply_function method for all messages in the batch.
         if never,  close() is called without calling the commit() method.
     :param max_messages: The maximum total number of messages an operator should read from Kafka,
-        defaults to None
+        defaults to None implying read to the end of the topic.
     :param max_batch_size: The maximum number of messages a consumer should read when polling,
         defaults to 1000
     :param poll_timeout: How long the Kafka consumer should wait before determining no more messages are
@@ -70,13 +70,13 @@ class ConsumeFromTopicOperator(BaseOperator):
         "apply_function",
         "apply_function_args",
         "apply_function_kwargs",
-        "config",
+        "kafka_config_id",
     )
 
     def __init__(
         self,
-        kafka_config_id: str,
         topics: str | Sequence[str],
+        kafka_config_id: str = "kafka_default",
         apply_function: Callable[..., Any] | str | None = None,
         apply_function_batch: Callable[..., Any] | str | None = None,
         apply_function_args: Sequence[Any] | None = None,
@@ -101,6 +101,11 @@ class ConsumeFromTopicOperator(BaseOperator):
         self.max_batch_size = max_batch_size
         self.poll_timeout = poll_timeout
 
+        if self.max_messages is True:
+            self.read_to_end = True
+        else:
+            self.read_to_end = False
+
         if self.commit_cadence not in VALID_COMMIT_CADENCE:
             raise AirflowException(
                 f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
@@ -108,7 +113,7 @@ class ConsumeFromTopicOperator(BaseOperator):
 
         if self.max_messages and self.max_batch_size > self.max_messages:
             self.log.warning(
-                "max_batch_size (%s) > max_messages" " (%s). Setting max_messages to" " %s ",
+                "max_batch_size (%s) > max_messages (%s). Setting max_messages to %s ",
                 self.max_batch_size,
                 self.max_messages,
                 self.max_batch_size,
@@ -145,9 +150,8 @@ class ConsumeFromTopicOperator(BaseOperator):
             )
 
         messages_left = self.max_messages
-        messages_processed = 0
 
-        while (
+        while self.read_to_end or (
             messages_left > 0
         ):  # bool(True > 0) == True in the case where self.max_messages isn't set by the user
 
@@ -158,7 +162,6 @@ class ConsumeFromTopicOperator(BaseOperator):
 
             msgs = consumer.consume(num_messages=batch_size, timeout=self.poll_timeout)
             messages_left -= len(msgs)
-            messages_processed += len(msgs)
 
             if not msgs:  # No messages + messages_left is being used.
                 self.log.info("Reached end of log. Exiting.")

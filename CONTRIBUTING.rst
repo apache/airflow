@@ -618,10 +618,10 @@ devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker, drui
 exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc,
 hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb,
 microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc,
-openfaas, opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pinot, plexus, postgres,
-presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp,
-singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino,
-vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pinot,
+plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid,
+sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
+telegram, trino, vertica, virtualenv, webhdfs, winrm, zendesk
   .. END EXTRAS HERE
 
 Provider packages

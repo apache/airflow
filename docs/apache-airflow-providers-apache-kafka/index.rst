@@ -28,7 +28,7 @@ Content
 
     Connection <connections/kafka>
     Hooks <hooks>
-    Operators <operators>
+    Operators <operators/index>
     Sensors <sensors>
     Triggers <triggers>
 
@@ -37,7 +37,7 @@ Content
     :maxdepth: 1
     :caption: References
 
-    Python API<_api/airflow/providers/apache/kafka/index>
+    Python API <_api/airflow/providers/apache/kafka/index>
 
 .. toctree::
     :hidden:

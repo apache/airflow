@@ -18,31 +18,24 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
+from confluent_kafka import KafkaException
 from confluent_kafka.admin import AdminClient, NewTopic
 
-from airflow.providers.apache.kafka.hooks.base import KafkaHook
+from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
 
-class KafkaAdminClientHook(KafkaHook):
+class KafkaAdminClientHook(KafkaBaseHook):
     """
     A hook for interacting with the Kafka Cluster
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     """
 
-    def __init__(self, kafka_config_id=KafkaHook.default_conn_name) -> None:
+    def __init__(self, kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
         super().__init__(kafka_config_id=kafka_config_id)
 
-    def get_admin_client(self) -> AdminClient:
-        """returns an AdminClient for communicating with the cluster
-
-        :return: an interactive admin client for the Kafka cluster
-        :rtype: AdminClient
-        """
-        client = AdminClient(self.get_conn())
-
-        self.log.info("Client %s", client)
-        return client
+    def _get_client(self, config) -> AdminClient:
+        return AdminClient(config)
 
     def create_topic(
         self,
@@ -50,9 +43,10 @@ class KafkaAdminClientHook(KafkaHook):
     ) -> None:
         """creates a topic
 
-        :param topics: a list of topics to create
+        :param topics: a list of topics to create including the number of partitions for the topic
+          and the replication factor. Format: [ ("topic_name", number of partitions, replication factor)]
         """
-        admin_client = self.get_admin_client()
+        admin_client = self.get_conn
 
         new_topics = [NewTopic(t[0], num_partitions=t[1], replication_factor=t[2]) for t in topics]
 
@@ -62,6 +56,8 @@ class KafkaAdminClientHook(KafkaHook):
             try:
                 f.result()
                 self.log.info("The topic %s has been created.", t)
-            except Exception as e:
-                if e.args[0].name() == "TOPIC_ALREADY_EXISTS":
+            except KafkaException as e:
+                if e.args[0].name == "TOPIC_ALREADY_EXISTS":
                     self.log.warning("The topic %s already exists.", t)
+                else:
+                    raise

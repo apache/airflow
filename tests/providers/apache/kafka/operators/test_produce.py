@@ -47,7 +47,7 @@ class TestProduceToTopic:
     def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id="kafka_default",
+                conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
                     {
@@ -62,7 +62,7 @@ class TestProduceToTopic:
 
     def test_operator_string(self):
         operator = ProduceToTopicOperator(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             topic="test_1",
             producer_function="tests.providers.apache.kafka.operators.test_produce._simple_producer",
             producer_function_args=(b"test", b"test"),
@@ -74,7 +74,7 @@ class TestProduceToTopic:
 
     def test_operator_callable(self):
         operator = ProduceToTopicOperator(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             topic="test_1",
             producer_function=_simple_producer,
             producer_function_args=(b"test", b"test"),

@@ -66,14 +66,14 @@ class ProduceToTopicOperator(BaseOperator):
         "producer_function",
         "producer_function_args",
         "producer_function_kwargs",
-        "kafka_config",
+        "kafka_config_id",
     )
 
     def __init__(
         self,
         topic: str,
-        kafka_config_id: str,
         producer_function: str | Callable[..., Any],
+        kafka_config_id: str = "kafka_default",
         producer_function_args: Sequence[Any] | None = None,
         producer_function_kwargs: dict[Any, Any] | None = None,
         delivery_callback: str | None = None,
@@ -101,12 +101,12 @@ class ProduceToTopicOperator(BaseOperator):
         if not (self.topic and self.producer_function):
             raise AirflowException(
                 "topic and producer_function must be provided. Got topic="
-                + f"{self.topic} and producer_function={self.producer_function}"
+                f"{self.topic} and producer_function={self.producer_function}"
             )
 
         return
 
-    def execute(self, context) -> Any:
+    def execute(self, context) -> None:
 
         # Get producer and callable
         producer = KafkaProducerHook(kafka_config_id=self.kafka_config_id).get_producer()

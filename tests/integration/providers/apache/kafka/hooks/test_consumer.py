@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from confluent_kafka import Producer
 
 from airflow.models import Connection
 
@@ -26,7 +27,17 @@ from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.utils import db
 
+TOPIC = "consumer_hook_test_1"
 
+config = {
+    "bootstrap.servers": "broker:29092",
+    "group.id": "hook.consumer.integration.test",
+    "enable.auto.commit": False,
+    "auto.offset.reset": "beginning",
+}
+
+
+@pytest.mark.integration("kafka")
 class TestConsumerHook:
     """
     Test consumer hook.
@@ -37,26 +48,23 @@ class TestConsumerHook:
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",
-                extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
-                ),
+                extra=json.dumps(config),
             )
         )
 
-        db.merge_conn(
-            Connection(
-                conn_id="kafka_bad",
-                conn_type="kafka",
-                extra=json.dumps({}),
-            )
-        )
-
-    def test_init(self):
+    def test_consume_messages(self):
         """test initialization of AdminClientHook"""
 
         # Standard Init
-        KafkaConsumerHook(["test_1"], kafka_config_id="kafka_d")
+        p = Producer(**{"bootstrap.servers": "broker:29092"})
+        p.produce(TOPIC, "test_message")
+        assert len(p) == 1
+        x = p.flush()
+        assert x == 0
 
-        # Not Enough Args
-        with pytest.raises(ValueError):
-            KafkaConsumerHook(["test_1"], kafka_config_id="kafka_bad")
+        c = KafkaConsumerHook([TOPIC], kafka_config_id="kafka_d")
+        consumer = c.get_consumer()
+
+        msg = consumer.consume()
+
+        assert msg[0].value() == b"test_message"

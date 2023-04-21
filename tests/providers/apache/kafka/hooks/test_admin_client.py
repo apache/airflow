@@ -20,9 +20,9 @@ import json
 import logging
 
 import pytest
+from confluent_kafka.admin import AdminClient
 
 from airflow.models import Connection
-from airflow.providers.apache.kafka.hooks.base import KafkaHook
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.utils import db
 
@@ -37,7 +37,7 @@ class TestSampleHook:
     def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id="kafka_default",
+                conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
                     {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
@@ -57,15 +57,18 @@ class TestSampleHook:
         """test initialization of AdminClientHook"""
 
         # Standard Init
-        KafkaAdminClientHook(kafka_config_id="kafka_default")
+        KafkaAdminClientHook(kafka_config_id="kafka_d")
 
         # # Not Enough Args
         with pytest.raises(ValueError):
             KafkaAdminClientHook(kafka_config_id="kafka_bad")
 
-    def test_create_topic(self, mocker):
-        """test topic creation"""
+    def test_get_conn(self):
+        """test get_conn"""
 
-        mocker.patch.object(KafkaHook, "get_conn", return_value={"socket.timeout.ms": 10})
-        h = KafkaAdminClientHook(kafka_config_id="kafka_default")
-        h.create_topic(topics=[("test_1", 3, 3), ("test_2", 1, 1)])
+        # Standard Init
+        k = KafkaAdminClientHook(kafka_config_id="kafka_d")
+
+        c = k.get_conn
+
+        assert isinstance(c, AdminClient)
