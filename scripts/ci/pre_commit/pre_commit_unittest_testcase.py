@@ -17,43 +17,31 @@
 # under the License.
 from __future__ import annotations
 
-import re
+import ast
+import pathlib
 import sys
-from pathlib import Path
-
-from rich.console import Console
-
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command [FILE] ..."
-    )
 
 
-console = Console(color_system="standard", width=200)
+def check_test_file(file: str) -> int:
+    node = ast.parse(pathlib.Path(file).read_text("utf-8"), file)
+
+    found = 0
+    classes = [c for c in node.body if isinstance(c, ast.ClassDef)]
+    for c in classes:
+        # Some classes are returned as an ast.Attribute, some as an ast.Name object. Not quite sur why
+        parent_classes = [base.attr for base in c.bases if isinstance(base, ast.Attribute)]
+        parent_classes.extend([base.id for base in c.bases if isinstance(base, ast.Name)])
+
+        if "TestCase" in parent_classes:
+            found += 1
+            print(f"The class {c.name} inherits from TestCase, please use pytest instead")
+
+    return found
 
 
-def _check_file(file: Path) -> list:
-    content = file.read_text()
-    return re.findall(r"class[^(]+\(unittest.TestCase\)\:", content)
-
-
-def _join_with_newline(list_):
-    return "\n".join(list_)
+def main(*args: str) -> int:
+    return sum([check_test_file(file) for file in args[1:]])
 
 
 if __name__ == "__main__":
-    error_list = []
-    for file in sys.argv[1:]:
-        matches = _check_file(Path(file))
-        if matches:
-            error_list.append((file, matches))
-    if error_list:
-        error_message = "\n".join([f"{f}: \n{_join_with_newline(m)}" for f, m in error_list])
-        console.print(
-            f"""
-[red]Found tests inheriting from unittest.TestCase. Please use pytest instead.[/]
-{error_message}
-"""
-        )
-        sys.exit(1)
+    sys.exit(main(*sys.argv))
