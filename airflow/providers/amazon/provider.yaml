@@ -163,6 +163,7 @@ integrations:
     external-doc-url: https://aws.amazon.com/redshift/
     logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
     how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/redshift/redshift_sql.rst
       - /docs/apache-airflow-providers-amazon/operators/redshift/redshift_cluster.rst
     tags: [aws]
   - integration-name: Amazon Redshift Data
