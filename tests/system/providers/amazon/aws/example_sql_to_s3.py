@@ -173,6 +173,18 @@ with DAG(
     )
     # [END howto_transfer_sql_to_s3]
 
+    # [START howto_transfer_sql_to_s3_with_groupby_param]
+    sql_to_s3_task_with_groupby = SqlToS3Operator(
+        task_id="sql_to_s3_with_groupby_task",
+        sql_conn_id=conn_id_name,
+        query=SQL_QUERY,
+        s3_bucket=bucket_name,
+        s3_key=key,
+        replace=True,
+        groupby_kwargs={"by": "color"},
+    )
+    # [END howto_transfer_sql_to_s3_with_groupby_param]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=bucket_name,
@@ -202,6 +214,7 @@ with DAG(
         insert_data,
         # TEST BODY
         sql_to_s3_task,
+        sql_to_s3_task_with_groupby,
         # TEST TEARDOWN
         delete_bucket,
         delete_cluster,

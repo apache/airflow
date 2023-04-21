@@ -118,7 +118,6 @@ class TestBeamRunPythonPipelineOperator:
         job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
-            delegate_to=dataflow_config.delegate_to,
             poll_sleep=dataflow_config.poll_sleep,
             impersonation_chain=dataflow_config.impersonation_chain,
             drain_pipeline=dataflow_config.drain_pipeline,
@@ -239,7 +238,6 @@ class TestBeamRunJavaPipelineOperator:
         job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
-            delegate_to=dataflow_config.delegate_to,
             poll_sleep=dataflow_config.poll_sleep,
             impersonation_chain=dataflow_config.impersonation_chain,
             drain_pipeline=dataflow_config.drain_pipeline,
@@ -539,7 +537,6 @@ class TestBeamRunGoPipelineOperator:
         job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
-            delegate_to=dataflow_config.delegate_to,
             poll_sleep=dataflow_config.poll_sleep,
             impersonation_chain=dataflow_config.impersonation_chain,
             drain_pipeline=dataflow_config.drain_pipeline,
@@ -649,7 +646,6 @@ class TestBeamRunGoPipelineOperator:
 
         mock_dataflow_hook.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
-            delegate_to=dataflow_config.delegate_to,
             poll_sleep=dataflow_config.poll_sleep,
             impersonation_chain=dataflow_config.impersonation_chain,
             drain_pipeline=dataflow_config.drain_pipeline,

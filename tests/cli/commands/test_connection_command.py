@@ -545,6 +545,7 @@ class TestCliAddConnections:
             ),
         ],
     )
+    @pytest.mark.execution_timeout(120)
     def test_cli_connection_add(self, cmd, expected_output, expected_conn):
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(cmd))

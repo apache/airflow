@@ -125,10 +125,9 @@ spec:
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
       {{- end }}
-{{- if .Values.scheduler.hostAliases }}
-      hostAliases:
-{{ toYaml .Values.scheduler.hostAliases | indent 8 }}
-{{- end }}
+      {{- if .Values.scheduler.hostAliases }}
+      hostAliases: {{- toYaml .Values.scheduler.hostAliases | nindent 8 }}
+      {{- end }}
       initContainers:
         {{- if .Values.scheduler.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -184,11 +183,11 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
-                  {{- if .Values.scheduler.livenessProbe.command }}
-                    {{- toYaml .Values.scheduler.livenessProbe.command  | nindent 16 }}
-                  {{- else}}
-                    {{- include "scheduler_liveness_check_command" . | nindent 16 }}
-                  {{- end }}
+                {{- if .Values.scheduler.livenessProbe.command }}
+                  {{- toYaml .Values.scheduler.livenessProbe.command  | nindent 16 }}
+                {{- else }}
+                  {{- include "scheduler_liveness_check_command" . | indent 14 }}
+                {{- end }}
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
           ports:
@@ -219,7 +218,7 @@ spec:
               {{- toYaml .Values.scheduler.extraVolumeMounts | nindent 12 }}
             {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
-        {{- include "git_sync_container" . | indent 8 }}
+          {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
         {{- if .Values.scheduler.logGroomerSidecar.enabled }}
         - name: scheduler-log-groomer
@@ -232,7 +231,7 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{ if .Values.scheduler.logGroomerSidecar.retentionDays }}
+          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
@@ -271,7 +270,7 @@ spec:
         - name: dags
           emptyDir: {}
         {{- if .Values.dags.gitSync.sshKeySecret }}
-        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
         {{- end }}

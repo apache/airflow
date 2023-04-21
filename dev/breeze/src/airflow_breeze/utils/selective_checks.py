@@ -24,7 +24,12 @@ from enum import Enum
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_SOURCES_ROOT,
+    SYSTEM_TESTS_PROVIDERS_ROOT,
+    TESTS_PROVIDERS_ROOT,
+)
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -52,6 +57,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     GithubEvents,
     SelectiveUnitTestTypes,
+    all_helm_test_packages,
     all_selective_test_types,
 )
 from airflow_breeze.utils.console import get_console
@@ -188,10 +194,6 @@ TEST_TYPE_MATCHES = HashableDict(
     }
 )
 
-TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
-AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-
 
 def find_provider_affected(changed_file: str) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
@@ -230,13 +232,39 @@ def add_dependent_providers(
 
 def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
     all_providers: set[str] = set()
+    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+    all_providers_affected = False
+    suspended_providers: set[str] = set()
     for changed_file in changed_files:
         provider = find_provider_affected(changed_file)
         if provider == "Providers":
-            return set()
-        if provider is not None:
-            all_providers.add(provider)
-    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+            all_providers_affected = True
+        elif provider is not None:
+            if provider not in dependencies:
+                suspended_providers.add(provider)
+            else:
+                all_providers.add(provider)
+    if all_providers_affected:
+        return set()
+    if suspended_providers:
+        # We check for suspended providers only after we have checked if all providers are affected.
+        # No matter if we found that we are modifying a suspended provider individually, if all providers are
+        # affected, then it means that we are ok to proceed because likely we are running some kind of
+        # global refactoring that affects multiple providers including the suspended one. This is a
+        # potential escape hatch if someone would like to modify suspended provider,
+        # but it can be found at the review time and is anyway harmless as the provider will not be
+        # released nor tested nor used in CI anyway.
+        get_console().print("[error]You are modifying suspended providers.\n")
+        get_console().print(
+            "[info]Some providers modified by this change have been suspended, "
+            "and before attempting such changes you should fix the reason for suspension."
+        )
+        get_console().print(
+            "[info]When fixing it, you should set suspended = false in provider.yaml "
+            "to make changes to the provider."
+        )
+        get_console().print(f"Suspended providers: {suspended_providers}")
+        sys.exit(1)
     for provider in list(all_providers):
         add_dependent_providers(all_providers, provider, dependencies)
     return all_providers
@@ -360,11 +388,6 @@ class SelectiveChecks:
         return HELM_VERSION
 
     @cached_property
-    def providers_package_format_exclude(self) -> list[dict[str, str]]:
-        # Exclude sdist format unless full tests are run
-        return [{"package-format": "sdist"}] if not self.full_tests_needed else []
-
-    @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
         if not self.full_tests_needed:
             # Only basic combination so we do not need to exclude anything
@@ -482,7 +505,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        return "amazon" in self.test_types or "Providers" in self.test_types.split(" ")
+        return "amazon" in self.parallel_test_types or "Providers" in self.parallel_test_types.split(" ")
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -559,8 +582,38 @@ class SelectiveChecks:
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
+    @staticmethod
+    def _extract_long_provider_tests(current_test_types: set[str]):
+        """
+        In case there are Provider tests in the list of test to run (either in the form of
+        Providers or Providers[...] we subtract them from the test type,
+        and add them to the list of tests to run individually.
+
+        In case of Providers, we need to replace it with Providers[-<list_of_long_tests>], but
+        in case of Providers[list_of_tests] we need to remove the long tests from the list.
+
+        """
+        long_tests = ["amazon", "google"]
+        for original_test_type in tuple(current_test_types):
+            if original_test_type == "Providers":
+                current_test_types.remove(original_test_type)
+                for long_test in long_tests:
+                    current_test_types.add(f"Providers[{long_test}]")
+                current_test_types.add(f"Providers[-{','.join(long_tests)}]")
+            elif original_test_type.startswith("Providers["):
+                provider_tests_to_run = (
+                    original_test_type.replace("Providers[", "").replace("]", "").split(",")
+                )
+                if any(long_test in provider_tests_to_run for long_test in long_tests):
+                    current_test_types.remove(original_test_type)
+                    for long_test in long_tests:
+                        if long_test in provider_tests_to_run:
+                            current_test_types.add(f"Providers[{long_test}]")
+                            provider_tests_to_run.remove(long_test)
+                    current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
+
     @cached_property
-    def test_types(self) -> str:
+    def parallel_test_types(self) -> str:
         if not self.run_tests:
             return ""
         if self.full_tests_needed:
@@ -577,7 +630,25 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
-        return " ".join(sorted(current_test_types))
+
+        self._extract_long_provider_tests(current_test_types)
+
+        # this should be hard-coded as we want to have very specific sequence of tests
+        sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
+
+        def sort_key(t: str) -> str:
+            # Put the test types in the order we want them to run
+            if t in sorting_order:
+                return str(sorting_order.index(t))
+            else:
+                return str(len(sorting_order)) + t
+
+        return " ".join(
+            sorted(
+                current_test_types,
+                key=sort_key,
+            )
+        )
 
     @cached_property
     def basic_checks_only(self) -> bool:
@@ -612,3 +683,7 @@ class SelectiveChecks:
     @cached_property
     def debug_resources(self) -> bool:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
+
+    @cached_property
+    def helm_test_packages(self) -> str:
+        return json.dumps(all_helm_test_packages())

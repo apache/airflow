@@ -21,6 +21,7 @@ name: Dingding
 description: |
     `Dingding <https://oapi.dingtalk.com/>`__
 
+suspended: false
 versions:
   - 3.1.0
   - 3.0.0

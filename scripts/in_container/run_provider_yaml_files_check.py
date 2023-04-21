@@ -60,6 +60,10 @@ errors: list[str] = []
 
 console = Console(width=400, color_system="standard")
 
+suspended_providers: set[str] = set()
+suspended_logos: set[str] = set()
+suspended_integrations: set[str] = set()
+
 
 def _filepath_to_module(filepath: pathlib.Path) -> str:
     p = filepath.resolve().relative_to(ROOT_DIR).as_posix()
@@ -85,7 +89,14 @@ def _load_package_data(package_paths: Iterable[str]):
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {rel_path}.")
-        result[rel_path] = provider
+        if not provider.get("suspended"):
+            result[rel_path] = provider
+        else:
+            suspended_providers.add(provider["package-name"])
+            for integration in provider["integrations"]:
+                suspended_integrations.add(integration["integration-name"])
+                if "logo" in integration:
+                    suspended_logos.add(integration["logo"])
     return result
 
 
@@ -113,7 +124,7 @@ def check_integration_duplicates(yaml_files: dict[str, dict]):
         sys.exit(3)
 
 
-def assert_sets_equal(set1, set2):
+def assert_sets_equal(set1, set2, allow_extra_in_set2=False):
     try:
         difference1 = set1.difference(set2)
     except TypeError as e:
@@ -128,21 +139,19 @@ def assert_sets_equal(set1, set2):
     except AttributeError as e:
         raise AssertionError(f"second argument does not support set difference: {e}")
 
-    if not (difference1 or difference2):
-        return
+    if difference1 or (difference2 and not allow_extra_in_set2):
+        lines = []
+        if difference1:
+            lines.append("    -- Items in the left set but not the right:")
+            for item in sorted(difference1):
+                lines.append(f"       {item!r}")
+        if difference2 and not allow_extra_in_set2:
+            lines.append("    -- Items in the right set but not the left:")
+            for item in sorted(difference2):
+                lines.append(f"       {item!r}")
 
-    lines = []
-    if difference1:
-        lines.append("    -- Items in the left set but not the right:")
-        for item in sorted(difference1):
-            lines.append(f"       {item!r}")
-    if difference2:
-        lines.append("    -- Items in the right set but not the left:")
-        for item in sorted(difference2):
-            lines.append(f"       {item!r}")
-
-    standard_msg = "\n".join(lines)
-    raise AssertionError(standard_msg)
+        standard_msg = "\n".join(lines)
+        raise AssertionError(standard_msg)
 
 
 class ObjectType(Enum):
@@ -166,7 +175,7 @@ def check_if_object_exist(object_name: str, resource_type: str, yaml_file_path: 
     except Exception as e:
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "
-            f"or is not a class: {e}"
+            f"or is not a {object_type.value}: {e}"
         )
     else:
         errors.append(
@@ -357,7 +366,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]):
     ):
         resource_data = provider_data.get("transfers", [])
         current_names = {r[key] for r in resource_data}
-        invalid_names = current_names - all_integration_names
+        invalid_names = current_names - all_integration_names - suspended_integrations
         if invalid_names:
             errors.append(
                 f"Incorrect content of key 'transfers/{key}' in file: {yaml_file_path}. "
@@ -384,19 +393,32 @@ def check_doc_files(yaml_files: dict[str, dict]):
             current_doc_urls.extend(
                 op["how-to-guide"] for op in provider["transfers"] if "how-to-guide" in op
             )
+    console.print("[yellow]Suspended providers:[/]")
+    console.print(suspended_providers)
+
+    expected_doc_files = chain(
+        DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst"),
+        DOCS_DIR.glob("apache-airflow-providers-*/transfer/**/*.rst"),
+    )
 
     expected_doc_urls = {
         f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
-        for f in DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst")
-        if f.name != "index.rst" and "_partials" not in f.parts
+        for f in expected_doc_files
+        if f.name != "index.rst"
+        and "_partials" not in f.parts
+        and not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
     } | {
         f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("apache-airflow-providers-*/operators.rst")
+        if not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
     }
+    console.print("[yellow]Suspended logos:[/]")
+    console.print(suspended_logos)
     expected_logo_urls = {
         f"/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("integration-logos/**/*")
         if f.is_file()
+        and not any(f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(s) for s in suspended_logos)
     }
 
     try:
@@ -433,7 +455,8 @@ def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict])
             f" -- Checking providers: present in code (left), "
             f"mentioned in {PROVIDER_ISSUE_TEMPLATE_PATH} (right)"
         )
-        assert_sets_equal(set(short_provider_names), set(all_mentioned_providers))
+        # in case of suspended providers, we still want to have them in the issue template
+        assert_sets_equal(set(short_provider_names), set(all_mentioned_providers), allow_extra_in_set2=True)
     except AssertionError as ex:
         print(ex)
         sys.exit(1)

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -61,9 +60,6 @@ class S3ToGCSOperator(S3ListOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param replace: Whether you want to replace existing destination files
         or not.
     :param gzip: Option to compress file for upload
@@ -115,7 +111,6 @@ class S3ToGCSOperator(S3ListOperator):
         verify=None,
         gcp_conn_id="google_cloud_default",
         dest_gcs=None,
-        delegate_to=None,
         replace=False,
         gzip=False,
         google_impersonation_chain: str | Sequence[str] | None = None,
@@ -125,11 +120,6 @@ class S3ToGCSOperator(S3ListOperator):
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.replace = replace
         self.verify = verify
         self.gzip = gzip
@@ -153,7 +143,6 @@ class S3ToGCSOperator(S3ListOperator):
 
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 

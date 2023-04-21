@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.decorators import setup, task, teardown
+from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
@@ -88,7 +89,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     (ti,) = dr.task_instances
     dag.get_task("f").execute(context=ti.get_template_context(session=session))
     mock_hook.assert_called_once_with(
-        conn_id=None,
+        conn_id="kubernetes_default",
         in_cluster=False,
         cluster_context="default",
         config_file="/tmp/fake_file",
@@ -128,17 +129,22 @@ def test_kubernetes_with_input_output(
     (ti,) = dr.task_instances
 
     mock_hook.return_value.get_xcom_sidecar_container_image.return_value = XCOM_IMAGE
+    mock_hook.return_value.get_xcom_sidecar_container_resources.return_value = {
+        "requests": {"cpu": "1m", "memory": "10Mi"},
+        "limits": {"cpu": "1m", "memory": "50Mi"},
+    }
 
     dag.get_task("my_task_id").execute(context=ti.get_template_context(session=session))
 
     mock_hook.assert_called_once_with(
-        conn_id=None,
+        conn_id="kubernetes_default",
         in_cluster=False,
         cluster_context="default",
         config_file="/tmp/fake_file",
     )
     assert mock_create_pod.call_count == 1
     assert mock_hook.return_value.get_xcom_sidecar_container_image.call_count == 1
+    assert mock_hook.return_value.get_xcom_sidecar_container_resources.call_count == 1
 
     containers = mock_create_pod.call_args[1]["pod"].spec.containers
 
@@ -161,6 +167,7 @@ def test_kubernetes_with_input_output(
     assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_kubernetes_with_marked_as_setup(
     dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
 ) -> None:
@@ -183,6 +190,7 @@ def test_kubernetes_with_marked_as_setup(
     assert setup_task._is_setup
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_kubernetes_with_marked_as_teardown(
     dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
 ) -> None:

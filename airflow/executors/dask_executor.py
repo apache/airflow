@@ -32,8 +32,12 @@ from distributed.security import Security
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.executors.base_executor import BaseExecutor
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType
+    from airflow.models.taskinstance import TaskInstanceKey
+
 
 # queue="default" is a special case since this is the base config default queue name,
 # with respect to DaskExecutor, treat it as if no queue is provided

@@ -48,7 +48,6 @@ class TestGcsToGDriveOperator:
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
@@ -61,7 +60,6 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
@@ -93,7 +91,6 @@ class TestGcsToGDriveOperator:
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
@@ -107,7 +104,6 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
@@ -137,7 +133,6 @@ class TestGcsToGDriveOperator:
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
@@ -154,7 +149,6 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),

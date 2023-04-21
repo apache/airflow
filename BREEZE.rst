@@ -426,17 +426,19 @@ You can run static checks via Breeze. You can also run them via pre-commit comma
 Breeze makes it easier to run selective static checks. If you press <TAB> after the static-check and if
 you have auto-complete setup you should see auto-completable list of all checks available.
 
-.. code-block:: bash
-
-     breeze static-checks -t run-mypy
-
-The above will run mypy check for currently staged files.
-
-You can also pass specific pre-commit flags for example ``--all-files`` :
+For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --all-files
+     breeze static-checks -t mypy-core
+
+will run mypy check for currently staged files inside ``airflow/`` excluding providers.
+
+You can also pass specific pre-commit flags, such as ``--all-files``:
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --all-files
 
 The above will run mypy check for all files.
 
@@ -444,7 +446,7 @@ There is a convenience ``--last-commit`` flag that you can use to run static che
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --last-commit
+     breeze static-checks -t mypy-core --last-commit
 
 The above will run mypy check for all files in the last commit.
 
@@ -452,7 +454,7 @@ There is another convenience ``--commit-ref`` flag that you can use to run stati
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks -t mypy-core --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
@@ -554,18 +556,28 @@ command takes care about it. This is needed when you want to run webserver insid
 Breeze cleanup
 --------------
 
-Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
-disk usage by the images. If you need to clean-up the images periodically you can run
-``breeze setup cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--all``).
+Sometimes you need to cleanup your docker environment (and it is recommended you do that regularly). There
+are several reasons why you might want to do that.
+
+Breeze uses docker images heavily and those images are rebuild periodically and might leave dangling, unused
+images in docker cache. This might cause extra disk usage. Also running various docker compose commands
+(for example running tests with ``breeze testing tests``) might create additional docker networks that might
+prevent new networks from being created. Those networks are not removed automatically by docker-compose.
+Also Breeze uses it's own cache to keep information about all images.
+
+All those unused images, networks and cache can be removed by running ``breeze cleanup`` command. By default
+it will not remove the most recent images that you might need to run breeze commands, but you
+can also remove those breeze images to clean-up everything by adding ``--all`` command (note that you will
+need to build the images again from scratch - pulling from the registry might take a while).
+
+Breeze will ask you to confirm each step, unless you specify ``--answer yes`` flag.
 
 Those are all available flags of ``cleanup`` command:
-
 
 .. image:: ./images/breeze/output_cleanup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
   :width: 100%
-  :alt: Breeze setup cleanup
+  :alt: Breeze cleanup
 
 Running arbitrary commands in container
 ---------------------------------------
@@ -776,15 +788,24 @@ For example this will only run provider tests for airbyte and http providers:
 
    breeze testing tests --test-type "Providers[airbyte,http]"
 
+You can also exclude tests for some providers from being run when whole "Providers" test type is run.
+
+For example this will run tests for all providers except amazon and google provider tests:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[-amazon,google]"
+
+
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
-types passed to ``--test-types`` flag.
+types passed to ``--parallel-test-types`` flag.
 
 For example this will run API and WWW tests in parallel:
 
 .. code-block:: bash
 
-    breeze testing tests --test-types "API WWW" --run-in-parallel
+    breeze testing tests --parallel-test-types "API WWW" --run-in-parallel
 
 There are few special types of tests that you can run:
 
@@ -1558,23 +1579,6 @@ Those are all available flags of ``get-workflow-info`` command:
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
-Tracking backtracking issues for CI builds
-..........................................
-
-When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
-lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
-Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
-diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
-which new dependency might have caused the backtracking. The whole process is described in
-`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
-
-Those are all available flags of ``find-newer-dependencies`` command:
-
-.. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
-  :width: 100%
-  :alt: Breeze ci find-newer-dependencies
-
 Release management tasks
 ------------------------
 
@@ -1672,7 +1676,7 @@ You can also run the verification with an earlier airflow version to check for c
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.1.0
+    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
@@ -1680,6 +1684,32 @@ All the command parameters are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
+
+
+Installing provider packages
+............................
+
+In some cases we want to just see if the provider packages generated can be installed with airflow without
+verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+just prepared provider packages and they are present in ``dist`` folder.
+
+.. code-block:: bash
+
+     breeze release-management install-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_install-provider-packages.svg
+  :width: 100%
+  :alt: Breeze install-provider-packages
+
 
 Generating Provider Issue
 .........................

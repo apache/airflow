@@ -20,7 +20,8 @@ import datetime
 
 import pytest
 
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import TriggerEvent
@@ -40,11 +41,11 @@ def session():
 def clear_db(session):
     session.query(TaskInstance).delete()
     session.query(Trigger).delete()
-    session.query(TriggererJob).delete()
+    session.query(Job).delete()
     yield session
     session.query(TaskInstance).delete()
     session.query(Trigger).delete()
-    session.query(TriggererJob).delete()
+    session.query(Job).delete()
     session.commit()
 
 
@@ -139,14 +140,17 @@ def test_assign_unassigned(session, create_task_instance):
     """
     Tests that unassigned triggers of all appropriate states are assigned.
     """
-    finished_triggerer = TriggererJob(None, heartrate=10, state=State.SUCCESS)
+    finished_triggerer = Job(heartrate=10, state=State.SUCCESS)
+    TriggererJobRunner(finished_triggerer)
     finished_triggerer.end_date = timezone.utcnow() - datetime.timedelta(hours=1)
     session.add(finished_triggerer)
     assert not finished_triggerer.is_alive()
-    healthy_triggerer = TriggererJob(None, heartrate=10, state=State.RUNNING)
+    healthy_triggerer = Job(heartrate=10, state=State.RUNNING)
+    TriggererJobRunner(healthy_triggerer)
     session.add(healthy_triggerer)
     assert healthy_triggerer.is_alive()
-    new_triggerer = TriggererJob(None, heartrate=10, state=State.RUNNING)
+    new_triggerer = Job(heartrate=10, state=State.RUNNING)
+    TriggererJobRunner(new_triggerer)
     session.add(new_triggerer)
     assert new_triggerer.is_alive()
     session.commit()

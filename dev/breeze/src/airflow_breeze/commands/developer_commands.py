@@ -51,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_github_repository,
     option_image_tag_for_running,
     option_include_mypy_volume,
+    option_install_selected_providers,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -123,6 +124,7 @@ class TimerThread(threading.Thread):
 @option_airflow_extras
 @option_airflow_constraints_reference
 @option_use_packages_from_dist
+@option_install_selected_providers
 @option_installation_package_format
 @option_mount_sources
 @option_integration
@@ -145,6 +147,7 @@ def shell(
     forward_credentials: bool,
     mount_sources: str,
     use_packages_from_dist: bool,
+    install_selected_providers: str,
     package_format: str,
     use_airflow_version: str | None,
     airflow_extras: str,
@@ -179,6 +182,7 @@ def shell(
         airflow_extras=airflow_extras,
         airflow_constraints_reference=airflow_constraints_reference,
         use_packages_from_dist=use_packages_from_dist,
+        install_selected_providers=install_selected_providers,
         package_format=package_format,
         force_build=force_build,
         db_reset=db_reset,
@@ -312,6 +316,11 @@ def start_airflow(
     "Implies --clean-build",
     is_flag=True,
 )
+@click.option(
+    "--one-pass-only",
+    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
+    is_flag=True,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -320,6 +329,7 @@ def build_docs(
     spellcheck_only: bool,
     for_production: bool,
     clean_build: bool,
+    one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):

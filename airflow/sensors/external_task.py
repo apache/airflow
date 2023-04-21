@@ -35,11 +35,13 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Query
+    from sqlalchemy.orm import Query, Session
+
+    from airflow.utils.context import Context
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -215,7 +217,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         return dttm if isinstance(dttm, list) else [dttm]
 
     @provide_session
-    def poke(self, context, session=None):
+    def poke(self, context: Context, session: Session = NEW_SESSION) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
         if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
             raise ValueError("Duplicate task_ids passed in external_task_ids parameter")

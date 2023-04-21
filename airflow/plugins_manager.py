@@ -164,7 +164,7 @@ class AirflowPlugin:
     # A list of timetable classes that can be used for DAG scheduling.
     timetables: list[type[Timetable]] = []
 
-    listeners: list[ModuleType] = []
+    listeners: list[ModuleType | object] = []
 
     @classmethod
     def validate(cls):

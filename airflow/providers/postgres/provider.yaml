@@ -21,6 +21,7 @@ name: PostgreSQL
 description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
+suspended: false
 versions:
   - 5.4.0
   - 5.3.1

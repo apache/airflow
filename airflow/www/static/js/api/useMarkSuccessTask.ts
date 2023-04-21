@@ -52,7 +52,7 @@ export default function useMarkSuccessTask({
       future: boolean;
       upstream: boolean;
       downstream: boolean;
-      mapIndexes: number[];
+      mapIndexes?: number[];
     }) => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
@@ -81,6 +81,12 @@ export default function useMarkSuccessTask({
         queryClient.invalidateQueries("gridData");
         queryClient.invalidateQueries([
           "mappedInstances",
+          dagId,
+          runId,
+          taskId,
+        ]);
+        queryClient.invalidateQueries([
+          "confirmStateChange",
           dagId,
           runId,
           taskId,

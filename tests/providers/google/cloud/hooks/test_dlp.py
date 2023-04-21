@@ -54,6 +54,10 @@ JOB_TRIGGER_PATH = f"projects/{PROJECT_ID}/jobTriggers/{TRIGGER_ID}"
 
 
 class TestCloudDLPHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudDLPHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

@@ -45,6 +45,8 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
+  AIRFLOW_ENABLE_AIP_44: "true"
+  AIRFLOW_ENABLE_AIP_52: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -90,6 +92,7 @@ jobs:
             "feluelle",
             "feng-tao",
             "houqp",
+            "hussein-awala",
             "jedcunningham",
             "jgao54",
             "jghoman",
@@ -143,12 +146,11 @@ jobs:
       default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
       default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
-      test-types: ${{ steps.selective-checks.outputs.test-types }}
+      parallel-test-types: ${{ steps.selective-checks.outputs.parallel-test-types }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
-      providers-package-format-exclude: ${{ steps.selective-checks.outputs.providers-package-format-exclude }}
       skip-provider-tests: ${{ steps.source-run-info.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
@@ -164,6 +166,7 @@ jobs:
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+      helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
@@ -695,22 +698,16 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
-  prepare-test-provider-packages:
+  prepare-test-provider-packages-wheel:
     timeout-minutes: 80
-    name: "Provider packages ${{matrix.package-format}}"
+    name: "Provider packages wheel (verify)"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
-    strategy:
-      matrix:
-        package-format: ["sdist", "wheel"]
-        exclude: "${{fromJson(needs.build-info.outputs.providers-package-format-exclude)}}"
-      fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      PACKAGE_FORMAT: "${{matrix.package-format}}"
-      USE_AIRFLOW_VERSION: "${{matrix.package-format}}"
-    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
+    if: >
+      needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -725,46 +722,128 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
         run: breeze release-management prepare-provider-documentation
-        if: matrix.package-format == 'wheel'
-      - name: "Prepare provider packages: ${{matrix.package-format}}"
-        run: breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
-      - name: "Prepare airflow package: ${{matrix.package-format}}"
+      - name: "Prepare provider packages: wheel"
+        run: >
+          breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
+          --package-format wheel
+      - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
-        run: pipx install twine && twine check dist/*.whl
-        if: matrix.package-format == 'wheel'
-      - name: "Verify sdist packages with twine"
-        run: pipx install twine && twine check dist/*.tar.gz
-        if: matrix.package-format == 'sdist'
+        run: pipx install twine --force && twine check dist/*.whl
       - name: "Test providers issue generation automatically"
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
-        if: matrix.package-format == 'wheel'
-      - name: "Install and test provider packages and airflow via ${{matrix.package-format}} files"
-        run: breeze release-management verify-provider-packages --use-packages-from-dist
+      - name: "Install and test provider packages and airflow via wheel files"
+        run: >
+          breeze release-management verify-provider-packages --use-packages-from-dist
+          --package-format wheel --use-airflow-version wheel
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-      - name: "Remove airflow package and replace providers with 2.3-compliant versions"
-        run: |
-          rm -vf dist/apache_airflow-*.whl dist/apache_airflow_providers_docker*.whl
-          pip download --no-deps --dest dist apache-airflow-providers-docker==3.1.0
-        if: matrix.package-format == 'wheel'
-      - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
-        run: >
-          python -c 'from pathlib import Path; import json;
-          providers = json.loads(Path("generated/provider_dependencies.json").read_text());
-          provider_keys = ",".join(providers.keys());
-          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
-        if: matrix.package-format == 'wheel'
-      - name: "Install and test provider packages and airflow on Airflow 2.3 files"
-        run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
-          --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0
-        if: matrix.package-format == 'wheel'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
+
+  provider-airflow-compatibility-check:
+    timeout-minutes: 80
+    name: "Providers Airflow 2.3 compatibility check"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: >
+      needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare provider packages: wheel"
+        run: >
+          breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
+          --package-format wheel
+      - name: "Fix incompatible 2.3 provider packages"
+        run: |
+          # This step should remove the provider packages that are not compatible with 2.3
+          # or replace them with 2.3 compatible versions. Sometimes we have good reasons to bump
+          # the min airflow versions for some providers and then we need to add exclusions here.
+          #
+          # The Removal can be done with:
+          #
+          # rm -vf dist/apache_airflow_providers_<PROVIDER>*.whl
+          #
+          # Then it can be followed by downloading a compatible version from PyPI in case other
+          # providers depend on it and fail with import errors (you need to download compatible version):
+          #
+          # pip download --no-deps --dest dist apache-airflow-providers-<PROVIDER>==3.1.0
+          #
+          rm -vf dist/apache_airflow_providers_openlineage*.whl
+      - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
+        # Extras might be different on S3 so rather than relying on "all" we should get the list of
+        # packages to be installed from the current provider_dependencies.json file
+        run: |
+          python -c 'from pathlib import Path; import json
+          providers = json.loads(Path("generated/provider_dependencies.json").read_text())
+          provider_keys = ",".join(providers.keys())
+          print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
+      - name: "Install and verify provider packages and airflow on Airflow 2.3 files"
+        run: >
+          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
+          --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
+  prepare-install-provider-packages-sdist:
+    timeout-minutes: 80
+    name: "Provider packages sdist (install)"
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      USE_AIRFLOW_VERSION: "sdist"
+    # if: ${{ steps.source-run-info.outputs.canary-run }} == 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare provider packages: sdist"
+        run: >
+          breeze release-management prepare-provider-packages
+          --version-suffix-for-pypi dev0
+          --package-format sdist
+      - name: "Prepare airflow package: sdist"
+        run: >
+          breeze release-management prepare-airflow-package
+          --version-suffix-for-pypi dev0
+          --package-format sdist
+      - name: "Verify sdist packages with twine"
+        run: pipx install twine --force && twine check dist/*.tar.gz
+      - name: "Install provider packages and airflow via sdist files"
+        run: >
+          breeze release-management install-provider-packages
+          --package-format sdist --use-airflow-version sdist --run-in-parallel
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -803,12 +882,16 @@ jobs:
 
   tests-helm:
     timeout-minutes: 80
-    name: "Python unit tests for Helm chart"
+    name: "Unit tests Helm: ${{matrix.helm-test-package}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        helm-test-package: ${{fromJson(needs.build-info.outputs.helm-test-packages)}}
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "Helm"
+      PARALLEL_TEST_TYPES: "Helm"
       BACKEND: ""
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
@@ -828,13 +911,13 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Helm Unit Tests"
-        run: breeze testing helm-tests
+      - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
+        run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
       - name: "Post Helm Tests"
         uses: ./.github/actions/post_tests
 
   test-pytest-collection:
-    timeout-minutes: 5
+    timeout-minutes: 8
     name: "Test Pytest collection"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
@@ -843,6 +926,11 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      JOB_ID: "test-pytest-collection"
+      COVERAGE: "false"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -858,7 +946,7 @@ jobs:
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       - name: "Tests Pytest collection"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py"
+        run: breeze testing tests --run-in-parallel --collect-only
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -867,7 +955,7 @@ jobs:
     timeout-minutes: 130
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
-      ${{needs.build-info.outputs.test-types}}
+      ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, test-pytest-collection]
     strategy:
@@ -878,7 +966,7 @@ jobs:
       fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -899,13 +987,13 @@ jobs:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/migration_tests
-      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
-      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
   tests-postgres-boto:
@@ -913,12 +1001,12 @@ jobs:
     name: >
       LatestBotoPostgres${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
-      ${{needs.build-info.outputs.test-types}}
+      ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -929,7 +1017,7 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       UPGRADE_BOTO: "true"
       JOB_ID: >
-        postgres-${{needs.build-info.outputs.default-python-version}}-
+        postgres-boto-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
@@ -945,17 +1033,65 @@ jobs:
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:${{needs.build-info.outputs.test-types}}
+          Tests: ${{needs.build-info.outputs.default-python-version}}:
+          ${{needs.build-info.outputs.parallel-test-types}}
         run: breeze testing tests --run-in-parallel
       - name: >
           Post Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.test-types}}
+          ${{needs.build-info.outputs.parallel-test-types}}
+        uses: ./.github/actions/post_tests
+
+  tests-postgres-in-progress-features-disabled:
+    timeout-minutes: 130
+    name: >
+      InProgressDisabledPostgres${{needs.build-info.outputs.default-postgres-version}},
+      Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types}}
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, test-pytest-collection]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      AIRFLOW_ENABLE_AIP_44: "false"
+      AIRFLOW_ENABLE_AIP_52: "false"
+      JOB_ID: >
+        postgres-in-progress-disabled-${{needs.build-info.outputs.default-python-version}}-
+        ${{needs.build-info.outputs.default-postgres-version}}
+      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Tests: ${{needs.build-info.outputs.default-python-version}}:
+          ${{needs.build-info.outputs.parallel-test-types}}
+        run: breeze testing tests --run-in-parallel
+      - name: >
+          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
+          ${{needs.build-info.outputs.parallel-test-types}}
         uses: ./.github/actions/post_tests
 
   tests-mysql:
     timeout-minutes: 130
     name: >
-      MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
+      MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, test-pytest-collection]
     strategy:
@@ -968,7 +1104,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
@@ -986,20 +1122,21 @@ jobs:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/migration_tests
-      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
         if: env.MYSQL_VERSION != '5.7'
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
-      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
   tests-mssql:
     timeout-minutes: 130
     name: >
-      MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
+      MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, test-pytest-collection]
     strategy:
@@ -1010,7 +1147,7 @@ jobs:
       fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1031,17 +1168,17 @@ jobs:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/migration_tests
-      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         run: breeze testing tests --run-in-parallel
-      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
   tests-sqlite:
     timeout-minutes: 130
     name: >
-      Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.test-types}}
+      Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.parallel-test-types}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, test-pytest-collection]
     strategy:
@@ -1052,7 +1189,7 @@ jobs:
     if: needs.build-info.outputs.run-tests == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
@@ -1071,13 +1208,13 @@ jobs:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}"
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Migration Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/migration_tests
-      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze shell "python /opt/airflow/scripts/in_container/test_pytest_collection.py" arm
-      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
   tests-integration-postgres:
@@ -1087,7 +1224,7 @@ jobs:
     needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1134,10 +1271,15 @@ jobs:
           breeze testing integration-tests --integration trino --integration kerberos
           breeze stop
         if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: Kafka"
+        run: |
+          breeze testing integration-tests --integration kafka
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: all-testable"
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
-      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
   tests-integration-mysql:
@@ -1147,7 +1289,7 @@ jobs:
     needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "${{needs.build-info.outputs.test-types}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
@@ -1175,7 +1317,7 @@ jobs:
       - name: "Integration Tests MySQL: all-testable"
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
-      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.test-types}}"
+      - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
         if: needs.build-info.outputs.runs-on == 'self-hosted'
 
@@ -1188,7 +1330,7 @@ jobs:
     needs: [build-info, test-pytest-collection]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPES: "Quarantined"
+      PARALLEL_TEST_TYPES: "Quarantined"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"

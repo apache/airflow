@@ -21,6 +21,7 @@ name: OpenFaaS
 description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
+suspended: false
 versions:
   - 3.1.0
   - 3.0.0

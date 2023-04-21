@@ -21,6 +21,7 @@ name: Celery
 description: |
     `Celery <http://www.celeryproject.org/>`__
 
+suspended: false
 versions:
   - 3.1.0
   - 3.0.0
