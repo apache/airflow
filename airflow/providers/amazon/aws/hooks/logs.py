@@ -104,7 +104,7 @@ class AwsLogsHook(AwsBaseHook):
 
             yield from events
 
-            if "nextForwardToken" not in response:
+            if not event_count:
                 num_consecutive_empty_response += 1
                 if num_consecutive_empty_response >= NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD:
                     # Exit if there are more than NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD consecutive
@@ -112,7 +112,8 @@ class AwsLogsHook(AwsBaseHook):
                     return
             elif next_token != response["nextForwardToken"]:
                 num_consecutive_empty_response = 0
-                next_token = response["nextForwardToken"]
             else:
                 # Exit if the value of nextForwardToken is same in subsequent calls
                 return
+
+            next_token = response["nextForwardToken"]

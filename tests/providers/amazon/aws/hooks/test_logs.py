@@ -31,35 +31,60 @@ class TestAwsLogsHook:
     @pytest.mark.parametrize(
         "get_log_events_response, num_skip_events, expected_num_events",
         [
-            # No event
-            ({"events": []}, 0, 0),
-            # 2 events in each call with no token, skip 2
-            ({"events": [{}, {}]}, 2, 4),
-            # 2 events in each call with no token
-            ({"events": [{}, {}]}, 0, 6),
-            # 2 events in each call. The third as a token
+            # 3 empty responses with different tokens
             (
                 [
-                    {"events": [{}, {}]},
-                    {"events": [{}, {}]},
-                    {"nextForwardToken": "token", "events": [{}, {}]},
-                    {"events": [{}, {}]},
-                    {"events": [{}, {}]},
-                    {"events": [{}, {}]},
+                    {"nextForwardToken": "1", "events": []},
+                    {"nextForwardToken": "2", "events": []},
+                    {"nextForwardToken": "3", "events": []},
                 ],
                 0,
-                12,
+                0,
             ),
-            # 2 responses with same nextForwardToken
-            ({"nextForwardToken": "token", "events": [{}, {}]}, 0, 4),
+            # 2 events on the second response with same token
+            (
+                [
+                    {"nextForwardToken": "", "events": []},
+                    {"nextForwardToken": "", "events": [{}, {}]},
+                ],
+                0,
+                2,
+            ),
+            # Different tokens, 2 events on the second response then 3 empty responses
+            (
+                [
+                    {"nextForwardToken": "1", "events": []},
+                    {"nextForwardToken": "2", "events": [{}, {}]},
+                    {"nextForwardToken": "3", "events": []},
+                    {"nextForwardToken": "4", "events": []},
+                    {"nextForwardToken": "5", "events": []},
+                    # This one is ignored
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                ],
+                0,
+                2,
+            ),
+            # 2 events on the second response, then 2 empty responses, then 2 consecutive responses with
+            # 2 events with the same token
+            (
+                [
+                    {"nextForwardToken": "1", "events": []},
+                    {"nextForwardToken": "2", "events": [{}, {}]},
+                    {"nextForwardToken": "3", "events": []},
+                    {"nextForwardToken": "4", "events": []},
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                    # This one is ignored
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                ],
+                0,
+                6,
+            ),
         ],
     )
     @patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.conn", new_callable=mock.PropertyMock)
     def test_get_log_events(self, mock_conn, get_log_events_response, num_skip_events, expected_num_events):
-        if isinstance(get_log_events_response, list):
-            mock_conn().get_log_events.side_effect = get_log_events_response
-        else:
-            mock_conn().get_log_events.return_value = get_log_events_response
+        mock_conn().get_log_events.side_effect = get_log_events_response
 
         hook = AwsLogsHook(aws_conn_id="aws_default", region_name="us-east-1")
         events = hook.get_log_events(
