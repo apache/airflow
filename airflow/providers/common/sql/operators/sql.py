@@ -343,7 +343,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields = ("partition_clause", "table", "sql")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql")
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
