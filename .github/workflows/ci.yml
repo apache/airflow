@@ -1271,6 +1271,11 @@ jobs:
           breeze testing integration-tests --integration trino --integration kerberos
           breeze stop
         if: needs.build-info.outputs.runs-on != 'self-hosted'
+      - name: "Integration Tests Postgres: Kafka"
+        run: |
+          breeze testing integration-tests --integration kafka
+          breeze stop
+        if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: all-testable"
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'

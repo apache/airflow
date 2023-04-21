@@ -37,7 +37,7 @@ from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
 #     Connection(
 #         conn_id="t1-3",
 #         conn_type="kafka",
-#         extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092"}),
+#         extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}),
 #     )
 # )
 

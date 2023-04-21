@@ -46,7 +46,7 @@ class TestConsumeFromTopic:
     def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id="kafka_default",
+                conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
                     {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
@@ -57,7 +57,7 @@ class TestConsumeFromTopic:
     def test_operator(self):
 
         operator = ConsumeFromTopicOperator(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             topics=["test"],
             apply_function="tests.providers.apache.kafka.operators.test_consume._no_op",
             task_id="test",
@@ -70,7 +70,7 @@ class TestConsumeFromTopic:
     def test_operator_callable(self):
 
         operator = ConsumeFromTopicOperator(
-            kafka_config_id="kafka_default",
+            kafka_config_id="kafka_d",
             topics=["test"],
             apply_function=_no_op,
             task_id="test",

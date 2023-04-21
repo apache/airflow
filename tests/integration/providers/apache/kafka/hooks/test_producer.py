@@ -17,17 +17,20 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import pytest
 
 from airflow.models import Connection
-
-# Import Hook
-from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
+from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
 from airflow.utils import db
 
+log = logging.getLogger(__name__)
+config = {"bootstrap.servers": "broker:29092", "group.id": "hook.producer.integration.test"}
 
-class TestConsumerHook:
+
+@pytest.mark.integration("kafka")
+class TestProducerHook:
     """
     Test consumer hook.
     """
@@ -35,28 +38,30 @@ class TestConsumerHook:
     def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id="kafka_d",
+                conn_id="kafka_default",
                 conn_type="kafka",
-                extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
-                ),
+                extra=json.dumps(config),
             )
         )
 
-        db.merge_conn(
-            Connection(
-                conn_id="kafka_bad",
-                conn_type="kafka",
-                extra=json.dumps({}),
-            )
-        )
+    def test_produce(self):
+        """test producer hook functionality"""
 
-    def test_init(self):
-        """test initialization of AdminClientHook"""
+        topic = "producer_hook_integration_test"
+
+        def acked(err, msg):
+            if err is not None:
+                raise Exception(f"{err}")
+            else:
+                assert msg.topic() == topic
+                assert msg.partition() == 0
+                assert msg.offset() == 0
 
         # Standard Init
-        KafkaConsumerHook(["test_1"], kafka_config_id="kafka_d")
+        p_hook = KafkaProducerHook(kafka_config_id="kafka_default")
 
-        # Not Enough Args
-        with pytest.raises(ValueError):
-            KafkaConsumerHook(["test_1"], kafka_config_id="kafka_bad")
+        producer = p_hook.get_producer()
+
+        producer.produce(topic, key="p1", value="p2", on_delivery=acked)
+        producer.poll(0)
+        producer.flush()

@@ -19,6 +19,7 @@
 package-name: apache-airflow-providers-apache-kafka
 name: Apache Kafka
 
+suspended: false
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 versions:
@@ -31,7 +32,7 @@ dependencies:
 
 integrations:
   - integration-name: Apache Kafka
-    external-doc-url: <https://kafka.apache.org/
+    external-doc-url: https://kafka.apache.org/
     logo: /integration-logos/apache/kafka.svg
     tags: [apache]
 
@@ -60,5 +61,5 @@ triggers:
       - airflow.providers.apache.kafka.triggers.await_message
 
 connection-types:
-  - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaHook
+  - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaBaseHook
     connection-type: kafka

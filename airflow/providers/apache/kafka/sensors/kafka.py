@@ -63,14 +63,14 @@ class AwaitMessageSensor(BaseOperator):
         "apply_function",
         "apply_function_args",
         "apply_function_kwargs",
-        "kafka_config",
+        "kafka_config_id",
     )
 
     def __init__(
         self,
-        kafka_config_id: str,
         topics: Sequence[str],
         apply_function: str,
+        kafka_config_id: str = "kafka_default",
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
         poll_timeout: float = 1,
@@ -138,7 +138,6 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
         cluster, defaults to 1
     :param poll_interval: How long the kafka consumer should sleep after reaching the end of the Kafka log,
         defaults to 5
-    :param xcom_push_key: the name of a key to push the returned message to, defaults to None
 
 
     """
@@ -151,15 +150,15 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
         "apply_function",
         "apply_function_args",
         "apply_function_kwargs",
-        "kafka_config",
+        "kafka_config_id",
     )
 
     def __init__(
         self,
-        kafka_config_id: str,
         topics: Sequence[str],
         apply_function: str,
         event_triggered_function: Callable,
+        kafka_config_id: str = "kafka_default",
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
         poll_timeout: float = 1,

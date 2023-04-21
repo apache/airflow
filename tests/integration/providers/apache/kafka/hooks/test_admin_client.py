@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -21,42 +22,30 @@ import json
 import pytest
 
 from airflow.models import Connection
-
-# Import Hook
-from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
+from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.utils import db
 
+client_config = {"socket.timeout.ms": 1000, "bootstrap.servers": "broker:29092"}
 
-class TestConsumerHook:
-    """
-    Test consumer hook.
-    """
 
+@pytest.mark.integration("kafka")
+class TestKafkaAdminClientHook:
     def setup_method(self):
         db.merge_conn(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",
-                extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
-                ),
+                extra=json.dumps(client_config),
             )
         )
 
-        db.merge_conn(
-            Connection(
-                conn_id="kafka_bad",
-                conn_type="kafka",
-                extra=json.dumps({}),
-            )
-        )
-
-    def test_init(self):
-        """test initialization of AdminClientHook"""
+    def test_hook(self):
+        """test the creation of topics"""
 
         # Standard Init
-        KafkaConsumerHook(["test_1"], kafka_config_id="kafka_d")
+        hook = KafkaAdminClientHook(kafka_config_id="kafka_d")
+        hook.create_topic(topics=[("test_1", 1, 1), ("test_2", 1, 1)])
 
-        # Not Enough Args
-        with pytest.raises(ValueError):
-            KafkaConsumerHook(["test_1"], kafka_config_id="kafka_bad")
+        kadmin = hook.get_conn
+        t = kadmin.list_topics(timeout=10).topics
+        assert t.get("test_2")
