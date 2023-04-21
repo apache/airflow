@@ -552,3 +552,15 @@ option_debug_resources = click.option(
     help="Whether to show resource information while running in parallel.",
     envvar="DEBUG_RESOURCES",
 )
+option_install_selected_providers = click.option(
+    "--install-selected-providers",
+    help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",
+    envvar="INSTALL_SELECTED_PROVIDERS",
+    default="",
+)
+option_skip_constraints = click.option(
+    "--skip-constraints",
+    is_flag=True,
+    help="Do not use constraints when installing providers.",
+    envvar="SKIP_CONSTRAINTS",
+)

@@ -22,6 +22,7 @@ import ast
 import pickle
 import tarfile
 import warnings
+from collections.abc import Container
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
@@ -215,7 +216,7 @@ class DockerOperator(BaseOperator):
         log_opts_max_file: str | None = None,
         ipc_mode: str | None = None,
         skip_exit_code: int | None = None,
-        skip_on_exit_code: int | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -281,9 +282,15 @@ class DockerOperator(BaseOperator):
             warnings.warn(
                 "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
             )
-            self.skip_on_exit_code: int | None = skip_exit_code
-        else:
-            self.skip_on_exit_code = skip_on_exit_code
+            skip_on_exit_code = skip_exit_code
+
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
 
     @cached_property
     def hook(self) -> DockerHook:
@@ -384,7 +391,7 @@ class DockerOperator(BaseOperator):
                 self.log.info("%s", log_chunk)
 
             result = self.cli.wait(self.container["Id"])
-            if result["StatusCode"] == self.skip_on_exit_code:
+            if result["StatusCode"] in self.skip_on_exit_code:
                 raise AirflowSkipException(
                     f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
                 )

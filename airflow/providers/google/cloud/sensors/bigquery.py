@@ -45,9 +45,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         storage bucket.
     :param table_id: The name of the table to check the existence of.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -73,7 +70,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         dataset_id: str,
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         **kwargs,
@@ -97,11 +93,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
         self.deferrable = deferrable
@@ -111,7 +102,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.log.info("Sensor checks existence of table: %s", table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         return hook.table_exists(
@@ -129,7 +119,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 poll_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 hook_params={
-                    "delegate_to": self.delegate_to,
                     "impersonation_chain": self.impersonation_chain,
                 },
             ),
@@ -163,9 +152,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     :param table_id: The name of the table to check the existence of.
     :param partition_id: The name of the partition to check the existence of.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must
-        have domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -193,7 +179,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         table_id: str,
         partition_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         **kwargs,
@@ -207,11 +192,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.table_id = table_id
         self.partition_id = partition_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
         self.deferrable = deferrable
@@ -221,7 +201,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         return hook.table_partition_exists(
@@ -283,9 +262,6 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-       if any. For this to work, the service account making the request must have
-       domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
        credentials, or chained list of accounts required to get the access_token
        of the last account in the list, which will be impersonated in the request.

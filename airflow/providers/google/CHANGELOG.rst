@@ -33,6 +33,11 @@ Google has announced sunset of Campaign Manager 360 v3.5 by Apr 20, 2023. For mo
 please check: `<https://developers.google.com/doubleclick-advertisers/deprecation>`_ . As a result, the
 default api version for Campaign Manager 360 operator was updated to the latest v4 version.
 
+.. warning::
+  In this version of the provider, deprecated ``delegate_to`` param is removed from all GCP operators, hooks, and triggers, as well as from firestore and gsuite
+  transfer operators that interact with GCS. Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+  The ``delegate_to`` param will still be available only in gsuite and marketing platform hooks and operators, that don't interact with Google Cloud.
+
 9.0.0
 .....
 

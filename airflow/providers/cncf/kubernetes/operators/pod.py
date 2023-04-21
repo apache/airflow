@@ -25,6 +25,7 @@ import re
 import secrets
 import string
 import warnings
+from collections.abc import Container
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -292,7 +293,7 @@ class KubernetesPodOperator(BaseOperator):
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
         skip_exit_code: int | None = None,
-        skip_on_exit_code: int | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
@@ -366,9 +367,15 @@ class KubernetesPodOperator(BaseOperator):
             warnings.warn(
                 "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
             )
-            self.skip_on_exit_code: int | None = skip_exit_code
-        else:
-            self.skip_on_exit_code = skip_on_exit_code
+            skip_on_exit_code = skip_exit_code
+
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.deferrable = deferrable
         self.poll_interval = poll_interval
@@ -696,7 +703,7 @@ class KubernetesPodOperator(BaseOperator):
                     and base_container_status.last_state.terminated
                     else None
                 )
-                if exit_code == self.skip_on_exit_code:
+                if exit_code in self.skip_on_exit_code:
                     raise AirflowSkipException(
                         f"Pod {pod and pod.metadata.name} returned exit code "
                         f"{self.skip_on_exit_code}. Skipping."
