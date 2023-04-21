@@ -33,6 +33,35 @@ Breaking changes
 .. warning::
   In this version of the provider, deprecated GCS hook's parameter ``delegate_to`` is removed from the following operators: ``GCSToS3Operator``, ``GlacierToGCSOperator`` and ``GoogleApiToS3Operator``.
   Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+  Also removed deprecated parameter ``google_cloud_storage_conn_id`` from ``GCSToS3Operator``, ``gcp_conn_id`` should be used instead.
+
+  The deprecated parameter ``max_tries`` was removed from the Athena & EMR hook & operators in favor of ``max_polling_attempts``.
+
+  Disabled deprecated behavior of switching to an empty aws connection ID on error. You can set it to None explicitly.
+
+  Removed deprecated method ``waiter`` from emr hook in favor of the more generic ``airflow.providers.amazon.aws.utils.waiter.waiter``
+
+  Removed deprecated unused parameter ``cluster_identifier`` from Redshift Cluster's hook method ``get_cluster_snapshot_status``
+
+  Removed deprecated method ``find_processing_job_by_name`` from Sagemaker hook, use ``count_processing_jobs_by_name`` instead.
+
+  Removed deprecated module ``airflow.providers.amazon.aws.operators.aws_lambda`` in favor of ``airflow.providers.amazon.aws.operators.lambda_function``
+
+  Removed EcsOperator in favor of EcsRunTaskOperator.
+  EcsTaskLogFetcher and EcsProtocol should be imported from the hook.
+
+  Removed AwsLambdaInvokeFunctionOperator in favor of LambdaInvokeFunctionOperator.
+
+  Removed deprecated param ``await_result`` from RedshiftDataOperator in favor of ``wait_for_completion``.
+  Some methods from this operator should be imported from the hook instead.
+
+  Removed deprecated ``RedshiftSQLOperator`` in favor of the generic ``SQLExecuteQueryOperator``.
+  The parameter that was passed as ``redshift_conn_id`` needs to be changed to ``conn_id``, and the behavior should stay the same.
+
+  Removed deprecated method ``get_conn_uri`` from secrets manager in favor of ``get_conn_value``
+  Also removed deprecated method ``get_conn_uri`` from systems manager. ``deserialize_connection(...).get_uri()`` should be used instead.
+
+  Removed deprecated and unused param ``s3_conn_id`` from ``ImapAttachmentToS3Operator``, ``MongoToS3Operator`` and ``S3ToSFTPOperator``.
 
 7.4.1
 .....

@@ -624,29 +624,6 @@ class TestSageMakerHook:
         assert mock_session.describe_training_job.call_count == 1
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    def test_find_processing_job_by_name(self, mock_conn):
-        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-        mock_conn().list_processing_jobs.return_value = {
-            "ProcessingJobSummaries": [{"ProcessingJobName": "existing_job"}]
-        }
-
-        with pytest.warns(DeprecationWarning):
-            ret = hook.find_processing_job_by_name("existing_job")
-            assert ret
-
-    @mock.patch.object(SageMakerHook, "get_conn")
-    def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
-        error_resp = {"Error": {"Code": "ValidationException"}}
-        mock_conn().describe_processing_job.side_effect = ClientError(
-            error_response=error_resp, operation_name="empty"
-        )
-        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-
-        with pytest.warns(DeprecationWarning):
-            ret = hook.find_processing_job_by_name("existing_job")
-            assert not ret
-
-    @mock.patch.object(SageMakerHook, "get_conn")
     def test_count_processing_jobs_by_name(self, mock_conn):
         hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
         existing_job_name = "existing_job"

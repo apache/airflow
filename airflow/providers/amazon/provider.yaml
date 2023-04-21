@@ -305,7 +305,6 @@ operators:
       - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: AWS Lambda
     python-modules:
-      - airflow.providers.amazon.aws.operators.aws_lambda
       - airflow.providers.amazon.aws.operators.lambda_function
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
@@ -327,7 +326,6 @@ operators:
       - airflow.providers.amazon.aws.operators.rds
   - integration-name: Amazon Redshift
     python-modules:
-      - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
       - airflow.providers.amazon.aws.operators.redshift_data
   - integration-name: Amazon QuickSight
