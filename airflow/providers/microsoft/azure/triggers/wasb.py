@@ -97,7 +97,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
     :param prefix: prefix of the blob to check existence for
     :param include: specifies one or more additional datasets to include in the
             response. Options include: ``snapshots``, ``metadata``, ``uncommittedblobs``,
-            ``copy`, ``deleted``
+            ``copy``, ``deleted``
     :param delimiter: filters objects based on the delimiter (for e.g '.csv')
     :param wasb_conn_id: the connection identifier for connecting to Azure WASB
     :param poke_interval:  polling period in seconds to check for the status
@@ -109,7 +109,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
         container_name: str,
         prefix: str,
         include: list[str] | None = None,
-        delimiter: str | None = "/",
+        delimiter: str = "/",
         wasb_conn_id: str = "wasb_default",
         public_read: bool = False,
         poke_interval: float = 5.0,
