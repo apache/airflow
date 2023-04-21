@@ -252,6 +252,42 @@ class EmrServerlessHook(AwsBaseHook):
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
 
+    def cancel_running_jobs(self, application_id: str, waiter_config: dict = {}):
+        """
+        List all jobs in an intermediate state and cancel them.
+        Then wait for those jobs to reach a terminal state.
+        Note: if new jobs are triggered while this operation is ongoing,
+        it's going to time out and return an error.
+        """
+        paginator = self.conn.get_paginator("list_job_runs")
+        results_per_response = 50
+        iterator = paginator.paginate(
+            applicationId=application_id,
+            states=list(self.JOB_INTERMEDIATE_STATES),
+            PaginationConfig={
+                "PageSize": results_per_response,
+            },
+        )
+        count = 0
+        for r in iterator:
+            job_ids = [jr["id"] for jr in r["jobRuns"]]
+            count += len(job_ids)
+            if len(job_ids) > 0:
+                self.log.info(
+                    "Cancelling %s pending job(s) for the application %s so that it can be stopped",
+                    len(job_ids),
+                    application_id,
+                )
+                for job_id in job_ids:
+                    self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+        if count > 0:
+            self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
+            self.get_waiter("no_job_running").wait(
+                applicationId=application_id,
+                states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
+                WaiterConfig=waiter_config,
+            )
+
 
 class EmrContainerHook(AwsBaseHook):
     """
