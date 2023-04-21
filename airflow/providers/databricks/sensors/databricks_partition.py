@@ -130,22 +130,22 @@ class DatabricksPartitionSensor(BaseSensorOperator):
             **self.hook_params,
         )
 
-    def _check_table_partitions(self) -> list:
-        _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-        self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
-        _joiner_val = " AND "
-        _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
-        _suffix = " LIMIT 1"
-
-        partition_sql = self._generate_partition_query(
-            prefix=_prefix,
-            suffix=_suffix,
-            joiner_val=_joiner_val,
-            opts=self.partitions,
-            table_name=_fully_qualified_table_name,
-            escape_key=False,
-        )
-        return self.hook(partition_sql)
+    # def _check_table_partitions(self) -> list:
+    #     _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+    #     self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
+    #     _joiner_val = " AND "
+    #     _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
+    #     _suffix = " LIMIT 1"
+    #
+    #     partition_sql = self._generate_partition_query(
+    #         prefix=_prefix,
+    #         suffix=_suffix,
+    #         joiner_val=_joiner_val,
+    #         opts=self.partitions,
+    #         table_name=_fully_qualified_table_name,
+    #         escape_key=False,
+    #     )
+    #     return self.hook(partition_sql)
 
     # def _generate_partition_query(
     #     self,
