@@ -284,6 +284,13 @@ repos:
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: local
+    # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
+    # we try to minimise the number of passes that must happen in order to apply some of the changes
+    # done by pre-commits. Some of the pre-commits not only check for errors but also fix them. This means
+    # that output from an earlier pre-commit becomes input to another pre-commit. Splitting the local
+    # scripts of our and adding some other non-local pre-commit in-between allows us to handle such
+    # changes quickly - especially when we want the early modifications from the first local group
+    # to be applied before the non-local pre-commits are run
     hooks:
       - id: replace-bad-characters
         name: Replace bad characters
