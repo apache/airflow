@@ -33,9 +33,10 @@ Breaking changes
 .. warning::
   In this version of the provider, deprecated GCS hook's parameter ``delegate_to`` is removed from the following operators: ``GCSToS3Operator``, ``GlacierToGCSOperator`` and ``GoogleApiToS3Operator``.
   Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
-  Also removed deprecated parameter ``google_cloud_storage_conn_id`` from ``GCSToS3Operator``, ``gcp_conn_id`` should be used instead.
 
-  The deprecated parameter ``max_tries`` was removed from the Athena & EMR hook & operators in favor of ``max_polling_attempts``.
+  Removed deprecated parameter ``google_cloud_storage_conn_id`` from ``GCSToS3Operator``, ``gcp_conn_id`` should be used instead.
+
+  Removed deprecated parameter ``max_tries`` from the Athena & EMR hook & operators in favor of ``max_polling_attempts``.
 
   Disabled deprecated behavior of switching to an empty aws connection ID on error. You can set it to None explicitly.
 
@@ -62,6 +63,36 @@ Breaking changes
   Also removed deprecated method ``get_conn_uri`` from systems manager. ``deserialize_connection(...).get_uri()`` should be used instead.
 
   Removed deprecated and unused param ``s3_conn_id`` from ``ImapAttachmentToS3Operator``, ``MongoToS3Operator`` and ``S3ToSFTPOperator``.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+* ``Remove deprecated code from Amazon provider (#30755)``
+
+Features
+~~~~~~~~
+
+* ``add a stop operator to emr serverless (#30720)``
+* ``SqlToS3Operator - Add feature to partition SQL table (#30460)``
+* ``New AWS sensor — DynamoDBValueSensor (#28338)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed logging issue (#30703)``
+* ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
+* ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
+* ``Add support in AWS Batch Operator for multinode jobs (#29522)``
+* ``AWS logs. Exit fast when 3 consecutive responses are returned from AWS Cloudwatch logs (#30756)``
+
+Misc
+~~~~
+
+* ``Remove @poke_mode_only from EmrStepSensor (#30774)``
+* ``Organize Amazon providers docs index (#30541)``
+* ``Remove duplicate param docstring in EksPodOperator (#30634)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Decouple "job runner" from BaseJob ORM model (#30255)``
 
 7.4.1
 .....

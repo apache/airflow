@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.0
+.....
+
+Latest change: 2023-04-21
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`fbc1382514 <https://github.com/apache/airflow/commit/fbc13825140cc6cc6b3d4b27db6d329692a1c451>`_  2023-04-21   ``remove delegate_to from GCP operators and hooks (#30748)``
+`6b5db07e0d <https://github.com/apache/airflow/commit/6b5db07e0dc8bdf482de5864018cd50c8770472b>`_  2023-04-17   ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
+=================================================================================================  ===========  ============================================================
+
 5.3.1
 .....
 
-Latest change: 2023-04-10
+Latest change: 2023-04-12
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`0f3b6579cb <https://github.com/apache/airflow/commit/0f3b6579cb67d3cf8bd9fa8f9abd502fc774201a>`_  2023-04-12   ``Prepare docs for RC2 of provider wave (#30606)``
 `7ce3b66237 <https://github.com/apache/airflow/commit/7ce3b66237fbdb1605cf1f7cec06f0b823c455a1>`_  2023-04-10   ``Load subscription_id from extra__azure__subscriptionId (#30556)``
 `874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
 `a09fd0d121 <https://github.com/apache/airflow/commit/a09fd0d121476964f1c9d7f12960c24517500d2c>`_  2023-04-08   ``Fix AzureDataFactoryPipelineRunLink get_link method (#30514)``
