@@ -3,7 +3,6 @@
 # This command should fix the conflict and regenerate help images that you have conflict with.
 main:3b0efd589fb61236e9fb1e4422de78c9
 build-docs:3b89efaf5551b1782227cd382c019990
-ci:find-newer-dependencies:8fa2b57f5f0523c928743b235ee3ab5a
 ci:fix-ownership:fee2c9ec9ef19686792002ae054fecdd
 ci:free-space:47234aa0a60b0efd84972e6e797379f8
 ci:get-workflow-info:01ee34c33ad62fa5dc33e0ac8773223f
@@ -53,7 +52,7 @@ setup:config:3ffcd35dd24b486ddf1d08b797e3d017
 setup:regenerate-command-images:aaf263095a037d2271640513d8c156fe
 setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:123b462a421884dc2320ffc5e54b2478
-setup:35e33ace42fac7ebf95c9228d4a4d047
+setup:26f37743534e14f5aad5300aad920301
 shell:bd3e004a92ebcec8feb40fc5cd95872d
 start-airflow:ee5066f1420a489864b48bc4e5e472da
 static-checks:543f0c776d0f198e80a0f75058445bb2

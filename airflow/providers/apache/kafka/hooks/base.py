@@ -27,7 +27,7 @@ from airflow.hooks.base import BaseHook
 class KafkaBaseHook(BaseHook):
     """
     A base hook for interacting with Apache Kafka
-    
+
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     """
 
