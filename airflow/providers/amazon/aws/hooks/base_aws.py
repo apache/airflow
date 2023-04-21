@@ -53,6 +53,7 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
+    AirflowNotFoundException,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -498,7 +499,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Get the Airflow Connection object and wrap it in helper (cached)."""
         connection = None
         if self.aws_conn_id:
-            connection = self.get_connection(self.aws_conn_id)
+            try:
+                connection = self.get_connection(self.aws_conn_id)
+            except AirflowNotFoundException:
+                self.log.warning(
+                    "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
+                )
 
         return AwsConnectionWrapper(
             conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
