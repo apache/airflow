@@ -177,9 +177,10 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = tuple(set(SQLCheckOperator.template_fields) | {"snowflake_conn_id"})
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
+    conn_id_field = "snowflake_conn_id"
 
     def __init__(
         self,
@@ -197,7 +198,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(sql=sql, parameters=parameters, conn_id=snowflake_conn_id, **kwargs)
+        super().__init__(sql=sql, parameters=parameters, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit
@@ -245,6 +246,10 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         the time you connect to Snowflake
     """
 
+    template_fields: Sequence[str] = tuple(set(SQLValueCheckOperator.template_fields) | {"snowflake_conn_id"})
+
+    conn_id_field = "snowflake_conn_id"
+
     def __init__(
         self,
         *,
@@ -263,9 +268,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(
-            sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
-        )
+        super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit
@@ -320,6 +323,11 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         the time you connect to Snowflake
     """
 
+    template_fields: Sequence[str] = tuple(
+        set(SQLIntervalCheckOperator.template_fields) | {"snowflake_conn_id"}
+    )
+    conn_id_field = "snowflake_conn_id"
+
     def __init__(
         self,
         *,
@@ -344,7 +352,6 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
             metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column,
             days_back=days_back,
-            conn_id=snowflake_conn_id,
             **kwargs,
         )
         self.snowflake_conn_id = snowflake_conn_id
