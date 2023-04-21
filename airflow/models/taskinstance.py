@@ -1331,18 +1331,8 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(State.RUNNING, self))
 
-        if not self.end_date:
-            # if the task has an end date, it means that this is not its first round.
-            # we send the adoption time metric only on the first try, otherwise it gets more complex.
-            adoption_time = (timezone.utcnow() - self.start_date).total_seconds()
-            Stats.timing(f"dag.{self.task.dag_id}.{self.task.task_id}.adoption_time", adoption_time)
-            Stats.timing(
-                "task.adoption_time",
-                adoption_time,
-                tags={"task_id": self.task.task_id, "dag_id": self.task.dag_id},
-            )
-
         self.state = State.RUNNING
+        self.emit_state_change_metric(State.RUNNING)
         self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
@@ -1381,6 +1371,35 @@ class TaskInstance(Base, LoggingMixin):
             self._date_or_empty("start_date"),
             self._date_or_empty("end_date"),
         )
+
+    def emit_state_change_metric(self, new_state: TaskInstanceState):
+        """
+        Sends a time metric logging how much time a given state transition took.
+        The previous state and metric name is deduced from the state the task was put in.
+
+        :param new_state: The state that has just been set for this task.
+            We do not use `self.state`, because sometimes the state is updated directly in the DB and not in
+            the local TaskInstance object.
+            Supported states: QUEUED and RUNNING
+        """
+        if self.end_date:
+            # if the task has an end date, it means that this is not its first round.
+            # we send the state transition time metric only on the first try, otherwise it gets more complex.
+            return
+
+        # switch on state and deduce which metric to send
+        if new_state == State.RUNNING:
+            metric_name = "queued_duration"
+            timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+        elif new_state == State.QUEUED:
+            metric_name = "scheduled_duration"
+            timing = (timezone.utcnow() - self.start_date).total_seconds()
+        else:
+            raise NotImplementedError
+
+        # send metric twice, once (legacy) with tags in the name and once with tags as tags
+        Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
+        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
 
     # Ensure we unset next_method and next_kwargs to ensure that any
     # retries don't re-use them.
