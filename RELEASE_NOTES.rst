@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.6.0 (2023-04-20)
+Airflow 2.6.0 (2023-04-27)
 --------------------------
 
 Significant Changes
@@ -92,6 +92,9 @@ installed. Please install Hive Provider > 5.1.0 when using those macros.
 
 New Features
 ^^^^^^^^^^^^
+- Skip PythonVirtualenvOperator task when it returns a provided exit code (#30690)
+- rename skip_exit_code to skip_on_exit_code and allow providing multiple codes (#30692)
+- Add skip_on_exit_code also to ExternalPythonOperator (#30738)
 - Add ``max_active_tis_per_dagrun`` for Dynamic Task Mapping (#29094)
 - Add serializer for pandas dataframe (#30390)
 - Deferrable ``TriggerDagRunOperator`` (#30292)
@@ -134,6 +137,11 @@ New Features
 
 Improvements
 """"""""""""
+- Update the error message for invalid use of poke-only sensors (#30821)
+- Update log level in scheduler critical section edge case (#30694)
+- AIP-51 Removing Executor Coupling from Core Airflow (`AIP-51 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-51+milestone%3A%22Airflow+2.6.0%22>`_)
+- Add multiple exit code handling in skip logic for BashOperator (#30739)
+- Updated app to support configuring the caching hash method for FIPS v2 (#30675)
 - Preload airflow imports before dag parsing to save time (#30495)
 - Improve task & run actions ``UX`` in grid view (#30373)
 - Speed up TaskGroups with caching property of group_id (#30284)
@@ -183,13 +191,20 @@ Improvements
 - Add ``renamed`` and ``previous_name`` in config sections (#28324)
 - Speed up most Users/Role CLI commands (#28259)
 - Speed up Airflow role list command (#28244)
-- Refactor serialization (#28067)
+- Refactor serialization (#28067, #30819, #30823)
 - Allow longer pod names for k8s executor / KPO (#27736)
 - Updates health check endpoint to include ``triggerer`` status (#27755)
 
 
 Bug Fixes
 """""""""
+- Count mapped upstream only if all are finished (#30641)
+- ExternalTaskSensor: add external_task_group_id to template_fields (#30401)
+- Improve url detection for task instance details (#30779)
+- Use material icons for dag import error banner (#30771)
+- Fix misc grid/graph view UI bugs (#30752)
+- Add a collapse grid button (#30711)
+- Fix d3 dependencies (#30702)
 - Simplify logic to resolve tasks stuck in queued despite stalled_task_timeout (#30375)
 - When clearing task instances try to get associated DAGs from database (#29065)
 - Fix mapped tasks partial arguments when DAG default args are provided (#29913)
@@ -220,6 +235,11 @@ Bug Fixes
 
 Misc/Internal
 """""""""""""
+- Make eager upgrade additional dependencies optional (#30811)
+- Upgrade to pip 23.1.1 (#30808)
+- Remove protobuf limitation from eager upgrade (#30182)
+- Remove protobuf limitation from eager upgrade (#30182)
+- Deprecate ``skip_exit_code`` in ``BashOperator`` (#30734)
 - Remove gauge ``scheduler.tasks.running`` (#30374)
 - Bump json5 to 1.0.2 and eslint-plugin-import to 2.27.5 in ``/airflow/www`` (#30568)
 - Add tests to PythonOperator (#30362)
@@ -266,6 +286,9 @@ Misc/Internal
 
 Doc only changes
 """"""""""""""""
+- Add instructions on how to avoid accidental airflow upgrade/downgrade (#30813)
+- Add explicit information about how to write task logs (#30732)
+- Better explanation on how to log from tasks (#30746)
 - Use correct import path for Dataset (#30617)
 - Create ``audit_logs.rst`` (#30405)
 - Adding taskflow API example for sensors (#30344)
