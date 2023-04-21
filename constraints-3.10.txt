@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-21T19:27:05Z
+# This constraints file was automatically generated on 2023-04-21T20:39:43Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -70,6 +70,7 @@ apache-airflow-providers-apache-flink==1.0.1
 apache-airflow-providers-apache-hdfs==3.2.1
 apache-airflow-providers-apache-hive==6.0.0
 apache-airflow-providers-apache-impala==1.0.0
+apache-airflow-providers-apache-kafka==1.0.0rc1
 apache-airflow-providers-apache-kylin==3.1.0
 apache-airflow-providers-apache-livy==3.4.0
 apache-airflow-providers-apache-pig==4.0.0
