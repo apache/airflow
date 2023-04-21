@@ -1241,14 +1241,10 @@ COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 # Those are additional constraints that are needed for some extras but we do not want to
-# Force them on the main Airflow package.
-# * dill<0.3.3 required by apache-beam
-# * pyarrow>=6.0.0 is because pip resolver decides for Python 3.10 to downgrade pyarrow to 5 even if it is OK
-#   for python 3.10 and other dependencies adding the limit helps resolver to make better decisions
-# * authlib, gcloud_aio_auth, adal are needed to generate constraints for PyPI packages and can be removed after we release
-#   new google, azure providers
-# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 authlib>=1.0.0 gcloud_aio_auth>=4.0.0 adal>=1.2.7"
+# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1 has much better
+# dependency resolution and we do not need to limit the versions of the dependencies
+# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
