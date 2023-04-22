@@ -758,6 +758,36 @@ class TestGCSHook:
             ]
         )
 
+    @pytest.mark.parametrize(
+        "prefix, result",
+        (
+            (
+                "prefix",
+                [mock.call(delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None)],
+            ),
+            (
+                ["prefix", "prefix_2"],
+                [
+                    mock.call(
+                        delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None
+                    ),
+                    mock.call(
+                        delimiter=",", prefix="prefix_2", versions=None, max_results=None, page_token=None
+                    ),
+                ],
+            ),
+        ),
+    )
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_list(self, mock_service, prefix, result):
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+        self.gcs_hook.list(
+            bucket_name="test_bucket",
+            prefix=prefix,
+            delimiter=",",
+        )
+        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_list_by_timespans(self, mock_service):
         test_bucket = "test_bucket"
