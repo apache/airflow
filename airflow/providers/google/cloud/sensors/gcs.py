@@ -235,7 +235,6 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
                     poke_interval=self.poke_interval,
                     google_cloud_conn_id=self.google_cloud_conn_id,
                     hook_params={
-                        "delegate_to": self.delegate_to,
                         "impersonation_chain": self.impersonation_chain,
                     },
                 ),
