@@ -1695,7 +1695,7 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
         self.hook.run_query(
             sql="select 1",
             destination_dataset_table=f"{DATASET_ID}.{TABLE_ID}",
-            priority="BATCH"
+            priority="BATCH",
             time_partitioning={"type": "DAY", "field": "test_field", "expirationMs": 1000},
         )
 
