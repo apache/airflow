@@ -2086,9 +2086,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if time_partitioning is None:
             time_partitioning = {}
 
-        if location:
-            self.location = location
-
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
         else:
@@ -2141,7 +2138,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
             (priority, "priority", priority, (str,)),
-            (location, "location", self.location, (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
             (query_params, "queryParameters", None, list),
             (udf_config, "userDefinedFunctionResources", None, list),
@@ -2210,7 +2206,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             configuration["query"]["destinationEncryptionConfiguration"] = encryption_configuration
 
-        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        job = self.insert_job(configuration=configuration, project_id=self.project_id, location=location)
         self.running_job_id = job.job_id
         return job.job_id
 
