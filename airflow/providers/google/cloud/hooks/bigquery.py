@@ -2718,7 +2718,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         """
         sql = _bind_parameters(operation, parameters) if parameters else operation
         self.flush_results()
-        self.job_id = self.hook.run_query(sql)
+        self.job_id = self.hook.insert_job(sql)
 
         query_results = self._get_query_result()
         if "schema" in query_results:
