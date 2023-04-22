@@ -102,6 +102,13 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert run_with_config.call_count == 1
         assert self.hook.location == "US"
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
+    def test_run_query_location(self, mock_insert, _):
+        self.hook.run_query("query", location="US")
+        _, kwargs = mock_insert.call_args
+        assert kwargs["configuration"]["query"]["location"] = "US"
+
     def test_bigquery_insert_rows_not_implemented(self):
         with pytest.raises(NotImplementedError):
             self.hook.insert_rows(table="table", rows=[1, 2])
