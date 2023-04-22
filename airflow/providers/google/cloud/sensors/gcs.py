@@ -29,7 +29,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger
+from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger, GCSCheckBlobUpdateTimeTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
@@ -184,6 +184,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run sensor in deferrable mode
     """
 
     template_fields: Sequence[str] = (
@@ -200,6 +201,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 
@@ -209,6 +211,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         self.ts_func = ts_func
         self.google_cloud_conn_id = google_cloud_conn_id
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         self.log.info("Sensor checks existence of : %s, %s", self.bucket, self.object)
@@ -217,6 +220,38 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         return hook.is_updated_after(self.bucket, self.object, self.ts_func(context))
+
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if self.deferrable is False:
+            super().execute(context)
+        else:
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=GCSCheckBlobUpdateTimeTrigger(
+                    bucket=self.bucket,
+                    object_name=self.object,
+                    target_date=self.ts_func(context),
+                    poke_interval=self.poke_interval,
+                    google_cloud_conn_id=self.google_cloud_conn_id,
+                    hook_params={
+                        "delegate_to": self.delegate_to,
+                        "impersonation_chain": self.impersonation_chain,
+                    },
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+        """Callback for when the trigger fires."""
+        if event:
+            if event["status"] == "success":
+                self.log.info(
+                    "Checking last updated time for object %s in bucket : %s", self.object, self.bucket
+                )
+                return event["message"]
+            raise AirflowException(event["message"])
+        raise AirflowException("No event received in trigger callback")
 
 
 class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
@@ -265,7 +300,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Sensor checks existence of objects: %s, %s", self.bucket, self.prefix)
+        self.log.info("Checking for existence of object: %s, %s", self.bucket, self.prefix)
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,
