@@ -26,31 +26,41 @@ from pendulum import datetime
 
 from airflow import DAG
 
+# Connections needed for this example dag to finish
+from airflow.models import Connection
+
 # This is just for setting up connections in the demo - you should use standard
 # methods for setting these connections in production
 from airflow.operators.python import PythonOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageTriggerFunctionSensor
+from airflow.utils import db
 
-# Connections needed for this example dag to finish
-# from airflow.models import Connection
-# from airflow.utils import db
-#
-# db.merge_conn(
-#     Connection(
-#         conn_id="fizz_buzz",
-#         conn_type="kafka",
-#         extra=json.dumps(
-#             {
-#                 "bootstrap.servers": "broker:29092",
-#                 "group.id": "fizz_buzz",
-#                 "enable.auto.commit": False,
-#                 "auto.offset.reset": "beginning",
-#             }
-#         ),
-#     )
-# )
+
+def load_connections():
+    db.merge_conn(
+        Connection(
+            conn_id="fizz_buzz_1",
+            conn_type="kafka",
+            extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}),
+        )
+    )
+
+    db.merge_conn(
+        Connection(
+            conn_id="fizz_buzz_2",
+            conn_type="kafka",
+            extra=json.dumps(
+                {
+                    "bootstrap.servers": "broker:29092",
+                    "group.id": "fizz_buzz",
+                    "enable.auto.commit": False,
+                    "auto.offset.reset": "beginning",
+                }
+            ),
+        )
+    )
 
 
 def _producer_function():
@@ -71,8 +81,10 @@ with DAG(
     tags=["fizz-buzz"],
 ) as dag:
 
+    t0 = PythonOperator(task_id="load_connections", python_callable=load_connections)
+
     t1 = ProduceToTopicOperator(
-        kafka_config_id="fizz_buzz",
+        kafka_config_id="fizz_buzz_1",
         task_id="produce_to_topic",
         topic="fizz_buzz",
         producer_function=_producer_function,
@@ -97,24 +109,26 @@ with DAG(
     def pick_downstream_dag(message, **context):
         if message % 15 == 0:
             print(f"encountered {message} - executing external dag!")
-            TriggerDagRunOperator(trigger_dag_id="fizz_buzz", task_id=f"{message}{_generate_uuid()}").execute(
+            TriggerDagRunOperator(trigger_dag_id="fizz-buzz", task_id=f"{message}{_generate_uuid()}").execute(
                 context
             )
         else:
             if message % 3 == 0:
                 print(f"encountered {message} FIZZ !")
-            if message & 5 == 0:
+            if message % 5 == 0:
                 print(f"encountered {message} BUZZ !")
 
     # [START howto_sensor_await_message_trigger_function]
     listen_for_message = AwaitMessageTriggerFunctionSensor(
-        kafka_config_id="fizz_buzz",
+        kafka_config_id="fizz_buzz_2",
         task_id="listen_for_message",
         topics=["fizz_buzz"],
-        apply_function="event_listener.await_function",
+        apply_function="example_dag_event_listener.await_function",
         event_triggered_function=pick_downstream_dag,
     )
     # [END howto_sensor_await_message_trigger_function]
+
+    t0 >> t1
 
 with DAG(
     dag_id="fizz-buzz",
