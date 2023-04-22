@@ -160,8 +160,7 @@ export const buildEdges = ({
       const targetIds = e.target.split(".");
       const isSelected =
         selectedTaskId &&
-        (e.source.includes(selectedTaskId) ||
-          e.target.includes(selectedTaskId));
+        (e.source === selectedTaskId || e.target === selectedTaskId);
 
       if (
         sourceIds.length === targetIds.length &&
