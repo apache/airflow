@@ -115,8 +115,17 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add license for all YAML files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        name: Add license for all Helm template files
+        files: ^chart/templates/.*
+        args:
+          - --comment-style
+          - "{{/*||*/}}"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all YAML files except Helm templates
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*
         types: [yaml]
         files: \.ya?ml$
         args:
