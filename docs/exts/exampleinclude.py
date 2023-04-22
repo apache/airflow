@@ -36,7 +36,7 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
 
 try:
-    import sphinx_airflow_theme  # noqa: autoflake
+    import sphinx_airflow_theme
 
     airflow_theme_is_available = True
 except ImportError:

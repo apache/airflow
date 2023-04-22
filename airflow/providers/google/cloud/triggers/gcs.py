@@ -66,8 +66,8 @@ class GCSBlobTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
-        """loop until the relevant file/folder is found."""
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Loop until the relevant file/folder is found."""
         try:
             hook = self._get_async_hook()
             while True:
@@ -144,7 +144,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the object updated time is greater than target datetime"""
         try:
             hook = self._get_async_hook()

@@ -55,7 +55,7 @@ class RedshiftClusterTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = RedshiftAsyncHook(aws_conn_id=self.aws_conn_id)
         while self.attempts >= 1:
             self.attempts = self.attempts - 1
