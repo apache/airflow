@@ -58,7 +58,7 @@ def _render_content():
             )
             providers.append(current_provider)
         except StopIteration:
-            raise Exception(f"Could not find provider.yaml file for package: {package_name}")
+            print(f"WARNING! Could not find provider.yaml file for package: {package_name}")
 
     content = _render_template(
         "dev_index_template.html.jinja2", providers=sorted(providers, key=lambda k: k["package-name"])
