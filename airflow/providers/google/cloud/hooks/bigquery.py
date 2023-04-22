@@ -2081,8 +2081,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         labels = labels or self.labels
         schema_update_options = list(schema_update_options or [])
 
-        if priority:
-            self.priority = priority
+        priority = priority or self.priority
 
         if time_partitioning is None:
             time_partitioning = {}
@@ -2141,7 +2140,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
-            (priority, "priority", self.priority, (str,)),
+            (priority, "priority", priority, (str,)),
             (location, "location", self.location, (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
             (query_params, "queryParameters", None, list),
