@@ -74,10 +74,26 @@ class TestXComEncoder:
         assert dataset.uri == obj.uri
 
     def test_encode_xcom_with_nested_dict_pandas(self):
-        data = ({"foo": 1, "bar": 2, "baz": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})},)
+        def _compare(data, obj):
+            assert len(data) == len(obj)
+            for key in data:
+                if isinstance(data[key], dict):
+                    return _compare(data[key], obj[key])
+                if isinstance(data[key], pandas.DataFrame):
+                    assert data[key].equals(obj[key])
+                else:
+                    assert data[key] == obj[key]
+
+        data = (
+            {"foo": 1, "bar": 2, "baz": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})},
+            {"d1": {"d2": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}},
+            {"d1": {"d2": {"d3": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}}},
+        )
         s = json.dumps(data, cls=utils_json.XComEncoder)
         obj = json.loads(s, cls=utils_json.XComDecoder)
-        assert data == obj
+        assert len(data) == len(obj)
+        for i in range(len(data)):
+            _compare(data[i], obj[i])
 
     def test_orm_deserialize(self):
         x = 14
