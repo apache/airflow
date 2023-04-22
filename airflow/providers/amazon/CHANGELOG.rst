@@ -38,8 +38,6 @@ Breaking changes
 
   Removed deprecated parameter ``max_tries`` from the Athena & EMR hook & operators in favor of ``max_polling_attempts``.
 
-  Disabled deprecated behavior of switching to an empty aws connection ID on error. You can set it to None explicitly.
-
   Removed deprecated method ``waiter`` from emr hook in favor of the more generic ``airflow.providers.amazon.aws.utils.waiter.waiter``
 
   Removed deprecated unused parameter ``cluster_identifier`` from Redshift Cluster's hook method ``get_cluster_snapshot_status``
