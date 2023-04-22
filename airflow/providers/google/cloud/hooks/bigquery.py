@@ -559,6 +559,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
+        This method is deprecated.
+        Please use `BigQueryHook.create_empty_table` method with passing the `table_resource` object
+
         for more details about these parameters.
 
         :param external_project_dataset_table:
@@ -748,6 +751,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Patch information in an existing table.
         It only updates fields that are provided in the request object.
 
+        This method is deprecated. Please use `BigQueryHook.update_table`
+
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
         :param dataset_id: The dataset containing the table to be patched.
@@ -933,6 +938,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Patches information in an existing dataset.
         It only replaces fields that are provided in the submitted dataset resource.
+
+        This method is deprecated. Please use `update_dataset`
+
         More info:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
 
@@ -976,6 +984,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Method returns tables list of a BigQuery tables. If table prefix is specified,
         only tables beginning by it are returned.
+
+        This method is deprecated. Please use `get_dataset_tables`
 
         For more information, see:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
@@ -1167,6 +1177,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         If the table does not exist, return an error unless ignore_if_missing
         is set to True.
 
+        This method is deprecated. Please use `delete_table`
+
         :param deletion_dataset_table: A dotted
             ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
             will be deleted.
@@ -1211,6 +1223,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> list[dict]:
         """
         Get the data of a given dataset.table and optionally with selected columns.
+
+        This method is deprecated. Please use `list_rows`
+
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
 
         :param dataset_id: the dataset ID of the requested table.
@@ -1579,6 +1594,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
+        This method is deprecated. Please use `BigQueryHook.insert_job`
+
         For more details about the configuration parameter.
 
         :param configuration: The configuration parameter maps directly to
@@ -1621,6 +1638,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         to BigQuery. See here:
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
@@ -1846,6 +1865,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
 
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
+
         For more details about these parameters.
 
         :param source_project_dataset_tables: One or more dotted
@@ -1933,6 +1954,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
+
         For more details about these parameters.
 
         :param source_project_dataset_table: The dotted ``<dataset>.<table>``
@@ -2017,6 +2040,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table. See here:
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
