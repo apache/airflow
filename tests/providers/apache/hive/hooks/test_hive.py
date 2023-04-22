@@ -324,7 +324,7 @@ class TestHiveCliHook:
             STORED AS textfile
             ;
         """
-        assert_equal_ignore_multiple_spaces(None, mock_run_cli.call_args_list[0][0][0], query)
+        assert_equal_ignore_multiple_spaces(mock_run_cli.call_args_list[0][0][0], query)
 
 
 class TestHiveMetastoreHook:

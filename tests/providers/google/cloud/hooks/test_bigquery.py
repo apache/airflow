@@ -69,6 +69,11 @@ class _BigQueryBaseTestClass:
         self.hook = MockedBigQueryHook()
 
 
+def test_delegate_to_runtime_error():
+    with pytest.raises(RuntimeError):
+        BigQueryHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")

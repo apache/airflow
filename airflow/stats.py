@@ -24,7 +24,7 @@ import socket
 import string
 import time
 from functools import partial, wraps
-from typing import TYPE_CHECKING, Callable, Iterable, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Iterable, TypeVar, Union, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from statsd import StatsClient
 
 log = logging.getLogger(__name__)
+DeltaType = Union[int, float, datetime.timedelta]
 
 
 class TimerProtocol(Protocol):
@@ -96,7 +97,7 @@ class StatsLogger(Protocol):
     def timing(
         cls,
         stat: str,
-        dt: int | float | datetime.timedelta,
+        dt: DeltaType | None,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
@@ -333,9 +334,7 @@ class NoStatsLogger:
         """Gauge stat."""
 
     @classmethod
-    def timing(
-        cls, stat: str, dt: int | float | datetime.timedelta, *, tags: dict[str, str] | None = None
-    ) -> None:
+    def timing(cls, stat: str, dt: DeltaType, *, tags: dict[str, str] | None = None) -> None:
         """Stats timing."""
 
     @classmethod
@@ -410,7 +409,7 @@ class SafeStatsdLogger:
     def timing(
         self,
         stat: str,
-        dt: int | float | datetime.timedelta,
+        dt: DeltaType,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
@@ -514,7 +513,7 @@ class SafeDogStatsdLogger:
     def timing(
         self,
         stat: str,
-        dt: int | float | datetime.timedelta,
+        dt: DeltaType,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:

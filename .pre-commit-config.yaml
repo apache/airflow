@@ -160,7 +160,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.0.0', 'black==22.12.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==22.12.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -284,6 +284,13 @@ repos:
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: local
+    # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
+    # we try to minimise the number of passes that must happen in order to apply some of the changes
+    # done by pre-commits. Some of the pre-commits not only check for errors but also fix them. This means
+    # that output from an earlier pre-commit becomes input to another pre-commit. Splitting the local
+    # scripts of our and adding some other non-local pre-commit in-between allows us to handle such
+    # changes quickly - especially when we want the early modifications from the first local group
+    # to be applied before the non-local pre-commits are run
     hooks:
       - id: replace-bad-characters
         name: Replace bad characters
@@ -488,6 +495,7 @@ repos:
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
+          ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|
@@ -852,7 +860,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml', 'packaging']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py

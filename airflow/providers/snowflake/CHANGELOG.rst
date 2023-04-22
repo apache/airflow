@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+4.0.5
+.....
+
+Misc
+~~~~
+
+* ``Update documentation for snowflake provider 4.0 breaking change (#30020)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
 4.0.4
 .....
 

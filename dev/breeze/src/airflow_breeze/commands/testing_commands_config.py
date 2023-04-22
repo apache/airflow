@@ -46,7 +46,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
-                "--full-tests-needed",
             ],
         },
         {
@@ -88,6 +87,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--helm-test-package",
                 "--github-repository",
             ],
         },

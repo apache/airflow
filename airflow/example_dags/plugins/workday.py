@@ -28,14 +28,13 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 log = logging.getLogger(__name__)
-holiday_calendar = None
-
 try:
     from pandas.tseries.holiday import USFederalHolidayCalendar
 
     holiday_calendar = USFederalHolidayCalendar()
 except ImportError:
     log.warning("Could not import pandas. Holidays will not be considered.")
+    holiday_calendar = None
 
 
 class AfterWorkdayTimetable(Timetable):

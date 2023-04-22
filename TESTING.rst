@@ -297,11 +297,17 @@ In case of Providers tests, you can run tests for all providers
 
     breeze testing tests --test-type Providers
 
-You can also limit the set of providers you would like to run tests of
+You can limit the set of providers you would like to run tests of
 
 .. code-block:: bash
 
     breeze testing tests --test-type "Providers[airbyte,http]"
+
+You can also run all providers but exclude the providers you would like to skip
+
+.. code-block:: bash
+
+    breeze testing tests --test-type "Providers[-amazon,google]"
 
 
 Running full Airflow unit test suite in parallel
@@ -606,7 +612,7 @@ Example test here:
 
 .. code-block:: python
 
-    from tests.charts.helm_template_generator import render_chart, render_k8s_object
+    from tests.charts.common.helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:
@@ -633,6 +639,16 @@ following command (but it takes quite a long time even in a multi-processor mach
 .. code-block:: bash
 
     breeze testing helm-tests
+
+You can also execute tests from a selected package only. Tests in ``tests/chart`` are grouped by packages
+so rather than running all tests, you can run only tests from a selected package. For example:
+
+.. code-block:: bash
+
+    breeze testing helm-tests --helm-test-package basic
+
+Will run all tests from ``tests/charts/basic`` package.
+
 
 You can also run Helm tests individually via the usual ``breeze`` command. Just enter breeze and run the
 tests with pytest as you would do with regular unit tests (you can add ``-n auto`` command to run Helm

@@ -396,9 +396,19 @@ class TestKubernetesExecutor:
         executor = self.kubernetes_executor
         executor.heartbeat()
         calls = [
-            mock.call("executor.open_slots", mock.ANY),
-            mock.call("executor.queued_tasks", mock.ANY),
-            mock.call("executor.running_tasks", mock.ANY),
+            mock.call(
+                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "KubernetesExecutor"}
+            ),
+            mock.call(
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "name": "KubernetesExecutor"},
+            ),
+            mock.call(
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "name": "KubernetesExecutor"},
+            ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
