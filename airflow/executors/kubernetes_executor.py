@@ -862,7 +862,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.warning("Found multiple pods for ti %s: %s", ti, pod_list)
                 continue
             readable_tis.append(repr(ti))
-            self.kube_scheduler.delete_pod(pod_id=pod_list[0].metadata.name, namespace=namespace)
+            self.kube_scheduler.delete_pod(pod_name=pod_list[0].metadata.name, namespace=namespace)
         return readable_tis
 
     def adopt_launched_task(
