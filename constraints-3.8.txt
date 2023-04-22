@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-21T20:40:00Z
+# This constraints file was automatically generated on 2023-04-22T06:32:38Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -603,7 +603,7 @@ thrift==0.16.0
 time-machine==2.9.0
 tomli==2.0.1
 toolz==0.12.0
-tornado==6.3
+tornado==6.3.1
 towncrier==22.12.0
 tqdm==4.65.0
 traitlets==5.9.0
