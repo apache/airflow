@@ -397,6 +397,7 @@ Currently, **officially** using Airflow:
 1. [Semantics3](https://www.semantics3.com) [[@abishekk92](https://github.com/abishekk92)]
 1. [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 1. [Sentry.io](https://www.sentry.io) [[@tiopi](https://github.com/tiopi)]
+1. [Sequoia Consulting Group](https://www.sequoia.com) [[@SequoiaConsulting](https://github.com/SequoiaConsulting) & [@rawwar](https://github.com/rawwar)]
 1. [ShopBack](https://www.shopback.sg/) [[@shopback](https://github.com/shopback)]
 1. [Shopify](https://shopify.com/) [[@shopify](https://github.com/Shopify)]
 1. [Shopkick](https://shopkick.com/) [[@shopkick](https://github.com/shopkick)]
