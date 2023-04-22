@@ -34,13 +34,12 @@ from airflow.providers.google.cloud.sensors.gcs import (
     GCSUploadSessionCompleteSensor,
     ts_function,
 )
-from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger
+from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger, GCSCheckBlobUpdateTimeTrigger
+from tests.providers.google.cloud.utils.airflow_util import create_context
 
 TEST_BUCKET = "TEST_BUCKET"
 
 TEST_OBJECT = "TEST_OBJECT"
-
-TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
 
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
 
@@ -83,7 +82,6 @@ class TestGoogleCloudStorageObjectSensor:
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.return_value = True
@@ -92,7 +90,6 @@ class TestGoogleCloudStorageObjectSensor:
 
         assert result is True
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -216,19 +213,58 @@ class TestGoogleCloudStorageObjectUpdatedSensor:
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.return_value = True
         result = task.poke(mock.MagicMock())
 
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, mock.ANY)
         assert result is True
+
+
+class TestGCSObjectUpdateSensorAsync:
+    OPERATOR = GCSObjectUpdateSensor(
+        task_id="gcs-obj-update",
+        bucket=TEST_BUCKET,
+        object=TEST_OBJECT,
+        google_cloud_conn_id=TEST_GCP_CONN_ID,
+        deferrable=True,
+    )
+
+    def test_gcs_object_update_sensor_async(self, context):
+        """
+        Asserts that a task is deferred and a GCSBlobTrigger will be fired
+        when the GCSObjectUpdateSensorAsync is executed.
+        """
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.OPERATOR.execute(create_context(self.OPERATOR))
+        assert isinstance(
+            exc.value.trigger, GCSCheckBlobUpdateTimeTrigger
+        ), "Trigger is not a GCSCheckBlobUpdateTimeTrigger"
+
+    def test_gcs_object_update_sensor_async_execute_failure(self, context):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        with pytest.raises(AirflowException):
+            self.OPERATOR.execute_complete(
+                context=context, event={"status": "error", "message": "test failure message"}
+            )
+
+    def test_gcs_object_update_sensor_async_execute_complete(self, context):
+        """Asserts that logging occurs as expected"""
+
+        with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
+            self.OPERATOR.execute_complete(
+                context=context, event={"status": "success", "message": "Job completed"}
+            )
+        mock_log_info.assert_called_with(
+            "Checking last updated time for object %s in bucket : %s", TEST_OBJECT, TEST_BUCKET
+        )
 
 
 class TestGoogleCloudStoragePrefixSensor:
@@ -239,14 +275,12 @@ class TestGoogleCloudStoragePrefixSensor:
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.return_value = ["NOT_EMPTY_LIST"]
         result = task.poke(mock.MagicMock)
 
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -260,7 +294,6 @@ class TestGoogleCloudStoragePrefixSensor:
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.list.return_value = []
         result = task.poke(mock.MagicMock)
@@ -274,7 +307,6 @@ class TestGoogleCloudStoragePrefixSensor:
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poke_interval=0,
         )
@@ -284,7 +316,6 @@ class TestGoogleCloudStoragePrefixSensor:
         response = task.execute(None)
 
         mock_hook.assert_called_once_with(
-            delegate_to=TEST_DELEGATE_TO,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
@@ -319,7 +350,6 @@ class TestGCSUploadSessionCompleteSensor:
             min_objects=1,
             allow_delete=False,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             dag=self.dag,
         )
@@ -331,7 +361,6 @@ class TestGCSUploadSessionCompleteSensor:
         self.sensor._get_gcs_hook()
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         assert mock_hook.return_value == self.sensor.hook

@@ -18,7 +18,6 @@
 """This module contains Google BigQuery to MSSQL operator."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -63,9 +62,6 @@ class BigQueryToMsSqlOperator(BaseOperator):
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :param gcp_conn_id: reference to a specific Google Cloud hook.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param mssql_conn_id: reference to a specific mssql hook
     :param database: name of database which overwrite defined one in connection
     :param replace: Whether to replace instead of insert
@@ -93,7 +89,6 @@ class BigQueryToMsSqlOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         mssql_conn_id: str = "mssql_default",
         database: str | None = None,
-        delegate_to: str | None = None,
         replace: bool = False,
         batch_size: int = 1000,
         location: str | None = None,
@@ -107,11 +102,6 @@ class BigQueryToMsSqlOperator(BaseOperator):
         self.database = database
         self.mssql_table = mssql_table
         self.replace = replace
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.batch_size = batch_size
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -126,7 +116,6 @@ class BigQueryToMsSqlOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         big_query_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )

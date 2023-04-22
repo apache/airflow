@@ -30,7 +30,6 @@ import json
 import logging
 import os
 import uuid
-import warnings
 from copy import deepcopy
 from functools import wraps
 from os import PathLike
@@ -362,34 +361,6 @@ class BaseSessionFactory(LoggingMixin):
     def _strip_invalid_session_name_characters(self, role_session_name: str) -> str:
         return slugify(role_session_name, regex_pattern=r"[^\w+=,.@-]+")
 
-    def _get_region_name(self) -> str | None:
-        warnings.warn(
-            "`BaseSessionFactory._get_region_name` method deprecated and will be removed "
-            "in a future releases. Please use `BaseSessionFactory.region_name` property instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.region_name
-
-    def _read_role_arn_from_extra_config(self) -> str | None:
-        warnings.warn(
-            "`BaseSessionFactory._read_role_arn_from_extra_config` method deprecated and will be removed "
-            "in a future releases. Please use `BaseSessionFactory.role_arn` property instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.role_arn
-
-    def _read_credentials_from_connection(self) -> tuple[str | None, str | None]:
-        warnings.warn(
-            "`BaseSessionFactory._read_credentials_from_connection` method deprecated and will be removed "
-            "in a future releases. Please use `BaseSessionFactory.conn.aws_access_key_id` and "
-            "`BaseSessionFactory.aws_secret_access_key` properties instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.conn.aws_access_key_id, self.conn.aws_secret_access_key
-
 
 class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     """
@@ -531,13 +502,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             try:
                 connection = self.get_connection(self.aws_conn_id)
             except AirflowNotFoundException:
-                warnings.warn(
-                    f"Unable to find AWS Connection ID '{self.aws_conn_id}', switching to empty. "
-                    "This behaviour is deprecated and will be removed in a future releases. "
-                    "Please provide existed AWS connection ID or if required boto3 credential strategy "
-                    "explicit set AWS Connection ID to None.",
-                    DeprecationWarning,
-                    stacklevel=2,
+                self.log.warning(
+                    "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                 )
 
         return AwsConnectionWrapper(
@@ -729,17 +695,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return decorator_f
 
         return retry_decorator
-
-    def _get_credentials(self, region_name: str | None) -> tuple[boto3.session.Session, str | None]:
-        warnings.warn(
-            "`AwsGenericHook._get_credentials` method deprecated and will be removed in a future releases. "
-            "Please use `AwsGenericHook.get_session` method and "
-            "`AwsGenericHook.conn_config.endpoint_url` property instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return self.get_session(region_name=region_name), self.conn_config.endpoint_url
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:

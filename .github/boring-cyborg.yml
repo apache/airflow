@@ -143,6 +143,11 @@ labelPRBasedOnFilePath:
     - tests/providers/presto/**/*
     - tests/system/providers/presto/**/*
 
+  provider:OpenLineage:
+    - airflow/providers/openlineage/**/*
+    - docs/apache-airflow-providers-openlineage/**/*
+    - tests/providers/openlineage/**/*
+
   area:providers:
     - airflow/providers/**/*
     - docs/apache-airflow-providers-*/**/*

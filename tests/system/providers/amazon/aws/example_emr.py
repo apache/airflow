@@ -34,7 +34,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrTerminateJobFlowOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
-from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor
+from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -117,6 +117,11 @@ def delete_security_config(config_name: str):
     )
 
 
+@task
+def get_step_id(step_ids: list):
+    return step_ids[0]
+
+
 sys_test_context_task = SystemTestContextBuilder().add_variable(EXECUTION_ROLE_ARN_KEY).build()
 
 with DAG(
@@ -164,6 +169,14 @@ with DAG(
     )
     # [END howto_operator_emr_add_steps]
 
+    # [START howto_sensor_emr_step]
+    wait_for_step = EmrStepSensor(
+        task_id="wait_for_step",
+        job_flow_id=create_job_flow.output,
+        step_id=get_step_id(add_steps.output),
+    )
+    # [END howto_sensor_emr_step]
+
     # [START howto_operator_emr_terminate_job_flow]
     remove_cluster = EmrTerminateJobFlowOperator(
         task_id="remove_cluster",
@@ -195,6 +208,7 @@ with DAG(
         create_job_flow,
         modify_cluster,
         add_steps,
+        wait_for_step,
         # TEST TEARDOWN
         remove_cluster,
         check_job_flow,
