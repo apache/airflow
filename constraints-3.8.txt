@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-22T17:02:45Z
+# This constraints file was automatically generated on 2023-04-22T22:11:58Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -409,7 +409,7 @@ nbformat==5.8.0
 neo4j==5.7.0
 networkx==3.1
 nodeenv==1.7.0
-numpy==1.24.2
+numpy==1.24.3
 oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.4
@@ -625,7 +625,7 @@ types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
 types-redis==4.5.4.1
 types-requests==2.28.11.17
-types-setuptools==67.6.0.8
+types-setuptools==67.7.0.0
 types-tabulate==0.9.0.2
 types-termcolor==1.1.6.2
 types-toml==0.10.8.6
