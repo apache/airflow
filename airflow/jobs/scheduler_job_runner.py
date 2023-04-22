@@ -598,8 +598,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if is_done or not found_new_filters:
                 break
 
-            self.log.debug(
-                "Found no task instances to queue on the %s. iteration "
+            self.log.info(
+                "Found no task instances to queue on query iteration %s "
                 "but there could be more candidate task instances to check.",
                 loop_count,
             )
