@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-22T09:59:17Z
+# This constraints file was automatically generated on 2023-04-22T14:46:49Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -253,7 +253,7 @@ identify==2.5.22
 idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
-importlib-metadata==6.5.1
+importlib-metadata==6.6.0
 importlib-resources==5.12.0
 impyla==0.18.0
 incremental==22.10.0

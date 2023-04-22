@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-22T10:05:50Z
+# This constraints file was automatically generated on 2023-04-22T14:53:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -141,7 +141,7 @@ apache-airflow-providers-zendesk==4.2.0
 apache-beam==2.46.0
 apispec==5.2.2
 appdirs==1.4.4
-argcomplete==3.0.5
+argcomplete==3.0.6
 arrow==1.2.3
 asana==3.2.1
 asgiref==3.6.0
@@ -332,7 +332,7 @@ identify==2.5.22
 idna==3.4
 ijson==3.2.0.post0
 imagesize==1.4.1
-importlib-metadata==6.5.1
+importlib-metadata==6.6.0
 importlib-resources==5.12.0
 impyla==0.18.0
 incremental==22.10.0
