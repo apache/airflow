@@ -1695,13 +1695,14 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
         self.hook.run_query(
             sql="select 1",
             destination_dataset_table=f"{DATASET_ID}.{TABLE_ID}",
+            priority="BATCH"
             time_partitioning={"type": "DAY", "field": "test_field", "expirationMs": 1000},
         )
 
         configuration = {
             "query": {
                 "query": "select 1",
-                "priority": "INTERACTIVE",
+                "priority": "BATCH",
                 "useLegacySql": True,
                 "timePartitioning": {"type": "DAY", "field": "test_field", "expirationMs": 1000},
                 "schemaUpdateOptions": [],
