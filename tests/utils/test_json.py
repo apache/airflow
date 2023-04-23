@@ -108,7 +108,7 @@ class TestXComEncoder:
     )
     def test_encode_xcom_with_nested_dict(self, data):
         i = json.dumps(data, cls=utils_json.XComEncoder)
-        e = json.loads(serialized_data, cls=utils_json.XComDecoder)
+        e = json.loads(i, cls=utils_json.XComDecoder)
         assert i == e
 
     def test_orm_deserialize(self):
