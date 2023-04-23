@@ -672,6 +672,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
                 "API Always CLI Providers[google]",
@@ -689,6 +690,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types": "Core Other WWW API Always CLI",
             },
@@ -706,6 +708,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
                 "API Always CLI Providers[google]",
