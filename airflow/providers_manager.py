@@ -952,7 +952,7 @@ class ProvidersManager(LoggingMixin):
 
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
-        """initialization of providers triggers."""
+        """Initialization of providers triggers."""
         self.initialize_providers_list()
         for provider_package, provider in self._provider_dict.items():
             for trigger in provider.data.get("triggers", []):
