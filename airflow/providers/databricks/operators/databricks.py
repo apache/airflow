@@ -124,6 +124,7 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 polling_period_seconds=operator.polling_period_seconds,
                 retry_limit=operator.databricks_retry_limit,
                 retry_delay=operator.databricks_retry_delay,
+                retry_args=operator.databricks_retry_args,
                 run_page_url=run_page_url,
             ),
             method_name=DEFER_METHOD_NAME,

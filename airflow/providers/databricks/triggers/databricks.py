@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
+from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -34,6 +34,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         By default, the trigger will poll every 30 seconds.
     :param retry_limit: The number of times to retry the connection in case of service outages.
     :param retry_delay: The number of seconds to wait between retries.
+    :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param run_page_url: The run page url.
     """
 
@@ -44,6 +45,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         polling_period_seconds: int = 30,
         retry_limit: int = 3,
         retry_delay: int = 10,
+        retry_args: dict[Any, Any] | None = None,
         run_page_url: str | None = None,
     ) -> None:
         super().__init__()
@@ -52,9 +54,13 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.polling_period_seconds = polling_period_seconds
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
+        self.retry_args = retry_args
         self.run_page_url = run_page_url
         self.hook = DatabricksHook(
-            databricks_conn_id, retry_limit=self.retry_limit, retry_delay=self.retry_delay
+            databricks_conn_id,
+            retry_limit=self.retry_limit,
+            retry_delay=self.retry_delay,
+            retry_args=retry_args,
         )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -66,6 +72,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "polling_period_seconds": self.polling_period_seconds,
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
+                "retry_args": self.retry_args,
                 "run_page_url": self.run_page_url,
             },
         )
@@ -73,36 +80,21 @@ class DatabricksExecutionTrigger(BaseTrigger):
     async def run(self):
         async with self.hook:
             while True:
-                try:
-                    run_info = await self.hook.a_get_run(self.run_id)
-                    run_state = RunState(**run_info["state"])
-                    if not run_state.is_terminal:
-                        self.log.info(
-                            "%s in run state %s. sleeping for %s seconds",
-                            self.run_id,
-                            run_state,
-                            self.polling_period_seconds,
-                        )
-                        await asyncio.sleep(self.polling_period_seconds)
-                    elif run_state.is_terminal and run_state.is_successful:
-                        yield TriggerEvent(
-                            {
-                                "run_id": self.run_id,
-                                "run_page_url": self.run_page_url,
-                                "run_state": run_state.to_json(),
-                            }
-                        )
-                        return
-                    elif run_state.result_state == "FAILED":
-                        yield TriggerEvent({"status": "error", "message": run_info})
-                        return
-                    else:
-                        error_message = (
-                            f"{self.run_id} failed with terminal state: {run_state} "
-                            f"and with the error {run_state.state_message}"
-                        )
-                        yield TriggerEvent({"status": "error", "message": error_message})
-                        return
-                except Exception as e:
-                    yield TriggerEvent({"status": "error", "message": str(e)})
+                run_state = await self.hook.a_get_run_state(self.run_id)
+                if run_state.is_terminal:
+                    yield TriggerEvent(
+                        {
+                            "run_id": self.run_id,
+                            "run_page_url": self.run_page_url,
+                            "run_state": run_state.to_json(),
+                        }
+                    )
                     return
+                else:
+                    self.log.info(
+                        "run-id %s in run state %s. sleeping for %s seconds",
+                        self.run_id,
+                        run_state,
+                        self.polling_period_seconds,
+                    )
+                    await asyncio.sleep(self.polling_period_seconds)

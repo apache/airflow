@@ -96,20 +96,21 @@ class TestDatabricksExecutionTrigger:
                 "polling_period_seconds": POLLING_INTERVAL_SECONDS,
                 "retry_delay": 10,
                 "retry_limit": 3,
+                "retry_args": None,
                 "run_page_url": RUN_PAGE_URL,
             },
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
-    async def test_run_return_success(self, mock_get_run):
-        mock_get_run.return_value = {
-            "state": {
-                "life_cycle_state": LIFE_CYCLE_STATE_TERMINATED,
-                "state_message": "",
-                "result_state": "SUCCESS",
-            }
-        }
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_run_return_success(self, mock_get_run_state, mock_get_run_page_url):
+        mock_get_run_page_url.return_value = RUN_PAGE_URL
+        mock_get_run_state.return_value = RunState(
+            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+            state_message="",
+            result_state="SUCCESS",
+        )
 
         trigger_event = self.trigger.run()
         async for event in trigger_event:
@@ -125,23 +126,20 @@ class TestDatabricksExecutionTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
     async def test_sleep_between_retries(self, mock_get_run_state, mock_sleep):
+
         mock_get_run_state.side_effect = [
-            {
-                "state": {
-                    "life_cycle_state": LIFE_CYCLE_STATE_PENDING,
-                    "state_message": "",
-                    "result_state": "",
-                },
-            },
-            {
-                "state": {
-                    "life_cycle_state": LIFE_CYCLE_STATE_TERMINATED,
-                    "state_message": "",
-                    "result_state": "SUCCESS",
-                }
-            },
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_PENDING,
+                state_message="",
+                result_state="",
+            ),
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="SUCCESS",
+            ),
         ]
 
         trigger_event = self.trigger.run()
