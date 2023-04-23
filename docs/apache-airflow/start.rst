@@ -42,7 +42,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
 1. Set Airflow Home (optional):
 
-   Airflow requires a home directory, and uses `~/airflow` by default, but you can set a different location if you prefer. The `AIRFLOW_HOME` environment variable is used to inform Airflow of the desired location. This step of setting the environment variable should be done before installing Airflow so that the installation process knows where to store the necessary files.
+   Airflow requires a home directory, and uses ``~/airflow`` by default, but you can set a different location if you prefer. The ``AIRFLOW_HOME`` environment variable is used to inform Airflow of the desired location. This step of setting the environment variable should be done before installing Airflow so that the installation process knows where to store the necessary files.
 
    .. code-block:: bash
 
@@ -66,7 +66,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
 3. Run Airflow Standalone:
 
-   The `airflow standalone` command initializes the database, creates a user, and starts all components.
+   The ``airflow standalone`` command initializes the database, creates a user, and starts all components.
 
    .. code-block:: bash
 
@@ -74,7 +74,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
 4. Access the Airflow UI:
 
-   Visit `localhost:8080` in your browser and log in with the admin account details shown in the terminal. Enable the `example_bash_operator` DAG in the home page.
+   Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` DAG in the home page.
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
