@@ -105,9 +105,9 @@ The logic implements the following rules:
 * If there are some setup files changed, `upgrade to newer dependencies` is enabled.
 * If docs are build, the `docs-filter` will determine which docs packages to build. This is based on
   several criteria: if any of the airflow core, charts, docker-stack, providers files or docs have changed,
-  then corresponding packages are build. If any of the core files changed, also providers docs are built
-  because all providers depend on airflow docs. If any of the docs build python files changed or when
-  build is "canary" type in main - all docs packages are built.
+  then corresponding packages are build (including cross-dependent providers). If any of the core files
+  changed, also providers docs are built because all providers depend on airflow docs. If any of the docs
+  build python files changed or when build is "canary" type in main - all docs packages are built.
 
 The selective check outputs available are described below:
 
