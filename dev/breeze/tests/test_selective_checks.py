@@ -845,6 +845,37 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
             id="Google provider docs changed",
         ),
         pytest.param(
+            ("airflow/providers/common/sql/common_sql_python.py",),
+            {
+                "docs-filter": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers-amazon "
+                "--package-filter apache-airflow-providers-apache-drill "
+                "--package-filter apache-airflow-providers-apache-druid "
+                "--package-filter apache-airflow-providers-apache-hive "
+                "--package-filter apache-airflow-providers-apache-impala "
+                "--package-filter apache-airflow-providers-apache-pinot "
+                "--package-filter apache-airflow-providers-common-sql "
+                "--package-filter apache-airflow-providers-databricks "
+                "--package-filter apache-airflow-providers-elasticsearch "
+                "--package-filter apache-airflow-providers-exasol "
+                "--package-filter apache-airflow-providers-google "
+                "--package-filter apache-airflow-providers-jdbc "
+                "--package-filter apache-airflow-providers-microsoft-mssql "
+                "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-odbc "
+                "--package-filter apache-airflow-providers-oracle "
+                "--package-filter apache-airflow-providers-postgres "
+                "--package-filter apache-airflow-providers-presto "
+                "--package-filter apache-airflow-providers-qubole "
+                "--package-filter apache-airflow-providers-slack "
+                "--package-filter apache-airflow-providers-snowflake "
+                "--package-filter apache-airflow-providers-sqlite "
+                "--package-filter apache-airflow-providers-trino "
+                "--package-filter apache-airflow-providers-vertica",
+            },
+            id="Common SQL provider package python files changed",
+        ),
+        pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst",),
             {
                 "docs-filter": "--package-filter apache-airflow-providers-airbyte "
