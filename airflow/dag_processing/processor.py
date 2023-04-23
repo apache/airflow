@@ -29,7 +29,7 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import exc, func, or_
+from sqlalchemy import exc, func
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -406,7 +406,7 @@ class DagFileProcessor(LoggingMixin):
             session.query(TI.task_id, func.max(DR.execution_date).label("max_ti"))
             .join(TI.dag_run)
             .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(TI.state == State.SUCCESS))
+            .filter(TI.state == State.SUCCESS)
             .filter(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
             .subquery("sq")

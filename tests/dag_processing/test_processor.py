@@ -347,9 +347,7 @@ class TestDagFileProcessor:
             .count()
         )
         assert sla_miss_count == 1
-        mock_stats_incr.assert_called_with(
-            "sla_missed", tags={"dag_id": "test_sla_miss", "run_id": "test_0", "task_id": "dummy"}
-        )
+        mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
 
     @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
