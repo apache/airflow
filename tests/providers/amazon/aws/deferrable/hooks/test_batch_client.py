@@ -38,6 +38,9 @@ class TestBatchClientAsyncHook:
     JOB_ID = "e2a459c5-381b-494d-b6e8-d6ee334db4e2"
     BATCH_API_SUCCESS_RESPONSE = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
 
+    async def batch_api_success_response(self, jobs):
+        return self.BATCH_API_SUCCESS_RESPONSE
+
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.get_client_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientAsyncHook.poll_job_status")
@@ -87,9 +90,7 @@ class TestBatchClientAsyncHook:
             },
             operation_name="get job description",
         )
-        mock_client.return_value.__aenter__.return_value.describe_jobs.return_value = (
-            self.BATCH_API_SUCCESS_RESPONSE
-        )
+        mock_client.return_value.__aenter__.return_value.describe_jobs = self.batch_api_success_response
         """status_retries = 2 ensures that exponential_delay block is covered in batch_client.py
         otherwise the code coverage will drop"""
         hook = BatchClientAsyncHook(job_id=self.JOB_ID, waiters=None, status_retries=2)
@@ -117,9 +118,7 @@ class TestBatchClientAsyncHook:
             },
             operation_name="get job description",
         )
-        mock_client.return_value.__aenter__.return_value.describe_jobs.return_value = (
-            self.BATCH_API_SUCCESS_RESPONSE
-        )
+        mock_client.return_value.__aenter__.return_value.describe_jobs = self.batch_api_success_response
         hook = BatchClientAsyncHook(job_id=self.JOB_ID, waiters=None, status_retries=1)
         with pytest.raises(AirflowException) as exc_info:
             await hook.get_job_description(job_id=self.JOB_ID)
