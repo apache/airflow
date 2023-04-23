@@ -309,3 +309,31 @@ class TestSerDe:
     )
     def test_serialized_data(self, obj, expected):
         assert expected == serialize(obj)
+
+    def test_serialize_nested_primitive_and_non_primitive_values(self):
+        import pandas
+
+        def _compare(actual_obj, expected_obj):
+            assert len(actual_obj) == len(expected_obj)
+            for key in actual_obj:
+                if isinstance(actual_obj[key], dict):
+                    return _compare(actual_obj[key], expected_obj[key])
+                if isinstance(actual_obj[key], pandas.DataFrame):
+                    assert actual_obj[key].equals(expected_obj[key])
+                else:
+                    assert actual_obj[key] == expected_obj[key]
+
+        data = (
+            {"foo": 1, "bar": 2},
+            {"foo": 1, "bar": 2, "baz": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})},
+            {"d1": {"d2": 3}},
+            {"d1": {"d2": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}},
+            {"d1": {"d2": {"d3": 4}}},
+            {"d1": {"d2": {"d3": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}}},
+        )
+        serialized_data = serialize(data)
+        deserialized_data = deserialize(serialized_data)
+        assert isinstance(deserialized_data, tuple)
+        assert len(data) == len(deserialized_data)
+        for i in range(len(data)):
+            _compare(data[i], deserialized_data[i])
