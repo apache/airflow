@@ -1212,6 +1212,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor = self.hook.get_cursor()
         bq_cursor.execute("SELECT %(foo)s", {"foo": "bar"})
         conf = {
+            "location": None,
             "query": {
                 "query": "SELECT 'bar'",
                 "priority": "INTERACTIVE",
@@ -1231,6 +1232,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
             [
                 mock.call(
                     configuration={
+                        "location": None,
                         "query": {
                             "query": "SELECT 'bar'",
                             "priority": "INTERACTIVE",
@@ -1242,6 +1244,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                 ),
                 mock.call(
                     configuration={
+                        "location": None,
                         "query": {
                             "query": "SELECT 'baz'",
                             "priority": "INTERACTIVE",
