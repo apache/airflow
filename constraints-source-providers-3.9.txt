@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-22T22:04:20Z
+# This constraints file was automatically generated on 2023-04-23T11:20:53Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -328,7 +328,7 @@ nbformat==5.8.0
 neo4j==5.7.0
 networkx==3.1
 nodeenv==1.7.0
-numpy==1.24.2
+numpy==1.24.3
 oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.4
