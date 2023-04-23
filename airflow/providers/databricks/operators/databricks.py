@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
+XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 
 
@@ -104,6 +105,9 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
     :param operator: Databricks async operator being handled
     :param context: Airflow context
     """
+    job_id = hook.get_job_id(operator.run_id)
+    if operator.do_xcom_push and context is not None:
+        context["ti"].xcom_push(key=XCOM_JOB_ID_KEY, value=job_id)
     if operator.do_xcom_push and context is not None:
         context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
     log.info("Run submitted with run_id: %s", operator.run_id)
@@ -119,6 +123,10 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 run_id=operator.run_id,
                 databricks_conn_id=operator.databricks_conn_id,
                 polling_period_seconds=operator.polling_period_seconds,
+                retry_limit=operator.databricks_retry_limit,
+                retry_delay=operator.databricks_retry_delay,
+                retry_args=operator.databricks_retry_args,
+                run_page_url=run_page_url,
             ),
             method_name=DEFER_METHOD_NAME,
         )
