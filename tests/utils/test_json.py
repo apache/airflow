@@ -23,12 +23,30 @@ from datetime import date, datetime
 from typing import ClassVar
 
 import numpy as np
-import pandas
 import pendulum
 import pytest
 
 from airflow.datasets import Dataset
 from airflow.utils import json as utils_json
+
+
+class Z:
+    __version__: ClassVar[int] = 1
+
+    def __init__(self, x):
+        self.x = x
+
+    def serialize(self) -> dict:
+        return dict({"x": self.x})
+
+    @staticmethod
+    def deserialize(data: dict, version: int):
+        if version != 1:
+            raise TypeError("version != 1")
+        return Z(data["x"])
+
+    def __eq__(self, other):
+        return self.x == other.x
 
 
 @dataclass
@@ -73,27 +91,25 @@ class TestXComEncoder:
         obj = json.loads(s, cls=utils_json.XComDecoder)
         assert dataset.uri == obj.uri
 
-    def test_encode_xcom_with_nested_dict_pandas(self):
-        def _compare(data, obj):
-            assert len(data) == len(obj)
-            for key in data:
-                if isinstance(data[key], dict):
-                    return _compare(data[key], obj[key])
-                if isinstance(data[key], pandas.DataFrame):
-                    assert data[key].equals(obj[key])
-                else:
-                    assert data[key] == obj[key]
-
-        data = (
-            {"foo": 1, "bar": 2, "baz": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})},
-            {"d1": {"d2": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}},
-            {"d1": {"d2": {"d3": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}}},
-        )
-        s = json.dumps(data, cls=utils_json.XComEncoder)
-        obj = json.loads(s, cls=utils_json.XComDecoder)
-        assert len(data) == len(obj)
-        for i in range(len(data)):
-            _compare(data[i], obj[i])
+    @pytest.mark.parametrize(
+        "data",
+        [
+            ({"foo": 1, "bar": 2},),
+            ({"foo": 1, "bar": 2, "baz": Z(1)},),
+            (
+                {"foo": 1, "bar": 2},
+                {"foo": 1, "bar": 2, "baz": Z(1)},
+            ),
+            ({"d1": {"d2": 3}},),
+            ({"d1": {"d2": Z(1)}},),
+            ({"d1": {"d2": {"d3": 4}}},),
+            ({"d1": {"d2": {"d3": Z(1)}}},),
+        ],
+    )
+    def test_encode_xcom_with_nested_dict(self, data):
+        i = json.dumps(data, cls=utils_json.XComEncoder)
+        e = json.loads(i, cls=utils_json.XComDecoder)
+        assert data == e
 
     def test_orm_deserialize(self):
         x = 14
