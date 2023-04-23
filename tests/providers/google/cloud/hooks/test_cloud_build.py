@@ -98,7 +98,8 @@ class TestCloudBuildHook:
 
         wait_time.return_value = 0
 
-        self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+            self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "build": BUILD}, retry=DEFAULT, timeout=None, metadata=()
@@ -141,7 +142,8 @@ class TestCloudBuildHook:
         get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
-        self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
+        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+            self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
         mock_operation = get_conn.return_value.create_build
 

@@ -214,6 +214,11 @@ class CloudBuildHook(GoogleBaseHook):
         :param metadata: Optional, additional metadata that is provided to the method.
 
         """
+        warnings.warn(
+            "This method is deprecated. Please use `create_build_without_waiting_for_result`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         client = self.get_conn()
 
         self.log.info("Start creating build...")
