@@ -314,6 +314,6 @@ class TestSerDe:
         assert expected == serialize(obj)
 
     def test_deserialize_non_serialized_data(self):
-        plain_object = Z(10)
-        deserialized_object = deserialize(plain_object)
-        assert plain_object == deserialized_object
+        i = Z(10)
+        e = deserialize(plain_object)
+        assert i == e
