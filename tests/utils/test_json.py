@@ -28,6 +28,7 @@ import pytest
 
 from airflow.datasets import Dataset
 from airflow.utils import json as utils_json
+from tests.serialization import Z
 
 
 @dataclass
@@ -71,6 +72,27 @@ class TestXComEncoder:
         s = json.dumps(dataset, cls=utils_json.XComEncoder)
         obj = json.loads(s, cls=utils_json.XComDecoder)
         assert dataset.uri == obj.uri
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            ({"foo": 1, "bar": 2},),
+            ({"foo": 1, "bar": 2, "baz": Z(1)},),
+            (
+                {"foo": 1, "bar": 2},
+                {"foo": 1, "bar": 2, "baz": Z(1)},
+            ),
+            ({"d1": {"d2": 3}},),
+            ({"d1": {"d2": Z(1)}},),
+            ({"d1": {"d2": {"d3": 4}}},),
+            ({"d1": {"d2": {"d3": Z(1)}}},),
+        ],
+    )
+    def test_encode_xcom_with_nested_dict(self, data):
+
+        serialized_data = json.dumps(data, cls=utils_json.XComEncoder)
+        deserialized_data = json.loads(serialized_data, cls=utils_json.XComDecoder)
+        assert data == deserialized_data
 
     def test_orm_deserialize(self):
         x = 14

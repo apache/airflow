@@ -37,28 +37,13 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+from tests.serialization import Z
 from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture()
 def recalculate_patterns():
     _get_patterns.cache_clear()
-
-
-class Z:
-    __version__: ClassVar[int] = 1
-
-    def __init__(self, x):
-        self.x = x
-
-    def serialize(self) -> dict:
-        return dict({"x": self.x})
-
-    @staticmethod
-    def deserialize(data: dict, version: int):
-        if version != 1:
-            raise TypeError("version != 1")
-        return Z(data["x"])
 
 
 @attr.define
@@ -296,7 +281,7 @@ class TestSerDe:
             (
                 Z(10),
                 {
-                    "__classname__": "tests.serialization.test_serde.Z",
+                    "__classname__": "tests.serialization.Z",
                     "__version__": 1,
                     "__data__": {"x": 10},
                 },
@@ -309,31 +294,3 @@ class TestSerDe:
     )
     def test_serialized_data(self, obj, expected):
         assert expected == serialize(obj)
-
-    def test_serialize_nested_primitive_and_non_primitive_values(self):
-        import pandas
-
-        def _compare(actual_obj, expected_obj):
-            assert len(actual_obj) == len(expected_obj)
-            for key in actual_obj:
-                if isinstance(actual_obj[key], dict):
-                    return _compare(actual_obj[key], expected_obj[key])
-                if isinstance(actual_obj[key], pandas.DataFrame):
-                    assert actual_obj[key].equals(expected_obj[key])
-                else:
-                    assert actual_obj[key] == expected_obj[key]
-
-        data = (
-            {"foo": 1, "bar": 2},
-            {"foo": 1, "bar": 2, "baz": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})},
-            {"d1": {"d2": 3}},
-            {"d1": {"d2": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}},
-            {"d1": {"d2": {"d3": 4}}},
-            {"d1": {"d2": {"d3": pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})}}},
-        )
-        serialized_data = serialize(data)
-        deserialized_data = deserialize(serialized_data)
-        assert isinstance(deserialized_data, tuple)
-        assert len(data) == len(deserialized_data)
-        for i in range(len(data)):
-            _compare(data[i], deserialized_data[i])
