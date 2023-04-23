@@ -315,5 +315,5 @@ class TestSerDe:
 
     def test_deserialize_non_serialized_data(self):
         i = Z(10)
-        e = deserialize(plain_object)
+        e = deserialize(i)
         assert i == e
