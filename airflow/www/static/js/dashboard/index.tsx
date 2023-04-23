@@ -22,9 +22,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import createCache from "@emotion/cache";
-import { Flex } from "@chakra-ui/react";
+import { Flex, Heading } from "@chakra-ui/react";
 
 import App from "src/App";
+import LiveMetrics from "./live-metrics";
+import HistoricalMetrics from "./historical-metrics";
 
 // create shadowRoot
 const root = document.querySelector("#root");
@@ -35,9 +37,17 @@ const cache = createCache({
 });
 const mainElement = document.getElementById("react-container");
 
-const Datasets = () => (
-  <Flex alignItems="flex-start" justifyContent="space-between">
-    <div>Hello From React</div>
+const Dashboard = () => (
+  <Flex
+    alignItems="flex-start"
+    flexDirection="column"
+    justifyContent="space-between"
+  >
+    <Heading mt={3} mb={2} fontWeight="normal" size="lg">
+      Dashboard
+    </Heading>
+    <LiveMetrics />
+    <HistoricalMetrics />
   </Flex>
 );
 
@@ -46,7 +56,7 @@ if (mainElement) {
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
-      <Datasets />
+      <Dashboard />
     </App>
   );
 }

@@ -99,6 +99,7 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
+from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
@@ -984,6 +985,7 @@ class Airflow(AirflowBaseView):
         """Dashboard view."""
         return self.render_template(
             "airflow/dashboard.html",
+            auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
         )
 
     @expose("/next_run_datasets_summary", methods=["POST"])
@@ -3811,14 +3813,44 @@ class Airflow(AirflowBaseView):
     )
     def dashboard_data(self):
         """Returns dashboard data"""
+        start_date = datetime.datetime.fromisoformat("2023-01-01T00:00+00:00")
+        # end_date = datetime.datetime.fromisoformat("2023-05-22T00:00+00:00")
         with create_session() as session:
-            dag_runs = (
-                session.query(func.count(DagRun.run_id), DagRun.run_type).group_by(DagRun.run_type).all()
+            # Dag Runs
+            dag_runs_type = (
+                session.query(func.count(DagRun.run_id), DagRun.run_type)
+                .filter(DagRun.start_date >= start_date)
+                .group_by(DagRun.run_type)
+                .all()
             )
 
-            data = {"dag_runs": {sum_value: run_type for sum_value, run_type in dag_runs}}
+            dag_run_states = (
+                session.query(func.count(DagRun.run_id), DagRun.state)
+                .filter(DagRun.start_date >= start_date)
+                .group_by(DagRun.state)
+                .all()
+            )
 
-        # avoid spaces to reduce payload size
+            # TaskInstances
+            task_instance_states = (
+                session.query(func.count(TaskInstance.run_id), TaskInstance.state)
+                .filter(TaskInstance.start_date >= start_date)
+                .group_by(TaskInstance.state)
+                .all()
+            )
+
+            # Pools
+            pool_stats = Pool.slots_stats(session=session)
+
+            data = {
+                "dag_runs_type": {sum_value: run_type for sum_value, run_type in dag_runs_type},
+                "dag_run_states": {sum_value: run_state for sum_value, run_state in dag_run_states},
+                "task_instance_states": {
+                    sum_value: run_state for sum_value, run_state in task_instance_states
+                },
+                "pool_stats": pool_stats,
+            }
+
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},
