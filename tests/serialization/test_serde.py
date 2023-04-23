@@ -37,13 +37,31 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
-from tests.serialization import Z
 from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture()
 def recalculate_patterns():
     _get_patterns.cache_clear()
+
+
+class Z:
+    __version__: ClassVar[int] = 1
+
+    def __init__(self, x):
+        self.x = x
+
+    def serialize(self) -> dict:
+        return dict({"x": self.x})
+
+    @staticmethod
+    def deserialize(data: dict, version: int):
+        if version != 1:
+            raise TypeError("version != 1")
+        return Z(data["x"])
+
+    def __eq__(self, other):
+        return self.x == other.x
 
 
 @attr.define
@@ -281,7 +299,7 @@ class TestSerDe:
             (
                 Z(10),
                 {
-                    "__classname__": "tests.serialization.Z",
+                    "__classname__": "tests.serialization.test_serde.Z",
                     "__version__": 1,
                     "__data__": {"x": 10},
                 },

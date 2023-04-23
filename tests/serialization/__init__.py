@@ -15,25 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import ClassVar
-
-
-class Z:
-    __version__: ClassVar[int] = 1
-
-    def __init__(self, x):
-        self.x = x
-
-    def serialize(self) -> dict:
-        return dict({"x": self.x})
-
-    @staticmethod
-    def deserialize(data: dict, version: int):
-        if version != 1:
-            raise TypeError("version != 1")
-        return Z(data["x"])
-
-    def __eq__(self, other):
-        return self.x == other.x
