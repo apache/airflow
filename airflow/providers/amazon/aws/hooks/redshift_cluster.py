@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, Sequence
 
 import botocore.exceptions
@@ -177,22 +176,12 @@ class RedshiftHook(AwsBaseHook):
         )
         return response["Snapshot"] if response["Snapshot"] else None
 
-    def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str | None = None):
+    def get_cluster_snapshot_status(self, snapshot_identifier: str):
         """
         Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``
 
         :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
-        :param cluster_identifier: (deprecated) The unique identifier of the cluster
-            the snapshot was created from
         """
-        if cluster_identifier:
-            warnings.warn(
-                "Parameter `cluster_identifier` is deprecated."
-                "This option will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         try:
             response = self.get_conn().describe_cluster_snapshots(
                 SnapshotIdentifier=snapshot_identifier,

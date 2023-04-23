@@ -80,6 +80,10 @@ def session():
 
 
 class TestDataFusionHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataFusionHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @staticmethod
     def mock_endpoint(get_conn_mock):
         return get_conn_mock.return_value.projects.return_value.locations.return_value.instances.return_value
@@ -434,6 +438,10 @@ class TestDataFusionHook:
 
 
 class TestDataFusionHookAsynch:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataFusionAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @pytest.mark.asyncio
     @mock.patch(HOOK_STR.format("DataFusionAsyncHook._get_link"))
     async def test_async_get_pipeline_should_execute_successfully(self, mocked_link, hook_async):

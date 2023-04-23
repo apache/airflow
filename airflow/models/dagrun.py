@@ -61,7 +61,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
-from airflow.utils.helpers import is_container, prune_dict
+from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
@@ -807,6 +807,8 @@ class DagRun(Base, LoggingMixin):
 
         # Check dependencies.
         expansion_happened = False
+        # Set of task ids for which was already done _revise_map_indexes_if_mapped
+        revised_map_index_task_ids = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
@@ -825,7 +827,11 @@ class DagRun(Base, LoggingMixin):
                     additional_tis.extend(new_tis)
                     expansion_happened = True
             if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
-                ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
+                # It's enough to revise map index once per task id,
+                # checking the map index for each mapped task significantly slows down scheduling
+                if schedulable.task.task_id not in revised_map_index_task_ids:
+                    ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
+                    revised_map_index_task_ids.add(schedulable.task.task_id)
                 ready_tis.append(schedulable)
 
         # Check if any ti changed state
@@ -1255,7 +1261,12 @@ class DagRun(Base, LoggingMixin):
         )
 
     @provide_session
-    def schedule_tis(self, schedulable_tis: Iterable[TI], session: Session = NEW_SESSION) -> int:
+    def schedule_tis(
+        self,
+        schedulable_tis: Iterable[TI],
+        session: Session = NEW_SESSION,
+        max_tis_per_query: int | None = None,
+    ) -> int:
         """
         Set the given task instances in to the scheduled state.
 
@@ -1284,35 +1295,41 @@ class DagRun(Base, LoggingMixin):
         count = 0
 
         if schedulable_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
-                    TI.dag_id == self.dag_id,
-                    TI.run_id == self.run_id,
-                    tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids),
-                )
-                .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+            schedulable_ti_ids_chunks = chunks(
+                schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
+            for schedulable_ti_ids_chunk in schedulable_ti_ids_chunks:
+                count += (
+                    session.query(TI)
+                    .filter(
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.run_id,
+                        tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
+                    )
+                    .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+                )
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if dummy_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
-                    TI.dag_id == self.dag_id,
-                    TI.run_id == self.run_id,
-                    TI.task_id.in_(dummy_ti_ids),
+            dummy_ti_ids_chunks = chunks(dummy_ti_ids, max_tis_per_query or len(dummy_ti_ids))
+            for dummy_ti_ids_chunk in dummy_ti_ids_chunks:
+                count += (
+                    session.query(TI)
+                    .filter(
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.run_id,
+                        TI.task_id.in_(dummy_ti_ids_chunk),
+                    )
+                    .update(
+                        {
+                            TI.state: State.SUCCESS,
+                            TI.start_date: timezone.utcnow(),
+                            TI.end_date: timezone.utcnow(),
+                            TI.duration: 0,
+                        },
+                        synchronize_session=False,
+                    )
                 )
-                .update(
-                    {
-                        TI.state: State.SUCCESS,
-                        TI.start_date: timezone.utcnow(),
-                        TI.end_date: timezone.utcnow(),
-                        TI.duration: 0,
-                    },
-                    synchronize_session=False,
-                )
-            )
 
         return count
 

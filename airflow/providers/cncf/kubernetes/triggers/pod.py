@@ -53,8 +53,7 @@ class KubernetesPodTrigger(BaseTrigger):
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the Kubernetes cluster.
     :param cluster_context: Context that points to kubernetes cluster.
-    :param config_dict: Kubernetes config file content in dict format. If not specified,
-        default value is ``~/.kube/config``
+    :param config_file: Path to kubeconfig file.
     :param poll_interval: Polling period in seconds to check for the status.
     :param trigger_start_time: time in Datetime format when the trigger was started
     :param in_cluster: run kubernetes client with in_cluster configuration.
@@ -78,7 +77,7 @@ class KubernetesPodTrigger(BaseTrigger):
         kubernetes_conn_id: str | None = None,
         poll_interval: float = 2,
         cluster_context: str | None = None,
-        config_dict: dict | None = None,
+        config_file: str | None = None,
         in_cluster: bool | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
@@ -93,7 +92,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.kubernetes_conn_id = kubernetes_conn_id
         self.poll_interval = poll_interval
         self.cluster_context = cluster_context
-        self.config_dict = config_dict
+        self.config_file = config_file
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
@@ -125,7 +124,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "kubernetes_conn_id": self.kubernetes_conn_id,
                 "poll_interval": self.poll_interval,
                 "cluster_context": self.cluster_context,
-                "config_dict": self.config_dict,
+                "config_file": self.config_file,
                 "in_cluster": self.in_cluster,
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
@@ -135,7 +134,7 @@ class KubernetesPodTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current pod status and yields a TriggerEvent"""
         hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
@@ -234,7 +233,7 @@ class KubernetesPodTrigger(BaseTrigger):
             self._hook = AsyncKubernetesHook(
                 conn_id=self.kubernetes_conn_id,
                 in_cluster=self.in_cluster,
-                config_dict=self.config_dict,
+                config_file=self.config_file,
                 cluster_context=self.cluster_context,
             )
         return self._hook

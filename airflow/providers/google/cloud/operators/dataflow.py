@@ -70,8 +70,6 @@ class DataflowConfiguration:
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Job location.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority, if any.
-        For this to work, the service account making the request must have domain-wide delegation enabled.
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
@@ -140,7 +138,6 @@ class DataflowConfiguration:
         project_id: str | None = None,
         location: str | None = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         drain_pipeline: bool = False,
@@ -155,11 +152,6 @@ class DataflowConfiguration:
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.impersonation_chain = impersonation_chain
         self.drain_pipeline = drain_pipeline
@@ -243,9 +235,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Job location.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
@@ -346,7 +335,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         job_class: str | None = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
@@ -372,11 +360,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.jar = jar
         self.multiple_jobs = multiple_jobs
         self.job_name = job_name
@@ -396,7 +379,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             poll_sleep=self.poll_sleep,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,
@@ -422,7 +404,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
 
         with ExitStack() as exit_stack:
             if self.jar.lower().startswith("gs://"):
-                gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
+                gcs_hook = GCSHook(self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
@@ -490,9 +472,6 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Job location.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
@@ -622,7 +601,6 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         parameters: dict[str, str] | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         environment: dict | None = None,
@@ -642,11 +620,6 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.impersonation_chain = impersonation_chain
         self.environment = environment
@@ -674,7 +647,6 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     def hook(self) -> DataflowHook:
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
             cancel_timeout=self.cancel_timeout,
@@ -719,7 +691,6 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
                 job_id=job_id,
                 location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
-                delegate_to=self.delegate_to,
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
@@ -763,9 +734,6 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     :param project_id: The ID of the GCP project that owns the job.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
@@ -824,7 +792,6 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         location: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
@@ -838,11 +805,6 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self.location = location
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
@@ -867,7 +829,6 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     def hook(self) -> DataflowHook:
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,
@@ -904,7 +865,6 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
                 job_id=job_id,
                 location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
-                delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
             ),
@@ -966,9 +926,6 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
         If set to ``None`` or missing, the default project_id from the GCP connection is used.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
@@ -1000,7 +957,6 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
         location: str = DEFAULT_DATAFLOW_LOCATION,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         drain_pipeline: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         *args,
@@ -1013,11 +969,6 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
         self.location = location
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.drain_pipeline = drain_pipeline
         self.impersonation_chain = impersonation_chain
         self.job = None
@@ -1026,7 +977,6 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             drain_pipeline=self.drain_pipeline,
             impersonation_chain=self.impersonation_chain,
         )
@@ -1111,9 +1061,6 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Job location.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
@@ -1173,7 +1120,6 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 10 * 60,
@@ -1203,11 +1149,6 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
@@ -1221,7 +1162,6 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         self.beam_hook = BeamHook(runner=BeamRunnerType.DataflowRunner)
         self.dataflow_hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             poll_sleep=self.poll_sleep,
             impersonation_chain=None,
             drain_pipeline=self.drain_pipeline,
@@ -1249,7 +1189,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
 
         with ExitStack() as exit_stack:
             if self.py_file.lower().startswith("gs://"):
-                gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
+                gcs_hook = GCSHook(self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
@@ -1303,9 +1243,6 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Optional, Job location. If set to None or missing, "us-central1" will be used.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status to confirm it's stopped.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -1328,7 +1265,6 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         stop_timeout: int | None = 10 * 60,
@@ -1343,11 +1279,6 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: DataflowHook | None = None
         self.drain_pipeline = drain_pipeline
@@ -1355,7 +1286,6 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> None:
         self.dataflow_hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
             cancel_timeout=self.stop_timeout,

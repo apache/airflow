@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger
+from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -148,6 +148,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         prefix: str,
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -157,8 +158,40 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.container_name = container_name
         self.prefix = prefix
         self.check_options = check_options
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking for prefix: %s in wasb://%s", self.prefix, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         return hook.check_for_prefix(self.container_name, self.prefix, **self.check_options)
+
+    def execute(self, context: Context) -> None:
+        """Defers trigger class to poll for state of the job run until it
+        reaches a failure state or success state
+        """
+        if not self.deferrable:
+            super().execute(context=context)
+        else:
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=WasbPrefixSensorTrigger(
+                    container_name=self.container_name,
+                    prefix=self.prefix,
+                    wasb_conn_id=self.wasb_conn_id,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event:
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+            self.log.info(event["message"])
+        else:
+            raise AirflowException("Did not receive valid event from the triggerer")

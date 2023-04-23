@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
@@ -41,6 +42,10 @@ BATCH_PREDICTION_JOB_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.ba
 
 
 class TestBatchPredictionJobWithDefaultProjectIdHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id

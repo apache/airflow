@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.compat.functools import cached_property
@@ -45,7 +44,6 @@ class AthenaOperator(BaseOperator):
     :param query_execution_context: Context in which query need to be run
     :param result_configuration: Dict with path to store results in and config related to encryption
     :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
-    :param max_tries: Deprecated - use max_polling_attempts instead.
     :param max_polling_attempts: Number of times to poll for query state before function exits
         To limit task execution time, use execution_timeout.
     :param log_query: Whether to log athena query and other execution params when it's executed.
@@ -69,7 +67,6 @@ class AthenaOperator(BaseOperator):
         query_execution_context: dict[str, str] | None = None,
         result_configuration: dict[str, Any] | None = None,
         sleep_time: int = 30,
-        max_tries: int | None = None,
         max_polling_attempts: int | None = None,
         log_query: bool = True,
         **kwargs: Any,
@@ -87,18 +84,6 @@ class AthenaOperator(BaseOperator):
         self.max_polling_attempts = max_polling_attempts
         self.query_execution_id: str | None = None
         self.log_query: bool = log_query
-
-        if max_tries:
-            warnings.warn(
-                f"Parameter `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
-                "in a future release.  Please use method `max_polling_attempts` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if max_polling_attempts and max_polling_attempts != max_tries:
-                raise Exception("max_polling_attempts must be the same value as max_tries")
-            else:
-                self.max_polling_attempts = max_tries
 
     @cached_property
     def hook(self) -> AthenaHook:

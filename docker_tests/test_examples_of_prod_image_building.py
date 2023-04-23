@@ -55,9 +55,11 @@ def test_dockerfile_example(dockerfile):
     rel_dockerfile_path = Path(dockerfile).relative_to(DOCKER_EXAMPLES_DIR)
     image_name = str(rel_dockerfile_path).lower().replace("/", "-")
     content = Path(dockerfile).read_text()
+    latest_released_version: str = get_latest_airflow_version_released()
     new_content = re.sub(
-        r"FROM apache/airflow:.*", rf"FROM apache/airflow:{get_latest_airflow_version_released()}", content
+        r"FROM apache/airflow:.*", rf"FROM apache/airflow:{latest_released_version}", content
     )
+    new_content = re.sub(r"apache-airflow==\S*", rf"apache-airflow=={latest_released_version}", new_content)
     try:
         run_command(
             ["docker", "build", ".", "--tag", image_name, "-f", "-"],
