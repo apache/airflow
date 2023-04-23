@@ -265,7 +265,7 @@ class TestKubernetesPodTrigger:
         caplog,
     ):
         """
-        Test that KubernetesPodTrigger fires the correct event in case if the task was cancelled.
+        Test that KubernetesPodTrigger fires the correct event if the task was cancelled.
         """
 
         mock_hook.return_value.get_pod.side_effect = CancelledError()

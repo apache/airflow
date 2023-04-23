@@ -1034,7 +1034,7 @@ class TestKubernetesPodOperator:
                 {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
                 False,
                 True,
-            ),  # check b/c of is_delete_operator_pod
+            ),  # check backcompat of is_delete_operator_pod
             (
                 {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
                 True,

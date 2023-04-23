@@ -382,6 +382,7 @@ class KubernetesPodOperator(BaseOperator):
             warnings.warn(
                 "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
                 DeprecationWarning,
+                stacklevel=2,
             )
             self.on_finish_action = (
                 OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
