@@ -374,6 +374,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter": "",
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
@@ -398,6 +399,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter": "",
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
@@ -420,6 +422,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter": "",
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
@@ -804,6 +807,102 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     ],
 )
 def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("docs/apache-airflow-providers-google/docs.rst",),
+            {
+                "docs-filter": "--package-filter apache-airflow-providers-amazon "
+                "--package-filter apache-airflow-providers-apache-beam "
+                "--package-filter apache-airflow-providers-apache-cassandra "
+                "--package-filter apache-airflow-providers-cncf-kubernetes "
+                "--package-filter apache-airflow-providers-common-sql "
+                "--package-filter apache-airflow-providers-facebook "
+                "--package-filter apache-airflow-providers-google "
+                "--package-filter apache-airflow-providers-hashicorp "
+                "--package-filter apache-airflow-providers-microsoft-azure "
+                "--package-filter apache-airflow-providers-microsoft-mssql "
+                "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-oracle "
+                "--package-filter apache-airflow-providers-postgres "
+                "--package-filter apache-airflow-providers-presto "
+                "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-sftp "
+                "--package-filter apache-airflow-providers-ssh "
+                "--package-filter apache-airflow-providers-trino",
+            },
+            id="Google provider docs changed",
+        ),
+        pytest.param(
+            ("docs/apache-airflow-providers-airbyte/docs.rst",),
+            {
+                "docs-filter": "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider docs changed",
+        ),
+        pytest.param(
+            ("airflow/providers/celery/file.py",),
+            {
+                "docs-filter": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers-celery",
+            },
+            id="Celery python files changed",
+        ),
+        pytest.param(
+            ("docs/conf.py",),
+            {
+                "docs-filter": "",
+            },
+            id="Docs conf.py changed",
+        ),
+        pytest.param(
+            ("airflow/test.py",),
+            {
+                "docs-filter": "--package-filter apache-airflow",
+            },
+            id="Core files changed. No provider docs to build",
+        ),
+        pytest.param(
+            ("docs/docker-stack/test.rst",),
+            {"docs-filter": "--package-filter docker-stack"},
+            id="Docker stack files changed. No provider docs to build",
+        ),
+        pytest.param(
+            ("airflow/test.py", "chart/airflow/values.yaml"),
+            {
+                "docs-filter": "--package-filter apache-airflow --package-filter helm-chart",
+            },
+            id="Core files and helm chart files changed. No provider docs to build",
+        ),
+        pytest.param(
+            ("chart/airflow/values.yaml",),
+            {
+                "docs-filter": "--package-filter helm-chart",
+            },
+            id="Helm chart files changed. No provider, airflow docs to build",
+        ),
+        pytest.param(
+            ("docs/helm-chart/airflow/values.yaml",),
+            {
+                "docs-filter": "--package-filter helm-chart",
+            },
+            id="Docs helm chart files changed. No provider, airflow docs to build",
+        ),
+    ],
+)
+def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",

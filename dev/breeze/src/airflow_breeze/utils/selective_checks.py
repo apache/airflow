@@ -27,6 +27,7 @@ from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
     AIRFLOW_SOURCES_ROOT,
+    DOCS_DIR,
     SYSTEM_TESTS_PROVIDERS_ROOT,
     TESTS_PROVIDERS_ROOT,
 )
@@ -40,6 +41,8 @@ else:
 from functools import lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
+
+from typing_extensions import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -195,7 +198,7 @@ TEST_TYPE_MATCHES = HashableDict(
 )
 
 
-def find_provider_affected(changed_file: str) -> str | None:
+def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
     for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_ROOT):
@@ -206,6 +209,13 @@ def find_provider_affected(changed_file: str) -> str | None:
         except ValueError:
             pass
     else:
+        if include_docs:
+            try:
+                relative_path = file_path.relative_to(DOCS_DIR)
+                if relative_path.parts[0].startswith("apache-airflow-providers-"):
+                    return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
+            except ValueError:
+                pass
         return None
 
     for parent_dir_path in file_path.parents:
@@ -230,13 +240,15 @@ def add_dependent_providers(
             providers.add(dep_name)
 
 
-def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
+def find_all_providers_affected(
+    changed_files: tuple[str, ...], include_docs: bool
+) -> list[str] | Literal["ALL_PROVIDERS"] | None:
     all_providers: set[str] = set()
     dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
     all_providers_affected = False
     suspended_providers: set[str] = set()
     for changed_file in changed_files:
-        provider = find_provider_affected(changed_file)
+        provider = find_provider_affected(changed_file, include_docs=include_docs)
         if provider == "Providers":
             all_providers_affected = True
         elif provider is not None:
@@ -245,7 +257,7 @@ def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
             else:
                 all_providers.add(provider)
     if all_providers_affected:
-        return set()
+        return "ALL_PROVIDERS"
     if suspended_providers:
         # We check for suspended providers only after we have checked if all providers are affected.
         # No matter if we found that we are modifying a suspended provider individually, if all providers are
@@ -265,9 +277,11 @@ def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
         )
         get_console().print(f"Suspended providers: {suspended_providers}")
         sys.exit(1)
+    if len(all_providers) == 0:
+        return None
     for provider in list(all_providers):
         add_dependent_providers(all_providers, provider, dependencies)
-    return all_providers
+    return sorted(all_providers)
 
 
 class SelectiveChecks:
@@ -570,8 +584,10 @@ class SelectiveChecks:
             candidate_test_types.update(all_selective_test_types())
         else:
             if "Providers" in candidate_test_types:
-                affected_providers = find_all_providers_affected(changed_files=self._files)
-                if len(affected_providers) != 0:
+                affected_providers = find_all_providers_affected(
+                    changed_files=self._files, include_docs=False
+                )
+                if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
                     candidate_test_types.remove("Providers")
                     candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
             get_console().print(
@@ -662,11 +678,28 @@ class SelectiveChecks:
 
     @cached_property
     def docs_filter(self) -> str:
-        return (
-            ""
-            if self._default_branch == "main"
-            else "--package-filter apache-airflow --package-filter docker-stack"
-        )
+        if self._default_branch != "main":
+            return "--package-filter apache-airflow --package-filter docker-stack"
+        if self.full_tests_needed:
+            return ""
+        providers_affected = find_all_providers_affected(changed_files=self._files, include_docs=True)
+        if (
+            providers_affected == "ALL_PROVIDERS"
+            or "docs/conf.py" in self._files
+            or "docs/build_docs.py" in self._files
+        ):
+            return ""
+        packages = []
+        if any([file.startswith("airflow/") for file in self._files]):
+            packages.append("apache-airflow")
+        if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
+            packages.append("helm-chart")
+        if any([file.startswith("docs/docker-stack/") for file in self._files]):
+            packages.append("docker-stack")
+        if providers_affected:
+            for provider in providers_affected:
+                packages.append(f"apache-airflow-providers-{provider.replace('.', '-')}")
+        return " ".join([f"--package-filter {package}" for package in packages])
 
     @cached_property
     def skip_pre_commits(self) -> str:
