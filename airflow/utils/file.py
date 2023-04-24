@@ -216,6 +216,7 @@ def _find_path_from_directory(
     if service_instance == 'production' or service_instance == 'staging':
         from airflowinfra.migrated_dag_files import MIGRATED_DAG_FILES
         from airflowinfra.staging_migrated_dag_files import STAGING_MIGRATED_DAG_FILES
+        from airflowinfra.migrated_flyte_repos import MIGRATED_FLYTE_REPOS
         migrated_dags_set = MIGRATED_DAG_FILES if service_instance == "production" \
             else STAGING_MIGRATED_DAG_FILES
 
@@ -271,7 +272,12 @@ def _find_path_from_directory(
             # only load dag files that are already migrated
             # work around for poor negative look back regex performance
             if service_instance == 'production' or service_instance == 'staging':
-                if not (is_airflow_dev_env or is_loadtest_env) and str(abs_file_path) not in migrated_dags_set:
+                # temp patch to load new Flyte workflows into Airflow 2 to unblock initial migration users
+                # this will be replaced soon with look-up tables for mult-cluster Airflow
+                dag_repo = str(abs_file_path).split("/")[4]
+                if not (is_airflow_dev_env or is_loadtest_env) and \
+                   dag_repo not in MIGRATED_FLYTE_REPOS and \
+                   str(abs_file_path) not in migrated_dags_set:
                     continue
 
             yield str(abs_file_path)
