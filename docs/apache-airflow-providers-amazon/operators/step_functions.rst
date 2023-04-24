@@ -26,7 +26,7 @@ machines to execute the steps of your application in a reliable and scalable fas
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

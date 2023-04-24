@@ -70,6 +70,7 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
     AirflowSkipException,
+    DagInvalidTriggerRule,
     DuplicateTaskIdFound,
     RemovedInAirflow3Warning,
     TaskNotFound,
@@ -357,6 +358,9 @@ class DAG(LoggingMixin):
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
+    :param fail_stop: Fails currently running tasks when task in DAG fails.
+        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
+        An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     """
 
     _comps = {
@@ -419,6 +423,7 @@ class DAG(LoggingMixin):
         tags: list[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
+        fail_stop: bool = False,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -601,6 +606,8 @@ class DAG(LoggingMixin):
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
         self.auto_register = auto_register
+
+        self.fail_stop = fail_stop
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
@@ -1341,9 +1348,7 @@ class DAG(LoggingMixin):
                     callback(context)
                 except Exception:
                     self.log.exception("failed to invoke dag state update callback")
-                    Stats.incr(
-                        "dag.callback_exceptions", tags={"dag_id": dagrun.dag_id, "run_id": dagrun.run_id}
-                    )
+                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dagrun.dag_id})
 
     def get_active_runs(self):
         """
@@ -2355,6 +2360,8 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
+        DagInvalidTriggerRule.check(self, task.trigger_rule)
+
         from airflow.utils.task_group import TaskGroupContext
 
         if not self.start_date and not task.start_date:
@@ -2789,7 +2796,10 @@ class DAG(LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
-            orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
+            orm_dag.has_task_concurrency_limits = any(
+                t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
+                for t in dag.tasks
+            )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
@@ -2990,12 +3000,13 @@ class DAG(LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_num_task_instances(dag_id, task_ids=None, states=None, session=NEW_SESSION) -> int:
+    def get_num_task_instances(dag_id, run_id=None, task_ids=None, states=None, session=NEW_SESSION) -> int:
         """
         Returns the number of task instances in the given DAG.
 
         :param session: ORM session
         :param dag_id: ID of the DAG to get the task concurrency of
+        :param run_id: ID of the DAG run to get the task concurrency of
         :param task_ids: A list of valid task IDs for the given DAG
         :param states: A list of states to filter by if supplied
         :return: The number of running tasks
@@ -3003,6 +3014,10 @@ class DAG(LoggingMixin):
         qry = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == dag_id,
         )
+        if run_id:
+            qry = qry.filter(
+                TaskInstance.run_id == run_id,
+            )
         if task_ids:
             qry = qry.filter(
                 TaskInstance.task_id.in_(task_ids),
@@ -3049,6 +3064,7 @@ class DAG(LoggingMixin):
                 "has_on_success_callback",
                 "has_on_failure_callback",
                 "auto_register",
+                "fail_stop",
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id="test")).keys()) - exclusion_list
         return cls.__serialized_fields
@@ -3524,6 +3540,7 @@ def dag(
     tags: list[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
+    fail_stop: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3577,6 +3594,7 @@ def dag(
                 schedule=schedule,
                 owner_links=owner_links,
                 auto_register=auto_register,
+                fail_stop=fail_stop,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:

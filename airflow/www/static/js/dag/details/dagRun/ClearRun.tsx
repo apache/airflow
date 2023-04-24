@@ -17,51 +17,68 @@
  * under the License.
  */
 
-import React, { useState } from "react";
-import { Button, useDisclosure } from "@chakra-ui/react";
-
-import { useClearRun } from "src/api";
+import React from "react";
+import {
+  Flex,
+  Button,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  MenuButtonProps,
+} from "@chakra-ui/react";
+import { MdArrowDropDown } from "react-icons/md";
 import { getMetaValue } from "src/utils";
-import ConfirmDialog from "src/components/ConfirmDialog";
+import { useClearRun, useQueueRun } from "src/api";
 
 const canEdit = getMetaValue("can_edit") === "True";
+const dagId = getMetaValue("dag_id");
 
-interface Props {
-  dagId: string;
+interface Props extends MenuButtonProps {
   runId: string;
 }
 
-const ClearRun = ({ dagId, runId }: Props) => {
-  const [affectedTasks, setAffectedTasks] = useState<string[]>([]);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const { mutateAsync: onClear, isLoading } = useClearRun(dagId, runId);
+const ClearRun = ({ runId, ...otherProps }: Props) => {
+  const { mutateAsync: onClear, isLoading: isClearLoading } = useClearRun(
+    dagId,
+    runId
+  );
 
-  const onClick = async () => {
-    const data = await onClear({ confirmed: false });
-    setAffectedTasks(data);
-    onOpen();
+  const { mutateAsync: onQueue, isLoading: isQueueLoading } = useQueueRun(
+    dagId,
+    runId
+  );
+
+  const clearExistingTasks = () => {
+    onClear({ confirmed: true });
   };
 
-  const onConfirm = async () => {
-    await onClear({ confirmed: true });
-    setAffectedTasks([]);
-    onClose();
+  const queueNewTasks = () => {
+    onQueue({ confirmed: true });
   };
 
+  const clearLabel = "Clear tasks or add new tasks";
   return (
-    <>
-      <Button onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
-        Clear existing tasks
-      </Button>
-      <ConfirmDialog
-        isOpen={isOpen}
-        onClose={onClose}
-        onConfirm={onConfirm}
-        isLoading={isLoading}
-        description="Task instances you are about to clear:"
-        affectedTasks={affectedTasks}
-      />
-    </>
+    <Menu>
+      <MenuButton
+        as={Button}
+        colorScheme="blue"
+        transition="all 0.2s"
+        title={clearLabel}
+        aria-label={clearLabel}
+        disabled={!canEdit || isClearLoading || isQueueLoading}
+        {...otherProps}
+      >
+        <Flex>
+          Clear
+          <MdArrowDropDown size="16px" />
+        </Flex>
+      </MenuButton>
+      <MenuList>
+        <MenuItem onClick={clearExistingTasks}>Clear existing tasks</MenuItem>
+        <MenuItem onClick={queueNewTasks}>Queue up new tasks</MenuItem>
+      </MenuList>
+    </Menu>
   );
 };
 

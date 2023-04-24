@@ -306,7 +306,7 @@ class HttpAsyncHook(BaseHook):
         data: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
-    ) -> "ClientResponse":
+    ) -> ClientResponse:
         r"""
         Performs an asynchronous HTTP request call
 

@@ -35,15 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.0.0
+......
+
+Latest change: 2023-04-21
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`fbc1382514 <https://github.com/apache/airflow/commit/fbc13825140cc6cc6b3d4b27db6d329692a1c451>`_  2023-04-21   ``remove delegate_to from GCP operators and hooks (#30748)``
+`b48f959ae9 <https://github.com/apache/airflow/commit/b48f959ae93703f52721999ef04f459fe56dcf58>`_  2023-04-21   ``Update DataprocCreateCluster operator to use 'label' parameter properly (#30741)``
+`da2749cae5 <https://github.com/apache/airflow/commit/da2749cae56d6e0da322695b3286acd9393052c8>`_  2023-04-15   ``Update Google Campaign Manager360 operators to use API v4 (#30598)``
+`4eab616e9f <https://github.com/apache/airflow/commit/4eab616e9f0a89c1a6268d5b5eaba526bfa9be6d>`_  2023-04-15   ``add missing project_id in BigQueryGetDataOperator (#30651)``
+`57c09e59ee <https://github.com/apache/airflow/commit/57c09e59ee9273ff64cd4a85b020a4df9b1d9eca>`_  2023-04-14   ``Display Video 360 cleanup v1 API usage (#30577)``
+=================================================================================================  ===========  ====================================================================================
+
 9.0.0
 .....
 
-Latest change: 2023-04-09
+Latest change: 2023-04-12
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
-`18ec7f2723 <https://github.com/apache/airflow/commit/18ec7f272356d84ffd145fe3be5ba1d0ff3d50fd>`_  2023-04-10   ``Fix one more dynamic import needed for vendored-in google ads (#30564)``
+`0f3b6579cb <https://github.com/apache/airflow/commit/0f3b6579cb67d3cf8bd9fa8f9abd502fc774201a>`_  2023-04-12   ``Prepare docs for RC2 of provider wave (#30606)``
 `874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
 `71db47a73d <https://github.com/apache/airflow/commit/71db47a73d741015d8ffeaa2276635f19d51f8e7>`_  2023-04-09   ``Update DV360 operators to use API v2 (#30326)``
 `3d2c96e3f5 <https://github.com/apache/airflow/commit/3d2c96e3f5d238955bccba190726d0fba860eb7a>`_  2023-04-08   ``Add deferrable mode to GKEStartPodOperator (#29266)``

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 from neo4j import Driver, GraphDatabase
 
@@ -61,11 +62,23 @@ class Neo4jHook(BaseHook):
 
         is_encrypted = self.connection.extra_dejson.get("encrypted", False)
 
-        self.client = GraphDatabase.driver(
-            uri, auth=(self.connection.login, self.connection.password), encrypted=is_encrypted
-        )
+        self.client = self.get_client(self.connection, is_encrypted, uri)
 
         return self.client
+
+    def get_client(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
+        """
+        Function to determine that relevant driver based on extras.
+        :param conn: Connection object.
+        :param encrypted: boolean if encrypted connection or not.
+        :param uri: uri string for connection.
+        :return: Driver
+        """
+        parsed_uri = urlsplit(uri)
+        kwargs: dict[str, Any] = {}
+        if parsed_uri.scheme in ["bolt", "neo4j"]:
+            kwargs["encrypted"] = encrypted
+        return GraphDatabase.driver(uri, auth=(conn.login, conn.password), **kwargs)
 
     def get_uri(self, conn: Connection) -> str:
         """

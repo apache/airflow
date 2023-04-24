@@ -57,7 +57,6 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
-- [Release process for Providers](#release-process-for-providers)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -397,117 +396,17 @@ The important dependencies are:
 
 ### Approach for dependencies in Airflow Providers and extras
 
+The main part of the Airflow is the Airflow Core, but the power of Airflow also comes from a number of
+providers that extend the core functionality and are released separately, even if we keep them (for now)
+in the same monorepo for convenience. You can read more about the providers in the
+[Providers documentation](https://airflow.apache.org/docs/apache-airflow-providers/index.html). We also
+have set of policies implemented for maintaining and releasing community-managed providers as well
+as the approach for community vs. 3rd party providers in the [providers](PROVIDERS.rst) document.
+
 Those `extras` and `providers` dependencies are maintained in `provider.yaml` of each provider.
 
 By default, we should not upper-bound dependencies for providers, however each provider's maintainer
-might decide to add additional limits (and justify them with comment)
-
-## Release process for Providers
-
-### Minimum supported version of Airflow
-
-Providers released by the community (with roughly monthly cadence) have
-limitation of a minimum supported version of Airflow. The minimum version of
-Airflow is the `MINOR` version (2.2, 2.3 etc.) indicating that the providers
-might use features that appeared in this release. The default support timespan
-for the minimum version of Airflow (there could be justified exceptions) is
-that we increase the minimum Airflow version, when 12 months passed since the
-first release for the MINOR version of Airflow.
-
-For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.4.0 in the first Provider's release after 30th of April 2023. The 30th of April 2022 is the date when the
-first `PATCHLEVEL` of 2.3 (2.3.0) has been released.
-
-When we increase the minimum Airflow version, this is not a reason to bump `MAJOR` version of the providers
-(unless there are other breaking changes in the provider). The reason for that is that people who use
-older version of Airflow will not be able to use that provider (so it is not a breaking change for them)
-and for people who are using supported version of Airflow this is not a breaking change on its own - they
-will be able to use the new version without breaking their workflows. When we upgraded min-version to
-2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump `MINOR` version of the
-provider when we increase minimum Airflow version.
-
-### Mixed governance model
-
-Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
-compatibilities in their integrations (for example cloud providers, or specific service providers). But,
-we are also bound with the [Apache Software Foundation release policy](https://www.apache.org/legal/release-policy.html)
-which describes who releases, and how to release the ASF software. The provider's governance model is something we name
-"mixed governance" - where we follow the release policies, while the burden of maintaining and testing
-the cherry-picked versions is on those who commit to perform the cherry-picks and make PRs to older
-branches.
-
-The "mixed governance" (optional, per-provider) means that:
-
-* The Airflow Community and release manager decide when to release those providers.
-  This is fully managed by the community and the usual release-management process following the
-  [Apache Software Foundation release policy](https://www.apache.org/legal/release-policy.html)
-* The contributors (who might or might not be direct stakeholders in the provider) will carry the burden
-  of cherry-picking and testing the older versions of providers.
-* There is no "selection" and acceptance process to determine which version of the provider is released.
-  It is determined by the actions of contributors raising the PR with cherry-picked changes and it follows
-  the usual PR review process where maintainer approves (or not) and merges (or not) such PR. Simply
-  speaking - the completed action of cherry-picking and testing the older version of the provider make
-  it eligible to be released. Unless there is someone who volunteers and perform the cherry-picking and
-  testing, the provider is not released.
-* Branches to raise PR against are created when a contributor commits to perform the cherry-picking
-  (as a comment in PR to cherry-pick for example)
-
-Usually, community effort is focused on the most recent version of each provider. The community approach is
-that we should rather aggressively remove deprecations in "major" versions of the providers - whenever
-there is an opportunity to increase major version of a provider, we attempt to remove all deprecations.
-However, sometimes there is a contributor (who might or might not represent stakeholder),
-willing to make their effort on cherry-picking and testing the non-breaking changes to a selected,
-previous major branch of the provider. This results in releasing at most two versions of a
-provider at a time:
-
-* potentially breaking "latest" major version
-* selected past major version with non-breaking changes applied by the contributor
-
-Cherry-picking such changes follows the same process for releasing Airflow
-patch-level releases for a previous minor Airflow version. Usually such cherry-picking is done when
-there is an important bugfix and the latest version contains breaking changes that are not
-coupled with the bugfix. Releasing them together in the latest version of the provider effectively couples
-them, and therefore they're released separately. The cherry-picked changes have to be merged by the committer following the usual rules of the
-community.
-
-There is no obligation to cherry-pick and release older versions of the providers.
-The community continues to release such older versions of the providers for as long as there is an effort
-of the contributors to perform the cherry-picks and carry-on testing of the older provider version.
-
-The availability of stakeholder that can manage "service-oriented" maintenance and agrees to such a
-responsibility, will also drive our willingness to accept future, new providers to become community managed.
-
-### Suspending releases for providers
-
-In case a provider is found to require old dependencies that are not compatible with upcoming versions of
-the Apache Airflow or with newer dependencies required by other providers, the provider's release
-process can be suspended.
-
-This means:
-
-* The provider's status is set to "suspended"
-* No new releases of the provider will be made until the problem with dependencies is solved
-* Sources of the provider remain in the repository for now (in the future we might add process to remove them)
-* No new changes will be accepted for the provider (other than the ones that fix the dependencies)
-* The provider will be removed from the list of Apache Airflow extras in the next Airflow release
-  (including patch-level release if it is possible/easy to cherry-pick the suspension change)
-* Tests of the provider will not be run on our CI (in main branch)
-* Dependencies of the provider will not be installed in our main branch CI image nor included in constraints
-* We can still decide to apply security fixes to released providers - by adding fixes to the main branch
-  but cherry-picking, testing and releasing them in the patch-level branch of the provider similar to the
-  mixed governance model described above.
-
-The suspension may be triggered by any committer after the following criteria are met:
-
-* The maintainers of dependencies of the provider are notified about the issue and are given a reasonable
-  time to resolve it (at least 1 week)
-* Other options to resolve the issue have been exhausted and there are good reasons for upgrading
-  the old dependencies in question
-* Explanation why we need to suspend the provider is stated in a public discussion in the devlist. Followed
-  by LAZY CONSENSUS or VOTE (with the majority of the voters agreeing that we should suspend the provider)
-
-The suspension will be lifted when the dependencies of the provider are made compatible with the Apache
-Airflow and with other providers.
+might decide to add additional limits (and justify them with comment).
 
 ## Contributing
 

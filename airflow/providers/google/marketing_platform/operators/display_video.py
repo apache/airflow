@@ -23,7 +23,6 @@ import json
 import shutil
 import tempfile
 import urllib.request
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import urlsplit
 
@@ -34,84 +33,6 @@ from airflow.providers.google.marketing_platform.hooks.display_video import Goog
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
-    """
-    Creates a query.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleDisplayVideo360CreateReportOperator`
-
-    .. seealso::
-        Check also the official API docs:
-        `https://developers.google.com/bid-manager/v1/queries/createquery`
-
-    :param body: Report object passed to the request's body as described here:
-        https://developers.google.com/bid-manager/v1/queries#resource
-    :param api_version: The version of the api that will be requested for example 'v3'.
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "body",
-        "impersonation_chain",
-    )
-    template_ext: Sequence[str] = (".json",)
-
-    def __init__(
-        self,
-        *,
-        body: dict[str, Any],
-        api_version: str = "v1",
-        gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.body = body
-
-        warnings.warn(
-            "This operator is deprecated. Please use `GoogleDisplayVideo360CreateQueryOperator`",
-            DeprecationWarning,
-        )
-        self.api_version = api_version
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.impersonation_chain = impersonation_chain
-
-    def prepare_template(self) -> None:
-        # If .json is passed then we have to read the file
-        if isinstance(self.body, str) and self.body.endswith(".json"):
-            with open(self.body) as file:
-                self.body = json.load(file)
-
-    def execute(self, context: Context) -> dict:
-        hook = GoogleDisplayVideo360Hook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            api_version=self.api_version,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.log.info("Creating Display & Video 360 report.")
-        response = hook.create_query(query=self.body)
-        report_id = response["queryId"]
-        self.xcom_push(context, key="report_id", value=report_id)
-        self.log.info("Created report with ID: %s", report_id)
-        return response
 
 
 class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
@@ -235,11 +156,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         super().__init__(**kwargs)
         self.report_id = report_id
         self.report_name = report_name
-        if api_version in ["v1", "v1.1"]:
-            warnings.warn(
-                f"API {api_version} is deprecated and shortly will be removed please use v2",
-                DeprecationWarning,
-            )
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -270,132 +186,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
             self.log.info("Deleting report with id: %s", report_id)
             hook.delete_query(query_id=report_id)
             self.log.info("Report deleted.")
-
-
-class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
-    """
-    Retrieves a stored query.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleDisplayVideo360DownloadReportOperator`
-
-    .. seealso::
-        Check also the official API docs:
-        `https://developers.google.com/bid-manager/v1/queries/getquery`
-
-    :param report_id: Report ID to retrieve.
-    :param bucket_name: The bucket to upload to.
-    :param report_name: The report name to set when uploading the local file.
-    :param chunk_size: File will be downloaded in chunks of this many bytes.
-    :param gzip: Option to compress local file or file data for upload
-    :param api_version: The version of the api that will be requested for example 'v3'.
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "report_id",
-        "bucket_name",
-        "report_name",
-        "impersonation_chain",
-    )
-
-    def __init__(
-        self,
-        *,
-        report_id: str,
-        bucket_name: str,
-        report_name: str | None = None,
-        gzip: bool = True,
-        chunk_size: int = 10 * 1024 * 1024,
-        api_version: str = "v1",
-        gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        warnings.warn(
-            "This operator is deprecated. Please use `GoogleDisplayVideo360DownloadReportV2Operator`",
-            DeprecationWarning,
-        )
-        self.report_id = report_id
-        self.chunk_size = chunk_size
-        self.gzip = gzip
-        self.bucket_name = bucket_name
-        self.report_name = report_name
-        self.api_version = api_version
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.impersonation_chain = impersonation_chain
-
-    def _resolve_file_name(self, name: str) -> str:
-        new_name = name if name.endswith(".csv") else f"{name}.csv"
-        new_name = f"{new_name}.gz" if self.gzip else new_name
-        return new_name
-
-    @staticmethod
-    def _set_bucket_name(name: str) -> str:
-        bucket = name if not name.startswith("gs://") else name[5:]
-        return bucket.strip("/")
-
-    def execute(self, context: Context):
-        hook = GoogleDisplayVideo360Hook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            api_version=self.api_version,
-            impersonation_chain=self.impersonation_chain,
-        )
-        gcs_hook = GCSHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-        resource = hook.get_query(query_id=self.report_id)
-        # Check if report is ready
-        if resource["metadata"]["running"]:
-            raise AirflowException(f"Report {self.report_id} is still running")
-
-        # If no custom report_name provided, use DV360 name
-        file_url = resource["metadata"]["googleCloudStoragePathForLatestReport"]
-        report_name = self.report_name or urlsplit(file_url).path.split("/")[-1]
-        report_name = self._resolve_file_name(report_name)
-
-        # Download the report
-        self.log.info("Starting downloading report %s", self.report_id)
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            with urllib.request.urlopen(file_url) as response:
-                shutil.copyfileobj(response, temp_file, length=self.chunk_size)
-
-            temp_file.flush()
-            # Upload the local file to bucket
-            bucket_name = self._set_bucket_name(self.bucket_name)
-            gcs_hook.upload(
-                bucket_name=bucket_name,
-                object_name=report_name,
-                gzip=self.gzip,
-                filename=temp_file.name,
-                mime_type="text/csv",
-            )
-        self.log.info(
-            "Report %s was saved in bucket %s as %s.",
-            self.report_id,
-            self.bucket_name,
-            report_name,
-        )
-        self.xcom_push(context, key="report_name", value=report_name)
 
 
 class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
@@ -521,80 +311,6 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
             report_name,
         )
         self.xcom_push(context, key="report_name", value=report_name)
-
-
-class GoogleDisplayVideo360RunReportOperator(BaseOperator):
-    """
-    Runs a stored query to generate a report.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleDisplayVideo360RunReportOperator`
-
-    .. seealso::
-        Check also the official API docs:
-        `https://developers.google.com/bid-manager/v1/queries/runquery`
-
-    :param report_id: Report ID to run.
-    :param parameters: Parameters for running a report as described here:
-        https://developers.google.com/bid-manager/v1/queries/runquery
-    :param api_version: The version of the api that will be requested for example 'v3'.
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "report_id",
-        "parameters",
-        "impersonation_chain",
-    )
-
-    def __init__(
-        self,
-        *,
-        report_id: str,
-        parameters: dict[str, Any] | None = None,
-        api_version: str = "v1",
-        gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.report_id = report_id
-        warnings.warn(
-            "This operator is deprecated. Please use `GoogleDisplayVideo360RunQueryOperator`",
-            DeprecationWarning,
-        )
-        self.api_version = api_version
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.parameters = parameters
-        self.impersonation_chain = impersonation_chain
-
-    def execute(self, context: Context) -> None:
-        hook = GoogleDisplayVideo360Hook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            api_version=self.api_version,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.log.info(
-            "Running report %s with the following parameters:\n %s",
-            self.report_id,
-            self.parameters,
-        )
-        hook.run_query(query_id=self.report_id, params=self.parameters)
 
 
 class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
