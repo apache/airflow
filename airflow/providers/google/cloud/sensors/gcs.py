@@ -29,7 +29,11 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger, GCSPrefixBlobTrigger, GCSCheckBlobUpdateTimeTrigger
+from airflow.providers.google.cloud.triggers.gcs import (
+    GCSBlobTrigger,
+    GCSCheckBlobUpdateTimeTrigger,
+    GCSPrefixBlobTrigger,
+)
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
@@ -332,11 +336,10 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
         """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        Callback for when the trigger fires; returns immediately.
+        Relies on trigger to throw a success event
         """
-        self.log.info("Sensor checks existence of objects: %s, %s", self.bucket, self.prefix)
+        self.log.info("Checking for existence of object: %s, %s", self.bucket, self.prefix)
         if event["status"] == "success":
             return event["matches"]
         raise AirflowException(event["message"])

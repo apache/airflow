@@ -204,8 +204,8 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
 
 class GCSPrefixBlobTrigger(GCSBlobTrigger):
     """
-    A trigger that fires and it looks for all the objects in the given bucket
-    which matches the given prefix if not found sleep for certain interval and checks again.
+    Looks for objects in bucket matching a prefix.
+    If none found, sleep for interval and check again. Otherwise, return matches.
 
     :param bucket: the bucket in the google cloud storage where the objects are residing.
     :param prefix: The prefix of the blob_names to match in the Google cloud storage bucket
@@ -243,7 +243,7 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Simple loop until the matches are found for the given prefix on the bucket."""
         try:
             hook = self._get_async_hook()
@@ -262,7 +262,7 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
 
     async def _list_blobs_with_prefix(self, hook: GCSAsyncHook, bucket_name: str, prefix: str) -> list[str]:
         """
-        Returns list of blobs which matches the given prefix for the given bucket.
+        Returns names of blobs which match the given prefix for a given bucket.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param prefix: The prefix of the blob_names to match in the Google cloud
