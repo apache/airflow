@@ -31,7 +31,7 @@ class SecretCache:
     _ttl: datetime.timedelta
 
     class NotPresent(Exception):
-        """raised when a key is not present in the cache"""
+        """Raised when a key is not present in the cache"""
 
         ...
 
@@ -45,7 +45,7 @@ class SecretCache:
 
     @classmethod
     def init(cls):
-        """initializes the cache, provided the configuration allows it. Safe to call several times."""
+        """Initializes the cache, provided the configuration allows it. Safe to call several times."""
         if cls._cache is not None:
             return
         use_cache = conf.getboolean(section="secrets", key="use_cache", fallback=False)
@@ -61,7 +61,7 @@ class SecretCache:
 
     @classmethod
     def reset(cls):
-        """for test purposes only"""
+        """For test purposes only"""
         cls._cache = None
 
     @classmethod
@@ -83,12 +83,12 @@ class SecretCache:
 
     @classmethod
     def save_variable(cls, key: str, value: str | None):
-        """saves the value for that key in the cache, if initialized"""
+        """Saves the value for that key in the cache, if initialized"""
         if cls._cache is not None:
             cls._cache[key] = cls._CacheValue(value)
 
     @classmethod
     def invalidate_key(cls, key: str):
-        """invalidates (actually removes) the value stored in the cache for that key."""
+        """Invalidates (actually removes) the value stored in the cache for that key."""
         if cls._cache is not None:
             cls._cache.pop(key, None)  # second arg ensures no exception if key is absent
