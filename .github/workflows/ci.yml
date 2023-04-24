@@ -547,6 +547,7 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       - name: "Tests Pytest collection"
         run: breeze testing tests --run-in-parallel --collect-only
+        if: needs.build-info.outputs.run-tests == 'true'
         env:
           PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
           BACKEND: sqlite
@@ -964,6 +965,7 @@ jobs:
         run: breeze testing tests --run-in-parallel
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
         run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
+        if: matrix.postgres-version == needs.build-info.outputs.default-postgres-version
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -1097,9 +1099,6 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         run: breeze testing tests --run-in-parallel
-      - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        if: env.MYSQL_VERSION != '5.7'
-        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -1128,7 +1127,7 @@ jobs:
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1183,8 +1182,6 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: "Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         run: breeze testing tests --run-in-parallel
-      - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
       - name: "Post Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types}}"
         uses: ./.github/actions/post_tests
 
@@ -1337,7 +1334,6 @@ jobs:
       - tests-postgres
       - tests-sqlite
       - tests-mysql
-      - tests-mssql
       - tests-quarantined
       - tests-integration-postgres
       - tests-integration-mysql
@@ -1502,7 +1498,6 @@ jobs:
       - static-checks
       - tests-sqlite
       - tests-mysql
-      - tests-mssql
       - tests-postgres
       - tests-integration-postgres
       - tests-integration-mysql
@@ -1665,7 +1660,6 @@ jobs:
       - static-checks
       - tests-sqlite
       - tests-mysql
-      - tests-mssql
       - tests-postgres
       - tests-integration-postgres
       - tests-integration-mysql

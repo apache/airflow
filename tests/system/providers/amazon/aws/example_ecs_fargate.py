@@ -23,7 +23,7 @@ import boto3
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.ecs import EcsOperator
+from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -100,7 +100,7 @@ with DAG(
     create_task_definition = register_task_definition(task_definition_name, container_name)
 
     # [START howto_operator_ecs]
-    hello_world = EcsOperator(
+    hello_world = EcsRunTaskOperator(
         task_id="hello_world",
         cluster=cluster_name,
         task_definition=task_definition_name,

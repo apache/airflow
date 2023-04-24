@@ -60,6 +60,9 @@ class Z:
             raise TypeError("version != 1")
         return Z(data["x"])
 
+    def __eq__(self, other):
+        return self.x == other.x
+
 
 @attr.define
 class Y:
@@ -309,3 +312,8 @@ class TestSerDe:
     )
     def test_serialized_data(self, obj, expected):
         assert expected == serialize(obj)
+
+    def test_deserialize_non_serialized_data(self):
+        i = Z(10)
+        e = deserialize(i)
+        assert i == e

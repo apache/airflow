@@ -157,7 +157,7 @@ class GKEOperationTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets operation status and yields corresponding event."""
         hook = self._get_hook()
         while True:

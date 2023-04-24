@@ -2556,6 +2556,61 @@ class TestTaskInstance:
         del ti.task
         ti.handle_failure("test ti.task undefined")
 
+    @provide_session
+    def test_handle_failure_fail_stop(self, create_dummy_dag, session=None):
+        start_date = timezone.datetime(2016, 6, 1)
+        clear_db_runs()
+
+        dag, task1 = create_dummy_dag(
+            dag_id="test_handle_failure_fail_stop",
+            schedule=None,
+            start_date=start_date,
+            task_id="task1",
+            trigger_rule="all_success",
+            with_dagrun_type=DagRunType.MANUAL,
+            session=session,
+            fail_stop=True,
+        )
+        dr = dag.create_dagrun(
+            run_id="test_ff",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.utcnow(),
+            state=None,
+            session=session,
+        )
+
+        ti1 = dr.get_task_instance(task1.task_id, session=session)
+        ti1.task = task1
+        ti1.state = State.SUCCESS
+
+        states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
+        tasks = []
+        for i in range(len(states)):
+            op = EmptyOperator(
+                task_id=f"reg_Task{i}",
+                dag=dag,
+            )
+            ti = TI(task=op, run_id=dr.run_id)
+            ti.state = states[i]
+            session.add(ti)
+            tasks.append(ti)
+
+        fail_task = EmptyOperator(
+            task_id="fail_Task",
+            dag=dag,
+        )
+        ti_ff = TI(task=fail_task, run_id=dr.run_id)
+        ti_ff.state = State.FAILED
+        session.add(ti_ff)
+        session.flush()
+        ti_ff.handle_failure("test retry handling")
+
+        assert ti1.state == State.SUCCESS
+        assert ti_ff.state == State.FAILED
+        exp_states = [State.FAILED, State.FAILED, State.SKIPPED, State.SKIPPED, State.SKIPPED]
+        for i in range(len(states)):
+            assert tasks[i].state == exp_states[i]
+
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():
             raise AirflowFailException("hopeless")
@@ -3968,3 +4023,44 @@ def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, 
         middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
         assert middle_ti.state == State.SCHEDULED
     assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
+def test_mini_scheduler_not_skip_mapped_downstream_until_all_upstreams_finish(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def generate() -> list[list[int]]:
+            return []
+
+        @task
+        def a_sum(numbers: list[int]) -> int:
+            return sum(numbers)
+
+        @task
+        def b_double(summed: int) -> int:
+            return summed * 2
+
+        @task
+        def c_gather(result) -> None:
+            pass
+
+        static = EmptyOperator(task_id="static")
+
+        summed = a_sum.expand(numbers=generate())
+        doubled = b_double.expand(summed=summed)
+        static >> c_gather(doubled)
+
+    dr: DagRun = dag_maker.create_dagrun()
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+
+    static_ti = tis[("static", -1)]
+    static_ti.run(session=session)
+    static_ti.schedule_downstream_tasks(session=session)
+    # No tasks should be skipped yet!
+    assert not dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
+
+    generate_ti = tis[("generate", -1)]
+    generate_ti.run(session=session)
+    generate_ti.schedule_downstream_tasks(session=session)
+    # Now downstreams can be skipped.
+    assert dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
