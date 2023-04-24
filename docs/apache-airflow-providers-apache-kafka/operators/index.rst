@@ -25,7 +25,7 @@ ConsumeFromTopicOperator
 ------------------------
 
 An operator that consumes from Kafka one or more Kafka topic(s) and processes the messages.
-The operator creates a Kafka consumer that reads a batch of messages from the cluster and processes them using the user supplied callable function. The consumer will continue to read in batches until it reaches the end of the log or reads a maximum number of messages is reached.
+The operator creates a Kafka Consumer that reads a batch of messages from the cluster and processes them using the user supplied callable function. The consumer will continue to read in batches until it reaches the end of the log or reads a maximum number of messages is reached.
 
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.operators.consume.ConsumeFromTopicOperator`.
 
@@ -52,7 +52,6 @@ ProduceToTopicOperator
 ------------------------
 
 An operator that produces messages to a Kafka topic.
-The operator creates a Kafka consumer that reads a batch of messages from the cluster and processes them using the user supplied callable function. The consumer will continue to read in batches until it reaches the end of the log or reads a maximum number of messages is reached.
 
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.operators.produce.ProduceToTopicOperator`.
 
