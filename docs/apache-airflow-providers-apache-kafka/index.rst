@@ -90,6 +90,7 @@ Requirements
 PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.3.0``
+``asgiref``
 ``confluent-kafka``  ``>=1.8.2``
 ===================  ==================
 

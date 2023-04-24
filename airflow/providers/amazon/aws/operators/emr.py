@@ -1025,6 +1025,10 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         the application be stopped. Defaults to 5 minutes.
     :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
         Defaults to 30 seconds.
+    :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
+        Otherwise, trying to stop an app with running jobs will return an error.
+        If you want to wait for the jobs to finish gracefully, use
+        :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -1036,6 +1040,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         waiter_countdown: int = 5 * 60,
         waiter_check_interval_seconds: int = 30,
+        force_stop: bool = False,
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
@@ -1043,6 +1048,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.waiter_countdown = waiter_countdown
         self.waiter_check_interval_seconds = waiter_check_interval_seconds
+        self.force_stop = force_stop
         super().__init__(**kwargs)
 
     @cached_property
@@ -1052,6 +1058,16 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info("Stopping application: %s", self.application_id)
+
+        if self.force_stop:
+            self.hook.cancel_running_jobs(
+                self.application_id,
+                waiter_config={
+                    "Delay": self.waiter_check_interval_seconds,
+                    "MaxAttempts": self.waiter_countdown / self.waiter_check_interval_seconds,
+                },
+            )
+
         self.hook.conn.stop_application(applicationId=self.application_id)
 
         if self.wait_for_completion:
@@ -1088,6 +1104,10 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         the application to be stopped, and then deleted. Defaults to 25 minutes.
     :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
         Defaults to 60 seconds.
+    :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
+        Otherwise, trying to delete an app with running jobs will return an error.
+        If you want to wait for the jobs to finish gracefully, use
+        :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -1099,6 +1119,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         aws_conn_id: str = "aws_default",
         waiter_countdown: int = 25 * 60,
         waiter_check_interval_seconds: int = 60,
+        force_stop: bool = False,
         **kwargs,
     ):
         self.wait_for_delete_completion = wait_for_completion
@@ -1110,6 +1131,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             aws_conn_id=aws_conn_id,
             waiter_countdown=waiter_countdown,
             waiter_check_interval_seconds=waiter_check_interval_seconds,
+            force_stop=force_stop,
             **kwargs,
         )
 
