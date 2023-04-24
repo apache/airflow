@@ -54,6 +54,8 @@ Content
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kafka/>
     Installing from sources <installing-providers-from-sources>
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
 .. toctree::
     :maxdepth: 1
     :caption: Commits
@@ -88,50 +90,6 @@ Requirements
 PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.3.0``
-``confluent-kafka``
-===================  ==================
-
-.. include:: ../../airflow/providers/apache/kafka/CHANGELOG.rst
-
-.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Commits
-
-    Detailed list of commits <commits>
-
-
-Package apache-airflow-providers-apache-kafka
-------------------------------------------------------
-
-`Apache Kafka  <https://kafka.apache.org/>`__
-
-
-Release: 1.0.0
-
-Provider package
-----------------
-
-This is a provider package for ``apache.kafka`` provider. All classes for this provider package
-are in ``airflow.providers.apache.kafka`` python package.
-
-Installation
-------------
-
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-kafka``
-
-Requirements
-------------
-
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=2.3.0``
-``asgiref``
 ``confluent-kafka``  ``>=1.8.2``
 ===================  ==================
 
