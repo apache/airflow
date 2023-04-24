@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-24T06:45:04Z
+# This constraints file was automatically generated on 2023-04-24T11:10:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -67,7 +67,7 @@ arrow==1.2.3
 asana==3.2.1
 asgiref==3.6.0
 asn1crypto==1.5.1
-astroid==2.15.3
+astroid==2.15.4
 asttokens==2.2.1
 async-timeout==4.0.2
 asynctest==0.13.0
