@@ -106,7 +106,7 @@ class BatchOperatorTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Make async connection using aiobotocore library to AWS Batch,
         periodically poll for the job status on the Triggerer
