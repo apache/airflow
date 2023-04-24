@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock, PropertyMock, patch
+
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 
 task_id = "test_emr_serverless_create_application_operator"
@@ -34,3 +36,42 @@ class TestEmrServerlessHook:
         conn = hook.conn
         conn2 = hook.conn
         assert conn is conn2
+
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_cancel_jobs(self, conn_mock: MagicMock):
+        conn_mock().get_paginator().paginate.return_value = [{"jobRuns": [{"id": "job1"}, {"id": "job2"}]}]
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+        waiter_mock = MagicMock()
+        hook.get_waiter = waiter_mock
+
+        hook.cancel_running_jobs("app")
+
+        assert conn_mock().cancel_job_run.call_count == 2
+        conn_mock().cancel_job_run.assert_any_call(applicationId="app", jobRunId="job1")
+        conn_mock().cancel_job_run.assert_any_call(applicationId="app", jobRunId="job2")
+        waiter_mock.assert_called_with("no_job_running")
+
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_cancel_jobs_several_calls(self, conn_mock: MagicMock):
+        conn_mock().get_paginator().paginate.return_value = [
+            {"jobRuns": [{"id": "job1"}, {"id": "job2"}]},
+            {"jobRuns": [{"id": "job3"}, {"id": "job4"}]},
+        ]
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+        waiter_mock = MagicMock()
+        hook.get_waiter = waiter_mock
+
+        hook.cancel_running_jobs("app")
+
+        assert conn_mock().cancel_job_run.call_count == 4
+        waiter_mock.assert_called_once()  # we should wait once for all jobs, not once per page
+
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_cancel_jobs_but_no_jobs(self, conn_mock: MagicMock):
+        conn_mock.return_value.list_job_runs.return_value = {"jobRuns": []}
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+
+        hook.cancel_running_jobs("app")
+
+        # nothing very interesting should happen
+        conn_mock.assert_called_once()
