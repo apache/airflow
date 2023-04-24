@@ -27,8 +27,6 @@ from airflow.utils.strings import get_random_string
 from time import sleep
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
 class DockerSwarmOperator(DockerOperator):
     """
     Execute a command as an ephemeral docker swarm service.
@@ -112,7 +110,6 @@ class DockerSwarmOperator(DockerOperator):
         self.mode = mode
         self.networks = networks
         self.placement = placement
-
     def execute(self, context: Context) -> None:
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
         return self._run_service()
@@ -178,17 +175,17 @@ class DockerSwarmOperator(DockerOperator):
     def _stream_logs_to_output(self) -> None:
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
-        logsBuffer = LogsBuffer()
+        logsBufferIndex = LogsBufferIndex()
         while not self._has_service_terminated():
-            sleep(5) # Avoid overflooding the API
+            sleep(5) # Avoid overflooding the API
             logs = self.cli.service_logs(
                 self.service["ID"], follow=False, stdout=True, stderr=True, is_tty=self.tty
             )
             logs = b''.join(logs)
-            print_lines =logsBuffer.increase(logs)
+            print_lines =logsBufferIndex.increase(logs)
             if print_lines != None:
                 self.log.info(print_lines)
-        self.log.info(logsBuffer.chars_remaining)
+        self.log.info(logsBufferIndex.chars_remaining)
 
     def on_kill(self) -> None:
         if self.hook.client_created and self.service is not None:
@@ -196,21 +193,27 @@ class DockerSwarmOperator(DockerOperator):
             self.cli.remove_service(self.service["ID"])
 
 
-# A custom logs bytes buffer that keeps the current state of the
-# docker service logs, as these get continuously polled by the client.
-class LogsBuffer:
+
+class LogsBufferIndex:
+    """ 
+    A custom logs bytes buffer that keeps the current state of the 
+    docker service logs, as these get continuously polled by the client. 
+    """
     def __init__(self) -> None:
-        self.cur_buffer = bytes()
+        #self.cur_buffer = bytes()
+        self.cur_buffer_index=0
         self.chars_remaining=''
     def increase(self,new_buffer:bytes):
-        new_bytes=new_buffer[len(self.cur_buffer):]
-        self.cur_buffer = b''.join([self.cur_buffer,new_bytes])
+        new_bytes=new_buffer[self.cur_buffer_index:]
+        if len(new_bytes)==0:
+            return None
+        self.cur_buffer_index = self.cur_buffer_index + len(new_bytes)
         new_chars =  new_bytes.decode(errors='ignore')
         lines = (self.chars_remaining + new_chars).splitlines()
         if len(lines)==1:
             self.chars_remaining += new_chars
             print_lines=None
-        else:
+        elif len(lines)>1:
             print_lines = ('\n').join(lines[:-1])
             self.chars_remaining = lines[-1]
         return print_lines
