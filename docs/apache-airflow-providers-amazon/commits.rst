@@ -28,14 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.0.0
+.....
+
+Latest change: 2023-04-21
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`e4b8729739 <https://github.com/apache/airflow/commit/e4b8729739ec1ff67a00d7f778f4bf07eec33a8e>`_  2023-04-21   ``Remove deprecated code from Amazon provider (#30755)``
+`7e01c09644 <https://github.com/apache/airflow/commit/7e01c096446dbd134e0efa144e7de87b800639a1>`_  2023-04-21   ``AWS logs. Exit fast when 3 consecutive responses are returned from AWS Cloudwatch logs (#30756)``
+`8a191938b6 <https://github.com/apache/airflow/commit/8a191938b62edcce8093d2522759ede960a00f5f>`_  2023-04-21   ``Remove @poke_mode_only from EmrStepSensor (#30774)``
+`fbc1382514 <https://github.com/apache/airflow/commit/fbc13825140cc6cc6b3d4b27db6d329692a1c451>`_  2023-04-21   ``remove delegate_to from GCP operators and hooks (#30748)``
+`c14bc770f6 <https://github.com/apache/airflow/commit/c14bc770f697fd980550ff308571174a094a0ed5>`_  2023-04-19   ``add a stop operator to emr serverless (#30720)``
+`d7cef588d6 <https://github.com/apache/airflow/commit/d7cef588d6f6a749bd5e8fbf3153a275f4120ee8>`_  2023-04-19   ``SqlToS3Operator - Add feature to partition SQL table (#30460)``
+`221249e872 <https://github.com/apache/airflow/commit/221249e8726d4082634912a27840011771f713be>`_  2023-04-18   ``Fixed logging issue (#30703)``
+`38f2b4a4df <https://github.com/apache/airflow/commit/38f2b4a4dfb1485d664a468680978e73317f9a76>`_  2023-04-14   ``Organize Amazon providers docs index (#30541)``
+`7c2d3617bf <https://github.com/apache/airflow/commit/7c2d3617bf1be0781e828d3758ee6d9c6490d0f0>`_  2023-04-14   ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
+`51f9910ecb <https://github.com/apache/airflow/commit/51f9910ecbf1186aff164e09d118bdf04d21dfcb>`_  2023-04-14   ``Remove duplicate param docstring in EksPodOperator (#30634)``
+`96661789cc <https://github.com/apache/airflow/commit/96661789ccfd6798677cd7f15e987e24c1e9db1b>`_  2023-04-14   ``New AWS sensor — DynamoDBValueSensor (#28338)``
+`92cab74b28 <https://github.com/apache/airflow/commit/92cab74b280e9e7162120506c46fe275fbe0b577>`_  2023-04-12   ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
+`2ce1130006 <https://github.com/apache/airflow/commit/2ce11300064ec821ffe745980012100fc32cb4b4>`_  2023-04-11   ``Add support in AWS Batch Operator for multinode jobs (#29522)``
+`58294c5440 <https://github.com/apache/airflow/commit/58294c5440608b1a58828cbae36f91b7148c04b4>`_  2023-04-10   ``Decouple "job runner" from BaseJob ORM model (#30255)``
+=================================================================================================  ===========  ===================================================================================================
+
 7.4.1
 .....
 
-Latest change: 2023-04-05
+Latest change: 2023-04-09
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
 `fa4fb1f5fe <https://github.com/apache/airflow/commit/fa4fb1f5fe6f8dfd00d9956197e01efa0a95e24a>`_  2023-04-05   ``Revert "Add AWS deferrable BatchOperator (#29300)" (#30489)``
 `c1b5eafc82 <https://github.com/apache/airflow/commit/c1b5eafc8201b8c84f34fdf21fa1d000b97c13e8>`_  2023-04-05   ``Add more info to quicksight error messages (#30466)``
 `77c272e6e8 <https://github.com/apache/airflow/commit/77c272e6e8ecda0ce48917064e58ba14f6a15844>`_  2023-04-05   ``Add AWS deferrable BatchOperator (#29300)``

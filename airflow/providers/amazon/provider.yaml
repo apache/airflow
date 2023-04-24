@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.0.0
   - 7.4.1
   - 7.4.0
   - 7.3.0
@@ -71,6 +72,7 @@ dependencies:
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
   - mypy-boto3-appflow>=1.24.0
+  - aiobotocore[boto3]>=2.2.0
 
 integrations:
   - integration-name: Amazon Athena
@@ -304,7 +306,6 @@ operators:
       - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: AWS Lambda
     python-modules:
-      - airflow.providers.amazon.aws.operators.aws_lambda
       - airflow.providers.amazon.aws.operators.lambda_function
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
@@ -326,7 +327,6 @@ operators:
       - airflow.providers.amazon.aws.operators.rds
   - integration-name: Amazon Redshift
     python-modules:
-      - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
       - airflow.providers.amazon.aws.operators.redshift_data
   - integration-name: Amazon QuickSight

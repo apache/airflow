@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.emr import EmrLogsLink
-from airflow.sensors.base import BaseSensorOperator, poke_mode_only
+from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -451,7 +451,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
         return None
 
 
-@poke_mode_only
 class EmrStepSensor(EmrBaseSensor):
     """
     Asks for the state of the step until it reaches any of the target states.

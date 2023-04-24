@@ -25,6 +25,7 @@ import re
 import secrets
 import string
 import warnings
+from collections.abc import Container
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -291,8 +292,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
-        skip_exit_code: int | None = None,
-        skip_on_exit_code: int | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
@@ -362,19 +362,18 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
-        if skip_exit_code is not None:
-            warnings.warn(
-                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
-            )
-            self.skip_on_exit_code: int | None = skip_exit_code
-        else:
-            self.skip_on_exit_code = skip_on_exit_code
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
-
-        self._config_dict: dict | None = None
+        self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
     @cached_property
     def _incluster_namespace(self):
@@ -572,11 +571,15 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
-        self.convert_config_file_to_dict()
         self.invoke_defer_method()
 
     def convert_config_file_to_dict(self):
         """Converts passed config_file to dict format."""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
         if config_file:
             with open(config_file) as f:
@@ -594,7 +597,7 @@ class KubernetesPodOperator(BaseOperator):
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_dict=self._config_dict,
+                config_file=self.config_file,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 should_delete_pod=self.is_delete_operator_pod,
@@ -696,7 +699,7 @@ class KubernetesPodOperator(BaseOperator):
                     and base_container_status.last_state.terminated
                     else None
                 )
-                if exit_code == self.skip_on_exit_code:
+                if exit_code in self.skip_on_exit_code:
                     raise AirflowSkipException(
                         f"Pod {pod and pod.metadata.name} returned exit code "
                         f"{self.skip_on_exit_code}. Skipping."

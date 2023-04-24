@@ -598,8 +598,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if is_done or not found_new_filters:
                 break
 
-            self.log.debug(
-                "Found no task instances to queue on the %s. iteration "
+            self.log.info(
+                "Found no task instances to queue on query iteration %s "
                 "but there could be more candidate task instances to check.",
                 loop_count,
             )
@@ -1454,7 +1454,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
         # see #11147/commit ee90807ac for more details
-        dag_run.schedule_tis(schedulable_tis, session)
+        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
 

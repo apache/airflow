@@ -17,6 +17,7 @@
   },
   "amazon": {
     "deps": [
+      "aiobotocore[boto3]>=2.2.0",
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.3.0",
       "asgiref",
@@ -125,6 +126,14 @@
     "cross-providers-deps": [
       "common.sql"
     ]
+  },
+  "apache.kafka": {
+    "deps": [
+      "apache-airflow>=2.3.0",
+      "asgiref",
+      "confluent-kafka>=1.8.2"
+    ],
+    "cross-providers-deps": []
   },
   "apache.kylin": {
     "deps": [

@@ -1092,6 +1092,11 @@ class TestKubernetesPodOperator:
             ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
             ({"skip_on_exit_code": 100}, 101, AirflowException),
             ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
@@ -1110,9 +1115,13 @@ class TestKubernetesPodOperator:
         sidecar_container.name = "airflow-xcom-sidecar"
         sidecar_container.last_state.terminated.exit_code = 0
         remote_pod.return_value.status.container_statuses = [base_container, sidecar_container]
+        remote_pod.return_value.status.phase = "Succeeded" if actual_exit_code == 0 else "Failed"
 
-        with pytest.raises(expected_exc):
+        if expected_exc is None:
             self.run_pod(k)
+        else:
+            with pytest.raises(expected_exc):
+                self.run_pod(k)
 
 
 class TestSuppress:
@@ -1221,10 +1230,9 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
-    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, mocked_conf_file):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
