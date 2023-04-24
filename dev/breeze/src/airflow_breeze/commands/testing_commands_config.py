@@ -35,6 +35,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mysql-version",
                 "--mssql-version",
                 "--integration",
+                "--github-repository",
             ],
         },
         {
