@@ -1127,7 +1127,7 @@ jobs:
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1334,7 +1334,6 @@ jobs:
       - tests-postgres
       - tests-sqlite
       - tests-mysql
-      - tests-mssql
       - tests-quarantined
       - tests-integration-postgres
       - tests-integration-mysql
@@ -1499,7 +1498,6 @@ jobs:
       - static-checks
       - tests-sqlite
       - tests-mysql
-      - tests-mssql
       - tests-postgres
       - tests-integration-postgres
       - tests-integration-mysql
@@ -1662,7 +1660,6 @@ jobs:
       - static-checks
       - tests-sqlite
       - tests-mysql
-      - tests-mssql
       - tests-postgres
       - tests-integration-postgres
       - tests-integration-mysql
