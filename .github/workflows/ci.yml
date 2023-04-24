@@ -128,6 +128,7 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
+      affected-providers: ${{ steps.selective-checks.outputs.affected-providers }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
@@ -728,11 +729,13 @@ jobs:
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
-        run: breeze release-management prepare-provider-documentation
+        run: >
+          breeze release-management prepare-provider-documentation
+          ${{ needs.build-info.outputs.affected-providers }}
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
-          --package-format wheel
+          --package-format wheel ${{ needs.build-info.outputs.affected-providers }}
       - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
@@ -741,10 +744,18 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
-      - name: "Install and test provider packages and airflow via wheel files"
+      - name: "Install and verify all provider packages and airflow via wheel files"
         run: >
           breeze release-management verify-provider-packages --use-packages-from-dist
           --package-format wheel --use-airflow-version wheel
+        if: needs.build-info.outputs.affected-providers == ''
+        env:
+          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+      - name: "Install affected provider packages and airflow via wheel files"
+        run: >
+          breeze release-management install-provider-packages --use-packages-from-dist
+          --package-format wheel --use-airflow-version wheel --run-in-parallel
+        if: needs.build-info.outputs.affected-providers != ''
         env:
           SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
       - name: "Fix ownership"
@@ -776,7 +787,7 @@ jobs:
       - name: "Prepare provider packages: wheel"
         run: >
           breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
-          --package-format wheel
+          --package-format wheel ${{ needs.build-info.outputs.affected-providers }}
       - name: "Fix incompatible 2.3 provider packages"
         run: |
           # This step should remove the provider packages that are not compatible with 2.3
@@ -801,10 +812,17 @@ jobs:
           providers = json.loads(Path("generated/provider_dependencies.json").read_text())
           provider_keys = ",".join(providers.keys())
           print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
-      - name: "Install and verify provider packages and airflow on Airflow 2.3 files"
+      - name: "Install and verify all provider packages and airflow on Airflow 2.3 files"
         run: >
           breeze release-management verify-provider-packages --use-airflow-version 2.3.0
           --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0
+        if: needs.build-info.outputs.affected-providers == ''
+      - name: "Install affected provider packages and airflow on Airflow 2.3 files"
+        run: >
+          breeze release-management install-provider-packages --use-airflow-version 2.3.0
+          --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0 --run-in-parallel
+          ${{ needs.build-info.outputs.affected-providers }}
+        if: needs.build-info.outputs.affected-providers != ''
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -834,19 +852,24 @@ jobs:
       - name: "Prepare provider packages: sdist"
         run: >
           breeze release-management prepare-provider-packages
-          --version-suffix-for-pypi dev0
-          --package-format sdist
+          --version-suffix-for-pypi dev0 --package-format sdist
+          ${{ needs.build-info.outputs.affected-providers }}
       - name: "Prepare airflow package: sdist"
         run: >
           breeze release-management prepare-airflow-package
-          --version-suffix-for-pypi dev0
-          --package-format sdist
+          --version-suffix-for-pypi dev0 --package-format sdist
       - name: "Verify sdist packages with twine"
         run: pipx install twine --force && twine check dist/*.tar.gz
-      - name: "Install provider packages and airflow via sdist files"
+      - name: "Install all provider packages and airflow via sdist files"
         run: >
           breeze release-management install-provider-packages
           --package-format sdist --use-airflow-version sdist --run-in-parallel
+        if: needs.build-info.outputs.affected-providers == ''
+      - name: "Install affected provider packages and airflow via sdist files"
+        run: >
+          breeze release-management install-provider-packages
+          --package-format sdist --use-airflow-version sdist --run-in-parallel
+        if: needs.build-info.outputs.affected-providers != ''
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()

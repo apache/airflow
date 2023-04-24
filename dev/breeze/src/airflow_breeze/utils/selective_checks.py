@@ -687,6 +687,9 @@ class SelectiveChecks:
             providers_affected == "ALL_PROVIDERS"
             or "docs/conf.py" in self._files
             or "docs/build_docs.py" in self._files
+            # in case we decide to run all Provider tests anyway (because of core file changes)
+            # we still need to run docs for providers
+            or "Providers" in self._get_test_types_to_run()
         ):
             return ""
         packages = []
@@ -720,3 +723,16 @@ class SelectiveChecks:
     @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
+
+    @cached_property
+    def affected_providers(self) -> str:
+        if self.full_tests_needed or self._default_branch != "main":
+            return ""
+        affected_providers = find_all_providers_affected(changed_files=self._files, include_docs=True)
+        if not affected_providers or affected_providers == "ALL_PROVIDERS":
+            return ""
+        if "Providers" in self._get_test_types_to_run():
+            # Handle case where we decided to run all Providers tests anyway - because of core
+            # file changes. In that case all providers are affected
+            return ""
+        return " ".join(sorted(affected_providers))

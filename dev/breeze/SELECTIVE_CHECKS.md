@@ -113,6 +113,7 @@ The selective check outputs available are described below:
 
 | Output                             | Meaning of the output                                                                                   | Example value                                       |
 |------------------------------------|---------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
+| affected-providers                 | List of providers affected when they are selectively affected. Empty if no or all providers affected.   | airbyte http                                        |
 | all-python-versions                | List of all python versions there are available in the form of JSON array                               | ['3.7', '3.8', '3.9', '3.10']                       |
 | all-python-versions-list-as-string | List of all python versions there are available in the form of space separated string                   | 3.7 3.8 3.9 3.10                                    |
 | basic-checks-only                  | Whether to run all static checks ("false") or only basic set of static checks ("true")                  | false                                               |

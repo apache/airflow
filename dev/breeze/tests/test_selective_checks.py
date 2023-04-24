@@ -46,6 +46,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("INTHEWILD.md",),
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -65,6 +66,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -87,6 +89,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
+                    "affected-providers": "amazon common.sql google postgres",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -107,6 +110,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("tests/providers/apache/beam/file.py",),
                 {
+                    "affected-providers": "apache.beam google",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -127,6 +131,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("docs/file.rst",),
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -150,6 +155,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
+                    "affected-providers": "amazon common.sql google postgres",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -176,6 +182,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/http/file.py",
                 ),
                 {
+                    "affected-providers": "airbyte apache.livy dbt.cloud dingding discord http",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -202,6 +209,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/airbyte/file.py",
                 ),
                 {
+                    "affected-providers": "airbyte http",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -227,6 +235,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/system/utils/file.py",
                 ),
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
                     "python-versions": "['3.7']",
@@ -247,6 +256,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("setup.py",),
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "python-versions": "['3.7', '3.8', '3.9', '3.10']",
@@ -268,6 +278,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("generated/provider_dependencies.json",),
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "python-versions": "['3.7', '3.8', '3.9', '3.10']",
@@ -287,6 +298,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow/providers/amazon/__init__.py",),
             {
+                "affected-providers": "amazon apache.hive cncf.kubernetes common.sql exasol ftp google imap "
+                "mongo mysql postgres salesforce ssh",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "python-versions": "['3.7']",
@@ -307,6 +320,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("tests/providers/airbyte/__init__.py",),
             {
+                "affected-providers": "airbyte http",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "python-versions": "['3.7']",
@@ -325,6 +339,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow/providers/amazon/file.py",),
             {
+                "affected-providers": "amazon apache.hive cncf.kubernetes common.sql exasol ftp google imap "
+                "mongo mysql postgres salesforce ssh",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "python-versions": "['3.7']",
@@ -367,6 +383,7 @@ def test_expected_output_pull_request_main(
                 ("full tests needed",),
                 "main",
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "python-versions": "['3.7', '3.8', '3.9', '3.10']",
@@ -392,6 +409,7 @@ def test_expected_output_pull_request_main(
                 ),
                 "main",
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "python-versions": "['3.7', '3.8', '3.9', '3.10']",
@@ -415,6 +433,7 @@ def test_expected_output_pull_request_main(
                 ("full tests needed",),
                 "main",
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "python-versions": "['3.7', '3.8', '3.9', '3.10']",
@@ -438,6 +457,7 @@ def test_expected_output_pull_request_main(
                 ("full tests needed",),
                 "v2-3-stable",
                 {
+                    "affected-providers": "",
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                     "python-versions": "['3.7', '3.8', '3.9', '3.10']",
@@ -445,6 +465,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types": "Core Other WWW API Always CLI",
@@ -476,12 +497,14 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             ("INTHEWILD.md",),
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
+                "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
                 "full-tests-needed": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -495,12 +518,14 @@ def test_expected_output_full_tests_needed(
                 "tests/providers/google/file.py",
             ),
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "needs-helm-tests": "false",
                 "image-build": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -516,12 +541,14 @@ def test_expected_output_full_tests_needed(
                 "tests/providers/google/file.py",
             ),
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -536,12 +563,14 @@ def test_expected_output_full_tests_needed(
                 "tests/providers/google/file.py",
             ),
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -572,12 +601,14 @@ def test_expected_output_pull_request_v2_3(
         pytest.param(
             ("INTHEWILD.md",),
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
+                "docs-filter": "",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types": "",
@@ -587,12 +618,14 @@ def test_expected_output_pull_request_v2_3(
         pytest.param(
             ("tests/system/any_file.py",),
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types": "Always",
@@ -606,12 +639,34 @@ def test_expected_output_pull_request_v2_3(
                 "tests/providers/google/file.py",
             ),
             {
+                "affected-providers": "amazon apache.beam apache.cassandra cncf.kubernetes common.sql "
+                "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
+                "oracle postgres presto salesforce sftp ssh trino",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "--package-filter apache-airflow --package-filter helm-chart "
+                "--package-filter apache-airflow-providers-amazon "
+                "--package-filter apache-airflow-providers-apache-beam "
+                "--package-filter apache-airflow-providers-apache-cassandra "
+                "--package-filter apache-airflow-providers-cncf-kubernetes "
+                "--package-filter apache-airflow-providers-common-sql "
+                "--package-filter apache-airflow-providers-facebook "
+                "--package-filter apache-airflow-providers-google "
+                "--package-filter apache-airflow-providers-hashicorp "
+                "--package-filter apache-airflow-providers-microsoft-azure "
+                "--package-filter apache-airflow-providers-microsoft-mssql "
+                "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-oracle "
+                "--package-filter apache-airflow-providers-postgres "
+                "--package-filter apache-airflow-providers-presto "
+                "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-sftp "
+                "--package-filter apache-airflow-providers-ssh "
+                "--package-filter apache-airflow-providers-trino",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
@@ -628,12 +683,14 @@ def test_expected_output_pull_request_v2_3(
                 "tests/providers/google/file.py",
             ),
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7']",
                 "all-python-versions-list-as-string": "3.7",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
@@ -666,6 +723,7 @@ def test_expected_output_pull_request_target(
             (),
             "main",
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                 "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                 "image-build": "true",
@@ -684,6 +742,7 @@ def test_expected_output_pull_request_target(
             (),
             "v2-3-stable",
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                 "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                 "image-build": "true",
@@ -702,6 +761,7 @@ def test_expected_output_pull_request_target(
             (),
             "main",
             {
+                "affected-providers": "",
                 "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                 "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
                 "image-build": "true",
@@ -904,9 +964,9 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("airflow/test.py",),
             {
-                "docs-filter": "--package-filter apache-airflow",
+                "docs-filter": "",
             },
-            id="Core files changed. No provider docs to build",
+            id="Core files changed. All provider docs should also be built",
         ),
         pytest.param(
             ("docs/docker-stack/test.rst",),
@@ -916,9 +976,9 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-filter": "--package-filter apache-airflow --package-filter helm-chart",
+                "docs-filter": "",
             },
-            id="Core files and helm chart files changed. No provider docs to build",
+            id="Core files and helm chart files changed. All provider docs should be built",
         ),
         pytest.param(
             ("chart/airflow/values.yaml",),
