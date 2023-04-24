@@ -16,7 +16,7 @@
     under the License.
 
 
-Apache Spark Operators
+Apache Kafka Operators
 ======================
 
 .. _howto/operator:ConsumeFromTopicOperator:
