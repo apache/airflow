@@ -1212,7 +1212,6 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor = self.hook.get_cursor()
         bq_cursor.execute("SELECT %(foo)s", {"foo": "bar"})
         conf = {
-            "location": None,
             "query": {
                 "query": "SELECT 'bar'",
                 "priority": "INTERACTIVE",
@@ -1220,7 +1219,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                 "schemaUpdateOptions": [],
             }
         }
-        mock_insert.assert_called_once_with(configuration=conf, project_id=PROJECT_ID)
+        mock_insert.assert_called_once_with(configuration=conf, project_id=PROJECT_ID, location=None)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
@@ -1231,8 +1230,8 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         mock_insert.assert_has_calls(
             [
                 mock.call(
+                    location=None,
                     configuration={
-                        "location": None,
                         "query": {
                             "query": "SELECT 'bar'",
                             "priority": "INTERACTIVE",
@@ -1243,8 +1242,8 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                     project_id=PROJECT_ID,
                 ),
                 mock.call(
+                    location=None,
                     configuration={
-                        "location": None,
                         "query": {
                             "query": "SELECT 'baz'",
                             "priority": "INTERACTIVE",
@@ -1717,7 +1716,7 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
             }
         }
 
-        mock_insert.assert_called_once_with(configuration=configuration, project_id=PROJECT_ID)
+        mock_insert.assert_called_once_with(configuration=configuration, project_id=PROJECT_ID, location=None)
 
     def test_dollar_makes_partition(self):
         tp_out = _cleanse_time_partitioning("test.teast$20170101", {})
