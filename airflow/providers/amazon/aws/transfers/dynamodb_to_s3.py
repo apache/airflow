@@ -150,13 +150,17 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
          state at this point in time.
         """
-        waiter = self.hook.get_waiter(CUSTOM_WAITER_NAME)
-        waiter.wait(
+        client = self.hook.conn.meta.client
+        response = client.export_table_to_point_in_time(
             TableArn=self.dynamodb_table_name,
             ExportTime=self.export_time,
             S3Bucket=self.s3_bucket_name,
             S3Prefix=self.s3_key_prefix,
             ExportFormat=self.export_format,
+        )
+        waiter = self.hook.get_waiter(CUSTOM_WAITER_NAME)
+        waiter.wait(
+            ExportArn=response.get("ExportArn"),
         )
 
     def _export_entire_data(self):

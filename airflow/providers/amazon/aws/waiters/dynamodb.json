@@ -2,7 +2,7 @@
     "version": 2,
     "waiters": {
         "export_table": {
-            "operation": "ExportTableToPointInTime",
+            "operation": "DescribeExport",
             "delay": 30,
             "maxAttempts": 60,
             "acceptors": [

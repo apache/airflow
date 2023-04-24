@@ -265,9 +265,9 @@ class TestCustomDynamoDBServiceWaiters:
         monkeypatch.setattr(DynamoDBHook, "conn", self.client)
 
     @pytest.fixture
-    def mock_export_table_to_point_in_time(self):
+    def mock_describe_export(self):
         """Mock ``DynamoDBHook.Client.export_table_to_point_in_time`` method."""
-        with mock.patch.object(self.client, "export_table_to_point_in_time") as m:
+        with mock.patch.object(self.client, "describe_export") as m:
             yield m
 
     def test_service_waiters(self):
@@ -275,27 +275,27 @@ class TestCustomDynamoDBServiceWaiters:
         assert "export_table" in hook_waiters
 
     @staticmethod
-    def export_table_to_point_in_time(status: str):
+    def describe_export(status: str):
         """
         Helper function for generate minimal ExportTableToPointInTime response for single job.
         https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExportTableToPointInTime.html
         """
         return {"ExportDescription": {"ExportStatus": status}}
 
-    def test_export_table_to_point_in_time_completed(self, mock_export_table_to_point_in_time):
+    def test_export_table_to_point_in_time_completed(self, mock_describe_export):
         """Test state transition from `in progress` to `completed` during init."""
-        mock_export_table_to_point_in_time.side_effect = [
-            self.export_table_to_point_in_time(self.STATUS_IN_PROGRESS),
-            self.export_table_to_point_in_time(self.STATUS_COMPLETED),
+        mock_describe_export.side_effect = [
+            self.describe_export(self.STATUS_IN_PROGRESS),
+            self.describe_export(self.STATUS_COMPLETED),
         ]
         waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
         waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
 
-    def test_export_table_to_point_in_time_failed(self, mock_export_table_to_point_in_time):
+    def test_export_table_to_point_in_time_failed(self, mock_describe_export):
         """Test state transition from `in progress` to `failed` during init."""
-        mock_export_table_to_point_in_time.side_effect = [
-            self.export_table_to_point_in_time(self.STATUS_IN_PROGRESS),
-            self.export_table_to_point_in_time(self.STATUS_FAILED),
+        mock_describe_export.side_effect = [
+            self.describe_export(self.STATUS_IN_PROGRESS),
+            self.describe_export(self.STATUS_FAILED),
         ]
         waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
         with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
