@@ -126,6 +126,8 @@ class BatchOperator(BaseOperator):
         container_overrides: dict | None = None,
         array_properties: dict | None = None,
         node_overrides: dict | None = None,
+        share_identifier: str | None = None,
+        scheduling_priority_override: int | None = None,
         parameters: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
@@ -161,6 +163,8 @@ class BatchOperator(BaseOperator):
             )
 
         self.node_overrides = node_overrides
+        self.share_identifier = share_identifier
+        self.scheduling_priority_override = scheduling_priority_override
         self.array_properties = array_properties
         self.parameters = parameters or {}
         self.waiters = waiters
@@ -227,6 +231,8 @@ class BatchOperator(BaseOperator):
             "tags": self.tags,
             "containerOverrides": self.container_overrides,
             "nodeOverrides": self.node_overrides,
+            "shareIdentifier": self.share_identifier,
+            "schedulingPriorityOverride": self.scheduling_priority_override,
         }
 
         try:
