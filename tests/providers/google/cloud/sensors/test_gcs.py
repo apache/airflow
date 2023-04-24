@@ -34,7 +34,11 @@ from airflow.providers.google.cloud.sensors.gcs import (
     GCSUploadSessionCompleteSensor,
     ts_function,
 )
-from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger, GCSPrefixBlobTrigger, GCSCheckBlobUpdateTimeTrigger
+from airflow.providers.google.cloud.triggers.gcs import (
+    GCSBlobTrigger,
+    GCSCheckBlobUpdateTimeTrigger,
+    GCSPrefixBlobTrigger,
+)
 from tests.providers.google.cloud.utils.airflow_util import create_context
 
 TEST_BUCKET = "TEST_BUCKET"
