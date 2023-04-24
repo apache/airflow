@@ -34,6 +34,7 @@ body:
         - apache-hdfs
         - apache-hive
         - apache-impala
+        - apache-kafka
         - apache-kylin
         - apache-livy
         - apache-pig
@@ -66,6 +67,7 @@ body:
         - influxdb
         - jdbc
         - jenkins
+        - apache-kafka
         - microsoft-azure
         - microsoft-mssql
         - microsoft-psrp
@@ -75,6 +77,7 @@ body:
         - neo4j
         - odbc
         - openfaas
+        - openlineage
         - opsgenie
         - oracle
         - pagerduty

@@ -1102,6 +1102,12 @@ CLICommand = Union[ActionCommand, GroupCommand]
 
 DAGS_COMMANDS = (
     ActionCommand(
+        name="details",
+        help="Get DAG details given a DAG id",
+        func=lazy_load_command("airflow.cli.commands.dag_command.dag_details"),
+        args=(ARG_DAG_ID, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
@@ -1746,6 +1752,12 @@ PROVIDERS_COMMANDS = (
         name="hooks",
         help="List registered provider hooks",
         func=lazy_load_command("airflow.cli.commands.provider_command.hooks_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="triggers",
+        help="List registered provider triggers",
+        func=lazy_load_command("airflow.cli.commands.provider_command.triggers_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(

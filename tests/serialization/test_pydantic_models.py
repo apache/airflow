@@ -76,7 +76,8 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
 def test_serializing_pydantic_local_task_job(session, create_task_instance):
     dag_id = "test-dag"
     ti = create_task_instance(dag_id=dag_id, session=session)
-    ltj = Job(job_runner=LocalTaskJobRunner(task_instance=ti), dag_id=ti.dag_id)
+    ltj = Job(dag_id=ti.dag_id)
+    LocalTaskJobRunner(job=ltj, task_instance=ti)
     ltj.state = State.RUNNING
     session.commit()
     pydantic_job = JobPydantic.from_orm(ltj)

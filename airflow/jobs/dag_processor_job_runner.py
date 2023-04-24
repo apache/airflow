@@ -17,15 +17,23 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+def empty_callback(_: Any) -> None:
+    pass
 
 
 class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     """
     DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
 
+    :param job: Job instance to use
     :param processor: DagFileProcessorManager instance to use
     """
 
@@ -33,12 +41,24 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
 
     def __init__(
         self,
+        job: Job,
         processor: DagFileProcessorManager,
         *args,
         **kwargs,
     ):
-        self.processor = processor
         super().__init__(*args, **kwargs)
+        self.job = job
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
+        self.processor = processor
+        self.processor.heartbeat = lambda: perform_heartbeat(
+            job=self.job,
+            heartbeat_callback=empty_callback,
+            only_if_necessary=False,
+        )
 
     def _execute(self) -> int | None:
         self.log.info("Starting the Dag Processor Job")

@@ -25,5 +25,5 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 USER airflow
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-RUN pip install --no-cache-dir apache-airflow-providers-apache-spark==2.1.3
+RUN pip install --no-cache-dir apache-airflow-providers-apache-spark==2.1.3 apache-airflow==2.6.0dev0
 # [END Dockerfile]

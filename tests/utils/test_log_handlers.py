@@ -403,7 +403,7 @@ class TestFileTaskLogHandler:
         assert isinstance(ti, TaskInstance)
         if is_a_trigger:
             ti.is_trigger_log_context = True
-            job = Job(job_runner=TriggererJobRunner())
+            job = Job()
             t = Trigger("", {})
             t.triggerer_job = job
             ti.triggerer = t
@@ -475,7 +475,7 @@ class TestLogUrl:
         )
         ti.hostname = "hostname"
         trigger = Trigger("", {})
-        job = Job(job_runner=TriggererJobRunner())
+        job = Job(TriggererJobRunner.job_type)
         job.id = 123
         trigger.triggerer_job = job
         ti.trigger = trigger

@@ -183,6 +183,10 @@ class TestFallbackToVariables:
 
 
 class TestDataflowHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataflowHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
         self.dataflow_hook.beam_hook = MagicMock()
@@ -1910,6 +1914,10 @@ def make_mock_awaitable():
 
 
 class TestAsyncHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            AsyncDataflowHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @pytest.fixture
     def hook(self):
         return AsyncDataflowHook(

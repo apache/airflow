@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -135,7 +135,7 @@ class TestCeleryExecutor:
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for (key, command, queue, task) in task_tuples_to_send:
+                for key, command, queue, task in task_tuples_to_send:
                     executor.queued_tasks[key] = (command, 1, queue, None)
                     executor.task_publish_retries[key] = 1
 
@@ -159,7 +159,6 @@ class TestCeleryExecutor:
         assert "fail" not in executor.tasks
 
         assert executor.queued_tasks == {}
-        assert timedelta(0, 600) == executor.task_adoption_timeout
 
     def test_error_sending_task(self):
         def fake_execute_command():

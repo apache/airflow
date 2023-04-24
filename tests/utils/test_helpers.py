@@ -24,6 +24,8 @@ import pytest
 
 from airflow import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import Job
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
     at_most_one,
@@ -329,9 +331,11 @@ class TestHelpers:
 class MockJobRunner(BaseJobRunner):
     job_type = "MockJob"
 
-    def __init__(self, func=None):
-        self.func = func
+    def __init__(self, job: Job | JobPydantic, func=None):
         super().__init__()
+        self.job = job
+        self.job.job_type = self.job_type
+        self.func = func
 
     def _execute(self):
         if self.func is not None:

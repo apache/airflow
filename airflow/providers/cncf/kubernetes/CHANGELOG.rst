@@ -24,6 +24,21 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+* ``Skip KubernetesPodOperator task when it returns a provided exit code (#29000)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+  * ``Remove skip_exit_code from KubernetesPodOperator (#30788)``
+
 6.0.0
 .....
 

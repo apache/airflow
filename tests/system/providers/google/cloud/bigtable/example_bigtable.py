@@ -40,7 +40,7 @@ This DAG relies on the following environment variables:
     See https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.cluster
 * CBT_TABLE_ID - desired ID of the Table
 * CBT_POKE_INTERVAL - number of seconds between every attempt of Sensor check
-"""  # noqa: E501
+"""
 from __future__ import annotations
 
 import os

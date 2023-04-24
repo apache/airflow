@@ -16,15 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
+ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
+
+
+def escape_ansi_colors(line):
+    return ANSI_COLORS_MATCHER.sub("", line)
+
 
 def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
     for name, value in expected_outputs.items():
-        assert f"{name}={value}" in stderr
+        search_string = rf"^{re.escape(name)}={re.escape(value)}$"
+        escaped_stderr = escape_ansi_colors(stderr)
+        assert re.search(
+            search_string, escaped_stderr, re.MULTILINE
+        ), f"Expected {name}={value} not found in {escaped_stderr}"
 
 
 @pytest.mark.parametrize(
@@ -44,7 +56,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "docs-build": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "",
+                    "parallel-test-types": "",
                 },
                 id="No tests on simple change",
             )
@@ -63,7 +75,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always",
+                    "parallel-test-types": "API Always",
                 },
                 id="Only API tests and DOCS should run",
             )
@@ -85,7 +97,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always Providers[amazon,common.sql,google,postgres]",
+                    "parallel-test-types": "Providers[amazon] "
+                    "API Always Providers[common.sql,postgres] Providers[google]",
                 },
                 id="API and providers tests and docs should run",
             )
@@ -105,7 +118,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "false",
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[apache.beam,google]",
+                    "parallel-test-types": "Always Providers[apache.beam] Providers[google]",
                 },
                 id="Selected Providers and docs should run",
             )
@@ -125,7 +138,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "",
+                    "parallel-test-types": "",
                 },
                 id="Only docs builds should run - no tests needed",
             )
@@ -148,7 +161,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[amazon,common.sql,google,postgres]",
+                    "parallel-test-types": "Providers[amazon] "
+                    "Always Providers[common.sql,postgres] Providers[google]",
                 },
                 id="Helm tests, providers (both upstream and downstream),"
                 "kubernetes tests and docs should run",
@@ -173,7 +187,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
+                    "parallel-test-types": "Always "
+                    "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -198,7 +213,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers[airbyte,http]",
+                    "parallel-test-types": "Always Providers[airbyte,http]",
                 },
                 id="Helm tests, airbyte/http providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -223,7 +238,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always",
+                    "parallel-test-types": "Always",
                 },
                 id="Docs should run even if unimportant files were added",
             )
@@ -242,7 +257,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "test-types": "API Always CLI Core Other Providers WWW",
+                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "API Always CLI Providers[google]",
                 },
                 id="Everything should run - including all providers and upgrading to "
                 "newer requirements as setup.py changed and all Python versions",
@@ -262,7 +278,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "test-types": "API Always CLI Core Other Providers WWW",
+                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "API Always CLI Providers[google]",
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
@@ -281,8 +298,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
-                "test-types": "Always Providers[amazon,apache.hive,cncf.kubernetes,"
-                "common.sql,exasol,ftp,google,imap,mongo,mysql,postgres,salesforce,ssh]",
+                "parallel-test-types": "Providers[amazon] Always "
+                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,imap,"
+                "mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -300,9 +318,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "test-types": "Always Providers[airbyte,http]",
+                "parallel-test-types": "Always Providers[airbyte,http]",
             },
-            id="Providers tests run including amazon tests if amazon tests provider files changed",
+            id="Providers tests tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
             ("airflow/providers/amazon/file.py",),
@@ -318,10 +336,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "test-types": "Always Providers[amazon,apache.hive,cncf.kubernetes,"
-                "common.sql,exasol,ftp,google,imap,mongo,mysql,postgres,salesforce,ssh]",
+                "parallel-test-types": "Providers[amazon] Always "
+                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,"
+                "imap,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
-            id="Providers tests run without amazon tests if no amazon file changed",
+            id="Providers tests run including amazon tests if amazon provider files changed",
         ),
     ],
 )
@@ -355,10 +374,11 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter": "",
                     "full-tests-needed": "true",
-                    "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always CLI Core Other Providers WWW",
+                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "API Always CLI Providers[google]",
                 },
                 id="Everything should run including all providers when full tests are needed",
             )
@@ -379,10 +399,11 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter": "",
                     "full-tests-needed": "true",
-                    "providers-package-format-exclude": "[]",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always CLI Core Other Providers WWW",
+                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "API Always CLI Providers[google]",
                 },
                 id="Everything should run including full providers when full "
                 "tests are needed even with different label set as well",
@@ -401,10 +422,11 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter": "",
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "providers-package-format-exclude": "[]",
-                    "test-types": "API Always CLI Core Other Providers WWW",
+                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "API Always CLI Providers[google]",
                 },
                 id="Everything should run including full providers when"
                 "full tests are needed even if no files are changed",
@@ -425,8 +447,7 @@ def test_expected_output_pull_request_main(
                     "docs-build": "true",
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "providers-package-format-exclude": "[]",
-                    "test-types": "API Always CLI Core Other WWW",
+                    "parallel-test-types": "Core Other WWW API Always CLI",
                 },
                 id="Everything should run except Providers when full tests are needed for non-main branch",
             )
@@ -462,10 +483,9 @@ def test_expected_output_full_tests_needed(
                 "run-tests": "false",
                 "docs-build": "false",
                 "full-tests-needed": "false",
-                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "test-types": "",
+                "parallel-test-types": "",
             },
             id="Nothing should run if only non-important files changed",
         ),
@@ -482,11 +502,10 @@ def test_expected_output_full_tests_needed(
                 "run-tests": "true",
                 "docs-build": "true",
                 "full-tests-needed": "false",
-                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "test-types": "Always",
+                "parallel-test-types": "Always",
             },
             id="No Helm tests, No providers should run if only chart/providers changed in non-main",
         ),
@@ -504,11 +523,10 @@ def test_expected_output_full_tests_needed(
                 "run-tests": "true",
                 "docs-build": "true",
                 "full-tests-needed": "false",
-                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "test-types": "Always CLI",
+                "parallel-test-types": "Always CLI",
             },
             id="Only CLI tests and Kubernetes tests should run if cli/chart files changed in non-main branch",
         ),
@@ -525,11 +543,10 @@ def test_expected_output_full_tests_needed(
                 "run-tests": "true",
                 "docs-build": "true",
                 "full-tests-needed": "false",
-                "providers-package-format-exclude": "[{'package-format': 'sdist'}]",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "test-types": "API Always CLI Core Other WWW",
+                "parallel-test-types": "Core Other WWW API Always CLI",
             },
             id="All tests except Providers should run if core file changed in non-main branch",
         ),
@@ -563,7 +580,7 @@ def test_expected_output_pull_request_v2_3(
                 "docs-build": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "test-types": "",
+                "parallel-test-types": "",
             },
             id="Nothing should run if only non-important files changed",
         ),
@@ -578,7 +595,7 @@ def test_expected_output_pull_request_v2_3(
                 "docs-build": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "test-types": "Always",
+                "parallel-test-types": "Always",
             },
             id="Only Always and docs build should run if only system tests changed",
         ),
@@ -598,9 +615,12 @@ def test_expected_output_pull_request_v2_3(
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "test-types": "Always CLI",
+                "parallel-test-types": "Providers[amazon] Always CLI "
+                "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,"
+                "hashicorp,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,"
+                "salesforce,sftp,ssh,trino] Providers[google]",
             },
-            id="CLI tests and Kubernetes tests should run if cli/chart files changed",
+            id="CLI tests and Google-related provider tests should run if cli/chart files changed",
         ),
         pytest.param(
             (
@@ -617,7 +637,8 @@ def test_expected_output_pull_request_v2_3(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "test-types": "API Always CLI Core Other Providers WWW",
+                "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                "API Always CLI Providers[google]",
             },
             id="All tests should run if core file changed",
         ),
@@ -651,8 +672,10 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "",
                 "upgrade-to-newer-dependencies": "true",
-                "test-types": "API Always CLI Core Other Providers WWW",
+                "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                "API Always CLI Providers[google]",
             },
             id="All tests run on push even if unimportant file changed",
         ),
@@ -667,8 +690,9 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
                 "upgrade-to-newer-dependencies": "true",
-                "test-types": "API Always CLI Core Other WWW",
+                "parallel-test-types": "Core Other WWW API Always CLI",
             },
             id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",
@@ -684,8 +708,10 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter": "",
                 "upgrade-to-newer-dependencies": "true",
-                "test-types": "API Always CLI Core Other Providers WWW",
+                "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                "API Always CLI Providers[google]",
             },
             id="All tests run on push if core file changed",
         ),
@@ -736,7 +762,8 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": "true"
             if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
             else "false",
-            "test-types": "API Always CLI Core Other Providers WWW",
+            "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+            "API Always CLI Providers[google]",
         },
         str(stderr),
     )
@@ -783,6 +810,133 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     ],
 )
 def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("docs/apache-airflow-providers-google/docs.rst",),
+            {
+                "docs-filter": "--package-filter apache-airflow-providers-amazon "
+                "--package-filter apache-airflow-providers-apache-beam "
+                "--package-filter apache-airflow-providers-apache-cassandra "
+                "--package-filter apache-airflow-providers-cncf-kubernetes "
+                "--package-filter apache-airflow-providers-common-sql "
+                "--package-filter apache-airflow-providers-facebook "
+                "--package-filter apache-airflow-providers-google "
+                "--package-filter apache-airflow-providers-hashicorp "
+                "--package-filter apache-airflow-providers-microsoft-azure "
+                "--package-filter apache-airflow-providers-microsoft-mssql "
+                "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-oracle "
+                "--package-filter apache-airflow-providers-postgres "
+                "--package-filter apache-airflow-providers-presto "
+                "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-sftp "
+                "--package-filter apache-airflow-providers-ssh "
+                "--package-filter apache-airflow-providers-trino",
+            },
+            id="Google provider docs changed",
+        ),
+        pytest.param(
+            ("airflow/providers/common/sql/common_sql_python.py",),
+            {
+                "docs-filter": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers-amazon "
+                "--package-filter apache-airflow-providers-apache-drill "
+                "--package-filter apache-airflow-providers-apache-druid "
+                "--package-filter apache-airflow-providers-apache-hive "
+                "--package-filter apache-airflow-providers-apache-impala "
+                "--package-filter apache-airflow-providers-apache-pinot "
+                "--package-filter apache-airflow-providers-common-sql "
+                "--package-filter apache-airflow-providers-databricks "
+                "--package-filter apache-airflow-providers-elasticsearch "
+                "--package-filter apache-airflow-providers-exasol "
+                "--package-filter apache-airflow-providers-google "
+                "--package-filter apache-airflow-providers-jdbc "
+                "--package-filter apache-airflow-providers-microsoft-mssql "
+                "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-odbc "
+                "--package-filter apache-airflow-providers-oracle "
+                "--package-filter apache-airflow-providers-postgres "
+                "--package-filter apache-airflow-providers-presto "
+                "--package-filter apache-airflow-providers-qubole "
+                "--package-filter apache-airflow-providers-slack "
+                "--package-filter apache-airflow-providers-snowflake "
+                "--package-filter apache-airflow-providers-sqlite "
+                "--package-filter apache-airflow-providers-trino "
+                "--package-filter apache-airflow-providers-vertica",
+            },
+            id="Common SQL provider package python files changed",
+        ),
+        pytest.param(
+            ("docs/apache-airflow-providers-airbyte/docs.rst",),
+            {
+                "docs-filter": "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider docs changed",
+        ),
+        pytest.param(
+            ("airflow/providers/celery/file.py",),
+            {
+                "docs-filter": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers-celery",
+            },
+            id="Celery python files changed",
+        ),
+        pytest.param(
+            ("docs/conf.py",),
+            {
+                "docs-filter": "",
+            },
+            id="Docs conf.py changed",
+        ),
+        pytest.param(
+            ("airflow/test.py",),
+            {
+                "docs-filter": "--package-filter apache-airflow",
+            },
+            id="Core files changed. No provider docs to build",
+        ),
+        pytest.param(
+            ("docs/docker-stack/test.rst",),
+            {"docs-filter": "--package-filter docker-stack"},
+            id="Docker stack files changed. No provider docs to build",
+        ),
+        pytest.param(
+            ("airflow/test.py", "chart/airflow/values.yaml"),
+            {
+                "docs-filter": "--package-filter apache-airflow --package-filter helm-chart",
+            },
+            id="Core files and helm chart files changed. No provider docs to build",
+        ),
+        pytest.param(
+            ("chart/airflow/values.yaml",),
+            {
+                "docs-filter": "--package-filter helm-chart",
+            },
+            id="Helm chart files changed. No provider, airflow docs to build",
+        ),
+        pytest.param(
+            ("docs/helm-chart/airflow/values.yaml",),
+            {
+                "docs-filter": "--package-filter helm-chart",
+            },
+            id="Docs helm chart files changed. No provider, airflow docs to build",
+        ),
+    ],
+)
+def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",

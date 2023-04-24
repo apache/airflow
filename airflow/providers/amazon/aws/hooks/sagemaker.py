@@ -23,7 +23,6 @@ import re
 import tarfile
 import tempfile
 import time
-import warnings
 from collections import Counter
 from datetime import datetime
 from functools import partial
@@ -976,21 +975,6 @@ class SageMakerHook(AwsBaseHook):
                 return results
             else:
                 next_token = response["NextToken"]
-
-    def find_processing_job_by_name(self, processing_job_name: str) -> bool:
-        """
-        Query processing job by name
-
-        This method is deprecated.
-        Please use `airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.
-        """
-        warnings.warn(
-            "This method is deprecated. "
-            "Please use `airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return bool(self.count_processing_jobs_by_name(processing_job_name))
 
     @staticmethod
     def _name_matches_pattern(

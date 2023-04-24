@@ -33,7 +33,7 @@ AWS PrivateLink, reducing exposure to security threats.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

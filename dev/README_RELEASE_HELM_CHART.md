@@ -45,7 +45,7 @@
   - [Close the testing status issue](#close-the-testing-status-issue)
   - [Update issue template with the new release](#update-issue-template-with-the-new-release)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
-  - [Tweet about the release](#tweet-about-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Bump chart version in Chart.yaml](#bump-chart-version-in-chartyaml)
   - [Remove old releases](#remove-old-releases)
 
@@ -327,6 +327,8 @@ Please vote accordingly:
 
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
+
+Consider this my (binding) +1.
 
 For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update your path to rat):
 
@@ -730,9 +732,19 @@ Thanks to all the contributors who made this possible.
 EOF
 ```
 
-## Tweet about the release
+## Announce about the release in social media
 
-Tweet about the release:
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Tweet and post on Linkedin about the release:
 
 ```shell
 cat <<EOF

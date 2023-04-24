@@ -26,7 +26,7 @@ from distributed import LocalCluster
 from airflow.exceptions import AirflowException
 from airflow.executors.dask_executor import DaskExecutor
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, run_job
 from airflow.models import DagBag
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
@@ -109,15 +109,16 @@ class TestDaskExecutor(TestBaseDask):
         dag = self.dagbag.get_dag("example_bash_operator")
 
         job = Job(
-            job_runner=BackfillJobRunner(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE,
-                ignore_first_depends_on_past=True,
-            ),
             executor=DaskExecutor(cluster_address=self.cluster.scheduler_address),
         )
-        job.run()
+        job_runner = BackfillJobRunner(
+            job=job,
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_first_depends_on_past=True,
+        )
+        run_job(job=job, execute_callable=job_runner._execute)
 
     def teardown_method(self):
         self.cluster.close(timeout=5)
