@@ -61,7 +61,7 @@ def stat_name_default_handler(
     stat_name: str, max_length: int = 250, allowed_chars: Iterable[str] = ALLOWED_CHARACTERS
 ) -> str:
     """
-    Validate the StatsD stat name.
+    Validate the metric stat name.
 
     Apply changes when necessary and return the transformed stat name.
     """

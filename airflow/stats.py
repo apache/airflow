@@ -17,19 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import abc
-import datetime
 import logging
 import socket
-import string
-import time
-from functools import partial, wraps
-from typing import TYPE_CHECKING, Callable, Iterable, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Callable
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.metrics.base_stats_logger import StatsLogger, NoStatsLogger
-from airflow.typing_compat import Protocol
+from airflow.metrics import datadog_logger, statsd_logger
+from airflow.metrics.base_stats_logger import NoStatsLogger, StatsLogger
 
 log = logging.getLogger(__name__)
 
@@ -52,9 +46,9 @@ class _Stats(type):
         if not hasattr(cls.__class__, "factory"):
             is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
             if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
-                cls.__class__.factory = cls.get_dogstatsd_logger
+                cls.__class__.factory = datadog_logger.get_dogstatsd_logger
             elif conf.getboolean("metrics", "statsd_on"):
-                cls.__class__.factory = cls.get_statsd_logger
+                cls.__class__.factory = statsd_logger.get_statsd_logger
             else:
                 cls.__class__.factory = NoStatsLogger
 
