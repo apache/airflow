@@ -134,6 +134,7 @@ with DAG(
             "query": {
                 "query": INSERT_ROWS_QUERY,
                 "useLegacySql": False,
+                "priority": "BATCH",
             }
         },
         location=LOCATION,
