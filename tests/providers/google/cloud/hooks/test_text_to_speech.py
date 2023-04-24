@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
@@ -31,6 +32,10 @@ AUDIO_CONFIG = {"audio_encoding": "MP3"}
 
 
 class TestTextToSpeechHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudTextToSpeechHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

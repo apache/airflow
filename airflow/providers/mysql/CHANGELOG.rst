@@ -15,10 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-The version of MySQL server has to be 5.6.4+. The exact version upper bound depends
-on the version of ``mysqlclient`` package. For example, ``mysqlclient`` 1.3.12 can only be
-used with MySQL server 5.6.4 through 5.7.
-
 .. NOTE TO CONTRIBUTORS:
    Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
@@ -26,6 +22,22 @@ used with MySQL server 5.6.4 through 5.7.
 
 Changelog
 ---------
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  If you are using mysql-connector-python please note that starting this release it is an extra option.
+  The library will not be installed by default.
+
+* ``Remove mysql-connector-python (#30487)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
 
 4.0.2
 .....

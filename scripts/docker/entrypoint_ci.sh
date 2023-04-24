@@ -19,6 +19,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
+
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
@@ -189,21 +190,55 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             exit 1
         fi
         echo
+        if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+            IFS=\, read -ra selected_providers <<<"${INSTALL_SELECTED_PROVIDERS}"
+            echo
+            echo "${COLOR_BLUE}Selected providers to install: '${selected_providers[*]}'${COLOR_RESET}"
+            echo
+        else
+            echo
+            echo "${COLOR_BLUE}Installing all found providers${COLOR_RESET}"
+            echo
+            selected_providers=()
+        fi
         installable_files=()
         for file in /dist/*.{whl,tar.gz}
         do
-            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
-                # Skip Apache Airflow package - it's just been installed above with extras
-                echo "Skipping ${file}"
+            if [[ ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
+                # Skip Apache Airflow package - it's just been installed above if
+                # --use-airflow-version was set and should be skipped otherwise
+                echo "${COLOR_BLUE}Skipping airflow core package ${file} from provider installation.${COLOR_RESET}"
                 continue
             fi
             if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache_airflow_providers_//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
             if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache-airflow-providers-//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
         done
         if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
@@ -212,6 +247,9 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             echo
             installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
         fi
+        echo
+        echo "${COLOR_BLUE}Installing: ${installable_files[*]}${COLOR_RESET}"
+        echo
         if (( ${#installable_files[@]} )); then
             pip install --root-user-action ignore "${installable_files[@]}"
         fi
@@ -295,8 +333,13 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
-export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.txt"
+else
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+fi
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -383,7 +426,10 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 # - so that we do not skip any in the future if new directories are added
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
+    # The output of the find command should be sorted to make sure that the order is always the same
+    # when we run the tests, to avoid cross-package side effects causing different test results
+    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -451,7 +497,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
-        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+        else
+            SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
         if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
             SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
@@ -466,6 +516,19 @@ else
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
             ${TEST_TYPE} == "Long" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[\-(.*)\] ]]; then
+        # When providers start with `-` it means that we should run all provider tests except those
+        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            providers_dir="tests/providers/${provider//./\/}"
+            if [[ -d ${providers_dir} ]]; then
+                echo "${COLOR_BLUE}Ignoring ${providers_dir} as it has been deselected.${COLOR_RESET}"
+                EXTRA_PYTEST_ARGS+=("--ignore=tests/providers/${provider//./\/}")
+            else
+                echo "${COLOR_YELLOW}Skipping ${providers_dir} as the directory does not exist.${COLOR_RESET}"
+            fi
+        done
     elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
         SELECTED_TESTS=()
         for provider in ${BASH_REMATCH[1]//,/ }

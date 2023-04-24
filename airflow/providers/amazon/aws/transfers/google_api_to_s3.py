@@ -73,13 +73,10 @@ class GoogleApiToS3Operator(BaseOperator):
 
         .. note:: This means the response will be a list of responses.
 
-    :param google_api_num_retries: Define the number of retries for the google api requests being made
+    :param google_api_num_retries: Define the number of retries for the Google API requests being made
         if it fails.
     :param s3_overwrite: Specifies whether the s3 file will be overwritten if exists.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param aws_conn_id: The connection id specifying the authentication information for the S3 Bucket.
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
@@ -115,7 +112,6 @@ class GoogleApiToS3Operator(BaseOperator):
         google_api_num_retries: int = 0,
         s3_overwrite: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         aws_conn_id: str = "aws_default",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -133,7 +129,6 @@ class GoogleApiToS3Operator(BaseOperator):
         self.google_api_num_retries = google_api_num_retries
         self.s3_overwrite = s3_overwrite
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.aws_conn_id = aws_conn_id
         self.google_impersonation_chain = google_impersonation_chain
 
@@ -158,7 +153,6 @@ class GoogleApiToS3Operator(BaseOperator):
     def _retrieve_data_from_google_api(self) -> dict:
         google_discovery_api_hook = GoogleDiscoveryApiHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_service_name=self.google_api_service_name,
             api_version=self.google_api_service_version,
             impersonation_chain=self.google_impersonation_chain,

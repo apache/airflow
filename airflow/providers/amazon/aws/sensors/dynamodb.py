@@ -84,7 +84,9 @@ class DynamoDBValueSensor(BaseSensorOperator):
         try:
             self.log.info("Response: %s", response)
             self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
-            self.log.info("Got: {response['Item'][self.attribute_name]} = %s", self.attribute_value)
+            self.log.info(
+                "Got: {response['Item'][self.attribute_name]} = %s", response["Item"][self.attribute_name]
+            )
             return response["Item"][self.attribute_name] == self.attribute_value
         except KeyError:
             return False

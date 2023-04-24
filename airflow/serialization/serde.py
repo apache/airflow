@@ -157,7 +157,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
     # dataclasses
     if dataclasses.is_dataclass(cls):
         # fixme: unfortunately using asdict with nested dataclasses it looses information
-        data = dataclasses.asdict(o)
+        data = dataclasses.asdict(o)  # type: ignore[call-overload]
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -202,7 +202,9 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
         return col
 
     if not isinstance(o, dict):
-        raise TypeError()
+        # if o is not a dict, then it's already deserialized
+        # in this case we should return it as is
+        return o
 
     o = _convert(o)
 

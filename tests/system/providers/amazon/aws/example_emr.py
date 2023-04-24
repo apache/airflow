@@ -33,7 +33,8 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrModifyClusterOperator,
     EmrTerminateJobFlowOperator,
 )
-from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -116,6 +117,11 @@ def delete_security_config(config_name: str):
     )
 
 
+@task
+def get_step_id(step_ids: list):
+    return step_ids[0]
+
+
 sys_test_context_task = SystemTestContextBuilder().add_variable(EXECUTION_ROLE_ARN_KEY).build()
 
 with DAG(
@@ -126,11 +132,17 @@ with DAG(
     tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
+
     env_id = test_context[ENV_ID_KEY]
     config_name = f"{CONFIG_NAME}-{env_id}"
     execution_role_arn = test_context[EXECUTION_ROLE_ARN_KEY]
+    s3_bucket = f"{env_id}-emr-bucket"
+
+    JOB_FLOW_OVERRIDES["LogUri"] = f"s3://{s3_bucket}/"
     JOB_FLOW_OVERRIDES["SecurityConfiguration"] = config_name
     JOB_FLOW_OVERRIDES["Instances"]["InstanceGroups"][0]["CustomAmiId"] = get_ami_id()
+
+    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
 
     create_security_configuration = configure_security_config(config_name)
 
@@ -157,6 +169,14 @@ with DAG(
     )
     # [END howto_operator_emr_add_steps]
 
+    # [START howto_sensor_emr_step]
+    wait_for_step = EmrStepSensor(
+        task_id="wait_for_step",
+        job_flow_id=create_job_flow.output,
+        step_id=get_step_id(add_steps.output),
+    )
+    # [END howto_sensor_emr_step]
+
     # [START howto_operator_emr_terminate_job_flow]
     remove_cluster = EmrTerminateJobFlowOperator(
         task_id="remove_cluster",
@@ -172,18 +192,28 @@ with DAG(
 
     delete_security_configuration = delete_security_config(config_name)
 
+    delete_s3_bucket = S3DeleteBucketOperator(
+        task_id="delete_s3_bucket",
+        bucket_name=s3_bucket,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     chain(
         # TEST SETUP
         test_context,
+        create_s3_bucket,
         create_security_configuration,
         # TEST BODY
         create_job_flow,
         modify_cluster,
         add_steps,
+        wait_for_step,
         # TEST TEARDOWN
         remove_cluster,
         check_job_flow,
         delete_security_configuration,
+        delete_s3_bucket,
     )
 
     from tests.system.utils.watcher import watcher

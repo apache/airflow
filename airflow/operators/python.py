@@ -26,6 +26,7 @@ import sys
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
+from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -33,7 +34,13 @@ from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
 
-from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    AirflowException,
+    AirflowSkipException,
+    DeserializingResultError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
@@ -324,6 +331,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         templates_dict: dict | None = None,
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
         if (
@@ -344,6 +352,13 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         self.use_dill = use_dill
         self.pickling_library = dill if self.use_dill else pickle
         self.expect_airflow = expect_airflow
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
 
     @abstractmethod
     def _iter_serializable_context_keys(self):
@@ -370,12 +385,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             return None
         try:
             return self.pickling_library.loads(path.read_bytes())
-        except ValueError:
-            self.log.error(
-                "Error deserializing result. Note that result deserialization "
-                "is not supported across major Python versions."
-            )
-            raise
+        except ValueError as value_error:
+            raise DeserializingResultError() from value_error
 
     def __deepcopy__(self, memo):
         # module objects can't be copied _at all__
@@ -405,15 +416,22 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )
 
-        execute_in_subprocess(
-            cmd=[
-                os.fspath(python_path),
-                os.fspath(script_path),
-                os.fspath(input_path),
-                os.fspath(output_path),
-                os.fspath(string_args_path),
-            ]
-        )
+        try:
+            execute_in_subprocess(
+                cmd=[
+                    os.fspath(python_path),
+                    os.fspath(script_path),
+                    os.fspath(input_path),
+                    os.fspath(output_path),
+                    os.fspath(string_args_path),
+                ]
+            )
+        except subprocess.CalledProcessError as e:
+            if e.returncode in self.skip_on_exit_code:
+                raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+            else:
+                raise
+
         return self._read_result(output_path)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -466,6 +484,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param expect_airflow: expect Airflow to be installed in the target environment. If true, the operator
         will raise warning if Airflow is not installed, and it will attempt to load Airflow
         macros when starting.
+    :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
     """
 
     template_fields: Sequence[str] = tuple({"requirements"} | set(PythonOperator.template_fields))
@@ -486,6 +507,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         templates_dict: dict | None = None,
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
         if (
@@ -518,6 +540,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             templates_dict=templates_dict,
             templates_exts=templates_exts,
             expect_airflow=expect_airflow,
+            skip_on_exit_code=skip_on_exit_code,
             **kwargs,
         )
 
@@ -544,8 +567,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 pip_install_options=self.pip_install_options,
             )
             python_path = tmp_path / "bin" / "python"
-
-            return self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            result = self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            return result
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
@@ -601,6 +624,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     :param expect_airflow: expect Airflow to be installed in the target environment. If true, the operator
         will raise warning if Airflow is not installed, and it will attempt to load Airflow
         macros when starting.
+    :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
     """
 
     template_fields: Sequence[str] = tuple({"python"} | set(PythonOperator.template_fields))
@@ -618,6 +644,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         expect_pendulum: bool = False,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
         if not python:
@@ -633,6 +660,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             templates_dict=templates_dict,
             templates_exts=templates_exts,
             expect_airflow=expect_airflow,
+            skip_on_exit_code=skip_on_exit_code,
             **kwargs,
         )
 

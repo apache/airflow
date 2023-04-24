@@ -124,9 +124,9 @@ class TestDockerDecorator:
         "extra_kwargs, actual_exit_code, expected_state",
         [
             (None, 99, TaskInstanceState.FAILED),
-            ({"skip_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
         ],
     )
     def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
