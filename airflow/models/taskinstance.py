@@ -1407,9 +1407,26 @@ class TaskInstance(Base, LoggingMixin):
         # switch on state and deduce which metric to send
         if new_state == State.RUNNING:
             metric_name = "queued_duration"
+            if self.queued_dttm is None:
+                # this should not really happen except in tests or rare cases,
+                # but we don't want to create errors just for a metric, so we just skip it
+                self.log.warning(
+                    "cannot record %s for task %s because previous state change time has not been saved",
+                    metric_name,
+                    self.task_id,
+                )
+                return
             timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
         elif new_state == State.QUEUED:
             metric_name = "scheduled_duration"
+            if self.start_date is None:
+                # same comment as above
+                self.log.warning(
+                    "cannot record %s for task %s because previous state change time has not been saved",
+                    metric_name,
+                    self.task_id,
+                )
+                return
             timing = (timezone.utcnow() - self.start_date).total_seconds()
         else:
             raise NotImplementedError
