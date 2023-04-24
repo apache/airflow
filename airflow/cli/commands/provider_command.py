@@ -81,6 +81,19 @@ def hooks_list(args):
 
 
 @suppress_logs_and_warning
+def triggers_list(args):
+    AirflowConsole().print_as(
+        data=ProvidersManager().trigger,
+        output=args.output,
+        mapper=lambda x: {
+            "package_name": x.package_name,
+            "class": x.trigger_class_name,
+            "integration_name": x.integration_name,
+        },
+    )
+
+
+@suppress_logs_and_warning
 def connection_form_widget_list(args):
     """Lists all custom connection form fields at the command line."""
     AirflowConsole().print_as(
