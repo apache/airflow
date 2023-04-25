@@ -22,6 +22,7 @@ from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
+
 class RedshiftClusterTrigger(BaseTrigger):
     """AWS Redshift trigger"""
 
@@ -173,10 +174,13 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
             },
         )
 
+    @cached_property
+    def hook(self) -> RedshiftHook:
+        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+
     async def run(self):
-        self.redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        async with self.redshift_hook.async_conn as client:
-            waiter = self.redshift_hook.get_waiter("cluster_paused", deferrable=True, client=client)
+        async with self.hook.async_conn as client:
+            waiter = self.hook.get_waiter("cluster_paused", deferrable=True, client=client)
             await waiter.wait(
                 ClusterIdentifier=self.cluster_identifier,
                 WaiterConfig={

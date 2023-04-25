@@ -529,11 +529,12 @@ class RedshiftPauseClusterOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.deferrable = deferrable
         self.max_attempts = max_attempts
+        self.poll_interval = poll_interval
         # These parameters are used to address an issue with the boto3 API where the API
         # prematurely reports the cluster as available to receive requests. This causes the cluster
         # to reject initial attempts to pause the cluster despite reporting the correct state.
-        self.poll_interval = poll_interval
-        self._attempts = max_attempts
+        self._attempts = 10
+        self._attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
@@ -562,7 +563,9 @@ class RedshiftPauseClusterOperator(BaseOperator):
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
-            raise AirflowException(f"Error resuming cluster: {event}")
+            raise AirflowException(f"Error pausing cluster: {event}")
+        else:
+            self.log.info("Paused cluster successfully")
         return
 
 
