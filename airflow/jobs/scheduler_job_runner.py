@@ -705,7 +705,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             self.log.info(
-                "Executor reports execution of %s.%s run_id=%s exited with status %s for try_number %s",
+                "Executor reports execution of %s.%s run_id=%s handled with status %s for try_number %s",
                 ti_key.dag_id,
                 ti_key.task_id,
                 ti_key.run_id,
