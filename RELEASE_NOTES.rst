@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.6.0 (2023-04-27)
+Airflow 2.6.0 (2023-04-28)
 --------------------------
 
 Significant Changes
@@ -137,6 +137,7 @@ New Features
 
 Improvements
 """"""""""""
+- Rename most pod_id usage to pod_name in KubernetesExecutor (#29147)
 - Update the error message for invalid use of poke-only sensors (#30821)
 - Update log level in scheduler critical section edge case (#30694)
 - AIP-51 Removing Executor Coupling from Core Airflow (`AIP-51 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-51+milestone%3A%22Airflow+2.6.0%22>`_)
@@ -198,6 +199,7 @@ Improvements
 
 Bug Fixes
 """""""""
+- Fix KubernetesExecutor sending state to scheduler (#30872)
 - Count mapped upstream only if all are finished (#30641)
 - ExternalTaskSensor: add external_task_group_id to template_fields (#30401)
 - Improve url detection for task instance details (#30779)
@@ -267,7 +269,7 @@ Misc/Internal
 - Switch to ruff for faster static checks (#28893)
 - Remove horizontal lines in TI logs (#28876)
 - Make allowed_deserialization_classes more intuitive (#28829)
-- Propagate logs to stdout when in k8s executor pod (#28440)
+- Propagate logs to stdout when in k8s executor pod (#28440, #30860)
 - Fix code readability, add docstrings to json_client (#28619)
 - AIP-51 - Misc. Compatibility Checks (#28375)
 - Fix is_local for LocalKubernetesExecutor (#28288)
