@@ -42,6 +42,8 @@ broker_transport_options_for_celery: dict = dict.copy(broker_transport_options)
 if "sentinel_kwargs" in broker_transport_options:
     try:
         sentinel_kwargs = conf.getjson("celery_broker_transport_options", "sentinel_kwargs")
+        if not isinstance(sentinel_kwargs, dict):
+            raise ValueError
         broker_transport_options_for_celery["sentinel_kwargs"] = sentinel_kwargs
     except Exception:
         raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
