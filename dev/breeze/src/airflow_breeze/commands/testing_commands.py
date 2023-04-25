@@ -433,6 +433,7 @@ def command_for_tests(
 @option_image_tag_for_running
 @option_mount_sources
 @option_integration
+@option_github_repository
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
@@ -457,6 +458,7 @@ def integration_tests(
     mysql_version: str,
     mssql_version: str,
     integration: tuple,
+    github_repository: str,
     test_timeout: int,
     skip_provider_tests: bool,
     db_reset: bool,
@@ -478,6 +480,7 @@ def integration_tests(
         forward_ports=False,
         test_type="Integration",
         skip_provider_tests=skip_provider_tests,
+        github_repository=github_repository,
     )
     cleanup_python_generated_files()
     perform_environment_checks()
