@@ -330,7 +330,7 @@ class DAG(LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
-        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete', 'can_pause'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -1701,7 +1701,6 @@ class DAG(LoggingMixin):
 
         # Next, get any of them from our parent DAG (if there is one)
         if include_parentdag and self.parent_dag is not None:
-
             if visited_external_tis is None:
                 visited_external_tis = set()
 
@@ -3745,7 +3744,6 @@ def dag(
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)

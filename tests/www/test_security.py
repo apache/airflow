@@ -675,6 +675,9 @@ def test_access_control_stale_perms_are_revoked(
 ):
     username = "access_control_stale_perms_are_revoked"
     role_name = "team-a"
+    dag_id = "access_control_test"
+    dag_pause_permission = (permissions.ACTION_CAN_PAUSE, f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}")
+
     with app.app_context():
         with create_user_scope(
             app,
@@ -682,23 +685,25 @@ def test_access_control_stale_perms_are_revoked(
             role_name=role_name,
             permissions=[],
         ) as user:
-            set_user_single_role(app, user, role_name="team-a")
-            security_manager._sync_dag_view_permissions(
-                "access_control_test", access_control={"team-a": READ_WRITE}
-            )
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id="access_control_test", user=user)
-
-            security_manager._sync_dag_view_permissions(
-                "access_control_test", access_control={"team-a": READ_ONLY}
-            )
+            set_user_single_role(app, user, role_name=role_name)
+            security_manager._sync_dag_view_permissions(dag_id, access_control={role_name: READ_WRITE})
+            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=dag_id, user=user)
+            security_manager._sync_dag_view_permissions(dag_id, access_control={role_name: READ_ONLY})
             # Clear the cache, to make it pick up new rol perms
             user._perms = None
-            assert_user_has_dag_perms(
-                perms=[permissions.ACTION_CAN_READ], dag_id="access_control_test", user=user
-            )
-            assert_user_does_not_have_dag_perms(
-                perms=[permissions.ACTION_CAN_EDIT], dag_id="access_control_test", user=user
-            )
+            assert_user_has_dag_perms(perms=[permissions.ACTION_CAN_READ], dag_id=dag_id, user=user)
+            assert_user_does_not_have_dag_perms(perms=[permissions.ACTION_CAN_EDIT], dag_id=dag_id, user=user)
+
+        security_manager.create_permission(*dag_pause_permission)
+        with create_user_scope(
+            app,
+            username=username,
+            role_name=role_name,
+            permissions=[dag_pause_permission],
+        ) as user:
+            security_manager._sync_dag_view_permissions(dag_id, access_control={role_name: READ_WRITE})
+            assert_user_has_dag_perms(perms={permissions.ACTION_CAN_PAUSE}, dag_id=dag_id, user=user)
+        security_manager.delete_permission(*dag_pause_permission)
 
 
 def test_no_additional_dag_permission_views_created(db, security_manager):

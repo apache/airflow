@@ -723,9 +723,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             existing_dag_perms = self.get_resource_permissions(resource)
             for perm in existing_dag_perms:
                 non_admin_roles = [role for role in perm.role if role.name != "Admin"]
+                action_name = perm.action.name
+
                 for role in non_admin_roles:
                     target_perms_for_role = access_control.get(role.name, ())
-                    if perm.action.name not in target_perms_for_role:
+
+                    if (
+                        permissions.ACTION_CAN_EDIT in target_perms_for_role
+                        and action_name == permissions.ACTION_CAN_PAUSE
+                    ):
+                        # Access control has edit access but not pause access
+                        # due to assignment from db migration.
+                        continue
+
+                    if action_name not in target_perms_for_role:
                         self.log.info(
                             "Revoking '%s' on DAG '%s' for role '%s'",
                             perm.action,

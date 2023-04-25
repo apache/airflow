@@ -5820,7 +5820,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
         dag.can_edit = get_airflow_app().appbuilder.sm.can_edit_dag(dag.dag_id)
         dag.can_trigger = dag.can_edit and can_create_dag_run
         dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id)
-        dag.can_pause = get_airflow_app().appbuilder.sm.can_pause_dag(dag.dag_id, g.user)
+        dag.can_pause = get_airflow_app().appbuilder.sm.can_pause_dag(dag.dag_id)
         context["dag"] = dag
 
 
