@@ -318,7 +318,9 @@ class SelectiveChecks:
         output = []
         for field_name in dir(self):
             if not field_name.startswith("_"):
-                output.append(get_ga_output(field_name, getattr(self, field_name)))
+                value = getattr(self, field_name)
+                if value is not None:
+                    output.append(get_ga_output(field_name, value))
         return "\n".join(output)
 
     default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
@@ -453,7 +455,7 @@ class SelectiveChecks:
         return " ".join(self.kubernetes_versions)
 
     @cached_property
-    def kubernetes_combos(self) -> str:
+    def kubernetes_combos_list_as_string(self) -> str:
         python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
         kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
@@ -519,7 +521,12 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        return "amazon" in self.parallel_test_types or "Providers" in self.parallel_test_types.split(" ")
+        if self.parallel_test_types_list_as_string is None:
+            return False
+        return (
+            "amazon" in self.parallel_test_types_list_as_string
+            or "Providers" in self.parallel_test_types_list_as_string.split(" ")
+        )
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -550,6 +557,11 @@ class SelectiveChecks:
             test_types.add(test_type.value)
             get_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
         return matched_files
+
+    def _are_all_providers_affected(self) -> bool:
+        # if "Providers" test is present in the list of tests, it means that we should run all providers tests
+        # prepare all providers packages and build all providers documentation
+        return "Providers" in self._get_test_types_to_run()
 
     def _get_test_types_to_run(self) -> list[str]:
         candidate_test_types: set[str] = {"Always"}
@@ -629,9 +641,9 @@ class SelectiveChecks:
                     current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
 
     @cached_property
-    def parallel_test_types(self) -> str:
+    def parallel_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
-            return ""
+            return None
         if self.full_tests_needed:
             current_test_types = set(all_selective_test_types())
         else:
@@ -677,18 +689,22 @@ class SelectiveChecks:
         ) > 0 or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
 
     @cached_property
-    def docs_filter(self) -> str:
+    def docs_filter_list_as_string(self) -> str | None:
+        _ALL_DOCS_LIST = ""
+        if not self.docs_build:
+            return None
         if self._default_branch != "main":
             return "--package-filter apache-airflow --package-filter docker-stack"
         if self.full_tests_needed:
-            return ""
+            return _ALL_DOCS_LIST
         providers_affected = find_all_providers_affected(changed_files=self._files, include_docs=True)
         if (
             providers_affected == "ALL_PROVIDERS"
             or "docs/conf.py" in self._files
             or "docs/build_docs.py" in self._files
+            or self._are_all_providers_affected()
         ):
-            return ""
+            return _ALL_DOCS_LIST
         packages = []
         if any([file.startswith("airflow/") for file in self._files]):
             packages.append("apache-airflow")
@@ -707,7 +723,9 @@ class SelectiveChecks:
 
     @cached_property
     def skip_provider_tests(self) -> bool:
-        return self._default_branch != "main"
+        return self._default_branch != "main" or not any(
+            test_type.startswith("Providers") for test_type in self._get_test_types_to_run()
+        )
 
     @cached_property
     def cache_directive(self) -> str:
@@ -720,3 +738,17 @@ class SelectiveChecks:
     @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
+
+    @cached_property
+    def affected_providers_list_as_string(self) -> str | None:
+        _ALL_PROVIDERS_LIST = ""
+        if self.full_tests_needed:
+            return _ALL_PROVIDERS_LIST
+        if self._are_all_providers_affected():
+            return _ALL_PROVIDERS_LIST
+        affected_providers = find_all_providers_affected(changed_files=self._files, include_docs=True)
+        if not affected_providers:
+            return None
+        if affected_providers == "ALL_PROVIDERS":
+            return _ALL_PROVIDERS_LIST
+        return " ".join(sorted(affected_providers))
