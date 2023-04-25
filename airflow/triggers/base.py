@@ -21,6 +21,24 @@ from typing import Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+def async_timeit(func):
+    async def helper():
+        t = 0
+        coro = func()
+        try:
+            while True:
+                t0 = time.perf_counter()
+                future = coro.send(None)
+                t1 = time.perf_counter()
+                t += t1 - t0
+                while not future.done():
+                    await asyncio.sleep(0)
+                    future.result()
+        except StopIteration:
+            if t >= 0.1:
+                self.log.warning("%s took %i sec, possibly slow trigger.", coro.get_name(), t)
+    return helper
+
 
 class BaseTrigger(abc.ABC, LoggingMixin):
     """
@@ -92,6 +110,11 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         that cleanup method failed, you should wrap your code with try/except block
         and handle it appropriately (in async-compatible way).
         """
+
+    def __getattribute__(self, name):
+        if name == "run":
+            return async_timeit(super(Base, self).__getattribute__(name))
+        return super(Base, self).__getattribute__(name)
 
     def __repr__(self) -> str:
         classpath, kwargs = self.serialize()
