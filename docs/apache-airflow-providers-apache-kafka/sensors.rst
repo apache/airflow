@@ -27,7 +27,7 @@ AwaitMessageSensor
 
 A sensor that defers until a specific message is published to a Kafka topic.
 The sensor will create a consumer reading messages from a Kafka topic until a message fulfilling criteria defined in the
-``apply_function`` parameter is found.
+``apply_function`` parameter is found. If the ``apply_function`` returns any data, a ``TriggerEvent`` is raised and the ``AwaitMessageSensor`` completes successfully.
 
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.sensors.kafka.AwaitMessageSensor`.
 
@@ -55,7 +55,7 @@ AwaitMessageTriggerFunctionSensor
 
 Similar to the ``AwaitMessageSensor`` above, this sensor will defer until it consumes a message from a Kafka topic fulfilling the criteria
 of its ``apply_function``. Once a positive event is encountered, the ``AwaitMessageTriggerFunctionSensor`` will trigger a callable provided
-to ``event_triggered_function``.
+to ``event_triggered_function``. Afterwards the sensor will be deferred again, continuing to consume messages.
 
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.sensors.kafka.AwaitMessageTriggerFunctionSensor`.
 

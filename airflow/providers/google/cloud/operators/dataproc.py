@@ -236,46 +236,50 @@ class ClusterGenerator:
         )
 
     def _build_gce_cluster_config(self, cluster_data):
+        # This variable is created since same string was being used multiple times
+        config = "gce_cluster_config"
         if self.zone:
             zone_uri = f"https://www.googleapis.com/compute/v1/projects/{self.project_id}/zones/{self.zone}"
-            cluster_data["gce_cluster_config"]["zone_uri"] = zone_uri
+            cluster_data[config]["zone_uri"] = zone_uri
 
         if self.metadata:
-            cluster_data["gce_cluster_config"]["metadata"] = self.metadata
+            cluster_data[config]["metadata"] = self.metadata
 
         if self.network_uri:
-            cluster_data["gce_cluster_config"]["network_uri"] = self.network_uri
+            cluster_data[config]["network_uri"] = self.network_uri
 
         if self.subnetwork_uri:
-            cluster_data["gce_cluster_config"]["subnetwork_uri"] = self.subnetwork_uri
+            cluster_data[config]["subnetwork_uri"] = self.subnetwork_uri
 
         if self.internal_ip_only:
             if not self.subnetwork_uri:
                 raise AirflowException("Set internal_ip_only to true only when you pass a subnetwork_uri.")
-            cluster_data["gce_cluster_config"]["internal_ip_only"] = True
+            cluster_data[config]["internal_ip_only"] = True
 
         if self.tags:
-            cluster_data["gce_cluster_config"]["tags"] = self.tags
+            cluster_data[config]["tags"] = self.tags
 
         if self.service_account:
-            cluster_data["gce_cluster_config"]["service_account"] = self.service_account
+            cluster_data[config]["service_account"] = self.service_account
 
         if self.service_account_scopes:
-            cluster_data["gce_cluster_config"]["service_account_scopes"] = self.service_account_scopes
+            cluster_data[config]["service_account_scopes"] = self.service_account_scopes
 
         return cluster_data
 
     def _build_lifecycle_config(self, cluster_data):
+        # This variable is created since same string was being used multiple times
+        lifecycle_config = "lifecycle_config"
         if self.idle_delete_ttl:
-            cluster_data["lifecycle_config"]["idle_delete_ttl"] = {"seconds": self.idle_delete_ttl}
+            cluster_data[lifecycle_config]["idle_delete_ttl"] = {"seconds": self.idle_delete_ttl}
 
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
-            cluster_data["lifecycle_config"]["auto_delete_time"] = utc_auto_delete_time.strftime(
+            cluster_data[lifecycle_config]["auto_delete_time"] = utc_auto_delete_time.strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
             )
         elif self.auto_delete_ttl:
-            cluster_data["lifecycle_config"]["auto_delete_ttl"] = {"seconds": int(self.auto_delete_ttl)}
+            cluster_data[lifecycle_config]["auto_delete_ttl"] = {"seconds": int(self.auto_delete_ttl)}
 
         return cluster_data
 

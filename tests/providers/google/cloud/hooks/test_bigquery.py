@@ -93,15 +93,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
         assert mock_bigquery_connection.return_value == result
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
-    def test_location_propagates_properly(self, run_with_config, _):
-        # TODO: this creates side effect
-        assert self.hook.location is None
-        self.hook.run_query(sql="select 1", location="US")
-        assert run_with_config.call_count == 1
-        assert self.hook.location == "US"
-
     def test_bigquery_insert_rows_not_implemented(self):
         with pytest.raises(NotImplementedError):
             self.hook.insert_rows(table="table", rows=[1, 2])
@@ -1228,7 +1219,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                 "schemaUpdateOptions": [],
             }
         }
-        mock_insert.assert_called_once_with(configuration=conf, project_id=PROJECT_ID)
+        mock_insert.assert_called_once_with(configuration=conf, project_id=PROJECT_ID, location=None)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
@@ -1239,6 +1230,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         mock_insert.assert_has_calls(
             [
                 mock.call(
+                    location=None,
                     configuration={
                         "query": {
                             "query": "SELECT 'bar'",
@@ -1250,6 +1242,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                     project_id=PROJECT_ID,
                 ),
                 mock.call(
+                    location=None,
                     configuration={
                         "query": {
                             "query": "SELECT 'baz'",
@@ -1704,13 +1697,14 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
         self.hook.run_query(
             sql="select 1",
             destination_dataset_table=f"{DATASET_ID}.{TABLE_ID}",
+            priority="BATCH",
             time_partitioning={"type": "DAY", "field": "test_field", "expirationMs": 1000},
         )
 
         configuration = {
             "query": {
                 "query": "select 1",
-                "priority": "INTERACTIVE",
+                "priority": "BATCH",
                 "useLegacySql": True,
                 "timePartitioning": {"type": "DAY", "field": "test_field", "expirationMs": 1000},
                 "schemaUpdateOptions": [],
@@ -1722,7 +1716,7 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
             }
         }
 
-        mock_insert.assert_called_once_with(configuration=configuration, project_id=PROJECT_ID)
+        mock_insert.assert_called_once_with(configuration=configuration, project_id=PROJECT_ID, location=None)
 
     def test_dollar_makes_partition(self):
         tp_out = _cleanse_time_partitioning("test.teast$20170101", {})

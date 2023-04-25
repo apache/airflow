@@ -26,7 +26,7 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple, Sized
 
 if TYPE_CHECKING:
-    from airflow.models import DagRun
+    from airflow.models import DAG, DagRun
 
 
 class AirflowException(Exception):
@@ -205,6 +205,22 @@ class DagFileExists(AirflowBadRequest):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
+
+
+class DagInvalidTriggerRule(AirflowException):
+    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule"""
+
+    @classmethod
+    def check(cls, dag: DAG | None, trigger_rule: str):
+        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        if dag is not None and dag.fail_stop and trigger_rule != DEFAULT_TRIGGER_RULE:
+            raise cls()
+
+    def __str__(self) -> str:
+        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        return f"A 'fail-stop' dag can only have {DEFAULT_TRIGGER_RULE} trigger rule"
 
 
 class DuplicateTaskIdFound(AirflowException):

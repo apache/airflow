@@ -57,7 +57,6 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
-from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -71,11 +70,14 @@ if TYPE_CHECKING:
 
 class BaseSessionFactory(LoggingMixin):
     """
-    Base AWS Session Factory class to handle boto3 session creation.
+    Base AWS Session Factory class to handle synchronous and async boto session creation.
     It can handle most of the AWS supported authentication methods.
 
     User can also derive from this class to have full control of boto3 session
     creation or to support custom federation.
+
+    Note: Not all features implemented for synchronous sessions are available for async
+    sessions.
 
     .. seealso::
         - :ref:`howto/connection:aws:session-factory`
@@ -126,17 +128,50 @@ class BaseSessionFactory(LoggingMixin):
         """Assume Role ARN from AWS Connection"""
         return self.conn.role_arn
 
-    def create_session(self) -> boto3.session.Session:
-        """Create boto3 Session from connection config."""
+    def _apply_session_kwargs(self, session):
+        if self.conn.session_kwargs.get("profile_name", None) is not None:
+            session.set_config_variable("profile", self.conn.session_kwargs["profile_name"])
+
+        if (
+            self.conn.session_kwargs.get("aws_access_key_id", None)
+            or self.conn.session_kwargs.get("aws_secret_access_key", None)
+            or self.conn.session_kwargs.get("aws_session_token", None)
+        ):
+            session.set_credentials(
+                self.conn.session_kwargs["aws_access_key_id"],
+                self.conn.session_kwargs["aws_secret_access_key"],
+                self.conn.session_kwargs["aws_session_token"],
+            )
+
+        if self.conn.session_kwargs.get("region_name", None) is not None:
+            session.set_config_variable("region", self.conn.session_kwargs["region_name"])
+
+    def get_async_session(self):
+        from aiobotocore.session import get_session as async_get_session
+
+        return async_get_session()
+
+    def create_session(self, deferrable: bool = False) -> boto3.session.Session:
+        """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
                 "No connection ID provided. Fallback on boto3 credential strategy (region_name=%r). "
                 "See: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
                 self.region_name,
             )
-            return boto3.session.Session(region_name=self.region_name)
+            if deferrable:
+                session = self.get_async_session()
+                self._apply_session_kwargs(session)
+                return session
+            else:
+                return boto3.session.Session(region_name=self.region_name)
         elif not self.role_arn:
-            return self.basic_session
+            if deferrable:
+                session = self.get_async_session()
+                self._apply_session_kwargs(session)
+                return session
+            else:
+                return self.basic_session
 
         # Values stored in ``AwsConnectionWrapper.session_kwargs`` are intended to be used only
         # to create the initial boto3 session.
@@ -149,12 +184,18 @@ class BaseSessionFactory(LoggingMixin):
         assume_session_kwargs = {}
         if self.conn.region_name:
             assume_session_kwargs["region_name"] = self.conn.region_name
-        return self._create_session_with_assume_role(session_kwargs=assume_session_kwargs)
+        return self._create_session_with_assume_role(
+            session_kwargs=assume_session_kwargs, deferrable=deferrable
+        )
 
     def _create_basic_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
         return boto3.session.Session(**session_kwargs)
 
-    def _create_session_with_assume_role(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
+    def _create_session_with_assume_role(
+        self, session_kwargs: dict[str, Any], deferrable: bool = False
+    ) -> boto3.session.Session:
+        from aiobotocore.session import get_session as async_get_session
+
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
@@ -171,10 +212,10 @@ class BaseSessionFactory(LoggingMixin):
                 method="sts-assume-role",
             )
 
-        session = botocore.session.get_session()
+        session = async_get_session() if deferrable else botocore.session.get_session()
+
         session._credentials = credentials
-        region_name = self.basic_session.region_name
-        session.set_config_variable("region", region_name)
+        session.set_config_variable("region", self.basic_session.region_name)
 
         return boto3.session.Session(botocore_session=session, **session_kwargs)
 
@@ -530,11 +571,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Verify or not SSL certificates boto3 client/resource read-only property."""
         return self.conn_config.verify
 
-    def get_session(self, region_name: str | None = None) -> boto3.session.Session:
+    def get_session(self, region_name: str | None = None, deferrable: bool = False) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
         return SessionFactory(
             conn=self.conn_config, region_name=region_name, config=self.config
-        ).create_session()
+        ).create_session(deferrable=deferrable)
 
     def _get_config(self, config: Config | None = None) -> Config:
         """
@@ -557,10 +598,19 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self,
         region_name: str | None = None,
         config: Config | None = None,
+        deferrable: bool = False,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         client_type = self.client_type
-        session = self.get_session(region_name=region_name)
+        session = self.get_session(region_name=region_name, deferrable=deferrable)
+        if not isinstance(session, boto3.session.Session):
+            return session.create_client(
+                client_type,
+                endpoint_url=self.conn_config.endpoint_url,
+                config=self._get_config(config),
+                verify=self.verify,
+            )
+
         return session.client(
             client_type,
             endpoint_url=self.conn_config.endpoint_url,
@@ -599,6 +649,14 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return self.get_client_type(region_name=self.region_name)
         else:
             return self.get_resource_type(region_name=self.region_name)
+
+    @property
+    def async_conn(self):
+        """Get an aiobotocore client to use for async operations."""
+        if not self.client_type:
+            raise ValueError("client_type must be specified.")
+
+        return self.get_client_type(region_name=self.region_name, deferrable=True)
 
     @cached_property
     def conn_client_meta(self) -> ClientMeta:
@@ -753,18 +811,35 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         path = Path(__file__).parents[1].joinpath(f"waiters/{filename}.json").resolve()
         return path if path.exists() else None
 
-    def get_waiter(self, waiter_name: str, parameters: dict[str, str] | None = None) -> Waiter:
+    def get_waiter(
+        self,
+        waiter_name: str,
+        parameters: dict[str, str] | None = None,
+        deferrable: bool = False,
+        client=None,
+    ) -> Waiter:
         """
         First checks if there is a custom waiter with the provided waiter_name and
         uses that if it exists, otherwise it will check the service client for a
         waiter that matches the name and pass that through.
+
+        If `deferrable` is True, the waiter will be an AIOWaiter, generated from the
+        client that is passed as a parameter. If `deferrable` is True, `client` must be
+        provided.
 
         :param waiter_name: The name of the waiter.  The name should exactly match the
             name of the key in the waiter model file (typically this is CamelCase).
         :param parameters: will scan the waiter config for the keys of that dict, and replace them with the
             corresponding value. If a custom waiter has such keys to be expanded, they need to be provided
             here.
+        :param deferrable: If True, the waiter is going to be an async custom waiter.
+
         """
+        from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
+
+        if deferrable and not client:
+            raise ValueError("client must be provided for a deferrable waiter.")
+        client = client or self.conn
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
@@ -772,7 +847,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 config = json.loads(config_file.read())
 
             config = self._apply_parameters_value(config, waiter_name, parameters)
-            return BaseBotoWaiter(client=self.conn, model_config=config).waiter(waiter_name)
+            return BaseBotoWaiter(client=client, model_config=config, deferrable=deferrable).waiter(
+                waiter_name
+            )
         # If there is no custom waiter found for the provided name,
         # then try checking the service's official waiters.
         return self.conn.get_waiter(waiter_name)
@@ -941,7 +1018,7 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
             aio_session.set_config_variable("region", region_name)
         return aio_session
 
-    def create_session(self) -> AioSession:
+    def create_session(self, deferrable: bool = False) -> AioSession:
         """Create aiobotocore Session from connection and config."""
         if not self._conn:
             self.log.info("No connection ID provided. Fallback on boto3 credential strategy")

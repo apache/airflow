@@ -70,6 +70,7 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
     AirflowSkipException,
+    DagInvalidTriggerRule,
     DuplicateTaskIdFound,
     RemovedInAirflow3Warning,
     TaskNotFound,
@@ -356,6 +357,9 @@ class DAG(LoggingMixin):
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
+    :param fail_stop: Fails currently running tasks when task in DAG fails.
+        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
+        An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     """
 
     _comps = {
@@ -418,6 +422,7 @@ class DAG(LoggingMixin):
         tags: list[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
+        fail_stop: bool = False,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -600,6 +605,8 @@ class DAG(LoggingMixin):
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
         self.auto_register = auto_register
+
+        self.fail_stop = fail_stop
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
@@ -2461,6 +2468,8 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
+        DagInvalidTriggerRule.check(self, task.trigger_rule)
+
         from airflow.utils.task_group import TaskGroupContext
 
         if not self.start_date and not task.start_date:
@@ -3163,6 +3172,7 @@ class DAG(LoggingMixin):
                 "has_on_success_callback",
                 "has_on_failure_callback",
                 "auto_register",
+                "fail_stop",
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id="test")).keys()) - exclusion_list
         return cls.__serialized_fields
@@ -3638,6 +3648,7 @@ def dag(
     tags: list[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
+    fail_stop: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3691,6 +3702,7 @@ def dag(
                 schedule=schedule,
                 owner_links=owner_links,
                 auto_register=auto_register,
+                fail_stop=fail_stop,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:

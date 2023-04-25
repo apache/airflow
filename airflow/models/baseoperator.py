@@ -53,7 +53,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred
+from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -800,6 +800,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+
+        DagInvalidTriggerRule.check(dag, trigger_rule)
 
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:

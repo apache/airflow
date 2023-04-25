@@ -84,6 +84,7 @@ class TestDatabricksExecutionTrigger:
             run_id=RUN_ID,
             databricks_conn_id=DEFAULT_CONN_ID,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
         )
 
     def test_serialize(self):
@@ -93,6 +94,10 @@ class TestDatabricksExecutionTrigger:
                 "run_id": RUN_ID,
                 "databricks_conn_id": DEFAULT_CONN_ID,
                 "polling_period_seconds": POLLING_INTERVAL_SECONDS,
+                "retry_delay": 10,
+                "retry_limit": 3,
+                "retry_args": None,
+                "run_page_url": RUN_PAGE_URL,
             },
         )
 
@@ -121,10 +126,9 @@ class TestDatabricksExecutionTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
-    async def test_sleep_between_retries(self, mock_get_run_state, mock_get_run_page_url, mock_sleep):
-        mock_get_run_page_url.return_value = RUN_PAGE_URL
+    async def test_sleep_between_retries(self, mock_get_run_state, mock_sleep):
+
         mock_get_run_state.side_effect = [
             RunState(
                 life_cycle_state=LIFE_CYCLE_STATE_PENDING,

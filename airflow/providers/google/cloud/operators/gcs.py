@@ -163,8 +163,8 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
     XCom in the downstream task.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :param prefix: Prefix string which filters objects whose name begin with
-           this prefix. (templated)
+    :param prefix: String or list of strings, which filter objects whose name begin with
+           it/them. (templated)
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For example, to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
@@ -206,7 +206,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         self,
         *,
         bucket: str,
-        prefix: str | None = None,
+        prefix: str | list[str] | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -220,14 +220,13 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> list:
-
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info(
-            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
+            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix(es): %s",
             self.bucket,
             self.delimiter,
             self.prefix,
@@ -239,7 +238,6 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
             uri=self.bucket,
             project_id=hook.project_id,
         )
-
         return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
 
@@ -252,8 +250,8 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     :param bucket_name: The GCS bucket to delete from
     :param objects: List of objects to delete. These should be the names
         of objects in the bucket, not including gs://bucket/
-    :param prefix: Prefix of objects to delete. All objects matching this
-        prefix in the bucket will be deleted.
+    :param prefix: String or list of strings, which filter objects whose name begin with
+           it/them. (templated)
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -307,7 +305,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = self.objects
         else:
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
-
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)

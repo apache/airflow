@@ -1230,10 +1230,9 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
-    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, mocked_conf_file):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
