@@ -24,7 +24,11 @@ import pytest
 from gcloud.aio.storage import Bucket, Storage
 
 from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
-from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger, GCSPrefixBlobTrigger, GCSCheckBlobUpdateTimeTrigger
+from airflow.providers.google.cloud.triggers.gcs import (
+    GCSBlobTrigger,
+    GCSCheckBlobUpdateTimeTrigger,
+    GCSPrefixBlobTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
