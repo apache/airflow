@@ -442,7 +442,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         deferrable: bool = False,
         poll_interval: int = 10,
-        max_attempts: int = 15,
+        max_attempts: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -450,11 +450,12 @@ class RedshiftResumeClusterOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.deferrable = deferrable
         self.max_attempts = max_attempts
+        self.poll_interval = poll_interval
         # These parameters are used to address an issue with the boto3 API where the API
         # prematurely reports the cluster as available to receive requests. This causes the cluster
         # to reject initial attempts to resume the cluster despite reporting the correct state.
-        self.poll_interval = poll_interval
-        self._attempts = max_attempts
+        self._attempts = 10
+        self._attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
@@ -468,7 +469,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
 
                 if self._attempts > 0:
                     self.log.error("Unable to resume cluster. %d attempts remaining.", self._attempts)
-                    time.sleep(self.poll_interval)
+                    time.sleep(self._attempt_interval)
                 else:
                     raise error
         self.log.info("Starting resume cluster")
@@ -487,6 +488,8 @@ class RedshiftResumeClusterOperator(BaseOperator):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error resuming cluster: {event}")
+        else:
+            self.log.info("Resumed cluster successfully")
         return
 
 

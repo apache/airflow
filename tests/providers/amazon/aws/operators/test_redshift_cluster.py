@@ -31,7 +31,10 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterTrigger,
+    RedshiftResumeClusterTrigger,
+)
 
 
 class TestRedshiftCreateClusterOperator:
@@ -285,16 +288,10 @@ class TestResumeClusterOperator:
             redshift_operator.execute(None)
         assert mock_conn.resume_cluster.call_count == 10
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async")
-    def test_resume_cluster(self, mock_async_client, mock_async_resume_cluster, mock_sync_cluster_status):
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_resume_cluster_deferrable(self, mock_get_conn):
         """Test Resume cluster operator run"""
-        mock_sync_cluster_status.return_value = "paused"
-        mock_async_client.return_value.resume_cluster.return_value = {
-            "Cluster": {"ClusterIdentifier": "test_cluster", "ClusterStatus": "resuming"}
-        }
-        mock_async_resume_cluster.return_value = {"status": "success", "cluster_state": "available"}
+        mock_get_conn.resume_cluster.return_value = True
 
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test",
@@ -307,22 +304,11 @@ class TestResumeClusterOperator:
             redshift_operator.execute({})
 
         assert isinstance(
-            exc.value.trigger, RedshiftClusterTrigger
-        ), "Trigger is not a RedshiftClusterTrigger"
+            exc.value.trigger, RedshiftResumeClusterTrigger
+        ), "Trigger is not a RedshiftResumeClusterTrigger"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async")
-    def test_resume_cluster_failure(
-        self, mock_async_client, mock_async_resume_cluster, mock_sync_cluster_statue
-    ):
+    def test_resume_cluster_failure(self):
         """Test Resume cluster operator Failure"""
-        mock_sync_cluster_statue.return_value = "paused"
-        mock_async_client.return_value.resume_cluster.return_value = {
-            "Cluster": {"ClusterIdentifier": "test_cluster", "ClusterStatus": "resuming"}
-        }
-        mock_async_resume_cluster.return_value = {"status": "success", "cluster_state": "available"}
-
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test",
             cluster_identifier="test_cluster",
