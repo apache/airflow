@@ -324,7 +324,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         poll_interval: int = 15,
         max_attempt: int = 20,
         aws_conn_id: str = "aws_default",
-        deferrable: bool = True,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -376,6 +376,8 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error creating snapshot: {event}")
+        else:
+            self.log.info("Cluster snapshot created.")
         return
 
 

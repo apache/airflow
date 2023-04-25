@@ -31,7 +31,10 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterTrigger,
+    RedshiftCreateClusterSnapshotTrigger,
+)
 
 
 class TestRedshiftCreateClusterOperator:
@@ -190,6 +193,23 @@ class TestRedshiftCreateClusterSnapshotOperator:
             ClusterIdentifier="test_cluster",
             WaiterConfig={"Delay": 15, "MaxAttempts": 20},
         )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.create_cluster_snapshot")
+    def test_create_cluster_snapshot_deferred(self, mock_create_cluster_snapshot, mock_cluster_status):
+        mock_cluster_status.return_value = "available"
+        mock_create_cluster_snapshot.return_value = True
+        create_snapshot = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            create_snapshot.execute(None)
+        assert isinstance(
+            exc.value.trigger, RedshiftCreateClusterSnapshotTrigger
+        ), "Trigger is not a RedshiftCreateClusterSnapshotTrigger"
 
 
 class TestRedshiftDeleteClusterSnapshotOperator:
