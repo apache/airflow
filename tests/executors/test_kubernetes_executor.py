@@ -36,6 +36,7 @@ from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
+from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
 try:
@@ -50,7 +51,6 @@ try:
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
     from airflow.kubernetes.pod_generator import PodGenerator
-    from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
@@ -573,6 +573,34 @@ class TestKubernetesExecutor:
             assert executor.running == set()
             mock_delete_pod.assert_not_called()
             mock_patch_pod.assert_called_once_with(pod_name="pod_id", namespace="test-namespace")
+        finally:
+            executor.end()
+
+    @pytest.mark.parametrize(
+        "ti_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.DEFERRED]
+    )
+    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
+    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    def test_change_state_none(
+        self,
+        mock_delete_pod,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        ti_state,
+        create_task_instance,
+    ):
+        """Ensure that when change_state gets state=None, it looks up the TI state from the db"""
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            ti = create_task_instance(state=ti_state)
+            key = ti.key
+            executor.running = {key}
+            executor._change_state(key, None, "pod_name", "default")
+            assert executor.event_buffer[key][0] == ti_state
+            assert executor.running == set()
+            mock_delete_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
         finally:
             executor.end()
 
@@ -1207,7 +1235,8 @@ class TestKubernetesJobWatcher:
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()
-        self.assert_watcher_queue_called_once_with_state(State.SUCCESS)
+        # We don't know the TI state, so we send in None
+        self.assert_watcher_queue_called_once_with_state(None)
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"
