@@ -31,7 +31,10 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterTrigger,
+    RedshiftDeleteClusterTrigger,
+)
 
 
 class TestRedshiftCreateClusterOperator:
@@ -481,3 +484,21 @@ class TestDeleteClusterOperator:
             redshift_operator.execute(None)
 
         assert mock_delete_cluster.call_count == 10
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
+    def test_delete_cluster_deferrable(self, mock_delete_cluster):
+        mock_delete_cluster.return_value = True
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            redshift_operator.execute(None)
+
+        assert isinstance(
+            exc.value.trigger, RedshiftDeleteClusterTrigger
+        ), "Trigger is not a RedshiftDeleteClusterTrigger"
