@@ -41,6 +41,7 @@ from tests.test_utils.config import conf_vars
 
 try:
     from airflow.executors.kubernetes_executor import (
+        POD_EXECUTOR_DONE_KEY,
         AirflowKubernetesScheduler,
         KubernetesExecutor,
         KubernetesJobWatcher,
@@ -1184,6 +1185,7 @@ class TestKubernetesJobWatcher:
                 annotations={"airflow-worker": "bar", **self.core_annotations},
                 namespace="airflow",
                 resource_version="456",
+                labels={},
             ),
             status=k8s.V1PodStatus(phase="Pending"),
         )
@@ -1237,6 +1239,29 @@ class TestKubernetesJobWatcher:
         self._run()
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
+
+    def test_process_status_succeeded_dedup_label(self):
+        self.pod.status.phase = "Succeeded"
+        self.pod.metadata.labels[POD_EXECUTOR_DONE_KEY] = "True"
+        self.events.append({"type": "MODIFIED", "object": self.pod})
+
+        self._run()
+        self.watcher.watcher_queue.put.assert_not_called()
+
+    def test_process_status_succeeded_dedup_timestamp(self):
+        self.pod.status.phase = "Succeeded"
+        self.pod.metadata.deletion_timestamp = datetime.utcnow()
+        self.events.append({"type": "MODIFIED", "object": self.pod})
+
+        self._run()
+        self.watcher.watcher_queue.put.assert_not_called()
+
+    def test_process_status_succeeded_type_delete(self):
+        self.pod.status.phase = "Succeeded"
+        self.events.append({"type": "DELETED", "object": self.pod})
+
+        self._run()
+        self.watcher.watcher_queue.put.assert_not_called()
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"

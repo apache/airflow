@@ -227,6 +227,22 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.error("Event: %s Failed", pod_name)
             self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
         elif status == "Succeeded":
+            # We get multiple events once the pod hits a terminal state, and we only want to
+            # send it along to the scheduler once.
+            # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
+            # a deletion timestamp, we've already seen the initial Succeeded event and sent it
+            # along to the scheduler.
+            pod = event["object"]
+            if (
+                event["type"] == "DELETED"
+                or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
+                or pod.metadata.deletion_timestamp
+            ):
+                self.log.info(
+                    "Skipping event for Succeeded pod %s - event for this pod already sent to executor",
+                    pod_name,
+                )
+                return
             self.log.info("Event: %s Succeeded", pod_name)
             self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
         elif status == "Running":
@@ -754,25 +770,12 @@ class KubernetesExecutor(BaseExecutor):
             self.running.remove(key)
         except KeyError:
             self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
-        else:
-            # We get multiple events once the pod hits a terminal state, and we only want to
-            # do this once, so only do it when we remove the task from running
 
-            # If we don't have a TI state, look it up from the db. event_buffer expects the TI state
-            if state is None:
-                state = (
-                    session.query(TaskInstance.state)
-                    .filter(
-                        TaskInstance.dag_id == key.dag_id,
-                        TaskInstance.task_id == key.task_id,
-                        TaskInstance.run_id == key.run_id,
-                        TaskInstance.map_index == key.map_index,
-                    )
-                    .scalar()
-                )
-                # session.query(TaskInstance.state).filter(TaskInstance.filter_for_tis([key])).scalar()
+        # If we don't have a TI state, look it up from the db. event_buffer expects the TI state
+        if state is None:
+            state = session.query(TaskInstance.state).filter(TaskInstance.filter_for_tis([key])).scalar()
 
-            self.event_buffer[key] = state, None
+        self.event_buffer[key] = state, None
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
