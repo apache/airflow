@@ -85,7 +85,7 @@ Custom Roles
 DAG Level Role
 ^^^^^^^^^^^^^^
 ``Admin`` can create a set of roles which are only allowed to view a certain set of DAGs. This is called DAG level access. Each DAG defined in the DAG model table
-is treated as a ``View`` which has two permissions associated with it (``can_read`` and ``can_edit``. ``can_dag_read`` and ``can_dag_edit`` are deprecated since 2.0.0).
+is treated as a ``View`` which has three permissions associated with it (``can_read``, ``can_edit`` and ``can_pause``. ``can_dag_read`` and ``can_dag_edit`` are deprecated since 2.0.0).
 There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.*) which
 allows the role to access all the DAGs. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``DAGs`` view.
 
@@ -141,7 +141,7 @@ Endpoint                                                                        
 /dagSources/{file_token}                                                           GET    DAG Code.can_read                                                 Viewer
 /dags                                                                              GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}                                                                     GET    DAGs.can_read                                                     Viewer
-/dags/{dag_id}                                                                     PATCH  DAGs.can_edit                                                     User
+/dags/{dag_id}                                                                     PATCH  DAGs.can_pause                                                    User
 /dags/{dag_id}/clearTaskInstances                                                  POST   DAGs.can_edit, DAG Runs.can_read, Task Instances.can_edit         User
 /dags/{dag_id}/details                                                             GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
@@ -237,7 +237,7 @@ Get DAG as graph                       DAGs.can_read, Task Instances.can_read,  
 Get DAG as duration graph              DAGs.can_read, Task Instances.can_read                                  Viewer
 Show all tries                         DAGs.can_read, Task Instances.can_read                                  Viewer
 Show landing times                     DAGs.can_read, Task Instances.can_read                                  Viewer
-Toggle DAG paused status               DAGs.can_edit                                                           User
+Toggle DAG paused status               DAGs.can_pause                                                          User
 Show Gantt Chart                       DAGs.can_read, Task Instances.can_read                                  Viewer
 Get external links                     DAGs.can_read, Task Instances.can_read                                  Viewer
 Show Task Instances                    DAGs.can_read, Task Instances.can_read                                  Viewer

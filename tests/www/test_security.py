@@ -59,6 +59,7 @@ pytestmark = pytest.mark.db_test
 
 READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
 READ_ONLY = {permissions.ACTION_CAN_READ}
+READ_PAUSE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_PAUSE}
 
 logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 logging.getLogger().setLevel(logging.DEBUG)
@@ -843,6 +844,9 @@ def test_access_control_stale_perms_are_revoked(
 ):
     username = "access_control_stale_perms_are_revoked"
     role_name = "team-a"
+    dag_id = "access_control_test"
+    dag_pause_permission = (permissions.ACTION_CAN_PAUSE, f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}")
+
     with app.app_context():
         with create_user_scope(
             app,
@@ -862,6 +866,15 @@ def test_access_control_stale_perms_are_revoked(
             # Clear the cache, to make it pick up new rol perms
             user._perms = None
             assert_user_has_dag_perms(perms=["GET"], dag_id="access_control_test", user=user)
+            assert_user_does_not_have_dag_perms(perms=["PATCH"], dag_id="access_control_test", user=user)
+            assert_user_does_not_have_dag_perms(perms=["PUT"], dag_id="access_control_test", user=user)
+            security_manager._sync_dag_view_permissions(
+                "access_control_test", access_control={"team-a": READ_PAUSE}
+            )
+            # Clear the cache, to make it pick up new rol perms
+            user._perms = None
+            assert_user_has_dag_perms(perms=["GET"], dag_id="access_control_test", user=user)
+            assert_user_has_dag_perms(perms=["PATCH"], dag_id="access_control_test", user=user)
             assert_user_does_not_have_dag_perms(perms=["PUT"], dag_id="access_control_test", user=user)
 
 
