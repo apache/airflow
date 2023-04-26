@@ -313,7 +313,6 @@ class TestGKEPodOperatorAsync:
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
 
-    @mock.patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @mock.patch.dict(os.environ, {})
     @mock.patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @mock.patch(KUB_OP_PATH.format("get_or_create_pod"))
@@ -323,7 +322,7 @@ class TestGKEPodOperatorAsync:
     )
     @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_async_create_pod_should_execute_successfully(
-        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj, mocked_config
+        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj
     ):
         """
         Asserts that a task is deferred and the GKEStartPodTrigger will be fired

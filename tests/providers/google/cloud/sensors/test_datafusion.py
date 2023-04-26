@@ -32,7 +32,6 @@ PIPELINE_NAME = "shrubberyPipeline"
 PIPELINE_ID = "test_pipeline_id"
 PROJECT_ID = "test_project_id"
 GCP_CONN_ID = "test_conn_id"
-DELEGATE_TO = "test_delegate_to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 FAILURE_STATUSES = {"FAILED"}
 
@@ -58,7 +57,6 @@ class TestCloudDataFusionPipelineStateSensor:
             instance_name=INSTANCE_NAME,
             location=LOCATION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
@@ -69,7 +67,6 @@ class TestCloudDataFusionPipelineStateSensor:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
@@ -91,7 +88,6 @@ class TestCloudDataFusionPipelineStateSensor:
             instance_name=INSTANCE_NAME,
             location=LOCATION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
@@ -117,7 +113,6 @@ class TestCloudDataFusionPipelineStateSensor:
             instance_name=INSTANCE_NAME,
             location=LOCATION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 

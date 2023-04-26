@@ -299,7 +299,13 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
 We also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided.
+without any cert options provided. If you wish to use ``mysql-connector-python`` driver, please install it with extras.
+
+.. code-block:: text
+
+   $ pip install mysql-connector-python
+
+The connection string in this case should look like:
 
 .. code-block:: text
 

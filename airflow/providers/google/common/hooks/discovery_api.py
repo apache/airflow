@@ -18,7 +18,6 @@
 """This module allows you to connect to the Google Discovery API Service and query it."""
 from __future__ import annotations
 
-import warnings
 from typing import Sequence
 
 from googleapiclient.discovery import Resource, build
@@ -54,16 +53,10 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         api_service_name: str,
         api_version: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.api_service_name = api_service_name

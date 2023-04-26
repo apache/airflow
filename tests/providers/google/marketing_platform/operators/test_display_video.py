@@ -26,14 +26,11 @@ import pytest
 from airflow.models import DAG, TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateQueryOperator,
-    GoogleDisplayVideo360CreateReportOperator,
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
     GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadLineItemsOperator,
-    GoogleDisplayVideo360DownloadReportOperator,
     GoogleDisplayVideo360DownloadReportV2Operator,
     GoogleDisplayVideo360RunQueryOperator,
-    GoogleDisplayVideo360RunReportOperator,
     GoogleDisplayVideo360SDFtoGCSOperator,
     GoogleDisplayVideo360UploadLineItemsOperator,
 )
@@ -53,44 +50,6 @@ QUERY_ID = FILENAME = "test"
 OBJECT_NAME = "object_name"
 
 
-class TestGoogleDisplayVideo360CreateReportOperator:
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators."
-        "display_video.GoogleDisplayVideo360CreateReportOperator.xcom_push"
-    )
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
-    )
-    def test_execute(self, hook_mock, xcom_mock):
-        body = {"body": "test"}
-        hook_mock.return_value.create_query.return_value = {"queryId": QUERY_ID}
-        op = GoogleDisplayVideo360CreateReportOperator(
-            body=body, api_version=API_VERSION, task_id="test_task"
-        )
-        op.execute(context=None)
-        hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
-        )
-        hook_mock.return_value.create_query.assert_called_once_with(query=body)
-        xcom_mock.assert_called_once_with(None, key="report_id", value=QUERY_ID)
-
-    def test_prepare_template(self):
-        body = {"key": "value"}
-        with NamedTemporaryFile("w+", suffix=".json") as f:
-            f.write(json.dumps(body))
-            f.flush()
-            op = GoogleDisplayVideo360CreateReportOperator(
-                body=body, api_version=API_VERSION, task_id="test_task"
-            )
-            op.prepare_template()
-
-        assert isinstance(op.body, dict)
-        assert op.body == body
-
-
 class TestGoogleDisplayVideo360DeleteReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
@@ -107,135 +66,6 @@ class TestGoogleDisplayVideo360DeleteReportOperator:
             impersonation_chain=None,
         )
         hook_mock.return_value.delete_query.assert_called_once_with(query_id=QUERY_ID)
-
-
-class TestGoogleDisplayVideo360DownloadReportOperator:
-    def setup_method(self):
-        with create_session() as session:
-            session.query(TI).delete()
-
-    def teardown_method(self):
-        with create_session() as session:
-            session.query(TI).delete()
-
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.shutil")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.urllib.request")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.tempfile")
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators."
-        "display_video.GoogleDisplayVideo360DownloadReportOperator.xcom_push"
-    )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.GCSHook")
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
-    )
-    def test_execute(
-        self,
-        mock_hook,
-        mock_gcs_hook,
-        mock_xcom,
-        mock_temp,
-        mock_request,
-        mock_shutil,
-    ):
-        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
-        mock_hook.return_value.get_query.return_value = {
-            "metadata": {
-                "running": False,
-                "googleCloudStoragePathForLatestReport": "test",
-            }
-        }
-        op = GoogleDisplayVideo360DownloadReportOperator(
-            report_id=REPORT_ID,
-            api_version=API_VERSION,
-            bucket_name=BUCKET_NAME,
-            report_name=REPORT_NAME,
-            task_id="test_task",
-        )
-        op.execute(context=None)
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
-        )
-        mock_hook.return_value.get_query.assert_called_once_with(query_id=REPORT_ID)
-
-        mock_gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            impersonation_chain=None,
-        )
-        mock_gcs_hook.return_value.upload.assert_called_once_with(
-            bucket_name=BUCKET_NAME,
-            filename=FILENAME,
-            gzip=True,
-            mime_type="text/csv",
-            object_name=REPORT_NAME + ".gz",
-        )
-        mock_xcom.assert_called_once_with(None, key="report_name", value=REPORT_NAME + ".gz")
-
-    @pytest.mark.parametrize(
-        "test_bucket_name",
-        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"],
-    )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.shutil")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.urllib.request")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.tempfile")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.GCSHook")
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
-    )
-    def test_set_bucket_name(
-        self,
-        mock_hook,
-        mock_gcs_hook,
-        mock_temp,
-        mock_request,
-        mock_shutil,
-        test_bucket_name,
-    ):
-        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
-        mock_hook.return_value.get_query.return_value = {
-            "metadata": {
-                "running": False,
-                "googleCloudStoragePathForLatestReport": "test",
-            }
-        }
-
-        dag = DAG(
-            dag_id="test_set_bucket_name",
-            start_date=DEFAULT_DATE,
-            schedule=None,
-            catchup=False,
-        )
-
-        if BUCKET_NAME not in test_bucket_name:
-
-            @dag.task
-            def f():
-                return BUCKET_NAME
-
-            taskflow_op = f()
-            taskflow_op.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        op = GoogleDisplayVideo360DownloadReportOperator(
-            report_id=REPORT_ID,
-            api_version=API_VERSION,
-            bucket_name=test_bucket_name if test_bucket_name != "XComArg" else taskflow_op,
-            report_name=REPORT_NAME,
-            task_id="test_task",
-            dag=dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        mock_gcs_hook.return_value.upload.assert_called_once_with(
-            bucket_name=BUCKET_NAME,
-            filename=FILENAME,
-            gzip=True,
-            mime_type="text/csv",
-            object_name=REPORT_NAME + ".gz",
-        )
 
 
 class TestGoogleDisplayVideo360DownloadReportV2Operator:
@@ -362,28 +192,6 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
             mime_type="text/csv",
             object_name=REPORT_NAME + ".gz",
         )
-
-
-class TestGoogleDisplayVideo360RunReportOperator:
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360Hook"
-    )
-    def test_execute(self, hook_mock):
-        parameters = {"param": "test"}
-        op = GoogleDisplayVideo360RunReportOperator(
-            report_id=REPORT_ID,
-            parameters=parameters,
-            api_version=API_VERSION,
-            task_id="test_task",
-        )
-        op.execute(context=None)
-        hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
-        )
-        hook_mock.return_value.run_query.assert_called_once_with(query_id=REPORT_ID, params=parameters)
 
 
 class TestGoogleDisplayVideo360RunQueryOperator:

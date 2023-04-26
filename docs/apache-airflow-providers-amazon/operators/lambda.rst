@@ -28,7 +28,7 @@ You can set up your code to automatically trigger from other AWS services or cal
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

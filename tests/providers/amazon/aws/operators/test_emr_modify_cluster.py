@@ -63,12 +63,18 @@ class TestEmrModifyClusterOperator:
     def test_execute_returns_step_concurrency(self):
         self.emr_client_mock.modify_cluster.return_value = MODIFY_CLUSTER_SUCCESS_RETURN
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             assert self.operator.execute(self.mock_context) == 1
 
     def test_execute_returns_error(self):
         self.emr_client_mock.modify_cluster.return_value = MODIFY_CLUSTER_ERROR_RETURN
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.operator.execute(self.mock_context)

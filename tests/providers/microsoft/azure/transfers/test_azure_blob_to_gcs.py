@@ -29,7 +29,6 @@ BUCKET_NAME = "airflow"
 OBJECT_NAME = "file.txt"
 FILENAME = "file.txt"
 GZIP = False
-DELEGATE_TO = None
 IMPERSONATION_CHAIN = None
 TASK_ID = "transfer_file"
 
@@ -46,7 +45,6 @@ class TestAzureBlobStorageToGCSTransferOperator:
             object_name=OBJECT_NAME,
             filename=FILENAME,
             gzip=GZIP,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             task_id=TASK_ID,
         )
@@ -59,7 +57,6 @@ class TestAzureBlobStorageToGCSTransferOperator:
         assert operator.object_name == OBJECT_NAME
         assert operator.filename == FILENAME
         assert operator.gzip == GZIP
-        assert operator.delegate_to == DELEGATE_TO
         assert operator.impersonation_chain == IMPERSONATION_CHAIN
         assert operator.task_id == TASK_ID
 
@@ -77,7 +74,6 @@ class TestAzureBlobStorageToGCSTransferOperator:
             object_name=OBJECT_NAME,
             filename=FILENAME,
             gzip=GZIP,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             task_id=TASK_ID,
         )
@@ -91,7 +87,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
             blob_name=BLOB_NAME,
         )
         mock_hook_gcs.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO, impersonation_chain=IMPERSONATION_CHAIN
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
         )
         mock_hook_gcs.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET_NAME,

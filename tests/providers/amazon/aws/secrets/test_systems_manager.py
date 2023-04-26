@@ -81,27 +81,6 @@ class TestSsmSecrets:
         assert test_conn.extra_dejson == {"param1": "val1", "param2": "val2"}
 
     @mock_ssm
-    @pytest.mark.parametrize("ssm_value", [JSON_CONNECTION, URI_CONNECTION])
-    def test_deprecated_get_conn_uri(self, ssm_value):
-        param = {
-            "Name": "/airflow/connections/test_postgres",
-            "Type": "String",
-            "Value": ssm_value,
-        }
-
-        ssm_backend = SystemsManagerParameterStoreBackend()
-        ssm_backend.client.put_parameter(**param)
-
-        warning_message = (
-            r"Method `.*\.get_conn_uri` is deprecated and will be removed in a future release\. "
-            r"Please use method `get_conn_value` instead\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
-
-        assert returned_uri == "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2"
-
-    @mock_ssm
     def test_get_conn_value_non_existent_key(self):
         """
         Test that if the key with connection ID is not present in SSM,

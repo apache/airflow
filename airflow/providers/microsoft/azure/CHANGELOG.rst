@@ -24,6 +24,23 @@
 Changelog
 ---------
 
+6.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's param ``delegate_to`` is removed from ``AzureBlobStorageToGCSOperator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+Misc
+~~~~
+
+* ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
+
 5.3.1
 .....
 
@@ -31,10 +48,12 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix AzureDataFactoryPipelineRunLink get_link method (#30514)``
+* ``Load subscription_id from extra__azure__subscriptionId (#30556)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add mechanism to suspend providers (#30422)``
+   * ``Prepare docs for ad hoc release of Providers (#30545)``
 
 5.3.0
 .....
@@ -54,6 +73,7 @@ Bug Fixes
 
 Misc
 ~~~~
+
 * ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
 * ``Expose missing params in AzureSynapseHook API docs (#30099)``
 

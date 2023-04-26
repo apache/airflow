@@ -29,9 +29,11 @@ class TestNeo4jHookConn:
         "conn_extra, expected_uri",
         [
             ({}, "bolt://host:7687"),
-            ({"bolt_scheme": True}, "bolt://host:7687"),
-            ({"certs_self_signed": True, "bolt_scheme": True}, "bolt+ssc://host:7687"),
-            ({"certs_trusted_ca": True, "bolt_scheme": True}, "bolt+s://host:7687"),
+            ({"neo4j_scheme": False}, "bolt://host:7687"),
+            ({"certs_self_signed": True, "neo4j_scheme": False}, "bolt+ssc://host:7687"),
+            ({"certs_trusted_ca": True, "neo4j_scheme": False}, "bolt+s://host:7687"),
+            ({"certs_self_signed": True, "neo4j_scheme": True}, "neo4j+ssc://host:7687"),
+            ({"certs_trusted_ca": True, "neo4j_scheme": True}, "neo4j+s://host:7687"),
         ],
     )
     def test_get_uri_neo4j_scheme(self, conn_extra, expected_uri):
@@ -101,3 +103,39 @@ class TestNeo4jHookConn:
             )
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
+
+    @pytest.mark.parametrize(
+        "conn_extra, should_provide_encrypted, expected_encrypted",
+        [
+            ({}, True, False),
+            ({"neo4j_scheme": False, "encrypted": True}, True, True),
+            ({"certs_self_signed": False, "neo4j_scheme": False, "encrypted": False}, True, False),
+            ({"certs_trusted_ca": False, "neo4j_scheme": False, "encrypted": False}, True, False),
+            ({"certs_self_signed": False, "neo4j_scheme": True, "encrypted": False}, True, False),
+            ({"certs_trusted_ca": False, "neo4j_scheme": True, "encrypted": False}, True, False),
+            ({"certs_self_signed": True, "neo4j_scheme": False, "encrypted": False}, False, None),
+            ({"certs_trusted_ca": True, "neo4j_scheme": False, "encrypted": False}, False, None),
+            ({"certs_self_signed": True, "neo4j_scheme": True, "encrypted": False}, False, None),
+            ({"certs_trusted_ca": True, "neo4j_scheme": True, "encrypted": False}, False, None),
+        ],
+    )
+    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase.driver")
+    def test_encrypted_provided(
+        self, mock_graph_database, conn_extra, should_provide_encrypted, expected_encrypted
+    ):
+        connection = Connection(
+            conn_type="neo4j",
+            login="login",
+            password="password",
+            host="host",
+            schema="schema",
+            extra=conn_extra,
+        )
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+            neo4j_hook = Neo4jHook()
+            with neo4j_hook.get_conn():
+                if should_provide_encrypted:
+                    assert "encrypted" in mock_graph_database.call_args[1]
+                    assert mock_graph_database.call_args[1]["encrypted"] == expected_encrypted
+                else:
+                    assert "encrypted" not in mock_graph_database.call_args[1]

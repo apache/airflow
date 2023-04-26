@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-==========
-Amazon SQS
-==========
+=================================
+Amazon Simple Queue Service (SQS)
+=================================
 
 `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sqs/>`__  is a fully managed message queuing
 service that enables you to decouple and scale microservices, distributed systems, and serverless
@@ -29,7 +29,7 @@ or requiring other services to be available.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
