@@ -47,6 +47,8 @@ _extractors: list[type[BaseExtractor]] = list(
         [
             PythonExtractor,
             BashExtractor,
+            try_import_from_string("airflow.providers.openlineage.extractors.ftp.FTPExtractor"),
+            try_import_from_string("airflow.providers.openlineage.extractors.sftp.SFTPExtractor"),
         ],
     )
 )
