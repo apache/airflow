@@ -326,11 +326,13 @@ class TestGlueJobHook:
             {"events": [], "searchedLogStreams": [], "ResponseMetadata": {"HTTPStatusCode": 200}},
         ]
 
+        tokens = GlueJobHook.LogContinuationTokens()
         with caplog.at_level("INFO"):
-            continuation = hook.print_job_logs("name", "run")
+            hook.print_job_logs("name", "run", tokens)
 
         assert "\thello\n\tworld\n" in caplog.text
-        assert continuation == ("my_continuation_token", "my_continuation_token")
+        assert tokens.output_stream_continuation == "my_continuation_token"
+        assert tokens.error_stream_continuation == "my_continuation_token"
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
     @mock.patch.object(GlueJobHook, "conn")
@@ -341,7 +343,9 @@ class TestGlueJobHook:
             {"Error": {"Code": "ResourceNotFoundException"}}, "op"
         )
 
-        continuation = hook.print_job_logs("name", "run")  # should not error
+        tokens = GlueJobHook.LogContinuationTokens()
+        hook.print_job_logs("name", "run", tokens)  # should not error
 
-        assert continuation == (None, None)
+        assert tokens.output_stream_continuation is None
+        assert tokens.error_stream_continuation is None
         assert client_mock().get_paginator().paginate.call_count == 2

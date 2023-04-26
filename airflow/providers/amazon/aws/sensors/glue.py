@@ -60,7 +60,7 @@ class GlueJobSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_states: list[str] = ["SUCCEEDED"]
         self.errored_states: list[str] = ["FAILED", "STOPPED", "TIMEOUT"]
-        self.next_log_tokens: tuple[str | None, str | None] = (None, None)
+        self.next_log_tokens = GlueJobHook.LogContinuationTokens()
 
     @cached_property
     def hook(self):
@@ -82,7 +82,7 @@ class GlueJobSensor(BaseSensorOperator):
                 return False
         finally:
             if self.verbose:
-                self.next_log_tokens = self.hook.print_job_logs(
+                self.hook.print_job_logs(
                     job_name=self.job_name,
                     run_id=self.run_id,
                     continuation_tokens=self.next_log_tokens,

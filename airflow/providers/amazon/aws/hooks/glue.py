@@ -55,6 +55,13 @@ class GlueJobHook(AwsBaseHook):
 
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
 
+    class LogContinuationTokens:
+        """Used to hold the continuation tokens when reading logs from both streams Glue Jobs write to."""
+
+        def __init__(self):
+            self.output_stream_continuation: str | None = None
+            self.error_stream_continuation: str | None = None
+
     def __init__(
         self,
         s3_bucket: str | None = None,
@@ -191,9 +198,14 @@ class GlueJobHook(AwsBaseHook):
         self,
         job_name: str,
         run_id: str,
-        continuation_tokens: tuple[str | None, str | None] = (None, None),
-    ) -> tuple[str | None, str | None]:
-        """Prints the batch of logs to the Airflow task log and returns nextToken."""
+        continuation_tokens: LogContinuationTokens,
+    ):
+        """
+        Prints the batch of logs to the Airflow task log and returns nextToken.
+
+        :param continuation_tokens: the tokens where to resume from when reading logs.
+            The object gets updated with the new tokens by this method.
+        """
         log_client = boto3.client("logs")
         paginator = log_client.get_paginator("filter_log_events")
 
@@ -235,11 +247,12 @@ class GlueJobHook(AwsBaseHook):
 
         # one would think that the error log group would contain only errors, but it actually contains
         # a lot of interesting logs too, so it's valuable to have both
-        next_tokens = display_logs_from(log_group_default, continuation_tokens[0]), display_logs_from(
-            log_group_error, continuation_tokens[1]
+        continuation_tokens.output_stream_continuation = display_logs_from(
+            log_group_default, continuation_tokens.output_stream_continuation
         )
-
-        return next_tokens
+        continuation_tokens.error_stream_continuation = display_logs_from(
+            log_group_error, continuation_tokens.error_stream_continuation
+        )
 
     def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
@@ -253,11 +266,10 @@ class GlueJobHook(AwsBaseHook):
         """
         failed_states = ["FAILED", "TIMEOUT"]
         finished_states = ["SUCCEEDED", "STOPPED"]
-        next_log_tokens: tuple[str | None, str | None] = (None, None)
-
+        next_log_tokens = self.LogContinuationTokens()
         while True:
             if verbose:
-                next_log_tokens = self.print_job_logs(
+                self.print_job_logs(
                     job_name=job_name,
                     run_id=run_id,
                     continuation_tokens=next_log_tokens,
