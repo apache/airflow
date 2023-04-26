@@ -201,7 +201,7 @@ class GlueJobHook(AwsBaseHook):
         continuation_tokens: LogContinuationTokens,
     ):
         """
-        Prints the batch of logs to the Airflow task log and returns nextToken.
+        Prints the latest job logs to the Airflow task log and updates the continuation tokens.
 
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
