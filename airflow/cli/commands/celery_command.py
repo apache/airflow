@@ -107,7 +107,7 @@ def logger_setup_handler(logger, **kwargs):
     * logs of severity error, and above goes to stderr,
     * logs of severity lower than error goes to stdout.
     """
-    if conf.getboolean("logging", "celery_logging_reset_and_split", fallback=False):
+    if conf.getboolean("logging", "celery_stdout_stderr_separation", fallback=False):
         celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
 
         class NoErrorOrAboveFilter(logging.Filter):
