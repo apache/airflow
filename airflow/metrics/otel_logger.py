@@ -33,7 +33,7 @@ from airflow.metrics.validators import AllowListValidator, validate_stat
 
 # This is currently the only UDC used.  If more are added, we should add a better system for this.
 UP_DOWN_COUNTERS = {"airflow.dag_processing.processes"}
-OTEL_NAME_MAX_LENGTH = 64
+OTEL_NAME_MAX_LENGTH = 63
 METRIC_NAME_PREFIX = "airflow."
 
 
@@ -192,7 +192,7 @@ class MetricsMap:
             del self.map[key]
 
 
-def get_otel_logger() -> SafeOtelLogger:
+def get_otel_logger(cls) -> SafeOtelLogger:
     """Get Otel logger"""
     host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
     port = conf.getint("metrics", "otel_port")  # ex: 4318
