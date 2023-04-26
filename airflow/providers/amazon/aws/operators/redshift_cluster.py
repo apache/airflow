@@ -507,7 +507,9 @@ class RedshiftPauseClusterOperator(BaseOperator):
 
     :param cluster_identifier: id of the AWS Redshift Cluster
     :param aws_conn_id: aws connection to use
-    :param deferrable: Run operator in the deferrable mode. This mode requires an additional aiobotocore>=
+    :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param max_attempts: Maximum number of attempts to poll the cluster
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
