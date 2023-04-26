@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import json
 from unittest import mock
+from unittest.mock import MagicMock
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_glue, mock_iam
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -303,3 +305,43 @@ class TestGlueJobHook:
         glue_job_run = glue_job_hook.initialize_job(some_script_arguments, some_run_kwargs)
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run["JobName"], glue_job_run["JobRunId"])
         assert glue_job_run_state == mock_job_run_state, "Mocks but be equal"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, client_mock: MagicMock, caplog):
+        hook = GlueJobHook()
+        conn_mock().get_job_run.return_value = {"JobRun": {"LogGroupName": "my_log_group"}}
+        client_mock().get_paginator().paginate.return_value = [
+            # first response : 2 log lines
+            {
+                "events": [
+                    {"logStreamName": "stream", "timestamp": 123, "message": "hello\n"},
+                    {"logStreamName": "stream", "timestamp": 123, "message": "world\n"},
+                ],
+                "searchedLogStreams": [],
+                "nextToken": "my_continuation_token",
+                "ResponseMetadata": {"HTTPStatusCode": 200},
+            },
+            # second response, reached end of stream
+            {"events": [], "searchedLogStreams": [], "ResponseMetadata": {"HTTPStatusCode": 200}},
+        ]
+
+        with caplog.at_level("INFO"):
+            continuation = hook.print_job_logs("name", "run")
+
+        assert "\thello\n\tworld\n" in caplog.text
+        assert continuation == ("my_continuation_token", "my_continuation_token")
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_print_job_logs_no_stream_yet(self, conn_mock: MagicMock, client_mock: MagicMock):
+        hook = GlueJobHook()
+        conn_mock().get_job_run.return_value = {"JobRun": {"LogGroupName": "my_log_group"}}
+        client_mock().get_paginator().paginate.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException"}}, "op"
+        )
+
+        continuation = hook.print_job_logs("name", "run")  # should not error
+
+        assert continuation == (None, None)
+        assert client_mock().get_paginator().paginate.call_count == 2
