@@ -72,7 +72,6 @@ dependencies:
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
   - mypy-boto3-appflow>=1.24.0
-  - aiobotocore[boto3]>=2.2.0
 
 integrations:
   - integration-name: Amazon Athena
@@ -610,7 +609,7 @@ additional-extras:
       - pandas>=0.17.1
   # There is conflict between boto3 and aiobotocore dependency botocore.
   # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-  # boto3 have native aync support and we move away from aio aiobotocore
+  # boto3 have native async support and we move away from aio aiobotocore
   - name: aiobotocore
     dependencies:
-      - aiobotocore>=2.1.1
+      - aiobotocore[boto3]>=2.2.0
