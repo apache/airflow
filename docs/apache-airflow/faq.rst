@@ -452,7 +452,6 @@ worker is unable to write the task's logs. This typically happens for one of two
 
 Setting retries for each task drastically reduces the chance that either of these problems impact a workflow.
 
-
 How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------
 
