@@ -38,7 +38,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_terminated,
 )
 from airflow.utils.timezone import utc
-from tests.test_utils.providers import get_provider_version, object_exists
 
 
 class TestPodManager:
@@ -352,20 +351,6 @@ class TestPodManager:
         assert len(container_running_mock.call_args_list) == is_running_calls
         assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone("UTC"))
         assert ret.running is exp_running
-
-    def test_pod_manager_get_client_call_deprecation(self):
-        """Ensure that kube_client.get_kube_client is removed from pod manager in provider 6.0."""
-        kube_client_path = "airflow.providers.cncf.kubernetes.utils.pod_manager.get_kube_client"
-        if not object_exists(kube_client_path):
-            raise Exception(
-                "You must remove this test. It only exists to remind us to remove `get_kube_client`."
-            )
-
-        if get_provider_version("apache-airflow-providers-cncf-kubernetes") >= (6, 0):
-            raise Exception(
-                "You must now remove `get_kube_client` from PodManager "
-                "and make kube_client a required argument."
-            )
 
     @pytest.mark.parametrize(
         "container_state, expected_is_terminated",

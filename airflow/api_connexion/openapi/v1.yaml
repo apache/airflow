@@ -1668,7 +1668,34 @@ paths:
 
     get:
       summary: Get logs
-      description: Get logs for a specific task instance and its try number.
+      description: |
+        Get logs for a specific task instance and its try number.
+        To get log from specific character position, following way of using
+        URLSafeSerializer can be used.
+
+        Example:
+        ```
+        from itsdangerous.url_safe import URLSafeSerializer
+
+        request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
+        key = app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"log_pos": 10000})
+
+        response = self.client.get(
+            request_url,
+            query_string={"token": token},
+            headers={"Accept": "text/plain"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        continuation_token = response.json["continuation_token"]
+            metadata = URLSafeSerializer(key).loads(continuation_token)
+            log_pos = metadata["log_pos"]
+            end_of_log = metadata["end_of_log"]
+        ```
+        If log_pos is passed as 10000 like the above example, it renders the logs starting
+        from char position 10000 to last (not the end as the logs may be tailing behind in
+        running state). This way pagination can be done with metadata as part of the token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
       operationId: get_log
       tags: [TaskInstance]

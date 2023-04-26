@@ -23,14 +23,15 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, text
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Query, Session, relationship
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.operator import Operator
+    from airflow.models.taskinstance import TaskInstance
 
 
 class TaskReschedule(Base):
@@ -75,14 +76,14 @@ class TaskReschedule(Base):
 
     def __init__(
         self,
-        task: BaseOperator,
+        task: Operator,
         run_id: str,
         try_number: int,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         reschedule_date: datetime.datetime,
         map_index: int = -1,
-    ):
+    ) -> None:
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.run_id = run_id
@@ -95,7 +96,12 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def query_for_task_instance(task_instance, descending=False, session=None, try_number=None):
+    def query_for_task_instance(
+        task_instance: TaskInstance,
+        descending: bool = False,
+        session: Session = NEW_SESSION,
+        try_number: int | None = None,
+    ) -> Query:
         """
         Returns query for task reschedules for a given the task instance.
 
@@ -123,7 +129,11 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def find_for_task_instance(task_instance, session=None, try_number=None):
+    def find_for_task_instance(
+        task_instance: TaskInstance,
+        session: Session = NEW_SESSION,
+        try_number: int | None = None,
+    ) -> list[TaskReschedule]:
         """
         Returns all task reschedules for the task instance and try number,
         in ascending order.

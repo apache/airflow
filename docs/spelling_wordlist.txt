@@ -300,6 +300,7 @@ cpu
 cpus
 crd
 createDisposition
+CreateQueryOperator
 creationTimestamp
 credssp
 Cron
@@ -319,6 +320,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+cwd
 cx
 Daemonize
 daemonize
@@ -425,6 +427,7 @@ deserialize
 Deserialized
 deserialized
 deserializer
+deserializes
 deserializing
 dest
 dev
@@ -443,6 +446,7 @@ discoverability
 discoverable
 diskTypes
 displayName
+DisplayVideo
 distcp
 distro
 distros
@@ -469,6 +473,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+DownloadReportV
 downscaling
 Drillbit
 Drivy
@@ -501,6 +506,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+encodable
 encryptor
 enqueue
 enqueued
@@ -638,6 +644,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+GoogleDisplayVideo
 gpu
 gpus
 greenlet
@@ -806,6 +813,8 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+Kafka
+kafka
 Kalibrr
 Kamil
 KEDA
@@ -1016,6 +1025,7 @@ OnFailure
 onkill
 Oozie
 openfaas
+openlineage
 oper
 Opsgenie
 opsgenie
@@ -1252,6 +1262,8 @@ rtype
 ru
 runAsUser
 runnable
+RunQueryOperator
+RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
@@ -1541,6 +1553,7 @@ undead
 Undeads
 ungenerated
 unicode
+unindent
 unittest
 unittests
 unix

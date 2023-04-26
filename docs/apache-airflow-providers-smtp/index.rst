@@ -52,7 +52,7 @@ Package apache-airflow-providers-smtp
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 1.0.0
+Release: 1.0.1
 
 Provider package
 ----------------

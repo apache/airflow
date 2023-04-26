@@ -34,6 +34,7 @@ from typing import Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.api_core.page_iterator import HTTPIterator
 from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -46,7 +47,7 @@ from google.cloud.bigquery import (
     SchemaField,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
-from google.cloud.bigquery.table import EncryptionConfiguration, Row, Table, TableReference
+from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
@@ -73,9 +74,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     Interact with BigQuery. This hook uses the Google Cloud connection.
 
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
-    :param delegate_to: This performs a task on one host with reference to other hosts.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
+    :param priority: Specifies a priority for the query.
+        Possible values include INTERACTIVE and BATCH.
+        The default value is INTERACTIVE.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
@@ -90,24 +93,26 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def __init__(
         self,
         gcp_conn_id: str = GoogleBaseHook.default_conn_name,
-        delegate_to: str | None = None,
         use_legacy_sql: bool = True,
         location: str | None = None,
+        priority: str = "INTERACTIVE",
         api_resource_configs: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
+        self.priority = priority
         self.running_job_id: str | None = None
         self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
         self.labels = labels
@@ -554,6 +559,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
 
+        This method is deprecated.
+        Please use `BigQueryHook.create_empty_table` method with passing the `table_resource` object
+
         for more details about these parameters.
 
         :param external_project_dataset_table:
@@ -743,6 +751,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Patch information in an existing table.
         It only updates fields that are provided in the request object.
 
+        This method is deprecated. Please use `BigQueryHook.update_table`
+
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
         :param dataset_id: The dataset containing the table to be patched.
@@ -928,6 +938,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Patches information in an existing dataset.
         It only replaces fields that are provided in the submitted dataset resource.
+
+        This method is deprecated. Please use `update_dataset`
+
         More info:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
 
@@ -972,6 +985,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Method returns tables list of a BigQuery tables. If table prefix is specified,
         only tables beginning by it are returned.
 
+        This method is deprecated. Please use `get_dataset_tables`
+
         For more information, see:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
 
@@ -1006,7 +1021,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         max_results: int | None = None,
         page_token: str | None = None,
         retry: Retry = DEFAULT_RETRY,
-    ) -> list[DatasetListItem]:
+        return_iterator: bool = False,
+    ) -> list[DatasetListItem] | HTTPIterator:
         """
         Method returns full list of BigQuery datasets in the current project
 
@@ -1026,8 +1042,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ``next_page_token`` of the :class:`~google.api_core.page_iterator.HTTPIterator`.
         :param page_token: str
         :param retry: How to retry the RPC.
+        :param return_iterator: Instead of returning a list[Row], returns a HTTPIterator
+            which can be used to obtain the next_page_token property.
         """
-        datasets = self.get_client(project_id=project_id).list_datasets(
+        iterator = self.get_client(project_id=project_id).list_datasets(
             project=project_id,
             include_all=include_all,
             filter=filter_,
@@ -1035,8 +1053,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             page_token=page_token,
             retry=retry,
         )
-        datasets_list = list(datasets)
 
+        # If iterator is requested, we cannot perform a list() on it to log the number
+        # of datasets because we will have started iteration
+        if return_iterator:
+            return iterator
+
+        datasets_list = list(iterator)
         self.log.info("Datasets List: %s", len(datasets_list))
         return datasets_list
 
@@ -1154,6 +1177,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         If the table does not exist, return an error unless ignore_if_missing
         is set to True.
 
+        This method is deprecated. Please use `delete_table`
+
         :param deletion_dataset_table: A dotted
             ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
             will be deleted.
@@ -1198,6 +1223,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> list[dict]:
         """
         Get the data of a given dataset.table and optionally with selected columns.
+
+        This method is deprecated. Please use `list_rows`
+
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
 
         :param dataset_id: the dataset ID of the requested table.
@@ -1232,7 +1260,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         start_index: int | None = None,
         project_id: str | None = None,
         location: str | None = None,
-    ) -> list[Row]:
+        retry: Retry = DEFAULT_RETRY,
+        return_iterator: bool = False,
+    ) -> list[Row] | RowIterator:
         """
         List the rows of the table.
         See https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
@@ -1247,6 +1277,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param start_index: zero based index of the starting row to read.
         :param project_id: Project ID for the project which the client acts on behalf of.
         :param location: Default location for job.
+        :param retry: How to retry the RPC.
+        :param return_iterator: Instead of returning a list[Row], returns a RowIterator
+            which can be used to obtain the next_page_token property.
         :return: list of rows
         """
         location = location or self.location
@@ -1265,14 +1298,17 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
 
-        result = self.get_client(project_id=project_id, location=location).list_rows(
+        iterator = self.get_client(project_id=project_id, location=location).list_rows(
             table=Table.from_api_repr(table),
             selected_fields=selected_fields,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
+            retry=retry,
         )
-        return list(result)
+        if return_iterator:
+            return iterator
+        return list(iterator)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_schema(self, dataset_id: str, table_id: str, project_id: str | None = None) -> dict:
@@ -1558,6 +1594,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
+        This method is deprecated. Please use `BigQueryHook.insert_job`
+
         For more details about the configuration parameter.
 
         :param configuration: The configuration parameter maps directly to
@@ -1600,6 +1638,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         to BigQuery. See here:
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
@@ -1825,6 +1865,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
 
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
+
         For more details about these parameters.
 
         :param source_project_dataset_tables: One or more dotted
@@ -1912,6 +1954,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
+
         For more details about these parameters.
 
         :param source_project_dataset_table: The dotted ``<dataset>.<table>``
@@ -1984,7 +2028,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query_params: list | None = None,
         labels: dict | None = None,
         schema_update_options: Iterable | None = None,
-        priority: str = "INTERACTIVE",
+        priority: str | None = None,
         time_partitioning: dict | None = None,
         api_resource_configs: dict | None = None,
         cluster_fields: list[str] | None = None,
@@ -1996,6 +2040,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table. See here:
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
@@ -2035,7 +2081,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table to be updated as a side effect of the query job.
         :param priority: Specifies a priority for the query.
             Possible values include INTERACTIVE and BATCH.
-            The default value is INTERACTIVE.
+            If `None`, defaults to `self.priority`.
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
         :param cluster_fields: Request that the result of this query be stored sorted
@@ -2060,11 +2106,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         labels = labels or self.labels
         schema_update_options = list(schema_update_options or [])
 
+        priority = priority or self.priority
+
         if time_partitioning is None:
             time_partitioning = {}
-
-        if location:
-            self.location = location
 
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
@@ -2117,7 +2162,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
-            (priority, "priority", "INTERACTIVE", (str,)),
+            (priority, "priority", priority, (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
             (query_params, "queryParameters", None, list),
             (udf_config, "userDefinedFunctionResources", None, list),
@@ -2186,7 +2231,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             configuration["query"]["destinationEncryptionConfiguration"] = encryption_configuration
 
-        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        job = self.insert_job(configuration=configuration, project_id=self.project_id, location=location)
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -2455,7 +2500,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_dataset_tables_list(*args, **kwargs)
 
-    def get_datasets_list(self, *args, **kwargs) -> list:
+    def get_datasets_list(self, *args, **kwargs) -> list | HTTPIterator:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`

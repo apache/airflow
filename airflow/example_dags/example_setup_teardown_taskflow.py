@@ -22,49 +22,51 @@ import pendulum
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.models.dag import DAG
+from airflow.settings import _ENABLE_AIP_52
 
-with DAG(
-    dag_id="example_setup_teardown_taskflow",
-    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
-    tags=["example"],
-) as dag:
-    # You can use the setup and teardown decorators to add setup and teardown tasks at the DAG level
-    @setup
-    @task
-    def root_setup():
-        print("Hello from root_setup")
-
-    @teardown
-    @task
-    def root_teardown():
-        print("Goodbye from root_teardown")
-
-    @task
-    def normal():
-        print("I am just a normal task")
-
-    @task_group
-    def section_1():
-        # You can also have setup and teardown tasks at the task group level
+if _ENABLE_AIP_52:
+    with DAG(
+        dag_id="example_setup_teardown_taskflow",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        catchup=False,
+        tags=["example"],
+    ) as dag:
+        # You can use the setup and teardown decorators to add setup and teardown tasks at the DAG level
         @setup
         @task
-        def my_setup():
-            print("I set up")
+        def root_setup():
+            print("Hello from root_setup")
 
         @teardown
         @task
-        def my_teardown():
-            print("I tear down")
+        def root_teardown():
+            print("Goodbye from root_teardown")
 
         @task
-        def hello():
-            print("I say hello")
+        def normal():
+            print("I am just a normal task")
 
-        my_setup()
-        hello()
-        my_teardown()
+        @task_group
+        def section_1():
+            # You can also have setup and teardown tasks at the task group level
+            @setup
+            @task
+            def my_setup():
+                print("I set up")
 
-    root_setup()
-    normal() >> section_1()
-    root_teardown()
+            @teardown
+            @task
+            def my_teardown():
+                print("I tear down")
+
+            @task
+            def hello():
+                print("I say hello")
+
+            my_setup()
+            hello()
+            my_teardown()
+
+        root_setup()
+        normal() >> section_1()
+        root_teardown()

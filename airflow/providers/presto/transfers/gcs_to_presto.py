@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import csv
 import json
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Sequence
 
@@ -46,9 +45,6 @@ class GCSToPrestoOperator(BaseOperator):
     :param presto_conn_id: destination presto connection
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud and
         interact with the Google Cloud Storage service.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -75,7 +71,6 @@ class GCSToPrestoOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         schema_fields: Iterable[str] | None = None,
         schema_object: str | None = None,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -87,17 +82,11 @@ class GCSToPrestoOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.schema_fields = schema_fields
         self.schema_object = schema_object
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

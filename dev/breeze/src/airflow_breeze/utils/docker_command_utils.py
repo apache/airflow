@@ -585,6 +585,8 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_MODE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
+    set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_44", "true")
+    set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_52", "true")
     set_value_to_default_if_not_set(env, "ANSWER", answer if answer is not None else "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
@@ -648,6 +650,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "GITHUB_ACTIONS": "github_actions",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "INSTALL_PROVIDERS_FROM_SOURCES": "install_providers_from_sources",
+    "INSTALL_SELECTED_PROVIDERS": "install_selected_providers",
     "ISSUE_ID": "issue_id",
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
     "LOAD_EXAMPLES": "load_example_dags",

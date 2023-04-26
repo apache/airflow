@@ -45,6 +45,7 @@
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
 
@@ -338,7 +339,7 @@ Note if this is not the first time you clone the repo make sure main branch is r
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
 git checkout main
-git rebase --pull
+git pull --rebase
 ```
 
 - Then you can go to the directory and build the necessary documentation packages
@@ -988,6 +989,22 @@ It is more reliable to send it via the web ui at https://lists.apache.org/list.h
 
 Note If you choose sending it with your email client make sure the email is set to plain text mode.
 Trying to send HTML content will result in failure.
+
+## Announce about the release in social media
+
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+Example for special case: an exciting new capability that the community waited for and should have big impact.
 
 ## Add release data to Apache Committee Report Helper
 

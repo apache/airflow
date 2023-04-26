@@ -87,6 +87,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID
+from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
@@ -105,7 +106,7 @@ from airflow.typing_compat import Literal, TypeGuard
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
 from airflow.utils.email import send_email
-from airflow.utils.helpers import render_template_to_string
+from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import qualname
 from airflow.utils.net import get_hostname
@@ -180,6 +181,21 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
+def stop_all_tasks_in_dag(tis: list[TaskInstance], session: Session, task_id_to_ignore: int):
+    for ti in tis:
+        if ti.task_id == task_id_to_ignore or ti.state in (
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+        ):
+            continue
+        if ti.state == TaskInstanceState.RUNNING:
+            log.info("Forcing task %s to fail", ti.task_id)
+            ti.error(session)
+        else:
+            log.info("Setting task %s to SKIPPED", ti.task_id)
+            ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -203,6 +219,7 @@ def clear_task_instances(
     task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
+    dag_bag = DagBag(read_dags_from_db=True)
     for ti in tis:
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
@@ -211,15 +228,16 @@ def clear_task_instances(
                 ti.state = TaskInstanceState.RESTARTING
                 job_ids.append(ti.job_id)
         else:
+            ti_dag = dag if dag and dag.dag_id == ti.dag_id else dag_bag.get_dag(ti.dag_id, session=session)
             task_id = ti.task_id
-            if dag and dag.has_task(task_id):
-                task = dag.get_task(task_id)
+            if ti_dag and ti_dag.has_task(task_id):
+                task = ti_dag.get_task(task_id)
                 ti.refresh_from_task(task)
                 task_retries = task.retries
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
-                # Ignore errors when updating max_tries if dag is None or
-                # task not found in dag since database records could be
+                # Ignore errors when updating max_tries if the DAG or
+                # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
@@ -265,9 +283,9 @@ def clear_task_instances(
         session.execute(delete_qry)
 
     if job_ids:
-        from airflow.jobs.base_job import BaseJob
+        from airflow.jobs.job import Job
 
-        for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
+        for job in session.query(Job).filter(Job.id.in_(job_ids)).all():
             job.state = TaskInstanceState.RESTARTING
 
     if activate_dag_runs is not None:
@@ -540,6 +558,10 @@ class TaskInstance(Base, LoggingMixin):
         # can be changed when calling 'run'
         self.test_mode = False
 
+    @property
+    def stats_tags(self) -> dict[str, str]:
+        return prune_dict({"dag_id": self.dag_id, "task_id": self.task_id})
+
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
         """:meta private:"""
@@ -613,12 +635,12 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping=False,
         ignore_ti_state=False,
         local=False,
-        pickle_id=None,
+        pickle_id: int | None = None,
         raw=False,
         job_id=None,
         pool=None,
         cfg_path=None,
-    ):
+    ) -> list[str]:
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -1259,12 +1281,7 @@ class TaskInstance(Base, LoggingMixin):
         self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
-            Stats.incr(
-                "previously_succeeded",
-                1,
-                1,
-                tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id},
-            )
+            Stats.incr("previously_succeeded", tags=self.stats_tags)
 
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
@@ -1409,10 +1426,14 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self)
             session.commit()
         actual_start_date = timezone.utcnow()
-        Stats.incr(f"ti.start.{self.task.dag_id}.{self.task.task_id}")
+        Stats.incr(f"ti.start.{self.task.dag_id}.{self.task.task_id}", tags=self.stats_tags)
         # Initialize final state counters at zero
         for state in State.task_states:
-            Stats.incr(f"ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}", count=0)
+            Stats.incr(
+                f"ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}",
+                count=0,
+                tags=self.stats_tags,
+            )
 
         self.task = self.task.prepare_for_execution()
         context = self.get_template_context(ignore_param_exceptions=False)
@@ -1482,7 +1503,7 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         finally:
-            Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}")
+            Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1544,7 +1565,7 @@ class TaskInstance(Base, LoggingMixin):
         if not self.next_method:
             self.clear_xcom_data()
 
-        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"):
+        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration", tags=self.stats_tags):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
 
@@ -1579,10 +1600,8 @@ class TaskInstance(Base, LoggingMixin):
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
 
-        Stats.incr(f"operator_successes_{self.task.task_type}", 1, 1)
-        Stats.incr(
-            "ti_successes", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
-        )
+        Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
+        Stats.incr("ti_successes", tags=self.stats_tags)
 
     def _run_finished_callback(
         self,
@@ -1849,10 +1868,10 @@ class TaskInstance(Base, LoggingMixin):
 
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr(f"operator_failures_{self.operator}")
-        Stats.incr(
-            "ti_failures", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}
-        )
+
+        Stats.incr(f"operator_failures_{self.operator}", tags=self.stats_tags)
+        Stats.incr("ti_failures", tags=self.stats_tags)
+
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
@@ -1892,6 +1911,10 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
+
+            if task and task.dag and task.dag.fail_stop:
+                tis = self.get_dagrun(session).get_task_instances()
+                stop_all_tasks_in_dag(tis, session, self.task_id)
         else:
             if self.state == State.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
@@ -2479,18 +2502,17 @@ class TaskInstance(Base, LoggingMixin):
         return LazyXComAccess.build_from_xcom_query(query)
 
     @provide_session
-    def get_num_running_task_instances(self, session: Session) -> int:
+    def get_num_running_task_instances(self, session: Session, same_dagrun=False) -> int:
         """Return Number of running TIs from the DB"""
         # .count() is inefficient
-        return (
-            session.query(func.count())
-            .filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.state == State.RUNNING,
-            )
-            .scalar()
+        num_running_task_instances_query = session.query(func.count()).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.state == State.RUNNING,
         )
+        if same_dagrun:
+            num_running_task_instances_query.filter(TaskInstance.run_id == self.run_id)
+        return num_running_task_instances_query.scalar()
 
     def init_run_context(self, raw: bool = False) -> None:
         """Sets the log context."""
@@ -2613,7 +2635,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @Sentry.enrich_errors
     @provide_session
-    def schedule_downstream_tasks(self, session=None):
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
         """
         The mini-scheduler for scheduling downstream tasks of this task instance
         :meta: private
@@ -2668,7 +2690,7 @@ class TaskInstance(Base, LoggingMixin):
                 if not hasattr(schedulable_ti, "task"):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
 
-            num = dag_run.schedule_tis(schedulable_tis, session=session)
+            num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
             self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
 
             session.flush()
@@ -2955,6 +2977,6 @@ class TaskInstanceNote(Base):
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.jobs.base_job import BaseJob
+    from airflow.jobs.job import Job
 
-    TaskInstance.queued_by_job = relationship(BaseJob)
+    TaskInstance.queued_by_job = relationship(Job)

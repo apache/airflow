@@ -605,3 +605,12 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
+
+
+# AIP-52: setup/teardown (experimental)
+# This feature is not complete yet, so we disable it by default.
+_ENABLE_AIP_52 = os.environ.get("AIRFLOW_ENABLE_AIP_52", "false").lower() in {"true", "t", "yes", "y", "1"}
+
+# AIP-44: internal_api (experimental)
+# This feature is not complete yet, so we disable it by default.
+_ENABLE_AIP_44 = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {"true", "t", "yes", "y", "1"}

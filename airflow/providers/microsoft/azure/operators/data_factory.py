@@ -48,20 +48,21 @@ class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
         *,
         ti_key: TaskInstanceKey,
     ) -> str:
-        if not isinstance(operator, AzureDataFactoryRunPipelineOperator):
-            self.log.info("The %s is not %s class.", operator.__class__, AzureDataFactoryRunPipelineOperator)
-            return ""
         run_id = XCom.get_value(key="run_id", ti_key=ti_key)
-        conn_id = operator.azure_data_factory_conn_id
+        conn_id = operator.azure_data_factory_conn_id  # type: ignore
         conn = BaseHook.get_connection(conn_id)
         extras = conn.extra_dejson
-        subscription_id = get_field(extras, "subscriptionId")
+        subscription_id = get_field(extras, "subscriptionId") or get_field(
+            extras, "extra__azure__subscriptionId"
+        )
         if not subscription_id:
             raise KeyError(f"Param subscriptionId not found in conn_id '{conn_id}'")
         # Both Resource Group Name and Factory Name can either be declared in the Azure Data Factory
         # connection or passed directly to the operator.
-        resource_group_name = operator.resource_group_name or get_field(extras, "resource_group_name")
-        factory_name = operator.factory_name or get_field(extras, "factory_name")
+        resource_group_name = operator.resource_group_name or get_field(  # type: ignore
+            extras, "resource_group_name"
+        )
+        factory_name = operator.factory_name or get_field(extras, "factory_name")  # type: ignore
         url = (
             f"https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
             f"?factory=/subscriptions/{subscription_id}/"

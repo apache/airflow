@@ -33,7 +33,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
 
     .. seealso::
         Check official API docs:
-        https://developers.google.com/doubleclick-advertisers/v3.3/reports/get
+        https://developers.google.com/doubleclick-advertisers/rest/v4/reports/get
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -42,7 +42,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
     :param profile_id: The DFA user profile ID.
     :param report_id: The ID of the report.
     :param file_id: The ID of the report file.
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the api that will be requested, for example 'v4'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -81,7 +81,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         profile_id: str,
         report_id: str,
         file_id: str,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         mode: str = "reschedule",

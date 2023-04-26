@@ -461,18 +461,22 @@ class TestDag:
         session.merge(ti4)
         session.commit()
 
-        assert 0 == DAG.get_num_task_instances(test_dag_id, ["fakename"], session=session)
-        assert 4 == DAG.get_num_task_instances(test_dag_id, [test_task_id], session=session)
-        assert 4 == DAG.get_num_task_instances(test_dag_id, ["fakename", test_task_id], session=session)
-        assert 1 == DAG.get_num_task_instances(test_dag_id, [test_task_id], states=[None], session=session)
+        assert 0 == DAG.get_num_task_instances(test_dag_id, task_ids=["fakename"], session=session)
+        assert 4 == DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], session=session)
+        assert 4 == DAG.get_num_task_instances(
+            test_dag_id, task_ids=["fakename", test_task_id], session=session
+        )
+        assert 1 == DAG.get_num_task_instances(
+            test_dag_id, task_ids=[test_task_id], states=[None], session=session
+        )
         assert 2 == DAG.get_num_task_instances(
-            test_dag_id, [test_task_id], states=[State.RUNNING], session=session
+            test_dag_id, task_ids=[test_task_id], states=[State.RUNNING], session=session
         )
         assert 3 == DAG.get_num_task_instances(
-            test_dag_id, [test_task_id], states=[None, State.RUNNING], session=session
+            test_dag_id, task_ids=[test_task_id], states=[None, State.RUNNING], session=session
         )
         assert 4 == DAG.get_num_task_instances(
-            test_dag_id, [test_task_id], states=[None, State.QUEUED, State.RUNNING], session=session
+            test_dag_id, task_ids=[test_task_id], states=[None, State.QUEUED, State.RUNNING], session=session
         )
         session.close()
 
@@ -1478,7 +1482,7 @@ class TestDag:
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
-            tags={"dag_id": "test_dag_callback_crash", "run_id": "manual__2015-01-02T00:00:00+00:00"},
+            tags={"dag_id": "test_dag_callback_crash"},
         )
 
         dag.clear()
@@ -1713,6 +1717,42 @@ class TestDag:
             run_id="test_create_dagrun_job_id_is_set", state=State.NONE, creating_job_id=job_id
         )
         assert dr.creating_job_id == job_id
+
+    def test_dag_add_task_checks_trigger_rule(self):
+        # A non fail stop dag should allow any trigger rule
+        from airflow.exceptions import DagInvalidTriggerRule
+        from airflow.utils.trigger_rule import TriggerRule
+
+        task_with_non_default_trigger_rule = EmptyOperator(
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.DUMMY
+        )
+        non_fail_stop_dag = DAG(
+            dag_id="test_dag_add_task_checks_trigger_rule", start_date=DEFAULT_DATE, fail_stop=False
+        )
+        try:
+            non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
+        except DagInvalidTriggerRule as exception:
+            assert False, f"dag add_task() raises DagInvalidTriggerRule for non fail stop dag: {exception}"
+
+        # a fail stop dag should allow default trigger rule
+        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        fail_stop_dag = DAG(
+            dag_id="test_dag_add_task_checks_trigger_rule", start_date=DEFAULT_DATE, fail_stop=True
+        )
+        task_with_default_trigger_rule = EmptyOperator(
+            task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
+        )
+        try:
+            fail_stop_dag.add_task(task_with_default_trigger_rule)
+        except DagInvalidTriggerRule as exception:
+            assert (
+                False
+            ), f"dag.add_task() raises exception for fail-stop dag & default trigger rule: {exception}"
+
+        # a fail stop dag should not allow a non-default trigger rule
+        with pytest.raises(DagInvalidTriggerRule):
+            fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", start_date=DEFAULT_DATE)

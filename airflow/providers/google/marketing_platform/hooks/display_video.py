@@ -32,7 +32,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def __init__(
         self,
-        api_version: str = "v1",
+        api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -93,7 +93,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query: Query object to be passed to request body.
         """
-        response = self.get_conn().queries().createquery(body=query).execute(num_retries=self.num_retries)
+        response = self.get_conn().queries().create(body=query).execute(num_retries=self.num_retries)
         return response
 
     def delete_query(self, query_id: str) -> None:
@@ -102,7 +102,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query_id: Query ID to delete.
         """
-        (self.get_conn().queries().deletequery(queryId=query_id).execute(num_retries=self.num_retries))
+        self.get_conn().queries().delete(queryId=query_id).execute(num_retries=self.num_retries)
 
     def get_query(self, query_id: str) -> dict:
         """
@@ -110,25 +110,37 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query_id: Query ID to retrieve.
         """
-        response = self.get_conn().queries().getquery(queryId=query_id).execute(num_retries=self.num_retries)
+        response = self.get_conn().queries().get(queryId=query_id).execute(num_retries=self.num_retries)
         return response
 
     def list_queries(self) -> list[dict]:
         """Retrieves stored queries."""
-        response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
+        response = self.get_conn().queries().list().execute(num_retries=self.num_retries)
         return response.get("queries", [])
 
-    def run_query(self, query_id: str, params: dict[str, Any] | None) -> None:
+    def run_query(self, query_id: str, params: dict[str, Any] | None) -> dict:
         """
         Runs a stored query to generate a report.
 
         :param query_id: Query ID to run.
         :param params: Parameters for the report.
         """
-        (
+        return (
+            self.get_conn().queries().run(queryId=query_id, body=params).execute(num_retries=self.num_retries)
+        )
+
+    def get_report(self, query_id: str, report_id: str) -> dict:
+        """
+        Retrieves a report.
+
+        :param query_id: Query ID for which report was generated.
+        :param report_id: Report ID to retrieve.
+        """
+        return (
             self.get_conn()
             .queries()
-            .runquery(queryId=query_id, body=params)
+            .reports()
+            .get(queryId=query_id, reportId=report_id)
             .execute(num_retries=self.num_retries)
         )
 

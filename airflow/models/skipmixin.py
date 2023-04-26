@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -57,7 +59,7 @@ class SkipMixin(LoggingMixin):
 
     def _set_state_to_skipped(
         self,
-        dag_run: DagRun,
+        dag_run: DagRun | DagRunPydantic,
         tasks: Iterable[Operator],
         session: Session,
     ) -> None:
@@ -80,7 +82,7 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def skip(
         self,
-        dag_run: DagRun,
+        dag_run: DagRun | DagRunPydantic,
         execution_date: DateTime,
         tasks: Iterable[DAGNode],
         session: Session = NEW_SESSION,
@@ -143,7 +145,11 @@ class SkipMixin(LoggingMixin):
                 session=session,
             )
 
-    def skip_all_except(self, ti: TaskInstance, branch_task_ids: None | str | Iterable[str]):
+    def skip_all_except(
+        self,
+        ti: TaskInstance | TaskInstancePydantic,
+        branch_task_ids: None | str | Iterable[str],
+    ):
         """
         This method implements the logic for a branching operator; given a single
         task ID or list of task IDs to follow, this skips all other tasks
@@ -174,7 +180,11 @@ class SkipMixin(LoggingMixin):
             )
 
         dag_run = ti.get_dagrun()
-        task = ti.task
+
+        # TODO(potiuk): Handle TaskInstancePydantic case differently - we need to figure out the way to
+        # pass task that has been set in LocalTaskJob but in the way that TaskInstancePydantic definition
+        # does not attempt to serialize the field from/to ORM
+        task = ti.task  # type: ignore[union-attr]
         dag = task.dag
         if TYPE_CHECKING:
             assert dag

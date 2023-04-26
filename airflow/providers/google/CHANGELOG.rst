@@ -23,6 +23,76 @@
 Changelog
 ---------
 
+10.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google has announced sunset of Campaign Manager 360 v3.5 by Apr 20, 2023. For more information
+please check: `<https://developers.google.com/doubleclick-advertisers/deprecation>`_ . As a result, the
+default api version for Campaign Manager 360 operator was updated to the latest v4 version.
+
+.. warning::
+  In this version of the provider, deprecated ``delegate_to`` param is removed from all GCP operators, hooks, and triggers, as well as from firestore and gsuite
+  transfer operators that interact with GCS. Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+  The ``delegate_to`` param will still be available only in gsuite and marketing platform hooks and operators, that don't interact with Google Cloud.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+* ``Update Google Campaign Manager360 operators to use API v4 (#30598)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update DataprocCreateCluster operator to use 'label' parameter properly (#30741)``
+
+Misc
+~~~~
+
+* ``add missing project_id in BigQueryGetDataOperator (#30651)``
+* ``Display Video 360 cleanup v1 API usage (#30577)``
+
+9.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google  announced sunset of Bid manager API v1 and v1.1 by April 27, 2023 for more information
+please check: `docs <https://developers.google.com/bid-manager/v1.1>`_  As a result default value of api_version
+in GoogleDisplayVideo360Hook and related operators updated to v2
+
+This version of provider contains a temporary workaround to issue with ``v11`` version of
+google-ads API being discontinued, while the google provider dependencies preventing installing
+any google-ads client supporting ``v12`` API. This version contains vendored-in version of google-ads
+library ``20.0.0`` v12 support only. The workaround (and vendored-in library) will be removed
+as soon as dependencies of the provider will allow to use google-ads supporting newer
+API versions of google-ads.
+
+.. note::
+
+  ONLY v12 version of google ads is supported. You should set v12 when your create an operator or client.
+
+* ``Update DV360 operators to use API v2 (#30326)``
+* ``Fix dynamic imports in google ads vendored in library (#30544)``
+* ``Fix one more dynamic import needed for vendored-in google ads (#30564)``
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to GKEStartPodOperator (#29266)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``BigQueryHook list_rows/get_datasets_list can return iterator (#30543)``
+* ``Fix cloud build async credentials (#30441)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Small quotation fix (#30448)``
+
 8.12.0
 ......
 
