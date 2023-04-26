@@ -47,6 +47,15 @@ _extractors: list[type[BaseExtractor]] = list(
         [
             PythonExtractor,
             BashExtractor,
+            try_import_from_string(
+                "airflow.providers.openlineage.extractors.sagemaker.SageMakerProcessingExtractor"
+            ),
+            try_import_from_string(
+                "airflow.providers.openlineage.extractors.sagemaker.SageMakerTrainingExtractor"
+            ),
+            try_import_from_string(
+                "airflow.providers.openlineage.extractors.sagemaker.SageMakerTransformExtractor"
+            ),
         ],
     )
 )
