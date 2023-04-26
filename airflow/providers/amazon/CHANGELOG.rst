@@ -82,6 +82,7 @@ Bug Fixes
 * ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
 * ``Add support in AWS Batch Operator for multinode jobs (#29522)``
 * ``AWS logs. Exit fast when 3 consecutive responses are returned from AWS Cloudwatch logs (#30756)``
+* ``Fix async conn for none aws_session_token (#30868)``
 
 Misc
 ~~~~
@@ -90,6 +91,7 @@ Misc
 * ``Organize Amazon providers docs index (#30541)``
 * ``Remove duplicate param docstring in EksPodOperator (#30634)``
 * ``Update AWS EMR Cluster Link to use the new dashboard (#30844)``
+* ``Restore aiobotocore as optional dependency of amazon provider (#30874)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -98,6 +100,7 @@ Misc
    * ``fixes to system tests following obsolete cleanup (#30804)``
    * ``restore fallback to empty connection behavior (#30806)``
    * ``Prepare docs for adhoc release of providers (#30787)``
+   * ``Prepare docs for ad-hoc release of Amazon provider (#30848)``
 
 7.4.1
 .....
