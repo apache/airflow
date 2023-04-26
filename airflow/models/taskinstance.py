@@ -205,12 +205,16 @@ def clear_task_instances(
 ) -> None:
     """
     Clears a set of task instances, but makes sure the running ones
-    get killed.
+    get killed. Also sets Dagrun's `state` to QUEUED and `start_date`
+    to the time of execution. But only for finished DRs (SUCCESS and FAILED).
+    Doesn't clear DR's `state` and `start_date`for running
+    DRs (QUEUED and RUNNING) because clearing the state for already
+    running DR is redundant and clearing `start_date` affects DR's duration.
 
     :param tis: a list of task instances
     :param session: current session
-    :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
-        be changed.
+    :param dag_run_state: state to set finished DagRuns to.
+    If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     :param activate_dag_runs: Deprecated parameter, do not pass
     """
@@ -317,11 +321,12 @@ def clear_task_instances(
         )
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
-            dr.state = dag_run_state
-            dr.start_date = timezone.utcnow()
-            if dag_run_state == DagRunState.QUEUED:
-                dr.last_scheduling_decision = None
-                dr.start_date = None
+            if dr.state in State.finished_dr_states:
+                dr.state = dag_run_state
+                dr.start_date = timezone.utcnow()
+                if dag_run_state == DagRunState.QUEUED:
+                    dr.last_scheduling_decision = None
+                    dr.start_date = None
     session.flush()
 
 

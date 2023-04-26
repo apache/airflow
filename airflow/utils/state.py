@@ -95,6 +95,9 @@ class State:
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
 
+    finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
+    unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
+
     task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
 
     dag_states: tuple[DagRunState, ...] = (
