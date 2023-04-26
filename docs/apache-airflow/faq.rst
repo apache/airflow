@@ -443,6 +443,7 @@ Airflow UI
 
 Why did my task fail with no logs in the UI?
 --------------------------------------------
+
 Logs are [typically served when a task reaches a terminal state](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/logging-tasks.html#serving-logs-from-workers). Sometimes, a task's normal lifecycle is disrupted, and the task's
 worker is unable to write the task's logs. This typically happens for one of two reasons:
 
