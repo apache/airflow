@@ -80,8 +80,14 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        previous_ti = last_dagrun.get_task_instance(ti.task_id, map_index=ti.map_index, session=session)
-        if not previous_ti:
+        # For Dynamic tasks previous ti can be more than one
+        previous_tis = session.query(TI).filter(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == last_dagrun.run_id,
+        )
+
+        if not previous_tis:
             if ti.task.ignore_first_depends_on_past:
                 has_historical_ti = (
                     session.query(func.count(TI.dag_id))
@@ -107,20 +113,33 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        if previous_ti.state not in {State.SKIPPED, State.SUCCESS}:
-            yield self._failing_status(
-                reason=(
-                    f"depends_on_past is true for this task, but the previous task instance {previous_ti} "
-                    f"is in the state '{previous_ti.state}' which is not a successful state."
-                )
+        success_states = {State.SKIPPED, State.SUCCESS}
+        unfinished_previous_tis = [
+            previous_ti for previous_ti in previous_tis if previous_ti.state not in success_states
+        ]
+
+        if unfinished_previous_tis:
+            reason = (
+                f"depends_on_past is true for this task, but the previous task instance(s) "
+                f"{','.join(map(str, unfinished_previous_tis))} is in the state(s) "
+                f"'{','.join([str(t.state) for t in unfinished_previous_tis])}' "
+                f"which is not a successful state(s)."
             )
+
+            yield self._failing_status(reason=reason)
             return
 
-        previous_ti.task = ti.task
-        if ti.task.wait_for_downstream and not previous_ti.are_dependents_done(session=session):
+        previous_tis_dependents_not_done = []
+        for previous_ti in previous_tis:
+            previous_ti.task = ti.task
+            if not previous_ti.are_dependents_done(session=session):
+                previous_tis_dependents_not_done.append(previous_ti)
+
+        if ti.task.wait_for_downstream and previous_tis_dependents_not_done:
+            tasks_str = ",".join(map(str, previous_tis_dependents_not_done))
             yield self._failing_status(
                 reason=(
-                    f"The tasks downstream of the previous task instance {previous_ti} haven't completed "
+                    f"The tasks downstream of the previous task instance(s) {tasks_str} haven't completed "
                     f"(and wait_for_downstream is True)."
                 )
             )
