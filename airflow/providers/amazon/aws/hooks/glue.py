@@ -256,29 +256,28 @@ class GlueJobHook(AwsBaseHook):
         next_log_tokens: tuple[str | None, str | None] = (None, None)
 
         while True:
-            try:
-                job_run_state = self.get_job_state(job_name, run_id)
-                if job_run_state in finished_states:
-                    self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
-                    return {"JobRunState": job_run_state, "JobRunId": run_id}
-                if job_run_state in failed_states:
-                    job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
-                    self.log.info(job_error_message)
-                    raise AirflowException(job_error_message)
-                else:
-                    self.log.info(
-                        "Polling for AWS Glue Job %s current run state with status %s",
-                        job_name,
-                        job_run_state,
-                    )
-                    time.sleep(self.JOB_POLL_INTERVAL)
-            finally:
-                if verbose:
-                    next_log_tokens = self.print_job_logs(
-                        job_name=job_name,
-                        run_id=run_id,
-                        continuation_tokens=next_log_tokens,
-                    )
+            if verbose:
+                next_log_tokens = self.print_job_logs(
+                    job_name=job_name,
+                    run_id=run_id,
+                    continuation_tokens=next_log_tokens,
+                )
+
+            job_run_state = self.get_job_state(job_name, run_id)
+            if job_run_state in finished_states:
+                self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
+                return {"JobRunState": job_run_state, "JobRunId": run_id}
+            if job_run_state in failed_states:
+                job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
+                self.log.info(job_error_message)
+                raise AirflowException(job_error_message)
+            else:
+                self.log.info(
+                    "Polling for AWS Glue Job %s current run state with status %s",
+                    job_name,
+                    job_run_state,
+                )
+                time.sleep(self.JOB_POLL_INTERVAL)
 
     def has_job(self, job_name) -> bool:
         """
