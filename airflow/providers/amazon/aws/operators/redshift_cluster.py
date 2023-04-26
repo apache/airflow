@@ -426,8 +426,8 @@ class RedshiftResumeClusterOperator(BaseOperator):
     :param cluster_identifier:  Unique identifier of the AWS Redshift cluster
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         The default connection id is ``aws_default``
-    :param deferrable: Run operator in deferrable mode
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param max_attempts: The maximum number of attempts to check the state of the cluster.
     :param deferrable: If True, the operator will run as a deferrable operator.
     """
 
@@ -472,7 +472,6 @@ class RedshiftResumeClusterOperator(BaseOperator):
                     time.sleep(self._attempt_interval)
                 else:
                     raise error
-        self.log.info("Starting resume cluster")
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
