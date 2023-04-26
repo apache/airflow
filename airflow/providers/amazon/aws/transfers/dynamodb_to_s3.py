@@ -30,6 +30,8 @@ from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
+import boto3
+
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
@@ -92,7 +94,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
     :param ExportTime: Time in the past from which to export table data, counted in seconds from the start of
-     the Unix epoch. The table export will be a snapshot of the table’s state at this point in time.
+     the Unix epoch. The table export will be a snapshot of the table's state at this point in time.
     :param export_format: The format for the exported data. Valid values for ExportFormat are DYNAMODB_JSON
      or ION.
     """
@@ -158,9 +160,19 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             S3Prefix=self.s3_key_prefix,
             ExportFormat=self.export_format,
         )
-        waiter = self.hook.get_waiter(CUSTOM_WAITER_NAME)
+        credentials = self.hook.get_credentials()
+        waiter = self.hook.get_waiter(
+            CUSTOM_WAITER_NAME,
+            client=boto3.client(
+                "dynamodb",
+                region_name=client.meta.region_name,
+                aws_access_key_id=credentials.access_key,
+                aws_secret_access_key=credentials.secret_key,
+            ),
+        )
+        export_arn = response.get("ExportDescription", {}).get("ExportArn")
         waiter.wait(
-            ExportArn=response.get("ExportArn"),
+            ExportArn=export_arn,
         )
 
     def _export_entire_data(self):

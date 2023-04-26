@@ -9,19 +9,19 @@
                 {
                     "matcher": "path",
                     "expected": "COMPLETED",
-                    "argument": "exportdescription.exportstatus",
+                    "argument": "ExportDescription.ExportStatus",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
                     "expected": "FAILED",
-                    "argument": "exportdescription.exportstatus",
+                    "argument": "ExportDescription.ExportStatus",
                     "state": "failure"
                 },
                 {
                     "matcher": "path",
                     "expected": "IN_PROGRESS",
-                    "argument": "exportdescription.exportstatus",
+                    "argument": "ExportDescription.ExportStatus",
                     "state": "retry"
                 }
             ]
