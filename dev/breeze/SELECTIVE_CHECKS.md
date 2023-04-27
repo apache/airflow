@@ -109,6 +109,11 @@ The logic implements the following rules:
   changed, also providers docs are built because all providers depend on airflow docs. If any of the docs
   build python files changed or when build is "canary" type in main - all docs packages are built.
 
+
+The selective checks will fail in PR if it contains changes to a suspended provider unless you set the
+label `allow suspended provider changes` in the PR. This is to prevent accidental changes to suspended
+providers.
+
 The selective check outputs available are described below. In case of `list-as-string` values,
 empty string means `everything`, where lack of the output means `nothing` and list elements are
 separated by spaces. This is to accommodate for the wau how outputs of this kind can be easily used by
