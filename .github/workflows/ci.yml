@@ -822,7 +822,11 @@ jobs:
         run: >
           breeze release-management install-provider-packages --use-airflow-version 2.3.0
           --airflow-constraints-reference constraints-2.3.0 --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
+        # Make sure to skip the run if the only provider to be installed has been removed
+        # in the previous step
+        if: >
+          needs.build-info.outputs.affected-providers-list-as-string != '' &&
+          needs.build-info.outputs.affected-providers-list-as-string != 'openlineage'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
