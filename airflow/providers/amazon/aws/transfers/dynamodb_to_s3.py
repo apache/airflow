@@ -41,8 +41,6 @@ from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-CUSTOM_WAITER_NAME = "export_table"
-
 
 class JSONEncoder(json.JSONEncoder):
     """Custom json encoder implementation"""
@@ -162,7 +160,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         )
         credentials = self.hook.get_credentials()
         waiter = self.hook.get_waiter(
-            CUSTOM_WAITER_NAME,
+            "export_table",
             client=boto3.client(
                 "dynamodb",
                 region_name=client.meta.region_name,
