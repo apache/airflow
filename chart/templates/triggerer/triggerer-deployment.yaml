@@ -251,9 +251,9 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {}
-        {{- if .Values.dags.gitSync.sshKeySecret }}
-          {{- include "git_sync_ssh_key_volume" . | nindent 8 }}
         {{- end }}
+          {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret }}
+        {{- include "git_sync_ssh_key_volume" . | nindent 8 }}
         {{- end }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
