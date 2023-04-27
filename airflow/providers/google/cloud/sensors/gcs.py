@@ -101,19 +101,20 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=GCSBlobTrigger(
-                    bucket=self.bucket,
-                    object_name=self.object,
-                    poke_interval=self.poke_interval,
-                    google_cloud_conn_id=self.google_cloud_conn_id,
-                    hook_params={
-                        "impersonation_chain": self.impersonation_chain,
-                    },
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=GCSBlobTrigger(
+                        bucket=self.bucket,
+                        object_name=self.object,
+                        poke_interval=self.poke_interval,
+                        google_cloud_conn_id=self.google_cloud_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> str:
         """

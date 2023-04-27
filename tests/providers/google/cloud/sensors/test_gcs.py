@@ -99,6 +99,22 @@ class TestGoogleCloudStorageObjectSensor:
         )
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY)
 
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer")
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.poke",
+        return_value=True,
+    )
+    def test_gcs_object_existence_sensor_finish_before_deferred(self, mock_poke, mock_defer, context):
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        task.execute(context)
+        assert not mock_defer.called
+
     def test_gcs_object_existence_sensor_deferred(self):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
