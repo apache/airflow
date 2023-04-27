@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import random
 import warnings
 from typing import Callable
 
@@ -64,20 +65,21 @@ class SafeOtelLogger:
 
         :param stat: The name of the stat to increment.
         :param count: A positive integer to add to the current value of stat.
-        :param rate: TODO: define me
+        :param rate: Value between 0 and 1 representing the "percentage" of
+            the time to emit the metric where 1 = 100%.
         :param tags: Tags to append to the stat.
         :param back_compat_name: If possible, the metric will also be emitted
             under this name for backward compatibility.
         """
         if (count < 0) or (rate < 0):
             raise ValueError("count and rate must both be positive values.")
-        # TODO: I don't think this is the right use for rate???
-        value = count * rate
+        if rate < 1 and random.random() > rate:
+            return
 
         for name in prune_dict({stat, back_compat_name}, mode="truthy"):
             if self.metrics_validator.test(name):
                 counter = self.metrics_map.get_counter(f"{self.prefix}.{name}")
-                counter.add(value, attributes=tags)
+                counter.add(count, attributes=tags)
 
         return self.metrics_map.get_counter(f"{self.prefix}.{stat}")
 
@@ -90,20 +92,21 @@ class SafeOtelLogger:
 
         :param stat: The name of the stat to decrement.
         :param count: A positive integer to subtract from current value of stat.
-        :param rate: TODO: define me
+        :param rate: Value between 0 and 1 representing the "percentage" of
+            the time to emit the metric where 1 = 100%.
         :param tags: Tags to append to the stat.
         :param back_compat_name: If possible, the metric will also be emitted
             under this name for backward compatibility.
         """
         if (count < 0) or (rate < 0):
             raise ValueError("count and rate must both be positive values.")
-        # TODO: I don't think this is the right use for rate???
-        value = count * rate
+        if rate < 1 and random.random() > rate:
+            return
 
         for name in prune_dict({stat, back_compat_name}, mode="truthy"):
             if self.metrics_validator.test(name):
                 counter = self.metrics_map.get_counter(f"{self.prefix}.{name}")
-                counter.add(-value, attributes=tags)
+                counter.add(count, attributes=tags)
 
         return self.metrics_map.get_counter(f"{self.prefix}.{stat}")
 
