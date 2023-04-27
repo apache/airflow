@@ -231,20 +231,21 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         if self.deferrable is False:
             super().execute(context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=GCSCheckBlobUpdateTimeTrigger(
-                    bucket=self.bucket,
-                    object_name=self.object,
-                    target_date=self.ts_func(context),
-                    poke_interval=self.poke_interval,
-                    google_cloud_conn_id=self.google_cloud_conn_id,
-                    hook_params={
-                        "impersonation_chain": self.impersonation_chain,
-                    },
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=GCSCheckBlobUpdateTimeTrigger(
+                        bucket=self.bucket,
+                        object_name=self.object,
+                        target_date=self.ts_func(context),
+                        poke_interval=self.poke_interval,
+                        google_cloud_conn_id=self.google_cloud_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """Callback for when the trigger fires."""
