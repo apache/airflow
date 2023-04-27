@@ -182,6 +182,7 @@ class TestEmrHook:
     def test_get_cluster_id_by_name(self):
         """
         Test that we can resolve cluster id by cluster name.
+
         Create 50 clusters with the range 1-50 appended and create a duplicate of index 1
         to test logic.
         """
