@@ -36,6 +36,8 @@ class GCSBlobTrigger(BaseTrigger):
     :param object_name: the file or folder present in the bucket
     :param google_cloud_conn_id: reference to the Google Connection
     :param poke_interval: polling period in seconds to check for file/folder
+    :param hook_params: Extra config params to be passed to the underlying hook.
+            Should match the desired hook constructor params.
     """
 
     def __init__(
@@ -211,6 +213,8 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
     :param prefix: The prefix of the blob_names to match in the Google cloud storage bucket
     :param google_cloud_conn_id: reference to the Google Connection
     :param poke_interval: polling period in seconds to check
+    :param hook_params: Extra config params to be passed to the underlying hook.
+            Should match the desired hook constructor params.
     """
 
     def __init__(
@@ -244,10 +248,13 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Simple loop until the matches are found for the given prefix on the bucket."""
+        """Loop until the matches are found for the given prefix on the bucket."""
         try:
             hook = self._get_async_hook()
             while True:
+                self.log.info(
+                    "Checking for existence of blobs with prefix  %s in bucket %s", self.prefix, self.bucket
+                )
                 res = await self._list_blobs_with_prefix(
                     hook=hook, bucket_name=self.bucket, prefix=self.prefix
                 )
@@ -264,6 +271,7 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
         """
         Returns names of blobs which match the given prefix for a given bucket.
 
+        :param hook: The async hook to use for listing the blobs
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param prefix: The prefix of the blob_names to match in the Google cloud
             storage bucket.

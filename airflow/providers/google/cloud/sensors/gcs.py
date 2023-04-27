@@ -316,6 +316,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
 
     def execute(self, context: Context):
         """Overridden to allow matches to be passed"""
+        self.log.info("Checking for existence of object: %s, %s", self.bucket, self.prefix)
         if not self.deferrable:
             super().execute(context)
             return self._matches
@@ -339,7 +340,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         Callback for when the trigger fires; returns immediately.
         Relies on trigger to throw a success event
         """
-        self.log.info("Checking for existence of object: %s, %s", self.bucket, self.prefix)
+        self.log.info("Resuming from trigger and checking status")
         if event["status"] == "success":
             return event["matches"]
         raise AirflowException(event["message"])
