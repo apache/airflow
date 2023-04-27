@@ -246,6 +246,25 @@ class TestSessionFactory:
 
         assert session_profile == profile_name
 
+    @pytest.mark.asyncio
+    async def test_async_create_a_session_from_credentials_without_token(self):
+        mock_conn = Connection(
+            conn_type=MOCK_CONN_TYPE,
+            conn_id=MOCK_AWS_CONN_ID,
+            extra={
+                "aws_access_key_id": "test_aws_access_key_id",
+                "aws_secret_access_key": "test_aws_secret_access_key",
+                "region_name": "eu-central-1",
+            },
+        )
+        mock_conn_config = AwsConnectionWrapper(conn=mock_conn)
+        sf = BaseSessionFactory(conn=mock_conn_config, config=None)
+        async_session = sf.create_session(deferrable=True)
+        cred = await async_session.get_credentials()
+        assert cred.access_key == "test_aws_access_key_id"
+        assert cred.secret_key == "test_aws_secret_access_key"
+        assert cred.token is None
+
     config_for_credentials_test = [
         (
             "assume-with-initial-creds",
