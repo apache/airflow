@@ -99,7 +99,22 @@ class TestGoogleCloudStorageObjectSensor:
         )
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY)
 
-    def test_gcs_object_existence_sensor_deferred(self):
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer")
+    def test_gcs_object_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = True
+        task.execute(mock.MagicMock())
+        assert not mock_defer.called
+
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_gcs_object_existence_sensor_deferred(self, mock_hook):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
         when the GCSObjectExistenceSensor is executed and deferrable is set to True.
@@ -111,6 +126,7 @@ class TestGoogleCloudStorageObjectSensor:
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             deferrable=True,
         )
+        mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context)
         assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
@@ -147,7 +163,8 @@ class TestGoogleCloudStorageObjectSensorAsync:
         "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead"
     )
 
-    def test_gcs_object_existence_sensor_async(self):
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_gcs_object_existence_sensor_async(self, mock_hook):
         """
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
         when the GCSObjectExistenceAsyncSensor is executed.
@@ -159,6 +176,7 @@ class TestGoogleCloudStorageObjectSensorAsync:
                 object=TEST_OBJECT,
                 google_cloud_conn_id=TEST_GCP_CONN_ID,
             )
+        mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context)
         assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
