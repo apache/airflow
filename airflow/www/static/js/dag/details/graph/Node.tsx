@@ -74,7 +74,7 @@ export const BaseNode = ({
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
 
-  const bg = isOpen ? "#cccccc40" : "white";
+  const bg = isOpen ? "blackAlpha.50" : "white";
 
   return (
     <Tooltip
