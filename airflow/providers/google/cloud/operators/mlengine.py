@@ -145,9 +145,6 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         (templated)
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param labels: a dictionary containing labels for the job; passed to BigQuery
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -190,7 +187,6 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         signature_name: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict[str, str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -210,11 +206,6 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         self._runtime_version = runtime_version
         self._signature_name = signature_name
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._labels = labels
         self._impersonation_chain = impersonation_chain
 
@@ -274,9 +265,7 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         if self._signature_name:
             prediction_request["predictionInput"]["signatureName"] = self._signature_name
 
-        hook = MLEngineHook(
-            self._gcp_conn_id, self._delegate_to, impersonation_chain=self._impersonation_chain
-        )
+        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, impersonation_chain=self._impersonation_chain)
 
         # Helper method to check if the existing job's prediction input is the
         # same as the request we get here.
@@ -316,9 +305,6 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -342,7 +328,6 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         operation: str = "create",
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -359,17 +344,11 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         self._model = model
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
         if self._operation == "create":
@@ -395,9 +374,6 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -421,7 +397,6 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
         model: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -429,17 +404,11 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
         self._project_id = project_id
         self._model = model
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
@@ -470,9 +439,6 @@ class MLEngineGetModelOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -496,7 +462,6 @@ class MLEngineGetModelOperator(GoogleCloudBaseOperator):
         model_name: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -504,17 +469,11 @@ class MLEngineGetModelOperator(GoogleCloudBaseOperator):
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
         project_id = self._project_id or hook.project_id
@@ -547,9 +506,6 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -574,7 +530,6 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
         delete_contents: bool = False,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -583,17 +538,11 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
         self._model_name = model_name
         self._delete_contents = delete_contents
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
@@ -653,9 +602,6 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -683,7 +629,6 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
         operation: str = "create",
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -694,11 +639,6 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
         self._version = version or {}
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
         warnings.warn(
@@ -714,7 +654,6 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
@@ -755,9 +694,6 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -783,7 +719,6 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
         version: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -793,11 +728,6 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
         self._model_name = model_name
         self._version = version
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
@@ -811,7 +741,6 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
@@ -847,9 +776,6 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -875,7 +801,6 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
         version_name: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -885,11 +810,6 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
         self._model_name = model_name
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
@@ -903,7 +823,6 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
@@ -938,9 +857,6 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
     :param project_id: The Google Cloud project name to which MLEngine model belongs.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -964,7 +880,6 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
         model_name: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -973,11 +888,6 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
@@ -988,7 +898,6 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
@@ -1024,9 +933,6 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1052,7 +958,6 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
         version_name: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1062,11 +967,6 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
         self._model_name = model_name
         self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
         self._validate_inputs()
 
@@ -1080,7 +980,6 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 
@@ -1139,9 +1038,6 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         If set to None or missing, the Google-managed Cloud ML Engine service account will be used.
     :param project_id: The Google Cloud project name within which MLEngine training job should run.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param mode: Can be one of 'DRY_RUN'/'CLOUD'. In 'DRY_RUN' mode, no real
         training job will be launched, but the MLEngine training job request
         will be printed out. In 'CLOUD' mode, a real MLEngine training job
@@ -1198,7 +1094,6 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         job_dir: str | None = None,
         service_account: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         mode: str = "PRODUCTION",
         labels: dict[str, str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1222,11 +1117,6 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         self._job_dir = job_dir
         self._service_account = service_account
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._mode = mode
         self._labels = labels
         self._hyperparameters = hyperparameters
@@ -1316,7 +1206,6 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
         self.hook = hook
@@ -1363,7 +1252,6 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
                     labels=self._labels,
                     gcp_conn_id=self._gcp_conn_id,
                     impersonation_chain=self._impersonation_chain,
-                    delegate_to=self._delegate_to,
                 ),
                 method_name="execute_complete",
             )
@@ -1446,9 +1334,6 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
         If set to None or missing, the default project_id from the Google Cloud connection is used.
         (templated)
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1472,7 +1357,6 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
         job_id: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1480,11 +1364,6 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
         self._project_id = project_id
         self._job_id = job_id
         self._gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self._delegate_to = delegate_to
         self._impersonation_chain = impersonation_chain
 
         if not self._project_id:
@@ -1494,7 +1373,6 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
-            delegate_to=self._delegate_to,
             impersonation_chain=self._impersonation_chain,
         )
 

@@ -31,7 +31,6 @@ import string
 import subprocess
 import time
 import uuid
-import warnings
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -80,7 +79,6 @@ class CloudSQLHook(GoogleBaseHook):
 
     :param api_version: This is the version of the api.
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
-    :param delegate_to: This performs a task on one host with reference to other hosts.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
     """
@@ -94,16 +92,16 @@ class CloudSQLHook(GoogleBaseHook):
         self,
         api_version: str,
         gcp_conn_id: str = default_conn_name,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version

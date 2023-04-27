@@ -80,7 +80,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
         db_snapshot_identifier: str,
         tags: Sequence[TagTypeDef] | dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_conn_id",
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)

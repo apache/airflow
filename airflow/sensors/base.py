@@ -322,7 +322,7 @@ def poke_mode_only(cls):
 
         def mode_setter(_, value):
             if value != "poke":
-                raise ValueError("cannot set mode to 'poke'.")
+                raise ValueError(f"Cannot set mode to '{value}'. Only 'poke' is acceptable")
 
         if not issubclass(cls_type, BaseSensorOperator):
             raise ValueError(

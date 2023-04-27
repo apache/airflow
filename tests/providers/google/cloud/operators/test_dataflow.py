@@ -95,7 +95,6 @@ GROUP BY sales_region;
 """
 TEST_SQL_JOB = {"id": "test-job-id"}
 GCP_CONN_ID = "test_gcp_conn_id"
-DELEGATE_TO = "delegating_to_something"
 IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
 
@@ -147,7 +146,6 @@ class TestDataflowPythonOperator:
         mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=mock.ANY,
             poll_sleep=POLL_SLEEP,
             impersonation_chain=None,
             drain_pipeline=False,
@@ -481,7 +479,6 @@ class TestDataflowTemplateOperator:
             environment={"maxWorkers": 2},
             deferrable=True,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             cancel_timeout=CANCEL_TIMEOUT,
         )
@@ -531,7 +528,6 @@ class TestDataflowTemplateOperator:
             "wait_until_finished": True,
             "deferrable": True,
             "gcp_conn_id": GCP_CONN_ID,
-            "delegate_to": DELEGATE_TO,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "cancel_timeout": CANCEL_TIMEOUT,
         }
@@ -566,7 +562,6 @@ class TestDataflowStartFlexTemplateOperator:
         sync_operator.execute(mock.MagicMock())
         mock_dataflow.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=None,
             drain_pipeline=False,
             cancel_timeout=600,
             wait_until_finished=None,
@@ -629,7 +624,6 @@ class TestDataflowSqlOperator:
         start_sql.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=None,
             drain_pipeline=False,
             impersonation_chain=None,
         )

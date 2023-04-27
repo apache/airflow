@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 4.1.0
   - 4.0.1
   - 4.0.0
   - 3.4.0
@@ -96,8 +97,8 @@ hooks:
 
 triggers:
   - integration-name: Databricks
-    python-modules:
-      - airflow.providers.databricks.triggers.databricks
+    class-names:
+      - airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger
 
 sensors:
   - integration-name: Databricks

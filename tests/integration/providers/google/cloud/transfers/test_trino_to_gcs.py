@@ -104,7 +104,6 @@ class TestTrinoToGCSOperator:
 
         mock_trino_hook.assert_called_once_with(trino_conn_id=TRINO_CONN_ID)
         mock_gcs_hook.assert_called_once_with(
-            delegate_to=None,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -241,7 +240,6 @@ class TestTrinoToGCSOperator:
 
         mock_trino_hook.assert_called_once_with(trino_conn_id=TRINO_CONN_ID)
         mock_gcs_hook.assert_called_once_with(
-            delegate_to=None,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )

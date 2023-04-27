@@ -86,7 +86,6 @@ def trigger():
         project_id=TEST_PROJECT_ID,
         gcp_conn_id=TEST_CONN_ID,
         impersonation_chain=None,
-        delegate_to=None,
         poll_interval=TEST_POLL_INTERVAL,
         location=TEST_LOCATION,
     )
@@ -112,7 +111,6 @@ class TestCloudBuildCreateBuildTrigger:
             "project_id": TEST_PROJECT_ID,
             "gcp_conn_id": TEST_CONN_ID,
             "impersonation_chain": None,
-            "delegate_to": None,
             "poll_interval": TEST_POLL_INTERVAL,
             "location": TEST_LOCATION,
         }

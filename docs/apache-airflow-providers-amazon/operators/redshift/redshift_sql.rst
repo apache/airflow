@@ -15,8 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:RedshiftSQLOperator:
-
 ===================
 Amazon Redshift SQL
 ===================
@@ -37,25 +35,16 @@ Operators
 Execute a SQL query
 ===================
 
-``RedshiftSQLOperator`` executes a SQL query against an Amazon Redshift cluster using a Postgres connection.
+The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries against an Amazon Redshift cluster using a Postgres connection.
 
 To execute a SQL query against an Amazon Redshift cluster without using a Postgres connection,
 please check ``RedshiftDataOperator``.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift.py
+.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_execute_query.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_redshift_sql]
-    :end-before: [END howto_operator_redshift_sql]
-
-``RedshiftSQLOperator`` supports the ``parameters`` attribute which allows us to dynamically pass
-parameters into SQL statements.
-
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_redshift_sql_with_params]
-    :end-before: [END howto_operator_redshift_sql_with_params]
+    :start-after: [START howto_operator_sql_execute_query]
+    :end-before: [END howto_operator_sql_execute_query]
 
 Reference
 ---------

@@ -260,7 +260,8 @@ require Breeze Docker image to be build locally.
 |                                                           | * Add license for all Shell files                                |         |
 |                                                           | * Add license for all Python files                               |         |
 |                                                           | * Add license for all XML files                                  |         |
-|                                                           | * Add license for all YAML files                                 |         |
+|                                                           | * Add license for all Helm template files                        |         |
+|                                                           | * Add license for all YAML files except Helm templates           |         |
 |                                                           | * Add license for all Markdown files                             |         |
 |                                                           | * Add license for all other files                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
