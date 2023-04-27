@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
+import time
 from datetime import timedelta
 from typing import Any, AsyncIterator
 
@@ -24,7 +24,7 @@ from airflow.providers.snowflake.hooks.snowflake import (
     SnowflakeHookAsync,
 )
 from airflow.providers.snowflake.hooks.snowflake_sql_api import (
-    SnowflakeSqlApiHookAsync,
+    SnowflakeSqlApiHook,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -77,12 +77,12 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Makes a GET API request to snowflake with query_id to get the status of the query
         by get_sql_api_query_status async function
         """
-        hook = SnowflakeSqlApiHookAsync(
+        hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
             self.token_life_time,
             self.token_renewal_delta,
@@ -90,9 +90,9 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         try:
             statement_query_ids: list[str] = []
             for query_id in self.query_ids:
-                while await self.is_still_running(query_id):
-                    await asyncio.sleep(self.poll_interval)
-                statement_status = await hook.get_sql_api_query_status(query_id)
+                while self.is_still_running(query_id):
+                    time.sleep(self.poll_interval)
+                statement_status = hook.get_sql_api_query_status(query_id)
                 if statement_status["status"] == "error":
                     yield TriggerEvent(statement_status)
                 if statement_status["status"] == "success":
@@ -112,12 +112,12 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         running state and returns True if it is still running else
         return False
         """
-        hook = SnowflakeSqlApiHookAsync(
+        hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
             self.token_life_time,
             self.token_renewal_delta,
         )
-        statement_status = await hook.get_sql_api_query_status(query_id)
+        statement_status = hook.get_sql_api_query_status(query_id)
         if statement_status["status"] in ["running"]:
             return True
         return False

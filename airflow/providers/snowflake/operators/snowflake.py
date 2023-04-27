@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -29,9 +28,8 @@ from airflow.providers.common.sql.operators.sql import (
     SQLValueCheckOperator,
 )
 from airflow.providers.snowflake.hooks.snowflake_sql_api import (
-    SnowflakeSqlApiHookAsync,
+    SnowflakeSqlApiHook,
 )
-from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -369,7 +367,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.query_ids: list[str] = []
 
 
-class SnowflakeSqlApiOperatorAsync(SnowflakeOperator):
+class SnowflakeSqlApiOperator(SnowflakeOperator):
     """
     Implemented Async Snowflake SQL API Operator to support multiple SQL statements sequentially,
     which is the behavior of the SnowflakeOperator, the Snowflake SQL API allows submitting
@@ -490,46 +488,55 @@ class SnowflakeSqlApiOperatorAsync(SnowflakeOperator):
         By deferring the SnowflakeSqlApiTrigger class passed along with query ids.
         """
         self.log.info("Executing: %s", self.sql)
-        hook = SnowflakeSqlApiHookAsync(
+        self._hook = SnowflakeSqlApiHook(
             snowflake_conn_id=self.snowflake_conn_id,
             token_life_time=self.token_life_time,
             token_renewal_delta=self.token_renewal_delta,
         )
-        hook.execute_query(
+        self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings  # type: ignore[arg-type]
         )
-        self.query_ids = hook.query_ids
         self.log.info("List of query ids %s", self.query_ids)
 
         if self.do_xcom_push:
             context["ti"].xcom_push(key="query_ids", value=self.query_ids)
 
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=SnowflakeSqlApiTrigger(
-                poll_interval=self.poll_interval,
-                query_ids=self.query_ids,
-                snowflake_conn_id=self.snowflake_conn_id,
-                token_life_time=self.token_life_time,
-                token_renewal_delta=self.token_renewal_delta,
-            ),
-            method_name="execute_complete",
-        )
+        self.poll_on_queries()
+        self._hook.check_query_output(self.query_ids)
 
-    def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event:
-            if "status" in event and event["status"] == "error":
-                msg = f"{event['status']}: {event['message']}"
-                raise AirflowException(msg)
-            elif "status" in event and event["status"] == "success":
-                hook = SnowflakeSqlApiHookAsync(snowflake_conn_id=self.snowflake_conn_id)
-                query_ids = cast(List[str], event["statement_query_ids"])
-                hook.check_query_output(query_ids)
-                self.log.info("%s completed successfully.", self.task_id)
-        else:
-            self.log.info("%s completed successfully.", self.task_id)
+    def poll_on_queries(self):
+        """Poll on requested queries"""
+        statement_query_ids: list[str] = []
+        queries_in_progress = set(self.query_ids)
+        while queries_in_progress:
+            for query_id in self.query_ids:
+                statement_status = {}
+                try:
+                    statement_status = self._hook.get_sql_api_query_status(query_id)
+                except Exception as e:
+                    yield ValueError({"status": "error", "message": str(e)})
+                if statement_status.get("status") == "error":
+                    queries_in_progress.remove(query_id)
+                    print(statement_status)  # ToDo: change this
+                if statement_status.get("status") == "success":
+                    statement_query_ids.extend(statement_status["statement_handles"])
+                    queries_in_progress.remove(query_id)
+        return statement_query_ids
+
+    # def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
+    #     """
+    #     Callback for when the trigger fires - returns immediately.
+    #     Relies on trigger to throw an exception, otherwise it assumes execution was
+    #     successful.
+    #     """
+    #     if event:
+    #         if "status" in event and event["status"] == "error":
+    #             msg = f"{event['status']}: {event['message']}"
+    #             raise AirflowException(msg)
+    #         elif "status" in event and event["status"] == "success":
+    #             hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
+    #             query_ids = cast(List[str], event["statement_query_ids"])
+    #             hook.check_query_output(query_ids)
+    #             self.log.info("%s completed successfully.", self.task_id)
+    #     else:
+    #         self.log.info("%s completed successfully.", self.task_id)

@@ -21,7 +21,6 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-import aiohttp
 import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -31,7 +30,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.hooks.sql_api_generate_jwt import JWTGenerator
 
 
-class SnowflakeSqlApiHookAsync(SnowflakeHook):
+class SnowflakeSqlApiHook(SnowflakeHook):
     """
     A client to interact with Snowflake using SQL API  and allows submitting
     multiple SQL statements in a single request. In combination with aiohttp, make post request to submit SQL
@@ -228,7 +227,7 @@ class SnowflakeSqlApiHookAsync(SnowflakeHook):
                     f"Response: {e.response.content}, Status Code: {e.response.status_code}"
                 )
 
-    async def get_sql_api_query_status(self, query_id: str) -> dict[str, str | list[str]]:
+    def get_sql_api_query_status(self, query_id: str) -> dict[str, str | list[str]]:
         """
         Based on the query id async HTTP request is made to snowflake SQL API and return response.
 
@@ -236,25 +235,24 @@ class SnowflakeSqlApiHookAsync(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", {query_id})
         header, params, url = self.get_request_url_header_params(query_id)
-        async with aiohttp.ClientSession(headers=header) as session:
-            async with session.get(url, params=params) as response:
-                status_code = response.status
-                resp = await response.json()
-                self.log.info("Snowflake SQL GET statements status API response: %s", resp)
-                if status_code == 202:
-                    return {"status": "running", "message": "Query statements are still running"}
-                elif status_code == 422:
-                    return {"status": "error", "message": resp["message"]}
-                elif status_code == 200:
-                    statement_handles = []
-                    if "statementHandles" in resp and resp["statementHandles"]:
-                        statement_handles = resp["statementHandles"]
-                    elif "statementHandle" in resp and resp["statementHandle"]:
-                        statement_handles.append(resp["statementHandle"])
-                    return {
-                        "status": "success",
-                        "message": resp["message"],
-                        "statement_handles": statement_handles,
-                    }
-                else:
-                    return {"status": "error", "message": resp["message"]}
+        response = requests.get(url, params=params)
+        status_code = response.status_code
+        resp = response.json()
+        self.log.info("Snowflake SQL GET statements status API response: %s", resp)
+        if status_code == 202:
+            return {"status": "running", "message": "Query statements are still running"}
+        elif status_code == 422:
+            return {"status": "error", "message": resp["message"]}
+        elif status_code == 200:
+            statement_handles = []
+            if "statementHandles" in resp and resp["statementHandles"]:
+                statement_handles = resp["statementHandles"]
+            elif "statementHandle" in resp and resp["statementHandle"]:
+                statement_handles.append(resp["statementHandle"])
+            return {
+                "status": "success",
+                "message": resp["message"],
+                "statement_handles": statement_handles,
+            }
+        else:
+            return {"status": "error", "message": resp["message"]}
