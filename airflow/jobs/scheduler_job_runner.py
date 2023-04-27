@@ -59,7 +59,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.timetables.simple import DatasetTriggeredTimetable
+from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1288,7 +1288,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
         # If the DAG never schedules skip save runtime
-        if not dag.timetable.can_run:
+        if isinstance(dag.timetable, NullTimetable):
             return False
 
         # get active dag runs from DB if not available
