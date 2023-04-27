@@ -45,15 +45,6 @@ T = TypeVar("T")
 S = TypeVar("S")
 
 
-def get_value_with_cache(cache: dict[str, Any], key: str, do_get_value: Callable) -> Any:
-    """Returns value from cache or function"""
-    return_value = cache.get(key)
-    if not return_value:
-        return_value = cache[key] = do_get_value()
-
-    return return_value
-
-
 def validate_key(k: str, max_length: int = 250):
     """Validates value used as a key."""
     if not isinstance(k, str):

@@ -28,8 +28,9 @@ import warnings
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -62,7 +63,6 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
-from airflow.utils.helpers import get_value_with_cache
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -1085,11 +1085,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_dags: dict = {}
+        cached_get_dag: Callable = lru_cache()(lambda dag_id: self.dagbag.get_dag(dag_id, session=session))
         for dag_run, callback_to_run in callback_tuples:
-            dag = get_value_with_cache(
-                cached_dags, dag_run.dag_id, lambda: self.dagbag.get_dag(dag_run.dag_id, session=session)
-            )
+            dag = cached_get_dag(dag_run.dag_id)
 
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
@@ -1355,12 +1353,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_dags: dict = {}
+        cached_get_dag: Callable = lru_cache()(lambda dag_id: self.dagbag.get_dag(dag_id, session=session))
 
         for dag_run in dag_runs:
-            dag = dag_run.dag = get_value_with_cache(
-                cached_dags, dag_run.dag_id, lambda: self.dagbag.get_dag(dag_run.dag_id, session=session)
-            )
+            dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
 
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)

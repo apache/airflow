@@ -31,7 +31,6 @@ from airflow.utils.helpers import (
     at_most_one,
     build_airflow_url_with_query,
     exactly_one,
-    get_value_with_cache,
     merge_dicts,
     prune_dict,
     validate_group_key,
@@ -174,23 +173,6 @@ class TestHelpers:
 
         with cached_app(testing=True).test_request_context():
             assert build_airflow_url_with_query(query) == expected_url
-
-    @pytest.mark.parametrize(
-        "cache, excepted_value",
-        [
-            ({}, 1),
-            ({"key2": 10}, 1),
-            ({"key1": 10}, 10),
-            ({"key1": ""}, 1),
-        ],
-        ids=["cache_empty", "missing_cache_item", "cached", "empty_cached_value"],
-    )
-    def test_get_value_with_cache(self, cache, excepted_value):
-        def do_get_value():
-            return 1
-
-        assert excepted_value == get_value_with_cache(cache, "key1", lambda: do_get_value())
-        assert excepted_value == cache["key1"]
 
     @pytest.mark.parametrize(
         "key_id, message, exception",
