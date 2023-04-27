@@ -37,6 +37,7 @@ versions:
   - 1.0.0
 
 dependencies:
+  - apache-airflow>=2.4.0
   - pypsrp>=0.8.0
 
 integrations:
