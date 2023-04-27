@@ -2884,25 +2884,28 @@ class DAG(LoggingMixin):
             session.add(orm_dag)
             orm_dags.append(orm_dag)
 
-        # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
-        most_recent_subq = (
-            session.query(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
-            .filter(
-                DagRun.dag_id.in_(existing_dags),
-                or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+        most_recent_runs = {}
+        num_active_runs = {}
+        # Save runtime if dag is not scheduleable
+        if [dag for dag in dags if not isinstance(dag.timetable, NullTimetable)]:
+            # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
+            most_recent_subq = (
+                session.query(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+                .filter(
+                    DagRun.dag_id.in_(existing_dags),
+                    or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                )
+                .group_by(DagRun.dag_id)
+                .subquery()
             )
-            .group_by(DagRun.dag_id)
-            .subquery()
-        )
-        most_recent_runs_iter = session.query(DagRun).filter(
-            DagRun.dag_id == most_recent_subq.c.dag_id,
-            DagRun.execution_date == most_recent_subq.c.max_execution_date,
-        )
-        most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
+            most_recent_runs_iter = session.query(DagRun).filter(
+                DagRun.dag_id == most_recent_subq.c.dag_id,
+                DagRun.execution_date == most_recent_subq.c.max_execution_date,
+            )
+            most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
 
-        # Get number of active dagruns for all dags we are processing as a single query.
-
-        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
+            # Get number of active dagruns for all dags we are processing as a single query.
+            num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
 
         filelocs = []
 
