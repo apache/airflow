@@ -1730,9 +1730,6 @@ class TestPatchDags(TestDagEndpoint):
 
         response = self.client.get(
             "/api/v1/dags?order_by=-dag_id",
-            json={
-                "is_paused": True,
-            },
             environ_overrides={"REMOTE_USER": "test"},
         )
 
@@ -1744,7 +1741,7 @@ class TestPatchDags(TestDagEndpoint):
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token10,
-                    "is_paused": True,
+                    "is_paused": False,
                     "is_active": True,
                     "is_subdag": False,
                     "owners": [],
@@ -1775,7 +1772,7 @@ class TestPatchDags(TestDagEndpoint):
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
-                    "is_paused": True,
+                    "is_paused": False,
                     "is_active": True,
                     "is_subdag": False,
                     "owners": [],
