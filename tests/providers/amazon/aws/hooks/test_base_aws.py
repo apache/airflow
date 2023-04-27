@@ -1092,4 +1092,4 @@ def test_custom_waiter_with_resource_type(waiter_path_mock: MagicMock):
     with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter") as BaseBotoWaiter:
         hook.get_waiter("other_wait")
 
-    assert isinstance(BaseBotoWaiter.call_args.kwargs["client"], botocore.client.BaseClient)
+    assert isinstance(BaseBotoWaiter.call_args[1]["client"], botocore.client.BaseClient)
