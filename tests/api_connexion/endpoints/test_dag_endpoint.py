@@ -1723,12 +1723,12 @@ class TestPatchDags(TestDagEndpoint):
         assert len(dags_updated.all()) == 2
 
     @provide_session
-    def test_should_respond_200_and_reverse_odering(self, session, url_safe_serializer):
+    def test_should_respond_200_and_reverse_ordering(self, session, url_safe_serializer):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(2)
         file_token10 = url_safe_serializer.dumps("/tmp/dag_2.py")
 
-        response = self.client.patch(
+        response = self.client.get(
             "/api/v1/dags?order_by=-dag_id",
             json={
                 "is_paused": True,
