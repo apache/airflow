@@ -278,12 +278,12 @@ def find_all_providers_affected(
         get_console().print(f"Suspended providers: {suspended_providers}")
         if fail_if_suspended_providers_affected:
             get_console().print(
-                "[error]This PR did not have `allow suspended provider changes` " "label set so it will fail."
+                "[error]This PR did not have `allow suspended provider changes` label set so it will fail."
             )
             sys.exit(1)
         else:
             get_console().print(
-                "[info]This PR had `allow suspended provider changes` label set so it will " "continue"
+                "[info]This PR had `allow suspended provider changes` label set so it will continue"
             )
     if len(all_providers) == 0:
         return None
