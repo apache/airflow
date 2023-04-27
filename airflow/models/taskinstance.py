@@ -1391,7 +1391,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def emit_state_change_metric(self, new_state: TaskInstanceState):
         """
-        Sends a time metric logging how much time a given state transition took.
+        Sends a time metric representing how much time a given state transition took.
         The previous state and metric name is deduced from the state the task was put in.
 
         :param new_state: The state that has just been set for this task.
