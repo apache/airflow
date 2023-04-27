@@ -169,9 +169,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             ),
         )
         export_arn = response.get("ExportDescription", {}).get("ExportArn")
-        waiter.wait(
-            ExportArn=export_arn,
-        )
+        waiter.wait(ExportArn=export_arn)
 
     def _export_entire_data(self):
         """Export all data from the table."""
