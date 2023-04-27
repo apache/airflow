@@ -59,8 +59,6 @@ const Details = ({ instance, group, dagId }: Props) => {
     mappedStates,
   });
 
-  console.log(mappedStates);
-
   childTaskMap.forEach((key, val) => {
     const childState = snakeCase(val);
     if (key > 0) {
