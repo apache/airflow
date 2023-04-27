@@ -59,7 +59,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable
+from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1284,18 +1284,18 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 ).delete()
 
     def _should_update_dag_next_dagruns(
-        self, dag: DAG, dag_model: DagModel, session: Session, total_active_runs: int = -1
+        self, dag: DAG, dag_model: DagModel, session: Session, total_active_runs: int | None = None
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
-        # If dag has no interval or timetable then skip save runtime
-        if not dag.schedule_interval and isinstance(dag.timetable, NullTimetable):
+        # If the DAG never schedules skip save runtime
+        if not dag.timetable.can_run:
             return False
 
         # get active dag runs from DB if not available
-        if total_active_runs < 0:
+        if not total_active_runs:
             total_active_runs = dag.get_num_active_runs(only_running=False, session=session)
 
-        if total_active_runs >= dag.max_active_runs:
+        if total_active_runs and total_active_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,

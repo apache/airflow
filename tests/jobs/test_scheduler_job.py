@@ -3398,8 +3398,8 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         "schedule, number_running, excepted",
         [
-            (None, -1, False),
-            ("*/1 * * * *", -1, False),
+            (None, None, False),
+            ("*/1 * * * *", None, False),
             ("*/1 * * * *", 1, True),
         ],
         ids=["no_dag_schedule", "dag_schedule_too_many_runs", "dag_schedule_less_runs"],
