@@ -31,7 +31,6 @@ from opentelemetry.util.types import Attributes
 from airflow.configuration import conf
 from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
 from airflow.metrics.validators import AllowListValidator, validate_stat
-from airflow.utils.helpers import prune_dict
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +45,10 @@ def _is_up_down_counter(name):
     return name in UP_DOWN_COUNTERS
 
 
+def _generate_key_name(name: str, attributes: Attributes = None):
+    return f"{name}{'_' + str(attributes) if attributes else ''}"
+
+
 class SafeOtelLogger:
     """Otel Logger"""
 
@@ -58,15 +61,21 @@ class SafeOtelLogger:
 
     @validate_stat
     def incr(
-        self, stat: str, count: int = 1, rate: float = 1, tags: Attributes = None, *, back_compat_name: str
+        self,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
+        tags: Attributes = None,
+        *,
+        back_compat_name: str = "",
     ):
         """
         Increment stat by count.
 
         :param stat: The name of the stat to increment.
         :param count: A positive integer to add to the current value of stat.
-        :param rate: Value between 0 and 1 representing the "percentage" of
-            the time to emit the metric where 1 = 100%.
+        :param rate: value between 0 and 1 that represents the sampled rate at
+            which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
         :param back_compat_name: If possible, the metric will also be emitted
             under this name for backward compatibility.
@@ -76,24 +85,32 @@ class SafeOtelLogger:
         if rate < 1 and random.random() > rate:
             return
 
-        for name in prune_dict({stat, back_compat_name}, mode="truthy"):
-            if self.metrics_validator.test(name):
-                counter = self.metrics_map.get_counter(f"{self.prefix}.{name}")
-                counter.add(count, attributes=tags)
+        if back_compat_name and self.metrics_validator.test(back_compat_name):
+            counter = self.metrics_map.get_counter(f"{self.prefix}.{back_compat_name}")
+            counter.add(count, attributes=tags)
 
-        return self.metrics_map.get_counter(f"{self.prefix}.{stat}")
+        if self.metrics_validator.test(stat):
+            counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")
+            counter.add(count, attributes=tags)
+            return counter
 
     @validate_stat
     def decr(
-        self, stat: str, count: int = 1, rate: float = 1, tags: Attributes = None, *, back_compat_name: str
+        self,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
+        tags: Attributes = None,
+        *,
+        back_compat_name: str = "",
     ):
         """
         Decrement stat by count.
 
         :param stat: The name of the stat to decrement.
         :param count: A positive integer to subtract from current value of stat.
-        :param rate: Value between 0 and 1 representing the "percentage" of
-            the time to emit the metric where 1 = 100%.
+        :param rate: value between 0 and 1 that represents the sampled rate at
+            which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
         :param back_compat_name: If possible, the metric will also be emitted
             under this name for backward compatibility.
@@ -103,12 +120,14 @@ class SafeOtelLogger:
         if rate < 1 and random.random() > rate:
             return
 
-        for name in prune_dict({stat, back_compat_name}, mode="truthy"):
-            if self.metrics_validator.test(name):
-                counter = self.metrics_map.get_counter(f"{self.prefix}.{name}")
-                counter.add(count, attributes=tags)
+        if back_compat_name and self.metrics_validator.test(back_compat_name):
+            counter = self.metrics_map.get_counter(f"{self.prefix}.{back_compat_name}")
+            counter.add(-count, attributes=tags)
 
-        return self.metrics_map.get_counter(f"{self.prefix}.{stat}")
+        if self.metrics_validator.test(stat):
+            counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")
+            counter.add(-count, attributes=tags)
+            return counter
 
     @validate_stat
     def gauge(
@@ -181,7 +200,7 @@ class MetricsMap:
         :param name: The name of the counter to fetch or create.
         :param attributes:  Counter attributes, used to generate a unique key to store the counter.
         """
-        key: str = name + str(attributes)
+        key = _generate_key_name(name, attributes)
         if key in self.map.keys():
             return self.map[key]
         else:
@@ -196,7 +215,7 @@ class MetricsMap:
         :param name: The name of the counter to delete.
         :param attributes: Counter attributes which were used to generate a unique key to store the counter.
         """
-        key: str = name + str(attributes)
+        key = _generate_key_name(name, attributes)
         if key in self.map.keys():
             del self.map[key]
 
