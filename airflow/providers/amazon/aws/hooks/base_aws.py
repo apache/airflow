@@ -138,9 +138,9 @@ class BaseSessionFactory(LoggingMixin):
             or self.conn.session_kwargs.get("aws_session_token", None)
         ):
             session.set_credentials(
-                self.conn.session_kwargs["aws_access_key_id"],
-                self.conn.session_kwargs["aws_secret_access_key"],
-                self.conn.session_kwargs["aws_session_token"],
+                access_key=self.conn.session_kwargs.get("aws_access_key_id"),
+                secret_key=self.conn.session_kwargs.get("aws_secret_access_key"),
+                token=self.conn.session_kwargs.get("aws_session_token"),
             )
 
         if self.conn.session_kwargs.get("region_name", None) is not None:

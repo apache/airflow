@@ -346,6 +346,7 @@ def run_tests_in_parallel(
 )
 @option_verbose
 @option_dry_run
+@option_github_repository
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def command_for_tests(
     python: str,
@@ -369,6 +370,7 @@ def command_for_tests(
     upgrade_boto: bool,
     collect_only: bool,
     remove_arm_packages: bool,
+    github_repository: str,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
@@ -386,6 +388,7 @@ def command_for_tests(
         upgrade_boto=upgrade_boto,
         collect_only=collect_only,
         remove_arm_packages=remove_arm_packages,
+        github_repository=github_repository,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
@@ -430,6 +433,7 @@ def command_for_tests(
 @option_image_tag_for_running
 @option_mount_sources
 @option_integration
+@option_github_repository
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
@@ -454,6 +458,7 @@ def integration_tests(
     mysql_version: str,
     mssql_version: str,
     integration: tuple,
+    github_repository: str,
     test_timeout: int,
     skip_provider_tests: bool,
     db_reset: bool,
@@ -475,6 +480,7 @@ def integration_tests(
         forward_ports=False,
         test_type="Integration",
         skip_provider_tests=skip_provider_tests,
+        github_repository=github_repository,
     )
     cleanup_python_generated_files()
     perform_environment_checks()
