@@ -1429,7 +1429,7 @@ class TaskInstance(Base, LoggingMixin):
                 return
             timing = (timezone.utcnow() - self.start_date).total_seconds()
         else:
-            raise NotImplementedError
+            raise NotImplementedError("no metric emission setup for state %s", new_state)
 
         # send metric twice, once (legacy) with tags in the name and once with tags as tags
         Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
