@@ -178,26 +178,16 @@ class TestEmrHook:
         assert not result
         assert message.startswith("'Amazon Elastic MapReduce' Airflow Connection cannot be tested")
 
-    @mock_emr
+@mock_emr
     def test_get_cluster_id_by_name(self):
         """
         Test that we can resolve cluster id by cluster name.
-
-        Create 50 clusters with the range 1-50 appended and create a duplicate of index 1
-        to test logic.
         """
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
 
         job_flow = hook.create_job_flow(
             {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
         )
-
-        hook.create_job_flow({"Name": "test_cluster1", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}})
-
-        for i in range(50):
-            hook.create_job_flow(
-                {"Name": "test_cluster" + str(i % 50), "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
-            )
 
         job_flow_id = job_flow["JobFlowId"]
 
@@ -209,23 +199,51 @@ class TestEmrHook:
 
         assert no_match is None
 
-        with pytest.raises(AirflowException):
-            hook.get_cluster_id_by_name("test_cluster1", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
+    @mock_emr
+    def test_get_cluster_id_by_name_duplicate(self):
+        """
+        Test that we get an exception when there are duplicate clusters
+        """
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
 
+        hook.create_job_flow({"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}})
+
+        hook.create_job_flow({"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}})
+
+        with pytest.raises(AirflowException):
+            hook.get_cluster_id_by_name("test_cluster", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
+
+    @mock_emr
+    def test_get_cluster_id_by_name_pagination(self):
+        """
+        Test that we can resolve cluster id by cluster name when there are
+        enough clusters to trigger pagination
+        """
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
+
+        # Create enough clusters to trigger pagination
+        for index in range(51):
+            hook.create_job_flow(
+                {"Name": f"test_cluster_{index}", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+            )
+
+        # Fetch a cluster from the second page using the boto API
         client = boto3.client("emr", region_name="us-east-1")
         response_marker = client.list_clusters(ClusterStates=["RUNNING", "WAITING", "BOOTSTRAPPING"])[
             "Marker"
         ]
-        second_page = client.list_clusters(
+        second_page_cluster = client.list_clusters(
             ClusterStates=["RUNNING", "WAITING", "BOOTSTRAPPING"], Marker=response_marker
-        )
-        second_page_cluster = second_page["Clusters"][0]["Name"]
+        )["Clusters"][0]
 
-        second_page_match = hook.get_cluster_id_by_name(
-            second_page_cluster, ["RUNNING", "WAITING", "BOOTSTRAPPING"]
+        # Now that we have a cluster, fetch the id with the name
+        second_page_cluster_id = hook.get_cluster_id_by_name(
+            second_page_cluster["Name"], ["RUNNING", "WAITING", "BOOTSTRAPPING"]
         )
 
-        assert second_page_match is not None
+        # Assert that the id we got from the hook is the same as the one we got
+        # from the boto api
+        assert second_page_cluster_id == second_page_cluster["Id"]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_add_job_flow_steps_execution_role_arn(self, mock_conn):
