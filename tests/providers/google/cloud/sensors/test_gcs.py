@@ -372,7 +372,7 @@ class TestGCSObjectsWithPrefixExistenceSensorAsync:
                 context=context,
                 event={"status": "success", "message": "Job completed", "matches": [TEST_OBJECT]},
             )
-        mock_log_info.assert_called_with("Checking for existence of object: %s, %s", TEST_BUCKET, TEST_OBJECT)
+        mock_log_info.assert_called_with("Resuming from trigger and checking status")
 
 
 class TestGCSUploadSessionCompleteSensor:
