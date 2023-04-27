@@ -24,6 +24,7 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
+from airflow.exceptions import AirflowNotFoundException
 from airflow.security import permissions
 from airflow.settings import json
 
@@ -67,7 +68,7 @@ def _config_to_json(config: Config) -> str:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)])
-def get_config() -> Response:
+def get_config(*, section: str | None = None) -> Response:
     """Get current configuration."""
     serializer = {
         "text/plain": _config_to_text,
@@ -77,7 +78,13 @@ def get_config() -> Response:
     if return_type not in serializer:
         return Response(status=HTTPStatus.NOT_ACCEPTABLE)
     elif conf.getboolean("webserver", "expose_config"):
+        if section and not conf.has_section(section):
+            raise AirflowNotFoundException(f"section={section} not found")
         conf_dict = conf.as_dict(display_source=False, display_sensitive=True)
+        if section:
+            conf_section_value = conf_dict[section]
+            conf_dict.clear()
+            conf_dict[section] = conf_section_value
         config = _conf_dict_to_config(conf_dict)
         config_text = serializer[return_type](config)
         return Response(config_text, headers={"Content-Type": return_type})
