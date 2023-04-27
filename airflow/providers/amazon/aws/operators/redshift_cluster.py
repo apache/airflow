@@ -428,6 +428,8 @@ class RedshiftResumeClusterOperator(BaseOperator):
         The default connection id is ``aws_default``
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param max_attempts: The maximum number of attempts to check the state of the cluster.
+    :param wait_for_completion: If True, the operator will wait for the cluster to be in the
+        `resumed` state. Default is False.
     :param deferrable: If True, the operator will run as a deferrable operator.
     """
 
@@ -440,6 +442,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = False,
         deferrable: bool = False,
         poll_interval: int = 10,
         max_attempts: int = 10,
@@ -448,6 +451,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
+        self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.max_attempts = max_attempts
         self.poll_interval = poll_interval
@@ -482,6 +486,15 @@ class RedshiftResumeClusterOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+            )
+        if self.wait_for_completion:
+            waiter = redshift_hook.get_waiter("cluster_resumed")
+            waiter.wait(
+                ClusterIdentifier=self.cluster_identifier,
+                WaiterConfig={
+                    "Delay": self.poll_interval,
+                    "MaxAttempts": self.max_attempts,
+                },
             )
 
     def execute_complete(self, context, event=None):
