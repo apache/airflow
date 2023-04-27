@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from unittest import mock
+from unittest.mock import ANY
 
 import pytest
 from opentelemetry.metrics import MeterProvider
@@ -28,6 +29,7 @@ from airflow.metrics.otel_logger import (
     METRIC_NAME_PREFIX,
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
+    MetricsMap,
     SafeOtelLogger,
     _generate_key_name,
     _is_up_down_counter,
@@ -173,13 +175,54 @@ class TestOtelMetrics:
         self.map[full_name(name)].add.assert_has_calls(expected_calls)
         self.map[full_name(name)].add.call_count == 2
 
+    def test_gauge_new_metric(self, name):
+        self.stats.gauge(name, value=1)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+
+    def test_gauge_new_metric_with_tags(self, name):
+        tags = {"hello": "world"}
+        key = _generate_key_name(full_name(name), tags)
+
+        self.stats.gauge(name, value=1, tags=tags)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+        self.map[key].attributes == tags
+
+    def test_gauge_existing_metric(self, name):
+        self.stats.gauge(name, value=1)
+        self.stats.gauge(name, value=2)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+        assert self.map[full_name(name)].value == 2
+
+    @mock.patch("random.random", side_effect=[0.1, 0.9])
+    @mock.patch.object(MetricsMap, "set_value")
+    def test_gauge_with_rate_limit_works(self, mock_set_value, mock_random, name):
+        # Create the counter and set the value to 1
+        self.stats.gauge(name, value=1, rate=0.5)
+        # This one should not increment because random() will return a value higher than `rate`
+        self.stats.gauge(name, value=1, rate=0.5)
+
+        with pytest.raises(ValueError):
+            self.stats.gauge(name, value=1, rate=-0.5)
+
+        assert mock_random.call_count == 2
+        assert mock_set_value.call_count == 1
+
     @mock.patch("warnings.warn")
     def test_timer_warns_not_implemented(self, mock_warn):
+        class MessageContaining(str):
+            def __eq__(self, other):
+                return self in other
+
         with self.stats.timer():
-            mock_warn.assert_called_once_with("OpenTelemetry Timers are not yet implemented.")
-
-    @mock.patch("warnings.warn")
-    def test_gauge_warns_not_implemented(self, mock_warn):
-        self.stats.gauge("test_gauge", 1)
-
-        mock_warn.assert_called_once_with("OpenTelemetry Gauges are not yet implemented.")
+            mock_warn.assert_called_once_with(
+                MessageContaining("OpenTelemetry Timers are not yet implemented.")
+            )

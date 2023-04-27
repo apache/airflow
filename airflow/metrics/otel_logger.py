@@ -19,10 +19,12 @@ from __future__ import annotations
 import logging
 import random
 import warnings
-from typing import Callable
+from functools import partial
+from typing import Callable, Iterable, Union
 
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.metrics import Instrument, Observation
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -39,6 +41,9 @@ from airflow.metrics.validators import (
 
 log = logging.getLogger(__name__)
 
+GaugeValues = Union[int, float]
+
+DEFAULT_GAUGE_VALUE = 0.0
 
 # "airflow.dag_processing.processes" is currently the only UDC used in Airflow.  If more are added,
 # we should add a better system for this.
@@ -81,6 +86,36 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
     return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+
+
+def _type_as_str(obj: Instrument) -> str:
+    """
+    Given an OpenTelemetry Instrument, returns the type of instrument as a string.
+
+    type() will return something like: <class 'opentelemetry.sdk.metrics._internal.instrument._Counter'>
+    This extracts that down to just "Counter" (or "Gauge" or whatever) for cleaner logging purposes.
+
+    :param obj: An OTel Instrument or subclass
+    :returns: The type() of the Instrument without all the nested class info
+    """
+    return str(type(obj)).split(".")[-1][1:-2]
+
+
+def _get_otel_safe_name(name: str) -> str:
+    """
+    OpenTelemetry has a maximum length for metric names.  This method returns the
+    name, truncated if it is too long, and logs a warning so the user will know.
+
+    :param name: The original metric name
+    :returns: The name, truncated to an OTel-acceptable length if required
+    """
+    otel_safe_name = name[:OTEL_NAME_MAX_LENGTH]
+    if name != otel_safe_name:
+        warnings.warn(
+            f"Metric name `{name}` exceeds OpenTelemetry's name length limit of "
+            f"{OTEL_NAME_MAX_LENGTH} characters and will be truncated to `{otel_safe_name}`."
+        )
+    return otel_safe_name
 
 
 class SafeOtelLogger:
@@ -154,9 +189,18 @@ class SafeOtelLogger:
         delta: bool = False,
         *,
         tags: Attributes = None,
+        back_compat_name: str = "",
     ) -> None:
-        warnings.warn("OpenTelemetry Gauges are not yet implemented.")
-        return None
+        if rate < 0:
+            raise ValueError("rate must be a positive value.")
+        if rate < 1 and random.random() > rate:
+            return
+
+        if back_compat_name and self.metrics_validator.test(back_compat_name):
+            self.metrics_map.set_value(f"{self.prefix}.{back_compat_name}", value, delta, tags)
+
+        if self.metrics_validator.test(stat):
+            self.metrics_map.set_value(f"{self.prefix}.{stat}", value, delta, tags)
 
     @validate_stat
     def timing(
@@ -166,7 +210,7 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        warnings.warn("OpenTelemetry Timers are not yet implemented.")
+        warnings.warn(f"Create timer {stat} : OpenTelemetry Timers are not yet implemented.")
         return None
 
     @validate_stat
@@ -177,7 +221,7 @@ class SafeOtelLogger:
         tags: Attributes = None,
         **kwargs,
     ) -> TimerProtocol:
-        warnings.warn("OpenTelemetry Timers are not yet implemented.")
+        warnings.warn(f"Create timer {stat} : OpenTelemetry Timers are not yet implemented.")
         return Timer()
 
 
@@ -193,12 +237,7 @@ class MetricsMap:
 
     def _create_counter(self, name):
         """Creates a new counter or up_down_counter for the provided name."""
-        otel_safe_name = name[:OTEL_NAME_MAX_LENGTH]
-        if name != otel_safe_name:
-            warnings.warn(
-                f"Metric name `{name}` exceeds OpenTelemetry's name length limit of "
-                f"{OTEL_NAME_MAX_LENGTH} characters and will be truncated to `{otel_safe_name}`."
-            )
+        otel_safe_name = _get_otel_safe_name(name)
 
         if _is_up_down_counter(name):
             counter = self.meter.create_up_down_counter(name=otel_safe_name)
@@ -234,6 +273,58 @@ class MetricsMap:
         key = _generate_key_name(name, attributes)
         if key in self.map.keys():
             del self.map[key]
+
+    def set_value(self, name: str, value: float, delta: bool, tags: Attributes):
+        """
+        Overrides the last reading for a Gauge with a new value.
+
+        :param name: The name of the gauge to record.
+        :param value: The new reading to record.
+        :param delta: If True, value is added to the previous reading, else it overrides.
+        :param tags: Gauge attributes which were used to generate a unique key to store the counter.
+        :returns: None
+        """
+
+        key: str = _generate_key_name(name, tags)
+        old_value = self.poke_gauge(name, tags)
+        # If delta is true, add the new value to the last reading otherwise overwrite it.
+        self.map[key] = Observation(value + (delta * old_value), tags)
+
+    def _create_gauge(self, name: str, attributes: Attributes = None):
+        """
+        Creates a new Observable Gauge with the provided name and the default value.
+
+        :param name: The name of the gauge to fetch or create.
+        :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
+        """
+        otel_safe_name = _get_otel_safe_name(name)
+        key = _generate_key_name(name, attributes)
+
+        gauge = self.meter.create_observable_gauge(
+            name=otel_safe_name,
+            callbacks=[partial(self.read_gauge, _generate_key_name(name, attributes))],
+        )
+        self.map[key] = Observation(DEFAULT_GAUGE_VALUE, attributes)
+
+        return gauge
+
+    def read_gauge(self, key: str, *args) -> Iterable[Observation]:
+        """Callback for the Observable Gauges, returns the Observation for the provided key."""
+        yield self.map[key]
+
+    def poke_gauge(self, name: str, attributes: Attributes = None) -> GaugeValues:
+        """
+        Returns the value of the gauge; creates a new one with the default value if it did not exist.
+
+        :param name: The name of the gauge to fetch or create.
+        :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
+        :returns:  The integer or float value last recorded for the provided Gauge name.
+        """
+        key = _generate_key_name(name, attributes)
+        if key not in self.map.keys():
+            self._create_gauge(name, attributes)
+
+        return self.map[key].value
 
 
 def get_otel_logger(cls) -> SafeOtelLogger:
