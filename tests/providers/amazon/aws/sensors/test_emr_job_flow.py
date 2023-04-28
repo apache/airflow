@@ -208,10 +208,7 @@ class TestEmrJobFlowSensor:
             DESCRIBE_CLUSTER_RUNNING_RETURN,
             DESCRIBE_CLUSTER_TERMINATED_RETURN,
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
+        with patch("boto3.session.Session", self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
             )
@@ -230,10 +227,7 @@ class TestEmrJobFlowSensor:
             DESCRIBE_CLUSTER_RUNNING_RETURN,
             DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
+        with patch("boto3.session.Session", self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
             )
@@ -256,10 +250,7 @@ class TestEmrJobFlowSensor:
             DESCRIBE_CLUSTER_TERMINATED_RETURN,  # will not be used
             DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,  # will not be used
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
+        with patch("boto3.session.Session", self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id="test_task",
                 poke_interval=0,
