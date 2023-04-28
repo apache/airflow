@@ -323,19 +323,20 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
             super().execute(context)
             return self._matches
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=GCSPrefixBlobTrigger(
-                    bucket=self.bucket,
-                    prefix=self.prefix,
-                    poke_interval=self.poke_interval,
-                    google_cloud_conn_id=self.google_cloud_conn_id,
-                    hook_params={
-                        "impersonation_chain": self.impersonation_chain,
-                    },
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=GCSPrefixBlobTrigger(
+                        bucket=self.bucket,
+                        prefix=self.prefix,
+                        poke_interval=self.poke_interval,
+                        google_cloud_conn_id=self.google_cloud_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
         """
