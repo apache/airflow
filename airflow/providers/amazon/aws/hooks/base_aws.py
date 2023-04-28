@@ -603,7 +603,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Get the underlying boto3 client using boto3 session"""
         client_type = self.client_type
         session = self.get_session(region_name=region_name, deferrable=deferrable)
-        if isinstance(session, AioSession):
+        if not isinstance(session, boto3.session.Session):
             return session.create_client(
                 client_type,
                 endpoint_url=self.conn_config.endpoint_url,
