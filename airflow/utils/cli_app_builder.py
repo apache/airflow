@@ -24,12 +24,15 @@ from typing import Generator
 from flask import Flask
 
 from airflow.www.extensions.init_appbuilder import AirflowAppBuilder, init_appbuilder
+from airflow.www.extensions.init_views import init_plugins
 
 
 @lru_cache(maxsize=None)
 def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Returns an appbuilder instance for the given app"""
-    return init_appbuilder(app)
+    init_appbuilder(app)
+    init_plugins(app)
+    return app.appbuilder  # type: ignore[attr-defined]
 
 
 @contextmanager
