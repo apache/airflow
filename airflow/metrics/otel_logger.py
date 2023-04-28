@@ -190,7 +190,7 @@ class MetricsMap:
             counter = self.meter.create_counter(name=otel_safe_name)
 
         counter_type = str(type(counter)).split(".")[-1][:-2]
-        logging.debug("--> created %s as type: %", otel_safe_name, counter_type)
+        logging.debug("--> created %s as type: %s", otel_safe_name, counter_type)
         return counter
 
     def get_counter(self, name: str, attributes: Attributes = None):
@@ -233,7 +233,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     # TODO:  figure out https instead of http ??
     endpoint = f"http://{host}:{port}/v1/metrics"
 
-    logging.info("[Metric Exporter] Connecting to OTLP at ---> %", endpoint)
+    logging.info("[Metric Exporter] Connecting to OTLP at ---> %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
             OTLPMetricExporter(
