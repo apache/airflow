@@ -40,6 +40,7 @@ import flask.json
 import lazy_object_proxy
 import markupsafe
 import nvd3
+import pytz
 import sqlalchemy as sqla
 from croniter import croniter
 from flask import (
@@ -773,6 +774,7 @@ class Airflow(AirflowBaseView):
             else:
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
+            base_dt = datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=pytz.utc)
 
             if arg_sorting_key == "last_dagrun":
                 dag_run_subquery = (
@@ -786,27 +788,27 @@ class Airflow(AirflowBaseView):
                 current_dags = current_dags.outerjoin(
                     dag_run_subquery, and_(dag_run_subquery.c.dag_id == DagModel.dag_id)
                 )
+                null_case = case(
+                    (func.coalesce(dag_run_subquery.c.max_execution_date, base_dt) == base_dt, 1), else_=0
+                )
                 if arg_sorting_direction == "desc":
                     current_dags = current_dags.order_by(
-                        case([(dag_run_subquery.c.max_execution_date is None, 1)], else_=0),
+                        null_case,
                         dag_run_subquery.c.max_execution_date.desc(),
                     )
                 else:
                     current_dags = current_dags.order_by(
-                        case([(dag_run_subquery.c.max_execution_date is None, 1)], else_=0),
+                        null_case,
                         dag_run_subquery.c.max_execution_date,
                     )
             else:
                 sort_column = DagModel.__table__.c.get(arg_sorting_key)
                 if sort_column is not None:
+                    null_case = case((func.coalesce(sort_column, base_dt) == base_dt, 1), else_=0)
                     if arg_sorting_direction == "desc":
-                        current_dags = current_dags.order_by(
-                            case([(sort_column is None, 1)], else_=0), sort_column.desc()
-                        )
+                        current_dags = current_dags.order_by(null_case, sort_column.desc())
                     else:
-                        current_dags = current_dags.order_by(
-                            case([(sort_column is None, 1)], else_=0), sort_column
-                        )
+                        current_dags = current_dags.order_by(null_case, sort_column)
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
             user_permissions = g.user.perms
