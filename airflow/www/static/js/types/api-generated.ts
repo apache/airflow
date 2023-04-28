@@ -4176,6 +4176,12 @@ export interface operations {
     };
   };
   get_config: {
+    parameters: {
+      query: {
+        /** If given, only return config of this section. */
+        section?: string;
+      };
+    };
     responses: {
       /** Success. */
       200: {
@@ -4988,6 +4994,9 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type GetConfigVariables = CamelCasedPropertiesDeep<
+  operations["get_config"]["parameters"]["query"]
 >;
 export type GetPluginsVariables = CamelCasedPropertiesDeep<
   operations["get_plugins"]["parameters"]["query"]
