@@ -16,8 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
