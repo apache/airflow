@@ -141,7 +141,7 @@ class TestGetConfig:
                 },
             ]
         }
-        assert expected == response.data.decode()
+        assert expected == response.json
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_406(self, mock_as_dict):
