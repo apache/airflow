@@ -70,6 +70,7 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
     AirflowSkipException,
+    DagInvalidTriggerRule,
     DuplicateTaskIdFound,
     RemovedInAirflow3Warning,
     TaskNotFound,
@@ -77,6 +78,7 @@ from airflow.exceptions import (
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -115,7 +117,6 @@ if TYPE_CHECKING:
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
-
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
@@ -133,7 +134,6 @@ ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
 ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
-
 
 # Backward compatibility: If neither schedule_interval nor timetable is
 # *provided by the user*, default to a one-day interval.
@@ -357,6 +357,9 @@ class DAG(LoggingMixin):
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
+    :param fail_stop: Fails currently running tasks when task in DAG fails.
+        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
+        An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     """
 
     _comps = {
@@ -419,6 +422,7 @@ class DAG(LoggingMixin):
         tags: list[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
+        fail_stop: bool = False,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -601,6 +605,8 @@ class DAG(LoggingMixin):
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
         self.auto_register = auto_register
+
+        self.fail_stop = fail_stop
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
@@ -1341,9 +1347,7 @@ class DAG(LoggingMixin):
                     callback(context)
                 except Exception:
                     self.log.exception("failed to invoke dag state update callback")
-                    Stats.incr(
-                        "dag.callback_exceptions", tags={"dag_id": dagrun.dag_id, "run_id": dagrun.run_id}
-                    )
+                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dagrun.dag_id})
 
     def get_active_runs(self):
         """
@@ -1915,9 +1919,118 @@ class DAG(LoggingMixin):
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
-            exclude_task_ids={task_id},
+            exclude_task_ids=frozenset({task_id}),
         )
 
+        return altered
+
+    @provide_session
+    def set_task_group_state(
+        self,
+        *,
+        group_id: str,
+        execution_date: datetime | None = None,
+        run_id: str | None = None,
+        state: TaskInstanceState,
+        upstream: bool = False,
+        downstream: bool = False,
+        future: bool = False,
+        past: bool = False,
+        commit: bool = True,
+        session: Session = NEW_SESSION,
+    ) -> list[TaskInstance]:
+        """
+        Set the state of the TaskGroup to the given state, and clear its downstream tasks that are
+        in failed or upstream_failed state.
+
+        :param group_id: The group_id of the TaskGroup
+        :param execution_date: Execution date of the TaskInstance
+        :param run_id: The run_id of the TaskInstance
+        :param state: State to set the TaskInstance to
+        :param upstream: Include all upstream tasks of the given task_id
+        :param downstream: Include all downstream tasks of the given task_id
+        :param future: Include all future TaskInstances of the given task_id
+        :param commit: Commit changes
+        :param past: Include all past TaskInstances of the given task_id
+        :param session: new session
+        """
+        from airflow.api.common.mark_tasks import set_state
+
+        if not exactly_one(execution_date, run_id):
+            raise ValueError("Exactly one of execution_date or run_id must be provided")
+
+        tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
+        task_ids: list[str] = []
+        locked_dag_run_ids: list[int] = []
+
+        if execution_date is None:
+            dag_run = (
+                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
+            )  # Raises an error if not found
+            resolve_execution_date = dag_run.execution_date
+        else:
+            resolve_execution_date = execution_date
+
+        end_date = resolve_execution_date if not future else None
+        start_date = resolve_execution_date if not past else None
+
+        task_group_dict = self.task_group.get_task_group_dict()
+        task_group = task_group_dict.get(group_id)
+        if task_group is None:
+            raise ValueError("TaskGroup {group_id} could not be found")
+        tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
+        task_ids = [task.task_id for task in task_group.iter_tasks()]
+        dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == self.dag_id).with_for_update()
+
+        if start_date is None and end_date is None:
+            dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
+        else:
+            if start_date is not None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
+
+            if end_date is not None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
+
+        locked_dag_run_ids = dag_runs_query.all()
+
+        altered = set_state(
+            tasks=tasks_to_set_state,
+            execution_date=execution_date,
+            run_id=run_id,
+            upstream=upstream,
+            downstream=downstream,
+            future=future,
+            past=past,
+            state=state,
+            commit=commit,
+            session=session,
+        )
+
+        if not commit:
+            del locked_dag_run_ids
+            return altered
+
+        # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+        # Flush the session so that the tasks marked success are reflected in the db.
+        session.flush()
+        task_subset = self.partial_subset(
+            task_ids_or_regex=task_ids,
+            include_downstream=True,
+            include_upstream=False,
+        )
+
+        task_subset.clear(
+            start_date=start_date,
+            end_date=end_date,
+            include_subdags=True,
+            include_parentdag=True,
+            only_failed=True,
+            session=session,
+            # Exclude the task from the current group from being cleared
+            exclude_task_ids=frozenset(task_ids),
+        )
+
+        del locked_dag_run_ids
         return altered
 
     @property
@@ -2355,6 +2468,8 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
+        DagInvalidTriggerRule.check(self, task.trigger_rule)
+
         from airflow.utils.task_group import TaskGroupContext
 
         if not self.start_date and not task.start_date:
@@ -3057,6 +3172,7 @@ class DAG(LoggingMixin):
                 "has_on_success_callback",
                 "has_on_failure_callback",
                 "auto_register",
+                "fail_stop",
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id="test")).keys()) - exclusion_list
         return cls.__serialized_fields
@@ -3532,6 +3648,7 @@ def dag(
     tags: list[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
+    fail_stop: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3585,6 +3702,7 @@ def dag(
                 schedule=schedule,
                 owner_links=owner_links,
                 auto_register=auto_register,
+                fail_stop=fail_stop,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:

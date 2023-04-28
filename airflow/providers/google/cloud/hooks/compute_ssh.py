@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import shlex
 import time
-import warnings
 from io import StringIO
 from typing import Any
 
@@ -80,9 +79,6 @@ class ComputeEngineSSHHook(SSHHook):
         keys are managed using instance metadata
     :param expire_time: The maximum amount of time in seconds before the private key expires
     :param gcp_conn_id: The connection id to use when fetching connection information
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -109,8 +105,13 @@ class ComputeEngineSSHHook(SSHHook):
         use_iap_tunnel: bool = False,
         use_oslogin: bool = True,
         expire_time: int = 300,
-        delegate_to: str | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         # Ignore original constructor
         # super().__init__()
         self.instance_name = instance_name
@@ -123,20 +124,15 @@ class ComputeEngineSSHHook(SSHHook):
         self.use_oslogin = use_oslogin
         self.expire_time = expire_time
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self._conn: Any | None = None
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:
-        return OSLoginHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return OSLoginHook(gcp_conn_id=self.gcp_conn_id)
 
     @cached_property
     def _compute_hook(self) -> ComputeEngineHook:
-        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
 
     def _load_connection_config(self):
         def _boolify(value):

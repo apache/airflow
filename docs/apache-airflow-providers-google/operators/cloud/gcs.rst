@@ -199,7 +199,19 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefix
     :start-after: [START howto_sensor_object_with_prefix_exists_task]
     :end-before: [END howto_sensor_object_with_prefix_exists_task]
 
+You can set the ``deferrable`` param to True if you want this sensor to run asynchronously, leading to more
+efficient utilization of resources in your Airflow deployment. However the triggerer component needs to be enabled
+for this functionality to work.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_object_with_prefix_exists_task_async]
+    :end-before: [END howto_sensor_object_with_prefix_exists_task_async]
+
+
 .. _howto/sensor:GCSUploadSessionCompleteSensor:
+
 
 GCSUploadSessionCompleteSensor
 ------------------------------
@@ -224,6 +236,16 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSenso
     :dedent: 4
     :start-after: [START howto_sensor_object_update_exists_task]
     :end-before: [END howto_sensor_object_update_exists_task]
+
+You can set the ``deferrable`` param to True if you want this sensor to run asynchronously, leading to efficient
+utilization of resources in your Airflow deployment. However the triggerer component needs to be enabled
+for this functionality to work.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_object_update_exists_task_async]
+    :end-before: [END howto_sensor_object_update_exists_task_async]
 
 More information
 """"""""""""""""

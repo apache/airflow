@@ -60,7 +60,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement serialize()")
 
     @abc.abstractmethod
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Runs the trigger in an asynchronous context.
 

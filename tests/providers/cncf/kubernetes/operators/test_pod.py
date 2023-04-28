@@ -1089,16 +1089,21 @@ class TestKubernetesPodOperator:
         "extra_kwargs, actual_exit_code, expected_exc",
         [
             (None, 99, AirflowException),
-            ({"skip_exit_code": 100}, 100, AirflowSkipException),
-            ({"skip_exit_code": 100}, 101, AirflowException),
-            ({"skip_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     def test_task_skip_when_pod_exit_with_certain_code(
         self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
     ):
-        """Tests that an AirflowSkipException is raised when the container exits with the skip_exit_code"""
+        """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
         k = KubernetesPodOperator(
             task_id="task", is_delete_operator_pod=True, **(extra_kwargs if extra_kwargs else {})
         )
@@ -1110,9 +1115,13 @@ class TestKubernetesPodOperator:
         sidecar_container.name = "airflow-xcom-sidecar"
         sidecar_container.last_state.terminated.exit_code = 0
         remote_pod.return_value.status.container_statuses = [base_container, sidecar_container]
+        remote_pod.return_value.status.phase = "Succeeded" if actual_exit_code == 0 else "Failed"
 
-        with pytest.raises(expected_exc):
+        if expected_exc is None:
             self.run_pod(k)
+        else:
+            with pytest.raises(expected_exc):
+                self.run_pod(k)
 
 
 class TestSuppress:
@@ -1221,10 +1230,9 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
-    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, mocked_conf_file):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
@@ -1284,13 +1292,13 @@ class TestKubernetesPodOperatorAsync:
         [
             (None, 0, None, "Succeeded", "success"),
             (None, 99, AirflowException, "Failed", "error"),
-            ({"skip_exit_code": 100}, 100, AirflowSkipException, "Failed", "error"),
-            ({"skip_exit_code": 100}, 101, AirflowException, "Failed", "error"),
-            ({"skip_exit_code": None}, 100, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException, "Failed", "error"),
+            ({"skip_on_exit_code": 100}, 101, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": None}, 100, AirflowException, "Failed", "error"),
         ],
     )
     @patch(HOOK_CLASS)
-    def test_async_create_pod_with_skip_exit_code_should_skip(
+    def test_async_create_pod_with_skip_on_exit_code_should_skip(
         self,
         mocked_hook,
         extra_kwargs,
@@ -1299,7 +1307,7 @@ class TestKubernetesPodOperatorAsync:
         pod_status,
         event_status,
     ):
-        """Tests that an AirflowSkipException is raised when the container exits with the skip_exit_code"""
+        """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
 
         k = KubernetesPodOperator(
             task_id=TEST_TASK_ID,

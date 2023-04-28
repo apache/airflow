@@ -26,7 +26,7 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple, Sized
 
 if TYPE_CHECKING:
-    from airflow.models import DagRun
+    from airflow.models import DAG, DagRun
 
 
 class AirflowException(Exception):
@@ -207,6 +207,22 @@ class DagFileExists(AirflowBadRequest):
         warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
 
 
+class DagInvalidTriggerRule(AirflowException):
+    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule"""
+
+    @classmethod
+    def check(cls, dag: DAG | None, trigger_rule: str):
+        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        if dag is not None and dag.fail_stop and trigger_rule != DEFAULT_TRIGGER_RULE:
+            raise cls()
+
+    def __str__(self) -> str:
+        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        return f"A 'fail-stop' dag can only have {DEFAULT_TRIGGER_RULE} trigger rule"
+
+
 class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG."""
 
@@ -372,3 +388,13 @@ class AirflowProviderDeprecationWarning(DeprecationWarning):
 
     deprecated_provider_since: str | None = None
     "Indicates the provider version that started raising this deprecation warning"
+
+
+class DeserializingResultError(ValueError):
+    """Raised when an error is encountered while a pickling library deserializes a pickle file."""
+
+    def __str__(self):
+        return (
+            "Error deserializing result. Note that result deserialization "
+            "is not supported across major Python versions. Cause: " + str(self.__cause__)
+        )

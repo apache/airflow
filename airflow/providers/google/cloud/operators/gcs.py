@@ -21,7 +21,6 @@ from __future__ import annotations
 import datetime
 import subprocess
 import sys
-import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Sequence
@@ -74,9 +73,6 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
     :param project_id: The ID of the Google Cloud Project. (templated)
     :param labels: User-provided labels, in key/value pairs.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -122,7 +118,6 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         labels: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -134,17 +129,11 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.labels = labels
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         StorageLink.persist(
@@ -174,15 +163,12 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
     XCom in the downstream task.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :param prefix: Prefix string which filters objects whose name begin with
-           this prefix. (templated)
+    :param prefix: String or list of strings, which filter objects whose name begin with
+           it/them. (templated)
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
-        For e.g to lists the CSV files from in a directory in GCS you would use
+        For example, to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -220,10 +206,9 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         self,
         *,
         bucket: str,
-        prefix: str | None = None,
+        prefix: str | list[str] | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -232,23 +217,16 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         self.prefix = prefix
         self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> list:
-
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info(
-            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
+            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix(es): %s",
             self.bucket,
             self.delimiter,
             self.prefix,
@@ -260,7 +238,6 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
             uri=self.bucket,
             project_id=hook.project_id,
         )
-
         return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
 
@@ -273,12 +250,9 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     :param bucket_name: The GCS bucket to delete from
     :param objects: List of objects to delete. These should be the names
         of objects in the bucket, not including gs://bucket/
-    :param prefix: Prefix of objects to delete. All objects matching this
-        prefix in the bucket will be deleted.
+    :param prefix: String or list of strings, which filter objects whose name begin with
+           it/them. (templated)
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -303,7 +277,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         objects: list[str] | None = None,
         prefix: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -312,11 +285,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.objects = objects
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
         if objects is None and prefix is None:
@@ -330,7 +298,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -338,7 +305,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = self.objects
         else:
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
-
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
@@ -944,9 +910,6 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
             This option can delete data quickly if you specify the wrong source/destination combination.
 
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -966,7 +929,6 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         "delete_extra_files",
         "allow_overwrite",
         "gcp_conn_id",
-        "delegate_to",
         "impersonation_chain",
     )
     operator_extra_links = (StorageLink(),)
@@ -982,7 +944,6 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         delete_extra_files: bool = False,
         allow_overwrite: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -995,17 +956,11 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         self.delete_extra_files = delete_extra_files
         self.allow_overwrite = allow_overwrite
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         StorageLink.persist(

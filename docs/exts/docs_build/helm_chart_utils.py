@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import yaml
 
-CHART_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "chart"))
+CHART_DIR = Path(__file__).resolve().parents[2] / "chart"
 CHART_YAML_PATH = os.path.join(CHART_DIR, "Chart.yaml")
 
 
