@@ -846,7 +846,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 credentials = self.get_credentials()
                 client = boto3.client(
                     self.resource_type,
-                    region_name=self._region_name,
+                    region_name=self.region_name,
                     aws_access_key_id=credentials.access_key,
                     aws_secret_access_key=credentials.secret_key,
                 )
