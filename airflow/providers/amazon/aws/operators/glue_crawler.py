@@ -43,7 +43,10 @@ class GlueCrawlerOperator(BaseOperator):
     :param config: Configurations for the AWS Glue crawler
     :param aws_conn_id: aws connection to use
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
-    :param wait_for_completion: Whether or not wait for crawl execution completion. (default: True)
+    :param wait_for_completion: Whether to wait for crawl execution completion. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = ("config",)

@@ -54,7 +54,10 @@ class GlueJobOperator(BaseOperator):
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param run_job_kwargs: Extra arguments for Glue Job Run
-    :param wait_for_completion: Whether or not wait for job run completion. (default: True)
+    :param wait_for_completion: Whether to wait for job run completion. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
     """
@@ -93,9 +96,9 @@ class GlueJobOperator(BaseOperator):
         create_job_kwargs: dict | None = None,
         run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
+        deferrable: bool = False,
         verbose: bool = False,
         update_config: bool = False,
-        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
