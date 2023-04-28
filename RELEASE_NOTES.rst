@@ -199,6 +199,7 @@ Improvements
 
 Bug Fixes
 """""""""
+- Fix static_folder for cli app (#30952)
 - Initialize plugins for cli appbuilder (#30934)
 - Fix dag file processor heartbeat to run only if necessary (#30899)
 - Fix KubernetesExecutor sending state to scheduler (#30872)
