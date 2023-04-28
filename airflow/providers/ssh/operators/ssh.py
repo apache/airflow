@@ -143,7 +143,7 @@ class SSHOperator(BaseOperator):
         )
         assert self.ssh_hook
         return self.ssh_hook.exec_ssh_client_command(
-            ssh_client, command, environment=self.environment, get_pty=self.get_pty
+            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
         )
 
     def raise_for_status(self, exit_status: int, stderr: bytes, context=None) -> None:
@@ -156,7 +156,7 @@ class SSHOperator(BaseOperator):
     def run_ssh_client_command(self, ssh_client: SSHClient, command: str, context=None) -> bytes:
         assert self.ssh_hook
         exit_status, agg_stdout, agg_stderr = self.ssh_hook.exec_ssh_client_command(
-            ssh_client, command, environment=self.environment, get_pty=self.get_pty
+            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
         )
         self.raise_for_status(exit_status, agg_stderr, context=context)
         return agg_stdout

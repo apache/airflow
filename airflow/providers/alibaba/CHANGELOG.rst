@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support deleting the local log files when using remote logging (#29772)``
+
 2.2.0
 .....
 

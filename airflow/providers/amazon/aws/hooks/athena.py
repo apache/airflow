@@ -24,7 +24,6 @@ This module contains AWS Athena hook.
 """
 from __future__ import annotations
 
-import warnings
 from time import sleep
 from typing import Any
 
@@ -224,7 +223,6 @@ class AthenaHook(AwsBaseHook):
     def poll_query_status(
         self,
         query_execution_id: str,
-        max_tries: int | None = None,
         max_polling_attempts: int | None = None,
     ) -> str | None:
         """
@@ -232,21 +230,8 @@ class AthenaHook(AwsBaseHook):
         Returns one of the final states
 
         :param query_execution_id: Id of submitted athena query
-        :param max_tries: Deprecated - Use max_polling_attempts instead
         :param max_polling_attempts: Number of times to poll for query state before function exits
         """
-        if max_tries:
-            warnings.warn(
-                f"Passing 'max_tries' to {self.__class__.__name__}.poll_query_status is deprecated "
-                f"and will be removed in a future release. Please use 'max_polling_attempts' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if max_polling_attempts and max_polling_attempts != max_tries:
-                raise Exception("max_polling_attempts must be the same value as max_tries")
-            else:
-                max_polling_attempts = max_tries
-
         try_number = 1
         final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
         while True:

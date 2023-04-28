@@ -150,9 +150,21 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     timestamp_str = re.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
     target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
-    stmt = CreateTableAs(target_table_name, query.selectable)
-    logger.debug("ctas query:\n%s", stmt.compile())
-    session.execute(stmt)
+    bind = session.get_bind()
+    dialect_name = bind.dialect.name
+    if dialect_name == "mysql":
+        # MySQL with replication needs this split into two queries, so just do it for all MySQL
+        # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
+        session.execute(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}")
+        metadata = reflect_tables([target_table_name], session)
+        target_table = metadata.tables[target_table_name]
+        insert_stm = target_table.insert().from_select(target_table.c, query)
+        logger.debug("insert statement:\n%s", insert_stm.compile())
+        session.execute(insert_stm)
+    else:
+        stmt = CreateTableAs(target_table_name, query.selectable)
+        logger.debug("ctas query:\n%s", stmt.compile())
+        session.execute(stmt)
     session.commit()
 
     # delete the rows from the old table
@@ -160,8 +172,6 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     source_table = metadata.tables[orm_model.name]
     target_table = metadata.tables[target_table_name]
     logger.debug("rows moved; purging from %s", source_table.name)
-    bind = session.get_bind()
-    dialect_name = bind.dialect.name
     if dialect_name == "sqlite":
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(

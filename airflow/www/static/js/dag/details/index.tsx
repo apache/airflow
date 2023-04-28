@@ -45,12 +45,18 @@ import Graph from "./graph";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
 import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
+import FilterTasks from "./FilterTasks";
+import ClearRun from "./dagRun/ClearRun";
+import MarkRunAs from "./dagRun/MarkRunAs";
+import ClearInstance from "./taskInstance/taskActions/ClearInstance";
+import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 
 const dagId = getMetaValue("dag_id")!;
 
 interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
+  hoveredTaskState?: string | null;
 }
 
 const tabToIndex = (tab?: string) => {
@@ -86,7 +92,7 @@ const indexToTab = (
 
 const TAB_PARAM = "tab";
 
-const Details = ({ openGroupIds, onToggleGroups }: Props) => {
+const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
     onSelect,
@@ -145,7 +151,40 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Header />
+      <Flex alignItems="center" justifyContent="space-between" ml={6}>
+        <Header />
+        <Flex>
+          {runId && !taskId && (
+            <>
+              <ClearRun runId={runId} mr={2} />
+              <MarkRunAs runId={runId} state={run?.state} />
+            </>
+          )}
+          {runId && taskId && (
+            <>
+              <ClearInstance
+                taskId={taskId}
+                runId={runId}
+                executionDate={run?.executionDate || ""}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mr={2}
+              />
+              <MarkInstanceAs
+                taskId={taskId}
+                runId={runId}
+                state={instance?.state}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mr={2}
+              />
+            </>
+          )}
+          {taskId && runId && <FilterTasks taskId={taskId} />}
+        </Flex>
+      </Flex>
       <Divider my={2} />
       <Tabs
         size="lg"
@@ -206,6 +245,7 @@ const Details = ({ openGroupIds, onToggleGroups }: Props) => {
             <Graph
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
+              hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
           {showLogs && run && (

@@ -25,11 +25,14 @@ SequentialExecutor.
 from __future__ import annotations
 
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from airflow.executors.base_executor import BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType
+    from airflow.models.taskinstance import TaskInstanceKey
 
 
 class SequentialExecutor(BaseExecutor):

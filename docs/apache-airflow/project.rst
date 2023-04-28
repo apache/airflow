@@ -56,6 +56,7 @@ Committers
 - Felix Uellendall (@feluelle)
 - Fokko Driesprong (@fokko)
 - Hitesh Shah (@hiteshs)
+- Hussein Awala (@hussein-awala)
 - Jakob Homan (@jghoman)
 - James Timmins (@jhtimmins)
 - Jarek Potiuk (@potiuk)

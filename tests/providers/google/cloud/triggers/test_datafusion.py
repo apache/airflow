@@ -18,17 +18,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 
 import pytest
 
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
+from tests.providers.google.cloud.utils.compat import async_mock
 
 HOOK_STATUS_STR = "airflow.providers.google.cloud.hooks.datafusion.DataFusionAsyncHook.get_pipeline_status"
 CLASSPATH = "airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger"
@@ -78,7 +73,7 @@ class TestDataFusionStartPipelineTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch(HOOK_STATUS_STR)
+    @async_mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_on_success_should_execute_successfully(
         self, mock_pipeline_status, trigger
     ):
@@ -94,7 +89,7 @@ class TestDataFusionStartPipelineTrigger:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(HOOK_STATUS_STR)
+    @async_mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_running_should_execute_successfully(
         self, mock_pipeline_status, trigger, caplog
     ):
@@ -117,7 +112,7 @@ class TestDataFusionStartPipelineTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch(HOOK_STATUS_STR)
+    @async_mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_error_should_execute_successfully(
         self, mock_pipeline_status, trigger
     ):
@@ -131,7 +126,7 @@ class TestDataFusionStartPipelineTrigger:
         assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
     @pytest.mark.asyncio
-    @mock.patch(HOOK_STATUS_STR)
+    @async_mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_exception_should_execute_successfully(
         self, mock_pipeline_status, trigger
     ):

@@ -68,10 +68,12 @@ with models.DAG(
         in_cluster=False,
         is_delete_operator_pod=True,
         get_logs=True,
+        deferrable=True,
     )
 
-    pod_task_xcom = GKEStartPodOperator(
-        task_id="pod_task_xcom",
+    # [START howto_operator_gke_start_pod_xcom_async]
+    pod_task_xcom_async = GKEStartPodOperator(
+        task_id="pod_task_xcom_async",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
@@ -82,13 +84,17 @@ with models.DAG(
         in_cluster=False,
         is_delete_operator_pod=True,
         do_xcom_push=True,
+        deferrable=True,
         get_logs=True,
     )
+    # [END howto_operator_gke_start_pod_xcom_async]
 
+    # [START howto_operator_gke_xcom_result_async]
     pod_task_xcom_result = BashOperator(
         bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom')[0] }}\"",
         task_id="pod_task_xcom_result",
     )
+    # [END howto_operator_gke_xcom_result_async]
 
     # [START howto_operator_gke_delete_cluster_async]
     delete_cluster = GKEDeleteClusterOperator(
@@ -101,8 +107,8 @@ with models.DAG(
     # [END howto_operator_gke_delete_cluster_async]
 
     create_cluster >> pod_task >> delete_cluster
-    create_cluster >> pod_task_xcom >> delete_cluster
-    pod_task_xcom >> pod_task_xcom_result
+    create_cluster >> pod_task_xcom_async >> delete_cluster
+    pod_task_xcom_async >> pod_task_xcom_result
 
     from tests.system.utils.watcher import watcher
 

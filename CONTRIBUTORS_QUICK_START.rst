@@ -392,15 +392,15 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-3. Setup mysql database in
-   MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
-   blank(leave empty), default schema ``airflow``.
+3. Setup a PostgreSQL database in your database management tool of choice
+   (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
+   user ``postgres``,  password ``airflow``, and default schema ``airflow``.
 
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/mysql_connection.png"
-             alt="Connecting to mysql">
+        <img src="images/quick_start/postgresql_connection.png"
+             alt="Connecting to postgresql">
       </div>
 
 4. Stopping breeze

@@ -31,7 +31,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
@@ -1440,7 +1440,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
-        dr = dag_maker.create_dagrun(run_id=dag_run_id)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
         ti.state = State.SUCCESS

@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.4.0
+.....
+
+Latest change: 2023-03-08
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`a9b79a27b2 <https://github.com/apache/airflow/commit/a9b79a27b25a47c7e0390c139b517f229fdacd12>`_  2023-03-08   ``Add option to show output of 'SQLExecuteQueryOperator' in the log (#29954)``
+`95710e0cdd <https://github.com/apache/airflow/commit/95710e0cdd54d3ac37d0148466705a81b31bcb7f>`_  2023-03-03   ``Fix Python API docs formatting for Common SQL provider (#29863)``
+=================================================================================================  ===========  ==============================================================================
+
 1.3.4
 .....
 
-Latest change: 2023-02-22
+Latest change: 2023-03-03
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
 `19f1e7c27b <https://github.com/apache/airflow/commit/19f1e7c27b85e297497842c73f13533767ebd6ba>`_  2023-02-22   ``Do not process output when do_xcom_push=False  (#29599)``
 `0af6f20c5f <https://github.com/apache/airflow/commit/0af6f20c5f36c6cac3fc1b23ff47763ea2c24ba2>`_  2023-01-30   ``Make the S3-to-SQL system test self-contained (#29204)``
 `129f0820cd <https://github.com/apache/airflow/commit/129f0820cd03c721ebebe3461489f255bb9e752c>`_  2023-01-23   ``Make static checks generated file  more stable accross the board (#29080)``

@@ -63,7 +63,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComAccess, XCom
+from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -84,6 +84,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
@@ -287,6 +288,19 @@ class TestTaskInstance:
         ti.run()
         assert ti.state == State.NONE
 
+    def test_requeue_over_max_active_tis_per_dagrun(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id="test_requeue_over_max_active_tis_per_dagrun",
+            task_id="test_requeue_over_max_active_tis_per_dagrun_op",
+            max_active_tis_per_dagrun=0,
+            max_active_runs=1,
+            max_active_tasks=2,
+            dagrun_state=State.QUEUED,
+        )
+
+        ti.run()
+        assert ti.state == State.NONE
+
     def test_requeue_over_pool_concurrency(self, create_task_instance, test_pool):
         ti = create_task_instance(
             dag_id="test_requeue_over_pool_concurrency",
@@ -448,6 +462,28 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
 
+    def test_task_sigterm_calls_on_failure_callback(self, dag_maker, caplog):
+        """
+        Test that ensures that tasks call on_failure_callback when they receive sigterm
+        """
+
+        def task_function(ti):
+            os.kill(ti.pid, signal.SIGTERM)
+
+        with dag_maker():
+            task_ = PythonOperator(
+                task_id="test_on_failure",
+                python_callable=task_function,
+                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task_
+        with pytest.raises(AirflowException):
+            ti.run()
+        assert "on_failure_callback called" in caplog.text
+
     def test_task_sigterm_works_with_retries(self, dag_maker):
         """
         Test that ensures that tasks are retried when they receive sigterm
@@ -471,28 +507,6 @@ class TestTaskInstance:
             ti.run()
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
-
-    def test_task_sigterm_calls_on_failure_callack(self, dag_maker, caplog):
-        """
-        Test that ensures that tasks call on_failure_callback when they receive sigterm
-        """
-
-        def task_function(ti):
-            os.kill(ti.pid, signal.SIGTERM)
-
-        with dag_maker():
-            task_ = PythonOperator(
-                task_id="test_on_failure",
-                python_callable=task_function,
-                on_failure_callback=lambda context: context["ti"].log.info("on_failure_callback called"),
-            )
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        ti.task = task_
-        with pytest.raises(AirflowException):
-            ti.run()
-        assert "on_failure_callback called" in caplog.text
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
     def test_task_sigterm_doesnt_change_state_of_finished_tasks(self, state, dag_maker):
@@ -1483,7 +1497,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=models.XCOM_RETURN_KEY) is None
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
 
     def test_post_execute_hook(self, dag_maker):
         """
@@ -2515,6 +2529,7 @@ class TestTaskInstance:
         ti.task = None
         ti.state = State.QUEUED
         session.flush()
+        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
         assert ti.task is None, "Check critical pre-condition"
 
@@ -2528,10 +2543,8 @@ class TestTaskInstance:
         # Check 'ti.try_number' is bumped to 2. This is try_number for next run
         assert ti.try_number == 2
 
-        Stats_incr.assert_any_call(
-            "ti_failures", tags={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
-        )
-        Stats_incr.assert_any_call("operator_failures_EmptyOperator")
+        Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
+        Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
 
     def test_handle_failure_task_undefined(self, create_task_instance):
         """
@@ -2542,6 +2555,61 @@ class TestTaskInstance:
         ti = create_task_instance()
         del ti.task
         ti.handle_failure("test ti.task undefined")
+
+    @provide_session
+    def test_handle_failure_fail_stop(self, create_dummy_dag, session=None):
+        start_date = timezone.datetime(2016, 6, 1)
+        clear_db_runs()
+
+        dag, task1 = create_dummy_dag(
+            dag_id="test_handle_failure_fail_stop",
+            schedule=None,
+            start_date=start_date,
+            task_id="task1",
+            trigger_rule="all_success",
+            with_dagrun_type=DagRunType.MANUAL,
+            session=session,
+            fail_stop=True,
+        )
+        dr = dag.create_dagrun(
+            run_id="test_ff",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.utcnow(),
+            state=None,
+            session=session,
+        )
+
+        ti1 = dr.get_task_instance(task1.task_id, session=session)
+        ti1.task = task1
+        ti1.state = State.SUCCESS
+
+        states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
+        tasks = []
+        for i in range(len(states)):
+            op = EmptyOperator(
+                task_id=f"reg_Task{i}",
+                dag=dag,
+            )
+            ti = TI(task=op, run_id=dr.run_id)
+            ti.state = states[i]
+            session.add(ti)
+            tasks.append(ti)
+
+        fail_task = EmptyOperator(
+            task_id="fail_Task",
+            dag=dag,
+        )
+        ti_ff = TI(task=fail_task, run_id=dr.run_id)
+        ti_ff.state = State.FAILED
+        session.add(ti_ff)
+        session.flush()
+        ti_ff.handle_failure("test retry handling")
+
+        assert ti1.state == State.SUCCESS
+        assert ti_ff.state == State.FAILED
+        exp_states = [State.FAILED, State.FAILED, State.SKIPPED, State.SKIPPED, State.SKIPPED]
+        for i in range(len(states)):
+            assert tasks[i].state == exp_states[i]
 
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():
@@ -2640,10 +2708,23 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        stats_mock.assert_called_with(f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}")
+        stats_mock.assert_called_with(
+            f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
+            tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+        )
         for state in State.task_states:
-            assert call(f"ti.finish.{ti.dag_id}.{ti.task_id}.{state}", count=0) in stats_mock.mock_calls
-        assert call(f"ti.start.{ti.dag_id}.{ti.task_id}") in stats_mock.mock_calls
+            assert (
+                call(
+                    f"ti.finish.{ti.dag_id}.{ti.task_id}.{state}",
+                    count=0,
+                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+                )
+                in stats_mock.mock_calls
+            )
+        assert (
+            call(f"ti.start.{ti.dag_id}.{ti.task_id}", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+            in stats_mock.mock_calls
+        )
         assert stats_mock.call_count == len(State.task_states) + 4
 
     def test_command_as_list(self, create_task_instance):
@@ -3942,3 +4023,44 @@ def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, 
         middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
         assert middle_ti.state == State.SCHEDULED
     assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
+def test_mini_scheduler_not_skip_mapped_downstream_until_all_upstreams_finish(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def generate() -> list[list[int]]:
+            return []
+
+        @task
+        def a_sum(numbers: list[int]) -> int:
+            return sum(numbers)
+
+        @task
+        def b_double(summed: int) -> int:
+            return summed * 2
+
+        @task
+        def c_gather(result) -> None:
+            pass
+
+        static = EmptyOperator(task_id="static")
+
+        summed = a_sum.expand(numbers=generate())
+        doubled = b_double.expand(summed=summed)
+        static >> c_gather(doubled)
+
+    dr: DagRun = dag_maker.create_dagrun()
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+
+    static_ti = tis[("static", -1)]
+    static_ti.run(session=session)
+    static_ti.schedule_downstream_tasks(session=session)
+    # No tasks should be skipped yet!
+    assert not dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
+
+    generate_ti = tis[("generate", -1)]
+    generate_ti.run(session=session)
+    generate_ti.schedule_downstream_tasks(session=session)
+    # Now downstreams can be skipped.
+    assert dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)

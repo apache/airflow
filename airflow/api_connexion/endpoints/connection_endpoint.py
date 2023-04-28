@@ -26,6 +26,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
@@ -132,14 +133,7 @@ def patch_connection(
     if data.get("conn_id") and connection.conn_id != data["conn_id"]:
         raise BadRequest(detail="The connection_id cannot be updated.")
     if update_mask:
-        update_mask = [i.strip() for i in update_mask]
-        data_ = {}
-        for field in update_mask:
-            if field in data and field not in non_update_fields:
-                data_[field] = data[field]
-            else:
-                raise BadRequest(detail=f"'{field}' is unknown or cannot be updated.")
-        data = data_
+        data = extract_update_mask_data(update_mask, non_update_fields, data)
     for key in data:
         setattr(connection, key, data[key])
     session.add(connection)

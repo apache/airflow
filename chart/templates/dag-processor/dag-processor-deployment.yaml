@@ -1,19 +1,21 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
 
 ################################
 ## Airflow Dag Processor Deployment
@@ -114,11 +116,11 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           volumeMounts: {{- include "airflow_config_mount" . | nindent 12 }}
-          args: {{- include "wait-for-migrations-command" . | nindent 10 }}
-          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
+          args: {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-            {{- include "custom_airflow_environment" . | nindent 10 }}
-            {{- include "standard_airflow_environment" . | nindent 10 }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
             {{- if .Values.dagProcessor.waitForMigrations.env }}
               {{- tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -153,10 +155,10 @@ spec:
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
               {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
-          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
-            {{- include "custom_airflow_environment" . | nindent 10 }}
-            {{- include "standard_airflow_environment" . | nindent 10 }}
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
@@ -165,11 +167,11 @@ spec:
             periodSeconds: {{ .Values.dagProcessor.livenessProbe.periodSeconds }}
             exec:
               command:
-                  {{- if .Values.dagProcessor.livenessProbe.command }}
-                  {{ toYaml .Values.dagProcessor.livenessProbe.command | nindent 16 }}
-                  {{- else }}
-                  {{- include "dag_processor_liveness_check_command" . | nindent 16 }}
-                  {{- end }}
+                {{- if .Values.dagProcessor.livenessProbe.command }}
+                  {{- toYaml .Values.dagProcessor.livenessProbe.command | nindent 16 }}
+                {{- else }}
+                  {{- include "dag_processor_liveness_check_command" . | indent 14 }}
+                {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}

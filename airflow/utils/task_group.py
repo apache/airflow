@@ -38,7 +38,6 @@ from airflow.exceptions import (
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
-from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -231,13 +230,6 @@ class TaskGroup(DAGNode):
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
-        if SetupTeardownContext.is_setup:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_setup", True)
-        elif SetupTeardownContext.is_teardown:
-            if isinstance(task, AbstractOperator):
-                setattr(task, "_is_teardown", True)
-
         self.children[key] = task
 
     def _remove(self, task: DAGNode) -> None:
@@ -252,7 +244,8 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.task_group and self.task_group.prefix_group_id and self.task_group.group_id:
+        if self.task_group and self.task_group.prefix_group_id and self.task_group._group_id:
+            # defer to parent whether it adds a prefix
             return self.task_group.child_id(self._group_id)
 
         return self._group_id
@@ -376,8 +369,10 @@ class TaskGroup(DAGNode):
         Prefix label with group_id if prefix_group_id is True. Otherwise return the label
         as-is.
         """
-        if self.prefix_group_id and self.group_id:
-            return f"{self.group_id}.{label}"
+        if self.prefix_group_id:
+            group_id = self.group_id
+            if group_id:
+                return f"{group_id}.{label}"
 
         return label
 

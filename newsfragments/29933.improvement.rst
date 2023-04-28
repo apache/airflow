@@ -1,0 +1,1 @@
+ExternalTaskSensor now has an explicit ``skipped_states`` list

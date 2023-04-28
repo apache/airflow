@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
@@ -29,6 +30,7 @@ import requests
 import tenacity
 from aioresponses import aioresponses
 from requests.adapters import Response
+from requests.auth import AuthBase, HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -41,6 +43,12 @@ def get_airflow_connection(unused_conn_id=None):
 
 def get_airflow_connection_with_port(unused_conn_id=None):
     return Connection(conn_id="http_default", conn_type="http", host="test.com", port=1234)
+
+
+def get_airflow_connection_with_login_and_password(unused_conn_id=None):
+    return Connection(
+        conn_id="http_default", conn_type="http", host="test.com", login="username", password="pass"
+    )
 
 
 class TestHttpHook:
@@ -355,6 +363,42 @@ class TestHttpHook:
             status, msg = self.get_hook.test_connection()
             assert status is False
             assert msg == "500:NOT_OK"
+
+    @mock.patch("requests.auth.AuthBase.__init__")
+    def test_loginless_custom_auth_initialized_with_no_args(self, auth):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            auth.return_value = None
+            hook = HttpHook("GET", "http_default", AuthBase)
+            hook.get_conn()
+            auth.assert_called_once_with()
+
+    @mock.patch("requests.auth.AuthBase.__init__")
+    def test_loginless_custom_auth_initialized_with_args(self, auth):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            auth.return_value = None
+            auth_with_args = functools.partial(AuthBase, "test_arg")
+            hook = HttpHook("GET", "http_default", auth_with_args)
+            hook.get_conn()
+            auth.assert_called_once_with("test_arg")
+
+    @mock.patch("requests.auth.HTTPBasicAuth.__init__")
+    def test_login_password_basic_auth_initialized(self, auth):
+        with mock.patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection_with_login_and_password,
+        ):
+            auth.return_value = None
+            hook = HttpHook("GET", "http_default", HTTPBasicAuth)
+            hook.get_conn()
+            auth.assert_called_once_with("username", "pass")
+
+    @mock.patch("requests.auth.HTTPBasicAuth.__init__")
+    def test_default_auth_not_initialized(self, auth):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            auth.return_value = None
+            hook = HttpHook("GET", "http_default")
+            hook.get_conn()
+            auth.assert_not_called()
 
 
 class TestKeepAlive:

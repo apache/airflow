@@ -21,6 +21,8 @@ import warnings
 from os import path
 
 from connexion import FlaskApi, ProblemException, Resolver
+from connexion.decorators.validation import RequestBodyValidator
+from connexion.exceptions import BadRequestProblem
 from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
@@ -209,6 +211,20 @@ class _LazyResolver(Resolver):
         return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
+class _CustomErrorRequestBodyValidator(RequestBodyValidator):
+    """Custom request body validator that overrides error messages.
+
+    By default, Connextion emits a very generic *None is not of type 'object'*
+    error when receiving an empty request body (with the view specifying the
+    body as non-nullable). We overrides it to provide a more useful message.
+    """
+
+    def validate_schema(self, data, url):
+        if not self.is_null_value_valid and data is None:
+            raise BadRequestProblem(detail="Request body must not be empty")
+        return super().validate_schema(data, url)
+
+
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
     base_path = "/api/v1"
@@ -245,6 +261,7 @@ def init_api_connexion(app: Flask) -> None:
         },
         strict_validation=True,
         validate_responses=True,
+        validator_map={"body": _CustomErrorRequestBodyValidator},
     ).blueprint
     api_bp.after_request(set_cors_headers_on_response)
 

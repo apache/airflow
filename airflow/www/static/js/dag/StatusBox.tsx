@@ -139,6 +139,7 @@ const StatusBox = ({
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           opacity={isActive ? 1 : 0.3}
+          transition="opacity 0.2s"
         />
       </Box>
     </Tooltip>

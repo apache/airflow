@@ -188,6 +188,38 @@ class TestVaultHook:
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
 
+    @pytest.mark.parametrize(
+        "use_tls, expected_url",
+        [
+            (True, "https://localhost:8180"),
+            (False, "http://localhost:8180"),
+        ],
+    )
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_protocol_via_use_tls(self, mock_hvac, mock_get_connection, use_tls, expected_url):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection(conn_type="vault")
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {"use_tls": use_tls}
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+        kwargs = {
+            "vault_conn_id": "vault_conn_id",
+            "auth_type": "approle",
+            "kv_engine_version": 2,
+        }
+
+        test_hook = VaultHook(**kwargs)
+        mock_get_connection.assert_called_with("vault_conn_id")
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url=expected_url)
+        test_client.auth.approle.login.assert_called_with(role_id="user", secret_id="pass")
+        test_client.is_authenticated.assert_called_with()
+        assert 2 == test_hook.vault_client.kv_engine_version
+
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_approle_init_params(self, mock_hvac, mock_get_connection):

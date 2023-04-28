@@ -26,8 +26,7 @@ import AutoRefresh from "src/components/AutoRefresh";
 
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
-import useFilters from "../useFilters";
-import ResetRoot from "../grid/ResetRoot";
+import useFilters from "src/dag/useFilters";
 
 declare const filtersOptions: {
   dagStates: RunState[];
@@ -123,10 +122,7 @@ const FilterBar = () => {
           </Button>
         </Box>
       </Flex>
-      <Flex>
-        <AutoRefresh />
-        <ResetRoot />
-      </Flex>
+      <AutoRefresh />
     </Flex>
   );
 };

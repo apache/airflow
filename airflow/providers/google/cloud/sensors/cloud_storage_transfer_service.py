@@ -93,7 +93,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
-            request_filter={"project_id": self.project_id, "job_names": [self.job_name]}
+            request_filter={"project_id": self.project_id or hook.project_id, "job_names": [self.job_name]}
         )
 
         for operation in operations:
