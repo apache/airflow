@@ -59,10 +59,10 @@ class BatchOperator(BaseOperator):
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
     :param share_identifier: The share identifier for the job. Don't specify this parameter if the job queue
-    doesn't have a scheduling policy.
+        doesn't have a scheduling policy.
     :param scheduling_priority_override: The scheduling priority for the job.
-    Jobs with a higher scheduling priority are scheduled before jobs with a lower scheduling priority.
-    This overrides any scheduling priority in the job definition
+        Jobs with a higher scheduling priority are scheduled before jobs with a lower scheduling priority.
+        This overrides any scheduling priority in the job definition
     :param array_properties: the `arrayProperties` parameter for boto3
     :param parameters: the `parameters` for boto3 (templated)
     :param job_id: the job ID, usually unknown (None) until the
