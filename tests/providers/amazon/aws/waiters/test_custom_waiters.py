@@ -266,7 +266,7 @@ class TestCustomDynamoDBServiceWaiters:
 
     @pytest.fixture
     def mock_describe_export(self):
-        """Mock ``DynamoDBHook.Client.export_table_to_point_in_time`` method."""
+        """Mock ``DynamoDBHook.Client.describe_export`` method."""
         with mock.patch.object(self.client, "describe_export") as m:
             yield m
 
@@ -277,8 +277,8 @@ class TestCustomDynamoDBServiceWaiters:
     @staticmethod
     def describe_export(status: str):
         """
-        Helper function for generate minimal ExportTableToPointInTime response for single job.
-        https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ExportTableToPointInTime.html
+        Helper function for generate minimal DescribeExport response for single job.
+        https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeExport.html
         """
         return {"ExportDescription": {"ExportStatus": status}}
 
@@ -288,8 +288,10 @@ class TestCustomDynamoDBServiceWaiters:
             self.describe_export(self.STATUS_IN_PROGRESS),
             self.describe_export(self.STATUS_COMPLETED),
         ]
-        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
-        waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
+        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
+        waiter.wait(
+            ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+        )
 
     def test_export_table_to_point_in_time_failed(self, mock_describe_export):
         """Test state transition from `in progress` to `failed` during init."""
@@ -297,6 +299,6 @@ class TestCustomDynamoDBServiceWaiters:
             self.describe_export(self.STATUS_IN_PROGRESS),
             self.describe_export(self.STATUS_FAILED),
         ]
-        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
+        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
         with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
-            waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
+            waiter.wait(ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry")
