@@ -123,6 +123,27 @@ class TestGetConfig:
         assert expected == response.data.decode()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_200_single_section_as_json(self, mock_as_dict):
+        response = self.client.get(
+            "/api/v1/config?section=smtp",
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        expected = {
+            "sections": [
+                {
+                    "name": "smtp",
+                    "options": [
+                        {"key": "smtp_host", "value": "localhost"},
+                        {"key": "smtp_mail_from", "value": "airflow@example.com"},
+                    ],
+                },
+            ]
+        }
+        assert expected == response.data.decode()
+
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
