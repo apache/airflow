@@ -30,8 +30,6 @@ from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
-import boto3
-
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
@@ -158,16 +156,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             S3Prefix=self.s3_key_prefix,
             ExportFormat=self.export_format,
         )
-        credentials = self.hook.get_credentials()
-        waiter = self.hook.get_waiter(
-            "export_table",
-            client=boto3.client(
-                "dynamodb",
-                region_name=client.meta.region_name,
-                aws_access_key_id=credentials.access_key,
-                aws_secret_access_key=credentials.secret_key,
-            ),
-        )
+        waiter = self.hook.get_waiter("export_table")
         export_arn = response.get("ExportDescription", {}).get("ExportArn")
         waiter.wait(ExportArn=export_arn)
 
