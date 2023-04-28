@@ -655,8 +655,25 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for dag_action_name in self.DAG_ACTIONS:
             self.create_permission(dag_action_name, dag_resource_name)
 
+        def _revoke_all_stale_permissions(resource: Resource):
+            existing_dag_perms = self.get_resource_permissions(resource)
+            for perm in existing_dag_perms:
+                non_admin_roles = [role for role in perm.role if role.name != "Admin"]
+                for role in non_admin_roles:
+                    self.log.info(
+                        "Revoking '%s' on DAG '%s' for role '%s'",
+                        perm.action,
+                        dag_resource_name,
+                        role.name,
+                    )
+                    self.remove_permission_from_role(role, perm)
+
         if access_control:
             self._sync_dag_view_permissions(dag_resource_name, access_control)
+        else:
+            resource = self.get_resource(dag_resource_name)
+            if resource:
+                _revoke_all_stale_permissions(resource)
 
     def _sync_dag_view_permissions(self, dag_id: str, access_control: dict[str, Collection[str]]) -> None:
         """

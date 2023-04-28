@@ -33,7 +33,7 @@ class OpenLineageProviderPlugin(AirflowPlugin):
 
     name = "OpenLineageProviderPlugin"
     macros = [lineage_run_id, lineage_parent_id]
-    if _is_disabled():
+    if not _is_disabled():
         from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 
         listeners = [OpenLineageListener()]

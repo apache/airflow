@@ -65,8 +65,7 @@ AWS_LINKS = [
     (
         EmrClusterLink,
         {"job_flow_id": "j-TEST-FLOW-ID"},
-        f"https://console.{AWS_DOMAIN}/elasticmapreduce/home?region={REGION_NAME}"
-        f"#cluster-details:j-TEST-FLOW-ID",
+        f"https://console.{AWS_DOMAIN}/emr/home?region={REGION_NAME}#/clusterDetails/j-TEST-FLOW-ID",
     ),
     (
         CloudWatchEventsLink,

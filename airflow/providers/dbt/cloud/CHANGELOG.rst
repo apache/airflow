@@ -24,6 +24,20 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Misc
+~~~~
+
+* ``Merge DbtCloudJobRunAsyncSensor logic to DbtCloudJobRunSensor (#30227)``
+* ``Move typing imports behind TYPE_CHECKING in DbtCloudHook (#29989)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``adding trigger info to provider yaml (#29950)``
+
 3.1.0
 .....
 

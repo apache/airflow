@@ -81,6 +81,7 @@ class TestDagRun:
         task_states: Mapping[str, TaskInstanceState] | None = None,
         execution_date: datetime.datetime | None = None,
         is_backfill: bool = False,
+        state: DagRunState = DagRunState.RUNNING,
         session: Session,
     ):
         now = timezone.utcnow()
@@ -98,7 +99,7 @@ class TestDagRun:
             execution_date=execution_date,
             data_interval=data_interval,
             start_date=now,
-            state=DagRunState.RUNNING,
+            state=state,
             external_trigger=False,
         )
 
@@ -110,11 +111,30 @@ class TestDagRun:
 
         return dag_run
 
-    def test_clear_task_instances_for_backfill_dagrun(self, session):
+    @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
+    def test_clear_task_instances_for_backfill_unfinished_dagrun(self, state, session):
         now = timezone.utcnow()
         dag_id = "test_clear_task_instances_for_backfill_dagrun"
         dag = DAG(dag_id=dag_id, start_date=now)
-        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, session=session)
+        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, state=state, session=session)
+
+        task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
+        ti0 = TI(task=task0, run_id=dag_run.run_id)
+        ti0.run()
+
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+        clear_task_instances(qry, session)
+        session.commit()
+        ti0.refresh_from_db()
+        dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
+        assert dr0.state == state
+
+    @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    def test_clear_task_instances_for_backfill_finished_dagrun(self, state, session):
+        now = timezone.utcnow()
+        dag_id = "test_clear_task_instances_for_backfill_dagrun"
+        dag = DAG(dag_id=dag_id, start_date=now)
+        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, state=state, session=session)
 
         task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
         ti0 = TI(task=task0, run_id=dag_run.run_id)

@@ -33,7 +33,6 @@ PROJECT_ID = "test-project-id"
 JOB_ID = "test_job_id_2012-12-23-10:00"
 LOCATION = "us-central1"
 GCP_CONN_ID = "test_gcp_conn_id"
-DELEGATE_TO = "delegating_to_something"
 POLL_SLEEP = 20
 IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
@@ -46,7 +45,6 @@ def trigger():
         job_id=JOB_ID,
         location=LOCATION,
         gcp_conn_id=GCP_CONN_ID,
-        delegate_to=DELEGATE_TO,
         poll_sleep=POLL_SLEEP,
         impersonation_chain=IMPERSONATION_CHAIN,
         cancel_timeout=CANCEL_TIMEOUT,
@@ -77,7 +75,6 @@ class TestTemplateJobStartTrigger:
                 "job_id": JOB_ID,
                 "location": LOCATION,
                 "gcp_conn_id": GCP_CONN_ID,
-                "delegate_to": DELEGATE_TO,
                 "poll_sleep": POLL_SLEEP,
                 "impersonation_chain": IMPERSONATION_CHAIN,
                 "cancel_timeout": CANCEL_TIMEOUT,
@@ -89,7 +86,6 @@ class TestTemplateJobStartTrigger:
         "attr, expected",
         [
             ("gcp_conn_id", GCP_CONN_ID),
-            ("delegate_to", DELEGATE_TO),
             ("poll_sleep", POLL_SLEEP),
             ("impersonation_chain", IMPERSONATION_CHAIN),
             ("cancel_timeout", CANCEL_TIMEOUT),
