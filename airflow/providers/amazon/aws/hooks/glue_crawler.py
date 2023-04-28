@@ -183,9 +183,8 @@ class GlueCrawlerHook(AwsBaseHook):
         self.log.info("crawler_config: %s", crawler)
         crawler_status = crawler["LastCrawl"]["Status"]
 
-        metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])["CrawlerMetricsList"][
-            0
-        ]
+        metrics_response = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])
+        metrics = metrics_response["CrawlerMetricsList"][0]
         self.log.info("Status: %s", crawler_status)
         self.log.info("Last Runtime Duration (seconds): %s", metrics["LastRuntimeSeconds"])
         self.log.info("Median Runtime Duration (seconds): %s", metrics["MedianRuntimeSeconds"])
