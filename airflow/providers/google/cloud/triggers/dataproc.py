@@ -290,16 +290,14 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
     Implementation leverages asynchronous transport.
     """
 
-    def __init__(self, template_name: str, name: str, **kwargs: Any):
+    def __init__(self, name: str, **kwargs: Any):
         super().__init__(**kwargs)
-        self.template_name = template_name
         self.name = name
 
     def serialize(self):
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger",
             {
-                "template_name": self.template_name,
                 "name": self.name,
                 "project_id": self.project_id,
                 "region": self.region,

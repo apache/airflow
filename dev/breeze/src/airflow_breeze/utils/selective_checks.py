@@ -241,7 +241,7 @@ def add_dependent_providers(
 
 
 def find_all_providers_affected(
-    changed_files: tuple[str, ...], include_docs: bool
+    changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
 ) -> list[str] | Literal["ALL_PROVIDERS"] | None:
     all_providers: set[str] = set()
     dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
@@ -266,7 +266,7 @@ def find_all_providers_affected(
         # potential escape hatch if someone would like to modify suspended provider,
         # but it can be found at the review time and is anyway harmless as the provider will not be
         # released nor tested nor used in CI anyway.
-        get_console().print("[error]You are modifying suspended providers.\n")
+        get_console().print("[yellow]You are modifying suspended providers.\n")
         get_console().print(
             "[info]Some providers modified by this change have been suspended, "
             "and before attempting such changes you should fix the reason for suspension."
@@ -276,7 +276,15 @@ def find_all_providers_affected(
             "to make changes to the provider."
         )
         get_console().print(f"Suspended providers: {suspended_providers}")
-        sys.exit(1)
+        if fail_if_suspended_providers_affected:
+            get_console().print(
+                "[error]This PR did not have `allow suspended provider changes` label set so it will fail."
+            )
+            sys.exit(1)
+        else:
+            get_console().print(
+                "[info]This PR had `allow suspended provider changes` label set so it will continue"
+            )
     if len(all_providers) == 0:
         return None
     for provider in list(all_providers):
@@ -563,6 +571,9 @@ class SelectiveChecks:
         # prepare all providers packages and build all providers documentation
         return "Providers" in self._get_test_types_to_run()
 
+    def _fail_if_suspended_providers_affected(self):
+        return "allow suspended provider changes" not in self._pr_labels
+
     def _get_test_types_to_run(self) -> list[str]:
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
@@ -597,7 +608,9 @@ class SelectiveChecks:
         else:
             if "Providers" in candidate_test_types:
                 affected_providers = find_all_providers_affected(
-                    changed_files=self._files, include_docs=False
+                    changed_files=self._files,
+                    include_docs=False,
+                    fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
                     candidate_test_types.remove("Providers")
@@ -697,7 +710,11 @@ class SelectiveChecks:
             return "--package-filter apache-airflow --package-filter docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
-        providers_affected = find_all_providers_affected(changed_files=self._files, include_docs=True)
+        providers_affected = find_all_providers_affected(
+            changed_files=self._files,
+            include_docs=True,
+            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
+        )
         if (
             providers_affected == "ALL_PROVIDERS"
             or "docs/conf.py" in self._files
@@ -746,7 +763,11 @@ class SelectiveChecks:
             return _ALL_PROVIDERS_LIST
         if self._are_all_providers_affected():
             return _ALL_PROVIDERS_LIST
-        affected_providers = find_all_providers_affected(changed_files=self._files, include_docs=True)
+        affected_providers = find_all_providers_affected(
+            changed_files=self._files,
+            include_docs=True,
+            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
+        )
         if not affected_providers:
             return None
         if affected_providers == "ALL_PROVIDERS":

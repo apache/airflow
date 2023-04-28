@@ -841,6 +841,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             raise ValueError("client must be provided for a deferrable waiter.")
         client = client or self.conn
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
+            # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
+            if self.resource_type:
+                credentials = self.get_credentials()
+                client = boto3.client(
+                    self.resource_type,
+                    region_name=self.region_name,
+                    aws_access_key_id=credentials.access_key,
+                    aws_secret_access_key=credentials.secret_key,
+                )
+
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:
