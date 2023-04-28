@@ -199,6 +199,7 @@ Improvements
 
 Bug Fixes
 """""""""
+- Initialize plugins for cli appbuilder (#30934)
 - Fix dag file processor heartbeat to run only if necessary (#30899)
 - Fix KubernetesExecutor sending state to scheduler (#30872)
 - Count mapped upstream only if all are finished (#30641)
