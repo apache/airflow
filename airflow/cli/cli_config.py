@@ -1755,6 +1755,12 @@ PROVIDERS_COMMANDS = (
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
+        name="triggers",
+        help="List registered provider triggers",
+        func=lazy_load_command("airflow.cli.commands.provider_command.triggers_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name="behaviours",
         help="Get information about registered connection types with custom behaviours",
         func=lazy_load_command("airflow.cli.commands.provider_command.connection_field_behaviours"),

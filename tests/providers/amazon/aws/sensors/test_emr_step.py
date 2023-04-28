@@ -165,7 +165,10 @@ class TestEmrStepSensor:
             DESCRIBE_JOB_STEP_COMPLETED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             self.sensor.execute(None)
 
             assert self.emr_client_mock.describe_step.call_count == 2
@@ -181,7 +184,10 @@ class TestEmrStepSensor:
             DESCRIBE_JOB_STEP_CANCELLED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)
 
@@ -191,7 +197,10 @@ class TestEmrStepSensor:
             DESCRIBE_JOB_STEP_FAILED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)
 
@@ -201,6 +210,9 @@ class TestEmrStepSensor:
             DESCRIBE_JOB_STEP_INTERRUPTED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)

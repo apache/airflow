@@ -208,8 +208,8 @@
             "type": "string",
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
-          "python-modules": {
-            "description": "List of python modules containing the triggers.",
+          "class-names": {
+            "description": "List of the trigger class name that implements trigger.",
             "type": "array",
             "items": {
               "type": "string"
@@ -219,7 +219,7 @@
         "additionalProperties": false,
         "required": [
           "integration-name",
-          "python-modules"
+          "class-names"
         ]
       }
     },

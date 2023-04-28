@@ -66,8 +66,8 @@ hooks:
 
 triggers:
   - integration-name: dbt Cloud
-    python-modules:
-      - airflow.providers.dbt.cloud.triggers.dbt
+    class-names:
+      - airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger
 
 
 connection-types:

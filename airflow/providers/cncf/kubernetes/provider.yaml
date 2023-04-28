@@ -108,8 +108,8 @@ hooks:
 
 triggers:
   - integration-name: Kubernetes
-    python-modules:
-      - airflow.providers.cncf.kubernetes.triggers.pod
+    class-names:
+      - airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger
 
 
 connection-types:
