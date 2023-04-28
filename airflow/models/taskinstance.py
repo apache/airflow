@@ -1352,7 +1352,9 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(State.RUNNING, self))
+
         self.state = State.RUNNING
+        self.emit_state_change_metric(State.RUNNING)
         self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
@@ -1391,6 +1393,52 @@ class TaskInstance(Base, LoggingMixin):
             self._date_or_empty("start_date"),
             self._date_or_empty("end_date"),
         )
+
+    def emit_state_change_metric(self, new_state: TaskInstanceState):
+        """
+        Sends a time metric representing how much time a given state transition took.
+        The previous state and metric name is deduced from the state the task was put in.
+
+        :param new_state: The state that has just been set for this task.
+            We do not use `self.state`, because sometimes the state is updated directly in the DB and not in
+            the local TaskInstance object.
+            Supported states: QUEUED and RUNNING
+        """
+        if self.end_date:
+            # if the task has an end date, it means that this is not its first round.
+            # we send the state transition time metric only on the first try, otherwise it gets more complex.
+            return
+
+        # switch on state and deduce which metric to send
+        if new_state == State.RUNNING:
+            metric_name = "queued_duration"
+            if self.queued_dttm is None:
+                # this should not really happen except in tests or rare cases,
+                # but we don't want to create errors just for a metric, so we just skip it
+                self.log.warning(
+                    "cannot record %s for task %s because previous state change time has not been saved",
+                    metric_name,
+                    self.task_id,
+                )
+                return
+            timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+        elif new_state == State.QUEUED:
+            metric_name = "scheduled_duration"
+            if self.start_date is None:
+                # same comment as above
+                self.log.warning(
+                    "cannot record %s for task %s because previous state change time has not been saved",
+                    metric_name,
+                    self.task_id,
+                )
+                return
+            timing = (timezone.utcnow() - self.start_date).total_seconds()
+        else:
+            raise NotImplementedError("no metric emission setup for state %s", new_state)
+
+        # send metric twice, once (legacy) with tags in the name and once with tags as tags
+        Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
+        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
 
     # Ensure we unset next_method and next_kwargs to ensure that any
     # retries don't re-use them.
