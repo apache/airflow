@@ -21,6 +21,8 @@ import datetime
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
+import pandas as pd
+
 from airflow.compat.functools import cache, cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -564,7 +566,7 @@ class AbstractOperator(Templater, DAGNode):
                     f"{attr_name!r} is configured as a template field "
                     f"but {parent.task_type} does not have this attribute."
                 )
-            if not value:
+            if isinstance(value, pd.DataFrame) or not value:
                 continue
             try:
                 rendered_content = self.render_template(

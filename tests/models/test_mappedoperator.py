@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
+import pandas as pd
 import pendulum
 import pytest
 
@@ -29,6 +31,7 @@ from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
+from airflow.utils.context import Context
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -54,6 +57,28 @@ def test_task_mapping_with_dag():
 
     assert finish.upstream_list == [mapped]
     assert mapped.downstream_list == [finish]
+
+
+def test_task_mapping_with_dag_and_list_of_pandas_dataframe(caplog):
+    caplog.set_level(logging.INFO)
+
+    class CustomOperator(BaseOperator):
+        template_fields = ("dataframe",)
+
+        def __init__(self, dataframe, **kwargs):
+            super().__init__(**kwargs)
+            self.dataframe = dataframe
+
+        def execute(self, context: Context):
+            pass
+
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = CustomOperator(task_id="op1", dataframe=None)
+        dataframes_list = [pd.DataFrame(), pd.DataFrame([1, 2, 3], index=["a", "b", "c"], columns=["x"])]
+        mapped = CustomOperator.partial(task_id="task_2").expand(dataframe=dataframes_list)
+        task1 >> mapped
+    dag.test()
+    assert caplog.text.count("task_2 ran successfully") == 2
 
 
 def test_task_mapping_without_dag_context():
