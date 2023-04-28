@@ -719,7 +719,7 @@ describe your problem.
 ETIMEOUT Error
 --------------
 
-When running `breeze start-airflow`, the following output might be observed:
+When running ``breeze start-airflow``, the following output might be observed:
 
 .. code-block:: bash
 
