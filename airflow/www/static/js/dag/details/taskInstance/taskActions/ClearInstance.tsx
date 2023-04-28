@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Alert,
   AlertIcon,
@@ -30,6 +30,7 @@ import {
 } from "@chakra-ui/react";
 
 import { getMetaValue } from "src/utils";
+import { useKeysPress } from "src/utils/useKeysPress";
 import { useClearTask } from "src/api";
 import useClearTaskDryRun from "src/api/useClearTaskDryRun";
 
@@ -76,6 +77,10 @@ const ClearInstance = ({
 
   const [failed, setFailed] = useState(false);
   const onToggleFailed = () => setFailed(!failed);
+
+  const initialClearButtonFocusRef = useRef<HTMLButtonElement>(null);
+
+  useKeysPress("shiftKey", ['c', 'C'], onOpen);
 
   const mapIndexes =
     mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;
@@ -174,6 +179,7 @@ const ClearInstance = ({
         affectedTasks={affectedTasks}
         submitButton={
           <Button
+            ref={initialClearButtonFocusRef}
             colorScheme="blue"
             isLoading={isLoading || isLoadingDryRun}
             isDisabled={!affectedTasks?.length}
@@ -182,6 +188,7 @@ const ClearInstance = ({
             Clear
           </Button>
         }
+        initialFocusRef={initialClearButtonFocusRef}
       >
         <Box>
           <Text>Include: </Text>

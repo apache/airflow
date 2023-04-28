@@ -132,6 +132,8 @@ interface DatasetListItem extends API.Dataset {
 
 type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
 
+type ControlKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
+
 export type {
   API,
   MinimalTaskInstance,
@@ -145,4 +147,5 @@ export type {
   Task,
   TaskInstance,
   TaskState,
+  ControlKey
 };
