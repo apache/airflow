@@ -657,6 +657,97 @@ class TestBaseSensor:
             self._run(sensor)
         assert_ti_state(4, 4, State.FAILED)
 
+    def test_reschedule_and_retry_timeout_and_silent_fail(self, make_sensor, time_machine):
+        """
+        Test mode="reschedule", silent_fail=True then retries and timeout configurations interact correctly.
+
+        Given a sensor configured like this:
+
+        poke_interval=5
+        timeout=10
+        retries=2
+        retry_delay=timedelta(seconds=3)
+        silent_fail=True
+
+        If the second poke raises RuntimeError, all other pokes return False, this is how it should
+        behave:
+
+        00:00 Returns False                try_number=1, max_tries=2, state=up_for_reschedule
+        00:05 Raises RuntimeError          try_number=1, max_tries=2, state=up_for_reschedule
+        00:08 Returns False                try_number=1, max_tries=2, state=up_for_reschedule
+        00:13 Raises AirflowSensorTimeout  try_number=2, max_tries=2, state=failed
+
+        And then the sensor is cleared at 00:19. It should behave like this:
+
+        00:19 Returns False                try_number=2, max_tries=3, state=up_for_reschedule
+        00:24 Returns False                try_number=2, max_tries=3, state=up_for_reschedule
+        00:26 Returns False                try_number=2, max_tries=3, state=up_for_reschedule
+        00:31 Raises AirflowSensorTimeout, try_number=3, max_tries=3, state=failed
+        """
+        sensor, dr = make_sensor(
+            return_value=None,
+            poke_interval=5,
+            timeout=10,
+            retries=2,
+            retry_delay=timedelta(seconds=3),
+            mode="reschedule",
+            silent_fail=True,
+        )
+
+        sensor.poke = Mock(side_effect=[False, RuntimeError, False, False, False, False, False, False])
+
+        def assert_ti_state(try_number, max_tries, state):
+            tis = dr.get_task_instances()
+
+            assert len(tis) == 2
+
+            for ti in tis:
+                if ti.task_id == SENSOR_OP:
+                    assert ti.try_number == try_number
+                    assert ti.max_tries == max_tries
+                    assert ti.state == state
+                    break
+            else:
+                self.fail("sensor not found")
+
+        # first poke returns False and task is re-scheduled
+        date1 = timezone.utcnow()
+        time_machine.move_to(date1, tick=False)
+        self._run(sensor)
+        assert_ti_state(1, 2, State.UP_FOR_RESCHEDULE)
+
+        # second poke raises RuntimeError and task instance is re-scheduled again
+        time_machine.coordinates.shift(sensor.poke_interval)
+        self._run(sensor)
+        assert_ti_state(1, 2, State.UP_FOR_RESCHEDULE)
+
+        # third poke returns False and task is rescheduled again
+        time_machine.coordinates.shift(sensor.retry_delay + timedelta(seconds=1))
+        self._run(sensor)
+        assert_ti_state(1, 2, State.UP_FOR_RESCHEDULE)
+
+        # fourth poke times out and raises AirflowSensorTimeout
+        time_machine.coordinates.shift(sensor.poke_interval)
+        with pytest.raises(AirflowSensorTimeout):
+            self._run(sensor)
+        assert_ti_state(2, 2, State.FAILED)
+
+        # Clear the failed sensor
+        sensor.clear()
+
+        time_machine.coordinates.shift(20)
+
+        for _ in range(3):
+            time_machine.coordinates.shift(sensor.poke_interval)
+            self._run(sensor)
+            assert_ti_state(2, 3, State.UP_FOR_RESCHEDULE)
+
+        # Last poke times out and raises AirflowSensorTimeout
+        time_machine.coordinates.shift(sensor.poke_interval)
+        with pytest.raises(AirflowSensorTimeout):
+            self._run(sensor)
+        assert_ti_state(3, 3, State.FAILED)
+
     def test_sensor_with_xcom(self, make_sensor):
         xcom_value = "TestValue"
         sensor, dr = make_sensor(True, xcom_value=xcom_value)
@@ -771,14 +862,14 @@ class TestPokeModeOnly:
 
     def test_poke_mode_only_bad_class_method(self):
         sensor = DummyPokeOnlySensor(task_id="foo", mode="poke", poke_changes_mode=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             sensor.change_mode("reschedule")
 
     def test_poke_mode_only_bad_init(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             DummyPokeOnlySensor(task_id="foo", mode="reschedule", poke_changes_mode=False)
 
     def test_poke_mode_only_bad_poke(self):
         sensor = DummyPokeOnlySensor(task_id="foo", mode="poke", poke_changes_mode=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             sensor.poke({})

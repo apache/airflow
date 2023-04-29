@@ -21,7 +21,9 @@ name: Snowflake
 description: |
     `Snowflake <https://www.snowflake.com/>`__
 
+suspended: false
 versions:
+  - 4.0.5
   - 4.0.4
   - 4.0.3
   - 4.0.2

@@ -21,6 +21,7 @@ name: Apache Impala
 description: |
     `Apache Impala <https://impala.apache.org/>`__.
 
+suspended: false
 versions:
   - 1.0.0
 

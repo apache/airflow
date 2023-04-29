@@ -266,7 +266,7 @@ class FileTaskHandler(logging.Handler):
         return False
 
     @cached_property
-    def _executor_get_task_log(self) -> Callable[[TaskInstance], tuple[list[str], list[str]]]:
+    def _executor_get_task_log(self) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
         """This cached property avoids loading executor repeatedly."""
         executor = ExecutorLoader.get_default_executor()
         return executor.get_task_log
@@ -312,7 +312,7 @@ class FileTaskHandler(logging.Handler):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
         if ti.state == TaskInstanceState.RUNNING:
-            response = self._executor_get_task_log(ti)
+            response = self._executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
@@ -441,8 +441,16 @@ class FileTaskHandler(logging.Handler):
         )
         directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
         if directory.stat().st_mode % 0o1000 != new_folder_permissions % 0o1000:
-            print(f"Changing dir permission to {new_folder_permissions}")
-            directory.chmod(new_folder_permissions)
+            print(f"Changing {directory} permission to {new_folder_permissions}")
+            try:
+                directory.chmod(new_folder_permissions)
+            except PermissionError as e:
+                # In some circumstances (depends on user and filesystem) we might not be able to
+                # change the permission for the folder (when the folder was created by another user
+                # before or when the filesystem does not allow to change permission). We should not
+                # fail in this case but rather ignore it.
+                print(f"Failed to change {directory} permission to {new_folder_permissions}: {e}")
+                pass
 
     def _init_file(self, ti):
         """

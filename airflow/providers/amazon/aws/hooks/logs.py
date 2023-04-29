@@ -25,6 +25,14 @@ from typing import Generator
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
+# Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
+# value of the nextForwardToken is the same in subsequent calls.
+# The issue with this approach is, it can take a huge amount of time (e.g. 20 seconds) to retrieve logs using
+# this approach. As an intermediate solution, we decided to stop fetching logs if 3 consecutive responses
+# are empty.
+# See PR https://github.com/apache/airflow/pull/20814
+NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD = 3
+
 
 class AwsLogsHook(AwsBaseHook):
     """
@@ -69,14 +77,15 @@ class AwsLogsHook(AwsBaseHook):
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
+        num_consecutive_empty_response = 0
         next_token = None
         while True:
             if next_token is not None:
-                token_arg: dict[str, str] | None = {"nextToken": next_token}
+                token_arg: dict[str, str] = {"nextToken": next_token}
             else:
                 token_arg = {}
 
-            response = self.get_conn().get_log_events(
+            response = self.conn.get_log_events(
                 logGroupName=log_group,
                 logStreamName=log_stream_name,
                 startTime=start_time,
@@ -96,7 +105,16 @@ class AwsLogsHook(AwsBaseHook):
 
             yield from events
 
-            if next_token != response["nextForwardToken"]:
-                next_token = response["nextForwardToken"]
+            if not event_count:
+                num_consecutive_empty_response += 1
+                if num_consecutive_empty_response >= NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD:
+                    # Exit if there are more than NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD consecutive
+                    # empty responses
+                    return
+            elif next_token != response["nextForwardToken"]:
+                num_consecutive_empty_response = 0
             else:
+                # Exit if the value of nextForwardToken is same in subsequent calls
                 return
+
+            next_token = response["nextForwardToken"]

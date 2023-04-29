@@ -15,6 +15,21 @@
     specific language governing permissions and limitations
     under the License.
 
+Security Model
+--------------
+
+In the Airflow security model, the system administrators are fully trusted.
+They are the only ones who can upload new DAGs, which gives them the ability
+to execute any code on the server.
+
+Authenticated web interface and API users with Admin/Op permissions are trusted,
+but to a lesser extent: they can configure the DAGs which gives them some control,
+but not arbitrary code execution.
+
+Authenticated Web interface and API users with 'regular' permissions are trusted
+to the point where they can impact resource consumption and pause/unpause configured DAGs,
+but not otherwise influence their functionality.
+
 Reporting Vulnerabilities
 -------------------------
 

@@ -492,7 +492,7 @@ def find_options_in_options_list(option: str, option_list: list[list[str]]) -> i
     return None
 
 
-def check_params(command: str, subcommand: str | None, command_dict: dict[str, Any]) -> bool:
+def errors_detected_in_params(command: str, subcommand: str | None, command_dict: dict[str, Any]) -> bool:
     import rich_click
 
     get_console().print(
@@ -508,7 +508,7 @@ def check_params(command: str, subcommand: str | None, command_dict: dict[str, A
             f"defined in rich click configuration."
         )
         get_console().print(f"[warning]Please add it to the `{command_path_config(command)}`.")
-        return False
+        return True
     rich_click_param_groups = options[rich_click_key]
     defined_param_names = [
         param["opts"] for param in command_dict["params"] if param["param_type_name"] == "option"
@@ -526,7 +526,7 @@ def check_params(command: str, subcommand: str | None, command_dict: dict[str, A
                         f"`{rich_click_key}` group in `{command_path_config(command)}`."
                     )
                     get_console().print(
-                        "[warning]Please remove it from there od add parameter in "
+                        "[warning]Please remove it from there or add parameter in "
                         "the command. NOTE! This error might be printed when the option is"
                         "added twice in the command definition!."
                     )
@@ -567,10 +567,10 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
         if "commands" in current_command_dict:
             subcommands = current_command_dict["commands"]
             for subcommand in sorted(subcommands.keys()):
-                if check_params(command, subcommand, subcommands[subcommand]):
+                if errors_detected_in_params(command, subcommand, subcommands[subcommand]):
                     errors_detected = True
         else:
-            if check_params(command, None, current_command_dict):
+            if errors_detected_in_params(command, None, current_command_dict):
                 errors_detected = True
     return 1 if errors_detected else 0
 

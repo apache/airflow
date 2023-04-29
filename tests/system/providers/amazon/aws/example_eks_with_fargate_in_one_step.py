@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.operators.bash import BashOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfileStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -99,8 +100,21 @@ with DAG(
         labels={"demo": "hello_world"},
         get_logs=True,
         startup_timeout_seconds=600,
-        # Delete the pod when it reaches its final state, or the execution is interrupted.
-        is_delete_operator_pod=True,
+        # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
+        is_delete_operator_pod=False,
+    )
+
+    describe_pod = BashOperator(
+        task_id="describe_pod",
+        bash_command=""
+        # using reinstall option so that it doesn't fail if already present
+        "install_aws.sh --reinstall " "&& install_kubectl.sh --reinstall "
+        # configure kubectl to hit the cluster created
+        f"&& aws eks update-kubeconfig --name {cluster_name} "
+        # once all this setup is done, actually describe the pod
+        "&& kubectl describe pod {{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}",
+        # only describe the pod if the task above failed, to help diagnose
+        trigger_rule=TriggerRule.ONE_FAILED,
     )
 
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
@@ -127,9 +141,10 @@ with DAG(
         create_cluster_and_fargate_profile,
         await_create_fargate_profile,
         start_pod,
+        # TEST TEARDOWN
+        describe_pod,
         delete_cluster_and_fargate_profile,
         await_delete_cluster,
-        # TEST TEARDOWN
     )
 
     from tests.system.utils.watcher import watcher

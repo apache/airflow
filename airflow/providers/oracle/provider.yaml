@@ -21,6 +21,7 @@ name: Oracle
 description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
+suspended: false
 versions:
   - 3.6.0
   - 3.5.1

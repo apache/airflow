@@ -306,6 +306,10 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
 
     def execute(self, context: Context):
         self.log.info("Submitting manual transfer for %s", self.transfer_config_id)
+
+        if self.requested_run_time and isinstance(self.requested_run_time.get("seconds"), str):
+            self.requested_run_time["seconds"] = int(self.requested_run_time["seconds"])
+
         response = self.hook.start_manual_transfer_runs(
             transfer_config_id=self.transfer_config_id,
             requested_time_range=self.requested_time_range,

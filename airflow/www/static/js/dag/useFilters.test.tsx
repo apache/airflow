@@ -38,6 +38,7 @@ jest.useFakeTimers().setSystemTime(date);
 import useFilters, {
   FilterHookReturn,
   Filters,
+  FilterTasksProps,
   UtilFunctions,
 } from "./useFilters";
 
@@ -48,13 +49,24 @@ describe("Test useFilters hook", () => {
       { wrapper: RouterWrapper }
     );
     const {
-      filters: { baseDate, numRuns, runType, runState },
+      filters: {
+        baseDate,
+        numRuns,
+        runType,
+        runState,
+        root,
+        filterUpstream,
+        filterDownstream,
+      },
     } = result.current;
 
     expect(baseDate).toBe(date.toISOString());
     expect(numRuns).toBe(global.defaultDagRunDisplayNumber.toString());
     expect(runType).toBeNull();
     expect(runState).toBeNull();
+    expect(root).toBeUndefined();
+    expect(filterUpstream).toBeUndefined();
+    expect(filterDownstream).toBeUndefined();
   });
 
   test.each([
@@ -85,7 +97,7 @@ describe("Test useFilters hook", () => {
     );
 
     await act(async () => {
-      result.current[fnName](paramValue);
+      result.current[fnName](paramValue as "string" & FilterTasksProps);
     });
 
     expect(result.current.filters[paramName]).toBe(paramValue);
@@ -104,5 +116,58 @@ describe("Test useFilters hook", () => {
     } else {
       expect(result.current.filters[paramName]).toBeNull();
     }
+  });
+
+  test("Test onFilterTasksChange ", async () => {
+    const { result } = renderHook<FilterHookReturn, undefined>(
+      () => useFilters(),
+      { wrapper: RouterWrapper }
+    );
+
+    await act(async () => {
+      result.current.onFilterTasksChange({
+        root: "test",
+        filterUpstream: true,
+        filterDownstream: false,
+      });
+    });
+
+    expect(result.current.filters.root).toBe("test");
+    expect(result.current.filters.filterUpstream).toBe(true);
+    expect(result.current.filters.filterDownstream).toBe(false);
+
+    // sending same info clears filters
+    await act(async () => {
+      result.current.onFilterTasksChange({
+        root: "test",
+        filterUpstream: true,
+        filterDownstream: false,
+      });
+    });
+
+    expect(result.current.filters.root).toBeUndefined();
+    expect(result.current.filters.filterUpstream).toBeUndefined();
+    expect(result.current.filters.filterDownstream).toBeUndefined();
+
+    await act(async () => {
+      result.current.onFilterTasksChange({
+        root: "test",
+        filterUpstream: true,
+        filterDownstream: false,
+      });
+    });
+
+    expect(result.current.filters.root).toBe("test");
+    expect(result.current.filters.filterUpstream).toBe(true);
+    expect(result.current.filters.filterDownstream).toBe(false);
+
+    // clearFilters
+    await act(async () => {
+      result.current.resetRoot();
+    });
+
+    expect(result.current.filters.root).toBeUndefined();
+    expect(result.current.filters.filterUpstream).toBeUndefined();
+    expect(result.current.filters.filterDownstream).toBeUndefined();
   });
 });

@@ -55,6 +55,14 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
+Airflow 2.6
+~~~~~~~~~~~~~
+
+* 2.6
+
+  * Snowflake provider installed by default
+
+
 Airflow 2.5.1
 ~~~~~~~~~~~~~
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import copy
 import logging
-import tempfile
+import os
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -48,10 +48,8 @@ class TestGCSTaskHandler:
         clear_db_dags()
 
     @pytest.fixture(autouse=True)
-    def local_log_location(self):
-        with tempfile.TemporaryDirectory() as td:
-            self.local_log_location = td
-            yield td
+    def local_log_location(self, tmp_path_factory):
+        return str(tmp_path_factory.mktemp("local-gcs-log-location"))
 
     @pytest.fixture(autouse=True)
     def gcs_task_handler(self, create_log_template, local_log_location):
@@ -127,7 +125,7 @@ class TestGCSTaskHandler:
             "***   * gs://bucket/remote/log/location/1.log\n"
             "*** Unable to read remote log Failed to connect\n"
             "*** Found local files:\n"
-            f"***   * {self.local_log_location}/1.log\n"
+            f"***   * {self.gcs_task_handler.local_base}/1.log\n"
         )
         assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
@@ -246,3 +244,39 @@ class TestGCSTaskHandler:
             ],
             any_order=False,
         )
+
+    @pytest.mark.parametrize(
+        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
+        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_close_with_delete_local_copy_conf(
+        self,
+        mock_blob,
+        mock_client,
+        mock_creds,
+        local_log_location,
+        delete_local_copy,
+        expected_existence_of_local_copy,
+        airflow_version,
+    ):
+        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
+            "airflow.version.version", airflow_version
+        ):
+            handler = GCSTaskHandler(
+                base_log_folder=local_log_location,
+                gcs_log_folder="gs://bucket/remote/log/location",
+            )
+
+        handler.log.info("test")
+        handler.set_context(self.ti)
+        assert handler.upload_on_close
+
+        handler.close()
+        assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy

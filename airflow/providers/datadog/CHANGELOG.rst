@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support creating Datadog connection from the UI and add documentation for this conn (#30059)``
+
 3.1.0
 .....
 

@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
+from packaging.version import Version
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -41,6 +43,17 @@ _DEFAULT_SCOPESS = frozenset(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    TODO: delete this function when min airflow version >= 2.6
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -63,6 +76,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
+    :param delete_local_copy: Whether local log files should be deleted after they are downloaded when using
+        remote logging
     """
 
     trigger_should_wrap = True
@@ -77,6 +92,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: Collection[str] | None = _DEFAULT_SCOPESS,
         project_id: str | None = None,
+        **kwargs,
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
@@ -87,6 +103,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.gcp_keyfile_dict = gcp_keyfile_dict
         self.scopes = gcp_scopes
         self.project_id = project_id
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self) -> GCSHook | None:
@@ -147,7 +166,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc) as logfile:
                 log = logfile.read()
-            self.gcs_write(log, remote_loc)
+            gcs_write = self.gcs_write(log, remote_loc)
+            if gcs_write and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -207,13 +228,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         return "".join([f"*** {x}\n" for x in messages]) + "\n".join(logs), {"end_of_log": True}
 
-    def gcs_write(self, log, remote_log_location):
+    def gcs_write(self, log, remote_log_location) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no log
-        was created.
+        Writes the log to the remote_log_location and return `True` when done. Fails silently
+         and return `False` if no log was created.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
+        :return: whether the log is successfully written to remote location or not.
         """
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
@@ -232,6 +254,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
             self.log.error("Could not write logs to %s: %s", remote_log_location, e)
+            return False
+        return True
 
     @staticmethod
     def no_log_found(exc):

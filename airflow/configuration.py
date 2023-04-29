@@ -199,6 +199,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.5.3"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.5.3"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
@@ -232,6 +234,22 @@ class AirflowConfigParser(ConfigParser):
         ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
         ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
         ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
+        ("scheduler", "task_queued_timeout_check_interval"): (
+            "kubernetes_executor",
+            "worker_pods_pending_timeout_check_interval",
+            "2.6.0",
+        ),
+    }
+
+    # A mapping of new configurations to a list of old configurations for when one configuration
+    # deprecates more than one other deprecation. The deprecation logic for these configurations
+    # is defined in SchedulerJobRunner.
+    many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
+        ("scheduler", "task_queued_timeout"): [
+            ("celery", "stalled_task_timeout", "2.6.0"),
+            ("celery", "task_adoption_timeout", "2.6.0"),
+            ("kubernetes_executor", "worker_pods_pending_timeout", "2.6.0"),
+        ]
     }
 
     # A mapping of new section -> (old section, since_version).

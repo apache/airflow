@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import tempfile
 import warnings
 from typing import TYPE_CHECKING, Any, Generator
@@ -37,7 +38,7 @@ from airflow.utils import yaml
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
 
-def _load_body_to_dict(body):
+def _load_body_to_dict(body: str) -> dict:
     try:
         body_dict = yaml.safe_load(body)
     except yaml.YAMLError as e:
@@ -100,6 +101,9 @@ class KubernetesHook(BaseHook):
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
             "xcom_sidecar_container_image": StringField(
                 lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
+            ),
+            "xcom_sidecar_container_resources": StringField(
+                lazy_gettext("XCom sidecar resources (JSON format)"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -272,37 +276,22 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api: client.CustomObjectsApi = self.custom_object_client
-        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
 
         if isinstance(body, str):
             body_dict = _load_body_to_dict(body)
         else:
             body_dict = body
 
-        # Attribute "name" is not mandatory if "generateName" is used instead
-        if "name" in body_dict["metadata"]:
-            try:
-                api.delete_namespaced_custom_object(
-                    group=group,
-                    version=version,
-                    namespace=namespace,
-                    plural=plural,
-                    name=body_dict["metadata"]["name"],
-                )
+        response = api.create_namespaced_custom_object(
+            group=group,
+            version=version,
+            namespace=namespace or self.get_namespace(),
+            plural=plural,
+            body=body_dict,
+        )
 
-                self.log.warning("Deleted SparkApplication with the same name")
-            except client.rest.ApiException:
-                self.log.info("SparkApplication %s not found", body_dict["metadata"]["name"])
-
-        try:
-            response = api.create_namespaced_custom_object(
-                group=group, version=version, namespace=namespace, plural=plural, body=body_dict
-            )
-
-            self.log.debug("Response: %s", response)
-            return response
-        except client.rest.ApiException as e:
-            raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
+        self.log.debug("Response: %s", response)
+        return response
 
     def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None
@@ -317,14 +306,36 @@ class KubernetesHook(BaseHook):
         :param namespace: kubernetes namespace
         """
         api = client.CustomObjectsApi(self.api_client)
-        namespace = namespace or self._get_namespace() or self.DEFAULT_NAMESPACE
-        try:
-            response = api.get_namespaced_custom_object(
-                group=group, version=version, namespace=namespace, plural=plural, name=name
-            )
-            return response
-        except client.rest.ApiException as e:
-            raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
+        response = api.get_namespaced_custom_object(
+            group=group,
+            version=version,
+            namespace=namespace or self.get_namespace(),
+            plural=plural,
+            name=name,
+        )
+        return response
+
+    def delete_custom_object(
+        self, group: str, version: str, plural: str, name: str, namespace: str | None = None, **kwargs
+    ):
+        """
+        Delete custom resource definition object from Kubernetes
+
+        :param group: api group
+        :param version: api version
+        :param plural: api plural
+        :param name: crd object name
+        :param namespace: kubernetes namespace
+        """
+        api = client.CustomObjectsApi(self.api_client)
+        return api.delete_namespaced_custom_object(
+            group=group,
+            version=version,
+            namespace=namespace or self.get_namespace(),
+            plural=plural,
+            name=name,
+            **kwargs,
+        )
 
     def get_namespace(self) -> str | None:
         """
@@ -358,6 +369,13 @@ class KubernetesHook(BaseHook):
     def get_xcom_sidecar_container_image(self):
         """Returns the xcom sidecar image that defined in the connection"""
         return self._get_field("xcom_sidecar_container_image")
+
+    def get_xcom_sidecar_container_resources(self):
+        """Returns the xcom sidecar resources that defined in the connection"""
+        field = self._get_field("xcom_sidecar_container_resources")
+        if not field:
+            return None
+        return json.loads(field)
 
     def get_pod_log_stream(
         self,
@@ -449,19 +467,18 @@ def _get_bool(val) -> bool | None:
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
-    def __init__(self, config_dict: dict | None = None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.config_dict = config_dict
-
         self._extras: dict | None = None
 
     async def _load_config(self):
         """Returns Kubernetes API session for use with requests"""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
+        kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, self.config_dict] if o])
+        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -476,9 +493,14 @@ class AsyncKubernetesHook(KubernetesHook):
             async_config.load_incluster_config()
             return async_client.ApiClient()
 
-        if self.config_dict:
-            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
-            await async_config.load_kube_config_from_dict(self.config_dict)
+        if kubeconfig_path:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("kube_config"))
+            self._is_in_cluster = False
+            await async_config.load_kube_config(
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
             return async_client.ApiClient()
 
         if kubeconfig is not None:

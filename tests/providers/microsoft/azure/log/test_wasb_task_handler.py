@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -64,9 +65,6 @@ class TestWasbTaskHandler:
             wasb_container=self.container_name,
             delete_local_copy=True,
         )
-
-    def teardown_method(self):
-        self.wasb_task_handler.close()
 
     @conf_vars({("logging", "remote_log_conn_id"): "wasb_default"})
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
@@ -175,3 +173,33 @@ class TestWasbTaskHandler:
             mock_error.assert_called_once_with(
                 "Could not write logs to %s", "remote/log/location/1.log", exc_info=True
             )
+
+    @pytest.mark.parametrize(
+        "delete_local_copy, expected_existence_of_local_copy, airflow_version",
+        [(True, False, "2.6.0"), (False, True, "2.6.0"), (True, True, "2.5.0"), (False, True, "2.5.0")],
+    )
+    @mock.patch("airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler.wasb_write")
+    def test_close_with_delete_local_logs_conf(
+        self,
+        wasb_write_mock,
+        ti,
+        tmp_path_factory,
+        delete_local_copy,
+        expected_existence_of_local_copy,
+        airflow_version,
+    ):
+        with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}), mock.patch(
+            "airflow.version.version", airflow_version
+        ):
+            handler = WasbTaskHandler(
+                base_log_folder=str(tmp_path_factory.mktemp("local-s3-log-location")),
+                wasb_log_folder=self.wasb_log_folder,
+                wasb_container=self.container_name,
+            )
+        wasb_write_mock.return_value = True
+        handler.log.info("test")
+        handler.set_context(ti)
+        assert handler.upload_on_close
+
+        handler.close()
+        assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy

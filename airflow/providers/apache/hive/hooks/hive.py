@@ -99,12 +99,13 @@ class HiveCliHook(BaseHook):
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
+        auth: str | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
-        self.auth = conn.extra_dejson.get("auth", "noSasl")
+        self.auth = auth
         self.conn = conn
         self.run_as = run_as
         self.sub_process: Any = None

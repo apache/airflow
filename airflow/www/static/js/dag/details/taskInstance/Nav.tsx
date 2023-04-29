@@ -22,23 +22,19 @@ import { Flex } from "@chakra-ui/react";
 
 import { getMetaValue, appendSearchParams } from "src/utils";
 import LinkButton from "src/components/LinkButton";
-import type { Task, DagRun } from "src/types";
+import type { Task } from "src/types";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 const dagId = getMetaValue("dag_id");
 const isK8sExecutor = getMetaValue("k8s_or_k8scelery_executor") === "True";
-const numRuns = getMetaValue("num_runs");
-const baseDate = getMetaValue("base_date");
 const taskInstancesUrl = getMetaValue("task_instances_list_url");
 const renderedK8sUrl = getMetaValue("rendered_k8s_url");
 const renderedTemplatesUrl = getMetaValue("rendered_templates_url");
 const xcomUrl = getMetaValue("xcom_url");
 const taskUrl = getMetaValue("task_url");
 const gridUrl = getMetaValue("grid_url");
-const gridUrlNoRoot = getMetaValue("grid_url_no_root");
 
 interface Props {
-  runId: DagRun["runId"];
   taskId: Task["id"];
   executionDate: string;
   operator?: string;
@@ -47,10 +43,7 @@ interface Props {
 }
 
 const Nav = forwardRef<HTMLDivElement, Props>(
-  (
-    { runId, taskId, executionDate, operator, isMapped = false, mapIndex },
-    ref
-  ) => {
+  ({ taskId, executionDate, operator, isMapped = false, mapIndex }, ref) => {
     if (!taskId) return null;
     const params = new URLSearchParamsWrapper({
       task_id: taskId,
@@ -70,23 +63,11 @@ const Nav = forwardRef<HTMLDivElement, Props>(
       execution_date: executionDate,
     }).toString();
 
-    const filterParams = new URLSearchParamsWrapper({
-      task_id: taskId,
-      dag_run_id: runId,
-      root: taskId,
-    });
-
     if (mapIndex !== undefined && mapIndex >= 0)
       listParams.append("_flt_0_map_index", mapIndex.toString());
-    if (baseDate) filterParams.append("base_date", baseDate);
-    if (numRuns) filterParams.append("num_runs", numRuns);
 
     const allInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
 
-    const filterUpstreamLink = appendSearchParams(
-      gridUrlNoRoot,
-      filterParams.toString()
-    );
     const subDagLink = appendSearchParams(
       gridUrl.replace(dagId, `${dagId}.${taskId}`),
       subDagParams
@@ -116,7 +97,6 @@ const Nav = forwardRef<HTMLDivElement, Props>(
         >
           List Instances, all runs
         </LinkButton>
-        <LinkButton href={filterUpstreamLink}>Filter Upstream</LinkButton>
       </Flex>
     );
   }

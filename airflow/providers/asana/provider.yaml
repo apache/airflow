@@ -21,6 +21,7 @@ name: Asana
 description: |
     `Asana <https://app.asana.com/>`__
 
+suspended: false
 versions:
   - 2.1.0
   - 2.0.1

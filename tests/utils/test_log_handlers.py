@@ -31,8 +31,8 @@ import pytest
 from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DAG, DagRun, TaskInstance, Trigger
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
@@ -288,9 +288,9 @@ class TestFileTaskLogHandler:
         ti.triggerer_job = None
         with conf_vars({("core", "executor"): executor_name}):
             fth = FileTaskHandler("")
-            fth._read(ti=ti, try_number=1)
+            fth._read(ti=ti, try_number=2)
         if state == TaskInstanceState.RUNNING:
-            mock_k8s_get_task_log.assert_called_once_with(ti)
+            mock_k8s_get_task_log.assert_called_once_with(ti, 2)
         else:
             mock_k8s_get_task_log.assert_not_called()
 
@@ -357,7 +357,7 @@ class TestFileTaskLogHandler:
         set_context(logger, ti)
         ti.run(ignore_ti_state=True)
         ti.state = TaskInstanceState.RUNNING
-        file_handler.read(ti, 3)
+        file_handler.read(ti, 2)
 
         # first we find pod name
         mock_list_pod.assert_called_once()
@@ -372,7 +372,7 @@ class TestFileTaskLogHandler:
                     "kubernetes_executor=True",
                     "run_id=manual__2016-01-01T0000000000-2b88d1d57",
                     "task_id=task_for_testing_file_log_handler",
-                    "try_number=.+?",
+                    "try_number=2",
                     "airflow-worker",
                 ]
             ),
@@ -403,7 +403,7 @@ class TestFileTaskLogHandler:
         assert isinstance(ti, TaskInstance)
         if is_a_trigger:
             ti.is_trigger_log_context = True
-            job = TriggererJob()
+            job = Job()
             t = Trigger("", {})
             t.triggerer_job = job
             ti.triggerer = t
@@ -475,7 +475,7 @@ class TestLogUrl:
         )
         ti.hostname = "hostname"
         trigger = Trigger("", {})
-        job = BaseJob()
+        job = Job(TriggererJobRunner.job_type)
         job.id = 123
         trigger.triggerer_job = job
         ti.trigger = trigger

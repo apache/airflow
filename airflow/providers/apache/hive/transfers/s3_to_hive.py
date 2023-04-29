@@ -109,6 +109,7 @@ class S3ToHiveOperator(BaseOperator):
         input_compressed: bool = False,
         tblproperties: dict | None = None,
         select_expression: str | None = None,
+        hive_auth: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -128,6 +129,7 @@ class S3ToHiveOperator(BaseOperator):
         self.input_compressed = input_compressed
         self.tblproperties = tblproperties
         self.select_expression = select_expression
+        self.hive_auth = hive_auth
 
         if self.check_headers and not (self.field_dict is not None and self.headers):
             raise AirflowException("To check_headers provide field_dict and headers")
@@ -135,7 +137,7 @@ class S3ToHiveOperator(BaseOperator):
     def execute(self, context: Context):
         # Downloading file from S3
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+        hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
         self.log.info("Downloading S3 file")
 
         if self.wildcard_match:

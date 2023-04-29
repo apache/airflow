@@ -39,7 +39,6 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -94,6 +93,20 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
     if not container_status:
         return False
     return container_status.state.running is not None
+
+
+def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is terminated.
+    If that container is present and terminated, returns True.  Returns False otherwise.
+    """
+    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if not container_statuses:
+        return False
+    container_status = next((x for x in container_statuses if x.name == container_name), None)
+    if not container_status:
+        return False
+    return container_status.state.terminated is not None
 
 
 def get_container_termination_message(pod: V1Pod, container_name: str):
@@ -205,28 +218,15 @@ class PodManager(LoggingMixin):
 
     def __init__(
         self,
-        kube_client: client.CoreV1Api = None,
-        in_cluster: bool = True,
-        cluster_context: str | None = None,
+        kube_client: client.CoreV1Api,
     ):
         """
         Creates the launcher.
 
         :param kube_client: kubernetes client
-        :param in_cluster: whether we are in cluster
-        :param cluster_context: context of the cluster
         """
         super().__init__()
-        if kube_client:
-            self._client = kube_client
-        else:
-            self._client = get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
-            warnings.warn(
-                "`kube_client` not supplied to PodManager. "
-                "This will be a required argument in a future release. "
-                "Please use KubernetesHook to create the client before calling.",
-                DeprecationWarning,
-            )
+        self._client = kube_client
         self._watch = watch.Watch()
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
@@ -380,7 +380,7 @@ class PodManager(LoggingMixin):
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
         """
-        while self.container_is_running(pod=pod, container_name=container_name):
+        while not self.container_is_terminated(pod=pod, container_name=container_name):
             time.sleep(1)
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:
@@ -426,6 +426,11 @@ class PodManager(LoggingMixin):
         """Reads pod and checks if container is running"""
         remote_pod = self.read_pod(pod)
         return container_is_running(pod=remote_pod, container_name=container_name)
+
+    def container_is_terminated(self, pod: V1Pod, container_name: str) -> bool:
+        """Reads pod and checks if container is terminated"""
+        remote_pod = self.read_pod(pod)
+        return container_is_terminated(pod=remote_pod, container_name=container_name)
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_logs(
