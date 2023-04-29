@@ -38,8 +38,8 @@ extend-exclude = [
     "airflow/providers/common/sql/*/*.pyi"
 ]
 
-# TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
-target-version = "py37"
+# TODO: Bump to Python 3.9 when support for Python 3.8 is dropped in Airflow.
+target-version = "py38"
 
 extend-select = [
     "I", # Missing required import (auto-fixable)

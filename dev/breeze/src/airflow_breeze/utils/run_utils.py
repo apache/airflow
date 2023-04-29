@@ -378,7 +378,7 @@ def check_if_image_exists(image: str) -> bool:
 
 def get_ci_image_for_pre_commits() -> str:
     github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
-    python_version = "3.7"
+    python_version = "3.8"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
     skip_image_pre_commits = os.environ.get("SKIP_IMAGE_PRE_COMMITS", "false")
     if skip_image_pre_commits[0].lower() == "t":

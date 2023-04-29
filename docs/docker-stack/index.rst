@@ -50,9 +50,9 @@ for all the supported Python versions.
 
 You can find the following images there (Assuming Airflow version :subst-code:`|airflow-version|`):
 
-* :subst-code:`apache/airflow:latest`              - the latest released Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:latest`              - the latest released Airflow image with default Python version (3.8 currently)
 * :subst-code:`apache/airflow:latest-pythonX.Y`    - the latest released Airflow image with specific Python version
-* :subst-code:`apache/airflow:|airflow-version|`           - the versioned Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:|airflow-version|`           - the versioned Airflow image with default Python version (3.8 currently)
 * :subst-code:`apache/airflow:|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
 Those are "reference" regular images. They contain the most common set of extras, dependencies and providers that are
@@ -62,9 +62,9 @@ You can also use "slim" images that contain only core airflow and are about half
 but you need to add all the :doc:`apache-airflow:extra-packages-ref` and providers that you need separately
 via :ref:`Building the image <build:build_image>`.
 
-* :subst-code:`apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.8 currently)
 * :subst-code:`apache/airflow:slim-latest-pythonX.Y`    - the latest released Airflow image with specific Python version
-* :subst-code:`apache/airflow:slim-|airflow-version|`           - the versioned Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:slim-|airflow-version|`           - the versioned Airflow image with default Python version (3.8 currently)
 * :subst-code:`apache/airflow:slim-|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
 The Apache Airflow image provided as convenience package is optimized for size, and

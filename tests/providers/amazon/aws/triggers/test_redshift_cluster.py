@@ -16,19 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftCreateClusterTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import CoroutineMock as AsyncMock, mock as async_mock
-else:
-    from unittest import mock as async_mock
-    from unittest.mock import AsyncMock
-
 
 TEST_CLUSTER_IDENTIFIER = "test-cluster"
 TEST_POLL_INTERVAL = 10
@@ -55,11 +49,11 @@ class TestRedshiftCreateClusterTrigger:
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
     async def test_redshift_create_cluster_trigger_run(self, mock_async_conn):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
-        mock.get_waiter().wait = AsyncMock()
+        the_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = the_mock
+        the_mock.get_waiter().wait = AsyncMock()
 
         redshift_create_cluster_trigger = RedshiftCreateClusterTrigger(
             cluster_identifier=TEST_CLUSTER_IDENTIFIER,

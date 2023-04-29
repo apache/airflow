@@ -37,7 +37,7 @@ Typical command to install airflow from PyPI looks like below:
 
 .. code-block::
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
 
 This is an example, see further for more explanation.
 
@@ -70,7 +70,7 @@ You can create the URL to the file substituting the variables in the template be
 where:
 
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
-- ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
+- ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.9``
 
 There is also a ``constraints-no-providers`` constraint file, which contains just constraints required to
 install Airflow core. This allows to install and upgrade airflow separately and independently from providers.
@@ -86,7 +86,7 @@ constraints always points to the "latest" released Airflow version constraints:
 
 .. code-block::
 
-  https://raw.githubusercontent.com/apache/airflow/constraints-latest/constraints-3.7.txt
+  https://raw.githubusercontent.com/apache/airflow/constraints-latest/constraints-3.8.txt
 
 
 Fixing Constraint files at release time
@@ -192,9 +192,9 @@ If you don't want to install any extra providers, initially you can use the comm
 
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.7
+    # For example: 3.8
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.7.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.8.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 
@@ -219,7 +219,7 @@ Symbol not found: ``_Py_GetArgcArgv``
 =====================================
 
 If you see ``Symbol not found: _Py_GetArgcArgv`` while starting or importing Airflow, this may mean that you are using an incompatible version of Python.
-For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.7``: ``/usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7``).
+For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.8``: ``/usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8``).
 
 The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
 which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
@@ -228,9 +228,9 @@ An easy fix is just to ensure you use a version of Python that has a dylib of th
 
 .. code-block:: bash
 
-  # Note: these instructions are for python3.7 but can be loosely modified for other versions
-  brew install python@3.7
-  virtualenv -p /usr/local/opt/python@3.7/Frameworks/Python.framework/Versions/3.7/bin/python3 .toy-venv
+  # Note: these instructions are for python3.8 but can be loosely modified for other versions
+  brew install python@3.8
+  virtualenv -p /usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8/bin/python3 .toy-venv
   source .toy-venv/bin/activate
   pip install apache-airflow
   python

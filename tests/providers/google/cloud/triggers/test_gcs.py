@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 from gcloud.aio.storage import Bucket, Storage
@@ -30,7 +32,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 TEST_BUCKET = "TEST_BUCKET"
 TEST_OBJECT = "TEST_OBJECT"
@@ -70,7 +71,7 @@ class TestGCSBlobTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
+    @mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
     async def test_gcs_blob_trigger_success(self, mock_object_exists, trigger):
         """
         Tests that the GCSBlobTrigger is success case
@@ -82,7 +83,7 @@ class TestGCSBlobTrigger:
         assert TriggerEvent({"status": "success", "message": "success"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
+    @mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
     async def test_gcs_blob_trigger_pending(self, mock_object_exists, trigger):
         """
         Test that GCSBlobTrigger is in loop if file isn't found.
@@ -97,7 +98,7 @@ class TestGCSBlobTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
+    @mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger._object_exists")
     async def test_gcs_blob_trigger_exception(self, mock_object_exists, trigger):
         """
         Tests the GCSBlobTrigger does fire if there is an exception.
@@ -159,9 +160,7 @@ class TestGCSPrefixBlobTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch(
-        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
-    )
+    @mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix")
     async def test_gcs_prefix_blob_trigger_success(self, mock_list_blobs_with_prefixs):
         """
         Tests that the GCSPrefixBlobTrigger is success case
@@ -176,9 +175,7 @@ class TestGCSPrefixBlobTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(
-        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
-    )
+    @mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix")
     async def test_gcs_prefix_blob_trigger_exception(self, mock_list_blobs_with_prefixs):
         """
         Tests the GCSPrefixBlobTrigger does fire if there is an exception.
@@ -190,9 +187,7 @@ class TestGCSPrefixBlobTrigger:
         assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
 
     @pytest.mark.asyncio
-    @async_mock.patch(
-        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
-    )
+    @mock.patch("airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix")
     async def test_gcs_prefix_blob_trigger_pending(self, mock_list_blobs_with_prefixs):
         """
         Test that GCSPrefixBlobTrigger is in loop if file isn't found.
@@ -252,7 +247,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch(
+    @mock.patch(
         "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger._is_blob_updated_after"
     )
     async def test_gcs_blob_update_trigger_success(self, mock_blob_updated):
@@ -266,7 +261,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         assert TriggerEvent({"status": "success", "message": "success"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch(
+    @mock.patch(
         "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger._is_blob_updated_after"
     )
     async def test_gcs_blob_update_trigger_pending(self, mock_blob_updated):
@@ -283,7 +278,7 @@ class TestGCSCheckBlobUpdateTimeTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch(
+    @mock.patch(
         "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger._is_blob_updated_after"
     )
     async def test_gcs_blob_update_trigger_exception(self, mock_object_exists):

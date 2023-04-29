@@ -19,13 +19,13 @@ from __future__ import annotations
 import asyncio
 import logging
 from asyncio import Future
+from unittest import mock
 
 import pytest
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildStep
 
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
 from airflow.triggers.base import TriggerEvent
-from tests.providers.google.cloud.utils.compat import async_mock
 
 CLOUD_BUILD_PATH = "airflow.providers.google.cloud.triggers.cloud_build.{}"
 TEST_PROJECT_ID = "cloud-build-project"
@@ -116,7 +116,7 @@ class TestCloudBuildCreateBuildTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
     async def test_trigger_on_success_yield_successfully(self, mock_hook, trigger):
         """
         Tests the CloudBuildCreateBuildTrigger only fires once the job execution reaches a successful state.
@@ -139,7 +139,7 @@ class TestCloudBuildCreateBuildTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
     async def test_trigger_on_running_wait_successfully(self, mock_hook, caplog, trigger):
         """
         Test that CloudBuildCreateBuildTrigger does not fire while a build is still running.
@@ -162,7 +162,7 @@ class TestCloudBuildCreateBuildTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
     async def test_trigger_on_error_yield_successfully(self, mock_hook, caplog, trigger):
         """
         Test that CloudBuildCreateBuildTrigger fires the correct event in case of an error.
@@ -182,7 +182,7 @@ class TestCloudBuildCreateBuildTrigger:
         assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))
     async def test_trigger_on_exec_yield_successfully(self, mock_hook, trigger):
         """
         Test that CloudBuildCreateBuildTrigger fires the correct event in case of an error.

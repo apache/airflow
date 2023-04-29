@@ -108,7 +108,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: "Retrieve defaults from branch_defaults.py"
         # We cannot "execute" the branch_defaults.py python code here because that would be
         # a security problem (we cannot run any code that comes from the sources coming from the PR.

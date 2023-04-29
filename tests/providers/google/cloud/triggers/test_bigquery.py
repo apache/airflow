@@ -19,6 +19,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import Any
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 from aiohttp import ClientResponseError, RequestInfo
@@ -37,7 +39,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 TEST_CONN_ID = "bq_default"
 TEST_JOB_ID = "1234"
@@ -159,7 +160,7 @@ class TestBigQueryInsertJobTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_bigquery_insert_job_op_trigger_success(self, mock_job_status, insert_job_trigger):
         """
         Tests the BigQueryInsertJobTrigger only fires once the query execution reaches a successful state.
@@ -173,7 +174,7 @@ class TestBigQueryInsertJobTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_bigquery_insert_job_trigger_running(self, mock_job_instance, caplog, insert_job_trigger):
         """Test that BigQuery Triggers do not fire while a query is still running."""
 
@@ -195,7 +196,7 @@ class TestBigQueryInsertJobTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_bigquery_op_trigger_terminated(self, mock_job_status, caplog, insert_job_trigger):
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         # Set the status to a value other than success or pending
@@ -207,7 +208,7 @@ class TestBigQueryInsertJobTrigger:
         assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_bigquery_op_trigger_exception(self, mock_job_status, caplog, insert_job_trigger):
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         mock_job_status.side_effect = Exception("Test exception")
@@ -233,7 +234,7 @@ class TestBigQueryGetDataTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_bigquery_get_data_trigger_running(self, mock_job_instance, caplog, get_data_trigger):
         """Test that BigQuery Triggers do not fire while a query is still running."""
 
@@ -255,7 +256,7 @@ class TestBigQueryGetDataTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_bigquery_get_data_trigger_terminated(self, mock_job_status, caplog, get_data_trigger):
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         # Set the status to a value other than success or pending
@@ -267,7 +268,7 @@ class TestBigQueryGetDataTrigger:
         assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_bigquery_get_data_trigger_exception(self, mock_job_status, caplog, get_data_trigger):
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         mock_job_status.side_effect = Exception("Test exception")
@@ -277,8 +278,8 @@ class TestBigQueryGetDataTrigger:
         assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     async def test_bigquery_get_data_trigger_success_with_data(
         self, mock_job_output, mock_job_status, get_data_trigger
     ):
@@ -328,7 +329,7 @@ class TestBigQueryGetDataTrigger:
 
 class TestBigQueryCheckTrigger:
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_bigquery_check_trigger_running(self, mock_job_instance, caplog, check_trigger):
         """Test that BigQuery Triggers do not fire while a query is still running."""
 
@@ -350,7 +351,7 @@ class TestBigQueryCheckTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_bigquery_check_trigger_terminated(self, mock_job_status, caplog, check_trigger):
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         # Set the status to a value other than success or pending
@@ -362,7 +363,7 @@ class TestBigQueryCheckTrigger:
         assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_check_trigger_exception(self, mock_job_status, caplog, check_trigger):
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         mock_job_status.side_effect = Exception("Test exception")
@@ -386,8 +387,8 @@ class TestBigQueryCheckTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     async def test_check_trigger_success_with_data(self, mock_job_output, mock_job_status, check_trigger):
         """
         Test the BigQueryCheckTrigger only fires once the query execution reaches a successful state.
@@ -415,8 +416,8 @@ class TestBigQueryCheckTrigger:
         assert TriggerEvent({"status": "success", "records": [22]}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     async def test_check_trigger_success_without_data(self, mock_job_output, mock_job_status, check_trigger):
         """
         Tests that BigQueryCheckTrigger sends TriggerEvent as  { "status": "success", "records": None}
@@ -471,8 +472,8 @@ class TestBigQueryIntervalCheckTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     async def test_interval_check_trigger_success(
         self, mock_get_job_output, mock_job_status, interval_check_trigger
     ):
@@ -487,7 +488,7 @@ class TestBigQueryIntervalCheckTrigger:
         assert actual == TriggerEvent({"status": "error", "message": "The second SQL query returned None"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_interval_check_trigger_pending(self, mock_job_status, caplog, interval_check_trigger):
         """
         Tests that the BigQueryIntervalCheckTrigger do not fire while a query is still running.
@@ -508,7 +509,7 @@ class TestBigQueryIntervalCheckTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_interval_check_trigger_terminated(self, mock_job_status, interval_check_trigger):
         """Tests the BigQueryIntervalCheckTrigger fires the correct event in case of an error."""
         # Set the status to a value other than success or pending
@@ -520,7 +521,7 @@ class TestBigQueryIntervalCheckTrigger:
         assert TriggerEvent({"status": "error", "message": "error", "data": None}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_interval_check_trigger_exception(self, mock_job_status, caplog, interval_check_trigger):
         """Tests that the BigQueryIntervalCheckTrigger fires the correct event in case of an error."""
         mock_job_status.side_effect = Exception("Test exception")
@@ -557,9 +558,9 @@ class TestBigQueryValueCheckTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_value_check_op_trigger_success(
         self, mock_job_status, get_job_output, get_records, value_check_trigger
     ):
@@ -578,7 +579,7 @@ class TestBigQueryValueCheckTrigger:
         assert actual == TriggerEvent({"status": "success", "message": "Job completed", "records": [4]})
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_value_check_op_trigger_pending(self, mock_job_status, caplog, value_check_trigger):
         """
         Tests BigQueryValueCheckTrigger only fires once the query execution reaches a successful state.
@@ -600,7 +601,7 @@ class TestBigQueryValueCheckTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_value_check_op_trigger_fail(self, mock_job_status, value_check_trigger):
         """
         Tests BigQueryValueCheckTrigger only fires once the query execution reaches a successful state.
@@ -612,7 +613,7 @@ class TestBigQueryValueCheckTrigger:
         assert TriggerEvent({"status": "error", "message": "dummy", "records": None}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_value_check_trigger_exception(self, mock_job_status):
         """Tests the BigQueryValueCheckTrigger does not fire if there is an exception."""
         mock_job_status.side_effect = Exception("Test exception")
@@ -655,7 +656,7 @@ class TestBigQueryTableExistenceTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch(
+    @mock.patch(
         "airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger._table_exists"
     )
     async def test_big_query_table_existence_trigger_success(
@@ -669,7 +670,7 @@ class TestBigQueryTableExistenceTrigger:
         assert TriggerEvent({"status": "success", "message": "success"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch(
+    @mock.patch(
         "airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger._table_exists"
     )
     async def test_table_existence_trigger_pending(self, mock_table_exists, table_existence_trigger):
@@ -684,7 +685,7 @@ class TestBigQueryTableExistenceTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch(
+    @mock.patch(
         "airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger._table_exists"
     )
     async def test_table_existence_trigger_exception(self, mock_table_exists, table_existence_trigger):
@@ -696,7 +697,7 @@ class TestBigQueryTableExistenceTrigger:
         assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryTableAsyncHook.get_table_client")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryTableAsyncHook.get_table_client")
     async def test_table_exists(self, mock_get_table_client, table_existence_trigger):
         """Test BigQueryTableExistenceTrigger._table_exists async function with mocked value
         and mocked return value"""
@@ -709,7 +710,7 @@ class TestBigQueryTableExistenceTrigger:
         assert res is True
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryTableAsyncHook.get_table_client")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryTableAsyncHook.get_table_client")
     async def test_table_exists_exception(self, mock_get_table_client, table_existence_trigger):
         """Test BigQueryTableExistenceTrigger._table_exists async function with exception and return False"""
         hook = BigQueryTableAsyncHook()
@@ -732,7 +733,7 @@ class TestBigQueryTableExistenceTrigger:
         assert res == expected_response
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryTableAsyncHook.get_table_client")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryTableAsyncHook.get_table_client")
     async def test_table_exists_raise_exception(self, mock_get_table_client, table_existence_trigger):
         """Test BigQueryTableExistenceTrigger._table_exists async function with raise exception"""
         hook = BigQueryTableAsyncHook()

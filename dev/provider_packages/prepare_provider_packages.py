@@ -52,7 +52,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from yaml import safe_load
 
-ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
+ALL_PYTHON_VERSIONS = ["3.8", "3.9", "3.10"]
 
 INITIAL_CHANGELOG_CONTENT = """
 
@@ -1106,7 +1106,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALL_PYTHON_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    python_requires = "~=3.7"
+    python_requires = "~=3.8"
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
     context: dict[str, Any] = {

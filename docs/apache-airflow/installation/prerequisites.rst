@@ -20,7 +20,7 @@ Prerequisites
 
 Starting with Airflow 2.3.0, Airflow is tested with:.
 
-* Python: 3.7, 3.8, 3.9, 3.10
+* Python: 3.8, 3.9, 3.10
 
 * Databases:
 

@@ -52,6 +52,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: f799f7c7b42d8bb6dcee79f989d4af33b96b531bcc5c9a46002e444d8f4c4b316e7ab77f9dfd6a6b396cba8226a3cbfeb450128bd55ffa443d15139a4cc74d22
+Package config hash: 5a58d062de9c220a74215d4beedb98228f93c5b9fc1ef590b3176605ab50197e446e6e38e5e889e1c4e46ba720314c54a0b1efb87964b55f3856bdceaa9852ce
 
 ---------------------------------------------------------------------------------------------------------
