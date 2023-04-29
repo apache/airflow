@@ -65,7 +65,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.12", "v1.25.8", "v1.26.3"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -249,7 +249,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.17.0"
+KIND_VERSION = "v0.18.0"
 HELM_VERSION = "v3.9.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass

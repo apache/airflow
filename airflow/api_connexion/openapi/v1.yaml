@@ -1955,6 +1955,13 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
       operationId: get_config
       tags: [Config]
+      parameters:
+        - name: section
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If given, only return config of this section.
       responses:
         '200':
           description: Success.

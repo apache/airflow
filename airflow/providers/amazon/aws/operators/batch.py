@@ -58,6 +58,11 @@ class BatchOperator(BaseOperator):
     :param overrides: DEPRECATED, use container_overrides instead with the same value.
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
+    :param share_identifier: The share identifier for the job. Don't specify this parameter if the job queue
+        doesn't have a scheduling policy.
+    :param scheduling_priority_override: The scheduling priority for the job.
+        Jobs with a higher scheduling priority are scheduled before jobs with a lower scheduling priority.
+        This overrides any scheduling priority in the job definition
     :param array_properties: the `arrayProperties` parameter for boto3
     :param parameters: the `parameters` for boto3 (templated)
     :param job_id: the job ID, usually unknown (None) until the
@@ -126,6 +131,8 @@ class BatchOperator(BaseOperator):
         container_overrides: dict | None = None,
         array_properties: dict | None = None,
         node_overrides: dict | None = None,
+        share_identifier: str | None = None,
+        scheduling_priority_override: int | None = None,
         parameters: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
@@ -161,6 +168,8 @@ class BatchOperator(BaseOperator):
             )
 
         self.node_overrides = node_overrides
+        self.share_identifier = share_identifier
+        self.scheduling_priority_override = scheduling_priority_override
         self.array_properties = array_properties
         self.parameters = parameters or {}
         self.waiters = waiters
@@ -227,6 +236,8 @@ class BatchOperator(BaseOperator):
             "tags": self.tags,
             "containerOverrides": self.container_overrides,
             "nodeOverrides": self.node_overrides,
+            "shareIdentifier": self.share_identifier,
+            "schedulingPriorityOverride": self.scheduling_priority_override,
         }
 
         try:
