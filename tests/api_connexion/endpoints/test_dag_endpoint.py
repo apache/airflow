@@ -54,7 +54,6 @@ def configured_app(minimal_app_for_api):
         username="test",
         role_name="Test",
         permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
