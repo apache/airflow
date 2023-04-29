@@ -55,7 +55,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
-
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
 
@@ -1432,8 +1431,9 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     :param table_resource: Table resource as described in documentation:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
         If provided all other parameters are ignored. External schema from object will be resolved.
-    :param schema_object: If set, a GCS object path pointing to a .json file that
-        contains the schema for the table. (templated)
+    :param gcs_schema_object: Full path to the JSON file containing
+        schema (templated). For
+        example: ``gs://test-bucket/dir1/dir2/employee_schema.json``
     :param source_format: File format of the data.
     :param autodetect: Try to detect schema and format options automatically.
         The schema_fields and schema_object options will be honored when specified explicitly.
@@ -1480,7 +1480,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "bucket",
         "source_objects",
-        "schema_object",
+        "gcs_schema_object",
         "destination_project_dataset_table",
         "labels",
         "table_resource",
@@ -1498,7 +1498,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         destination_project_dataset_table: str | None = None,
         table_resource: dict[str, Any] | None = None,
         schema_fields: list | None = None,
-        schema_object: str | None = None,
+        gcs_schema_object: str | None = None,
         source_format: str | None = None,
         autodetect: bool = False,
         compression: str | None = None,
@@ -1573,7 +1573,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
                 )
             self.bucket = bucket
             self.source_objects = source_objects
-            self.schema_object = schema_object
+            self.gcs_schema_object = gcs_schema_object
             self.destination_project_dataset_table = destination_project_dataset_table
             self.schema_fields = schema_fields
             self.source_format = source_format
@@ -1585,7 +1585,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             self.table_resource = table_resource
             self.bucket = ""
             self.source_objects = []
-            self.schema_object = None
+            self.gcs_schema_object = None
             self.destination_project_dataset_table = ""
 
         if table_resource and kwargs_passed:
@@ -1624,12 +1624,14 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             )
             return
 
-        if not self.schema_fields and self.schema_object and self.source_format != "DATASTORE_BACKUP":
+        if not self.schema_fields and self.gcs_schema_object and self.source_format != "DATASTORE_BACKUP":
+            gcs_bucket, gcs_object = _parse_gcs_url(self.gcs_schema_object)
             gcs_hook = GCSHook(
                 gcp_conn_id=self.google_cloud_storage_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
+            schema_fields_string = gcs_hook.download_as_byte_array(gcs_bucket, gcs_object).decode("utf-8")
+            schema_fields = json.loads(schema_fields_string)
         else:
             schema_fields = self.schema_fields
 
