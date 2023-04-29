@@ -182,12 +182,13 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                     # TODO: Check date types.
                 else:
                     raise AirflowException(
-                        f"Column {partition_col} not part of table partitions: {partition_columns}")
+                        f"Column {partition_col} not part of table partitions: {partition_columns}"
+                    )
         self.log.debug(f"Formatted options: {formatted_opts}")
         formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
 
         return formatted_opts.strip()
-    
+
     def _get_results(self) -> bool:
         """Checks the table partitions and returns the results."""
         result = self._check_table_partitions()
