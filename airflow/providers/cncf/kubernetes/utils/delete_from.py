@@ -30,25 +30,14 @@ DEFAULT_DELETION_BODY = client.V1DeleteOptions(
 )
 
 
-def delete_from_dict(
-    *,
-    k8s_client: ApiClient,
-    yml_document: dict,
-    verbose: bool = False,
-    namespace: str = "default",
-    body: dict | None = None,
-    **kwargs,
-):
-
-    if body is None:
-        body = DEFAULT_DELETION_BODY
-
+def delete_from_dict(k8s_client, data, body, namespace, verbose=False, **kwargs):
     api_exceptions = []
-    if "List" in yml_document["kind"]:
-        kind = yml_document["kind"].replace("List", "")
-        for yml_doc in yml_document["items"]:
+
+    if "List" in data["kind"]:
+        kind = data["kind"].replace("List", "")
+        for yml_doc in data["items"]:
             if kind != "":
-                yml_doc["apiVersion"] = yml_document["apiVersion"]
+                yml_doc["apiVersion"] = data["apiVersion"]
                 yml_doc["kind"] = kind
             try:
                 _delete_from_yaml_single_item(
@@ -66,7 +55,7 @@ def delete_from_dict(
         try:
             _delete_from_yaml_single_item(
                 k8s_client=k8s_client,
-                yml_document=yml_document,
+                yml_document=data,
                 verbose=verbose,
                 namespace=namespace,
                 body=body,
@@ -77,6 +66,29 @@ def delete_from_dict(
 
     if api_exceptions:
         raise FailToDeleteError(api_exceptions)
+
+
+def delete_from_yaml(
+    *,
+    k8s_client: ApiClient,
+    yaml_objects=None,
+    verbose: bool = False,
+    namespace: str = "default",
+    body: dict | None = None,
+    **kwargs,
+):
+    for yml_document in yaml_objects:
+        if yml_document is None:
+            continue
+        else:
+            delete_from_dict(
+                k8s_client=k8s_client,
+                data=yml_document,
+                body=body,
+                namespace=namespace,
+                verbose=verbose,
+                **kwargs,
+            )
 
 
 def _delete_from_yaml_single_item(
@@ -141,5 +153,5 @@ class FailToDeleteError(Exception):
     def __str__(self):
         msg = ""
         for api_exception in self.api_exceptions:
-            msg += f"Error from server ({api_exception.reason}):{api_exception.body}"
+            msg += f"Error from server ({api_exception.reason}):{api_exception.body}\n"
         return msg

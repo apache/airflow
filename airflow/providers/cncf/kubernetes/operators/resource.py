@@ -18,14 +18,14 @@
 
 from __future__ import annotations
 
+import yaml
 from kubernetes.client import ApiClient
 from kubernetes.utils import create_from_yaml
 
 from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_dict
-from airflow.utils import yaml
+from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
 
 
 class KubernetesResourceBaseOperator(BaseOperator):
@@ -39,7 +39,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
         *,
         yaml_conf: str,
         namespace: str | None = None,
-        kubernetes_conn_id: str | None = "kubernetes_default",
+        kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         config_file: str | None = None,
@@ -80,7 +80,7 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
     def execute(self, context) -> None:
         create_from_yaml(
             k8s_client=self.client,
-            yaml_objects=[yaml.safe_load(self.yaml_conf)],
+            yaml_objects=yaml.safe_load_all(self.yaml_conf),
             namespace=self.get_namespace(),
         )
 
@@ -89,8 +89,8 @@ class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
     """Delete a resource in a kubernetes."""
 
     def execute(self, context) -> None:
-        delete_from_dict(
+        delete_from_yaml(
             k8s_client=self.client,
-            yml_document=yaml.safe_load(self.yaml_conf),
+            yaml_objects=yaml.safe_load_all(self.yaml_conf),
             namespace=self.get_namespace(),
         )
