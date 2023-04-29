@@ -147,7 +147,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
             table_name=_fully_qualified_table_name,
             escape_key=False,
         )
-        return self.hook(partition_sql)
+        return self._sql_sensor(partition_sql)
 
     def _generate_partition_query(
         self,
