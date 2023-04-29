@@ -134,7 +134,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
 
     def _check_table_partitions(self) -> list:
         _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-        self.log.debug(f"Table name generated from arguments: {_fully_qualified_table_name}")
+        self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
         _joiner_val = " AND "
         _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
         _suffix = " LIMIT 1"
@@ -159,7 +159,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         escape_key: bool = False,
     ) -> str:
         partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
-        self.log.info(f"partition_info: {partition_columns}")
+        self.log.info("Partition_info: %s", partition_columns)
         if len(partition_columns) < 1:
             raise AirflowException(f"Table {table_name} does not have partitions")
         formatted_opts = ""
@@ -184,7 +184,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                     raise AirflowException(
                         f"Column {partition_col} not part of table partitions: {partition_columns}"
                     )
-        self.log.debug(f"Formatted options: {formatted_opts}")
+        self.log.debug("Formatted options: %s", formatted_opts)
         formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
 
         return formatted_opts.strip()
@@ -192,7 +192,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
     def _get_results(self) -> bool:
         """Checks the table partitions and returns the results."""
         result = self._check_table_partitions()
-        self.log.debug("Partition sensor result: {result}")
+        self.log.debug("Partition sensor result: %s", result)
         if len(result) < 1:
             return False
         return True
