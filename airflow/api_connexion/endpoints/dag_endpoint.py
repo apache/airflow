@@ -28,7 +28,7 @@ from sqlalchemy.sql.expression import or_
 from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
     dag_detail_schema,
@@ -75,9 +75,11 @@ def get_dags(
     dag_id_pattern: str | None = None,
     only_active: bool = True,
     paused: bool | None = None,
+    order_by: str = "dag_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all DAGs."""
+    allowed_attrs = ["dag_id"]
     dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
     if only_active:
         dags_query = dags_query.filter(DagModel.is_active)
@@ -97,8 +99,8 @@ def get_dags(
         dags_query = dags_query.filter(or_(*cond))
 
     total_entries = dags_query.count()
-
-    dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    dags_query = apply_sorting(dags_query, order_by, {}, allowed_attrs)
+    dags = dags_query.offset(offset).limit(limit).all()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
