@@ -2237,7 +2237,7 @@ scheduler:
       version_added: ~
       type: string
       example: ~
-      default: "512"
+      default: "16"
     use_row_level_locking:
       description: |
         Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.

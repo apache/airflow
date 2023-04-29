@@ -367,26 +367,25 @@ class AirflowConfigParser(ConfigParser):
         """
         Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
         If not met, a warning message printed, to guide user for best practice.
-        
+
         More info: https://github.com/apache/airflow/pull/29602
 
         """
-        # TODO: this type of checking can be generalized like the deprecate checking 
+        # TODO: this type of checking can be generalized like the deprecate checking
         max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
         parallelism = self.getint("core", "parallelism")
-        pass_validation : int = max_tis_per_query <= parallelism
-        
+        pass_validation: int = max_tis_per_query <= parallelism
+
         if pass_validation:
             return
         else:
             warnings.warn(
-                f"Configure `scheduler.max_tis_per_query`(value:{max_tis_per_query}) " 
+                f"Configure `scheduler.max_tis_per_query`(value:{max_tis_per_query}) "
                 f"should NOT be greater than `core.parallelism`(value:{parallelism}). "
                 f"Now, SchedulerJob will take up to `core.parallelism` as the query batch "
                 f"size when enqueue TaskInstances.",
-                UserWarning
+                UserWarning,
             )
-
 
     def _upgrade_auth_backends(self):
         """
@@ -572,12 +571,10 @@ class AirflowConfigParser(ConfigParser):
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:  # type: ignore[override]
-
         ...
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, **kwargs) -> str | None:  # type: ignore[override]
-
         ...
 
     def get(  # type: ignore[override, misc]
@@ -1094,7 +1091,7 @@ class AirflowConfigParser(ConfigParser):
             # This ensures the ones from config file is hidden too
             # if they are not provided through env, cmd and secret
             hidden = "< hidden >"
-            for (section, key) in self.sensitive_config_values:
+            for section, key in self.sensitive_config_values:
                 if not config_sources.get(section):
                     continue
                 if config_sources[section].get(key, None):
@@ -1113,7 +1110,7 @@ class AirflowConfigParser(ConfigParser):
         display_source: bool,
         raw: bool,
     ):
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             value: str | None = self._get_secret_option_from_config_sources(config_sources, section, key)
             if value:
                 if not display_sensitive:
@@ -1134,7 +1131,7 @@ class AirflowConfigParser(ConfigParser):
         display_source: bool,
         raw: bool,
     ):
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             opt = self._get_cmd_option_from_config_sources(config_sources, section, key)
             if not opt:
                 continue
@@ -1212,7 +1209,7 @@ class AirflowConfigParser(ConfigParser):
         :return: None, the given config_sources is filtered if necessary,
             otherwise untouched.
         """
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             # Don't bother if we don't have section / key
             if section not in config_sources or key not in config_sources[section]:
                 continue
@@ -1246,7 +1243,7 @@ class AirflowConfigParser(ConfigParser):
         include_cmds: bool,
         include_secret: bool,
     ):
-        for (source_name, config) in configs:
+        for source_name, config in configs:
             for section in config.sections():
                 AirflowConfigParser._replace_section_config_with_display_sources(
                     config,
@@ -1273,7 +1270,7 @@ class AirflowConfigParser(ConfigParser):
                 continue
             try:
                 deprecated_section_array = config.items(section=deprecated_section, raw=True)
-                for (key_candidate, _) in deprecated_section_array:
+                for key_candidate, _ in deprecated_section_array:
                     if key_candidate == deprecated_key:
                         return True
             except NoSectionError:

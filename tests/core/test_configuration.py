@@ -596,7 +596,6 @@ notacommand = OK
 
     @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
     def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
-
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
@@ -720,8 +719,8 @@ notacommand = OK
             test_conf._validate_max_tis_per_query()
 
         captured_warnings_msg = str(ctx.pop().message)
-        expected_message = ( 
-            "Configure `scheduler.max_tis_per_query`(value:200) " 
+        expected_message = (
+            "Configure `scheduler.max_tis_per_query`(value:200) "
             "should NOT be greater than `core.parallelism`(value:100). "
             "Now, SchedulerJob will take up to `core.parallelism` as the query batch "
             "size when enqueue TaskInstances."
@@ -729,8 +728,7 @@ notacommand = OK
         assert expected_message == captured_warnings_msg
 
         # expect no warning  when max_tis_per_query equals or less than parallelism
-        test_conf.read_dict({"core": {"parallelism": "100"},
-                             "scheduler": {"max_tis_per_query": "50"}})
+        test_conf.read_dict({"core": {"parallelism": "100"}, "scheduler": {"max_tis_per_query": "50"}})
         with pytest.warns(None) as ctx:
             test_conf._validate_max_tis_per_query()
         assert len(ctx) == 0
