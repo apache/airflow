@@ -390,8 +390,14 @@ class AirflowConfigParser(ConfigParser):
 
         """
         # TODO: this type of checking can be generalized like the deprecate checking
-        max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
-        parallelism = self.getint("core", "parallelism")
+        try:
+            max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
+            parallelism = self.getint("core", "parallelism")
+        except AirflowConfigException:
+            # in case any of the above config not found, return directly
+            # this could happens in some unit tests
+            return
+
         pass_validation: int = max_tis_per_query <= parallelism
 
         if pass_validation:
