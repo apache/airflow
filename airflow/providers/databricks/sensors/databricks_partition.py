@@ -20,17 +20,19 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    pass
+    from airflow.utils.context import Context
 
 
 class DatabricksPartitionSensor(BaseSensorOperator):
@@ -106,16 +108,16 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         self.escaper = ParamEscaper()
         super().__init__(**kwargs)
 
-    # def _sql_sensor(self, sql):
-    #     hook = self._get_hook()
-    #     sql_result = hook.run(
-    #         sql,
-    #         handler=self.handler if self.do_xcom_push else None,
-    #     )
-    #     return sql_result
+    def _sql_sensor(self, sql):
+        hook = self._get_hook()
+        sql_result = hook.run(
+            sql,
+            handler=self.handler if self.do_xcom_push else None,
+        )
+        return sql_result
 
     @cached_property
-    def hook(self) -> DatabricksSqlHook:
+    def _get_hook(self) -> DatabricksSqlHook:
         """Creates and returns a DatabricksSqlHook object."""
         return DatabricksSqlHook(
             self.databricks_conn_id,
@@ -130,70 +132,67 @@ class DatabricksPartitionSensor(BaseSensorOperator):
             **self.hook_params,
         )
 
-    # def _check_table_partitions(self) -> list:
-    #     _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
-    #     self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
-    #     _joiner_val = " AND "
-    #     _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
-    #     _suffix = " LIMIT 1"
-    #
-    #     partition_sql = self._generate_partition_query(
-    #         prefix=_prefix,
-    #         suffix=_suffix,
-    #         joiner_val=_joiner_val,
-    #         opts=self.partitions,
-    #         table_name=_fully_qualified_table_name,
-    #         escape_key=False,
-    #     )
-    #     return self.hook(partition_sql)
+    def _check_table_partitions(self) -> list:
+        _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+        self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
+        _joiner_val = " AND "
+        _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
+        _suffix = " LIMIT 1"
+    
+        partition_sql = self._generate_partition_query(
+            prefix=_prefix,
+            suffix=_suffix,
+            joiner_val=_joiner_val,
+            opts=self.partitions,
+            table_name=_fully_qualified_table_name,
+            escape_key=False,
+        )
+        return self.hook(partition_sql)
 
-    # def _generate_partition_query(
-    #     self,
-    #     prefix: str,
-    #     suffix: str,
-    #     joiner_val: str,
-    #     table_name: str,
-    #     opts: dict[str, str] | None = None,
-    #     escape_key: bool = False,
-    # ) -> str:
-    #     partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
-    #     self.log.info("table_info: %s", partition_columns)
-    #     if len(partition_columns) < 1:
-    #         raise AirflowException("Table %s does not have partitions", table_name)
-    #     formatted_opts = ""
-    #     if opts is not None and len(opts) > 0:
-    #         output_list = []
-    #         for partition_col, partition_value in self.partitions.items():
-    #             if escape_key:
-    #                 partition_col = self.escaper.escape_item(partition_col)
-    #             if partition_col in partition_columns:
-    #                 if isinstance(partition_value, list):
-    #                     output_list.append(f"""{partition_col} in {tuple(partition_value)}""")
-    #                 if isinstance(partition_value, (int, float, complex)):
-    #                     output_list.append(
-    #                         f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
-    #                     )
-    #                 if isinstance(partition_value, (str, datetime.datetime)):
-    #                     output_list.append(
-    #                         f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
-    #                     )
-    #                 # TODO: Check date types.
-    #             else:
-    #                 raise AirflowException(
-    #                     "Column %s not part of table partitions: %s", partition_col, partition_columns
-    #                 )
-    #     self.log.debug("Formatted options: %s", formatted_opts)
-    #     formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
-    #
-    #     return formatted_opts.strip()
-    #
-    # def _get_results(self) -> bool:
-    #     result = self._check_table_partitions()
-    #     self.log.debug("Partition sensor result: %s", result)
-    #     if len(result) < 1:
-    #         return False
-    #     return True
-    #
-    # def poke(self, context: Context) -> bool:
-    #     """Sensor poke function to get and return results from the SQL sensor."""
-    #     return self._get_results()
+    def _generate_partition_query(
+        self,
+        prefix: str,
+        suffix: str,
+        joiner_val: str,
+        table_name: str,
+        opts: dict[str, str] | None = None,
+        escape_key: bool = False,
+    ) -> str:
+        partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
+        self.log.info("table_info: %s", partition_columns)
+        if len(partition_columns) < 1:
+            raise AirflowException("Table %s does not have partitions", table_name)
+        formatted_opts = ""
+        if opts is not None and len(opts) > 0:
+            output_list = []
+            for partition_col, partition_value in self.partitions.items():
+                if escape_key:
+                    partition_col = self.escaper.escape_item(partition_col)
+                if partition_col in partition_columns:
+                    if isinstance(partition_value, list):
+                        output_list.append(f"""{partition_col} in {tuple(partition_value)}""")
+                    if isinstance(partition_value, (int, float, complex)):
+                        output_list.append(
+                            f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
+                        )
+                    if isinstance(partition_value, (str, datetime.datetime)):
+                        output_list.append(
+                            f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
+                        )
+                    # TODO: Check date types.
+                else:
+                    raise AirflowException(
+                        "Column %s not part of table partitions: %s", partition_col, partition_columns
+                    )
+        self.log.debug("Formatted options: %s", formatted_opts)
+        formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
+    
+        return formatted_opts.strip()
+    
+    def poke(self, context: Context) -> bool:
+        """Sensor poke function to get and return results from the SQL sensor."""
+        result = self._check_table_partitions()
+        self.log.debug("Partition sensor result: %s", result)
+        if len(result) < 1:
+            return False
+        return True
