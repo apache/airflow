@@ -25,10 +25,9 @@ import re
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator, NamedTuple, Pattern, overload
+from typing import TYPE_CHECKING, Generator, NamedTuple, Pattern, Protocol, overload
 
 from pathspec.patterns import GitWildMatchPattern
-from typing_extensions import Protocol
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning

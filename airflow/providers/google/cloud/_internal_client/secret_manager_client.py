@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import re
+from functools import cached_property
 
 import google
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
-from airflow.compat.functools import cached_property
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.logging_mixin import LoggingMixin
 
