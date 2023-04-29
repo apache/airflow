@@ -109,7 +109,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def _sql_sensor(self, sql):
-        hook = self._get_hook()
+        hook = self._get_hook
         sql_result = hook.run(
             sql,
             handler=self.handler if self.do_xcom_push else None,
@@ -138,7 +138,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         _joiner_val = " AND "
         _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
         _suffix = " LIMIT 1"
-    
+
         partition_sql = self._generate_partition_query(
             prefix=_prefix,
             suffix=_suffix,
@@ -159,7 +159,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         escape_key: bool = False,
     ) -> str:
         partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
-        self.log.info("table_info: %s", partition_columns)
+        self.log.info("partition_info: %s", partition_columns)
         if len(partition_columns) < 1:
             raise AirflowException("Table %s does not have partitions", table_name)
         formatted_opts = ""
@@ -175,7 +175,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
-                    if isinstance(partition_value, (str, datetime.datetime)):
+                    if isinstance(partition_value, (str, datetime)):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
@@ -186,9 +186,9 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                     )
         self.log.debug("Formatted options: %s", formatted_opts)
         formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
-    
+
         return formatted_opts.strip()
-    
+
     def poke(self, context: Context) -> bool:
         """Sensor poke function to get and return results from the SQL sensor."""
         result = self._check_table_partitions()
