@@ -99,17 +99,18 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
             super().execute(context)
         else:
             end_time = time.time() + self.timeout
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=DbtCloudRunJobTrigger(
-                    run_id=self.run_id,
-                    conn_id=self.dbt_cloud_conn_id,
-                    account_id=self.account_id,
-                    poll_interval=self.poke_interval,
-                    end_time=end_time,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=DbtCloudRunJobTrigger(
+                        run_id=self.run_id,
+                        conn_id=self.dbt_cloud_conn_id,
+                        account_id=self.account_id,
+                        poll_interval=self.poke_interval,
+                        end_time=end_time,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
         """
