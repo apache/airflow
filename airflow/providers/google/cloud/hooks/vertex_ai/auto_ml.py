@@ -65,6 +65,7 @@ from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrai
 from google.cloud.aiplatform_v1.types import TrainingPipeline
 
 from airflow import AirflowException
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -455,7 +456,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -682,7 +683,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 

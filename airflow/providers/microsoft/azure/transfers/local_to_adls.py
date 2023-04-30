@@ -19,7 +19,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -110,7 +110,7 @@ class LocalToAzureDataLakeStorageOperator(LocalFilesystemToADLSOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         super().__init__(*args, **kwargs)

@@ -40,7 +40,7 @@ from uuid import uuid4
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -74,7 +74,7 @@ def provide_bucket_name(func: T) -> T:
                     "s3 conn_type, and the associated schema field, is deprecated."
                     " Please use aws conn_type instead, and specify `bucket_name`"
                     " in `service_config.s3` within `extras`.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 bound_args.arguments["bucket_name"] = self.conn_config.schema

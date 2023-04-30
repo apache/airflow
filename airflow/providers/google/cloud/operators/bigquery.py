@@ -28,7 +28,7 @@ from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
@@ -1067,7 +1067,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         warnings.warn(
             "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 
@@ -1314,7 +1314,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             gcp_conn_id = bigquery_conn_id
@@ -1338,7 +1338,10 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
-            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            warnings.warn(
+                "`exists_ok` parameter is deprecated, please use `if_exists`",
+                AirflowProviderDeprecationWarning,
+            )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:
             self.if_exists = IfExistAction(if_exists)
@@ -1518,7 +1521,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             gcp_conn_id = bigquery_conn_id
@@ -1549,7 +1552,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             warnings.warn(
                 "Passing table parameters via keywords arguments will be deprecated. "
                 "Please provide table definition using `table_resource` parameter.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if not bucket:
@@ -1820,7 +1823,10 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
-            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            warnings.warn(
+                "`exists_ok` parameter is deprecated, please use `if_exists`",
+                AirflowProviderDeprecationWarning,
+            )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:
             self.if_exists = IfExistAction(if_exists)
@@ -2029,7 +2035,7 @@ class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
     ) -> None:
         warnings.warn(
             "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         self.dataset_id = dataset_id
