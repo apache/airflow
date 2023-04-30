@@ -21,6 +21,7 @@ import React from "react";
 import {
   Badge,
   Box,
+  BoxProps,
   Card,
   CardBody,
   CardHeader,
@@ -48,11 +49,11 @@ const StatusRow = ({ status }: { status?: API.HealthStatus }) => (
   </Stack>
 );
 
-const Health = () => {
+const Health = (props: BoxProps) => {
   const { data, isSuccess } = useHealth();
 
   return (
-    <Box mx={3}>
+    <Box {...props}>
       {isSuccess ? (
         <Card>
           <CardHeader textAlign="center" p={3}>

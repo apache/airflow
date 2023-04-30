@@ -26,7 +26,7 @@ import { getMetaValue } from "src/utils";
 
 const poolsUrl = getMetaValue("pools_url");
 
-const useHealth = () => {
+const usePools = () => {
   const { isRefreshOn } = useAutoRefresh();
 
   return useQuery(
@@ -38,4 +38,4 @@ const useHealth = () => {
   );
 };
 
-export default useHealth;
+export default usePools;

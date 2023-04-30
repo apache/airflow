@@ -20,102 +20,98 @@
 import React from "react";
 import {
   Box,
+  BoxProps,
   Card,
   CardBody,
   CardHeader,
   Heading,
   Spinner,
+  useTheme,
 } from "@chakra-ui/react";
 import { usePools } from "src/api";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
+import type { API } from "src/types";
 
-const option: ReactEChartsProps["option"] = {
-  dataset: {
-    source: [
-      ["Pool", "Occupied", "Open", "Queued", "Running", "Scheduled"],
-      ["Pool 1", 4, 1, 2, 3, 4],
-      ["Pool 2", 2, 2, 2, 2, 4],
-      ["Pool 3", 2, 2, 2, 2, 4],
-      ["Pool 4", 2, 2, 2, 2, 4],
-      ["Pool 5", 2, 2, 2, 2, 4],
-      ["Pool 6", 2, 2, 2, 2, 4],
-      ["Pool 7", 2, 2, 2, 2, 4],
-      ["Pool 8", 2, 2, 2, 2, 4],
-      ["Pool 9", 2, 2, 2, 2, 4],
-      ["Pool 10", 2, 2, 2, 2, 4],
-      ["Pool 11", 2, 2, 2, 2, 4],
-      ["Pool 12", 2, 2, 2, 2, 4],
-      ["Standard Pool", 5, 3, 3, 3, 3],
-    ],
-  },
-  tooltip: {
-    trigger: "axis",
-    axisPointer: {
-      type: "shadow",
-    },
-  },
-  legend: {
-    data: ["Occupied", "Open", "Queued", "Running", "Scheduled"],
-  },
-  grid: {
-    left: "0%",
-    right: "5%",
-    top: "30%",
-    bottom: "0%",
-    containLabel: true,
-  },
-  xAxis: {
-    type: "value",
-  },
-  yAxis: {
-    type: "category",
-  },
-  series: [
-    {
-      type: "bar",
-      stack: "total",
-      label: {
-        show: true,
-      },
-    },
-    {
-      type: "bar",
-      stack: "total",
-      label: {
-        show: true,
-      },
-    },
-    {
-      type: "bar",
-      stack: "total",
-      label: {
-        show: true,
-      },
-    },
-    {
-      type: "bar",
-      stack: "total",
-      label: {
-        show: true,
-      },
-    },
-    {
-      type: "bar",
-      stack: "total",
-      label: {
-        show: true,
-      },
-    },
-  ],
-};
+const formatData = (data?: API.PoolCollection): Array<Array<any>> =>
+  data?.pools?.map((pool) => [
+    pool.name,
+    pool.openSlots,
+    pool.queuedSlots,
+    pool.runningSlots,
+    pool.scheduledSlots,
+  ]) || [];
 
-const Pools = () => {
+const Pools = (props: BoxProps) => {
   const { data, isSuccess } = usePools();
+  const theme = useTheme();
 
-  console.log(data);
+  const option: ReactEChartsProps["option"] = {
+    dataset: {
+      source: [
+        ["Pool", "Open", "Queued", "Running", "Scheduled"],
+        ...formatData(data),
+      ],
+    },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: {
+        type: "shadow",
+      },
+    },
+    legend: {
+      data: ["Open", "Queued", "Running", "Scheduled"],
+    },
+    grid: {
+      left: "0%",
+      right: "5%",
+      top: "30%",
+      bottom: "0%",
+      containLabel: true,
+    },
+    xAxis: {
+      type: "value",
+    },
+    yAxis: {
+      type: "category",
+    },
+    series: [
+      {
+        type: "bar",
+        stack: "total",
+        barMaxWidth: 10,
+        itemStyle: {
+          color: "green",
+        },
+      },
+      {
+        type: "bar",
+        stack: "total",
+        barMaxWidth: 10,
+        itemStyle: {
+          color: theme.colors.gray["600"],
+        },
+      },
+      {
+        type: "bar",
+        stack: "total",
+        barMaxWidth: 10,
+        itemStyle: {
+          color: theme.colors.blue["200"],
+        },
+      },
+      {
+        type: "bar",
+        stack: "total",
+        barMaxWidth: 10,
+        itemStyle: {
+          color: theme.colors.yellow["700"],
+        },
+      },
+    ],
+  };
 
   return (
-    <Box flexGrow={1}>
+    <Box {...props}>
       {isSuccess ? (
         <Card>
           <CardHeader textAlign="center" p={3}>

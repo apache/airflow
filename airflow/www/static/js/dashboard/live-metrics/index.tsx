@@ -30,13 +30,13 @@ const LiveMetrics = () => (
         <Heading size="md">Live Metrics</Heading>
       </CardHeader>
       <CardBody>
-        <Flex justifyContent="space-between">
-          <Flex direction="column">
+        <Flex flexWrap="wrap">
+          <Flex direction="column" width="25%" minW="300px" px={1}>
             <Health />
             <Dags />
           </Flex>
-          <Pools />
-          <Health />
+          <Pools width="50%" minW="300px" px={1} />
+          <Health width="25%" minW="300px" px={1} />
         </Flex>
       </CardBody>
     </Card>

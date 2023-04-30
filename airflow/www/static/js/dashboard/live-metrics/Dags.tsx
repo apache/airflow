@@ -20,6 +20,7 @@
 import React from "react";
 import {
   Box,
+  BoxProps,
   Card,
   CardBody,
   CardHeader,
@@ -30,7 +31,7 @@ import {
 } from "@chakra-ui/react";
 import { useDags } from "src/api";
 
-const Dags = () => {
+const Dags = (props: BoxProps) => {
   const { data: dataOnlyUnpaused, isSuccess: isSuccessUnpaused } = useDags({
     paused: false,
   });
@@ -38,7 +39,7 @@ const Dags = () => {
   const { data, isSuccess } = useDags({});
 
   return (
-    <Box mx={3} mt={3}>
+    <Box {...props}>
       {isSuccess && isSuccessUnpaused ? (
         <Card>
           <CardHeader textAlign="center" p={3}>
@@ -56,7 +57,7 @@ const Dags = () => {
               </Flex>
             </Flex>
             <Flex justifyContent="end" textAlign="right">
-              <Text size="md" color="gray.500">
+              <Text size="md" color="gray.600">
                 on a total of <Text as="b">{data.totalEntries}</Text> DAGs
               </Text>
             </Flex>

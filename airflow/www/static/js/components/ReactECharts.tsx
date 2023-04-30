@@ -82,11 +82,6 @@ const ReactECharts = ({
     }
   }, [option, settings, theme]);
 
-  return (
-    <div
-      ref={ref}
-      style={{ width: "100%", height: "100%", minWidth: "200px", ...style }}
-    />
-  );
+  return <div ref={ref} style={{ width: "100%", height: "100%", ...style }} />;
 };
 export default ReactECharts;
