@@ -45,7 +45,7 @@ Password
     Specify the Slack API token.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in slack_sdk.WebClient.
+    Specify the extra parameterz (as json dictionary) that can be used in slack_sdk.WebClient.
     All parameters are optional.
 
     * ``timeout``: The maximum number of seconds the client will wait to connect and receive a response from Slack API.

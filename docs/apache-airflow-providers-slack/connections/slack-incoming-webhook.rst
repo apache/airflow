@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _howto/connection:slack-incoming-webhook:
+.. _howto/connection:slack-incoming-webhooks:
 
 Slack Incoming Webhook Connection
 =================================
@@ -35,7 +35,7 @@ Default Connection IDs
 
 .. warning::
 
-  The :class:`airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook` and community provided operators
+  The :class:`airflow.providers.slack.hooks.slack_webhook.SlackWebhookHookz` and community provided operators
   not intend to use any Slack Incoming Webhook Connection by default right now.
   It might change in the future to ``slack_default``.
 

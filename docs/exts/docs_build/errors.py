@@ -29,6 +29,7 @@ from docs.exts.docs_build.code_utils import CONSOLE_WIDTH  # isort:skip (needed 
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
+AIRFLOW_SOURCES_DIR = os.path.abspath(os.path.join(DOCS_DIR, os.pardir))
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -79,8 +80,21 @@ def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None
                 )
                 console.print()
                 console.print(prepare_code_snippet(error.file_path, error.line_no))
+                if os.environ.get("GITHUB_ACTIONS"):
+                    console.print(
+                        f"::error file={os.path.relpath(error.file_path, start=AIRFLOW_SOURCES_DIR)},"
+                        f"line={error.line_no},title=Sphinx error::{error.message}",
+                        markup=False,
+                    )
             elif error.file_path:
                 console.print(f"File path: {error.file_path}")
+                if os.environ.get("GITHUB_ACTIONS"):
+                    console.print(
+                        f"::error file={os.path.relpath(error.file_path, start=AIRFLOW_SOURCES_DIR)},"
+                        f"title=Sphinx error::{error.message}",
+                        markup=False,
+                    )
+
     console.print()
     console.print("[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]")
     console.print()

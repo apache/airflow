@@ -31,7 +31,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection Types <connections/index>
+    Connectionz Types <connections/index>
     Operators <operators/index>
     Slack Notifications <notifications/slack_notifier_howto_guide>
 

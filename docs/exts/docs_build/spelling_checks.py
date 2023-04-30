@@ -28,6 +28,7 @@ from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
+AIRFLOW_SOURCES_DIR = os.path.abspath(os.path.join(DOCS_DIR, os.pardir))
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -166,9 +167,9 @@ issue unrelated to spelling. Please review the traceback.
     """
     console.print(msg)
     console.print()
-    console.print
+    console.print()
     console.print("[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]")
-    console.print
+    console.print()
 
 
 def _display_error(error: SpellingError):
@@ -185,3 +186,23 @@ def _display_error(error: SpellingError):
         if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
             console.print(f"Line Number: {error.line_no}")
             console.print(prepare_code_snippet(error.file_path, error.line_no))
+        if os.environ.get("GITHUB_ACTIONS"):
+            context_info = ""
+            if error.context_line:
+                context_info = f"in {error.context_line}"
+            if error.spelling:
+                context_info += ":" + error.spelling
+            if error.suggestion:
+                context_info += "->" + error.suggestion
+            if context_info != "":
+                context_info = f" ({context_info})"
+            if not error.file_path.endswith("<unknown>") and error.line_no:
+                console.print(
+                    f"::error file={os.path.relpath(error.file_path, start=AIRFLOW_SOURCES_DIR)},"
+                    f"line={error.line_no},title=Spelling mistake::{error.message}{context_info}"
+                )
+            elif error.file_path:
+                console.print(
+                    f"::error file={os.path.relpath(error.file_path, start=AIRFLOW_SOURCES_DIR)},"
+                    f"title=Spelling mistake::{error.message}{context_info}"
+                )
