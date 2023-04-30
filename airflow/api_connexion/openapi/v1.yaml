@@ -97,12 +97,14 @@ info:
     - Field names are in snake_case.
     ```json
     {
+        "description": "string",
         "name": "string",
-        "slots": 0,
         "occupied_slots": 0,
-        "used_slots": 0,
-        "queued_slots": 0,
         "open_slots": 0
+        "queued_slots": 0,
+        "running_slots": 0,
+        "scheduled_slots": 0,
+        "slots": 0,
     }
     ```
 
