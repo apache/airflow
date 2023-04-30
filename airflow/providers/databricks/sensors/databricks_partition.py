@@ -218,4 +218,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         """Checks the table partitions and returns the results."""
         partition_result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", partition_result)
-        return bool(len(partition_result) >= 1)
+        if len(partition_result) >= 1:
+            return True
+        else:
+            raise AirflowException(f"Specified partition(s): {self.partitions} were not found")
