@@ -19,21 +19,29 @@
 
 import React from "react";
 import { Card, CardBody, CardHeader, Flex, Heading } from "@chakra-ui/react";
+import InfoTooltip from "src/components/InfoTooltip";
 import Health from "./Health";
 import Pools from "./Pools";
 import Dags from "./Dags";
+import DagRuns from "./DagRuns";
 
 const LiveMetrics = () => (
   <Flex w="100%">
     <Card w="100%">
       <CardHeader>
-        <Heading size="md">Live Metrics</Heading>
+        <Flex alignItems="center">
+          <Heading size="md">Live Metrics</Heading>
+          <InfoTooltip
+            label="Based on real time metrics and current resources state."
+            size={18}
+          />
+        </Flex>
       </CardHeader>
       <CardBody>
         <Flex flexWrap="wrap">
           <Flex direction="column" width="25%" minW="300px" px={1}>
-            <Health />
             <Dags />
+            <DagRuns />
           </Flex>
           <Pools width="50%" minW="300px" px={1} />
           <Health width="25%" minW="300px" px={1} />

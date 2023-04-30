@@ -19,12 +19,19 @@
 
 import React from "react";
 import { Card, CardBody, CardHeader, Flex, Heading } from "@chakra-ui/react";
+import InfoTooltip from "src/components/InfoTooltip";
 
 const HistoricalMetrics = () => (
   <Flex w="100%">
     <Card w="100%">
       <CardHeader>
-        <Heading size="md">Historical metrics</Heading>
+        <Flex alignItems="center">
+          <Heading size="md">Historical metrics</Heading>
+          <InfoTooltip
+            label="Based on historical data. You can adjust the period by setting a different start and end date filter."
+            size={18}
+          />
+        </Flex>
       </CardHeader>
       <CardBody>This is the body</CardBody>
     </Card>

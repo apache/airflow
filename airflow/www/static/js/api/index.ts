@@ -45,6 +45,7 @@ import useDagCode from "./useDagCode";
 import useHealth from "./useHealth";
 import usePools from "./usePools";
 import useDags from "./useDags";
+import useDagRuns from "./useDagRuns";
 
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
@@ -57,6 +58,7 @@ export {
   useClearTask,
   useDag,
   useDagCode,
+  useDagRuns,
   useDags,
   useDataset,
   useDatasetDependencies,
