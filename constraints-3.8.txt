@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-29T16:55:18Z
+# This constraints file was automatically generated on 2023-04-30T16:06:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -20,7 +20,7 @@ Flask-JWT-Extended==4.4.4
 Flask-Limiter==3.3.0
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
-Flask-Session==0.4.0
+Flask-Session==0.4.1
 Flask-WTF==1.1.1
 Flask==2.2.4
 GitPython==3.1.31
@@ -217,7 +217,7 @@ colorama==0.4.6
 colorlog==4.8.0
 confluent-kafka==2.1.0
 connexion==2.14.2
-coverage==7.2.4
+coverage==7.2.5
 crcmod==1.7
 cron-descriptor==1.2.35
 croniter==1.3.14
@@ -628,7 +628,7 @@ types-setuptools==67.7.0.0
 types-tabulate==0.9.0.2
 types-termcolor==1.1.6.2
 types-toml==0.10.8.6
-types-urllib3==1.26.25.11
+types-urllib3==1.26.25.12
 typing_extensions==4.5.0
 tzdata==2023.3
 tzlocal==4.3
