@@ -109,9 +109,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def _sql_sensor(self, sql):
-        """
-        Executes the supplied SQL statement using the hook object.
-        """
+        """Executes the supplied SQL statement using the hook object."""
         hook = self._get_hook
         sql_result = hook.run(
             sql,
