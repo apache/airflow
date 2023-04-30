@@ -3070,7 +3070,7 @@ components:
           type: integer
           readOnly: true
           description: The number of slots used by running/queued tasks at the moment.
-        used_slots:
+        running_slots:
           type: integer
           readOnly: true
           description: The number of slots used by running tasks at the moment.
@@ -3082,6 +3082,10 @@ components:
           type: integer
           readOnly: true
           description: The number of free slots at the moment.
+        scheduled_slots:
+          type: integer
+          readOnly: true
+          description: The number of slots used by scheduled tasks at the moment.
         description:
           type: string
           description: |
