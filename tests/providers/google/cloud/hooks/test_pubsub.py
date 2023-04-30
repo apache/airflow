@@ -42,6 +42,7 @@ TEST_UUID = UUID("cf4a56d2-8101-4217-b027-2af6216feb48")
 TEST_MESSAGES = [
     {"data": b"Hello, World!", "attributes": {"type": "greeting"}},
     {"data": b"Knock, knock"},
+    {"data": "string data"},
     {"attributes": {"foo": ""}},
 ]
 
@@ -375,7 +376,7 @@ class TestPubSubHook:
             for message in TEST_MESSAGES
         ]
         mock_calls_result = publish_method.mock_calls
-        result_refined = [mock_calls_result[0], mock_calls_result[2], mock_calls_result[4]]
+        result_refined = [mock_calls_result[0], mock_calls_result[2], mock_calls_result[4], mock_calls_result[6]]
         assert result_refined == calls
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))

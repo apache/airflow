@@ -44,6 +44,7 @@ DAG_ID = "pubsub"
 TOPIC_ID = f"topic-{DAG_ID}-{ENV_ID}"
 MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
 MESSAGE_TWO = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.2kg", "count": "2"}}
+MESSAGE_THREE = {"data": "String message"}
 
 # [START howto_operator_gcp_pubsub_pull_messages_result_cmd]
 echo_cmd = """
@@ -112,6 +113,14 @@ with models.DAG(
         messages=[MESSAGE_TWO, MESSAGE_TWO],
     )
 
+    publish_task3 = PubSubPublishMessageOperator(
+        task_id="publish_task3",
+        doc="Publishes a message with a string data field",
+        project_id=PROJECT_ID,
+        topic=TOPIC_ID,
+        messages=[MESSAGE_THREE],
+    )
+
     # [START howto_operator_gcp_pubsub_unsubscribe]
     unsubscribe_task = PubSubDeleteSubscriptionOperator(
         task_id="unsubscribe_task",
@@ -133,6 +142,7 @@ with models.DAG(
         >> pull_messages
         >> pull_messages_result
         >> publish_task2
+        >> publish_task3
         >> pull_messages_operator
         >> unsubscribe_task
         >> delete_topic

@@ -113,7 +113,8 @@ class PubSubHook(GoogleBaseHook):
         :param topic: the Pub/Sub topic to which to publish; do not
             include the ``projects/{project}/topics/`` prefix.
         :param messages: messages to publish; if the data field in a
-            message is set, it should be a bytestring (utf-8 encoded)
+            message is set, it should be a string or utf-8 encoded bytestring.
+            String values will be encoded as utf-8 before publishing.
             https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#pubsubmessage
         :param project_id: Optional, the Google Cloud project ID in which to publish.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
@@ -126,9 +127,10 @@ class PubSubHook(GoogleBaseHook):
         self.log.info("Publish %d messages to topic (path) %s", len(messages), topic_path)
         try:
             for message in messages:
-                future = publisher.publish(
-                    topic=topic_path, data=message.get("data", b""), **message.get("attributes", {})
-                )
+                data = message.get("data", b"")
+                if isinstance(data, str):
+                    data = data.encode("utf-8")
+                future = publisher.publish(topic=topic_path, data=data, **message.get("attributes", {}))
                 future.result()
         except GoogleAPICallError as e:
             raise PubSubException(f"Error publishing to topic {topic_path}", e)
@@ -153,16 +155,16 @@ class PubSubHook(GoogleBaseHook):
                     pass
 
             if not isinstance(message, dict):
-                raise PubSubException("Wrong message type. Must be a dictionary.")
+                raise PubSubException("Invalid message type. Must be a dictionary.")
             if "data" not in message and "attributes" not in message:
-                raise PubSubException("Wrong message. Dictionary must contain 'data' or 'attributes'.")
-            if "data" in message and not isinstance(message["data"], bytes):
-                raise PubSubException("Wrong message. 'data' must be send as a bytestring")
+                raise PubSubException("Invalid message. Dictionary must contain 'data' or 'attributes'.")
+            if "data" in message and not isinstance(message["data"], (str, bytes)):
+                raise PubSubException("Invalid message. 'data' must be type string or bytes.")
             if ("data" not in message and "attributes" in message and not message["attributes"]) or (
                 "attributes" in message and not isinstance(message["attributes"], dict)
             ):
                 raise PubSubException(
-                    "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary."
+                    "Invalid message. If 'data' is not provided 'attributes' must be a non empty dictionary."
                 )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -214,7 +216,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Creating topic (path) %s", topic_path)
         try:
-
             publisher.create_topic(
                 request={
                     "name": topic_path,
@@ -266,7 +267,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Deleting topic (path) %s", topic_path)
         try:
-
             publisher.delete_topic(
                 request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
@@ -438,7 +438,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
-
             subscriber.delete_subscription(
                 request={"subscription": subscription_path},
                 retry=retry,
@@ -495,7 +494,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
-
             response = subscriber.pull(
                 request={
                     "subscription": subscription_path,
@@ -554,7 +552,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
-
             subscriber.acknowledge(
                 request={"subscription": subscription_path, "ack_ids": ack_ids},
                 retry=retry,
