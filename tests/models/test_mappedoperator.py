@@ -30,6 +30,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
@@ -573,3 +574,45 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
     tis = dr.get_task_instances(session=session)
     for ti in tis:
         ti.run()
+
+
+def test_task_mapping_with_task_group_context():
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = BaseOperator(task_id="op1")
+        finish = MockOperator(task_id="finish")
+
+        with TaskGroup("test-group") as group:
+            literal = ["a", "b", "c"]
+            mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
+
+            task1 >> group >> finish
+
+    assert task1.downstream_list == [mapped]
+    assert mapped.upstream_list == [task1]
+
+    assert mapped in dag.tasks
+    assert mapped.task_group == group
+
+    assert finish.upstream_list == [mapped]
+    assert mapped.downstream_list == [finish]
+
+
+def test_task_mapping_with_explicit_task_group():
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = BaseOperator(task_id="op1")
+        finish = MockOperator(task_id="finish")
+
+        group = TaskGroup("test-group")
+        literal = ["a", "b", "c"]
+        mapped = MockOperator.partial(task_id="task_2", task_group=group).expand(arg2=literal)
+
+        task1 >> group >> finish
+
+    assert task1.downstream_list == [mapped]
+    assert mapped.upstream_list == [task1]
+
+    assert mapped in dag.tasks
+    assert mapped.task_group == group
+
+    assert finish.upstream_list == [mapped]
+    assert mapped.downstream_list == [finish]
