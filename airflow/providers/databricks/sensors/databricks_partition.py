@@ -109,11 +109,15 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def _sql_sensor(self, sql):
+        """
+        Executes the supplied SQL statement using the hook object.
+        """
         hook = self._get_hook
         sql_result = hook.run(
             sql,
             handler=self.handler if self.do_xcom_push else None,
         )
+        self.log.debug("SQL result: %s", sql_result)
         return sql_result
 
     @cached_property
@@ -133,6 +137,13 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         )
 
     def _check_table_partitions(self) -> list:
+        """
+        The method performs the following:
+        * Generates the fully qualified table name.
+        * Calls the generate partition query.
+        * Based on the result returned by the partition generation method,
+        the _sql_sensor method is called.
+        """
         _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
         _joiner_val = " AND "
@@ -158,19 +169,33 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         opts: dict[str, str] | None = None,
         escape_key: bool = False,
     ) -> str:
+        """
+        Queries the table for available partitions.
+        Generates the SQL query based on the partition data types.
+            * For a list, it prepares the SQL in the format:
+                column_name in (value1, value2,...)
+            * For a numeric type, it prepares the format:
+                column_name =(or other provided operator such as >=) value
+            * For a date type, it prepares the format:
+                column_name =(or other provided operator such as >=) value
+        Once the filter predicates have been generated like above, the query
+        is prepared to be executed using the prefix and suffix supplied, which are:
+        "SELECT 1 FROM {_fully_qualified_table_name} WHERE" and "LIMIT 1".
+        """
         partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
-        self.log.info("Partition_info: %s", partition_columns)
+        self.log.debug("Partition columns: %s", partition_columns)
         if len(partition_columns) < 1:
             raise AirflowException(f"Table {table_name} does not have partitions")
         formatted_opts = ""
         if opts is not None and len(opts) > 0:
             output_list = []
-            for partition_col, partition_value in self.partitions.items():
+            for partition_col, partition_value in opts.items():
                 if escape_key:
                     partition_col = self.escaper.escape_item(partition_col)
                 if partition_col in partition_columns:
                     if isinstance(partition_value, list):
                         output_list.append(f"""{partition_col} in {tuple(partition_value)}""")
+                        self.log.debug("List formatting for partitions: %s", output_list)
                     if isinstance(partition_value, (int, float, complex)):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
@@ -179,24 +204,20 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                         output_list.append(
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
-                    # TODO: Check date types.
                 else:
                     raise AirflowException(
                         f"Column {partition_col} not part of table partitions: {partition_columns}"
                     )
-        self.log.debug("Formatted options: %s", formatted_opts)
+        else:
+            # Raises exception if the table does not have any partitions.
+            raise AirflowException("No partitions specified to check with the sensor.")
         formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
+        self.log.debug("Formatted options: %s", formatted_opts)
 
         return formatted_opts.strip()
 
-    def _get_results(self) -> bool:
-        """Checks the table partitions and returns the results."""
-        result = self._check_table_partitions()
-        self.log.debug("Partition sensor result: %s", result)
-        if len(result) < 1:
-            return False
-        return True
-
     def poke(self, context: Context) -> bool:
-        """Sensor poke function to get and return results from the SQL sensor."""
-        return self._get_results()
+        """Checks the table partitions and returns the results."""
+        partition_result = self._check_table_partitions()
+        self.log.debug("Partition sensor result: %s", partition_result)
+        return bool(len(partition_result) >= 1)
