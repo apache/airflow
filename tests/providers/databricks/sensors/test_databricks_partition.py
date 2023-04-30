@@ -18,7 +18,6 @@
 #
 from __future__ import annotations
 
-import unittest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
