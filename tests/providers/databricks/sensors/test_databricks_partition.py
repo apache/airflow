@@ -20,24 +20,36 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timedelta
-from unittest import mock
+from unittest.mock import patch
 
+import pytest
+
+from airflow.exceptions import AirflowException
+from airflow.models import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.sensors.partition import DatabricksPartitionSensor
+from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
+from airflow.utils import timezone
 
-TASK_ID = "db-sensor"
+TASK_ID = "db-partition-sensor"
 DEFAULT_CONN_ID = "databricks_default"
+HOST = "xx.cloud.databricks.com"
+HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
+PERSONAL_ACCESS_TOKEN = "token"
+
 DEFAULT_SCHEMA = "schema1"
 DEFAULT_CATALOG = "catalog1"
 DEFAULT_TABLE = "table1"
-DEFAULT_SQL_ENDPOINT = "sql_warehouse_default"
+DEFAULT_HTTP_PATH = "/sql/1.0/warehouses/xxxxx"
+DEFAULT_SQL_WAREHOUSE = "sql_warehouse_default"
+DEFAULT_CALLER = "TestDatabricksPartitionSensor"
 DEFAULT_PARTITION = {"date": "2023-01-01"}
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 TIMESTAMP_TEST = datetime.now() - timedelta(days=30)
 
 sql_sensor = DatabricksPartitionSensor(
     databricks_conn_id=DEFAULT_CONN_ID,
-    sql_endpoint_name=DEFAULT_SQL_ENDPOINT,
+    sql_warehouse_name=DEFAULT_SQL_WAREHOUSE,
     task_id=TASK_ID,
     table_name=DEFAULT_TABLE,
     schema=DEFAULT_SCHEMA,
@@ -47,13 +59,39 @@ sql_sensor = DatabricksPartitionSensor(
 )
 
 
-class TestDatabricksPartitionSensor(unittest.TestCase):
-    @mock.patch.object(DatabricksPartitionSensor, "_check_table_partitions")
-    def test_poke_changes_success(self, mock_check_table_partitions):
-        mock_check_table_partitions.return_value = [(1,)]
-        assert sql_sensor.poke({}) is True
+class TestDatabricksPartitionSensor:
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", default_args=args)
 
-    @mock.patch.object(DatabricksPartitionSensor, "_check_table_partitions")
-    def test_poke_changes_failure(self, mock_check_table_partitions):
-        mock_check_table_partitions.return_value = []
-        assert sql_sensor.poke({}) is False
+        self.partition_sensor = DatabricksPartitionSensor(
+            task_id=TASK_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            sql_warehouse_name=DEFAULT_SQL_WAREHOUSE,
+            dag=self.dag,
+            schema=DEFAULT_SCHEMA,
+            catalog=DEFAULT_CATALOG,
+            table_name=DEFAULT_TABLE,
+            partitions={"date": "2023-01-01"},
+            partition_operator="=",
+            timeout=30,
+            poke_interval=15,
+        )
+
+    def test_init(self):
+        assert self.partition_sensor.databricks_conn_id == "databricks_default"
+        assert self.partition_sensor.task_id == "db-partition-sensor"
+        assert self.partition_sensor._sql_warehouse_name == "sql_warehouse_default"
+        assert self.partition_sensor.poke_interval == 15
+
+    @pytest.mark.parametrize(
+        argnames=("sensor_poke_result", "expected_poke_result"), argvalues=[(True, True), (False, False)]
+    )
+    @patch.object(DatabricksPartitionSensor, "poke")
+    def test_poke(self, mock_poke, sensor_poke_result, expected_poke_result):
+        mock_poke.return_value = sensor_poke_result
+        assert self.partition_sensor.poke({}) == expected_poke_result
+
+    def test_unsupported_conn_type(self):
+        with pytest.raises(AirflowException):
+            self.partition_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

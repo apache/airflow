@@ -221,4 +221,4 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if len(partition_result) >= 1:
             return True
         else:
-            raise AirflowException(f"Specified partition(s): {self.partitions} were not found")
+            raise AirflowException(f"Specified partition(s): {self.partitions} were not found.")
