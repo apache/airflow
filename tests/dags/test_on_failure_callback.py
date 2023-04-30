@@ -35,7 +35,7 @@ dag = DAG(dag_id="test_on_failure_callback", default_args=args, on_failure_callb
 
 
 def write_data_to_dag_callback(context):
-    msg = f"DAG {context["dag"].dag_id} fired callback with pid: {os.getpid()}"
+    msg = f"DAG {context['dag'].dag_id} fired callback with pid: {os.getpid()}"
     with open(os.environ.get("AIRFLOW_CALLBACK_FILE"), "a+") as f:
         f.write(msg)
 
