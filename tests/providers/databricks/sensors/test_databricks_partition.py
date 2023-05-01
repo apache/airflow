@@ -94,3 +94,8 @@ class TestDatabricksPartitionSensor:
     def test_unsupported_conn_type(self):
         with pytest.raises(AirflowException):
             self.partition_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    @patch.object(DatabricksPartitionSensor, "poke")
+    def test_partition_sensor(self, patched_poke):
+        patched_poke.return_value = True
+        assert self.partition_sensor.poke({})
