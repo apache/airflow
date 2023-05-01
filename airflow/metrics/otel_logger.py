@@ -225,6 +225,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     port = conf.getint("metrics", "otel_port")  # ex: 4318
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
     interval = conf.getint("metrics", "otel_interval_milliseconds")  # ex: 30000
+    debug = conf.getboolean("metrics", "otel_debugging_on")
 
     allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
     allow_list_validator = AllowListValidator(allow_list)
@@ -244,8 +245,6 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         )
     ]
 
-    # TODO:  remove this console exporter before launch??  It's handy for debugging maybe?
-    debug = False
     if debug:
         export_to_console = PeriodicExportingMetricReader(ConsoleMetricExporter())
         readers.append(export_to_console)
