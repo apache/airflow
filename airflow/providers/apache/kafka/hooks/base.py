@@ -58,7 +58,7 @@ class KafkaBaseHook(BaseHook):
 
     @cached_property
     def get_conn(self) -> Any:
-        """get the configuration object"""
+        """Get the configuration object"""
         config = self.get_connection(self.kafka_config_id).extra_dejson
 
         if not (config.get("bootstrap.servers", None)):

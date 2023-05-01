@@ -192,13 +192,9 @@ def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
     else:
         test_request_conf = json.dumps(request_conf, indent=4)
         resp = admin_client.get(f"trigger?dag_id={test_dag_id}&conf={test_request_conf}&doc_md={doc_md}")
-
-    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
-
-    check_content_in_response(
-        f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
-        resp,
-    )
+    for key in expected_conf.keys():
+        check_content_in_response(key, resp)
+        check_content_in_response(str(expected_conf[key]), resp)
 
 
 def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkeypatch):

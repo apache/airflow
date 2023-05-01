@@ -17,23 +17,29 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from functools import lru_cache
 from typing import Generator
 
 from flask import Flask
 
+import airflow
 from airflow.www.extensions.init_appbuilder import AirflowAppBuilder, init_appbuilder
+from airflow.www.extensions.init_views import init_plugins
 
 
 @lru_cache(maxsize=None)
 def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Returns an appbuilder instance for the given app"""
-    return init_appbuilder(app)
+    init_appbuilder(app)
+    init_plugins(app)
+    return app.appbuilder  # type: ignore[attr-defined]
 
 
 @contextmanager
 def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
-    flask_app = Flask(__name__)
+    static_folder = os.path.join(os.path.dirname(airflow.__file__), "www", "static")
+    flask_app = Flask(__name__, static_folder=static_folder)
     with flask_app.app_context():
         yield _return_appbuilder(flask_app)

@@ -696,15 +696,63 @@ class GCSHook(GoogleBaseHook):
         except NotFound:
             self.log.info("Bucket %s not exists", bucket_name)
 
-    def list(self, bucket_name, versions=None, max_results=None, prefix=None, delimiter=None) -> List:
+    def list(
+        self,
+        bucket_name: str,
+        versions: bool | None = None,
+        max_results: int | None = None,
+        prefix: str | List[str] | None = None,
+        delimiter: str | None = None,
+    ):
+        """
+        List all objects from the bucket with the given a single prefix or multiple prefixes
+
+        :param bucket_name: bucket name
+        :param versions: if true, list all versions of the objects
+        :param max_results: max count of items to return in a single page of responses
+        :param prefix: string or list of strings which filter objects whose name begin with it/them
+        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :return: a stream of object names matching the filtering criteria
+        """
+        objects = []
+        if isinstance(prefix, list):
+            for prefix_item in prefix:
+                objects.extend(
+                    self._list(
+                        bucket_name=bucket_name,
+                        versions=versions,
+                        max_results=max_results,
+                        prefix=prefix_item,
+                        delimiter=delimiter,
+                    )
+                )
+        else:
+            objects.extend(
+                self._list(
+                    bucket_name=bucket_name,
+                    versions=versions,
+                    max_results=max_results,
+                    prefix=prefix,
+                    delimiter=delimiter,
+                )
+            )
+        return objects
+
+    def _list(
+        self,
+        bucket_name: str,
+        versions: bool | None = None,
+        max_results: int | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+    ) -> List:
         """
         List all objects from the bucket with the give string prefix in name
 
         :param bucket_name: bucket name
         :param versions: if true, list all versions of the objects
         :param max_results: max count of items to return in a single page of responses
-        :param prefix: prefix string which filters objects whose name begin with
-            this prefix
+        :param prefix: string which filters objects whose name begin with it
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         :return: a stream of object names matching the filtering criteria
         """

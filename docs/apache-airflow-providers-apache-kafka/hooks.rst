@@ -61,7 +61,7 @@ For further information, look at `Apache Kafka Consumer documentation <https://k
 KafkaProducerHook
 ------------------------
 
-A hook for creating a Kafka Consumer. This hook is used by the ``ProduceToTopicOperator``.
+A hook for creating a Kafka Producer. This hook is used by the ``ProduceToTopicOperator``.
 For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.hooks.produce.KafkaProducerHook`.
 
 Reference

@@ -41,7 +41,7 @@ class KafkaAdminClientHook(KafkaBaseHook):
         self,
         topics: Sequence[Sequence[Any]],
     ) -> None:
-        """creates a topic
+        """Creates a topic
 
         :param topics: a list of topics to create including the number of partitions for the topic
           and the replication factor. Format: [ ("topic_name", number of partitions, replication factor)]

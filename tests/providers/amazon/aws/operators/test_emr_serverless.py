@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 from uuid import UUID
 
 import pytest
@@ -654,3 +654,16 @@ class TestEmrServerlessStopOperator:
 
         mock_waiter.assert_not_called()
         mock_conn.stop_application.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch.object(EmrServerlessStopApplicationOperator, "hook", new_callable=PropertyMock)
+    def test_force_stop(self, mock_hook: MagicMock, mock_waiter: MagicMock):
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", force_stop=True
+        )
+
+        operator.execute(None)
+
+        mock_hook().cancel_running_jobs.assert_called_once()
+        mock_hook().conn.stop_application.assert_called_once()
+        mock_waiter.assert_called_once()

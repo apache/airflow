@@ -265,7 +265,7 @@ def check_remote_ghcr_io_commands():
     """
     Checks if you have permissions to pull an empty image from ghcr.io. Unfortunately, GitHub packages
     treat expired login as "no-access" even on public repos. We need to detect that situation and suggest
-    user to log-out.
+    user to log-out or if they are in CI environment to re-push their PR/close or reopen the PR.
     :return:
     """
     response = run_command(
@@ -281,12 +281,24 @@ def check_remote_ghcr_io_commands():
                 "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
             )
             sys.exit(2)
-        get_console().print(
-            "[error]\nYou seem to have expired permissions on ghcr.io.[/]\n"
-            "[warning]Please logout. Run this command:[/]\n\n"
-            "   docker logout ghcr.io\n\n"
-        )
-        sys.exit(1)
+        if os.environ.get("CI"):
+            get_console().print(
+                "\n[error]We are extremely sorry but you've hit the rare case that the "
+                "credentials you got from GitHub Actions to run are expired, and we cannot do much.[/]"
+                "\n¯\_(ツ)_/¯\n\n"
+                "[warning]You have the following options now:\n\n"
+                "  * Close and reopen the Pull Request of yours\n"
+                "  * Rebase or amend your commit and push your branch again\n"
+                "  * Ask in the PR to re-run the failed job\n\n"
+            )
+            sys.exit(1)
+        else:
+            get_console().print(
+                "[error]\nYou seem to have expired permissions on ghcr.io.[/]\n"
+                "[warning]Please logout. Run this command:[/]\n\n"
+                "   docker logout ghcr.io\n\n"
+            )
+            sys.exit(1)
 
 
 DOCKER_COMPOSE_COMMAND = ["docker-compose"]

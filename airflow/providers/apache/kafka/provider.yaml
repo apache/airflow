@@ -26,7 +26,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - asgiref
   - confluent-kafka>=1.8.2
 
@@ -57,8 +57,8 @@ sensors:
 
 triggers:
   - integration-name: Apache Kafka
-    python-modules:
-      - airflow.providers.apache.kafka.triggers.await_message
+    class-names:
+      - airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger
 
 connection-types:
   - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaBaseHook
