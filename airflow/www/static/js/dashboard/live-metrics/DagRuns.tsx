@@ -57,7 +57,7 @@ const DagRuns = (props: BoxProps) => {
           <CardBody>
             <Flex flexDirection="column" mb={5}>
               <Text as="b" color="blue.600">
-                Top 5 longest running DagRuns:
+                Top 5 longest DagRuns to finish:
               </Text>
               <Box mt={2}>
                 {data?.totalEntries !== undefined && data.totalEntries > 0 ? (

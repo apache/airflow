@@ -20,6 +20,7 @@
 import React from "react";
 import { Card, CardBody, CardHeader, Flex, Heading } from "@chakra-ui/react";
 import InfoTooltip from "src/components/InfoTooltip";
+import FilterBar from "src/dashboard/nav/FilterBar";
 
 const HistoricalMetrics = () => (
   <Flex w="100%">
@@ -33,7 +34,9 @@ const HistoricalMetrics = () => (
           />
         </Flex>
       </CardHeader>
-      <CardBody>This is the body</CardBody>
+      <CardBody>
+        <FilterBar />
+      </CardBody>
     </Card>
   </Flex>
 );

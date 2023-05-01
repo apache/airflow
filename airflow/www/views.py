@@ -99,7 +99,6 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
-from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
@@ -3814,19 +3813,19 @@ class Airflow(AirflowBaseView):
     def dashboard_data(self):
         """Returns dashboard data"""
         start_date = datetime.datetime.fromisoformat("2023-01-01T00:00+00:00")
-        # end_date = datetime.datetime.fromisoformat("2023-05-22T00:00+00:00")
+        end_date = datetime.datetime.fromisoformat("2023-05-22T00:00+00:00")
         with create_session() as session:
             # Dag Runs
             dag_runs_type = (
                 session.query(func.count(DagRun.run_id), DagRun.run_type)
-                .filter(DagRun.start_date >= start_date)
+                .filter(DagRun.start_date >= start_date, DagRun.end_date <= end_date)
                 .group_by(DagRun.run_type)
                 .all()
             )
 
             dag_run_states = (
                 session.query(func.count(DagRun.run_id), DagRun.state)
-                .filter(DagRun.start_date >= start_date)
+                .filter(DagRun.start_date >= start_date, DagRun.end_date <= end_date)
                 .group_by(DagRun.state)
                 .all()
             )
@@ -3834,13 +3833,10 @@ class Airflow(AirflowBaseView):
             # TaskInstances
             task_instance_states = (
                 session.query(func.count(TaskInstance.run_id), TaskInstance.state)
-                .filter(TaskInstance.start_date >= start_date)
+                .filter(TaskInstance.start_date >= start_date, TaskInstance.end_date <= end_date)
                 .group_by(TaskInstance.state)
                 .all()
             )
-
-            # Pools
-            pool_stats = Pool.slots_stats(session=session)
 
             data = {
                 "dag_runs_type": {sum_value: run_type for sum_value, run_type in dag_runs_type},
@@ -3848,7 +3844,6 @@ class Airflow(AirflowBaseView):
                 "task_instance_states": {
                     sum_value: run_state for sum_value, run_state in task_instance_states
                 },
-                "pool_stats": pool_stats,
             }
 
         return (
