@@ -602,7 +602,8 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
               'attributes': {'type': 'greeting'}
              }
         m2 = {'data': b'Knock, knock'}
-        m3 = {'attributes': {'foo': ''}}
+        m3 = {'data': 'Who's there?'}
+        m4 = {'attributes': {'foo': ''}}
 
         t1 = PubSubPublishMessageOperator(
             project_id='my-project',
@@ -624,7 +625,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
     :param messages: a list of messages to be published to the
         topic. Each message is a dict with one or more of the
         following keys-value mappings:
-        * 'data': a bytestring (utf-8 encoded)
+        * 'data': a string or utf-8 encoded bytestring
         * 'attributes': {'key1': 'value1', ...}
         Each message must contain at least a non-empty 'data' value
         or an attribute dict with at least one key (templated). See
