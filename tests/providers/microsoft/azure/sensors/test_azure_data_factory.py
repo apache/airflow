@@ -99,7 +99,7 @@ class TestPipelineRunStatusSensor:
         "airflow.providers.microsoft.azure.sensors.data_factory"
         ".AzureDataFactoryPipelineRunStatusSensor.defer"
     )
-    def test_gcs_object_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+    def test_adf_pipeline_status_sensor_finish_before_deferred(self, mock_defer, mock_hook):
         mock_hook.return_value.get_pipeline_run_status.return_value = (
             AzureDataFactoryPipelineRunStatus.SUCCEEDED
         )
