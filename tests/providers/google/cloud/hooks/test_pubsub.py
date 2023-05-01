@@ -39,12 +39,6 @@ TEST_PROJECT = "test-project"
 TEST_TOPIC = "test-topic"
 TEST_SUBSCRIPTION = "test-subscription"
 TEST_UUID = UUID("cf4a56d2-8101-4217-b027-2af6216feb48")
-TEST_MESSAGES = [
-    {"data": b"Hello, World!", "attributes": {"type": "greeting"}},
-    {"data": b"Knock, knock"},
-    {"data": "string data"},
-    {"attributes": {"foo": ""}},
-]
 
 EXPANDED_TOPIC = f"projects/{TEST_PROJECT}/topics/{TEST_TOPIC}"
 EXPANDED_SUBSCRIPTION = f"projects/{TEST_PROJECT}/subscriptions/{TEST_SUBSCRIPTION}"
@@ -368,15 +362,30 @@ class TestPubSubHook:
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
     def test_publish(self, mock_service):
+        """
+        Test that PubSubHook calls the publish method of the PubSub client with the correct arguments.
+        In the case of string message data, the data should be encoded to bytes before being passed to the client.
+        """
         publish_method = mock_service.return_value.publish
-
-        self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES)
+        hook_publish_messages = [
+            {"data": b"Hello, World!", "attributes": {"type": "greeting"}},
+            {"data": b"Knock, knock"},
+            {"attributes": {"foo": ""}},
+            {"data": "string data"},
+        ]
+        conn_publish_messages = [*hook_publish_messages[:3], {"data": b"string data"}]
+        self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=hook_publish_messages)
         calls = [
             mock.call(topic=EXPANDED_TOPIC, data=message.get("data", b""), **message.get("attributes", {}))
-            for message in TEST_MESSAGES
+            for message in conn_publish_messages
         ]
         mock_calls_result = publish_method.mock_calls
-        result_refined = [mock_calls_result[0], mock_calls_result[2], mock_calls_result[4], mock_calls_result[6]]
+        result_refined = [
+            mock_calls_result[0],
+            mock_calls_result[2],
+            mock_calls_result[4],
+            mock_calls_result[6],
+        ]
         assert result_refined == calls
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))
@@ -385,13 +394,14 @@ class TestPubSubHook:
         publish_method.side_effect = GoogleAPICallError(f"Error publishing to topic {EXPANDED_SUBSCRIPTION}")
 
         with pytest.raises(PubSubException):
-            self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES)
+            self.pubsub_hook.publish(project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=[{"data": b"test"}])
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_pull(self, mock_service):
         pull_method = mock_service.pull
         pulled_messages = []
-        for i, msg in enumerate(TEST_MESSAGES):
+        test_messages = [{"data": b"test1"}, {"data": b"test2"}]
+        for i, msg in enumerate(test_messages):
             pulled_messages.append({"ackId": i, "message": msg})
         pull_method.return_value.received_messages = pulled_messages
 
@@ -545,6 +555,7 @@ class TestPubSubHook:
             [{"data": b""}],
             [{"data": b"test", "attributes": {"weight": "100kg"}}],
             [{"data": b"", "attributes": {"weight": "100kg"}}],
+            [{"data": "string data"}],
             [{"attributes": {"weight": "100kg"}}],
         ],
     )
@@ -554,17 +565,16 @@ class TestPubSubHook:
     @pytest.mark.parametrize(
         "messages, error_message",
         [
-            ([("wrong type",)], "Wrong message type. Must be a dictionary."),
-            ([{"wrong_key": b"test"}], "Wrong message. Dictionary must contain 'data' or 'attributes'."),
-            ([{"data": "wrong string"}], "Wrong message. 'data' must be send as a bytestring"),
-            ([{"data": None}], "Wrong message. 'data' must be send as a bytestring"),
+            ([("wrong type",)], "Invalid message type. Must be a dictionary."),
+            ([{"wrong_key": b"test"}], "Invalid message. Dictionary must contain 'data' or 'attributes'."),
+            ([{"data": None}], "Invalid message. 'data' must be type string or bytes."),
             (
                 [{"attributes": None}],
-                "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.",
+                "Invalid message. If 'data' is not provided 'attributes' must be a non empty dictionary.",
             ),
             (
                 [{"attributes": "wrong string"}],
-                "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.",
+                "Invalid message. If 'data' is not provided 'attributes' must be a non empty dictionary.",
             ),
         ],
     )

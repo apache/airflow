@@ -146,8 +146,10 @@ class PubSubHook(GoogleBaseHook):
                 try:
                     b64decode(message["data"])
                     warnings.warn(
+                        "During message validation, the 'data' field was successfully decoded as base64. "
                         "The base 64 encoded string as 'data' field has been deprecated. "
-                        "You should pass bytestring (utf-8 encoded).",
+                        "You should pass bytestring (utf-8 encoded). "
+                        "If you did not pass base64 encoded string, you can ignore this warning.",
                         DeprecationWarning,
                         stacklevel=4,
                     )
