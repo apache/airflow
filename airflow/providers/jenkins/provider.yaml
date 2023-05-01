@@ -41,7 +41,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - python-jenkins>=1.0.0
 
 integrations:

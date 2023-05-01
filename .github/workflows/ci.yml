@@ -766,7 +766,7 @@ jobs:
 
   provider-airflow-compatibility-check:
     timeout-minutes: 80
-    name: "Providers Airflow 2.3 compatibility check"
+    name: "Providers Airflow 2.4 compatibility check"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
     env:
@@ -789,10 +789,10 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      - name: "Fix incompatible 2.3 provider packages"
+      - name: "Fix incompatible 2.4 provider packages"
         run: |
-          # This step should remove the provider packages that are not compatible with 2.3
-          # or replace them with 2.3 compatible versions. Sometimes we have good reasons to bump
+          # This step should remove the provider packages that are not compatible with 2.4
+          # or replace them with 2.4 compatible versions. Sometimes we have good reasons to bump
           # the min airflow versions for some providers and then we need to add exclusions here.
           #
           # The Removal can be done with:
@@ -813,15 +813,15 @@ jobs:
           providers = json.loads(Path("generated/provider_dependencies.json").read_text())
           provider_keys = ",".join(providers.keys())
           print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
-      - name: "Install and verify all provider packages and airflow on Airflow 2.3 files"
+      - name: "Install and verify all provider packages and airflow on Airflow 2.4 files"
         run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
-          --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0
+          breeze release-management verify-provider-packages --use-airflow-version 2.4.0
+          --use-packages-from-dist --airflow-constraints-reference constraints-2.4.0
         if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: "Install affected provider packages and airflow on Airflow 2.3 files"
+      - name: "Install affected provider packages and airflow on Airflow 2.4 files"
         run: >
-          breeze release-management install-provider-packages --use-airflow-version 2.3.0
-          --airflow-constraints-reference constraints-2.3.0 --run-in-parallel
+          breeze release-management install-provider-packages --use-airflow-version 2.4.0
+          --airflow-constraints-reference constraints-2.4.0 --run-in-parallel
         # Make sure to skip the run if the only provider to be installed has been removed
         # in the previous step
         if: >

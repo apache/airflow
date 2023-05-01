@@ -153,7 +153,6 @@ def dag_trigger(args) -> None:
             execution_date=args.exec_date,
             replace_microseconds=args.replace_microseconds,
         )
-        print(message)
         AirflowConsole().print_as(
             data=[message] if message is not None else [],
             output=args.output,

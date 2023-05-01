@@ -120,8 +120,8 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.4.0 in the first Provider's release after 30th of April 2023. The 30th of April 2022 is the date when the
-first ``PATCHLEVEL`` of 2.3 (2.3.0) has been released.
+to 2.5.0 in the first Provider's release after 19th of September 2023. The 19th of September 2022 is the date when the
+first ``PATCHLEVEL`` of 2.4 (2.4.0) has been released.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use

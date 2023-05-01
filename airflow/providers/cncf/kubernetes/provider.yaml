@@ -58,7 +58,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core

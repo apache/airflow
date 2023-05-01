@@ -161,6 +161,8 @@ When using remote logging, you can configure Airflow to show a link to an extern
 
 Some external systems require specific configuration in Airflow for redirection to work but others do not.
 
+.. _serving-worker-trigger-logs:
+
 Serving logs from workers and triggerer
 ---------------------------------------
 

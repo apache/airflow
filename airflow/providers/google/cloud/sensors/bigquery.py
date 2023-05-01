@@ -110,20 +110,24 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
-        self.defer(
-            timeout=timedelta(seconds=self.timeout),
-            trigger=BigQueryTableExistenceTrigger(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                project_id=self.project_id,
-                poll_interval=self.poke_interval,
-                gcp_conn_id=self.gcp_conn_id,
-                hook_params={
-                    "impersonation_chain": self.impersonation_chain,
-                },
-            ),
-            method_name="execute_complete",
-        )
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTableExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
@@ -218,21 +222,22 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=BigQueryTablePartitionExistenceTrigger(
-                    dataset_id=self.dataset_id,
-                    table_id=self.table_id,
-                    project_id=self.project_id,
-                    partition_id=self.partition_id,
-                    poll_interval=self.poke_interval,
-                    gcp_conn_id=self.gcp_conn_id,
-                    hook_params={
-                        "impersonation_chain": self.impersonation_chain,
-                    },
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTablePartitionExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        partition_id=self.partition_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
