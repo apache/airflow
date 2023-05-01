@@ -25,45 +25,45 @@ from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
 
 
-@pytest.mark.asyncio
-@mock.patch.object(GlueJobHook, "async_get_job_state")
-async def test_wait_job(get_state_mock: MagicMock):
-    GlueJobHook.JOB_POLL_INTERVAL = 0.1
-    trigger = GlueJobCompleteTrigger(
-        job_name="job_name",
-        run_id="JobRunId",
-        verbose=False,
-        aws_conn_id="aws_conn_id",
-    )
-    get_state_mock.side_effect = [
-        "RUNNING",
-        "RUNNING",
-        "SUCCEEDED",
-    ]
+class TestGlueJobTrigger:
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "async_get_job_state")
+    async def test_wait_job(get_state_mock: MagicMock):
+        GlueJobHook.JOB_POLL_INTERVAL = 0.1
+        trigger = GlueJobCompleteTrigger(
+            job_name="job_name",
+            run_id="JobRunId",
+            verbose=False,
+            aws_conn_id="aws_conn_id",
+        )
+        get_state_mock.side_effect = [
+            "RUNNING",
+            "RUNNING",
+            "SUCCEEDED",
+        ]
 
-    event = await trigger.run()
+        event = await trigger.run()
 
-    assert get_state_mock.call_count == 3
-    assert event.payload["status"] == "success"
+        assert get_state_mock.call_count == 3
+        assert event.payload["status"] == "success"
 
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "async_get_job_state")
+    async def test_wait_job_failed(get_state_mock: MagicMock):
+        GlueJobHook.JOB_POLL_INTERVAL = 0.1
+        trigger = GlueJobCompleteTrigger(
+            job_name="job_name",
+            run_id="JobRunId",
+            verbose=False,
+            aws_conn_id="aws_conn_id",
+        )
+        get_state_mock.side_effect = [
+            "RUNNING",
+            "RUNNING",
+            "FAILED",
+        ]
 
-@pytest.mark.asyncio
-@mock.patch.object(GlueJobHook, "async_get_job_state")
-async def test_wait_job_failed(get_state_mock: MagicMock):
-    GlueJobHook.JOB_POLL_INTERVAL = 0.1
-    trigger = GlueJobCompleteTrigger(
-        job_name="job_name",
-        run_id="JobRunId",
-        verbose=False,
-        aws_conn_id="aws_conn_id",
-    )
-    get_state_mock.side_effect = [
-        "RUNNING",
-        "RUNNING",
-        "FAILED",
-    ]
+        with pytest.raises(AirflowException):
+            await trigger.run()
 
-    with pytest.raises(AirflowException):
-        await trigger.run()
-
-    assert get_state_mock.call_count == 3
+        assert get_state_mock.call_count == 3

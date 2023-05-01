@@ -47,7 +47,7 @@ class GlueJobCompleteTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            self.__class__.__qualname__,
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
             {
                 "job_name": self.job_name,
                 "run_id": self.run_id,
