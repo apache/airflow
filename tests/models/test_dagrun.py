@@ -2311,5 +2311,5 @@ def test_dagrun_with_note(dag_maker, session):
     session.delete(dr)
     session.commit()
 
-    dr_note = session.query(DagRunNote).filter(DagRunNote.dag_run_id == dr.id).one_or_none()
-    assert dr_note is None
+    assert session.query(DagRun).filter(DagRun.id == dr.id).one_or_none() is None
+    assert session.query(DagRunNote).filter(DagRunNote.dag_run_id == dr.id).one_or_none() is None

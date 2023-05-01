@@ -4066,19 +4066,13 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.add(ti)
     session.commit()
 
-    ti_note: TaskInstanceNote = (
-        session.query(TaskInstanceNote)
-        .filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-        .one()
-    )
+    filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+
+    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
     assert ti_note.content == "ti with note"
 
     session.delete(ti)
     session.commit()
 
-    ti_note: TaskInstanceNote = (
-        session.query(TaskInstanceNote)
-        .filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-        .one_or_none()
-    )
-    assert ti_note is None
+    assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
+    assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
