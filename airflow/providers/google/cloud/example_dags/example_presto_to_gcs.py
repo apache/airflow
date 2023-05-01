@@ -54,6 +54,7 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
+
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
 
     delete_dataset = BigQueryDeleteDatasetOperator(
@@ -103,7 +104,7 @@ with models.DAG(
                 "csvOptions": {"skipLeadingRows": 1},
             },
         },
-        gcs_schema_object=f"{safe_name(SOURCE_MULTIPLE_TYPES)}-schema.json",
+        schema_object=f"{safe_name(SOURCE_MULTIPLE_TYPES)}-schema.json",
     )
     # [END howto_operator_create_external_table_multiple_types]
 
@@ -112,7 +113,7 @@ with models.DAG(
         configuration={
             "query": {
                 "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}."
-                         f"{safe_name(SOURCE_MULTIPLE_TYPES)}`",
+                f"{safe_name(SOURCE_MULTIPLE_TYPES)}`",
                 "useLegacySql": False,
             }
         },
@@ -152,7 +153,7 @@ with models.DAG(
             },
         },
         source_objects=[f"{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],
-        gcs_schema_object=f"{safe_name(SOURCE_CUSTOMER_TABLE)}-schema.json",
+        schema_object=f"{safe_name(SOURCE_CUSTOMER_TABLE)}-schema.json",
     )
 
     # [START howto_operator_read_data_from_gcs_many_chunks]
@@ -161,7 +162,7 @@ with models.DAG(
         configuration={
             "query": {
                 "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}."
-                         f"{safe_name(SOURCE_CUSTOMER_TABLE)}`",
+                f"{safe_name(SOURCE_CUSTOMER_TABLE)}`",
                 "useLegacySql": False,
             }
         },
