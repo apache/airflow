@@ -66,8 +66,6 @@ class SafeOtelLogger:
         count: int = 1,
         rate: float = 1,
         tags: Attributes = None,
-        *,
-        back_compat_name: str = "",
     ):
         """
         Increment stat by count.
@@ -77,17 +75,11 @@ class SafeOtelLogger:
         :param rate: value between 0 and 1 that represents the sampled rate at
             which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
-        :param back_compat_name: If possible, the metric will also be emitted
-            under this name for backward compatibility.
         """
         if (count < 0) or (rate < 0):
             raise ValueError("count and rate must both be positive values.")
         if rate < 1 and random.random() > rate:
             return
-
-        if back_compat_name and self.metrics_validator.test(back_compat_name):
-            counter = self.metrics_map.get_counter(f"{self.prefix}.{back_compat_name}")
-            counter.add(count, attributes=tags)
 
         if self.metrics_validator.test(stat):
             counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")
@@ -101,8 +93,6 @@ class SafeOtelLogger:
         count: int = 1,
         rate: float = 1,
         tags: Attributes = None,
-        *,
-        back_compat_name: str = "",
     ):
         """
         Decrement stat by count.
@@ -112,17 +102,11 @@ class SafeOtelLogger:
         :param rate: value between 0 and 1 that represents the sampled rate at
             which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
-        :param back_compat_name: If possible, the metric will also be emitted
-            under this name for backward compatibility.
         """
         if (count < 0) or (rate < 0):
             raise ValueError("count and rate must both be positive values.")
         if rate < 1 and random.random() > rate:
             return
-
-        if back_compat_name and self.metrics_validator.test(back_compat_name):
-            counter = self.metrics_map.get_counter(f"{self.prefix}.{back_compat_name}")
-            counter.add(-count, attributes=tags)
 
         if self.metrics_validator.test(stat):
             counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")

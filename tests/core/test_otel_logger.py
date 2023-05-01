@@ -89,18 +89,6 @@ class TestOtelMetrics:
 
         assert self.map[full_name(name)].add.call_count == 2
 
-    def test_incr_with_back_compat_name(self, name):
-        back_compat_name = f"back_compat_{name}"
-        expected_calls = [
-            mock.call(name=full_name(back_compat_name)),
-            mock.call(name=full_name(name)),
-        ]
-
-        self.stats.incr(name, back_compat_name=back_compat_name)
-
-        self.meter.get_meter().create_counter.assert_has_calls(expected_calls, any_order=True)
-        assert self.meter.get_meter().create_counter.call_count == len(expected_calls)
-
     @mock.patch("random.random", side_effect=[0.1, 0.9])
     def test_incr_with_rate_limit_works(self, mock_random, name):
         # Create the counter and set the value to 1
