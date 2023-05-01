@@ -113,10 +113,53 @@ Configuring Databricks connection to be used with the Sensor.
     :start-after: [START howto_sensor_databricks_connection_setup]
     :end-before: [END howto_sensor_databricks_connection_setup]
 
-Poking the specific table for existence of data/partition:
+Poking the specific table with the SQL statement:
 
 .. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_databricks_sql]
     :end-before: [END howto_sensor_databricks_sql]
+
+
+DatabricksPartitionSensor
+=========================
+
+Use the :class:`~airflow.providers.databricks.sensors.partition.DatabricksPartitionSensor` to run the sensor 
+for a table accessible via a Databricks SQL warehouse or interactive cluster.
+
+Using the Sensor
+----------------
+
+The sensor accepts the table name and partition name(s), value(s) from the user and generates the SQL query to check if 
+the specified partition name, value(s) exist in the specified table. 
+
+The required parameters are:
+
+* ``table_name`` (name of the table for partition check).
+
+* ``partitions`` (name of the partitions to check).
+
+* ``partition_operator`` (comparison operator for partitions, such as >=).
+
+*   One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or          ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
+
+Other parameters are optional and could be found in the class documentation.
+
+Examples
+--------
+Configuring Databricks connection to be used with the Sensor.
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_connection_setup]
+    :end-before: [END howto_sensor_databricks_connection_setup]
+
+Poking the specific table for existence of data/partition:
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_partition]
+    :end-before: [END howto_sensor_databricks_partition]
