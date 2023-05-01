@@ -224,9 +224,9 @@ class KubernetesExecutor(BaseExecutor):
         else:
             self.log.info("Add task %s with command %s", key, command)
 
-        try:
-            from airflow.kubernetes.pod_generator import PodGenerator
+        from airflow.kubernetes.pod_generator import PodGenerator
 
+        try:
             kube_executor_config = PodGenerator.from_obj(executor_config)
         except Exception:
             self.log.error("Invalid executor_config for %s. Executor_config: %s", key, executor_config)
@@ -290,10 +290,11 @@ class KubernetesExecutor(BaseExecutor):
                 last_resource_version[ns] or resource_instance.resource_version[ns]
             )
 
+        from kubernetes.client.rest import ApiException
+
         for _ in range(self.kube_config.worker_pods_creation_batch_size):
             try:
                 task = self.task_queue.get_nowait()
-                from kubernetes.client.rest import ApiException
 
                 try:
                     self.kube_scheduler.run_next(task)
@@ -516,8 +517,9 @@ class KubernetesExecutor(BaseExecutor):
             return
 
         new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
+        from kubernetes.client.rest import ApiException
+
         try:
-            from kubernetes.client.rest import ApiException
 
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
@@ -551,8 +553,9 @@ class KubernetesExecutor(BaseExecutor):
         pod_list = self._list_pods(query_kwargs)
         for pod in pod_list:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
+            from kubernetes.client.rest import ApiException
+
             try:
-                from kubernetes.client.rest import ApiException
 
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
