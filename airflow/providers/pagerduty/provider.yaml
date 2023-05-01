@@ -36,7 +36,8 @@ versions:
 
 dependencies:
   - apache-airflow>=2.4.0
-  - pdpyras>=4.1.2
+  # Pdpyras 5.0.0 has wrong dependencies https://github.com/PagerDuty/pdpyras/issues/100
+  - pdpyras>=4.1.2,!=5.0.0
 
 integrations:
   - integration-name: Pagerduty

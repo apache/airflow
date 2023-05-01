@@ -592,7 +592,7 @@
   "pagerduty": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "pdpyras>=4.1.2"
+      "pdpyras>=4.1.2,!=5.0.0"
     ],
     "cross-providers-deps": []
   },
