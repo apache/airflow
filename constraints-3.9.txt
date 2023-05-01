@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-01T16:35:33Z
+# This constraints file was automatically generated on 2023-05-01T23:52:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -228,6 +228,7 @@ datadog==0.45.0
 db-dtypes==1.1.1
 decorator==5.1.1
 defusedxml==0.7.1
+deprecation==2.1.0
 dill==0.3.1.1
 distlib==0.3.6
 distributed==2023.4.1
@@ -363,13 +364,13 @@ jupyter_core==5.3.0
 keyring==23.13.1
 kombu==5.2.4
 krb5==0.5.0
-kubernetes-asyncio==24.2.2
+kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
 kylinpy==2.8.4
 lazy-object-proxy==1.9.0
 ldap3==2.9.1
 limits==3.4.0
-linkify-it-py==2.0.0
+linkify-it-py==2.0.1
 locket==1.0.0
 lockfile==0.12.2
 looker-sdk==23.6.0
@@ -440,7 +441,7 @@ partd==1.4.0
 pathable==0.4.3
 pathspec==0.9.0
 pbr==5.11.1
-pdpyras==4.5.2
+pdpyras==5.0.1
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
@@ -453,7 +454,7 @@ pluggy==1.0.0
 ply==3.11
 plyvel==1.5.0
 portalocker==2.7.0
-pre-commit==3.2.2
+pre-commit==3.3.0
 presto-python-client==0.8.3
 prison==0.2.1
 prometheus-client==0.16.0
