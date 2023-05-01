@@ -662,7 +662,7 @@ jobs:
         if: always()
 
   docs:
-    timeout-minutes: 45
+    timeout-minutes: 90
     name: "Build docs"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
