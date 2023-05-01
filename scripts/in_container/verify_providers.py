@@ -826,6 +826,8 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "secrets"], check=True)
     console.print("[bright_blue]List all auth backends[/]\n")
     subprocess.run(["airflow", "providers", "auth"], check=True)
+    console.print("[bright_blue]List all triggers[/]\n")
+    subprocess.run(["airflow", "providers", "triggers"], check=True)
 
 
 if __name__ == "__main__":
