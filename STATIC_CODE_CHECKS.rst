@@ -195,6 +195,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |

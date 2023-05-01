@@ -51,6 +51,7 @@ PRE_COMMIT_LIST = [
     "check-links-to-example-dags-do-not-use-hardcoded-versions",
     "check-merge-conflict",
     "check-newsfragments-are-valid",
+    "check-no-airflow-deprecation-in-providers",
     "check-no-providers-in-core-examples",
     "check-no-relative-imports",
     "check-only-new-session-with-provide-session",
