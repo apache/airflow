@@ -364,7 +364,8 @@ class TestPubSubHook:
     def test_publish(self, mock_service):
         """
         Test that PubSubHook calls the publish method of the PubSub client with the correct arguments.
-        In the case of string message data, the data should be encoded to bytes before being passed to the client.
+        In the case of string message data, the data should be encoded to bytes before being passed to
+        the client.
         """
         publish_method = mock_service.return_value.publish
         hook_publish_messages = [
