@@ -60,7 +60,7 @@ from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, TaskInstanceNote
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -348,7 +348,7 @@ class TestTaskInstance:
             assert ti.state == State.QUEUED
             dep_patch.return_value = TIDepStatus("mock_" + class_name, True, "mock")
 
-        for (dep_patch, method_patch) in patch_dict.values():
+        for dep_patch, method_patch in patch_dict.values():
             dep_patch.stop()
 
     def test_mark_non_runnable_task_as_success(self, create_task_instance):
@@ -847,7 +847,6 @@ class TestTaskInstance:
             return done
 
         with dag_maker(dag_id="test_reschedule_handling") as dag:
-
             task = PythonSensor.partial(
                 task_id="test_reschedule_handling_sensor",
                 mode="reschedule",
@@ -2190,7 +2189,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_ti(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2203,7 +2201,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_ti_success(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2217,7 +2214,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_execution_date_success(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2232,7 +2228,6 @@ class TestTaskInstance:
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_start_date_success(self, schedule_interval, catchup, dag_maker) -> None:
-
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
         ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
@@ -2920,7 +2915,6 @@ class TestTaskInstance:
 
     @provide_session
     def test_get_rendered_template_fields(self, dag_maker, session=None):
-
         with dag_maker("test-dag", session=session) as dag:
             task = BashOperator(task_id="op1", bash_command="{{ task.task_id }}")
         dag.fileloc = TEST_DAGS_FOLDER / "test_get_k8s_pod_yaml.py"
@@ -3094,7 +3088,6 @@ class TestTaskInstance:
             ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
 
     def test_operator_field_with_serialization(self, create_task_instance):
-
         ti = create_task_instance()
         assert ti.task.task_type == "EmptyOperator"
         assert ti.task.operator_name == "EmptyOperator"
@@ -4215,3 +4208,22 @@ def test_mini_scheduler_not_skip_mapped_downstream_until_all_upstreams_finish(da
     generate_ti.schedule_downstream_tasks(session=session)
     # Now downstreams can be skipped.
     assert dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
+
+
+def test_taskinstance_with_note(create_task_instance, session):
+    ti: TaskInstance = create_task_instance(session=session)
+    ti.note = "ti with note"
+
+    session.add(ti)
+    session.commit()
+
+    filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+
+    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+    assert ti_note.content == "ti with note"
+
+    session.delete(ti)
+    session.commit()
+
+    assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
+    assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
