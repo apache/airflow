@@ -320,7 +320,7 @@ class FileTaskHandler(logging.Handler):
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
-        if not (remote_logs and ti.state not in State.unfinished):
+        if ti.state not in State.unfinished and not remote_logs:
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
