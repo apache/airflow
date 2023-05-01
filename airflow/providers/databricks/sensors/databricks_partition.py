@@ -56,7 +56,8 @@ class DatabricksPartitionSensor(BaseSensorOperator):
     :param schema: An optional initial schema to use.
         Requires Databricks Runtime version 9.0+ (templated), defaults to "default"
     :param table_name: Name of the table to check partitions.
-    :param partitions: Name of the partitions to check. Example: {"date": "2023-01-03", "name": ["abc", "def"]}
+    :param partitions: Name of the partitions to check. 
+        Example: {"date": "2023-01-03", "name": ["abc", "def"]}
     :param partition_operator: Optional comparison operator for partitions, such as >=.
     :param handler: Handler for DbApiHook.run() to return results, defaults to fetch_all_handler
     :param client_parameters: Additional parameters internal to Databricks SQL connector parameters.

@@ -68,7 +68,7 @@ with DAG(
     # [END howto_sensor_databricks_sql]
 
     # [START howto_sensor_databricks_partition]
-    # Example of using the Databricks Partition Sensor to check the presence 
+    # Example of using the Databricks Partition Sensor to check the presence
     # of the specified partition(s) in a table.
     partition_sensor = DatabricksPartitionSensor(
         databricks_conn_id=connection_id,
@@ -79,12 +79,12 @@ with DAG(
         schema="temp",
         partitions={"date": "2023-01-03", "name": ["abc", "def"]},
         partition_operator="=",
-        timeout=60*2,
+        timeout=60 * 2,
     )
     # [END howto_sensor_databricks_partition]
 
     # Task dependency between the SQL sensor and the partition sensor.
-    # If the first task(sql_sensor) succeeds, the second task(partition_sensor) 
+    # If the first task(sql_sensor) succeeds, the second task(partition_sensor)
     # runs, else all the subsequent DAG tasks and the DAG are marked as failed.
     (sql_sensor >> partition_sensor)
 

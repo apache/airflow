@@ -125,14 +125,14 @@ Poking the specific table with the SQL statement:
 DatabricksPartitionSensor
 =========================
 
-Use the :class:`~airflow.providers.databricks.sensors.partition.DatabricksPartitionSensor` to run the sensor 
+Use the :class:`~airflow.providers.databricks.sensors.partition.DatabricksPartitionSensor` to run the sensor
 for a table accessible via a Databricks SQL warehouse or interactive cluster.
 
 Using the Sensor
 ----------------
 
-The sensor accepts the table name and partition name(s), value(s) from the user and generates the SQL query to check if 
-the specified partition name, value(s) exist in the specified table. 
+The sensor accepts the table name and partition name(s), value(s) from the user and generates the SQL query to check if
+the specified partition name, value(s) exist in the specified table.
 
 The required parameters are:
 
@@ -142,7 +142,7 @@ The required parameters are:
 
 * ``partition_operator`` (comparison operator for partitions, such as >=).
 
-*   One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or          ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
+*   One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
 
 Other parameters are optional and could be found in the class documentation.
 
