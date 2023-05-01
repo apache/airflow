@@ -908,6 +908,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']
         pass_filenames: false
+      - id: check-tests-unittest-testcase
+        name: Check that unit tests do not inherit from unittest.TestCase
+        entry: ./scripts/ci/pre_commit/pre_commit_unittest_testcase.py
+        language: python
+        pass_filenames: true
+        files: ^tests/.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
