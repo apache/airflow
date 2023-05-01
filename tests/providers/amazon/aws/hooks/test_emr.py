@@ -178,7 +178,7 @@ class TestEmrHook:
         assert not result
         assert message.startswith("'Amazon Elastic MapReduce' Airflow Connection cannot be tested")
 
-@mock_emr
+    @mock_emr
     def test_get_cluster_id_by_name(self):
         """
         Test that we can resolve cluster id by cluster name.
