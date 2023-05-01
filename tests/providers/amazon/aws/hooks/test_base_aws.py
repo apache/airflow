@@ -27,6 +27,7 @@ from unittest.mock import MagicMock, PropertyMock, mock_open
 from uuid import UUID
 
 import boto3
+import botocore
 import jinja2
 import pytest
 from botocore.config import Config
@@ -1081,3 +1082,14 @@ def test_waiter_config_param_wrong_format(waiter_path_mock: MagicMock):
 
     with pytest.raises(jinja2.TemplateSyntaxError):
         hook.get_waiter("bad_param_wait")
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_custom_waiter_with_resource_type(waiter_path_mock: MagicMock):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(resource_type="dynamodb")  # needs to be a real client type
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter") as BaseBotoWaiter:
+        hook.get_waiter("other_wait")
+
+    assert isinstance(BaseBotoWaiter.call_args[1]["client"], botocore.client.BaseClient)

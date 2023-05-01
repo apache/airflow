@@ -68,28 +68,33 @@ with models.DAG(
     catchup=False,
     tags=["example", "dataproc"],
 ) as dag:
-    # [START how_to_cloud_dataproc_create_workflow_template]
     create_workflow_template = DataprocCreateWorkflowTemplateOperator(
         task_id="create_workflow_template",
         template=WORKFLOW_TEMPLATE,
         project_id=PROJECT_ID,
         region=REGION,
     )
-    # [END how_to_cloud_dataproc_create_workflow_template]
 
-    # [START how_to_cloud_dataproc_trigger_workflow_template]
-    trigger_workflow = DataprocInstantiateWorkflowTemplateOperator(
-        task_id="trigger_workflow", region=REGION, project_id=PROJECT_ID, template_id=WORKFLOW_NAME
+    # [START how_to_cloud_dataproc_trigger_workflow_template_async]
+    trigger_workflow_async = DataprocInstantiateWorkflowTemplateOperator(
+        task_id="trigger_workflow_async",
+        region=REGION,
+        project_id=PROJECT_ID,
+        template_id=WORKFLOW_NAME,
+        deferrable=True,
     )
-    # [END how_to_cloud_dataproc_trigger_workflow_template]
+    # [END how_to_cloud_dataproc_trigger_workflow_template_async]
 
-    # [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
-    instantiate_inline_workflow_template = DataprocInstantiateInlineWorkflowTemplateOperator(
-        task_id="instantiate_inline_workflow_template", template=WORKFLOW_TEMPLATE, region=REGION
+    # [START how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
+    instantiate_inline_workflow_template_async = DataprocInstantiateInlineWorkflowTemplateOperator(
+        task_id="instantiate_inline_workflow_template_async",
+        template=WORKFLOW_TEMPLATE,
+        region=REGION,
+        deferrable=True,
     )
-    # [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
+    # [END how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
 
-    (create_workflow_template >> trigger_workflow >> instantiate_inline_workflow_template)
+    (create_workflow_template >> trigger_workflow_async >> instantiate_inline_workflow_template_async)
 
     from tests.system.utils.watcher import watcher
 

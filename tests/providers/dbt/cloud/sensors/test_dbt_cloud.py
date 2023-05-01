@@ -88,7 +88,22 @@ class TestDbtCloudJobRunSensor:
             with pytest.raises(DbtCloudJobRunException, match=error_message):
                 self.sensor.poke({})
 
-    def test_execute_with_deferrable_mode(self):
+    @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")
+    @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor.defer")
+    def test_dbt_cloud_job_run_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        task = DbtCloudJobRunSensor(
+            dbt_cloud_conn_id=self.CONN_ID,
+            task_id=self.TASK_ID,
+            run_id=self.DBT_RUN_ID,
+            timeout=self.TIMEOUT,
+            deferrable=True,
+        )
+        mock_hook.return_value.get_job_run_status.return_value = DbtCloudJobRunStatus.SUCCESS.value
+        task.execute(mock.MagicMock())
+        assert not mock_defer.called
+
+    @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")
+    def test_execute_with_deferrable_mode(self, mock_hook):
         """Assert execute method defer for Dbt cloud job run status sensors"""
         task = DbtCloudJobRunSensor(
             dbt_cloud_conn_id=self.CONN_ID,
@@ -97,6 +112,7 @@ class TestDbtCloudJobRunSensor:
             timeout=self.TIMEOUT,
             deferrable=True,
         )
+        mock_hook.return_value.get_job_run_status.return_value = DbtCloudJobRunStatus.STARTING.value
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
@@ -151,7 +167,8 @@ class TestDbtCloudJobRunSensorAsync:
         "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead"
     )
 
-    def test_dbt_job_run_sensor_async(self):
+    @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")
+    def test_dbt_job_run_sensor_async(self, mock_hook):
         """Assert execute method defer for Dbt cloud job run status sensors"""
 
         with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
@@ -161,6 +178,7 @@ class TestDbtCloudJobRunSensorAsync:
                 run_id=self.DBT_RUN_ID,
                 timeout=self.TIMEOUT,
             )
+        mock_hook.return_value.get_job_run_status.return_value = DbtCloudJobRunStatus.STARTING.value
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"

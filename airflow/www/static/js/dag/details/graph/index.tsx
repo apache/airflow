@@ -107,7 +107,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       const x = node?.positionAbsolute?.x || node?.position.x;
       const y = node?.positionAbsolute?.y || node?.position.y;
       if (!x || !y) return;
-      setCenter(x, y, { duration: 1000 });
+      setCenter(
+        x + (node.data.width || 0) / 2,
+        y + (node.data.height || 0) / 2,
+        {
+          duration: 1000,
+        }
+      );
     }
   };
 
