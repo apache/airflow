@@ -128,7 +128,7 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
-      affected-providers-list-as-string: >
+      affected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
@@ -662,7 +662,7 @@ jobs:
         if: always()
 
   docs:
-    timeout-minutes: 45
+    timeout-minutes: 90
     name: "Build docs"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
