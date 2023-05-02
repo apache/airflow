@@ -95,6 +95,8 @@ class TestBatchOperator:
         assert self.batch.container_overrides == {}
         assert self.batch.array_properties is None
         assert self.batch.node_overrides is None
+        assert self.batch.share_identifier is None
+        assert self.batch.scheduling_priority_override is None
         assert self.batch.hook.region_name == "eu-west-1"
         assert self.batch.hook.aws_conn_id == "airflow_test"
         assert self.batch.hook.client == self.client_mock

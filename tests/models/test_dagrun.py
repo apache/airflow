@@ -39,6 +39,7 @@ from airflow.models import (
     clear_task_instances,
 )
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRunNote
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
@@ -1723,7 +1724,6 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         session.merge(ti)
     session.flush()
     with caplog.at_level(logging.DEBUG):
-
         # Run verify_integrity as a whole and assert the tasks were removed
         dr.verify_integrity()
         tis = dr.get_task_instances()
@@ -2288,3 +2288,28 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     dr1.task_instance_scheduling_decisions(session)
     for table in [TaskFail, XCom]:
         assert session.query(table).count() == 0
+
+
+def test_dagrun_with_note(dag_maker, session):
+    with dag_maker():
+
+        @task
+        def the_task():
+            print("Hi")
+
+        the_task()
+
+    dr: DagRun = dag_maker.create_dagrun()
+    dr.note = "dag run with note"
+
+    session.add(dr)
+    session.commit()
+
+    dr_note = session.query(DagRunNote).filter(DagRunNote.dag_run_id == dr.id).one()
+    assert dr_note.content == "dag run with note"
+
+    session.delete(dr)
+    session.commit()
+
+    assert session.query(DagRun).filter(DagRun.id == dr.id).one_or_none() is None
+    assert session.query(DagRunNote).filter(DagRunNote.dag_run_id == dr.id).one_or_none() is None

@@ -1504,16 +1504,29 @@ class TestBackfillJob:
 
         # Test for success
         # The in-memory task key in ti_status.running contains a try_number
-        # that is always one behind the DB. The _update_counters method however uses
-        # a reduced_key to handle this. To test this, we mark the task as running in-memory
-        # and then increase the try number as it would be before the raw task is executed.
-        # When updating the counters the reduced_key will be used which will match what's
-        # in the in-memory ti_status.running map. This is the same for skipped, failed
-        # and retry states.
+        # that is not in sync with the DB. To test that _update_counters method
+        # handles this, we mark the task as running in-memory and then increase
+        # the try number as it would be before the raw task is executed.
+        # When updating the counters the in-memory key will be used which will
+        # match what's in the in-memory ti_status.running map. This is the same
+        # for skipped, failed and retry states.
         ti_status.running[ti.key] = ti  # Task is queued and marked as running
         ti._try_number += 1  # Try number is increased during ti.run()
         ti.set_state(State.SUCCESS, session)  # Task finishes with success state
         job_runner._update_counters(ti_status=ti_status, session=session)  # Update counters
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 1
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 0
+
+        ti_status.succeeded.clear()
+
+        # Test for success when DB try_number is off from in-memory expectations
+        ti_status.running[ti.key] = ti
+        ti._try_number += 2
+        ti.set_state(State.SUCCESS, session)
+        job_runner._update_counters(ti_status=ti_status, session=session)
         assert len(ti_status.running) == 0
         assert len(ti_status.succeeded) == 1
         assert len(ti_status.skipped) == 0
@@ -1566,8 +1579,7 @@ class TestBackfillJob:
         # rescheduled (which makes sense because it's the _same_ try, but it's
         # just being rescheduled to a later time). This now makes the in-memory
         # and DB representation of the task try_number the _same_, which is unlike
-        # the above cases. But this is okay because the reduced_key is NOT used for
-        # the rescheduled case in _update_counters, for this exact reason.
+        # the above cases. But this is okay because the in-memory key is used.
         ti_status.running[ti.key] = ti  # Task queued and marked as running
         # Note: Both the increase and decrease are kept here for context
         ti._try_number += 1  # Try number is increased during ti.run()
@@ -1585,7 +1597,7 @@ class TestBackfillJob:
         # test for none
         ti.set_state(State.NONE, session)
         # Setting ti._try_number = 0 brings us to ti.try_number==1
-        # so that the reduced_key access will work fine
+        # so that the in-memory key access will work fine
         ti._try_number = 0
         assert ti.try_number == 1  # see ti.try_number property in taskinstance module
         session.merge(ti)

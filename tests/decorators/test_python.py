@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Dict, Tuple
 import pytest
 
 from airflow import PY38
-from airflow.decorators import task as task_decorator
+from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
@@ -33,9 +33,11 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import PlainXComArg, XComArg
+from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
@@ -854,3 +856,55 @@ def test_task_decorator_dataset(dag_maker, session):
     assert len(decision.schedulable_tis) == 1  # "down"
     decision.schedulable_tis[0].run(session=session)
     assert result == uri
+
+
+@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
+def test_teardown_trigger_rule_selective_application(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def my_work():
+            return "abc"
+
+        @setup
+        @dag.task
+        def my_setup():
+            return "abc"
+
+        @teardown
+        @dag.task
+        def my_teardown():
+            return "abc"
+
+        work_task = my_work()
+        setup_task = my_setup()
+        teardown_task = my_teardown()
+    assert work_task.operator.trigger_rule == TriggerRule.ALL_SUCCESS
+    assert setup_task.operator.trigger_rule == TriggerRule.ALL_SUCCESS
+    assert teardown_task.operator.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
+
+
+@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
+def test_teardown_trigger_rule_override_behavior(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
+        def my_work():
+            return "abc"
+
+        @setup
+        @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
+        def my_setup():
+            return "abc"
+
+        @teardown
+        @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
+        def my_teardown():
+            return "abc"
+
+        work_task = my_work()
+        setup_task = my_setup()
+        with pytest.raises(Exception, match="Trigger rule not configurable for teardown tasks."):
+            my_teardown()
+    assert work_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
+    assert setup_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS

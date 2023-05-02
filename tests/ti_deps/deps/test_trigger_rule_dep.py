@@ -23,16 +23,21 @@ from unittest import mock
 from unittest.mock import Mock
 
 import pytest
+from pytest import param
 
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.settings import _ENABLE_AIP_52
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
+
+SKIPPED = TaskInstanceState.SKIPPED
+UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
 
 
 @pytest.fixture
@@ -46,6 +51,10 @@ def get_task_instance(monkeypatch, session, dag_maker):
         upstream_failed: int | list[str] = 0,
         removed: int | list[str] = 0,
         done: int = 0,
+        skipped_setup: int = 0,
+        success_setup: int = 0,
+        normal_tasks: list[str] | None = None,
+        setup_tasks: list[str] | None = None,
     ):
         with dag_maker(session=session):
             task = BaseOperator(
@@ -53,9 +62,10 @@ def get_task_instance(monkeypatch, session, dag_maker):
                 trigger_rule=trigger_rule,
                 start_date=datetime(2015, 1, 1),
             )
-            for upstreams in (success, skipped, failed, upstream_failed, removed, done):
-                if not isinstance(upstreams, int):
-                    [EmptyOperator(task_id=task_id) for task_id in upstreams] >> task
+            for task_id in normal_tasks or []:
+                EmptyOperator(task_id=task_id) >> task
+            for task_id in setup_tasks or []:
+                EmptyOperator.as_setup(task_id=task_id) >> task
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
@@ -67,6 +77,8 @@ def get_task_instance(monkeypatch, session, dag_maker):
             upstream_failed=(upstream_failed if isinstance(upstream_failed, int) else len(upstream_failed)),
             removed=(removed if isinstance(removed, int) else len(removed)),
             done=done,
+            skipped_setup=skipped_setup,
+            success_setup=success_setup,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: fake_upstream_states)
 
@@ -338,12 +350,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=1,
+            normal_tasks=["FakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -360,12 +373,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
-            failed=["OtherFakeTaskID"],
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -387,12 +401,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -413,12 +428,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         ti.task.xcom_pull.return_value = None
         xcom_mock = Mock(return_value=None)
@@ -446,12 +462,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         ti.task.xcom_pull.return_value = None
         xcom_mock = Mock(return_value=True)
@@ -476,12 +493,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -499,12 +517,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
-            failed=["FailedFakeTaskID"],
+            success=1,
+            skipped=1,
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -522,12 +541,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -545,11 +565,12 @@ class TestTriggerRuleDep:
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
             success=0,
-            skipped=["FakeTaskID", "OtherFakeTaskID"],
+            skipped=2,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -567,12 +588,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-            success=["FakeTaskID"],
-            skipped=["OtherFakeTaskID"],
-            failed=["FailedFakeTaskID"],
+            success=1,
+            skipped=1,
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -592,10 +614,11 @@ class TestTriggerRuleDep:
             TriggerRule.ALL_FAILED,
             success=0,
             skipped=0,
-            failed=["FakeTaskID", "OtherFakeTaskID"],
+            failed=2,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -612,12 +635,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_FAILED,
-            success=["FakeTaskID", "OtherFakeTaskID"],
+            success=2,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -635,12 +659,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_DONE,
-            success=["FakeTaskID", "OtherFakeTaskID"],
+            success=2,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -651,18 +676,129 @@ class TestTriggerRuleDep:
         )
         assert len(dep_statuses) == 0
 
+    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
+    @pytest.mark.parametrize(
+        "task_cfg, states, exp_reason, exp_state",
+        [
+            param(
+                dict(work=2, setup=0),
+                dict(success=2, done=2),
+                None,
+                None,
+                id="no setups",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=2),
+                "but found 1 task(s) that were not done",
+                None,
+                id="setup not done",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=3),
+                "requires at least one upstream setup task be successful",
+                UPSTREAM_FAILED,
+                id="setup failed",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=4, success_setup=1),
+                None,
+                None,
+                id="one setup failed one success",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=3, success_setup=1),
+                "found 1 task(s) that were not done",
+                None,
+                id="one setup success one running",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=3, failed=1),
+                "requires at least one upstream setup task be successful",
+                UPSTREAM_FAILED,
+                id="setup failed",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=4, failed=1, skipped_setup=1),
+                "requires at least one upstream setup task be successful",
+                UPSTREAM_FAILED,
+                id="one setup failed one skipped",
+            ),
+            param(
+                dict(work=2, setup=2),
+                dict(success=2, done=4, failed=0, skipped_setup=2),
+                "requires at least one upstream setup task be successful",
+                SKIPPED,
+                id="two setups both skipped",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=3, done=3, success_setup=1),
+                None,
+                None,
+                id="all success",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=1, done=3, success_setup=1),
+                None,
+                None,
+                id="work failed",
+            ),
+            param(
+                dict(work=2, setup=1),
+                dict(success=2, done=3, skipped_setup=1),
+                "requires at least one upstream setup task be successful",
+                SKIPPED,
+                id="one setup; skipped",
+            ),
+        ],
+    )
+    def test_teardown_tr_not_all_done(
+        self, task_cfg, states, exp_reason, exp_state, session, get_task_instance
+    ):
+        """
+        All-done trigger rule success
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_DONE_SETUP_SUCCESS,
+            **states,
+            normal_tasks=[f"w{x}" for x in range(task_cfg["work"])],
+            setup_tasks=[f"s{x}" for x in range(task_cfg["setup"])],
+        )
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti, dep_context=DepContext(flag_upstream_failed=True), session=session
+            )
+        )
+        if exp_reason:
+            dep_status = dep_statuses[0]
+            assert len(dep_statuses) == 1
+            assert exp_reason in dep_status.reason
+            assert dep_status.passed is False
+            assert ti.state == exp_state
+        else:
+            assert len(dep_statuses) == 0
+            assert ti.state is None
+
     def test_all_skipped_tr_failure(self, session, get_task_instance):
         """
         All-skipped trigger rule failure
         """
         ti = get_task_instance(
             TriggerRule.ALL_SKIPPED,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=1,
+            normal_tasks=["FakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -682,11 +818,12 @@ class TestTriggerRuleDep:
         ti = get_task_instance(
             TriggerRule.ALL_SKIPPED,
             success=0,
-            skipped=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
+            skipped=3,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -703,12 +840,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.ALL_DONE,
-            success=["FakeTaskID"],
+            success=1,
             skipped=0,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=1,
+            normal_tasks=["FakeTaskID"],
         )
         EmptyOperator(task_id="OtherFakeTeakID", dag=ti.task.dag) >> ti.task  # An unfinished upstream.
 
@@ -729,12 +867,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_SKIPPED,
-            success=["FakeTaskID", "OtherFakeTaskID"],
+            success=2,
             skipped=0,
-            failed=["FailedFakeTaskID"],
+            failed=1,
             removed=0,
             upstream_failed=0,
             done=3,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -752,12 +891,13 @@ class TestTriggerRuleDep:
         """
         ti = get_task_instance(
             TriggerRule.NONE_SKIPPED,
-            success=["FakeTaskID"],
-            skipped=["SkippedTaskID"],
+            success=1,
+            skipped=1,
             failed=0,
             removed=0,
             upstream_failed=0,
             done=2,
+            normal_tasks=["FakeTaskID", "SkippedTaskID"],
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -846,9 +986,9 @@ class TestTriggerRuleDep:
             return (ti for ti in tis.values() if ti.task_id in tis[task_id].task.upstream_task_ids)
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op2")) == (1, 0, 0, 0, 0, 1)
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op4")) == (1, 0, 1, 0, 0, 2)
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op5")) == (2, 0, 1, 0, 0, 3)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op2")) == (1, 0, 0, 0, 0, 1, 0, 0)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op4")) == (1, 0, 1, 0, 0, 2, 0, 0)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op5")) == (2, 0, 1, 0, 0, 3, 0, 0)
 
         dr.update_state(session=session)
         assert dr.state == DagRunState.SUCCESS
@@ -875,6 +1015,8 @@ class TestTriggerRuleDep:
             removed=2,
             upstream_failed=0,
             done=5,
+            skipped_setup=0,
+            success_setup=0,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
@@ -912,6 +1054,8 @@ class TestTriggerRuleDep:
             removed=2,
             upstream_failed=0,
             done=5,
+            skipped_setup=0,
+            success_setup=0,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
@@ -952,6 +1096,8 @@ class TestTriggerRuleDep:
             removed=2,
             upstream_failed=0,
             done=5,
+            skipped_setup=0,
+            success_setup=0,
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 

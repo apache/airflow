@@ -227,6 +227,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase      |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                                       |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                                     |         |
@@ -428,7 +430,7 @@ Run the ``mypy`` check for all files:
 
      breeze static-checks --type mypy-core --all-files
 
-Run the ``ruff`` check for the ``tests.core.py`` file with verbose output:
+Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
 .. code-block:: bash
 
@@ -439,6 +441,14 @@ Run the ``ruff for the ``tests.core`` package with verbose output:
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
+
+Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+``airflow/example_dags/example_python_operator.py``:
+
+.. code-block:: bash
+
+     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+         airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:
 

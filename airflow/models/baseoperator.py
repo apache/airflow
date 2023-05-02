@@ -258,7 +258,7 @@ def partial(
 
     dag = dag or DagContext.get_current_dag()
     if dag:
-        task_group = TaskGroupContext.get_current_task_group(dag)
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
     if task_group:
         task_id = task_group.child_id(task_id)
 
@@ -979,7 +979,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise AirflowException("AIP-52 Teardown tasks are disabled.")
 
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        op = cls(*args, **kwargs)
+        if "trigger_rule" in kwargs:
+            raise ValueError("Cannot set trigger rule for teardown tasks.")
+        op = cls(*args, **kwargs, trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         op._is_teardown = True
         op._on_failure_fail_dagrun = on_failure_fail_dagrun
         return op

@@ -162,9 +162,10 @@ with DAG(
         job_name=glue_job_name,
         # Job ID extracted from previous Glue Job Operator task
         run_id=submit_glue_job.output,
+        verbose=True,  # prints glue job logs in airflow logs
     )
     # [END howto_sensor_glue]
-    wait_for_job.poke_interval = 10
+    wait_for_job.poke_interval = 5
 
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
