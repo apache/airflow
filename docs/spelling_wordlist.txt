@@ -330,6 +330,7 @@ dagbags
 DagCallbackRequest
 DagFileProcessorManager
 dagmodel
+DagParam
 Dagre
 dagre
 DagRun
