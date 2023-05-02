@@ -4183,6 +4183,21 @@
                         }
                     }
                 },
+                "serviceMonitor": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean",
+                        "title": "Create Prometheus Operator ServiceMonitor",
+                        "description": "Create a ServiceMonitor to track metrics using Prometheus Operator",
+                        "form": true,
+                        "hidden": {
+                          "condition": false,
+                          "value": "statsd.enabled"
+                        }
+                      }
+                    }
+                },                
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",

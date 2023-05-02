@@ -1,0 +1,48 @@
+{{- if and .Values.statsd.enabled .Values.statsd.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}
+  {{- if .Values.statsd.serviceMonitor.namespace }}
+  namespace: {{ .Values.statsd.serviceMonitor.namespace }}
+  {{- else }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+  {{- if .Values.statsd.serviceMonitor.labels }}
+  labels: 
+  {{- include "common.tplvalues.render" ( dict "value" .Values.statsd.serviceMonitor.labels "context" $ ) | nindent 4 }}
+  {{- end }}    
+  {{- if .Values.commonAnnotations }}
+  annotations:
+  {{- end }}
+spec:
+  {{- if .Values.statsd.serviceMonitor.jobLabel }}
+  jobLabel: {{ .Values.statsd.serviceMonitor.jobLabel }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- if .Values.statsd.serviceMonitor.selector }}
+      {{- include "common.tplvalues.render" (dict "value" .Values.statsd.serviceMonitor.selector "context" $) | nindent 6 }}
+      {{- end }}
+  endpoints:
+    - port: statsd-scrape
+      path: /metrics
+      {{- if .Values.statsd.serviceMonitor.interval }}
+      interval: {{ .Values.statsd.serviceMonitor.interval }}
+      {{- end }}
+      {{- if .Values.statsd.serviceMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .Values.statsd.serviceMonitor.scrapeTimeout }}
+      {{- end }}
+      {{- if .Values.statsd.serviceMonitor.honorLabels }}
+      honorLabels: {{ .Values.statsd.serviceMonitor.honorLabels }}
+      {{- end }}
+      {{- if .Values.statsd.serviceMonitor.metricRelabelings }}
+      metricRelabelings: {{- toYaml .Values.statsd.serviceMonitor.metricRelabelings | nindent 6 }}
+      {{- end }}
+      {{- if .Values.statsd.serviceMonitor.relabelings }}
+      relabelings: {{- toYaml .Values.statsd.serviceMonitor.relabelings | nindent 6 }}
+      {{- end }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+{{- end }}
