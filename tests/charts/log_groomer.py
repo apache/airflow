@@ -33,8 +33,7 @@ class LogGroomerTestBase:
             values = None
 
         docs = render_chart(
-            values=values, 
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
         assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
@@ -67,10 +66,9 @@ class LogGroomerTestBase:
             values = {"dagProcessor": {"enabled": True}}
         else:
             values = None
-            
+
         docs = render_chart(
-            values=values, 
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
@@ -83,8 +81,7 @@ class LogGroomerTestBase:
             values = None
 
         docs = render_chart(
-            values=values, 
-            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
         assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
@@ -121,7 +118,7 @@ class LogGroomerTestBase:
                     "logGroomerSidecar": {
                         "command": ["{{ .Release.Name }}"],
                         "args": ["{{ .Release.Service }}"],
-                    }
+                    },
                 }
             }
         else:
@@ -146,10 +143,7 @@ class LogGroomerTestBase:
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         if self.obj_name == "dag-processor":
             values = {
-                "dagProcessor": {
-                    "enabled": True,
-                    "logGroomerSidecar": {"retentionDays": retention_days}
-                }
+                "dagProcessor": {"enabled": True, "logGroomerSidecar": {"retentionDays": retention_days}}
             }
         else:
             values = {f"{self.folder}": {"logGroomerSidecar": {"retentionDays": retention_days}}}
@@ -179,7 +173,7 @@ class LogGroomerTestBase:
                             "requests": {"memory": "2Gi", "cpu": "1"},
                             "limits": {"memory": "3Gi", "cpu": "2"},
                         }
-                    }
+                    },
                 }
             }
         else:
