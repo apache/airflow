@@ -293,7 +293,7 @@ class PodManager(LoggingMixin):
         """Launches the pod asynchronously."""
         return self.run_pod_async(pod)
 
-    def await_pod_start(self, pod: V1Pod, startup_timeout: int = 120) -> None:
+    def await_pod_start(self, pod: V1Pod, startup_timeout: int = 120, startup_check_interval: int = 120) -> None:
         """
         Waits for the pod to reach phase other than ``Pending``
 
@@ -315,7 +315,7 @@ class PodManager(LoggingMixin):
                     "Check the pod events in kubernetes to determine why."
                 )
                 raise PodLaunchFailedException(msg)
-            time.sleep(1)
+            time.sleep(startup_check_interval)
 
     def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
         warnings.warn(
