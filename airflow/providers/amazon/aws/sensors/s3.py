@@ -20,8 +20,8 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
-from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Sequence
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, Callable, List, Sequence, cast
 
 from deprecated import deprecated
 
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.triggers.s3 import S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 
@@ -71,6 +72,7 @@ class S3KeySensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+     :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = ("bucket_key", "bucket_name")
@@ -84,6 +86,7 @@ class S3KeySensor(BaseSensorOperator):
         check_fn: Callable[..., bool] | None = None,
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -93,6 +96,7 @@ class S3KeySensor(BaseSensorOperator):
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.deferrable = deferrable
 
     def _check_key(self, key):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
@@ -130,6 +134,43 @@ class S3KeySensor(BaseSensorOperator):
             return self._check_key(self.bucket_key)
         else:
             return all(self._check_key(key) for key in self.bucket_key)
+
+    def execute(self, context: Context) -> None:
+        """
+        Defers to Trigger class to poll for state of the job run until
+        it reaches a failure state or success state
+        """
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=S3KeyTrigger(
+                        bucket_name=cast(str, self.bucket_name),
+                        bucket_key=self.bucket_key,
+                        wildcard_match=self.wildcard_match,
+                        check_fn=self.check_fn,
+                        aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        poke_interval=self.poke_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        elif event["status"] == "success" and "s3_objects" in event:
+            files = cast(List[str], event["s3_objects"])
+            if self.check_fn:
+                return self.check_fn(files)
+        return None
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> S3Hook:
