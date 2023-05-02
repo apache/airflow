@@ -253,6 +253,10 @@ def airflow_release(release_candidate, previous_release):
     # Commit the release to svn
     commit_release(version, release_candidate, svn_release_version_dir)
 
+    confirm_action(
+        "Verify that the artifacts appear in https://dist.apache.org/repos/dist/release/airflow/", abort=True
+    )
+
     # Remove old release
     if os.path.exists(svn_release_version_dir):
         os.chdir("..")
