@@ -62,20 +62,18 @@ def test_configuration_expose_config(admin_client):
     check_content_in_response(["Airflow Configuration"], resp)
 
 
-@mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": "/tmp/my_custom_webserver_config.py"})
-def test_webserver_configuration_config_file(admin_client):
+def test_webserver_configuration_config_file(admin_client, tmp_path):
+    config_file = tmp_path / "my_custom_webserver_config.py"
+    os.environ["AIRFLOW__WEBSERVER__CONFIG_FILE"] = str(config_file)
+
     conf = initialize_config()
     conf.validate()
 
     assert WEBSERVER_CONFIG == os.path.join(AIRFLOW_HOME, "webserver_config.py")
 
-    # new webserver config is created in this path
-    config_path = os.path.join("/tmp", "my_custom_webserver_config.py")
+    assert os.path.isfile(config_file)
 
-    assert os.path.isfile(config_path)
-
-    if os.path.isfile(config_path):
-        os.remove(config_path)
+    os.unsetenv("AIRFLOW__WEBSERVER__CONFIG_FILE")
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
