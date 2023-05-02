@@ -164,9 +164,9 @@ def push_artifacts_to_asf_repo(version, repo_root):
             check=True,
         )
         console_print("Files pushed to svn")
+        os.chdir(repo_root)
         # Remove old releases
         remove_old_releases(version, repo_root)
-        os.chdir(repo_root)
         run_command(["rm", "-rf", "asf-dist"], dry_run_override=DRY_RUN, check=True)
 
 
