@@ -424,7 +424,8 @@ def webserver(args):
         # all writing to the database at the same time, we use the --preload option.
         # With the preload option, the app is loaded before the workers are forked, and each worker will
         # then have a copy of the app
-        run_args += ["--preload"]
+        if not conf.getboolean("webserver", "reload_on_plugin_change", fallback=False):
+            run_args += ["--preload"]
 
         gunicorn_master_proc: psutil.Process | subprocess.Popen
 
