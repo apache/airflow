@@ -408,7 +408,7 @@ these guidelines:
     Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
-    `static code checks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ we have in our code. The easiest way
+    `static code checks <STATIC_CODE_CHECKS.rst#static-code-checks>`__ we have in our code. The easiest way
     to make sure of that is to use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
 
 -   Run tests locally before opening PR.
