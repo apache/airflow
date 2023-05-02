@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-04-29T00:01:15Z
+# This constraints file was automatically generated on 2023-05-02T19:28:37Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-6-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -19,9 +19,9 @@ Flask-JWT-Extended==4.4.4
 Flask-Limiter==3.3.0
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
-Flask-Session==0.4.0
+Flask-Session==0.4.1
 Flask-WTF==1.1.1
-Flask==2.2.4
+Flask==2.2.5
 HeapDict==1.0.1
 Jinja2==3.1.2
 Mako==1.2.4
@@ -32,7 +32,7 @@ PyYAML==6.0
 Pygments==2.15.1
 SQLAlchemy-JSONField==1.0.1.post0
 SQLAlchemy-Utils==0.41.1
-SQLAlchemy==1.4.47
+SQLAlchemy==1.4.48
 WTForms==3.0.1
 Werkzeug==2.2.3
 aiobotocore==2.5.0
@@ -109,12 +109,12 @@ jmespath==1.0.1
 jsonschema==4.17.3
 kombu==5.2.4
 krb5==0.5.0
-kubernetes-asyncio==24.2.2
+kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
 lazy-object-proxy==1.9.0
 ldap3==2.9.1
 limits==3.4.0
-linkify-it-py==2.0.0
+linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
 markdown-it-py==2.2.0
@@ -152,7 +152,7 @@ prompt-toolkit==3.0.38
 protobuf==4.22.3
 psutil==5.9.5
 pure-sasl==0.6.2
-pyarrow==11.0.0
+pyarrow==12.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycparser==2.21
@@ -190,7 +190,7 @@ thrift==0.16.0
 toolz==0.12.0
 tornado==6.2
 typing_extensions==4.5.0
-uc-micro-py==1.0.1
+uc-micro-py==1.0.2
 unicodecsv==0.14.1
 urllib3==1.26.15
 vine==5.0.0
