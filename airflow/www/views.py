@@ -70,7 +70,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, nullslast, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -789,15 +789,17 @@ class Airflow(AirflowBaseView):
                     dag_run_subquery, and_(dag_run_subquery.c.dag_id == DagModel.dag_id)
                 )
                 if arg_sorting_direction == "desc":
-                    current_dags = current_dags.order_by(dag_run_subquery.c.max_execution_date.desc())
+                    current_dags = current_dags.order_by(
+                        nullslast(dag_run_subquery.c.max_execution_date.desc())
+                    )
                 else:
-                    current_dags = current_dags.order_by(dag_run_subquery.c.max_execution_date)
+                    current_dags = current_dags.order_by(nullslast(dag_run_subquery.c.max_execution_date))
             else:
                 sort_column = DagModel.__table__.c.get(arg_sorting_key)
                 if sort_column is not None:
                     if arg_sorting_direction == "desc":
                         sort_column = sort_column.desc()
-                    current_dags = current_dags.order_by(sort_column)
+                    current_dags = current_dags.order_by(nullslast(sort_column))
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
             user_permissions = g.user.perms
