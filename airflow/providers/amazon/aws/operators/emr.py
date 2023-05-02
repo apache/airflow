@@ -25,7 +25,7 @@ from uuid import uuid4
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.providers.amazon.aws.links.emr import EmrClusterLink
+from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -68,7 +68,10 @@ class EmrAddStepsOperator(BaseOperator):
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"steps": "json"}
     ui_color = "#f9c915"
-    operator_extra_links = (EmrClusterLink(),)
+    operator_extra_links = (
+        EmrClusterLink(),
+        EmrLogsLink(),
+    )
 
     def __init__(
         self,
@@ -119,6 +122,15 @@ class EmrAddStepsOperator(BaseOperator):
             aws_partition=emr_hook.conn_partition,
             job_flow_id=job_flow_id,
         )
+        if self.job_flow_id:
+            EmrLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=emr_hook.conn_region_name,
+                aws_partition=emr_hook.conn_partition,
+                job_flow_id=self.job_flow_id,
+                log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.job_flow_id),
+            )
 
         self.log.info("Adding steps to %s", job_flow_id)
 
@@ -597,7 +609,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = "#f9c915"
-    operator_extra_links = (EmrClusterLink(),)
+    operator_extra_links = (EmrLogsLink(),)
 
     def __init__(
         self,
@@ -671,6 +683,15 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 aws_partition=self._emr_hook.conn_partition,
                 job_flow_id=self._job_flow_id,
             )
+            if self._job_flow_id:
+                EmrLogsLink.persist(
+                    context=context,
+                    operator=self,
+                    region_name=self._emr_hook.conn_region_name,
+                    aws_partition=self._emr_hook.conn_partition,
+                    job_flow_id=self._job_flow_id,
+                    log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
+                )
 
             if self.wait_for_completion:
                 self._emr_hook.get_waiter("job_flow_waiting").wait(
@@ -712,7 +733,10 @@ class EmrModifyClusterOperator(BaseOperator):
     template_fields: Sequence[str] = ("cluster_id", "step_concurrency_level")
     template_ext: Sequence[str] = ()
     ui_color = "#f9c915"
-    operator_extra_links = (EmrClusterLink(),)
+    operator_extra_links = (
+        EmrClusterLink(),
+        EmrLogsLink(),
+    )
 
     def __init__(
         self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = "aws_default", **kwargs
@@ -735,6 +759,14 @@ class EmrModifyClusterOperator(BaseOperator):
             region_name=emr_hook.conn_region_name,
             aws_partition=emr_hook.conn_partition,
             job_flow_id=self.cluster_id,
+        )
+        EmrLogsLink.persist(
+            context=context,
+            operator=self,
+            region_name=emr_hook.conn_region_name,
+            aws_partition=emr_hook.conn_partition,
+            job_flow_id=self.cluster_id,
+            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.cluster_id),
         )
 
         self.log.info("Modifying cluster %s", self.cluster_id)
@@ -764,7 +796,10 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     template_fields: Sequence[str] = ("job_flow_id",)
     template_ext: Sequence[str] = ()
     ui_color = "#f9c915"
-    operator_extra_links = (EmrClusterLink(),)
+    operator_extra_links = (
+        EmrClusterLink(),
+        EmrLogsLink(),
+    )
 
     def __init__(self, *, job_flow_id: str, aws_conn_id: str = "aws_default", **kwargs):
         super().__init__(**kwargs)
@@ -781,6 +816,14 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             region_name=emr_hook.conn_region_name,
             aws_partition=emr_hook.conn_partition,
             job_flow_id=self.job_flow_id,
+        )
+        EmrLogsLink.persist(
+            context=context,
+            operator=self,
+            region_name=emr_hook.conn_region_name,
+            aws_partition=emr_hook.conn_partition,
+            job_flow_id=self.job_flow_id,
+            log_uri=get_log_uri(emr_client=emr, job_flow_id=self.job_flow_id),
         )
 
         self.log.info("Terminating JobFlow %s", self.job_flow_id)
