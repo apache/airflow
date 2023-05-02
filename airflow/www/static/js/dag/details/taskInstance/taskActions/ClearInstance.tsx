@@ -33,6 +33,7 @@ import { getMetaValue } from "src/utils";
 import { useKeysPress } from "src/utils/useKeysPress";
 import { useClearTask } from "src/api";
 import useClearTaskDryRun from "src/api/useClearTaskDryRun";
+import { keyboardShortcutIdentifier } from "src/dag/keyboardShortcutIdentifier";
 
 import ActionButton from "./ActionButton";
 import ActionModal from "./ActionModal";
@@ -80,7 +81,7 @@ const ClearInstance = ({
 
   const initialClearButtonFocusRef = useRef<HTMLButtonElement>(null);
 
-  useKeysPress("shiftKey", ['c', 'C'], onOpen);
+  useKeysPress(keyboardShortcutIdentifier.taskRunClear, onOpen);
 
   const mapIndexes =
     mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;

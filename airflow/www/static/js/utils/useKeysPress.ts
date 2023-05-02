@@ -17,10 +17,16 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import type { ControlKey } from 'src/types';
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { debounce } from "lodash";
 
-const useKeysPress = (controlKey: ControlKey, keys: Array<string>, callback: Function, node = null) => {
+import type { KeyboardShortcutKeys } from "src/types";
+
+const useKeysPress = (
+  keyboardShortcutKey: KeyboardShortcutKeys,
+  callback: Function,
+  node = null
+) => {
   const callbackRef = useRef(callback);
   useLayoutEffect(() => {
     callbackRef.current = callback;
@@ -29,13 +35,18 @@ const useKeysPress = (controlKey: ControlKey, keys: Array<string>, callback: Fun
   // handle what happens on key press
   const handleKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      // check if one of the key is part of the ones we want
-      if (event[controlKey] && keys.some((key: String) => event.key === key)) {
-            callbackRef.current(event);
+      // check if one of the primaryKey and secondaryKey are pressed at once
+      if (
+        event[keyboardShortcutKey.primaryKey] &&
+        keyboardShortcutKey.secondaryKey.some((key: String) => event.key === key)
+      ) {
+        callbackRef.current(event);
       }
     },
-    [keys]
+    [keyboardShortcutKey.secondaryKey]
   );
+
+  const deboucedHandleKeyPress = debounce(handleKeyPress, 25);
 
   useEffect(() => {
     // target is either the provided node or the document
@@ -43,15 +54,13 @@ const useKeysPress = (controlKey: ControlKey, keys: Array<string>, callback: Fun
 
     // attach the event listener
     targetNode &&
-      targetNode.addEventListener("keydown", handleKeyPress);
+      targetNode.addEventListener("keydown", deboucedHandleKeyPress);
 
     // remove the event listener
     return () =>
       targetNode &&
-        targetNode.removeEventListener("keydown", handleKeyPress);
+      targetNode.removeEventListener("keydown", deboucedHandleKeyPress);
   }, [handleKeyPress, node]);
 };
 
-export {
-    useKeysPress
-};
+export { useKeysPress };
