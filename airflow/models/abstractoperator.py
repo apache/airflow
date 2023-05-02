@@ -21,8 +21,6 @@ import datetime
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-import pandas as pd
-
 from airflow.compat.functools import cache, cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -566,8 +564,17 @@ class AbstractOperator(Templater, DAGNode):
                     f"{attr_name!r} is configured as a template field "
                     f"but {parent.task_type} does not have this attribute."
                 )
-            if isinstance(value, pd.DataFrame) or not value:
+
+            try:
+                if not value:
+                    continue
+            except ValueError:
+                # This may happen if the templated field points to a class which does not
+                # implement `__nonzero__`, such as Pandas DataFrames.
+                # The assumption, in these cases, is that we do not know how to render the
+                # templated field, and we should continue.
                 continue
+
             try:
                 rendered_content = self.render_template(
                     value,
