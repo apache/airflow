@@ -29,8 +29,9 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.util.types import Attributes
 
 from airflow.configuration import conf
+from airflow.exceptions import InvalidStatsNameException
 from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
-from airflow.metrics.validators import AllowListValidator, validate_stat
+from airflow.metrics.validators import AllowListValidator, stat_name_default_handler, validate_stat
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,32 @@ def _generate_key_name(name: str, attributes: Attributes = None):
     return f"{name}{'_' + str(attributes) if attributes else ''}"
 
 
+def name_is_otel_safe(prefix: str, name: str) -> bool:
+    """
+    Returns true is the provided name and prefix would result in a name compatible with Open Telemetry.
+    Legal names are defined here:
+    https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
+    """
+
+    def test(value) -> bool:
+        return bool(stat_name_default_handler(value, max_length=OTEL_NAME_MAX_LENGTH))
+
+    try:
+        if not name:
+            raise InvalidStatsNameException
+        test(name)
+        if prefix:
+            test(prefix)
+            test(f"{prefix}.{name}")
+        return True
+    except InvalidStatsNameException:
+        log.exception(
+            f"Invalid stat name: {prefix}.{name}.  Please see "
+            f"https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax"
+        )
+    return False
+
+
 class SafeOtelLogger:
     """Otel Logger"""
 
@@ -59,7 +86,6 @@ class SafeOtelLogger:
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
 
-    @validate_stat
     def incr(
         self,
         stat: str,
@@ -81,12 +107,11 @@ class SafeOtelLogger:
         if rate < 1 and random.random() > rate:
             return
 
-        if self.metrics_validator.test(stat):
+        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")
             counter.add(count, attributes=tags)
             return counter
 
-    @validate_stat
     def decr(
         self,
         stat: str,
@@ -108,7 +133,7 @@ class SafeOtelLogger:
         if rate < 1 and random.random() > rate:
             return
 
-        if self.metrics_validator.test(stat):
+        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")
             counter.add(-count, attributes=tags)
             return counter

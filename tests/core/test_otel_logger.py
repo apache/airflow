@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 import pytest
@@ -44,6 +45,7 @@ class TestOtelMetrics:
         self.meter = mock.Mock(MeterProvider)
         self.stats = SafeOtelLogger(otel_provider=self.meter)
         self.map = self.stats.metrics_map.map
+        self.logger = logging.getLogger(__name__)
 
     def test_is_up_down_counter_positive(self):
         udc = next(iter(UP_DOWN_COUNTERS))
@@ -53,20 +55,20 @@ class TestOtelMetrics:
     def test_is_up_down_counter_negative(self):
         assert not _is_up_down_counter("this_is_not_a_udc")
 
-    def test_stat_name_must_be_a_string(self):
-        self.stats.incr(42)
+    @pytest.mark.parametrize(
+        "invalid_stat_name",
+        [
+            pytest.param(None, id="Stat name can not be none."),
+            pytest.param(42, id="Stat name is not a string."),
+            pytest.param("X" * OTEL_NAME_MAX_LENGTH, id="Stat name too long."),
+            pytest.param("test/$tats", id="Stat name contains invalid characters."),
+        ],
+    )
+    def test_invalid_stat_names_are_caught(self, caplog, invalid_stat_name):
+        self.stats.incr(invalid_stat_name)
 
         self.meter.assert_not_called()
-
-    def test_stat_name_must_not_exceed_max_length(self):
-        self.stats.incr("X" * OTEL_NAME_MAX_LENGTH)
-
-        self.meter.assert_not_called()
-
-    def test_stat_name_must_only_include_allowed_characters(self):
-        self.stats.incr("test/$tats")
-
-        self.meter.assert_not_called()
+        assert f"Invalid stat name: {METRIC_NAME_PREFIX}{invalid_stat_name}" in caplog.text
 
     def test_incr_new_metric(self, name):
         self.stats.incr(name)
