@@ -2887,7 +2887,7 @@ class DAG(LoggingMixin):
         most_recent_runs = {}
         num_active_runs = {}
         # Save runtime if dag is not scheduleable
-        if [dag for dag in dags if not isinstance(dag.timetable, NullTimetable)]:
+        if any([dag for dag in dags if not isinstance(dag.timetable, NullTimetable)]):
             # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
             most_recent_subq = (
                 session.query(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
