@@ -29,6 +29,8 @@ import {
 } from "@chakra-ui/react";
 import { MdArrowDropDown } from "react-icons/md";
 import { getMetaValue } from "src/utils";
+import { useKeysPress } from "src/utils/useKeysPress";
+import { keyboardShortcutIdentifier } from "src/dag/keyboardShortcutIdentifier";
 import { useMarkFailedRun, useMarkSuccessRun } from "src/api";
 import type { RunState } from "src/types";
 
@@ -55,6 +57,9 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
   const markAsSuccess = () => {
     markSuccess({ confirmed: true });
   };
+
+  useKeysPress(keyboardShortcutIdentifier.dagMarkSuccess, () => { if (state === "failed") markAsSuccess() });
+  useKeysPress(keyboardShortcutIdentifier.dagMarkFailed, () => { if (state === "success") markAsFailed() });
 
   const markLabel = "Manually set dag run state";
   return (

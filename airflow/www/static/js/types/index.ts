@@ -132,7 +132,17 @@ interface DatasetListItem extends API.Dataset {
 
 type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
 
-type ControlKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
+type PrimaryShortcutKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
+
+interface KeyboardShortcutKeys {
+  primaryKey: PrimaryShortcutKey;
+  secondaryKey: Array<string>;
+  detail: string;
+}
+
+interface KeyboardShortcutIdentifier {
+  [name: string]: KeyboardShortcutKeys;
+}
 
 export type {
   API,
@@ -147,5 +157,6 @@ export type {
   Task,
   TaskInstance,
   TaskState,
-  ControlKey
+  KeyboardShortcutKeys,
+  KeyboardShortcutIdentifier,
 };
