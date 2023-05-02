@@ -293,7 +293,7 @@ class PodManager(LoggingMixin):
         """Launches the pod asynchronously."""
         return self.run_pod_async(pod)
 
-    def await_pod_start(self, pod: V1Pod, startup_timeout: int = 120, startup_check_interval: int = 120) -> None:
+    def await_pod_start(self, pod: V1Pod, startup_timeout: int = 120, startup_check_interval: int = 1) -> None:
         """
         Waits for the pod to reach phase other than ``Pending``
 
