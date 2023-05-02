@@ -58,7 +58,9 @@ DAGs
 ----
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
-instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file.
+instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
+them via :class::`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
+can also have parameters specified via :class::`~airflow.models.param.Param` class.
 
 Airflow has a set of example DAGs that you can use to learn how to write DAGs
 
@@ -72,6 +74,17 @@ Airflow has a set of example DAGs that you can use to learn how to write DAGs
 You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 
 .. _pythonapi:operators:
+
+References for the modules used in DAGs are here:
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/dag/index
+  _api/airflow/models/dagbag/index
+  _api/airflow/models/param/index
 
 Operators
 ---------
@@ -114,6 +127,30 @@ Also you can learn how to write a custom operator in :doc:`howto/custom-operator
 
 .. _pythonapi:hooks:
 
+References for the modules used in for operators are here:
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/baseoperator/index
+
+
+Task Instances
+--------------
+
+Task instances are the individual runs of a single task in a DAG (in a DAG Run). They are available in the context
+passed to the execute method of the operators via the :class:`~airflow.models.taskinstance.TaskInstance` class.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/taskinstance/index
+
+
 Hooks
 -----
 
@@ -143,6 +180,19 @@ use the following classes:
 
 You can read more about the public Airflow utilities in :doc:`howto/connection`,
 :doc:`core-concepts/variables`, :doc:`core-concepts/xcoms`
+
+
+Reference for classes used for the utilities are here:
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/connection/index
+  _api/airflow/models/variable/index
+  _api/airflow/models/xcom/index
+
 
 Public Exceptions
 -----------------
@@ -346,6 +396,8 @@ Lineage
 
 Airflow can help track origins of data, what happens to it and where it moves over time. You can read more
 about lineage in :doc:`administration-and-deployment/lineage`.
+
+
 
 
 What is not part of the Public Interface of Apache Airflow?
