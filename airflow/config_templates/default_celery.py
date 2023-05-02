@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 
 
 def _broker_supports_visibility_timeout(url):
-    return url.startswith("redis://") or url.startswith("sqs://")
+    return url.startswith("redis://") or url.startswith("rediss://") or url.startswith("sqs://")
 
 
 log = logging.getLogger(__name__)
