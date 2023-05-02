@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-import pandas as pd
 import pendulum
 import pytest
 
@@ -62,20 +61,24 @@ def test_task_mapping_with_dag():
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(caplog):
     caplog.set_level(logging.INFO)
 
-    class CustomOperator(BaseOperator):
-        template_fields = ("dataframe",)
+    class UnrenderableClass:
+        def __non_zero__(self):
+            raise ValueError("Similar to Pandas DataFrames, this class does not implement zero comparison.")
 
-        def __init__(self, dataframe, **kwargs):
+    class CustomOperator(BaseOperator):
+        template_fields = ("arg",)
+
+        def __init__(self, arg, **kwargs):
             super().__init__(**kwargs)
-            self.dataframe = dataframe
+            self.arg = arg
 
         def execute(self, context: Context):
             pass
 
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        task1 = CustomOperator(task_id="op1", dataframe=None)
-        dataframes_list = [pd.DataFrame(), pd.DataFrame([1, 2, 3], index=["a", "b", "c"], columns=["x"])]
-        mapped = CustomOperator.partial(task_id="task_2").expand(dataframe=dataframes_list)
+        task1 = CustomOperator(task_id="op1", arg=None)
+        unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
+        mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
     assert caplog.text.count("task_2 ran successfully") == 2
