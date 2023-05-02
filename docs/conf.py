@@ -228,6 +228,7 @@ if PACKAGE_NAME == "apache-airflow":
         "decorators",
         "example_dags",
         "executors",
+        "models",
         "operators",
         "providers",
         "secrets",
@@ -237,6 +238,17 @@ if PACKAGE_NAME == "apache-airflow":
         "utils",
     }
     browsable_utils: set[str] = set()
+
+    models_included: set[str] = {
+        "baseoperator.py",
+        "connection.py",
+        "dag.py",
+        "dagbag.py",
+        "param.py",
+        "taskinstance.py",
+        "variable.py",
+        "xcom.py",
+    }
 
     root = ROOT_DIR / "airflow"
     for path in root.iterdir():
@@ -249,6 +261,12 @@ if PACKAGE_NAME == "apache-airflow":
     for path in (root / "utils").iterdir():
         if path.name not in browsable_utils:
             exclude_patterns.append(_get_rst_filepath_from_path(path))
+
+    for path in (root / "models").iterdir():
+        if path.name not in models_included:
+            exclude_patterns.append(_get_rst_filepath_from_path(path))
+
+
 elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
         _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags")
