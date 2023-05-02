@@ -74,7 +74,6 @@ dependencies:
   - mypy-boto3-appflow>=1.24.0
   - aiohttp
   - asgiref
-  - aiobotocore>=2.1.1
 
 integrations:
   - integration-name: Amazon Athena

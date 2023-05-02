@@ -39,7 +39,11 @@ from typing import Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from aiobotocore.client import AioBaseClient
+try:
+    from aiobotocore.client import AioBaseClient
+except ImportError:
+    pass
+
 from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
