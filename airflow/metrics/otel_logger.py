@@ -36,7 +36,20 @@ from airflow.metrics.validators import AllowListValidator, stat_name_default_han
 log = logging.getLogger(__name__)
 
 
-# This is currently the only UDC used.  If more are added, we should add a better system for this.
+# "airflow.dag_processing.processes" is currently the only UDC used in Airflow.  If more are added,
+# we should add a better system for this.
+#
+# Generally in OTel a Counter is monotonic (can only go up) and there is an UpDownCounter which,
+# as you can guess, is non-monotonic; it can go up or down. The choice here is to either drop
+# this one metric and implement the rest as monotonic Counters, implement all counters as
+# UpDownCounters, or add a bit of logic to do it intelligently. The catch is that the Collector
+# which transmits these metrics to the upstream dashboard tools (Prometheus, Grafana, etc.) assigns
+# the type of Gauge to any UDC instead of Counter. Adding this logic feels like the best compromise
+# where normal Counters still get typed correctly, and we don't lose an existing metric.
+# See:
+# https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#counter-creation
+# https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#updowncounter
+
 UP_DOWN_COUNTERS = {"airflow.dag_processing.processes"}
 OTEL_NAME_MAX_LENGTH = 63
 METRIC_NAME_PREFIX = "airflow."
