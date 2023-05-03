@@ -20,13 +20,14 @@ from __future__ import annotations
 
 import logging
 import ssl
+import re
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 
 
 def _broker_supports_visibility_timeout(url):
-    return url.startswith("redis://") or url.startswith("rediss://") or url.startswith("sqs://")
+    return url.startswith(("redis://", "rediss://", "sqs://"))
 
 
 log = logging.getLogger(__name__)
@@ -67,14 +68,14 @@ except AirflowConfigException:
 
 try:
     if celery_ssl_active:
-        if broker_url and "amqp://" in broker_url:
+        if broker_url and re.search("amqp://", broker_url):
             broker_use_ssl = {
                 "keyfile": conf.get("celery", "SSL_KEY"),
                 "certfile": conf.get("celery", "SSL_CERT"),
                 "ca_certs": conf.get("celery", "SSL_CACERT"),
                 "cert_reqs": ssl.CERT_REQUIRED,
             }
-        elif broker_url and "redis://" in broker_url:
+        elif broker_url and re.search("rediss?://", broker_url):
             broker_use_ssl = {
                 "ssl_keyfile": conf.get("celery", "SSL_KEY"),
                 "ssl_certfile": conf.get("celery", "SSL_CERT"),
@@ -100,7 +101,7 @@ except Exception as e:
         f"all necessary certs and key ({e})."
     )
 
-if "amqp://" in result_backend or "redis://" in result_backend or "rpc://" in result_backend:
+if re.search("rediss?://|amqp://|rpc://", str)::
     log.warning(
         "You have configured a result_backend of %s, it is highly recommended "
         "to use an alternative result_backend (i.e. a database).",
