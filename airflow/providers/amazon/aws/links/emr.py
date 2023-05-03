@@ -49,7 +49,7 @@ def get_log_uri(
     Retrieves the S3 URI to the EMR Job logs.  Requires either the output of a
     describe_cluster call or both an EMR Client and a job_flow_id to look it up.
     """
-    if not exactly_one(cluster, emr_client and job_flow_id):
+    if not exactly_one(bool(cluster), emr_client and job_flow_id):
         raise AirflowException(
             "Requires either the output of a describe_cluster call or both an EMR Client and a job_flow_id."
         )

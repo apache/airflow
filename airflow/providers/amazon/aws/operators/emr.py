@@ -128,7 +128,7 @@ class EmrAddStepsOperator(BaseOperator):
             region_name=emr_hook.conn_region_name,
             aws_partition=emr_hook.conn_partition,
             job_flow_id=self.job_flow_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.job_flow_id),
+            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=job_flow_id),
         )
 
         self.log.info("Adding steps to %s", job_flow_id)
@@ -608,7 +608,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = "#f9c915"
-    operator_extra_links = (EmrLogsLink(),)
+    operator_extra_links = (
+        EmrClusterLink(),
+        EmrLogsLink(),
+    )
 
     def __init__(
         self,

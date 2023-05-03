@@ -174,7 +174,8 @@ class TestEmrAddStepsOperator:
             mock_isinstance.return_value = True
             assert self.operator.execute(self.mock_context) == ["s-2LH3R5GW3A53T"]
 
-    def test_init_with_cluster_name(self):
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_init_with_cluster_name(self, _):
         expected_job_flow_id = "j-1231231234"
 
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
