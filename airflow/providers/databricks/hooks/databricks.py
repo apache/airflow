@@ -356,7 +356,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def cancel_all_runs(self, job_id: int) -> None:
         """
-        Cancels all active runs of a job. The runs are canceled asynchronously
+        Cancels all active runs of a job. The runs are canceled asynchronously.
 
         :param job_id: The canonical identifier of the job to cancel all runs of
         """
