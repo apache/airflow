@@ -63,8 +63,8 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(caplog):
     caplog.set_level(logging.INFO)
 
     class UnrenderableClass:
-        def __non_zero__(self):
-            raise ValueError("Similar to Pandas DataFrames, this class does not implement zero comparison.")
+        def __nonzero__(self):
+            raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
 
     class CustomOperator(BaseOperator):
         template_fields = ("arg",)
