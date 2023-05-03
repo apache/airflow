@@ -22,7 +22,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
@@ -486,7 +486,7 @@ class EmrContainerOperator(BaseOperator):
             warnings.warn(
                 f"Parameter `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
                 "in a future release.  Please use method `max_polling_attempts` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if max_polling_attempts and max_polling_attempts != max_tries:

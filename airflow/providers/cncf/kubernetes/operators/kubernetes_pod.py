@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import warnings
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.pod import *  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.operators.pod` instead.",
-    DeprecationWarning,
+    AirflowProviderDeprecationWarning,
     stacklevel=2,
 )

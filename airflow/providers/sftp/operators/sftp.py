@@ -23,7 +23,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -141,7 +141,7 @@ class SFTPOperator(BaseOperator):
                     "Parameter `ssh_hook` is deprecated"
                     "Please use `sftp_hook` instead."
                     "The old parameter `ssh_hook` will be removed in a future version.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)

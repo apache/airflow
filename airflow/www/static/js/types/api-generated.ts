@@ -1211,11 +1211,13 @@ export interface components {
       /** @description The number of slots used by running/queued tasks at the moment. */
       occupied_slots?: number;
       /** @description The number of slots used by running tasks at the moment. */
-      used_slots?: number;
+      running_slots?: number;
       /** @description The number of slots used by queued tasks at the moment. */
       queued_slots?: number;
       /** @description The number of free slots at the moment. */
       open_slots?: number;
+      /** @description The number of slots used by scheduled tasks at the moment. */
+      scheduled_slots?: number;
       /**
        * @description The description of the pool.
        *
