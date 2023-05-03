@@ -181,6 +181,21 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
+def stop_all_tasks_in_dag(tis: list[TaskInstance], session: Session, task_id_to_ignore: int):
+    for ti in tis:
+        if ti.task_id == task_id_to_ignore or ti.state in (
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+        ):
+            continue
+        if ti.state == TaskInstanceState.RUNNING:
+            log.info("Forcing task %s to fail", ti.task_id)
+            ti.error(session)
+        else:
+            log.info("Setting task %s to SKIPPED", ti.task_id)
+            ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -190,12 +205,16 @@ def clear_task_instances(
 ) -> None:
     """
     Clears a set of task instances, but makes sure the running ones
-    get killed.
+    get killed. Also sets Dagrun's `state` to QUEUED and `start_date`
+    to the time of execution. But only for finished DRs (SUCCESS and FAILED).
+    Doesn't clear DR's `state` and `start_date`for running
+    DRs (QUEUED and RUNNING) because clearing the state for already
+    running DR is redundant and clearing `start_date` affects DR's duration.
 
     :param tis: a list of task instances
     :param session: current session
-    :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
-        be changed.
+    :param dag_run_state: state to set finished DagRuns to.
+        If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     :param activate_dag_runs: Deprecated parameter, do not pass
     """
@@ -302,11 +321,12 @@ def clear_task_instances(
         )
         dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
-            dr.state = dag_run_state
-            dr.start_date = timezone.utcnow()
-            if dag_run_state == DagRunState.QUEUED:
-                dr.last_scheduling_decision = None
-                dr.start_date = None
+            if dr.state in State.finished_dr_states:
+                dr.state = dag_run_state
+                dr.start_date = timezone.utcnow()
+                if dag_run_state == DagRunState.QUEUED:
+                    dr.last_scheduling_decision = None
+                    dr.start_date = None
     session.flush()
 
 
@@ -469,7 +489,12 @@ class TaskInstance(Base, LoggingMixin):
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
     execution_date = association_proxy("dag_run", "execution_date")
-    task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
+    task_instance_note = relationship(
+        "TaskInstanceNote",
+        back_populates="task_instance",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+    )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
@@ -1135,7 +1160,6 @@ class TaskInstance(Base, LoggingMixin):
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
-
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
                     self,
@@ -1211,12 +1235,15 @@ class TaskInstance(Base, LoggingMixin):
         """
         info = inspect(self)
         if info.attrs.dag_run.loaded_value is not NO_VALUE:
+            if hasattr(self, "task"):
+                self.dag_run.dag = self.task.dag
             return self.dag_run
 
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
-
+        if hasattr(self, "task"):
+            dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.execution_date` will work correctly
         set_committed_value(self, "dag_run", dr)
 
@@ -1332,7 +1359,9 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(State.RUNNING, self))
+
         self.state = State.RUNNING
+        self.emit_state_change_metric(State.RUNNING)
         self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
@@ -1371,6 +1400,52 @@ class TaskInstance(Base, LoggingMixin):
             self._date_or_empty("start_date"),
             self._date_or_empty("end_date"),
         )
+
+    def emit_state_change_metric(self, new_state: TaskInstanceState):
+        """
+        Sends a time metric representing how much time a given state transition took.
+        The previous state and metric name is deduced from the state the task was put in.
+
+        :param new_state: The state that has just been set for this task.
+            We do not use `self.state`, because sometimes the state is updated directly in the DB and not in
+            the local TaskInstance object.
+            Supported states: QUEUED and RUNNING
+        """
+        if self.end_date:
+            # if the task has an end date, it means that this is not its first round.
+            # we send the state transition time metric only on the first try, otherwise it gets more complex.
+            return
+
+        # switch on state and deduce which metric to send
+        if new_state == State.RUNNING:
+            metric_name = "queued_duration"
+            if self.queued_dttm is None:
+                # this should not really happen except in tests or rare cases,
+                # but we don't want to create errors just for a metric, so we just skip it
+                self.log.warning(
+                    "cannot record %s for task %s because previous state change time has not been saved",
+                    metric_name,
+                    self.task_id,
+                )
+                return
+            timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+        elif new_state == State.QUEUED:
+            metric_name = "scheduled_duration"
+            if self.start_date is None:
+                # same comment as above
+                self.log.warning(
+                    "cannot record %s for task %s because previous state change time has not been saved",
+                    metric_name,
+                    self.task_id,
+                )
+                return
+            timing = (timezone.utcnow() - self.start_date).total_seconds()
+        else:
+            raise NotImplementedError("no metric emission setup for state %s", new_state)
+
+        # send metric twice, once (legacy) with tags in the name and once with tags as tags
+        Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
+        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
 
     # Ensure we unset next_method and next_kwargs to ensure that any
     # retries don't re-use them.
@@ -1896,6 +1971,10 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
+
+            if task and task.dag and task.dag.fail_stop:
+                tis = self.get_dagrun(session).get_task_instances()
+                stop_all_tasks_in_dag(tis, session, self.task_id)
         else:
             if self.state == State.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
@@ -2616,7 +2695,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @Sentry.enrich_errors
     @provide_session
-    def schedule_downstream_tasks(self, session: Session = NEW_SESSION) -> None:
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
         """
         The mini-scheduler for scheduling downstream tasks of this task instance
         :meta: private
@@ -2671,7 +2750,7 @@ class TaskInstance(Base, LoggingMixin):
                 if not hasattr(schedulable_ti, "task"):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
 
-            num = dag_run.schedule_tis(schedulable_tis, session=session)
+            num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
             self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
 
             session.flush()

@@ -1526,6 +1526,10 @@ def verify_changelog_exists(package: str) -> str:
 def list_providers_packages():
     """List all provider packages."""
     providers = get_all_providers()
+    # For now we should exclude open-lineage from being consider for releasing until it is ready to
+    # be released
+    if "openlineage" in providers:
+        providers.remove("openlineage")
     for provider in providers:
         console.print(provider)
 

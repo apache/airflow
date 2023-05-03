@@ -373,8 +373,7 @@ class KubernetesPodOperator(BaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
-
-        self._config_dict: dict | None = None
+        self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
     @cached_property
     def _incluster_namespace(self):
@@ -572,11 +571,15 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
-        self.convert_config_file_to_dict()
         self.invoke_defer_method()
 
     def convert_config_file_to_dict(self):
         """Converts passed config_file to dict format."""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
         if config_file:
             with open(config_file) as f:
@@ -594,7 +597,7 @@ class KubernetesPodOperator(BaseOperator):
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_dict=self._config_dict,
+                config_file=self.config_file,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 should_delete_pod=self.is_delete_operator_pod,

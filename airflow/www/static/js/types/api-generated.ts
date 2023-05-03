@@ -483,7 +483,35 @@ export interface paths {
     };
   };
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}": {
-    /** Get logs for a specific task instance and its try number. */
+    /**
+     * Get logs for a specific task instance and its try number.
+     * To get log from specific character position, following way of using
+     * URLSafeSerializer can be used.
+     *
+     * Example:
+     * ```
+     * from itsdangerous.url_safe import URLSafeSerializer
+     *
+     * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
+     * key = app.config["SECRET_KEY"]
+     * serializer = URLSafeSerializer(key)
+     * token = serializer.dumps({"log_pos": 10000})
+     *
+     * response = self.client.get(
+     *     request_url,
+     *     query_string={"token": token},
+     *     headers={"Accept": "text/plain"},
+     *     environ_overrides={"REMOTE_USER": "test"},
+     * )
+     * continuation_token = response.json["continuation_token"]
+     *     metadata = URLSafeSerializer(key).loads(continuation_token)
+     *     log_pos = metadata["log_pos"]
+     *     end_of_log = metadata["end_of_log"]
+     * ```
+     * If log_pos is passed as 10000 like the above example, it renders the logs starting
+     * from char position 10000 to last (not the end as the logs may be tailing behind in
+     * running state). This way pagination can be done with metadata as part of the token.
+     */
     get: operations["get_log"];
     parameters: {
       path: {
@@ -1183,11 +1211,13 @@ export interface components {
       /** @description The number of slots used by running/queued tasks at the moment. */
       occupied_slots?: number;
       /** @description The number of slots used by running tasks at the moment. */
-      used_slots?: number;
+      running_slots?: number;
       /** @description The number of slots used by queued tasks at the moment. */
       queued_slots?: number;
       /** @description The number of free slots at the moment. */
       open_slots?: number;
+      /** @description The number of slots used by scheduled tasks at the moment. */
+      scheduled_slots?: number;
       /**
        * @description The description of the pool.
        *
@@ -3858,7 +3888,35 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /** Get logs for a specific task instance and its try number. */
+  /**
+   * Get logs for a specific task instance and its try number.
+   * To get log from specific character position, following way of using
+   * URLSafeSerializer can be used.
+   *
+   * Example:
+   * ```
+   * from itsdangerous.url_safe import URLSafeSerializer
+   *
+   * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
+   * key = app.config["SECRET_KEY"]
+   * serializer = URLSafeSerializer(key)
+   * token = serializer.dumps({"log_pos": 10000})
+   *
+   * response = self.client.get(
+   *     request_url,
+   *     query_string={"token": token},
+   *     headers={"Accept": "text/plain"},
+   *     environ_overrides={"REMOTE_USER": "test"},
+   * )
+   * continuation_token = response.json["continuation_token"]
+   *     metadata = URLSafeSerializer(key).loads(continuation_token)
+   *     log_pos = metadata["log_pos"]
+   *     end_of_log = metadata["end_of_log"]
+   * ```
+   * If log_pos is passed as 10000 like the above example, it renders the logs starting
+   * from char position 10000 to last (not the end as the logs may be tailing behind in
+   * running state). This way pagination can be done with metadata as part of the token.
+   */
   get_log: {
     parameters: {
       path: {
@@ -4120,6 +4178,12 @@ export interface operations {
     };
   };
   get_config: {
+    parameters: {
+      query: {
+        /** If given, only return config of this section. */
+        section?: string;
+      };
+    };
     responses: {
       /** Success. */
       200: {
@@ -4932,6 +4996,9 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type GetConfigVariables = CamelCasedPropertiesDeep<
+  operations["get_config"]["parameters"]["query"]
 >;
 export type GetPluginsVariables = CamelCasedPropertiesDeep<
   operations["get_plugins"]["parameters"]["query"]

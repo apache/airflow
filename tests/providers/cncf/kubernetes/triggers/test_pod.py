@@ -42,7 +42,7 @@ NAMESPACE = "default"
 CONN_ID = "test_kubernetes_conn_id"
 POLL_INTERVAL = 2
 CLUSTER_CONTEXT = "test-context"
-CONFIG_DICT = {"a": "b"}
+CONFIG_FILE = "/path/to/config/file"
 IN_CLUSTER = False
 SHOULD_DELETE_POD = True
 GET_LOGS = True
@@ -61,7 +61,7 @@ def trigger():
         kubernetes_conn_id=CONN_ID,
         poll_interval=POLL_INTERVAL,
         cluster_context=CLUSTER_CONTEXT,
-        config_dict=CONFIG_DICT,
+        config_file=CONFIG_FILE,
         in_cluster=IN_CLUSTER,
         should_delete_pod=SHOULD_DELETE_POD,
         get_logs=GET_LOGS,
@@ -88,7 +88,7 @@ class TestKubernetesPodTrigger:
             "kubernetes_conn_id": CONN_ID,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
-            "config_dict": CONFIG_DICT,
+            "config_file": CONFIG_FILE,
             "in_cluster": IN_CLUSTER,
             "should_delete_pod": SHOULD_DELETE_POD,
             "get_logs": GET_LOGS,

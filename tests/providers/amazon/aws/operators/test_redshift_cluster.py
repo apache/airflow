@@ -116,6 +116,21 @@ class TestRedshiftCreateClusterOperator:
         # wait_for_completion is False so check waiter is not called
         mock_get_conn.return_value.get_waiter.assert_not_called()
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    def test_create_cluster_deferrable(self, mock_get_conn):
+        redshift_operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test-cluster",
+            node_type="dc2.large",
+            master_username="adminuser",
+            master_user_password="Test123$",
+            cluster_type="single-node",
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred):
+            redshift_operator.execute(None)
+
 
 class TestRedshiftCreateClusterSnapshotOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
@@ -129,12 +144,24 @@ class TestRedshiftCreateClusterSnapshotOperator:
             cluster_identifier="test_cluster",
             snapshot_identifier="test_snapshot",
             retention_period=1,
+            tags=[
+                {
+                    "Key": "user",
+                    "Value": "airflow",
+                }
+            ],
         )
         create_snapshot.execute(None)
         mock_get_conn.return_value.create_cluster_snapshot.assert_called_once_with(
             ClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
             ManualSnapshotRetentionPeriod=1,
+            Tags=[
+                {
+                    "Key": "user",
+                    "Value": "airflow",
+                }
+            ],
         )
 
         mock_get_conn.return_value.get_waiter.assert_not_called()

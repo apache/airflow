@@ -1464,6 +1464,33 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        operator = DataprocInstantiateInlineWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template={},
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+
+        mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once()
+
+        assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
 
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
