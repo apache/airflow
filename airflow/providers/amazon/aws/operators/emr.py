@@ -122,15 +122,14 @@ class EmrAddStepsOperator(BaseOperator):
             aws_partition=emr_hook.conn_partition,
             job_flow_id=job_flow_id,
         )
-        if self.job_flow_id:
-            EmrLogsLink.persist(
-                context=context,
-                operator=self,
-                region_name=emr_hook.conn_region_name,
-                aws_partition=emr_hook.conn_partition,
-                job_flow_id=self.job_flow_id,
-                log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.job_flow_id),
-            )
+        EmrLogsLink.persist(
+            context=context,
+            operator=self,
+            region_name=emr_hook.conn_region_name,
+            aws_partition=emr_hook.conn_partition,
+            job_flow_id=self.job_flow_id,
+            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.job_flow_id),
+        )
 
         self.log.info("Adding steps to %s", job_flow_id)
 
