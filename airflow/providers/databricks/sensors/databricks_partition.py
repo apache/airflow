@@ -143,7 +143,10 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         * Based on the result returned by the partition generation method,
         the _sql_sensor method is called.
         """
-        _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+        if self.table_name.split(".")[0] == "delta":
+            _fully_qualified_table_name = self.table_name
+        else:
+            _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
         self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
         _joiner_val = " AND "
         _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
