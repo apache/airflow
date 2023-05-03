@@ -64,8 +64,7 @@ from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
 from google.cloud.aiplatform_v1.types import TrainingPipeline
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 

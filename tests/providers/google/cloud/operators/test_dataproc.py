@@ -25,8 +25,12 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import Batch
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowTaskTimeout,
+    TaskDeferred,
+)
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.dataproc import (
     DATAPROC_CLUSTER_LINK,

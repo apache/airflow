@@ -20,8 +20,7 @@ import time
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.sensors.base import BaseSensorOperator

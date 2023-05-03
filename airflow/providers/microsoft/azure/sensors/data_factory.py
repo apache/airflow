@@ -20,8 +20,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
