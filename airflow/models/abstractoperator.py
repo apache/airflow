@@ -570,7 +570,8 @@ class AbstractOperator(Templater, DAGNode):
                     continue
             except ValueError:
                 # This may happen if the templated field points to a class which does not
-                # implement `__nonzero__`, such as Pandas DataFrames.
+                # support `__nonzero__`, such as Pandas DataFrames:
+                # https://github.com/pandas-dev/pandas/blob/2.0.x/pandas/core/generic.py#L1465
                 # The assumption, in these cases, is that we do not know how to render the
                 # templated field, and we should continue.
                 continue
