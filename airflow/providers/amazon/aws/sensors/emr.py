@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
@@ -25,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.emr import EmrLogsLink
+from airflow.providers.amazon.aws.triggers.emr import EmrStepSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -468,6 +470,7 @@ class EmrStepSensor(EmrBaseSensor):
         step reaches any of these states
     :param failed_states: the failure states, sensor fails when
         step reaches any of these states
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("job_flow_id", "step_id", "target_states", "failed_states")
@@ -480,6 +483,8 @@ class EmrStepSensor(EmrBaseSensor):
         step_id: str,
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
+        deferrable: bool = False,
+        max_attempts: int = 60,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -487,6 +492,8 @@ class EmrStepSensor(EmrBaseSensor):
         self.step_id = step_id
         self.target_states = target_states or ["COMPLETED"]
         self.failed_states = failed_states or ["CANCELLED", "FAILED", "INTERRUPTED"]
+        self.deferrable = deferrable
+        self.max_attempts = max_attempts
 
     def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
@@ -527,3 +534,25 @@ class EmrStepSensor(EmrBaseSensor):
                 f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
             )
         return None
+
+    def execute(self, context: Context) -> None:
+        """Deferred and give control to trigger"""
+        if self.deferrable and not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=EmrStepSensorTrigger(
+                    job_flow_id=self.job_flow_id,
+                    step_id=self.step_id,
+                    target_states=self.target_states,
+                    aws_conn_id=self.aws_conn_id,
+                    poke_interval=self.poke_interval,
+                    max_attempts=self.max_attempts,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info("Job completed.")

@@ -75,6 +75,37 @@
                     "state": "failure"
                 }
             ]
+        },
+        "job_step_wait_for_terminal": {
+            "operation": "DescribeStep",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "step.status",
+                    "expected": "COMPLETED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "step.status",
+                    "expected": "CANCELLED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "step.status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "step.status",
+                    "expected": "INTERRUPTED",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }
