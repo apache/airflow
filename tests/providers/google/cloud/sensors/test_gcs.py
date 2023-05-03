@@ -24,7 +24,7 @@ import pendulum
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -168,7 +168,7 @@ class TestGoogleCloudStorageObjectSensorAsync:
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
         when the GCSObjectExistenceAsyncSensor is executed.
         """
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
                 task_id="task-id",
                 bucket=TEST_BUCKET,
@@ -182,7 +182,7 @@ class TestGoogleCloudStorageObjectSensorAsync:
 
     def test_gcs_object_existence_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
                 task_id="task-id",
                 bucket=TEST_BUCKET,
@@ -194,7 +194,7 @@ class TestGoogleCloudStorageObjectSensorAsync:
 
     def test_gcs_object_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
                 task_id="task-id",
                 bucket=TEST_BUCKET,

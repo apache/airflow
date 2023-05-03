@@ -36,7 +36,7 @@ from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataproc import (
@@ -496,7 +496,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 "Please provide cluster_config object using `cluster_config` parameter. "
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
                 "method to obtain cluster object.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=1,
             )
             # Remove result of apply defaults
@@ -738,7 +738,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{type(self).__name__}` operator is deprecated, "
             "please use `DataprocUpdateClusterOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1164,7 +1164,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1238,7 +1238,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1313,7 +1313,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1390,7 +1390,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1463,7 +1463,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1561,7 +1561,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 

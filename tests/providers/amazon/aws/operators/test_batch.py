@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
@@ -235,7 +235,7 @@ class TestBatchOperator:
         client_mock().submit_job.assert_called_once_with(**expected_args)
 
     def test_deprecated_override_param(self):
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             _ = BatchOperator(
                 task_id="task",
                 job_name=JOB_NAME,
