@@ -65,7 +65,7 @@ There are two ways to configure cluster policies:
 
    .. note:: |experimental|
 
-   This method is more advanced for for people who are already comfortable with python packaging.
+   This method is more advanced and for people who are already comfortable with python packaging.
 
    First create your policy function in a module:
 
@@ -97,9 +97,9 @@ There are two ways to configure cluster policies:
     [project.entry-points.'airflow.policy']
     _ = 'my_airflow_plugin.policies'
 
-   The entrypoint group must be ``airflow.policy``, and the name is ignored. The value should be your module (or class) decorated with the ``@hookimpl`` marker
+   The entrypoint group must be ``airflow.policy``, and the name is ignored. The value should be your module (or class) decorated with the ``@hookimpl`` marker.
 
-   One you have done that, and you have installed your distribution into your Airflow env the policy functions will get called by the various Airflow components. (The exact call order is undefined, so don't rely on any particular calling order if you have multiple plugins).
+   Once you have done that, and you have installed your distribution into your Airflow env, the policy functions will get called by the various Airflow components. (The exact call order is undefined, so don't rely on any particular calling order if you have multiple plugins).
 
 
 One important thing to note (for either means of defining policy functions) is that the argument names must

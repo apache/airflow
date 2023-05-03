@@ -298,6 +298,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
     :param cluster_identifier: The cluster identifier for which you want a snapshot
     :param retention_period: The number of days that a manual snapshot is retained.
         If the value is -1, the manual snapshot is retained indefinitely.
+    :parma tags: A list of tag instances
     :param wait_for_completion: Whether wait for the cluster snapshot to be in ``available`` state
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check state
     :param max_attempt: The maximum number of attempts to be made to check the state
@@ -316,6 +317,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         snapshot_identifier: str,
         cluster_identifier: str,
         retention_period: int = -1,
+        tags: list[Any] | None = None,
         wait_for_completion: bool = False,
         poll_interval: int = 15,
         max_attempt: int = 20,
@@ -326,6 +328,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         self.snapshot_identifier = snapshot_identifier
         self.cluster_identifier = cluster_identifier
         self.retention_period = retention_period
+        self.tags = tags
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.max_attempt = max_attempt
@@ -343,6 +346,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
             cluster_identifier=self.cluster_identifier,
             snapshot_identifier=self.snapshot_identifier,
             retention_period=self.retention_period,
+            tags=self.tags,
         )
 
         if self.wait_for_completion:

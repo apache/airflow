@@ -357,6 +357,7 @@ provide selected options in the connection's extra field.
         "s3": {
           "bucket_name": "awesome-bucket"
         }
+      }
     }
 
 

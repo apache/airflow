@@ -214,7 +214,7 @@ def clear_task_instances(
     :param tis: a list of task instances
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
-    If set to False, DagRuns state will not be changed.
+        If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     :param activate_dag_runs: Deprecated parameter, do not pass
     """
