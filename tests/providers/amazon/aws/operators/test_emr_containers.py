@@ -22,9 +22,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
+from airflow.providers.amazon.aws.triggers.emr import EmrContainerOperatorTrigger
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -143,6 +144,16 @@ class TestEmrContainerOperator:
             assert mock_check_query_status.call_count == 3
             assert "Final state of EMR Containers job is SUBMITTED" in str(ctx.value)
             assert "Max tries of poll status exceeded" in str(ctx.value)
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    def test_operator_defer(self, mock_submit_job):
+        self.emr_container.deferrable = True
+        self.emr_container.wait_for_completion = False
+        with pytest.raises(TaskDeferred) as exc:
+            self.emr_container.execute(context=None)
+        assert isinstance(
+            exc.value.trigger, EmrContainerOperatorTrigger
+        ), "Trigger is not a EmrContainerOperatorTrigger"
 
 
 class TestEmrEksCreateClusterOperator:

@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
+from airflow.providers.amazon.aws.triggers.emr import EmrContainerOperatorTrigger
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -437,6 +438,7 @@ class EmrContainerOperator(BaseOperator):
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
     :param tags: The tags assigned to job runs.
         Defaults to None
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -465,6 +467,7 @@ class EmrContainerOperator(BaseOperator):
         max_tries: int | None = None,
         tags: dict | None = None,
         max_polling_attempts: int | None = None,
+        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -481,6 +484,7 @@ class EmrContainerOperator(BaseOperator):
         self.max_polling_attempts = max_polling_attempts
         self.tags = tags
         self.job_id: str | None = None
+        self.deferrable = deferrable
 
         if max_tries:
             warnings.warn(
@@ -513,6 +517,18 @@ class EmrContainerOperator(BaseOperator):
             self.client_request_token,
             self.tags,
         )
+        if self.deferrable:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=EmrContainerOperatorTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    max_attempts=self.max_polling_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
         if self.wait_for_completion:
             query_status = self.hook.poll_query_status(
                 self.job_id,
@@ -533,6 +549,12 @@ class EmrContainerOperator(BaseOperator):
                 )
 
         return self.job_id
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info(event["message"])
 
     def on_kill(self) -> None:
         """Cancel the submitted job run"""
