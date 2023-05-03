@@ -33,7 +33,6 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import PlainXComArg, XComArg
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -858,7 +857,6 @@ def test_task_decorator_dataset(dag_maker, session):
     assert result == uri
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_teardown_trigger_rule_selective_application(dag_maker, session):
     with dag_maker(session=session) as dag:
 
@@ -884,7 +882,6 @@ def test_teardown_trigger_rule_selective_application(dag_maker, session):
     assert teardown_task.operator.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_teardown_trigger_rule_override_behavior(dag_maker, session):
     with dag_maker(session=session) as dag:
 
