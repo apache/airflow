@@ -14,6 +14,7 @@ metadata:
   {{- end }}    
   {{- if .Values.commonAnnotations }}
   annotations:
+  {{- .Values.commonAnnotations | toYaml | nindent 4}}
   {{- end }}
 spec:
   {{- if .Values.statsd.serviceMonitor.jobLabel }}
@@ -22,7 +23,7 @@ spec:
   selector:
     matchLabels:
       {{- if .Values.statsd.serviceMonitor.selector }}
-      {{- include "common.tplvalues.render" (dict "value" .Values.statsd.serviceMonitor.selector "context" $) | nindent 6 }}
+      {{- .Values.statsd.serviceMonitor.selector | toYaml | nindent 6 }}
       {{- end }}
   endpoints:
     - port: statsd-scrape
