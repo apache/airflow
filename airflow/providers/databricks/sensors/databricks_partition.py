@@ -69,7 +69,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         "schema",
         "table_name",
         "partitions",
-        "http_headers"
+        "http_headers",
     )
 
     template_ext: Sequence[str] = (".sql",)

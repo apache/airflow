@@ -144,7 +144,7 @@ The required parameters are:
 
 * ``partitions`` (name of the partitions to check).
 
-* ``partition_operator`` (comparison operator for partitions, to be used for range or limit of values, such as partition_name >= partition_value). `Databricks comparison operators <https://docs.databricks.com/sql/language-manual/sql-ref-null-semantics.html#comparison-operators>`_ are supported. 
+* ``partition_operator`` (comparison operator for partitions, to be used for range or limit of values, such as partition_name >= partition_value). `Databricks comparison operators <https://docs.databricks.com/sql/language-manual/sql-ref-null-semantics.html#comparison-operators>`_ are supported.
 
 *   One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
 
