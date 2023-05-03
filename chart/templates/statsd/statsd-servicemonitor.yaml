@@ -10,7 +10,7 @@ metadata:
   {{- end }}
   {{- if .Values.statsd.serviceMonitor.labels }}
   labels: 
-  {{- include "common.tplvalues.render" ( dict "value" .Values.statsd.serviceMonitor.labels "context" $ ) | nindent 4 }}
+  {{- .Values.statsd.serviceMonitor.labels | toYaml | nindent 4 }}
   {{- end }}    
   {{- if .Values.commonAnnotations }}
   annotations:
