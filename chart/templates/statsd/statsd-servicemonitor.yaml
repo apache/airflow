@@ -14,7 +14,6 @@ metadata:
   {{- end }}    
   {{- if .Values.commonAnnotations }}
   annotations:
-    {{- .Values.commonAnnotations | toYaml | nindent 4}}
   {{- .Values.commonAnnotations | toYaml | nindent 4}}
   {{- end }}
 spec:
