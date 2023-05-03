@@ -301,7 +301,7 @@ class TestSecurityContext:
         spec = {
             "waitForMigrations": {
                 "enabled": True,
-                "securityContexts": ctx_value,
+                "securityContexts": {"container": ctx_value},
             }
         }
         docs = render_chart(
@@ -340,7 +340,6 @@ class TestSecurityContext:
         )
         expected_ctx = {
             "allowPrivilegeEscalation": False,
-            "runAsUser": 0,  # hardcoded in the values.yaml file
         }
 
         assert expected_ctx == jmespath.search(
@@ -395,7 +394,6 @@ class TestSecurityContext:
                 "createUserJob": {**security_context},
                 "migrateDatabaseJob": {**security_context},
                 "triggerer": {**security_context},
-                "pgbouncer": {**security_context},
                 "redis": {**security_context},
             },
             show_only=[
@@ -407,7 +405,6 @@ class TestSecurityContext:
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
-                "templates/pgbouncer/pgbouncer-deployment.yaml",
                 "templates/redis/redis-statefulset.yaml",
             ],
         )

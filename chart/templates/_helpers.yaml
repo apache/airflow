@@ -173,7 +173,7 @@ If release name contains chart name it will be used as a full name.
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
   image: {{ template "git_sync_image" . }}
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
-  securityContext: {{- include "containerSecurityContext" (list . .Values.dags.gitSync) | nindent 4 }}
+  securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
   env:
     {{- if .Values.dags.gitSync.sshKeySecret }}
     - name: GIT_SSH_KEY_FILE
@@ -780,6 +780,29 @@ It is important to pass the local variables scope to this template as it is used
 {{- define "localPodSecurityContext" -}}
   {{- if .securityContexts.pod -}}
 {{ toYaml .securityContexts.pod | print }}
+  {{- else if .securityContext -}}
+{{ toYaml .securityContext | print }}
+  {{- else -}}
+runAsUser: {{ .uid }}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Set the default value for container securityContext
+If no value is passed for <node>.securityContexts.container or <node>.securityContext, defaults to UID in the local node.
+
+    +-----------------------------------+      +------------------------+      +-------------+
+    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid  |
+    +-----------------------------------+      +------------------------+      +-------------+
+
+The template can be called like so:
+  include "localContainerSecurityContext" .Values.statsd
+
+It is important to pass the local variables scope to this template as it is used to determine the local node value for uid.
+*/}}
+{{- define "localContainerSecurityContext" -}}
+  {{- if .securityContexts.container -}}
+{{ toYaml .securityContexts.container | print }}
   {{- else if .securityContext -}}
 {{ toYaml .securityContext | print }}
   {{- else -}}

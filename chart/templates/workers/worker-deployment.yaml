@@ -138,7 +138,7 @@ spec:
           command:
             - chown
             - -R
-            - "{{ include "airflowPodSecurityContextIds" (list . .Values.workers) }}"
+            - "{{ include "airflowPodSecurityContextsIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
           securityContext: {{ $containerSecurityContextPersistence | nindent 12 }}
           volumeMounts:

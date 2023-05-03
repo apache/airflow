@@ -510,7 +510,7 @@ class TestWebserverDeployment:
             "spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]
         )
 
-    def test_webserver_securityContexts_are_configurable(self):
+    def test_webserver_security_contexts_are_configurable(self):
         docs = render_chart(
             values={
                 "webserver": {
@@ -518,12 +518,12 @@ class TestWebserverDeployment:
                         "pod": {
                             "fsGroup": 1000,
                             "runAsGroup": 1001,
-                            "runAsNonRoot": "true",
+                            "runAsNonRoot": True,
                             "runAsUser": 2000,
                         },
                         "container": {
-                            "allowPrivilegeEscalation": "false",
-                            "readOnlyRootFilesystem": "true",
+                            "allowPrivilegeEscalation": False,
+                            "readOnlyRootFilesystem": True,
                         },
                     }
                 },
@@ -541,14 +541,14 @@ class TestWebserverDeployment:
             "runAsNonRoot": True,
         } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
-    def test_webserver_securityContext_legacy(self):
+    def test_webserver_security_context_legacy(self):
         docs = render_chart(
             values={
                 "webserver": {
                     "securityContext": {
                         "fsGroup": 1000,
                         "runAsGroup": 1001,
-                        "runAsNonRoot": "true",
+                        "runAsNonRoot": True,
                         "runAsUser": 2000,
                     }
                 },
