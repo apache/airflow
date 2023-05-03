@@ -24,8 +24,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dateutil.tz import tzlocal
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor
+from airflow.providers.amazon.aws.triggers.emr import EmrJobFlowSensorTrigger
 
 DESCRIBE_CLUSTER_STARTING_RETURN = {
     "Cluster": {
@@ -276,3 +277,20 @@ class TestEmrJobFlowSensor:
             # make sure it was called with the job_flow_id
             calls = [mock.call(ClusterId="j-8989898989")]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor.poke")
+    def test_sensor_defer(self, mock_poke):
+        sensor = EmrJobFlowSensor(
+            task_id="test_task",
+            poke_interval=0,
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
+            target_states=["RUNNING", "WAITING"],
+            deferrable=True,
+        )
+        mock_poke.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute(context=None)
+        assert isinstance(
+            exc.value.trigger, EmrJobFlowSensorTrigger
+        ), "Trigger is not a EmrJobFlowSensorTrigger "

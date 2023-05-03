@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
@@ -25,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.emr import EmrLogsLink
+from airflow.providers.amazon.aws.triggers.emr import EmrJobFlowSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -381,6 +383,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
         job flow reaches any of these states
     :param failed_states: the failure states, sensor fails when
         job flow reaches any of these states
+    :param deferrable: Run sensor in the deferrable mode.
+    :param max_attempts: Maximum number of tries before failing
     """
 
     template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
@@ -393,12 +397,16 @@ class EmrJobFlowSensor(EmrBaseSensor):
         job_flow_id: str,
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
+        deferrable: bool = False,
+        max_attempts: int = 60,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.target_states = target_states or ["TERMINATED"]
         self.failed_states = failed_states or ["TERMINATED_WITH_ERRORS"]
+        self.deferrable = deferrable
+        self.max_attempts = max_attempts
 
     def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
@@ -449,6 +457,26 @@ class EmrJobFlowSensor(EmrBaseSensor):
                 f"with message {state_change_reason.get('Message', 'Unknown')}"
             )
         return None
+
+    def execute(self, context: Context) -> None:
+        if self.deferrable and not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=EmrJobFlowSensorTrigger(
+                    job_flow_id=self.job_flow_id,
+                    target_states=self.target_states,
+                    aws_conn_id=self.aws_conn_id,
+                    max_attempts=self.max_attempts,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info("Job completed.")
 
 
 class EmrStepSensor(EmrBaseSensor):
