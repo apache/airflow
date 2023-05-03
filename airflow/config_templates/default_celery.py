@@ -101,7 +101,7 @@ except Exception as e:
         f"all necessary certs and key ({e})."
     )
 
-if re.search("rediss?://|amqp://|rpc://", str)::
+if re.search("rediss?://|amqp://|rpc://", str):
     log.warning(
         "You have configured a result_backend of %s, it is highly recommended "
         "to use an alternative result_backend (i.e. a database).",
