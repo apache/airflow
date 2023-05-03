@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperator
 
 TERMINATE_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}}
@@ -36,7 +37,8 @@ class TestEmrTerminateJobFlowOperator:
         # Mock out the emr_client creator
         self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
 
-    def test_execute_terminates_the_job_flow_and_does_not_error(self):
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_execute_terminates_the_job_flow_and_does_not_error(self, _):
         with patch("boto3.session.Session", self.boto3_session_mock), patch(
             "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
         ) as mock_isinstance:
