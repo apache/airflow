@@ -557,7 +557,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
                 trigger=RedshiftPauseClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
                     poll_interval=self.poll_interval,
-                    max_attempt=self.max_attempts,
+                    max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",

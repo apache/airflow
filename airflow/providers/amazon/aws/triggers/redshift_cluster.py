@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from typing import Any, AsyncIterator
+
+from botocore.exceptions import WaiterError
 
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
@@ -147,7 +150,7 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
 
     :param cluster_identifier:  A unique identifier for the cluster.
     :param poll_interval: The amount of time in seconds to wait between attempts.
-    :param max_attempt: The maximum number of attempts to be made.
+    :param max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -155,12 +158,12 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
         self,
         cluster_identifier: str,
         poll_interval: int,
-        max_attempt: int,
+        max_attempts: int,
         aws_conn_id: str,
     ):
         self.cluster_identifier = cluster_identifier
         self.poll_interval = poll_interval
-        self.max_attempt = max_attempt
+        self.max_attempts = max_attempts
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -169,7 +172,7 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
             {
                 "cluster_identifier": str(self.cluster_identifier),
                 "poll_interval": str(self.poll_interval),
-                "max_attempt": str(self.max_attempt),
+                "max_attempts": str(self.max_attempts),
                 "aws_conn_id": str(self.aws_conn_id),
             },
         )
@@ -180,12 +183,27 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
 
     async def run(self):
         async with self.hook.async_conn as client:
-            waiter = self.hook.get_waiter("cluster_paused", deferrable=True, client=client)
-            await waiter.wait(
-                ClusterIdentifier=self.cluster_identifier,
-                WaiterConfig={
-                    "Delay": int(self.poll_interval),
-                    "MaxAttempts": int(self.max_attempt),
-                },
+            attempt = 0
+            while attempt < int(self.max_attempts):
+                attempt = attempt + 1
+                try:
+                    waiter = self.hook.get_waiter("cluster_paused", deferrable=True, client=client)
+                    await waiter.wait(
+                        ClusterIdentifier=self.cluster_identifier,
+                        WaiterConfig={
+                            "Delay": int(self.poll_interval),
+                            "MaxAttempts": 1,
+                        },
+                    )
+                    break
+                except WaiterError as error:
+                    self.log.info(
+                        "Status of cluster is %s", error.last_response["Clusters"][0]["ClusterStatus"]
+                    )
+                    await asyncio.sleep(int(self.poll_interval))
+        if attempt >= int(self.max_attempts):
+            yield TriggerEvent(
+                {"status": "failure", "message": "Resume Cluster Failed - max attempts reached."}
             )
-        yield TriggerEvent({"status": "success", "message": "Cluster paused"})
+        else:
+            yield TriggerEvent({"status": "success", "message": "Cluster paused"})
