@@ -68,7 +68,7 @@ except AirflowConfigException:
 
 try:
     if celery_ssl_active:
-        if broker_url and re.search("amqp://", broker_url):
+        if broker_url and "amqp://" in broker_url:
             broker_use_ssl = {
                 "keyfile": conf.get("celery", "SSL_KEY"),
                 "certfile": conf.get("celery", "SSL_CERT"),
