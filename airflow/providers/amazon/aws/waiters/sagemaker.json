@@ -1,0 +1,31 @@
+{
+    "version": 2,
+    "waiters": {
+        "TrainingJobComplete": {
+            "delay": 30,
+            "operation": "DescribeTrainingJob",
+            "maxAttempts": 60,
+            "description": "Wait until job is SUCCEEDED",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "TrainingJobStatus",
+                    "expected": "Completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TrainingJobStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TrainingJobStatus",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}
