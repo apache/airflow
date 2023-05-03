@@ -145,7 +145,7 @@ def cancel_run_endpoint(host):
 
 def cancel_all_runs_endpoint(host):
     """
-    Utility function to generate the cancel all endpoint given the host.
+    Utility function to generate the cancel all runs endpoint given the host.
     """
     return f"https://{host}/api/2.1/jobs/runs/cancel-all"
 
