@@ -56,7 +56,8 @@ from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType, EventBufferValueType, TaskTuple
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Task instance that is sent over Celery queues
     # TaskInstanceKey, Command, queue_name, CallableTask

@@ -33,7 +33,7 @@ from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFac
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
