@@ -26,8 +26,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class SageMakerTrigger(BaseTrigger):
     """
-    SageMakerTrigger is common trigger for both transform and training sagemaker job, and it is
-     fired as deferred class with params to run the task in triggerer.
+    SageMakerTrigger is fired as deferred class with params to run the task in triggerer.
 
     :param job_name: name of the job to check status
     :param job_type: Type of the sagemaker job whether it is Transform or Training
@@ -55,7 +54,7 @@ class SageMakerTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes SagemakerTrigger arguments and classpath."""
         return (
-            "airflow.providers.amazon.aws.triggers.sagemaker.SagemakerTrigger",
+            "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger",
             {
                 "job_name": self.job_name,
                 "job_type": self.job_type,
@@ -69,15 +68,34 @@ class SageMakerTrigger(BaseTrigger):
     def hook(self) -> SageMakerHook:
         return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
+    @staticmethod
+    def _get_job_type_waiter(job_type: str) -> str:
+        return {
+            "training": "TrainingJobComplete",
+            "transform": "TransformJobComplete",
+            "processing": "ProcessingJobComplete",
+        }[job_type.lower()]
+
+    @staticmethod
+    def _get_job_type_waiter_job_name_arg(job_type: str) -> str:
+        return {
+            "training": "TrainingJobName",
+            "transform": "TransformJobName",
+            "processing": "ProcessingJobName",
+        }[job_type.lower()]
+
     async def run(self):
-        self.log.info("job name is %s", self.job_name)
+        self.log.info("job name is %s and job type is %s", self.job_name, self.job_type)
         async with self.hook.async_conn as client:
-            waiter = self.hook.get_waiter("TrainingJobComplete", deferrable=True, client=client)
-            await waiter.wait(
-                TrainingJobName=self.job_name,
-                WaiterConfig={
+            waiter = self.hook.get_waiter(
+                self._get_job_type_waiter(self.job_type), deferrable=True, client=client
+            )
+            waiter_args = {
+                self._get_job_type_waiter_job_name_arg(self.job_type): self.job_name,
+                "WaiterConfig": {
                     "Delay": self.poke_interval,
                     "MaxAttempts": self.max_attempts,
                 },
-            )
+            }
+            await waiter.wait(**waiter_args)
         yield TriggerEvent({"status": "success", "message": "Job completed."})
