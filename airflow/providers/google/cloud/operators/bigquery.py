@@ -52,7 +52,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 

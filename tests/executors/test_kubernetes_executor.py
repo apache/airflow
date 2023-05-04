@@ -32,7 +32,7 @@ from urllib3 import HTTPResponse
 
 from airflow import AirflowException
 from airflow.exceptions import PodReconciliationError
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
