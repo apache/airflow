@@ -23,10 +23,11 @@ import os
 import signal
 import threading
 import time
+import zipfile
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import datetime, timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
 from sqlalchemy import exc, func, or_
@@ -51,7 +52,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
-from airflow.utils.file import iter_airflow_imports
+from airflow.utils.file import iter_airflow_imports, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -193,18 +194,23 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             # Read the file to pre-import airflow modules used.
             # This prevents them from being re-imported from zero in each "processing" process
             # and saves CPU time and memory.
-            for module in iter_airflow_imports(self.file_path):
+            zip_file_paths = []
+            if zipfile.is_zipfile(self.file_path):
                 try:
-                    importlib.import_module(module)
-                except Exception as e:
-                    # only log as warning because an error here is not preventing anything from working, and
-                    # if it's serious, it's going to be surfaced to the user when the dag is actually parsed.
-                    self.log.warning(
-                        "Error when trying to pre-import module '%s' found in %s: %s",
-                        module,
-                        self.file_path,
-                        e,
-                    )
+                    with zipfile.ZipFile(self.file_path) as z:
+                        zip_file_paths.extend(
+                            [
+                                os.path.join(self.file_path, info.filename)
+                                for info in z.infolist()
+                                if might_contain_dag(info.filename, True, z)
+                            ]
+                        )
+                except zipfile.BadZipFile as err:
+                    self.log.error("There was an err accessing %s, %s", self.file_path, err)
+            if zip_file_paths:
+                self.import_modules(zip_file_paths)
+            else:
+                self.import_modules(self.file_path)
 
         context = self._get_multiprocessing_context()
 
@@ -354,6 +360,27 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     @property
     def waitable_handle(self):
         return self._process.sentinel
+
+    def import_modules(self, file_path: str | Iterable[str]):
+        def _import_modules(filepath):
+            for module in iter_airflow_imports(filepath):
+                try:
+                    importlib.import_module(module)
+                except Exception as e:
+                    # only log as warning because an error here is not preventing anything from working, and
+                    # if it's serious, it's going to be surfaced to the user when the dag is actually parsed.
+                    self.log.warning(
+                        "Error when trying to pre-import module '%s' found in %s: %s",
+                        module,
+                        file_path,
+                        e,
+                    )
+
+        if isinstance(file_path, str):
+            _import_modules(file_path)
+        elif isinstance(file_path, Iterable):
+            for path in file_path:
+                _import_modules(path)
 
 
 class DagFileProcessor(LoggingMixin):
