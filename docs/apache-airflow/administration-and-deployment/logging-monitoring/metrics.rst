@@ -93,7 +93,8 @@ Name                                                                   Descripti
 ``previously_succeeded``                                               Number of previously succeeded task instances
 ``zombies_killed``                                                     Zombie tasks killed
 ``scheduler_heartbeat``                                                Scheduler heartbeats
-``dag_processing.processes``                                           Number of currently running DAG parsing processes
+``dag_processing.processes``                                           Relative number of currently running DAG parsing processes (ie this delta
+                                                                       is negative when, since the last metric was sent, processes have completed)
 ``dag_processing.processor_timeouts``                                  Number of file processors that have been killed due to taking too long
 ``dag_processing.sla_callback_count``                                  Number of SLA callbacks received
 ``dag_processing.other_callback_count``                                Number of non-SLA callbacks received
