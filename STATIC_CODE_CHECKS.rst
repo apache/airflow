@@ -144,6 +144,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only              |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                      | Checks for consistency between config.yml and default_config.cfg |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                    |         |
@@ -194,6 +196,8 @@ require Breeze Docker image to be build locally.
 | check-merge-conflict                                      | Check that merge conflicts are not being committed               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                                    |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                       |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+

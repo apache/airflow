@@ -428,6 +428,13 @@ repos:
         entry: "^\\s*from airflow\\.providers.*"
         pass_filenames: true
         files: ^airflow/example_dags/.*\.py$
+      - id: check-no-airflow-deprecation-in-providers
+        language: pygrep
+        name: Do not use DeprecationWarning in providers
+        description: Use AirflowProviderDeprecationWarning in providers
+        entry: "^\\s*DeprecationWarning*"
+        pass_filenames: true
+        files: ^airflow/providers/.*\.py$
       - id: check-no-relative-imports
         language: pygrep
         name: No relative imports
@@ -603,6 +610,14 @@ repos:
         language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
+      - id: check-aiobotocore-optional
+        name: Check if aiobotocore is an optional dependency only
+        entry: ./scripts/ci/pre_commit/pre_commit_check_aiobotocore_optional.py
+        language: python
+        files: ^airflow/providers/.*/provider\.yaml$
+        pass_filenames: true
+        additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
+        require_serial: true
       - id: check-airflow-config-yaml-consistent
         name: Checks for consistency between config.yml and default_config.cfg
         language: python
