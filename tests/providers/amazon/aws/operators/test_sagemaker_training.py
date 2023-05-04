@@ -115,11 +115,8 @@ class TestSageMakerTrainingOperator:
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
 
-    @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
-    @mock.patch.object(sagemaker, "serialize", return_value="")
-    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.AwsBaseHook.get_client_type")
-    def test_operator_defer(self, mock_client, _, mock_training, mock_desc):
+    def test_operator_defer(self, mock_training):
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
