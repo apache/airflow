@@ -83,6 +83,10 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(caplog):
         task1 >> mapped
     dag.test()
     assert caplog.text.count("task_2 ran successfully") == 2
+    assert (
+        "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
+        in caplog.text
+    )
 
 
 def test_task_mapping_without_dag_context():

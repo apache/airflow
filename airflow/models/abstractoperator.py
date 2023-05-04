@@ -568,13 +568,18 @@ class AbstractOperator(Templater, DAGNode):
             try:
                 if not value:
                     continue
-            except ValueError:
-                # This may happen if the templated field points to a class which does not
-                # support `__bool__`, such as Pandas DataFrames:
+            except Exception:
+                # This may happen if the templated field points to a class which does not support `__bool__`,
+                # such as Pandas DataFrames:
                 # https://github.com/pandas-dev/pandas/blob/2.0.x/pandas/core/generic.py#L1465
-                # The assumption, in these cases, is that we do not know how to render the
-                # templated field, and we should continue.
-                continue
+                self.log.info(
+                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
+                    type(value).__name__,
+                    self.task_id,
+                    attr_name,
+                )
+                # We may still want to render custom classes which do not support __bool__
+                pass
 
             try:
                 rendered_content = self.render_template(
