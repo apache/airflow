@@ -175,3 +175,92 @@ class TestGetConfig:
         )
         assert response.status_code == 403
         assert "chose not to expose" in response.json["detail"]
+
+
+class TestGetValue:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app) -> None:
+        self.app = configured_app
+        self.client = self.app.test_client()  # type:ignore
+
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_200_text_plain(self, mock_as_dict):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from",
+            headers={"Accept": "text/plain"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        expected = textwrap.dedent(
+            """\
+        [smtp]
+        smtp_mail_from = airflow@example.com
+        """
+        )
+        assert expected == response.data.decode()
+
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_200_application_json(self, mock_as_dict):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from",
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        expected = {
+            "sections": [
+                {
+                    "name": "smtp",
+                    "options": [
+                        {"key": "smtp_mail_from", "value": "airflow@example.com"},
+                    ],
+                },
+            ]
+        }
+        assert expected == response.json
+
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_404_when_option_not_exist(self, mock_as_dict):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from1",
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 404
+        assert "The option [smtp/smtp_mail_from1] is not found in config." in response.json["detail"]
+
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_406(self, mock_as_dict):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from",
+            headers={"Accept": "application/octet-stream"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 406
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from", headers={"Accept": "application/json"}
+        )
+
+        assert_401(response)
+
+    def test_should_raises_403_unauthorized(self):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from",
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+
+        assert response.status_code == 403
+
+    @conf_vars({("webserver", "expose_config"): "False"})
+    def test_should_respond_403_when_expose_config_off(self):
+        response = self.client.get(
+            "/api/v1/config/section/smtp/option/smtp_mail_from",
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 403
+        assert "chose not to expose" in response.json["detail"]

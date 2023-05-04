@@ -209,8 +209,8 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. Before, the provider dependencies were kept here. THEY ARE NOT HERE ANYMORE.
 #
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
-# If you change this mark you should also change ./scripts/ci/check_order_setup.py
+# 'Start dependencies group' and 'End dependencies group' are marks for ./scripts/ci/check_order_setup.py
+# If you change these marks you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
     "eventlet>=0.33.3",
