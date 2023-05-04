@@ -23,6 +23,8 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.test_utils.config import conf_vars
+
 
 class TestOpenLineageProviderPlugin:
     def setup_method(self):
@@ -36,7 +38,18 @@ class TestOpenLineageProviderPlugin:
 
     @pytest.mark.parametrize(
         "mocks, expected",
-        [([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}, 0)], 0), ([], 1)],
+        [
+            ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}, 0)], 0),
+            ([conf_vars({("openlineage", "disabled"): "False"})], 1),
+            (
+                [
+                    conf_vars({("openlineage", "disabled"): "False"}),
+                    patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}),
+                ],
+                0,
+            ),
+            ([], 1),
+        ],
     )
     def test_plugin_disablements(self, mocks, expected):
         with contextlib.ExitStack() as stack:

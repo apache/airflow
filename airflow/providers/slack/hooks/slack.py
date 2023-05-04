@@ -27,7 +27,7 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.helpers import exactly_one
@@ -131,7 +131,7 @@ class SlackHook(BaseHook):
             warnings.warn(
                 "Provide token as hook argument deprecated by security reason and will be removed "
                 "in a future releases. Please specify token in `Slack API` connection.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         if not slack_conn_id:
@@ -202,7 +202,7 @@ class SlackHook(BaseHook):
     def token(self) -> str:
         warnings.warn(
             "`SlackHook.token` property deprecated and will be removed in a future releases.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         return self._get_conn_params()["token"]
@@ -210,7 +210,7 @@ class SlackHook(BaseHook):
     def __get_token(self, token: Any, slack_conn_id: Any) -> str:
         warnings.warn(
             "`SlackHook.__get_token` method deprecated and will be removed in a future releases.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         if token is not None:

@@ -149,6 +149,10 @@ class S3ToHiveOperator(BaseOperator):
 
         else:
             raise AirflowException(f"The key {self.s3_key} does not exists")
+
+        if TYPE_CHECKING:
+            assert s3_key_object
+
         _, file_ext = os.path.splitext(s3_key_object.key)
         if self.select_expression and self.input_compressed and file_ext.lower() != ".gz":
             raise AirflowException("GZIP is the only compression format Amazon S3 Select supports")
