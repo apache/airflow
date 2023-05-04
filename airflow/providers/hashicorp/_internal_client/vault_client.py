@@ -21,7 +21,9 @@ from functools import cached_property
 import hvac
 from hvac.api.auth_methods import Kubernetes
 from hvac.exceptions import InvalidPath, VaultError
-from requests import Response
+from requests import Response, Session
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -191,6 +193,22 @@ class _VaultClient(LoggingMixin):
         :return: Vault Client
 
         """
+        if "session" not in self.kwargs:
+            # If no session object provide one with retry as per hvac documentation:
+            # https://hvac.readthedocs.io/en/stable/advanced_usage.html#retrying-failed-requests
+            adapter = HTTPAdapter(
+                max_retries=Retry(
+                    total=3,
+                    backoff_factor=0.1,
+                    status_forcelist=[412, 500, 502, 503],
+                    raise_on_status=False,
+                )
+            )
+            session = Session()
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            self.kwargs["session"] = session
+
         _client = hvac.Client(url=self.url, **self.kwargs)
         if self.auth_type == "approle":
             self._auth_approle(_client)
