@@ -168,9 +168,8 @@ with DAG(
     )
     # [END howto_operator_emr_add_steps]
     add_steps.wait_for_completion = True
-    # On rare occasion (1 in 50ish?) this system test times out.  Extending
-    # the delay and max_attempts to attempt to mitigate the flaky test.
-    add_steps.waiter_delay = 60
+    # On rare occasion (1 in 50ish?) this system test times out.  Extending the
+    # max_attempts from the default 60 to attempt to mitigate the flaky test.
     add_steps.waiter_max_attempts = 90
 
     # [START howto_sensor_emr_step]
