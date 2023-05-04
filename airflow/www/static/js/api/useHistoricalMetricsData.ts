@@ -19,32 +19,22 @@
 
 import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
-import type { API } from "src/types";
+import type { HistoricalMetricsData } from "src/types";
 
 import { getMetaValue } from "src/utils";
 
-const useDagRuns = ({
-  dagId,
-  state,
-  limit,
-  orderBy,
-}: API.GetDagRunsVariables) => {
-  const dagRunsUrl = getMetaValue("dag_runs_url").replace("__DAG_ID__", dagId);
+const url = getMetaValue("historical_metrics_data_url");
 
-  return useQuery(
-    ["dag", state, dagId, limit],
+const useHistoricalMetricsData = (startDate: string, endDate: string) =>
+  useQuery(
+    ["historical_metrics_data", startDate, endDate],
     async () =>
-      axios.get<AxiosResponse, API.DAGRunCollection>(dagRunsUrl, {
-        params: {
-          state: state ? state.join(",") : state,
-          limit,
-          order_by: orderBy,
-        },
+      axios.get<AxiosResponse, HistoricalMetricsData>(url, {
+        params: { start_date: startDate, end_date: endDate },
       }),
     {
       refetchInterval: (autoRefreshInterval || 1) * 1000,
     }
   );
-};
 
-export default useDagRuns;
+export default useHistoricalMetricsData;

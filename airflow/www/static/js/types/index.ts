@@ -144,14 +144,27 @@ interface KeyboardShortcutIdentifier {
   [name: string]: KeyboardShortcutKeys;
 }
 
+interface HistoricalMetricsData {
+  dagRunStates: {
+    [K in RunState]: number;
+  };
+  dagRunTypes: {
+    [K in DagRun["runType"]]: number;
+  };
+  taskInstanceStates: {
+    [K in TaskState extends string ? K : never]: number;
+  };
+}
+
 export type {
   API,
-  MinimalTaskInstance,
   Dag,
   DagRun,
   DatasetListItem,
   DepEdge,
   DepNode,
+  HistoricalMetricsData,
+  MinimalTaskInstance,
   RunOrdering,
   RunState,
   Task,

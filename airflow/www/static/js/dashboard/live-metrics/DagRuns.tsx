@@ -52,12 +52,12 @@ const DagRuns = (props: BoxProps) => {
       {isSuccess ? (
         <Card>
           <CardHeader textAlign="center" p={3}>
-            <Heading size="md">DagRuns</Heading>
+            <Heading size="md">Dag Runs</Heading>
           </CardHeader>
           <CardBody>
             <Flex flexDirection="column" mb={5}>
               <Text as="b" color="blue.600">
-                Top 5 longest DagRuns to finish:
+                Top 5 longest Dag Runs to finish:
               </Text>
               <Box mt={2}>
                 {data?.totalEntries !== undefined && data.totalEntries > 0 ? (
@@ -103,9 +103,9 @@ const DagRuns = (props: BoxProps) => {
               </Box>
             </Flex>
             <Flex justifyContent="end" textAlign="right">
-              <Text size="md" color="gray.600">
+              <Text size="md" color="gray.500">
                 on a total of <Text as="b">{data.totalEntries}</Text> running
-                DagRuns
+                Dag Runs
               </Text>
             </Flex>
           </CardBody>

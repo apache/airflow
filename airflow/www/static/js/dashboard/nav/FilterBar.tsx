@@ -39,8 +39,8 @@ const FilterBar = () => {
   const inputStyles = { backgroundColor: "white", size: "lg" };
 
   return (
-    <Flex backgroundColor="#f0f0f0" mt={4} p={4} justifyContent="space-between">
-      <Flex>
+    <Flex backgroundColor="#f0f0f0" mb={4} p={4} justifyContent="space-between">
+      <Flex justifyContent="space-between">
         <Box px={2}>
           <Input
             {...inputStyles}
@@ -57,19 +57,19 @@ const FilterBar = () => {
             onChange={(e) => onEndDateChange(e.target.value)}
           />
         </Box>
-        <Box px={2}>
-          <Button
-            colorScheme="cyan"
-            aria-label="Reset filters"
-            background="white"
-            variant="outline"
-            onClick={clearFilters}
-            size="lg"
-          >
-            Clear Filters
-          </Button>
-        </Box>
       </Flex>
+      <Box px={2}>
+        <Button
+          colorScheme="cyan"
+          aria-label="Reset filters"
+          background="white"
+          variant="outline"
+          onClick={clearFilters}
+          size="lg"
+        >
+          Clear Filters
+        </Button>
+      </Box>
     </Flex>
   );
 };

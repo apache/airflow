@@ -57,7 +57,7 @@ const Dags = (props: BoxProps) => {
               </Flex>
             </Flex>
             <Flex justifyContent="end" textAlign="right">
-              <Text size="md" color="gray.600">
+              <Text size="md" color="gray.500">
                 on a total of <Text as="b">{data.totalEntries}</Text> DAGs
               </Text>
             </Flex>

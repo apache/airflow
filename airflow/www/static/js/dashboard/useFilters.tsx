@@ -23,8 +23,8 @@ import { useSearchParams } from "react-router-dom";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 export interface Filters {
-  startDate: string | null;
-  endDate: string | null;
+  startDate: string;
+  endDate: string;
 }
 
 export interface UtilFunctions {

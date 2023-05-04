@@ -46,6 +46,7 @@ import useHealth from "./useHealth";
 import usePools from "./usePools";
 import useDags from "./useDags";
 import useDagRuns from "./useDagRuns";
+import useHistoricalMetricsData from "./useHistoricalMetricsData";
 
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
@@ -80,4 +81,5 @@ export {
   useSetTaskInstanceNote,
   useTaskInstance,
   useUpstreamDatasetEvents,
+  useHistoricalMetricsData,
 };

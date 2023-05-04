@@ -27,6 +27,7 @@
   <meta name="pools_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_pool_endpoint_get_pools') }}">
   <meta name="dags_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dags') }}">
   <meta name="dag_runs_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_dag_runs', dag_id='__DAG_ID__') }}">
+  <meta name="historical_metrics_data_url" content="{{ url_for('Airflow.historical_metrics_data') }}">
 {% endblock %}
 
 {% block content %}

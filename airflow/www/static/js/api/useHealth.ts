@@ -19,23 +19,19 @@
 
 import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
-import { useAutoRefresh } from "src/context/autorefresh";
 import type { API } from "src/types";
 
 import { getMetaValue } from "src/utils";
 
 const healthUrl = getMetaValue("health_url");
 
-const useHealth = () => {
-  const { isRefreshOn } = useAutoRefresh();
-
-  return useQuery(
+const useHealth = () =>
+  useQuery(
     ["health"],
     async () => axios.get<AxiosResponse, API.HealthInfo>(healthUrl),
     {
-      refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+      refetchInterval: (autoRefreshInterval || 1) * 1000,
     }
   );
-};
 
 export default useHealth;

@@ -70,7 +70,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, or_, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -3804,45 +3804,55 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/dashboard_data")
+    @expose("/object/historical_metrics_data")
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DASHBOARD),
         ]
     )
-    def dashboard_data(self):
+    def historical_metrics_data(self):
         """Returns dashboard data"""
-        start_date = datetime.datetime.fromisoformat("2023-01-01T00:00+00:00")
-        end_date = datetime.datetime.fromisoformat("2023-05-22T00:00+00:00")
+        start_date = _safe_parse_datetime(request.args.get("start_date"))
+        end_date = _safe_parse_datetime(request.args.get("end_date"))
         with create_session() as session:
             # Dag Runs
             dag_runs_type = (
-                session.query(func.count(DagRun.run_id), DagRun.run_type)
-                .filter(DagRun.start_date >= start_date, DagRun.end_date <= end_date)
+                session.query(DagRun.run_type, func.count(DagRun.run_id))
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
                 .group_by(DagRun.run_type)
                 .all()
             )
 
             dag_run_states = (
-                session.query(func.count(DagRun.run_id), DagRun.state)
-                .filter(DagRun.start_date >= start_date, DagRun.end_date <= end_date)
+                session.query(DagRun.state, func.count(DagRun.run_id))
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
                 .group_by(DagRun.state)
                 .all()
             )
 
             # TaskInstances
             task_instance_states = (
-                session.query(func.count(TaskInstance.run_id), TaskInstance.state)
-                .filter(TaskInstance.start_date >= start_date, TaskInstance.end_date <= end_date)
+                session.query(TaskInstance.state, func.count(TaskInstance.run_id))
+                .join(TaskInstance.dag_run)
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
                 .group_by(TaskInstance.state)
                 .all()
             )
 
             data = {
-                "dag_runs_type": {sum_value: run_type for sum_value, run_type in dag_runs_type},
-                "dag_run_states": {sum_value: run_state for sum_value, run_state in dag_run_states},
+                "dag_run_types": {run_type: sum_value for run_type, sum_value in dag_runs_type},
+                "dag_run_states": {run_state: sum_value for run_state, sum_value in dag_run_states},
                 "task_instance_states": {
-                    sum_value: run_state for sum_value, run_state in task_instance_states
+                    run_state or "no_status": sum_value for run_state, sum_value in task_instance_states
                 },
             }
 
