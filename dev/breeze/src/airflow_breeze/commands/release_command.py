@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 
 import click
 
@@ -50,13 +49,25 @@ def create_version_dir(version):
         console_print(f"{version} directory created")
 
 
-def copy_artifacts_to_svn(rc, svn_dev_repo, svn_version_dir):
+def copy_artifacts_to_svn(rc, svn_dev_repo):
     if confirm_action(f"Copy artifacts to SVN for {rc}?"):
-        dev_rc_path = f"{svn_dev_repo}/{rc}/"
-        if not DRY_RUN:
-            for filename in os.listdir(dev_rc_path):
-                source_file = os.path.join(dev_rc_path, filename)
-                shutil.copy(source_file, svn_version_dir)
+        run_command(
+            [
+                "for",
+                "f",
+                "in",
+                f"{svn_dev_repo}/{rc}/*",
+                ";",
+                "do",
+                "svn",
+                "cp",
+                "$f",
+                "${$(basename $f)/}",
+                "done",
+            ],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
         console_print("Artifacts copied to SVN:")
         run_command(["ls"], dry_run_override=DRY_RUN)
 
@@ -248,7 +259,7 @@ def airflow_release(release_candidate, previous_release):
         confirm_action("Version directory does not exist. Do you want to Continue?", abort=True)
 
     # Copy artifacts to the version directory
-    copy_artifacts_to_svn(release_candidate, svn_dev_repo, svn_release_version_dir)
+    copy_artifacts_to_svn(release_candidate, svn_dev_repo)
 
     # Commit the release to svn
     commit_release(version, release_candidate, svn_release_version_dir)
