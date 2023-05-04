@@ -530,3 +530,27 @@ async def test_async_post_request_with_error_code(aioresponse):
     with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
         with pytest.raises(AirflowException):
             await hook.run("v1/test")
+
+
+@pytest.mark.asyncio
+async def test_async_request_uses_connection_extra(aioresponse):
+    """Test api call asynchronously with a connection that has extra field."""
+
+    connection_extra = {"bareer": "test"}
+    connection_id = "http_default"
+    def get_airflow_connection_with_extra(unused_conn_id=None):
+        return Connection(conn_id=connection_id, conn_type="http", host="test:8080/", extra=json.dumps(connection_extra))
+
+    aioresponse.post(
+        "http://test:8080/v1/test",
+        status=200,
+        payload='{"status":{"status": 200}}',
+        reason="OK",
+    )
+
+    with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_extra):
+        hook = HttpAsyncHook()
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+            await hook.run("v1/test")
+            headers = mocked_function.call_args.kwargs.get("headers")
+            assert all(key in headers and headers[key] == value for key, value in connection_extra.items())
