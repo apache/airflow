@@ -26,7 +26,7 @@ JOB_NAME = "job_name"
 JOB_TYPE = "job_type"
 AWS_CONN_ID = "aws_sagemaker_conn"
 POKE_INTERVAL = 30
-MAX_RETRIES = 60
+MAX_ATTEMPTS = 60
 
 
 class TestSagemakerTrigger:
@@ -35,7 +35,7 @@ class TestSagemakerTrigger:
             job_name=JOB_NAME,
             job_type=JOB_TYPE,
             poke_interval=POKE_INTERVAL,
-            max_retries=MAX_RETRIES,
+            max_attempts=MAX_ATTEMPTS,
             aws_conn_id=AWS_CONN_ID,
         )
         class_path, args = sagemaker_trigger.serialize()
@@ -43,7 +43,7 @@ class TestSagemakerTrigger:
         assert args["job_name"] == JOB_NAME
         assert args["job_type"] == JOB_TYPE
         assert args["poke_interval"] == POKE_INTERVAL
-        assert args["max_retries"] == MAX_RETRIES
+        assert args["max_attempts"] == MAX_ATTEMPTS
         assert args["aws_conn_id"] == AWS_CONN_ID
 
     @pytest.mark.asyncio
@@ -59,7 +59,7 @@ class TestSagemakerTrigger:
             job_name=JOB_NAME,
             job_type=JOB_TYPE,
             poke_interval=POKE_INTERVAL,
-            max_retries=MAX_RETRIES,
+            max_attempts=MAX_ATTEMPTS,
             aws_conn_id=AWS_CONN_ID,
         )
 

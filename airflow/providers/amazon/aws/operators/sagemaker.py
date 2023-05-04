@@ -684,7 +684,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param print_log: if the operator should print the cloudwatch log during training
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the training job
-    :param max_retries: Number of times to poll for query state before returning the current state,
+    :param max_attempts: Number of times to poll for query state before returning the current state,
         defaults to None.
     :param max_ingestion_time: If wait is set to True, the operation fails if the training job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
@@ -707,7 +707,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
-        max_retries: int | None = None,
+        max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
@@ -718,7 +718,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
-        self.max_retries = max_retries or 60
+        self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
         if action_if_job_exists in {"timestamp", "increment", "fail"}:
@@ -790,7 +790,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                     job_name=self.config["TrainingJobName"],
                     job_type="Training",
                     poke_interval=self.check_interval,
-                    max_retries=self.max_retries,
+                    max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",

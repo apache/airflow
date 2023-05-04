@@ -32,7 +32,7 @@ class SageMakerTrigger(BaseTrigger):
     :param job_name: name of the job to check status
     :param job_type: Type of the sagemaker job whether it is Transform or Training
     :param poke_interval:  polling period in seconds to check for the status
-    :param max_retries: Number of times to poll for query state before returning the current state,
+    :param max_attempts: Number of times to poll for query state before returning the current state,
         defaults to None.
     :param aws_conn_id: AWS connection ID for sagemaker
     """
@@ -42,14 +42,14 @@ class SageMakerTrigger(BaseTrigger):
         job_name: str,
         job_type: str,
         poke_interval: int = 30,
-        max_retries: int | None = None,
+        max_attempts: int | None = None,
         aws_conn_id: str = "aws_default",
     ):
         super().__init__()
         self.job_name = job_name
         self.job_type = job_type
         self.poke_interval = poke_interval
-        self.max_retries = max_retries
+        self.max_attempts = max_attempts
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -60,7 +60,7 @@ class SageMakerTrigger(BaseTrigger):
                 "job_name": self.job_name,
                 "job_type": self.job_type,
                 "poke_interval": self.poke_interval,
-                "max_retries": self.max_retries,
+                "max_attempts": self.max_attempts,
                 "aws_conn_id": self.aws_conn_id,
             },
         )
@@ -77,7 +77,7 @@ class SageMakerTrigger(BaseTrigger):
                 TrainingJobName=self.job_name,
                 WaiterConfig={
                     "Delay": self.poke_interval,
-                    "MaxAttempts": self.max_retries,
+                    "MaxAttempts": self.max_attempts,
                 },
             )
         yield TriggerEvent({"status": "success", "message": "Job completed."})
