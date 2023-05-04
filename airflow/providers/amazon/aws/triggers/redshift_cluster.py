@@ -171,9 +171,9 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
             "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftPauseClusterTrigger",
             {
                 "cluster_identifier": self.cluster_identifier,
-                "poll_interval": self.poll_interval,
+                "poll_interval": str(self.poll_interval),
                 "max_attempts": str(self.max_attempts),
-                "aws_conn_id": str(self.aws_conn_id),
+                "aws_conn_id": self.aws_conn_id,
             },
         )
 
@@ -198,9 +198,7 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
                     break
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"Resume Cluster Failed: {error}"}
-                        )
+                        yield TriggerEvent({"status": "failure", "message": f"Pause Cluster Failed: {error}"})
                         break
                     self.log.info(
                         "Status of cluster is %s", error.last_response["Clusters"][0]["ClusterStatus"]

@@ -175,7 +175,7 @@ class TestRedshiftPauseClusterTrigger:
 
         assert mock_get_waiter().wait.call_count == 2
         assert response == TriggerEvent(
-            {"status": "failure", "message": "Resume Cluster Failed - max attempts reached."}
+            {"status": "failure", "message": "Pause Cluster Failed - max attempts reached."}
         )
 
     @pytest.mark.asyncio
@@ -214,5 +214,5 @@ class TestRedshiftPauseClusterTrigger:
 
         assert mock_get_waiter().wait.call_count == 3
         assert response == TriggerEvent(
-            {"status": "failure", "message": f"Resume Cluster Failed: {error_failed}"}
+            {"status": "failure", "message": f"Pause Cluster Failed: {error_failed}"}
         )
