@@ -29,6 +29,7 @@ import psycopg2.extras
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -72,7 +73,7 @@ class PostgresHook(DbApiHook):
             warnings.warn(
                 'The "schema" arg has been renamed to "database" as it contained the database name.'
                 'Please use "database" to set the database name.',
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             kwargs["database"] = kwargs["schema"]
@@ -86,7 +87,7 @@ class PostgresHook(DbApiHook):
         warnings.warn(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
             'Please use "database" to get the database name.',
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         return self.database
@@ -96,7 +97,7 @@ class PostgresHook(DbApiHook):
         warnings.warn(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
             'Please use "database" to set the database name.',
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         self.database = value

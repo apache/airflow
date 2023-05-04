@@ -141,6 +141,7 @@ Currently, **officially** using Airflow:
 1. [Coursera](https://coursera.org/) [[@darrenmk](https://github.com/darrenmk)]
 1. [CoverGenius](https://covergenius.com) [[@lihan](https://github.com/lihan), [@tyomo4ka](https://github.com/tyomo4ka), [@girish-l](https://github.com/girish-l)]
 1. [Craig@Work](https://www.craigatwork.com)
+1. [CrazyLabs](https://www.crazylabs.com/) [[@HadarSha](https://github.com/HadarSha), [@gil-tober](https://github.com/gil-tober)]
 1. [Crealytics](https://crealytics.com)
 1. [Credit Karma](https://www.creditkarma.com/) [[@preete-dixit-ck](https://github.com/preete-dixit-ck) & [@harish-gaggar-ck](https://github.com/harish-gaggar-ck) & [@greg-finley-ck](https://github.com/greg-finley-ck)]
 1. [Creditas](https://www.creditas.com.br) [[@dcassiano](https://github.com/dcassiano)]

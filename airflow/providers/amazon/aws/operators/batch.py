@@ -29,7 +29,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
@@ -163,7 +163,7 @@ class BatchOperator(BaseOperator):
             self.container_overrides = overrides
             warnings.warn(
                 "Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 

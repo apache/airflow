@@ -246,6 +246,7 @@ if PACKAGE_NAME == "apache-airflow":
         "dagbag.py",
         "param.py",
         "taskinstance.py",
+        "taskinstancekey.py",
         "variable.py",
         "xcom.py",
     }
