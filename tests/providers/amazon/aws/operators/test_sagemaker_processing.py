@@ -238,14 +238,11 @@ class TestSageMakerProcessingOperator:
                 action_if_job_exists="not_fail_or_increment",
             )
 
-    @mock.patch.object(SageMakerHook, "describe_processing_job")
     @mock.patch.object(SageMakerHook, "create_processing_job")
-    @mock.patch.object(sagemaker, "serialize", return_value="")
-    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.AwsBaseHook.get_client_type")
     @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator._check_if_job_exists")
-    def test_operator_defer(self, mock_job_exists, mock_client, _, mock_processing, mock_desc):
+    def test_operator_defer(self, mock_job_exists, mock_processing):
         mock_processing.return_value = {
-            "TrainingJobArn": "test_arn",
+            "ProcessingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
         mock_job_exists.return_value = False
