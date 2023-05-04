@@ -31,7 +31,7 @@ from airflow.providers.databricks.triggers.databricks import DatabricksExecution
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 DEFER_METHOD_NAME = "execute_complete"
