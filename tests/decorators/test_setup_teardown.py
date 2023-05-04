@@ -239,52 +239,59 @@ class TestSetupTearDownTask:
         assert teardown_task._is_teardown
 
     def test_setup_decorator_on_task_deco_with_op_args(self, dag_maker):
-        @setup(task_id="setuptask")
-        @task
-        def mytask():
-            print(2)
 
-        with dag_maker() as dag:
-            mytask()
-        assert len(dag.task_group.children) == 1
-        setup_task = dag.task_group.children["setuptask"]
-        assert setup_task._is_setup
+        with pytest.raises(
+            AirflowException, match="@setup does not support kwargs when decorating a decorated task."
+        ):
+
+            @setup(task_id="setuptask")
+            @task
+            def mytask():
+                print(2)
+
+            with dag_maker():
+                mytask()
 
     def test_teardown_decorator_on_task_deco_with_op_args(self, dag_maker):
-        @teardown(task_id="teardown_task")
-        @task
-        def mytask():
-            print(2)
+        with pytest.raises(
+            AirflowException,
+            match="@teardown only supports on_failure_fail_dagrun argument when decorating a decorated task.",
+        ):
 
-        with dag_maker() as dag:
-            mytask()
-        assert len(dag.task_group.children) == 1
-        teardown_task = dag.task_group.children["teardown_task"]
-        assert teardown_task._is_teardown
+            @teardown(task_id="teardown_task")
+            @task
+            def mytask():
+                print(2)
 
-    def test_setup_decorator_on_task_deco_with_same_op_args(self, dag_maker):
-        @setup(task_id="setuptask")
-        @task(task_id="mytask2")
-        def mytask():
-            print(2)
+            with dag_maker():
+                mytask()
 
-        with dag_maker() as dag:
-            mytask()
-        assert len(dag.task_group.children) == 1
-        setup_task = dag.task_group.children["setuptask"]
-        assert setup_task._is_setup
+    def test_setup_decorator_on_task_deco_raises_if_it_has_arg(self, dag_maker):
+        with pytest.raises(
+            AirflowException, match="@setup does not support kwargs when decorating a decorated task."
+        ):
+
+            @setup(task_id="setuptask")
+            @task(task_id="mytask2")
+            def mytask():
+                print(2)
+
+            with dag_maker():
+                mytask()
 
     def test_teardown_decorator_on_task_deco_with_same_op_args(self, dag_maker):
-        @teardown(task_id="teardown_task")
-        @task(task_id="mytask2")
-        def mytask():
-            print(2)
+        with pytest.raises(
+            AirflowException,
+            match="@teardown only supports on_failure_fail_dagrun argument when decorating a decorated task.",
+        ):
 
-        with dag_maker() as dag:
-            mytask()
-        assert len(dag.task_group.children) == 1
-        teardown_task = dag.task_group.children["teardown_task"]
-        assert teardown_task._is_teardown
+            @teardown(task_id="teardown_task")
+            @task(task_id="mytask2")
+            def mytask():
+                print(2)
+
+            with dag_maker():
+                mytask()
 
     def test_multiple_outputs_with_setup(self, dag_maker):
         """Tests pushing multiple outputs as a dictionary using setup tasks"""

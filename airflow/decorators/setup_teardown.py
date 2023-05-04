@@ -36,9 +36,8 @@ def setup_task(_func=None, *, multiple_outputs=None, **kwargs) -> Callable:
         elif isinstance(func, _TaskGroupFactory):
             raise AirflowException("Task groups cannot be marked as setup or teardown.")
         else:
-            if not func.multiple_outputs:  # type: ignore[attr-defined]
-                func.multiple_outputs = multiple_outputs  # type: ignore[attr-defined]
-            func.kwargs.update(kwargs)  # type: ignore[attr-defined]
+            if kwargs or multiple_outputs:
+                raise AirflowException("@setup does not support kwargs when decorating a decorated task.")
         func._is_setup = True  # type: ignore[attr-defined]
         return func
 
@@ -60,9 +59,11 @@ def teardown_task(
         elif isinstance(func, _TaskGroupFactory):
             raise AirflowException("Task groups cannot be marked as setup or teardown.")
         else:
-            if not func.multiple_outputs:  # type: ignore[attr-defined]
-                func.multiple_outputs = multiple_outputs  # type: ignore[attr-defined]
-            func.kwargs.update(kwargs)  # type: ignore[attr-defined]
+            if kwargs or multiple_outputs:
+                raise AirflowException(
+                    "@teardown only supports on_failure_fail_dagrun argument "
+                    "when decorating a decorated task."
+                )
         func._is_teardown = True  # type: ignore[attr-defined]
         func._on_failure_fail_dagrun = on_failure_fail_dagrun  # type: ignore[attr-defined]
         return func
