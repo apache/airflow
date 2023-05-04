@@ -144,6 +144,17 @@ class TestGetConfig:
         assert expected == response.json
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    def test_should_respond_404_when_section_not_exist(self, mock_as_dict):
+        response = self.client.get(
+            "/api/v1/config?section=smtp1",
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 404
+        assert "section=smtp1 not found." in response.json["detail"]
+
+    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
