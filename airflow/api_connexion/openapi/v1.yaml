@@ -2000,6 +2000,51 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
+  /config/section/{section}/option/{option}:
+    get:
+      summary: Get a option from configuration
+      x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
+      operationId: get_value
+      tags: [Config]
+      parameters:
+        - name: section
+          in: path
+          schema:
+            type: string
+          required: true
+        - name: option
+          in: path
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+              example:
+                sections:
+                  - name: core
+                    options:
+                      - key: dags_folder
+                        value: /home/user/my-dags-folder
+            text/plain:
+              schema:
+                type: string
+              example: |
+                [core]
+                dags_folder = /home/user/my-dags-folder
+
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+           $ref: '#/components/responses/NotFound'
+
+
   /health:
     get:
       summary: Get instance status
