@@ -96,7 +96,7 @@ If release name contains chart name it will be used as a full name.
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
+        name: {{ default (printf "%s-broker-url" (include "airflow.fullname" .)) .Values.data.brokerUrlSecretName }}
         key: connection
     {{- end }}
   {{- end }}
@@ -309,23 +309,23 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "fernet_key_secret" -}}
-  {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
+  {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
 {{- end }}
 
 {{- define "webserver_secret_key_secret" -}}
-  {{- default (printf "%s-webserver-secret-key" .Release.Name) .Values.webserverSecretKeySecretName }}
+  {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
 {{- end }}
 
 {{- define "redis_password_secret" -}}
-  {{- default (printf "%s-redis-password" .Release.Name) .Values.redis.passwordSecretName }}
+  {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
-  {{- default (printf "%s-airflow-metadata" .Release.Name) .Values.data.metadataSecretName }}
+  {{- default (printf "%s-airflow-metadata" (include "airflow.fullname" .)) .Values.data.metadataSecretName }}
 {{- end }}
 
 {{- define "airflow_result_backend_secret" -}}
-  {{- default (printf "%s-airflow-result-backend" .Release.Name) .Values.data.resultBackendSecretName }}
+  {{- default (printf "%s-airflow-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
 {{- end }}
 
 {{- define "airflow_pod_template_file" -}}
@@ -333,31 +333,31 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "pgbouncer_config_secret" -}}
-  {{- default (printf "%s-pgbouncer-config" .Release.Name) .Values.pgbouncer.configSecretName }}
+  {{- default (printf "%s-pgbouncer-config" (include "airflow.fullname" .)) .Values.pgbouncer.configSecretName }}
 {{- end }}
 
 {{- define "pgbouncer_certificates_secret" -}}
-  {{- printf "%s-pgbouncer-certificates" .Release.Name }}
+  {{- printf "%s-pgbouncer-certificates" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "pgbouncer_stats_secret" -}}
-  {{- printf "%s-pgbouncer-stats" .Release.Name }}
+  {{- printf "%s-pgbouncer-stats" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "registry_secret" -}}
-  {{- default (printf "%s-registry" .Release.Name) .Values.registry.secretName }}
+  {{- default (printf "%s-registry" (include "airflow.fullname" .)) .Values.registry.secretName }}
 {{- end }}
 
 {{- define "elasticsearch_secret" -}}
-  {{- default (printf "%s-elasticsearch" .Release.Name) .Values.elasticsearch.secretName }}
+  {{- default (printf "%s-elasticsearch" (include "airflow.fullname" .)) .Values.elasticsearch.secretName }}
 {{- end }}
 
 {{- define "flower_secret" -}}
-  {{- default (printf "%s-flower" .Release.Name) .Values.flower.secretName }}
+  {{- default (printf "%s-flower" (include "airflow.fullname" .)) .Values.flower.secretName }}
 {{- end }}
 
 {{- define "kerberos_keytab_secret" -}}
-  {{- printf "%s-kerberos-keytab" .Release.Name }}
+  {{- printf "%s-kerberos-keytab" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "kerberos_ccache_path" -}}

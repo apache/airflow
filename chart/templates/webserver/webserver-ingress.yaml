@@ -24,7 +24,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-airflow-ingress
+  name: {{ include "airflow.fullname" . }}-airflow-ingress
   labels:
     tier: airflow
     component: airflow-ingress
@@ -65,6 +65,7 @@ spec:
         {{- .Values.ingress.web.hosts | default (list .Values.ingress.web.host) | toYaml | nindent 8 }}
       secretName: {{ .Values.ingress.web.tls.secretName }}
   {{- end }}
+  {{- $fullname := (include "airflow.fullname" .) }}
   rules:
     {{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
     - http:
@@ -80,7 +81,7 @@ spec:
           {{- end }}
           - backend:
               service:
-                name: {{ $.Release.Name }}-webserver
+                name: {{ $fullname }}-webserver
                 port:
                   name: airflow-ui
             {{- if $.Values.ingress.web.path }}
