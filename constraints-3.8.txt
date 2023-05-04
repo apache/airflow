@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-04T11:01:02Z
+# This constraints file was automatically generated on 2023-05-04T13:37:10Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -342,7 +342,7 @@ inflection==0.5.1
 influxdb-client==1.36.1
 iniconfig==2.0.0
 ipdb==0.13.13
-ipython==8.12.1
+ipython==8.12.2
 isodate==0.6.1
 itsdangerous==2.1.2
 jaraco.classes==3.2.3
