@@ -170,8 +170,8 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
         return (
             "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftPauseClusterTrigger",
             {
-                "cluster_identifier": str(self.cluster_identifier),
-                "poll_interval": str(self.poll_interval),
+                "cluster_identifier": self.cluster_identifier,
+                "poll_interval": self.poll_interval,
                 "max_attempts": str(self.max_attempts),
                 "aws_conn_id": str(self.aws_conn_id),
             },
@@ -184,10 +184,10 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
     async def run(self):
         async with self.hook.async_conn as client:
             attempt = 0
+            waiter = self.hook.get_waiter("cluster_paused", deferrable=True, client=client)
             while attempt < int(self.max_attempts):
                 attempt = attempt + 1
                 try:
-                    waiter = self.hook.get_waiter("cluster_paused", deferrable=True, client=client)
                     await waiter.wait(
                         ClusterIdentifier=self.cluster_identifier,
                         WaiterConfig={
@@ -197,13 +197,18 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
                     )
                     break
                 except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        yield TriggerEvent(
+                            {"status": "failure", "message": f"Resume Cluster Failed: {error}"}
+                        )
+                        break
                     self.log.info(
                         "Status of cluster is %s", error.last_response["Clusters"][0]["ClusterStatus"]
                     )
                     await asyncio.sleep(int(self.poll_interval))
         if attempt >= int(self.max_attempts):
             yield TriggerEvent(
-                {"status": "failure", "message": "Resume Cluster Failed - max attempts reached."}
+                {"status": "failure", "message": "Pause Cluster Failed - max attempts reached."}
             )
         else:
             yield TriggerEvent({"status": "success", "message": "Cluster paused"})

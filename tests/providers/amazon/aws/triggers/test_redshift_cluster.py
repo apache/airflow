@@ -177,3 +177,42 @@ class TestRedshiftPauseClusterTrigger:
         assert response == TriggerEvent(
             {"status": "failure", "message": "Resume Cluster Failed - max attempts reached."}
         )
+
+    @pytest.mark.asyncio
+    @async_mock.patch("asyncio.sleep")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_waiter")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
+    async def test_redshift_resume_cluster_trigger_run_attempts_failed(
+        self, mock_async_conn, mock_get_waiter, mock_sleep
+    ):
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+        error_available = WaiterError(
+            name="test_name",
+            reason="Max attempts exceeded",
+            last_response={"Clusters": [{"ClusterStatus": "available"}]},
+        )
+        error_failed = WaiterError(
+            name="test_name",
+            reason="Waiter encountered a terminal failure state:",
+            last_response={"Clusters": [{"ClusterStatus": "available"}]},
+        )
+        mock_get_waiter().wait.side_effect = AsyncMock(
+            side_effect=[error_available, error_available, error_failed]
+        )
+        mock_sleep.return_value = True
+
+        redshift_resume_cluster_trigger = RedshiftPauseClusterTrigger(
+            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_attempts=TEST_MAX_ATTEMPT,
+            aws_conn_id=TEST_AWS_CONN_ID,
+        )
+
+        generator = redshift_resume_cluster_trigger.run()
+        response = await generator.asend(None)
+
+        assert mock_get_waiter().wait.call_count == 3
+        assert response == TriggerEvent(
+            {"status": "failure", "message": f"Resume Cluster Failed: {error_failed}"}
+        )
