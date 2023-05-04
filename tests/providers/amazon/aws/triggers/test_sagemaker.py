@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
 
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
@@ -51,8 +49,8 @@ class TestSagemakerTrigger:
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.async_conn")
-    @mock.patch("airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger._get_job_type_waiter")
-    @mock.patch(
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger._get_job_type_waiter")
+    @async_mock.patch(
         "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger._get_job_type_waiter_job_name_arg"
     )
     async def test_sagemaker_trigger_run(
