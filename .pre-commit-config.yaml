@@ -428,6 +428,13 @@ repos:
         entry: "^\\s*from airflow\\.providers.*"
         pass_filenames: true
         files: ^airflow/example_dags/.*\.py$
+      - id: check-no-airflow-deprecation-in-providers
+        language: pygrep
+        name: Do not use DeprecationWarning in providers
+        description: Use AirflowProviderDeprecationWarning in providers
+        entry: "^\\s*DeprecationWarning*"
+        pass_filenames: true
+        files: ^airflow/providers/.*\.py$
       - id: check-no-relative-imports
         language: pygrep
         name: No relative imports

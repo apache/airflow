@@ -33,18 +33,21 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from boto3.s3.transfer import S3Transfer, TransferConfig
+from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.service_resource import Object as S3ResourceObject
 
 T = TypeVar("T", bound=Callable)
 
@@ -74,7 +77,7 @@ def provide_bucket_name(func: T) -> T:
                     "s3 conn_type, and the associated schema field, is deprecated."
                     " Please use aws conn_type instead, and specify `bucket_name`"
                     " in `service_config.s3` within `extras`.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 bound_args.arguments["bucket_name"] = self.conn_config.schema
@@ -521,7 +524,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
-    def get_key(self, key: str, bucket_name: str | None = None) -> S3Transfer:
+    def get_key(self, key: str, bucket_name: str | None = None) -> S3ResourceObject:
         """
         Returns a :py:class:`S3.Object`.
 
@@ -626,7 +629,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def get_wildcard_key(
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
-    ) -> S3Transfer:
+    ) -> S3ResourceObject | None:
         """
         Returns a boto3.s3.Object object matching the wildcard expression
 

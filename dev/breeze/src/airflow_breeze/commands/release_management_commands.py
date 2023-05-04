@@ -220,8 +220,14 @@ def prepare_airflow_packages(
     "--base-branch",
     type=str,
     default="main",
+    help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
+@click.option(
+    "--only-min-version-update",
+    is_flag=True,
+    help="Only update minimum version in __init__.py files and regenerate corresponding documentation",
+)
 @option_verbose
 @option_dry_run
 @option_answer
@@ -230,6 +236,7 @@ def prepare_provider_documentation(
     base_branch: str,
     debug: bool,
     packages: list[str],
+    only_min_version_update: bool,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -239,6 +246,7 @@ def prepare_provider_documentation(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         base_branch=base_branch,
+        only_min_version_update=only_min_version_update,
         skip_environment_initialization=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)

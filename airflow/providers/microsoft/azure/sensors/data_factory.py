@@ -20,7 +20,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -138,7 +138,7 @@ class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunSt
             "will be removed in a future release. "
             "Please use `AzureDataFactoryPipelineRunStatusSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs, deferrable=True)

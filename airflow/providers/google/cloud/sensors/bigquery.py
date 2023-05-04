@@ -22,7 +22,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -81,7 +81,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 warnings.warn(
                     "Argument `poll_interval` is deprecated and will be removed "
                     "in a future release.  Please use `poke_interval` instead.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             else:
@@ -284,7 +284,7 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
             "will be removed in a future release. "
             "Please use `BigQueryTableExistenceSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         super().__init__(deferrable=True, **kwargs)
 
@@ -320,6 +320,6 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
             "will be removed in a future release. "
             "Please use `BigQueryTableExistencePartitionSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         super().__init__(deferrable=True, **kwargs)

@@ -25,8 +25,12 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import Batch
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowTaskTimeout, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowTaskTimeout,
+    TaskDeferred,
+)
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.dataproc import (
     DATAPROC_CLUSTER_LINK,
@@ -420,7 +424,7 @@ class TestsClusterGenerator:
 
 class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             op = DataprocCreateClusterOperator(
                 task_id=TASK_ID,
                 region=GCP_REGION,
@@ -757,7 +761,7 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
 
 class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
         assert_warning("DataprocUpdateClusterOperator", warnings)
 
@@ -1549,7 +1553,7 @@ class TestDataProcHiveOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitHiveJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
         assert_warning("DataprocSubmitJobOperator", warnings)
 
@@ -1611,7 +1615,7 @@ class TestDataProcPigOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitPigJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
         assert_warning("DataprocSubmitJobOperator", warnings)
 
@@ -1679,7 +1683,7 @@ class TestDataProcSparkSqlOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitSparkSqlJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
         assert_warning("DataprocSubmitJobOperator", warnings)
 
@@ -1770,7 +1774,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitSparkJobOperator(
                 task_id=TASK_ID, region=GCP_REGION, main_class=self.main_class, dataproc_jars=self.jars
             )
@@ -1863,7 +1867,7 @@ class TestDataProcHadoopOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitHadoopJobOperator(
                 task_id=TASK_ID, region=GCP_REGION, main_jar=self.jar, arguments=self.args
             )
@@ -1901,7 +1905,7 @@ class TestDataProcPySparkOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitPySparkJobOperator(task_id=TASK_ID, region=GCP_REGION, main=self.uri)
         assert_warning("DataprocSubmitJobOperator", warnings)
 

@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -347,7 +348,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{self.__class__.__name__}` operator is deprecated, "
             f"please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs)
@@ -1130,7 +1131,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{self.__class__.__name__}` operator is deprecated, "
             "please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs)

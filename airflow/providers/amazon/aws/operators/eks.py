@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 
@@ -691,7 +691,7 @@ class EksPodOperator(KubernetesPodOperator):
                 "Currently the default for this parameter is `False` but in a future release the default "
                 "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
                 "set `is_delete_operator_pod=False` explicitly.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             is_delete_operator_pod = False
