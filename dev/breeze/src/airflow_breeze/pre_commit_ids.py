@@ -26,6 +26,7 @@ PRE_COMMIT_LIST = [
     "all",
     "black",
     "blacken-docs",
+    "check-aiobotocore-optional",
     "check-airflow-config-yaml-consistent",
     "check-airflow-provider-compatibility",
     "check-apache-license-rat",
