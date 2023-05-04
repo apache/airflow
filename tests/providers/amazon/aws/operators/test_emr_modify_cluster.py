@@ -23,6 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.emr import EmrModifyClusterOperator
 from airflow.utils import timezone
 
@@ -60,7 +61,8 @@ class TestEmrModifyClusterOperator:
         assert self.operator.step_concurrency_level == 1
         assert self.operator.aws_conn_id == "aws_default"
 
-    def test_execute_returns_step_concurrency(self):
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_execute_returns_step_concurrency(self, _):
         self.emr_client_mock.modify_cluster.return_value = MODIFY_CLUSTER_SUCCESS_RETURN
 
         with patch("boto3.session.Session", self.boto3_session_mock), patch(
@@ -69,7 +71,8 @@ class TestEmrModifyClusterOperator:
             mock_isinstance.return_value = True
             assert self.operator.execute(self.mock_context) == 1
 
-    def test_execute_returns_error(self):
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_execute_returns_error(self, _):
         self.emr_client_mock.modify_cluster.return_value = MODIFY_CLUSTER_ERROR_RETURN
 
         with patch("boto3.session.Session", self.boto3_session_mock), patch(
