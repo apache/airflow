@@ -528,7 +528,7 @@ class TestGCSUploadSessionTrigger:
                     "status": "error",
                     "message": (
                         "FAILURE: Inactivity Period passed, not enough objects found in "
-                        "TEST_BUCKET/TEST_PREFIX "
+                        "TEST_BUCKET/TEST_PREFIX"
                     ),
                 },
             ),
