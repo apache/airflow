@@ -24,7 +24,6 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
-from airflow.exceptions import AirflowNotFoundException
 from airflow.security import permissions
 from airflow.settings import json
 
@@ -79,7 +78,7 @@ def get_config(*, section: str | None = None) -> Response:
         return Response(status=HTTPStatus.NOT_ACCEPTABLE)
     elif conf.getboolean("webserver", "expose_config"):
         if section and not conf.has_section(section):
-            raise AirflowNotFoundException(f"section={section} not found")
+            raise NotFound("section not found.", detail=f"section={section} not found.")
         conf_dict = conf.as_dict(display_source=False, display_sensitive=True)
         if section:
             conf_section_value = conf_dict[section]

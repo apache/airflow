@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 
 
 def _broker_supports_visibility_timeout(url):
-    return url.startswith("redis://") or url.startswith("sqs://")
+    return url.startswith("redis://") or url.startswith("sqs://") or url.startswith("sentinel://")
 
 
 log = logging.getLogger(__name__)
@@ -37,6 +37,16 @@ broker_transport_options = conf.getsection("celery_broker_transport_options") or
 if "visibility_timeout" not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
         broker_transport_options["visibility_timeout"] = 21600
+
+broker_transport_options_for_celery: dict = dict.copy(broker_transport_options)
+if "sentinel_kwargs" in broker_transport_options:
+    try:
+        sentinel_kwargs = conf.getjson("celery_broker_transport_options", "sentinel_kwargs")
+        if not isinstance(sentinel_kwargs, dict):
+            raise ValueError
+        broker_transport_options_for_celery["sentinel_kwargs"] = sentinel_kwargs
+    except Exception:
+        raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
 
 if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
@@ -53,7 +63,7 @@ DEFAULT_CELERY_CONFIG = {
     "task_default_exchange": conf.get("operators", "DEFAULT_QUEUE"),
     "task_track_started": conf.getboolean("celery", "task_track_started"),
     "broker_url": broker_url,
-    "broker_transport_options": broker_transport_options,
+    "broker_transport_options": broker_transport_options_for_celery,
     "result_backend": result_backend,
     "worker_concurrency": conf.getint("celery", "WORKER_CONCURRENCY"),
     "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control"),
@@ -74,7 +84,7 @@ try:
                 "ca_certs": conf.get("celery", "SSL_CACERT"),
                 "cert_reqs": ssl.CERT_REQUIRED,
             }
-        elif broker_url and "redis://" in broker_url:
+        elif broker_url and ("redis://" in broker_url or "sentinel://" in broker_url):
             broker_use_ssl = {
                 "ssl_keyfile": conf.get("celery", "SSL_KEY"),
                 "ssl_certfile": conf.get("celery", "SSL_CERT"),

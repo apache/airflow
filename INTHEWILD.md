@@ -496,6 +496,7 @@ Currently, **officially** using Airflow:
 1. [Wisr](https://wisr.com.au/) [[@fsodano](https://github.com/fsodano) & [@vincyf1](https://github.com/vincyf1)]
 1. [Wix](https://www.wix.com/)
 1. [Wooga](https://www.wooga.com/)
+1. [Workpath GmbH](https://www.workpath.com/en/product) [[WorkpathHQ](https://github.com/WorkpathHQ)]
 1. [WorldRemit](https://www.worldremit.com/) [[@boittega](https://github.com/boittega)]
 1. [Wrike](https://www.wrike.com) [[@eliseealex](https://github.com/eliseealex) & [teoretic6](https://github.com/Teoretic6)]
 1. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu) & [adamantnz](https://github.com/adamantnz/)]

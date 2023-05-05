@@ -1994,11 +1994,12 @@ paths:
                 smtp_host = localhost
                 smtp_mail_from =  airflow@example.com
 
-
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /config/section/{section}/option/{option}:
     get:

@@ -30,7 +30,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.settings import _ENABLE_AIP_52
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -676,7 +675,6 @@ class TestTriggerRuleDep:
         )
         assert len(dep_statuses) == 0
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     @pytest.mark.parametrize(
         "task_cfg, states, exp_reason, exp_state",
         [
