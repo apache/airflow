@@ -27,7 +27,9 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.stats import AllowListValidator, BlockListValidator, SafeDogStatsdLogger, SafeStatsdLogger
+from airflow.metrics.datadog_logger import SafeDogStatsdLogger
+from airflow.metrics.statsd_logger import SafeStatsdLogger
+from airflow.metrics.validators import AllowListValidator, BlockListValidator
 from tests.test_utils.config import conf_vars
 
 

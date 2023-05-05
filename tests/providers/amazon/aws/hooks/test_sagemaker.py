@@ -535,7 +535,7 @@ class TestSageMakerHook:
             == expected
         )
 
-    @mock.patch.object(AwsLogsHook, "get_conn")
+    @mock.patch.object(AwsLogsHook, "conn")
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(time, "monotonic")
     def test_describe_training_job_with_logs_in_progress(self, mock_time, mock_client, mock_log_client):
@@ -564,7 +564,7 @@ class TestSageMakerHook:
         assert response == (LogState.JOB_COMPLETE, {}, 50)
 
     @pytest.mark.parametrize("log_state", [LogState.JOB_COMPLETE, LogState.COMPLETE])
-    @mock.patch.object(AwsLogsHook, "get_conn")
+    @mock.patch.object(AwsLogsHook, "conn")
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_describe_training_job_with_complete_states(self, mock_client, mock_log_client, log_state):
         mock_session = mock.Mock()
@@ -591,7 +591,7 @@ class TestSageMakerHook:
         assert response == (LogState.COMPLETE, {}, 0)
 
     @mock.patch.object(SageMakerHook, "check_training_config")
-    @mock.patch.object(AwsLogsHook, "get_conn")
+    @mock.patch.object(AwsLogsHook, "conn")
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "describe_training_job_with_log")
     @mock.patch("time.sleep", return_value=None)
@@ -622,29 +622,6 @@ class TestSageMakerHook:
         )
         assert mock_describe.call_count == 3
         assert mock_session.describe_training_job.call_count == 1
-
-    @mock.patch.object(SageMakerHook, "get_conn")
-    def test_find_processing_job_by_name(self, mock_conn):
-        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-        mock_conn().list_processing_jobs.return_value = {
-            "ProcessingJobSummaries": [{"ProcessingJobName": "existing_job"}]
-        }
-
-        with pytest.warns(DeprecationWarning):
-            ret = hook.find_processing_job_by_name("existing_job")
-            assert ret
-
-    @mock.patch.object(SageMakerHook, "get_conn")
-    def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
-        error_resp = {"Error": {"Code": "ValidationException"}}
-        mock_conn().describe_processing_job.side_effect = ClientError(
-            error_response=error_resp, operation_name="empty"
-        )
-        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
-
-        with pytest.warns(DeprecationWarning):
-            ret = hook.find_processing_job_by_name("existing_job")
-            assert not ret
 
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_count_processing_jobs_by_name(self, mock_conn):

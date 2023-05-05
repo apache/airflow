@@ -22,6 +22,7 @@ import ast
 import pickle
 import tarfile
 import warnings
+from collections.abc import Container
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
@@ -32,7 +33,7 @@ from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 
@@ -155,7 +156,7 @@ class DockerOperator(BaseOperator):
         If rolling the logs creates excess files, the oldest file is removed.
         Only effective when max-size is also set. A positive integer. Defaults to 1.
     :param ipc_mode: Set the IPC mode for the container.
-    :param skip_exit_code: If task exits with this exit code, leave the task
+    :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     """
@@ -215,6 +216,7 @@ class DockerOperator(BaseOperator):
         log_opts_max_file: str | None = None,
         ipc_mode: str | None = None,
         skip_exit_code: int | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -222,7 +224,7 @@ class DockerOperator(BaseOperator):
         if type(auto_remove) == bool:
             warnings.warn(
                 "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         if str(auto_remove) == "False":
@@ -276,7 +278,21 @@ class DockerOperator(BaseOperator):
         self.log_opts_max_size = log_opts_max_size
         self.log_opts_max_file = log_opts_max_file
         self.ipc_mode = ipc_mode
-        self.skip_exit_code = skip_exit_code
+        if skip_exit_code is not None:
+            warnings.warn(
+                "skip_exit_code is deprecated. Please use skip_on_exit_code",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            skip_on_exit_code = skip_exit_code
+
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
 
     @cached_property
     def hook(self) -> DockerHook:
@@ -377,9 +393,9 @@ class DockerOperator(BaseOperator):
                 self.log.info("%s", log_chunk)
 
             result = self.cli.wait(self.container["Id"])
-            if result["StatusCode"] == self.skip_exit_code:
+            if result["StatusCode"] in self.skip_on_exit_code:
                 raise AirflowSkipException(
-                    f"Docker container returned exit code {self.skip_exit_code}. Skipping."
+                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
                 )
             elif result["StatusCode"] != 0:
                 joined_log_lines = "\n".join(log_lines)

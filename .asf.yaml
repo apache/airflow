@@ -78,6 +78,7 @@ github:
     - mhenc
     - ferruzzi
     - mobuchowski
+    - pankajkoti
 
 notifications:
   jobs: jobs@airflow.apache.org

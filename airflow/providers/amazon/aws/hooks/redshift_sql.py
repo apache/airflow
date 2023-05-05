@@ -16,13 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
 from airflow.compat.functools import cached_property
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class RedshiftSQLHook(DbApiHook):
@@ -30,6 +36,14 @@ class RedshiftSQLHook(DbApiHook):
     Execute statements against Amazon Redshift, using redshift_connector
 
     This hook requires the redshift_conn_id connection.
+
+    Note: For AWS IAM authentication, use iam in the extra connection parameters
+    and set it to true. Leave the password field empty. This will use the
+    "aws_default" connection to get the temporary token unless you override
+    with aws_conn_id when initializing the hook.
+    The cluster-identifier is extracted from the beginning of
+    the host field, so is optional. It can however be overridden in the extra field.
+    extras example: ``{"iam":true}``
 
     :param redshift_conn_id: reference to
         :ref:`Amazon Redshift connection id<howto/connection:redshift>`
@@ -43,6 +57,10 @@ class RedshiftSQLHook(DbApiHook):
     conn_type = "redshift"
     hook_name = "Amazon Redshift"
     supports_autocommit = True
+
+    def __init__(self, *args, aws_conn_id: str = "aws_default", **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.aws_conn_id = aws_conn_id
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
@@ -62,6 +80,9 @@ class RedshiftSQLHook(DbApiHook):
 
         conn_params: dict[str, str | int] = {}
 
+        if conn.extra_dejson.get("iam", False):
+            conn.login, conn.password, conn.port = self.get_iam_token(conn)
+
         if conn.login:
             conn_params["user"] = conn.login
         if conn.password:
@@ -74,6 +95,27 @@ class RedshiftSQLHook(DbApiHook):
             conn_params["database"] = conn.schema
 
         return conn_params
+
+    def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """
+        Uses AWSHook to retrieve a temporary password to connect to Redshift.
+        Port is required. If none is provided, default is used for each service
+        """
+        port = conn.port or 5439
+        # Pull the custer-identifier from the beginning of the Redshift URL
+        # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
+        cluster_identifier = conn.extra_dejson.get("cluster_identifier", conn.host.split(".")[0])
+        redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
+        cluster_creds = redshift_client.get_cluster_credentials(
+            DbUser=conn.login,
+            DbName=conn.schema,
+            ClusterIdentifier=cluster_identifier,
+            AutoCreate=False,
+        )
+        token = cluster_creds["DbPassword"]
+        login = cluster_creds["DbUser"]
+        return login, token, port
 
     def get_uri(self) -> str:
         """Overrides DbApiHook get_uri to use redshift_connector sqlalchemy dialect as driver name"""

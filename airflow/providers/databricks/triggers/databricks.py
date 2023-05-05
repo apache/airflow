@@ -32,14 +32,36 @@ class DatabricksExecutionTrigger(BaseTrigger):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     :param polling_period_seconds: Controls the rate of the poll for the result of this run.
         By default, the trigger will poll every 30 seconds.
+    :param retry_limit: The number of times to retry the connection in case of service outages.
+    :param retry_delay: The number of seconds to wait between retries.
+    :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param run_page_url: The run page url.
     """
 
-    def __init__(self, run_id: int, databricks_conn_id: str, polling_period_seconds: int = 30) -> None:
+    def __init__(
+        self,
+        run_id: int,
+        databricks_conn_id: str,
+        polling_period_seconds: int = 30,
+        retry_limit: int = 3,
+        retry_delay: int = 10,
+        retry_args: dict[Any, Any] | None = None,
+        run_page_url: str | None = None,
+    ) -> None:
         super().__init__()
         self.run_id = run_id
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
-        self.hook = DatabricksHook(databricks_conn_id)
+        self.retry_limit = retry_limit
+        self.retry_delay = retry_delay
+        self.retry_args = retry_args
+        self.run_page_url = run_page_url
+        self.hook = DatabricksHook(
+            databricks_conn_id,
+            retry_limit=self.retry_limit,
+            retry_delay=self.retry_delay,
+            retry_args=retry_args,
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -48,22 +70,31 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "run_id": self.run_id,
                 "databricks_conn_id": self.databricks_conn_id,
                 "polling_period_seconds": self.polling_period_seconds,
+                "retry_limit": self.retry_limit,
+                "retry_delay": self.retry_delay,
+                "retry_args": self.retry_args,
+                "run_page_url": self.run_page_url,
             },
         )
 
     async def run(self):
         async with self.hook:
-            run_page_url = await self.hook.a_get_run_page_url(self.run_id)
             while True:
                 run_state = await self.hook.a_get_run_state(self.run_id)
                 if run_state.is_terminal:
                     yield TriggerEvent(
                         {
                             "run_id": self.run_id,
+                            "run_page_url": self.run_page_url,
                             "run_state": run_state.to_json(),
-                            "run_page_url": run_page_url,
                         }
                     )
-                    break
+                    return
                 else:
+                    self.log.info(
+                        "run-id %s in run state %s. sleeping for %s seconds",
+                        self.run_id,
+                        run_state,
+                        self.polling_period_seconds,
+                    )
                     await asyncio.sleep(self.polling_period_seconds)

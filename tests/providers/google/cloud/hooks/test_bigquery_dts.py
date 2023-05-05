@@ -55,6 +55,10 @@ RUN_ID = "id1234"
 
 
 class TestBigQueryDataTransferHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            BiqQueryDataTransferServiceHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with async_mock.patch(
             "airflow.providers.google.cloud.hooks.bigquery_dts.GoogleBaseHook.__init__",
@@ -127,6 +131,10 @@ class TestBigQueryDataTransferHook:
 
 class TestAsyncBiqQueryDataTransferServiceHook:
     HOOK_MODULE_PATH = "airflow.providers.google.cloud.hooks.bigquery_dts"
+
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            AsyncBiqQueryDataTransferServiceHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
 
     @pytest.fixture()
     def mock_client(self):

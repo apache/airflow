@@ -144,6 +144,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only              |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                      | Checks for consistency between config.yml and default_config.cfg |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                    |         |
@@ -195,6 +197,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |
@@ -226,6 +230,8 @@ require Breeze Docker image to be build locally.
 | check-system-tests-present                                | Check if system tests have required segments of code             |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                        |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase      |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                                       |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -260,7 +266,8 @@ require Breeze Docker image to be build locally.
 |                                                           | * Add license for all Shell files                                |         |
 |                                                           | * Add license for all Python files                               |         |
 |                                                           | * Add license for all XML files                                  |         |
-|                                                           | * Add license for all YAML files                                 |         |
+|                                                           | * Add license for all Helm template files                        |         |
+|                                                           | * Add license for all YAML files except Helm templates           |         |
 |                                                           | * Add license for all Markdown files                             |         |
 |                                                           | * Add license for all other files                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -427,7 +434,7 @@ Run the ``mypy`` check for all files:
 
      breeze static-checks --type mypy-core --all-files
 
-Run the ``ruff`` check for the ``tests.core.py`` file with verbose output:
+Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
 .. code-block:: bash
 
@@ -438,6 +445,14 @@ Run the ``ruff for the ``tests.core`` package with verbose output:
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
+
+Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+``airflow/example_dags/example_python_operator.py``:
+
+.. code-block:: bash
+
+     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+         airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:
 

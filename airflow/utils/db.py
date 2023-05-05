@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import json
 import logging
 import os
 import sys
@@ -39,7 +40,7 @@ from airflow.models import import_all_models
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
@@ -79,6 +80,7 @@ REVISION_HEADS_MAP = {
     "2.5.1": "290244fb8b83",
     "2.5.2": "290244fb8b83",
     "2.5.3": "290244fb8b83",
+    "2.6.0": "98ae134e6fff",
 }
 
 
@@ -364,6 +366,14 @@ def create_default_connections(session: Session = NEW_SESSION):
         session,
     )
     merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
+    merge_conn(
+        Connection(
+            conn_id="kafka_default",
+            conn_type="kafka",
+            extra=json.dumps({"bootstrap.servers": "broker:29092"}),
+        ),
+        session,
+    )
     merge_conn(
         Connection(
             conn_id="kubernetes_default",

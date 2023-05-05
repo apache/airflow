@@ -64,7 +64,7 @@ from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
 from google.cloud.aiplatform_v1.types import TrainingPipeline
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -74,16 +74,16 @@ class AutoMLHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._job: None | (
@@ -455,7 +455,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -682,7 +682,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 

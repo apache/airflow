@@ -38,7 +38,8 @@ PARALLELISM: int = conf.getint("core", "PARALLELISM")
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Command to execute - list of strings
     # the first element is always "airflow".
@@ -217,9 +218,19 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("%s in queue", num_queued_tasks)
         self.log.debug("%s open slots", open_slots)
 
-        Stats.gauge("executor.open_slots", open_slots)
-        Stats.gauge("executor.queued_tasks", num_queued_tasks)
-        Stats.gauge("executor.running_tasks", num_running_tasks)
+        Stats.gauge(
+            "executor.open_slots", value=open_slots, tags={"status": "open", "name": self.__class__.__name__}
+        )
+        Stats.gauge(
+            "executor.queued_tasks",
+            value=num_queued_tasks,
+            tags={"status": "queued", "name": self.__class__.__name__},
+        )
+        Stats.gauge(
+            "executor.running_tasks",
+            value=num_running_tasks,
+            tags={"status": "running", "name": self.__class__.__name__},
+        )
 
         self.trigger_tasks(open_slots)
 

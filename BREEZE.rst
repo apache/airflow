@@ -715,6 +715,68 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
+
+ETIMEOUT Error
+--------------
+
+When running ``breeze start-airflow``, the following output might be observed:
+
+.. code-block:: bash
+
+    Skip fixing ownership of generated files as Host OS is darwin
+
+
+    Waiting for asset compilation to complete in the background.
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation is taking too long.
+
+    If it does not complete soon, you might want to stop it and remove file lock:
+      * press Ctrl-C
+      * run 'rm /opt/airflow/.build/www/.asset_compile.lock'
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation failed. Exiting.
+
+    [INFO] Locking pre-commit directory
+
+    Error 1 returned
+
+This error is actually caused by the following error during the asset compilation which resulted in
+ETIMEOUT when ``npm`` command is trying to install required packages:
+
+.. code-block:: bash
+
+    npm ERR! code ETIMEDOUT
+    npm ERR! syscall connect
+    npm ERR! errno ETIMEDOUT
+    npm ERR! network request to https://registry.npmjs.org/yarn failed, reason: connect ETIMEDOUT 2606:4700::6810:1723:443
+    npm ERR! network This is a problem related to network connectivity.
+    npm ERR! network In most cases you are behind a proxy or have bad network settings.
+    npm ERR! network
+    npm ERR! network If you are behind a proxy, please make sure that the
+    npm ERR! network 'proxy' config is set properly.  See: 'npm help config'
+
+In this situation, notice that the IP address ``2606:4700::6810:1723:443`` is in IPv6 format, which was the
+reason why the connection did not go through the router, as the router did not support IPv6 addresses in its DNS lookup.
+In this case, disabling IPv6 in the host machine and using IPv4 instead resolved the issue.
+
+The similar issue could happen if you are behind an HTTP/HTTPS proxy and your access to required websites are
+blocked by it, or your proxy setting has not been done properly.
+
 Advanced commands
 =================
 
@@ -787,6 +849,15 @@ For example this will only run provider tests for airbyte and http providers:
 .. code-block:: bash
 
    breeze testing tests --test-type "Providers[airbyte,http]"
+
+You can also exclude tests for some providers from being run when whole "Providers" test type is run.
+
+For example this will run tests for all providers except amazon and google provider tests:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[-amazon,google]"
+
 
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
@@ -1570,23 +1641,6 @@ Those are all available flags of ``get-workflow-info`` command:
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
-Tracking backtracking issues for CI builds
-..........................................
-
-When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
-lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
-Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
-diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
-which new dependency might have caused the backtracking. The whole process is described in
-`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
-
-Those are all available flags of ``find-newer-dependencies`` command:
-
-.. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
-  :width: 100%
-  :alt: Breeze ci find-newer-dependencies
-
 Release management tasks
 ------------------------
 
@@ -1684,7 +1738,7 @@ You can also run the verification with an earlier airflow version to check for c
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.1.0
+    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
@@ -1692,6 +1746,32 @@ All the command parameters are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
+
+
+Installing provider packages
+............................
+
+In some cases we want to just see if the provider packages generated can be installed with airflow without
+verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+just prepared provider packages and they are present in ``dist`` folder.
+
+.. code-block:: bash
+
+     breeze release-management install-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_install-provider-packages.svg
+  :width: 100%
+  :alt: Breeze install-provider-packages
+
 
 Generating Provider Issue
 .........................

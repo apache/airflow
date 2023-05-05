@@ -186,39 +186,39 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         refreshed_tis = []
         TI = TaskInstance
 
+        ti_primary_key_to_ti_key = {ti_key.primary: ti_key for ti_key in ti_status.running.keys()}
+
         filter_for_tis = TI.filter_for_tis(list(ti_status.running.values()))
         if filter_for_tis is not None:
             refreshed_tis = session.query(TI).filter(filter_for_tis).all()
 
         for ti in refreshed_tis:
-            # Here we remake the key by subtracting 1 to match in memory information
-            reduced_key = ti.key.reduced
+            # Use primary key to match in memory information
+            ti_key = ti_primary_key_to_ti_key[ti.key.primary]
             if ti.state == TaskInstanceState.SUCCESS:
-                ti_status.succeeded.add(reduced_key)
+                ti_status.succeeded.add(ti_key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 continue
             if ti.state == TaskInstanceState.SKIPPED:
-                ti_status.skipped.add(reduced_key)
+                ti_status.skipped.add(ti_key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 continue
             if ti.state == TaskInstanceState.FAILED:
                 self.log.error("Task instance %s failed", ti)
-                ti_status.failed.add(reduced_key)
-                ti_status.running.pop(reduced_key)
+                ti_status.failed.add(ti_key)
+                ti_status.running.pop(ti_key)
                 continue
             # special case: if the task needs to run again put it back
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
-                # During handling of reschedule state in ti._handle_reschedule, try number is reduced
-                # by one, so we should not use reduced_key to avoid key error
-                ti_status.running.pop(ti.key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
@@ -232,13 +232,13 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     ti,
                 )
                 tis_to_be_scheduled.append(ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
             # special case: Deferrable task can go from DEFERRED to SCHEDULED;
             # when that happens, we need to put it back as in UP_FOR_RESCHEDULE
             elif ti.state == TaskInstanceState.SCHEDULED:
                 self.log.debug("Task instance %s is resumed from deferred state", ti)
-                ti_status.running.pop(ti.key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances

@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2023-04-14
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`37cf0506b5 <https://github.com/apache/airflow/commit/37cf0506b50931a68aeed7b9fb602e824adca9d6>`_  2023-04-14   ``Add delete inactive run functionality to databricks provider (#30646)``
+`1e311cf036 <https://github.com/apache/airflow/commit/1e311cf036b04d010f296aff1fbf612f22397893>`_  2023-04-11   ``Databricks SQL sensor (#30477)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  =========================================================================
+
 4.0.1
 .....
 
-Latest change: 2023-03-08
+Latest change: 2023-04-02
 
 =================================================================================================  ===========  ============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `c3867781e0 <https://github.com/apache/airflow/commit/c3867781e09b7e0e0d19c0991865a2453194d9a8>`_  2023-03-08   ``adding trigger info to provider yaml (#29950)``
 `c405ecb63e <https://github.com/apache/airflow/commit/c405ecb63e352c7a29dd39f6f249ba121bae7413>`_  2023-03-07   ``DatabricksSubmitRunOperator to support taskflow (#29840)``
 =================================================================================================  ===========  ============================================================

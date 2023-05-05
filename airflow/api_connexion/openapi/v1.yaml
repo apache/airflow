@@ -97,12 +97,14 @@ info:
     - Field names are in snake_case.
     ```json
     {
+        "description": "string",
         "name": "string",
-        "slots": 0,
         "occupied_slots": 0,
-        "used_slots": 0,
-        "queued_slots": 0,
         "open_slots": 0
+        "queued_slots": 0,
+        "running_slots": 0,
+        "scheduled_slots": 0,
+        "slots": 0,
     }
     ```
 
@@ -1668,7 +1670,34 @@ paths:
 
     get:
       summary: Get logs
-      description: Get logs for a specific task instance and its try number.
+      description: |
+        Get logs for a specific task instance and its try number.
+        To get log from specific character position, following way of using
+        URLSafeSerializer can be used.
+
+        Example:
+        ```
+        from itsdangerous.url_safe import URLSafeSerializer
+
+        request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
+        key = app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"log_pos": 10000})
+
+        response = self.client.get(
+            request_url,
+            query_string={"token": token},
+            headers={"Accept": "text/plain"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        continuation_token = response.json["continuation_token"]
+            metadata = URLSafeSerializer(key).loads(continuation_token)
+            log_pos = metadata["log_pos"]
+            end_of_log = metadata["end_of_log"]
+        ```
+        If log_pos is passed as 10000 like the above example, it renders the logs starting
+        from char position 10000 to last (not the end as the logs may be tailing behind in
+        running state). This way pagination can be done with metadata as part of the token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
       operationId: get_log
       tags: [TaskInstance]
@@ -1928,6 +1957,13 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
       operationId: get_config
       tags: [Config]
+      parameters:
+        - name: section
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If given, only return config of this section.
       responses:
         '200':
           description: Success.
@@ -1958,11 +1994,57 @@ paths:
                 smtp_host = localhost
                 smtp_mail_from =  airflow@example.com
 
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /config/section/{section}/option/{option}:
+    get:
+      summary: Get a option from configuration
+      x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
+      operationId: get_value
+      tags: [Config]
+      parameters:
+        - name: section
+          in: path
+          schema:
+            type: string
+          required: true
+        - name: option
+          in: path
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+              example:
+                sections:
+                  - name: core
+                    options:
+                      - key: dags_folder
+                        value: /home/user/my-dags-folder
+            text/plain:
+              schema:
+                type: string
+              example: |
+                [core]
+                dags_folder = /home/user/my-dags-folder
 
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+           $ref: '#/components/responses/NotFound'
+
 
   /health:
     get:
@@ -3036,7 +3118,7 @@ components:
           type: integer
           readOnly: true
           description: The number of slots used by running/queued tasks at the moment.
-        used_slots:
+        running_slots:
           type: integer
           readOnly: true
           description: The number of slots used by running tasks at the moment.
@@ -3048,6 +3130,10 @@ components:
           type: integer
           readOnly: true
           description: The number of free slots at the moment.
+        scheduled_slots:
+          type: integer
+          readOnly: true
+          description: The number of slots used by scheduled tasks at the moment.
         description:
           type: string
           description: |

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import tempfile
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -46,9 +45,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
     :param object_name: The object name to set when uploading the file
     :param filename: The local file path to the file to be uploaded
     :param gzip: Option to compress local file or file data for upload
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -71,7 +67,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         object_name: str,
         filename: str,
         gzip: bool,
-        delegate_to: str | None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -85,11 +80,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         self.object_name = object_name
         self.filename = filename
         self.gzip = gzip
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     template_fields: Sequence[str] = (
@@ -105,7 +95,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

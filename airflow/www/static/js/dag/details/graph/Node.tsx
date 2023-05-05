@@ -74,6 +74,8 @@ export const BaseNode = ({
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
 
+  const bg = isOpen ? "blackAlpha.50" : "white";
+
   return (
     <Tooltip
       label={
@@ -90,7 +92,7 @@ export const BaseNode = ({
         borderRadius={5}
         borderWidth={1}
         borderColor={isSelected ? "blue.400" : "gray.400"}
-        bg={isSelected ? "blue.50" : "white"}
+        bg={isSelected ? "blue.50" : bg}
         height={`${height}px`}
         width={`${width}px`}
         cursor={latestDagRunId ? "cursor" : "default"}
@@ -134,6 +136,9 @@ export const BaseNode = ({
             <Text
               color="blue.600"
               cursor="pointer"
+              // Increase the target area to expand/collapse a group
+              p={3}
+              m={-3}
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleCollapse();
