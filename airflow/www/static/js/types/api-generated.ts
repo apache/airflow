@@ -641,6 +641,9 @@ export interface paths {
   "/config": {
     get: operations["get_config"];
   };
+  "/config/section/{section}/option/{option}": {
+    get: operations["get_value"];
+  };
   "/health": {
     /**
      * Get the status of Airflow's metadatabase and scheduler. It includes info about
@@ -4194,6 +4197,27 @@ export interface operations {
       };
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  get_value: {
+    parameters: {
+      path: {
+        section: string;
+        option: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Config"];
+          "text/plain": string;
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /**
@@ -4999,6 +5023,9 @@ export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<
   operations["get_config"]["parameters"]["query"]
+>;
+export type GetValueVariables = CamelCasedPropertiesDeep<
+  operations["get_value"]["parameters"]["path"]
 >;
 export type GetPluginsVariables = CamelCasedPropertiesDeep<
   operations["get_plugins"]["parameters"]["query"]

@@ -333,6 +333,7 @@ class TestS3ToRedshiftTransfer:
             "column_list",
             "copy_options",
             "redshift_conn_id",
+            "method",
         )
 
     def test_execute_unavailable_method(self):
@@ -348,7 +349,7 @@ class TestS3ToRedshiftTransfer:
                 method="unavailable_method",
                 task_id="task_id",
                 dag=None,
-            )
+            ).execute({})
 
     @pytest.mark.parametrize("param", ["sql", "parameters"])
     def test_invalid_param_in_redshift_data_api_kwargs(self, param):
