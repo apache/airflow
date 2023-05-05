@@ -552,7 +552,7 @@ class TestDataflowTemplateOperator:
         assert dataflow_mock.called
         _, kwargs = dataflow_mock.call_args_list[0]
         assert kwargs["variables"]["region"] == TEST_REGION
-        assert kwargs["location"] == None
+        assert kwargs["location"] is None
 
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
     def test_start_with_location(self, dataflow_mock):
