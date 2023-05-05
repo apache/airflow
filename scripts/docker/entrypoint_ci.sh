@@ -562,10 +562,7 @@ if [[ ${UPGRADE_BOTO=} == "true" ]]; then
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
     pip uninstall aiobotocore -y || true
-    # Temporarily limit upgrade of botocore to be less than 1.29.127
-    # in order to avoid failing on SQS tests
-    # See https://github.com/getmoto/moto/issues/6286 and https://github.com/apache/airflow/issues/31087
-    pip install --upgrade boto3 "botocore<1.29.127"
+    pip install --upgrade boto3 botocore
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
