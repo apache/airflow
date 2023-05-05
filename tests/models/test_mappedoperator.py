@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from unittest.mock import patch
 
 import pendulum
 import pytest
@@ -59,7 +60,8 @@ def test_task_mapping_with_dag():
     assert mapped.downstream_list == [finish]
 
 
-def test_task_mapping_with_dag_and_list_of_pandas_dataframe(caplog):
+@patch("airflow.models.abstractoperator.AbstractOperator.render_template")
+def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     caplog.set_level(logging.INFO)
 
     class UnrenderableClass:
@@ -87,6 +89,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(caplog):
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
         in caplog.text
     )
+    mock_render_template.assert_called()
 
 
 def test_task_mapping_without_dag_context():
