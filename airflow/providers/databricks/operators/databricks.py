@@ -24,14 +24,14 @@ from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 DEFER_METHOD_NAME = "execute_complete"
@@ -411,7 +411,7 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
             "`DatabricksSubmitRunDeferrableOperator` has been deprecated. "
             "Please use `airflow.providers.databricks.operators.DatabricksSubmitRunOperator` with "
             "`deferrable=True` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(deferrable=True, *args, **kwargs)
@@ -690,7 +690,7 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
             "`DatabricksRunNowDeferrableOperator` has been deprecated. "
             "Please use `airflow.providers.databricks.operators.DatabricksRunNowOperator` with "
             "`deferrable=True` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(deferrable=True, *args, **kwargs)

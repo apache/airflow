@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.providers.google.cloud.links.mlengine import (
     MLEngineJobDetailsLink,
@@ -336,7 +336,7 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         warnings.warn(
             "This operator is deprecated. Consider using operators for specific operations: "
             "MLEngineCreateModelOperator, MLEngineGetModelOperator.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -644,7 +644,7 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
         warnings.warn(
             "This operator is deprecated. Consider using operators for specific operations: "
             "MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 

@@ -32,7 +32,7 @@ from enum import Enum
 from functools import partial
 from pathlib import PurePath
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
 from urllib.parse import quote
 
 import dill
@@ -92,6 +92,7 @@ from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComAccess, XCom
@@ -214,7 +215,7 @@ def clear_task_instances(
     :param tis: a list of task instances
     :param session: current session
     :param dag_run_state: state to set finished DagRuns to.
-    If set to False, DagRuns state will not be changed.
+        If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     :param activate_dag_runs: Deprecated parameter, do not pass
     """
@@ -343,40 +344,6 @@ def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
     return True
 
 
-class TaskInstanceKey(NamedTuple):
-    """Key used to identify task instance."""
-
-    dag_id: str
-    task_id: str
-    run_id: str
-    try_number: int = 1
-    map_index: int = -1
-
-    @property
-    def primary(self) -> tuple[str, str, str, int]:
-        """Return task instance primary key part of the key"""
-        return self.dag_id, self.task_id, self.run_id, self.map_index
-
-    @property
-    def reduced(self) -> TaskInstanceKey:
-        """Remake the key by subtracting 1 from try number to match in memory information"""
-        return TaskInstanceKey(
-            self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1), self.map_index
-        )
-
-    def with_try_number(self, try_number: int) -> TaskInstanceKey:
-        """Returns TaskInstanceKey with provided ``try_number``"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
-
-    @property
-    def key(self) -> TaskInstanceKey:
-        """For API-compatibly with TaskInstance.
-
-        Returns self
-        """
-        return self
-
-
 def _creator_note(val):
     """Custom creator for the ``note`` association proxy."""
     if isinstance(val, str):
@@ -489,7 +456,12 @@ class TaskInstance(Base, LoggingMixin):
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
     execution_date = association_proxy("dag_run", "execution_date")
-    task_instance_note = relationship("TaskInstanceNote", back_populates="task_instance", uselist=False)
+    task_instance_note = relationship(
+        "TaskInstanceNote",
+        back_populates="task_instance",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+    )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
     task: Operator  # Not always set...
 
@@ -1155,7 +1127,6 @@ class TaskInstance(Base, LoggingMixin):
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
-
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
                     self,
@@ -1231,12 +1202,15 @@ class TaskInstance(Base, LoggingMixin):
         """
         info = inspect(self)
         if info.attrs.dag_run.loaded_value is not NO_VALUE:
+            if hasattr(self, "task"):
+                self.dag_run.dag = self.task.dag
             return self.dag_run
 
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
-
+        if hasattr(self, "task"):
+            dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.execution_date` will work correctly
         set_committed_value(self, "dag_run", dr)
 

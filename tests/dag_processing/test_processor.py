@@ -917,6 +917,23 @@ class TestDagFileProcessor:
         )
         mock_redirect_stdout_for_file.assert_called_once()
 
+    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
+    @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
+    def test_no_valueerror_with_parseable_dag_in_zip(self, mock_context, tmpdir):
+        mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
+        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+        with ZipFile(zip_filename, "w") as zip_file:
+            zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
+
+        processor = DagFileProcessorProcess(
+            file_path=zip_filename,
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor.start()
+
 
 class TestProcessorAgent:
     @pytest.fixture(autouse=True)

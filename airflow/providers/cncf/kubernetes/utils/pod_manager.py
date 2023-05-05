@@ -38,7 +38,7 @@ from pendulum.parsing.exceptions import ParserError
 from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -296,7 +296,7 @@ class PodManager(LoggingMixin):
         warnings.warn(
             "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
             "with option `follow=True`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 

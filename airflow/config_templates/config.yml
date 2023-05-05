@@ -1170,6 +1170,58 @@ lineage:
       type: string
       example: ~
       default: ""
+openlineage:
+  description: |
+    This section applies settings for OpenLineage integration.
+    For backwards compatibility with `openlineage-python` one can still use
+    `openlineage.yml` file or `OPENLINEAGE_` environment variables. However, below
+    configuration takes precedence over those.
+    More in documentation - https://openlineage.io/docs/client/python#configuration.
+  options:
+    disabled:
+      description: |
+        Set this to true if you don't want OpenLineage to emit events.
+      type: boolean
+      example: ~
+      default: "False"
+      version_added: ~
+    namespace:
+      description: |
+        OpenLineage namespace
+      version_added: ~
+      type: string
+      example: "food_delivery"
+      default: ~
+    extractors:
+      description: |
+        Comma-separated paths to custom OpenLineage extractors.
+      type: string
+      example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
+      default: ''
+      version_added: ~
+    config_path:
+      description: |
+        Path to YAML config. This provides backwards compatibility to pass config as
+        `openlineage.yml` file.
+      version_added: ~
+      type: string
+      example: ~
+      default: ''
+    transport:
+      description: |
+        OpenLineage Client transport configuration. It should contain type
+        and additional options per each type.
+
+        Currently supported types are:
+
+          * HTTP
+          * Kafka
+          * Console
+      type: string
+      example: '{"type": "http", "url": "http://localhost:5000"}'
+      default: ''
+      version_added: ~
+
 atlas:
   description: ~
   options:
