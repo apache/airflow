@@ -600,7 +600,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         options: dict[str, Any] | None = None,
         dataflow_default_options: dict[str, Any] | None = None,
         parameters: dict[str, str] | None = None,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
+        location: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
