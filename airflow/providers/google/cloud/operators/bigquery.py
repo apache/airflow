@@ -1481,7 +1481,8 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "bucket",
         "source_objects",
-        "schema_object" "gcs_schema_bucket",
+        "schema_object",
+        "gcs_schema_bucket",
         "destination_project_dataset_table",
         "labels",
         "table_resource",
