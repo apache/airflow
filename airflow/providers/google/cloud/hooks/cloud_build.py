@@ -28,7 +28,7 @@ from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
@@ -211,7 +211,7 @@ class CloudBuildHook(GoogleBaseHook):
         """
         warnings.warn(
             "This method is deprecated. Please use `create_build_without_waiting_for_result`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         client = self.get_conn()

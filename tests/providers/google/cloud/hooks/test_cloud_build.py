@@ -28,7 +28,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, GetBuildRequest
 
-from airflow import AirflowException
+from airflow import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook, CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
@@ -102,7 +102,7 @@ class TestCloudBuildHook:
 
         wait_time.return_value = 0
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build.assert_called_once_with(
@@ -123,7 +123,7 @@ class TestCloudBuildHook:
         get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
         mock_operation = get_conn.return_value.create_build
