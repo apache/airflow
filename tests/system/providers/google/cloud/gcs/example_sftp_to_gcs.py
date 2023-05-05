@@ -112,7 +112,7 @@ with models.DAG(
         copy_file_from_sftp_to_gcs,
         move_file_from_sftp_to_gcs_destination,
         copy_directory_from_sftp_to_gcs,
-        move_specific_files_from_gcs_to_sftp,
+        move_specific_files_from_sftp_to_gcs,
         # TEST TEARDOWN
         delete_bucket,
     )
