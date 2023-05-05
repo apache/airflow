@@ -25,7 +25,7 @@ from tests.charts.helm_template_generator import render_chart
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Secret", "test-rbac-postgresql"),
-    ("Secret", "test-rbac-airflow-metadata"),
+    ("Secret", "test-rbac-metadata"),
     ("Secret", "test-rbac-pgbouncer-config"),
     ("Secret", "test-rbac-pgbouncer-stats"),
     ("ConfigMap", "test-rbac-airflow-config"),
@@ -124,7 +124,7 @@ class TestRBAC:
         else:
             tuples.append(("Deployment", "test-rbac-triggerer"))
         if version == "2.3.2":
-            tuples.append(("Secret", "test-rbac-airflow-result-backend"))
+            tuples.append(("Secret", "test-rbac-result-backend"))
         return tuples
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])

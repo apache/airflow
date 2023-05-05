@@ -71,7 +71,7 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-webserver-secret-key"),
@@ -100,7 +100,7 @@ class TestBaseChartTest:
             ("Job", "test-basic-run-airflow-migrations"),
         }
         if version == "2.3.2":
-            expected.add(("Secret", "test-basic-airflow-result-backend"))
+            expected.add(("Secret", "test-basic-result-backend"))
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
@@ -150,7 +150,7 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-dag-processor"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-webserver-secret-key"),
@@ -180,7 +180,7 @@ class TestBaseChartTest:
             ("Job", "test-basic-run-airflow-migrations"),
         }
         if version == "2.3.2":
-            expected.add(("Secret", "test-basic-airflow-result-backend"))
+            expected.add(("Secret", "test-basic-result-backend"))
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
@@ -245,13 +245,13 @@ class TestBaseChartTest:
         }
 
         expected_kind_names = [
-            ("NetworkPolicy", "test-basic-redis-policy"),
-            ("NetworkPolicy", "test-basic-flower-policy"),
-            ("NetworkPolicy", "test-basic-pgbouncer-policy"),
-            ("NetworkPolicy", "test-basic-scheduler-policy"),
-            ("NetworkPolicy", "test-basic-statsd-policy"),
-            ("NetworkPolicy", "test-basic-webserver-policy"),
-            ("NetworkPolicy", "test-basic-worker-policy"),
+            ("NetworkPolicy", "test-basic-airflow-redis-policy"),
+            ("NetworkPolicy", "test-basic-airflow-flower-policy"),
+            ("NetworkPolicy", "test-basic-airflow-pgbouncer-policy"),
+            ("NetworkPolicy", "test-basic-airflow-scheduler-policy"),
+            ("NetworkPolicy", "test-basic-airflow-statsd-policy"),
+            ("NetworkPolicy", "test-basic-airflow-webserver-policy"),
+            ("NetworkPolicy", "test-basic-airflow-worker-policy"),
         ]
         for kind_name in expected_kind_names:
             assert kind_name in kind_names_tuples
@@ -308,45 +308,45 @@ class TestBaseChartTest:
             (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
             (f"{release_name}-airflow-triggerer", "ServiceAccount", "triggerer"),
             (f"{release_name}-airflow-dag-processor", "ServiceAccount", "dag-processor"),
-            (f"{release_name}-broker-url", "Secret", "redis"),
-            (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
-            (f"{release_name}-cleanup-role", "Role", None),
-            (f"{release_name}-cleanup-rolebinding", "RoleBinding", None),
-            (f"{release_name}-create-user", "Job", "create-user-job"),
-            (f"{release_name}-fernet-key", "Secret", None),
-            (f"{release_name}-flower", "Deployment", "flower"),
-            (f"{release_name}-flower", "Service", "flower"),
-            (f"{release_name}-flower-policy", "NetworkPolicy", "airflow-flower-policy"),
-            (f"{release_name}-flower-ingress", "Ingress", "flower-ingress"),
-            (f"{release_name}-pgbouncer", "Deployment", "pgbouncer"),
-            (f"{release_name}-pgbouncer", "Service", "pgbouncer"),
-            (f"{release_name}-pgbouncer-config", "Secret", "pgbouncer"),
-            (f"{release_name}-pgbouncer-policy", "NetworkPolicy", "airflow-pgbouncer-policy"),
-            (f"{release_name}-pgbouncer-stats", "Secret", "pgbouncer"),
-            (f"{release_name}-pod-launcher-role", "Role", None),
-            (f"{release_name}-pod-launcher-rolebinding", "RoleBinding", None),
-            (f"{release_name}-pod-log-reader-role", "Role", None),
-            (f"{release_name}-pod-log-reader-rolebinding", "RoleBinding", None),
-            (f"{release_name}-redis", "Service", "redis"),
-            (f"{release_name}-redis", "StatefulSet", "redis"),
-            (f"{release_name}-redis-policy", "NetworkPolicy", "redis-policy"),
-            (f"{release_name}-redis-password", "Secret", "redis"),
-            (f"{release_name}-run-airflow-migrations", "Job", "run-airflow-migrations"),
-            (f"{release_name}-scheduler", "Deployment", "scheduler"),
-            (f"{release_name}-scheduler-policy", "NetworkPolicy", "airflow-scheduler-policy"),
-            (f"{release_name}-statsd", "Deployment", "statsd"),
-            (f"{release_name}-statsd", "Service", "statsd"),
-            (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
-            (f"{release_name}-webserver", "Deployment", "webserver"),
-            (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
-            (f"{release_name}-webserver", "Service", "webserver"),
-            (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
+            (f"{release_name}-airflow-broker-url", "Secret", "redis"),
+            (f"{release_name}-airflow-cleanup", "CronJob", "airflow-cleanup-pods"),
+            (f"{release_name}-airflow-cleanup-role", "Role", None),
+            (f"{release_name}-airflow-cleanup-rolebinding", "RoleBinding", None),
+            (f"{release_name}-airflow-create-user", "Job", "create-user-job"),
+            (f"{release_name}-airflow-fernet-key", "Secret", None),
+            (f"{release_name}-airflow-flower", "Deployment", "flower"),
+            (f"{release_name}-airflow-flower", "Service", "flower"),
+            (f"{release_name}-airflow-flower-policy", "NetworkPolicy", "airflow-flower-policy"),
+            (f"{release_name}-airflow-flower-ingress", "Ingress", "flower-ingress"),
+            (f"{release_name}-airflow-pgbouncer", "Deployment", "pgbouncer"),
+            (f"{release_name}-airflow-pgbouncer", "Service", "pgbouncer"),
+            (f"{release_name}-airflow-pgbouncer-config", "Secret", "pgbouncer"),
+            (f"{release_name}-airflow-pgbouncer-policy", "NetworkPolicy", "airflow-pgbouncer-policy"),
+            (f"{release_name}-airflow-pgbouncer-stats", "Secret", "pgbouncer"),
+            (f"{release_name}-airflow-pod-launcher-role", "Role", None),
+            (f"{release_name}-airflow-pod-launcher-rolebinding", "RoleBinding", None),
+            (f"{release_name}-airflow-pod-log-reader-role", "Role", None),
+            (f"{release_name}-airflow-pod-log-reader-rolebinding", "RoleBinding", None),
+            (f"{release_name}-airflow-redis", "Service", "redis"),
+            (f"{release_name}-airflow-redis", "StatefulSet", "redis"),
+            (f"{release_name}-airflow-redis-policy", "NetworkPolicy", "redis-policy"),
+            (f"{release_name}-airflow-redis-password", "Secret", "redis"),
+            (f"{release_name}-airflow-run-airflow-migrations", "Job", "run-airflow-migrations"),
+            (f"{release_name}-airflow-scheduler", "Deployment", "scheduler"),
+            (f"{release_name}-airflow-scheduler-policy", "NetworkPolicy", "airflow-scheduler-policy"),
+            (f"{release_name}-airflow-statsd", "Deployment", "statsd"),
+            (f"{release_name}-airflow-statsd", "Service", "statsd"),
+            (f"{release_name}-airflow-statsd-policy", "NetworkPolicy", "statsd-policy"),
+            (f"{release_name}-airflow-webserver", "Deployment", "webserver"),
+            (f"{release_name}-airflow-webserver-secret-key", "Secret", "webserver"),
+            (f"{release_name}-airflow-webserver", "Service", "webserver"),
+            (f"{release_name}-airflow-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
             (f"{release_name}-airflow-ingress", "Ingress", "airflow-ingress"),
-            (f"{release_name}-worker", "Service", "worker"),
-            (f"{release_name}-worker", "StatefulSet", "worker"),
-            (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
-            (f"{release_name}-triggerer", "StatefulSet", "triggerer"),
-            (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
+            (f"{release_name}-airflow-worker", "Service", "worker"),
+            (f"{release_name}-airflow-worker", "StatefulSet", "worker"),
+            (f"{release_name}-airflow-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
+            (f"{release_name}-airflow-triggerer", "StatefulSet", "triggerer"),
+            (f"{release_name}-airflow-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
         ]
@@ -361,7 +361,7 @@ class TestBaseChartTest:
             }
             if component:
                 expected_labels["component"] = component
-            if k8s_object_name == f"{release_name}-scheduler":
+            if k8s_object_name == f"{release_name}-airflow-scheduler" and kind == 'Deployment':
                 expected_labels["executor"] = "CeleryExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
             assert actual_labels == expected_labels
@@ -393,8 +393,8 @@ class TestBaseChartTest:
         }
 
         kind_names_tuples = [
-            (f"{release_name}-create-user", "create-user-job"),
-            (f"{release_name}-run-airflow-migrations", "run-airflow-migrations"),
+            (f"{release_name}-airflow-create-user", "create-user-job"),
+            (f"{release_name}-airflow-run-airflow-migrations", "run-airflow-migrations"),
         ]
         for k8s_object_name, component in kind_names_tuples:
             expected_labels = {
