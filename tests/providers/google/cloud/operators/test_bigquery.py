@@ -237,6 +237,7 @@ class TestBigQueryCreateExternalTableOperator:
             destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
+            gcs_schema_bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
             source_format=TEST_SOURCE_FORMAT,
             autodetect=True,
