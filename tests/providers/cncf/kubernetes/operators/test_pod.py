@@ -325,7 +325,7 @@ class TestKubernetesPodOperator:
         )
 
     @patch(HOOK_CLASS, new=MagicMock)
-    def test_pod_additional_options(self):
+    def test_pod_dns_options(self):
         dns_config = k8s.V1PodDNSConfig(
             nameservers=["192.0.2.1", "192.0.2.3"],
             searches=["ns1.svc.cluster-domain.example", "my.dns.search.suffix"],

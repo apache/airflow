@@ -282,7 +282,7 @@ class KubernetesPodOperator(BaseOperator):
         security_context: dict | None = None,
         container_security_context: dict | None = None,
         dnspolicy: str | None = None,
-        dns_config: dict | None = None,
+        dns_config: k8s.V1PodDNSConfig | None = None,
         hostname: str | None = None,
         subdomain: str | None = None,
         schedulername: str | None = None,
