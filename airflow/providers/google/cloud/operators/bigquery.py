@@ -819,7 +819,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
-    :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
     :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
         (default: False).
     :param job_id: The ID of the job. It will be suffixed with hash of job configuration unless
@@ -853,7 +852,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         poll_interval: float = 4.0,
-        use_legacy_sql: bool = True,
         as_dict: bool = False,
         job_id: str = "",
         force_rerun: bool = True,
@@ -871,7 +869,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        self.use_legacy_sql = use_legacy_sql
         self.as_dict = as_dict
         self.job_id = job_id
         self.force_rerun = force_rerun
@@ -888,7 +885,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             selected_fields=self.selected_fields,
             table_id=self.table_id,
         )
-        configuration = {"query": {"query": get_query, "useLegacySql": self.use_legacy_sql}}
+        configuration = {"query": {"query": get_query}}
         """Submit a new job and get the job id for polling the status using Triggerer."""
 
         job_id = hook.generate_job_id(
