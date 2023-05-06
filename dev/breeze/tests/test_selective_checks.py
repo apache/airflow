@@ -192,7 +192,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ),
                 {
                     "affected-providers-list-as-string": "airbyte apache.livy "
-                    "dbt.cloud dingding discord http",
+                    "dbt.cloud dingding discord http microsoft.azure",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
                     "python-versions": "['3.8']",
@@ -205,7 +205,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always "
-                    "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
+                    "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http,microsoft.azure]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",

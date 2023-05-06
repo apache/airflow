@@ -138,6 +138,12 @@ integrations:
     external-doc-url: https://azure.microsoft.com/en-us/products/storage/data-lake-storage/
     logo: /integration-logos/azure/Data Lake Storage.svg
     tags: [azure]
+  - integration-name: Microsoft Azure Functions
+    external-doc-url: https://azure.microsoft.com/en-us/products/functions/
+    logo: /integration-logos/azure/Function-Apps.svg
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/azure_functions.rst
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -167,6 +173,9 @@ operators:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.operators.synapse
+  - integration-name: Microsoft Azure Functions
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.functions
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -218,6 +227,9 @@ hooks:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
+  - integration-name: Microsoft Azure Functions
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.functions
 
 triggers:
   - integration-name: Microsoft Azure Data Factory
@@ -279,6 +291,8 @@ connection-types:
     connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.functions.AzureFunctionsHook
+    connection-type: azure_functions
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend

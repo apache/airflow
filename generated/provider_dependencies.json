@@ -545,6 +545,7 @@
     ],
     "cross-providers-deps": [
       "google",
+      "http",
       "oracle",
       "sftp"
     ],
