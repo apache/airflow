@@ -117,6 +117,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
+  const showDagCode = !(isTaskInstance && !isGroupOrMappedTaskSummary);
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -211,12 +212,14 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               Graph
             </Text>
           </Tab>
-          <Tab>
-            <MdCode size={16} />
-            <Text as="strong" ml={1}>
-              Code
-            </Text>
-          </Tab>
+          {showDagCode && (
+            <Tab>
+              <MdCode size={16} />
+              <Text as="strong" ml={1}>
+                Code
+              </Text>
+            </Tab>
+          )}
           {showLogs && (
             <Tab>
               <MdReorder size={16} />
@@ -259,9 +262,11 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
-          <TabPanel height="100%">
-            <DagCode />
-          </TabPanel>
+          {showDagCode && (
+            <TabPanel height="100%">
+              <DagCode />
+            </TabPanel>
+          )}
           {showLogs && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
