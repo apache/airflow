@@ -829,7 +829,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         "project_id",
         "max_results",
         "selected_fields",
-        "impersonation_chain"
+        "impersonation_chain",
     )
     ui_color = BigQueryUIColors.QUERY.value
 
@@ -850,7 +850,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.hook: BigQueryHook | None = None
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.max_results = int(max_results)
@@ -883,7 +882,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             dag_id=self.dag_id,
             task_id=self.task_id,
             logical_date=logical_date,
-            configuration=configuration
+            configuration=configuration,
         )
         return hook.insert_job(
             configuration=configuration,
@@ -910,7 +909,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         return query
 
     def execute(self, context: Context):
-        self.hook = BigQueryHook(
+        hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
@@ -920,7 +919,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 "Fetching Data from %s.%s max results: %s", self.dataset_id, self.table_id, self.max_results
             )
             if not self.selected_fields:
-                schema: dict[str, list] = self.hook.get_schema(
+                schema: dict[str, list] = hook.get_schema(
                     dataset_id=self.dataset_id,
                     table_id=self.table_id,
                     project_id=self.project_id,
@@ -928,7 +927,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 if "fields" in schema:
                     self.selected_fields = ",".join([field["name"] for field in schema["fields"]])
 
-            rows = self.hook.list_rows(
+            rows = hook.list_rows(
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 max_results=self.max_results,
@@ -945,7 +944,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
 
             return table_data
 
-        job = self._submit_job(hook=self.hook, logical_date=context["logical_date"])
+        job = self._submit_job(hook=hook, logical_date=context["logical_date"])
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         self.defer(
             timeout=self.execution_timeout,
@@ -954,7 +953,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 job_id=job.job_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
-                project_id=self.hook.project_id,
+                project_id=hook.project_id,
                 poll_interval=self.poll_interval,
             ),
             method_name="execute_complete",
