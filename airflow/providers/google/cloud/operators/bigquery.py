@@ -821,7 +821,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         Defaults to 4 seconds.
     :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
         (default: False).
-    :param force_rerun: If True then operator will use hash of uuid as job id suffix
     """
 
     template_fields: Sequence[str] = (
@@ -848,7 +847,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         deferrable: bool = False,
         poll_interval: float = 4.0,
         as_dict: bool = False,
-        force_rerun: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -864,7 +862,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.as_dict = as_dict
-        self.force_rerun = force_rerun
 
     def _submit_job(
         self,
@@ -886,8 +883,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             dag_id=self.dag_id,
             task_id=self.task_id,
             logical_date=logical_date,
-            configuration=configuration,
-            force_rerun=self.force_rerun,
+            configuration=configuration
         )
         return hook.insert_job(
             configuration=configuration,
