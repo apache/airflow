@@ -3132,7 +3132,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         :param query_results: the results from a SQL query
         :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
         """
-        buffer: list[Any] = []
+        buffer = []
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
             fields = query_results["schema"]["fields"]

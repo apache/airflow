@@ -27,7 +27,6 @@ import attr
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
-from pendulum import DateTime
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -850,6 +849,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.max_results = int(max_results)
@@ -865,25 +865,11 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     def _submit_job(
         self,
         hook: BigQueryHook,
-        logical_date: DateTime,
+        job_id: str,
     ) -> BigQueryJob:
-        get_query = self._generate_query(
-            dataset_id=self.dataset_id,
-            max_results=self.max_results,
-            project_id=self.project_id,
-            selected_fields=self.selected_fields,
-            table_id=self.table_id,
-        )
+        get_query = self.generate_query()
         configuration = {"query": {"query": get_query}}
         """Submit a new job and get the job id for polling the status using Triggerer."""
-
-        job_id = hook.generate_job_id(
-            job_id="",
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            logical_date=logical_date,
-            configuration=configuration,
-        )
         return hook.insert_job(
             configuration=configuration,
             location=self.location,
@@ -892,20 +878,17 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             nowait=True,
         )
 
-    @staticmethod
-    def _generate_query(
-        selected_fields: str | None, project_id: str | None, dataset_id: str, table_id: str, max_results: int
-    ) -> str:
+    def generate_query(self) -> str:
         """
         Generate a select query if selected fields are given or with *
         for the given dataset and table id
         """
         query = "select "
-        if selected_fields:
-            query += selected_fields
+        if self.selected_fields:
+            query += self.selected_fields
         else:
             query += "*"
-        query += f" from `{project_id}.{dataset_id}.{table_id}` limit {max_results}"
+        query += f" from {self.dataset_id}.{self.table_id} limit {self.max_results}"
         return query
 
     def execute(self, context: Context):
@@ -935,6 +918,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 location=self.location,
                 project_id=self.project_id,
             )
+
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
@@ -944,7 +928,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
 
             return table_data
 
-        job = self._submit_job(hook=hook, logical_date=context["logical_date"])
+        job = self._submit_job(hook, job_id="")
+
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         self.defer(
             timeout=self.execution_timeout,
@@ -955,6 +940,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 table_id=self.table_id,
                 project_id=hook.project_id,
                 poll_interval=self.poll_interval,
+                as_dict=self.as_dict,
             ),
             method_name="execute_complete",
         )
@@ -2624,12 +2610,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute(self, context: Any):
-        self.hook = BigQueryHook(
+        hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        self.hook = hook
 
-        job_id = self.hook.generate_job_id(
+        job_id = hook.generate_job_id(
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
@@ -2640,10 +2627,10 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
 
         try:
             self.log.info("Executing: %s'", self.configuration)
-            job = self._submit_job(self.hook, job_id)
+            job = self._submit_job(hook, job_id)
         except Conflict:
             # If the job already exists retrieve it
-            job = self.hook.get_job(
+            job = hook.get_job(
                 project_id=self.project_id,
                 location=self.location,
                 job_id=job_id,
