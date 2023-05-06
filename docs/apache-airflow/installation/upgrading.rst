@@ -167,26 +167,26 @@ wrong encoding (here are all potential commands you might need to use):
 
 .. code-block:: sql
 
-    ALTER TABLE task_instance MODIFY task_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE task_reschedule MODIFY task_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE task_instance MODIFY task_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE task_reschedule MODIFY task_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
-    ALTER TABLE rendered_task_instance_fields MODIFY task_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE rendered_task_instance_fields MODIFY dag_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE rendered_task_instance_fields MODIFY task_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE rendered_task_instance_fields MODIFY dag_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
-    ALTER TABLE task_fail MODIFY task_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE task_fail MODIFY dag_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE task_fail MODIFY task_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE task_fail MODIFY dag_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
-    ALTER TABLE sla_miss MODIFY task_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE sla_miss MODIFY dag_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE sla_miss MODIFY task_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE sla_miss MODIFY dag_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
-    ALTER TABLE task_map MODIFY task_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE task_map MODIFY dag_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE task_map MODIFY run_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE task_map MODIFY task_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE task_map MODIFY dag_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE task_map MODIFY run_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
-    ALTER TABLE xcom MODIFY task_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE xcom MODIFY dag_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE xcom MODIFY run_id VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
-    ALTER TABLE xcom MODIFY key VARCHAR(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE xcom MODIFY task_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE xcom MODIFY dag_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE xcom MODIFY run_id VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+    ALTER TABLE xcom MODIFY key VARCHAR(250) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 
 5. Recreate the foreign keys dropped in step 3.
 

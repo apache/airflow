@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.videointelligence_v1 import enums
 
@@ -35,6 +36,10 @@ ANNOTATE_VIDEO_RESPONSE = {"test": "test"}
 
 
 class TestCloudVideoIntelligenceHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudVideoIntelligenceHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.__init__",

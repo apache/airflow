@@ -28,7 +28,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
@@ -161,6 +161,42 @@ class TestBaseOperator:
             BaseOperator(
                 task_id="test_illegal_args",
                 illegal_argument_1234="hello?",
+            )
+
+    def test_trigger_rule_validation(self):
+        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        fail_stop_dag = DAG(
+            dag_id="test_dag_trigger_rule_validation", start_date=DEFAULT_DATE, fail_stop=True
+        )
+        non_fail_stop_dag = DAG(
+            dag_id="test_dag_trigger_rule_validation", start_date=DEFAULT_DATE, fail_stop=False
+        )
+
+        # An operator with default trigger rule and a fail-stop dag should be allowed
+        try:
+            BaseOperator(
+                task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE
+            )
+        except DagInvalidTriggerRule as exception:
+            assert (
+                False
+            ), f"BaseOperator raises exception with fail-stop dag & default trigger rule: {exception}"
+
+        # An operator with non default trigger rule and a non fail-stop dag should be allowed
+        try:
+            BaseOperator(
+                task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.DUMMY
+            )
+        except DagInvalidTriggerRule as exception:
+            assert (
+                False
+            ), f"BaseOperator raises exception with non fail-stop dag & non-default trigger rule: {exception}"
+
+        # An operator with non default trigger rule and a fail stop dag should not be allowed
+        with pytest.raises(DagInvalidTriggerRule):
+            BaseOperator(
+                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.DUMMY
             )
 
     @pytest.mark.parametrize(

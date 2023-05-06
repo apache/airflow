@@ -40,12 +40,18 @@ describe("Test Task InstanceTooltip", () => {
   test("Displays a normal task", () => {
     const { getByText, queryByText } = render(
       <InstanceTooltip
-        group={{ id: "task", label: "task", instances: [] }}
+        group={{
+          id: "task",
+          label: "task",
+          instances: [],
+          triggerRule: "all_failed",
+        }}
         instance={instance}
       />,
       { wrapper: Wrapper }
     );
 
+    expect(getByText("Trigger Rule: all_failed")).toBeDefined();
     expect(getByText("Status: success")).toBeDefined();
     expect(queryByText("Contains a note")).toBeNull();
     expect(getByText("Duration: 00:00:00")).toBeDefined();

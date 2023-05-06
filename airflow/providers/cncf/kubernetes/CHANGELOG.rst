@@ -24,6 +24,63 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+* ``Skip KubernetesPodOperator task when it returns a provided exit code (#29000)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+  * ``Remove skip_exit_code from KubernetesPodOperator (#30788)``
+
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Use ``kubernetes_default`` connection by default in the ``KubernetesPodOperator``.
+
+* ``Use default connection id for KubernetesPodOperator (#28848)``
+
+Features
+~~~~~~~~
+
+* ``Allow to set limits for XCOM container (#28125)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add mechanism to suspend providers (#30422)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``enhance spark_k8s_operator (#29977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator xcom push when 'get_logs=False' (#29052)``
+* ``Fixed hanged KubernetesPodOperator (#28336)``
+
+Misc
+~~~~
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``Remove "boilerplate" from all taskflow decorators (#30118)``
+* ``Ensure setup/teardown work on a previously decorated function (#30216)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
 5.2.2
 .....
 

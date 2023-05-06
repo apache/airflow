@@ -58,6 +58,7 @@ class VerticaToHiveOperator(BaseOperator):
     :param vertica_conn_id: source Vertica connection
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :param hive_auth: optional authentication option passed for the Hive connection
     """
 
     template_fields: Sequence[str] = ("sql", "partition", "hive_table")
@@ -76,6 +77,7 @@ class VerticaToHiveOperator(BaseOperator):
         delimiter: str = chr(1),
         vertica_conn_id: str = "vertica_default",
         hive_cli_conn_id: str = "hive_cli_default",
+        hive_auth: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -88,6 +90,7 @@ class VerticaToHiveOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
+        self.hive_auth = hive_auth
 
     @classmethod
     def type_map(cls, vertica_type):
@@ -107,7 +110,7 @@ class VerticaToHiveOperator(BaseOperator):
         return type_map.get(vertica_type, "STRING")
 
     def execute(self, context: Context):
-        hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+        hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
 
         self.log.info("Dumping Vertica query results to local file")

@@ -120,7 +120,7 @@ require Breeze Docker image to be built locally.
   benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
   checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
   when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
-  ``export SKIP=ruff,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+  ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
 
   In case you do not have breeze image configured locally, you can also disable all checks that require
@@ -143,6 +143,8 @@ require Breeze Docker image to be built locally.
 | black                                                     | Run black (Python formatter)                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files           |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                      | Checks for consistency between config.yml and default_config.cfg |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -195,6 +197,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |
@@ -226,6 +230,8 @@ require Breeze Docker image to be built locally.
 | check-system-tests-present                                | Check if system tests have required segments of code             |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                        |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase      |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                                       |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -260,7 +266,8 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all Shell files                                |         |
 |                                                           | * Add license for all Python files                               |         |
 |                                                           | * Add license for all XML files                                  |         |
-|                                                           | * Add license for all YAML files                                 |         |
+|                                                           | * Add license for all Helm template files                        |         |
+|                                                           | * Add license for all YAML files except Helm templates           |         |
 |                                                           | * Add license for all Markdown files                             |         |
 |                                                           | * Add license for all other files                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -286,6 +293,14 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| mypy-core                                                 | Run mypy for core                                                | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| mypy-dev                                                  | Run mypy for dev                                                 | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| mypy-docs                                                 | Run mypy for /docs/ folder                                       | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| mypy-providers                                            | Run mypy for providers                                           | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn                         |         |
@@ -296,12 +311,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | ruff                                                      | ruff                                                             |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| run-mypy                                                  | * Run mypy for dev                                               | *       |
-|                                                           | * Run mypy for core                                              |         |
-|                                                           | * Run mypy for providers                                         |         |
-|                                                           | * Run mypy for /docs/ folder                                     |         |
-+-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| run-shellcheck                                            | Check Shell scripts syntax correctness                           |         |
+| shellcheck                                                | Check Shell scripts syntax correctness                           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -356,17 +366,17 @@ code. But you can run pre-commit hooks manually as needed.
 
     pre-commit run
 
--   Run only mypy check on your staged files by using:
+-   Run only mypy check on your staged files (in ``airflow/`` excluding providers) by using:
 
 .. code-block:: bash
 
-    pre-commit run run-mypy
+    pre-commit run mypy-core
 
 -   Run only mypy checks on all files by using:
 
 .. code-block:: bash
 
-    pre-commit run run-mypy --all-files
+    pre-commit run mypy-core --all-files
 
 
 -   Run all checks on all files by using:
@@ -394,7 +404,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=run-mypy,ruff pre-commit run --all-files
+    SKIP=mypy-core,ruff pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -412,19 +422,19 @@ You run the static code checks via ``breeze static-check`` or commands.
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
 option.
 
-Run the ``mypy`` check for the currently staged changes:
+Run the ``mypy`` check for the currently staged changes (in ``airflow/`` excluding providers):
 
 .. code-block:: bash
 
-     breeze static-checks --type run-mypy
+     breeze static-checks --type mypy-core
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     breeze static-checks --type run-mypy --all-files
+     breeze static-checks --type mypy-core --all-files
 
-Run the ``ruff`` check for the ``tests.core.py`` file with verbose output:
+Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
 .. code-block:: bash
 
@@ -435,6 +445,14 @@ Run the ``ruff for the ``tests.core`` package with verbose output:
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
+
+Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+``airflow/example_dags/example_python_operator.py``:
+
+.. code-block:: bash
+
+     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+         airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:
 

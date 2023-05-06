@@ -24,7 +24,8 @@ import pendulum
 import pytest
 from sqlalchemy.orm import contains_eager
 
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
@@ -231,7 +232,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         )[0]
         ti.trigger = Trigger("none", {})
         ti.trigger.created_date = now
-        ti.triggerer_job = TriggererJob()
+        ti.triggerer_job = Job()
+        TriggererJobRunner(job=ti.triggerer_job)
         ti.triggerer_job.state = "running"
         session.commit()
         response = self.client.get(
@@ -872,6 +874,14 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             json={"dag_ids": ["example_python_operator", "example_skip_dag"]},
         )
         assert response.status_code == 403
+
+    def test_should_raise_400_for_no_json(self):
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json["detail"] == "Request body must not be empty"
 
     @pytest.mark.parametrize(
         "payload, expected",

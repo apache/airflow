@@ -45,8 +45,18 @@ cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
 center_text "Building image"
 
-docker build . \
+# Note, you need buildx and qemu installed for your docker. They come pre-installed with docker-desktop, but
+# as described in:
+# * https://docs.docker.com/build/install-buildx/
+# * https://docs.docker.com/build/building/multi-platform/
+# You can also install them easily on all docker-based systems
+# You might also need to create a different builder to build multi-platform images
+# For example by running `docker buildx create --use`
+
+docker buildx build . \
+    --platform linux/amd64,linux/arm64 \
     --pull \
+    --push \
     --build-arg "PGBOUNCER_EXPORTER_VERSION=${PGBOUNCER_EXPORTER_VERSION}" \
     --build-arg "AIRFLOW_PGBOUNCER_EXPORTER_VERSION=${AIRFLOW_PGBOUNCER_EXPORTER_VERSION}"\
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
@@ -56,10 +66,3 @@ docker build . \
 center_text "Checking image"
 
 docker run --rm "${TAG}" --version
-
-echo Image labels:
-docker inspect "${TAG}" --format '{{ json .ContainerConfig.Labels }}' | python3 -m json.tool
-
-center_text "Pushing image"
-
-docker push "${TAG}"

@@ -68,6 +68,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     handler: Incomplete
     split_statements: Incomplete
     return_last: Incomplete
+    show_return_value_in_logs: Incomplete
     def __init__(
         self,
         *,
@@ -77,6 +78,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         handler: Callable[[Any], Any] = ...,
         split_statements: Union[bool, None] = ...,
         return_last: bool = ...,
+        show_return_value_in_logs: bool = ...,
         **kwargs,
     ) -> None: ...
     def execute(self, context): ...

@@ -297,11 +297,17 @@ In case of Providers tests, you can run tests for all providers
 
     breeze testing tests --test-type Providers
 
-You can also limit the set of providers you would like to run tests of
+You can limit the set of providers you would like to run tests of
 
 .. code-block:: bash
 
     breeze testing tests --test-type "Providers[airbyte,http]"
+
+You can also run all providers but exclude the providers you would like to skip
+
+.. code-block:: bash
+
+    breeze testing tests --test-type "Providers[-amazon,google]"
 
 
 Running full Airflow unit test suite in parallel
@@ -606,7 +612,7 @@ Example test here:
 
 .. code-block:: python
 
-    from tests.charts.helm_template_generator import render_chart, render_k8s_object
+    from tests.charts.common.helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:
@@ -633,6 +639,16 @@ following command (but it takes quite a long time even in a multi-processor mach
 .. code-block:: bash
 
     breeze testing helm-tests
+
+You can also execute tests from a selected package only. Tests in ``tests/chart`` are grouped by packages
+so rather than running all tests, you can run only tests from a selected package. For example:
+
+.. code-block:: bash
+
+    breeze testing helm-tests --helm-test-package basic
+
+Will run all tests from ``tests/charts/basic`` package.
+
 
 You can also run Helm tests individually via the usual ``breeze`` command. Just enter breeze and run the
 tests with pytest as you would do with regular unit tests (you can add ``-n auto`` command to run Helm
@@ -1154,15 +1170,15 @@ The virtualenv required will be created automatically when the scripts are run.
     ========================================================================================= test session starts ==========================================================================================
     platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/python
     cachedir: .pytest_cache
-    rootdir: /Users/jarek/IdeaProjects/airflow, configfile: pytest.ini
+    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes_tests
     plugins: anyio-3.6.1, instafail-0.4.2, xdist-2.5.0, forked-1.4.0, timeouts-1.2.1, cov-3.0.0
     setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
     collected 55 items
 
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
 
 8b) You can enter an interactive shell to run tests one-by-one
 
@@ -1239,11 +1255,12 @@ and this is where KUBECONFIG env should point to.
 
 You can iterate with tests while you are in the virtualenv. All the tests requiring Kubernetes cluster
 are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
-print output generated test logs and print statements to the terminal immediately.
+print output generated test logs and print statements to the terminal immediately. You should have
+kubernetes_tests as your working directory.
 
 .. code-block:: bash
 
-    pytest kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+    pytest test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
 
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 Airflow to KinD cluster.

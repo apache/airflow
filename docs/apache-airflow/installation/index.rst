@@ -108,7 +108,7 @@ More details:  :doc:`/installation/installing-from-pypi`
   files are managed by Apache Airflow release managers to make sure that you can repeatably install Airflow from PyPI with all Providers and
   required dependencies.
 
-* In case of PyPI installation you could also verify integrity and provenance of the packages of the packages
+* In case of PyPI installation you could also verify integrity and provenance of the packages
   downloaded from PyPI as described at the installation page, but software you download from PyPI is pre-built
   for you so that you can install it without building, and you do not build the software from sources.
 

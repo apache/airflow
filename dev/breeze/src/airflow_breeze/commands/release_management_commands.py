@@ -26,8 +26,8 @@ import time
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from re import match
-from typing import IO, NamedTuple
+from re import Pattern, match
+from typing import IO, Generator, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -59,6 +59,8 @@ from airflow_breeze.utils.common_options import (
     option_dry_run,
     option_github_repository,
     option_image_tag_for_running,
+    option_include_success_outputs,
+    option_install_selected_providers,
     option_installation_package_format,
     option_package_format,
     option_parallelism,
@@ -66,6 +68,7 @@ from airflow_breeze.utils.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_skip_constraints,
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
@@ -86,7 +89,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, cleanup_python_generated_files
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -95,6 +98,7 @@ from airflow_breeze.utils.run_utils import (
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_forced_answer
+from airflow_breeze.utils.suspended_providers import get_suspended_provider_ids
 
 option_debug_release_management = click.option(
     "--debug",
@@ -216,8 +220,14 @@ def prepare_airflow_packages(
     "--base-branch",
     type=str,
     default="main",
+    help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
+@click.option(
+    "--only-min-version-update",
+    is_flag=True,
+    help="Only update minimum version in __init__.py files and regenerate corresponding documentation",
+)
 @option_verbose
 @option_dry_run
 @option_answer
@@ -226,6 +236,7 @@ def prepare_provider_documentation(
     base_branch: str,
     debug: bool,
     packages: list[str],
+    only_min_version_update: bool,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -235,6 +246,7 @@ def prepare_provider_documentation(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         base_branch=base_branch,
+        only_min_version_update=only_min_version_update,
         skip_environment_initialization=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
@@ -276,8 +288,16 @@ def prepare_provider_packages(
     perform_environment_checks()
     cleanup_python_generated_files()
     packages_list = list(packages)
+
+    suspended_provider_ids = get_suspended_provider_ids()
     if package_list_file:
-        packages_list.extend([package.strip() for package in package_list_file.readlines()])
+        packages_list.extend(
+            [
+                package.strip()
+                for package in package_list_file.readlines()
+                if package.strip() not in suspended_provider_ids
+            ]
+        )
     shell_params = ShellParams(
         mount_sources=MOUNT_ALL,
         github_repository=github_repository,
@@ -465,6 +485,181 @@ def generate_constraints(
             sys.exit(return_code)
 
 
+SDIST_FILENAME_PREFIX = "apache-airflow-providers-"
+WHEEL_FILENAME_PREFIX = "apache_airflow_providers-"
+
+SDIST_FILENAME_PATTERN = re.compile(rf"{SDIST_FILENAME_PREFIX}(.*)-[0-9].*\.tar\.gz")
+WHEEL_FILENAME_PATTERN = re.compile(rf"{WHEEL_FILENAME_PREFIX}(.*)-[0-9].*\.whl")
+
+
+def _get_all_providers_in_dist(
+    filename_prefix: str, filename_pattern: Pattern[str]
+) -> Generator[str, None, None]:
+    for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
+        matched = filename_pattern.match(file.name)
+        if not matched:
+            raise Exception(f"Cannot parse provider package name from {file.name}")
+        provider_package_id = matched.group(1).replace("-", ".")
+        yield provider_package_id
+
+
+def get_all_providers_in_dist(package_format: str, install_selected_providers: str) -> list[str]:
+    """
+    Returns all providers in dist, optionally filtered by install_selected_providers.
+
+    :param package_format: package format to look for
+    :param install_selected_providers: list of providers to filter by
+    """
+    if package_format == "sdist":
+        all_found_providers = list(
+            _get_all_providers_in_dist(
+                filename_prefix=SDIST_FILENAME_PREFIX, filename_pattern=SDIST_FILENAME_PATTERN
+            )
+        )
+    elif package_format == "wheel":
+        all_found_providers = list(
+            _get_all_providers_in_dist(
+                filename_prefix=WHEEL_FILENAME_PREFIX, filename_pattern=WHEEL_FILENAME_PATTERN
+            )
+        )
+    else:
+        raise Exception(f"Unknown package format {package_format}")
+    if install_selected_providers:
+        filter_list = install_selected_providers.split(",")
+        return [provider for provider in all_found_providers if provider in filter_list]
+    return all_found_providers
+
+
+def _run_command_for_providers(
+    shell_params: ShellParams,
+    cmd_to_run: list[str],
+    list_of_providers: list[str],
+    output: Output | None,
+) -> tuple[int, str]:
+    shell_params.install_selected_providers = " ".join(list_of_providers)
+    result_command = run_docker_command_with_debug(
+        params=shell_params,
+        command=cmd_to_run,
+        debug=False,
+        output=output,
+    )
+    return result_command.returncode, f"{list_of_providers}"
+
+
+SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*|  Created wheel.*"
+
+
+@release_management.command(
+    name="install-provider-packages",
+    help="Installs provider packages that can be found in dist.",
+)
+@option_use_airflow_version
+@option_airflow_extras
+@option_airflow_constraints_reference
+@option_skip_constraints
+@option_install_selected_providers
+@option_installation_package_format
+@option_debug_release_management
+@option_github_repository
+@option_verbose
+@option_dry_run
+@option_run_in_parallel
+@option_skip_cleanup
+@option_parallelism
+@option_debug_resources
+@option_include_success_outputs
+def install_provider_packages(
+    use_airflow_version: str | None,
+    airflow_constraints_reference: str,
+    skip_constraints: bool,
+    install_selected_providers: str,
+    airflow_extras: str,
+    debug: bool,
+    package_format: str,
+    github_repository: str,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
+    parallelism: int,
+    debug_resources: bool,
+    include_success_outputs: bool,
+):
+    perform_environment_checks()
+    cleanup_python_generated_files()
+    shell_params = ShellParams(
+        mount_sources=MOUNT_SELECTED,
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        use_airflow_version=use_airflow_version,
+        airflow_extras=airflow_extras,
+        airflow_constraints_reference=airflow_constraints_reference,
+        install_selected_providers=install_selected_providers,
+        use_packages_from_dist=True,
+        skip_constraints=skip_constraints,
+        package_format=package_format,
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    # We just want to install the providers by entrypoint, we do not need to run any command in the container
+    cmd_to_run = [
+        "-c",
+        "exit 0",
+    ]
+    if run_in_parallel:
+        list_of_all_providers = get_all_providers_in_dist(
+            package_format=package_format, install_selected_providers=install_selected_providers
+        )
+        get_console().print(
+            f"[info]Splitting {len(list_of_all_providers)} " f"providers into {parallelism} chunks"
+        )
+        provider_chunks = [sorted(list_of_all_providers[i::parallelism]) for i in range(parallelism)]
+        total_num_providers = 0
+        for index, chunk in enumerate(provider_chunks):
+            get_console().print(f"Chunk {index}: {chunk} ({len(chunk)} providers)")
+            total_num_providers += len(chunk)
+        if len(list_of_all_providers) != total_num_providers:
+            raise Exception(
+                f"Total providers {total_num_providers} is different "
+                f"than {len(list_of_all_providers)} (just to be sure"
+                f" no rounding errors crippled in)"
+            )
+        with ci_group(f"Installing providers in {parallelism} chunks"):
+            all_params = [f"Chunk {n}" for n in range(parallelism)]
+            with run_with_pool(
+                parallelism=parallelism,
+                all_params=all_params,
+                debug_resources=debug_resources,
+                progress_matcher=GenericRegexpProgressMatcher(
+                    regexp=SDIST_INSTALL_PROGRESS_REGEXP, lines_to_search=10
+                ),
+            ) as (pool, outputs):
+                results = [
+                    pool.apply_async(
+                        _run_command_for_providers,
+                        kwds={
+                            "shell_params": shell_params,
+                            "cmd_to_run": cmd_to_run,
+                            "list_of_providers": list_of_providers,
+                            "output": outputs[index],
+                        },
+                    )
+                    for index, list_of_providers in enumerate(provider_chunks)
+                ]
+        check_async_run_results(
+            results=results,
+            success="All packages installed successfully",
+            outputs=outputs,
+            include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
+        )
+    else:
+        result_command = run_docker_command_with_debug(
+            params=shell_params,
+            command=cmd_to_run,
+            debug=debug,
+            output_outside_the_group=True,
+        )
+        sys.exit(result_command.returncode)
+
+
 @release_management.command(
     name="verify-provider-packages",
     help="Verifies if all provider code is following expectations for providers.",
@@ -472,12 +667,8 @@ def generate_constraints(
 @option_use_airflow_version
 @option_airflow_extras
 @option_airflow_constraints_reference
-@click.option(
-    "--skip-constraints",
-    is_flag=True,
-    help="Do not use constraints when installing providers.",
-    envvar="SKIP_CONSTRAINTS",
-)
+@option_skip_constraints
+@option_install_selected_providers
 @option_use_packages_from_dist
 @option_installation_package_format
 @option_debug_release_management
@@ -488,12 +679,16 @@ def verify_provider_packages(
     use_airflow_version: str | None,
     airflow_constraints_reference: str,
     skip_constraints: bool,
+    install_selected_providers: str,
     airflow_extras: str,
     use_packages_from_dist: bool,
     debug: bool,
     package_format: str,
     github_repository: str,
 ):
+    if install_selected_providers and not use_packages_from_dist:
+        get_console().print("Forcing use_packages_from_dist as installing selected_providers is set")
+        use_packages_from_dist = True
     perform_environment_checks()
     cleanup_python_generated_files()
     shell_params = ShellParams(

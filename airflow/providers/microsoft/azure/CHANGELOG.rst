@@ -24,6 +24,63 @@
 Changelog
 ---------
 
+6.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's param ``delegate_to`` is removed from ``AzureBlobStorageToGCSOperator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+Misc
+~~~~
+
+* ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
+
+5.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureDataFactoryPipelineRunLink get_link method (#30514)``
+* ``Load subscription_id from extra__azure__subscriptionId (#30556)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Prepare docs for ad hoc release of Providers (#30545)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable 'AzureDataFactoryRunPipelineOperator' (#30147)``
+* ``Add deferrable 'AzureDataFactoryPipelineRunStatusSensor' (#29801)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ADF job failure during deferral (#30248)``
+* ``Fix AzureDataLakeStorageV2Hook 'account_url' with Active Directory authentication (#29980) (#29981)``
+
+Misc
+~~~~
+
+* ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
+* ``Expose missing params in AzureSynapseHook API docs (#30099)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``organize azure provider.yaml (#30155)``
+
 5.2.1
 .....
 

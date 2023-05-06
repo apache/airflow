@@ -325,3 +325,23 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
             session.merge(conn)
             session.commit()
             print(f"Imported connection {conn_id}")
+
+
+@suppress_logs_and_warning
+def connections_test(args) -> None:
+    """Test an Airflow connection."""
+    console = AirflowConsole()
+
+    print(f"Retrieving connection: {args.conn_id!r}")
+    try:
+        conn = BaseHook.get_connection(args.conn_id)
+    except AirflowNotFoundException:
+        console.print("[bold yellow]\nConnection not found.\n")
+        raise SystemExit(1)
+
+    print("\nTesting...")
+    status, message = conn.test_connection()
+    if status is True:
+        console.print("[bold green]\nConnection success!\n")
+    else:
+        console.print(f"[bold][red]\nConnection failed![/bold]\n{message}\n")

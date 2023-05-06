@@ -49,6 +49,8 @@ class DrillHook(DbApiHook):
         """Establish a connection to Drillbit."""
         conn_md = self.get_connection(getattr(self, self.conn_name_attr))
         creds = f"{conn_md.login}:{conn_md.password}@" if conn_md.login else ""
+        if "/" in conn_md.host or "&" in conn_md.host:
+            raise ValueError("Drill host should not contain '/&' characters")
         engine = create_engine(
             f'{conn_md.extra_dejson.get("dialect_driver", "drill+sadrill")}://{creds}'
             f"{conn_md.host}:{conn_md.port}/"

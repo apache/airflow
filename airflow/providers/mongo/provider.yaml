@@ -21,6 +21,7 @@ name: MongoDB
 description: |
     `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
+suspended: false
 versions:
   - 3.1.1
   - 3.1.0
@@ -36,7 +37,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - dnspython>=1.13.0
   # pymongo 4.0.0 removes connection option `ssl_cert_reqs` which is used in providers-mongo/2.2.0
   # TODO: Upgrade to pymongo 4.0.0+

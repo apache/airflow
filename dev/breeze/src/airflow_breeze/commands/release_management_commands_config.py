@@ -45,6 +45,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Provider verification flags",
             "options": [
                 "--use-airflow-version",
+                "--install-selected-providers",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--use-packages-from-dist",
@@ -53,7 +54,32 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--debug",
                 "--github-repository",
             ],
-        }
+        },
+    ],
+    "breeze release-management install-provider-packages": [
+        {
+            "name": "Provider installation flags",
+            "options": [
+                "--use-airflow-version",
+                "--install-selected-providers",
+                "--airflow-constraints-reference",
+                "--airflow-extras",
+                "--package-format",
+                "--skip-constraints",
+                "--debug",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--skip-cleanup",
+                "--include-success-outputs",
+                "--debug-resources",
+            ],
+        },
     ],
     "breeze release-management prepare-provider-packages": [
         {
@@ -74,6 +100,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--debug",
                 "--github-repository",
                 "--base-branch",
+                "--only-min-version-update",
             ],
         }
     ],
@@ -123,5 +150,26 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--disable-progress",
             ],
         }
+    ],
+    "breeze release-management start-rc-process": [
+        {
+            "name": "Start RC process flags",
+            "options": [
+                "--version",
+                "--previous-version",
+                "--github-token",
+            ],
+        }
+    ],
+    "breeze release-management create-minor-branch": [
+        {
+            "name": "Create minor branch flags",
+            "options": [
+                "--version-branch",
+            ],
+        }
+    ],
+    "breeze release-management start-release": [
+        {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
     ],
 }
