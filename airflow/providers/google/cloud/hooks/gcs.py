@@ -23,27 +23,31 @@ import gzip as gz
 import os
 import shutil
 import time
+import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload, Any
 from urllib.parse import urlsplit
 
 from aiohttp import ClientSession
 from gcloud.aio.storage import Storage
+from google.api_core import page_iterator
 from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage.bucket import _blobs_page_start, _item_to_blob
 from google.cloud.storage.retry import DEFAULT_RETRY
+from googleapiclient.discovery import Resource, build
 from requests import Session
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
@@ -72,9 +76,9 @@ DEFAULT_TIMEOUT = 60
 
 
 def _fallback_object_url_to_object_name_and_bucket_name(
-    object_url_keyword_arg_name="object_url",
-    bucket_name_keyword_arg_name="bucket_name",
-    object_name_keyword_arg_name="object_name",
+    object_url_keyword_arg_name: str = "object_url",
+    bucket_name_keyword_arg_name: str = "bucket_name",
+    object_name_keyword_arg_name: str = "object_name",
 ) -> Callable[[T], T]:
     """
     Decorator factory that convert object URL parameter to object name and bucket name parameter.
@@ -408,7 +412,7 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: The bucket to fetch from.
         :param object_name: The object to fetch.
         :param object_url: File reference url. Must start with "gs: //"
-        :param dir: The tmp sub directory to download the file to. (passed to NamedTemporaryFile)
+        :param dir: The tmp subdirectory to download the file to. (passed to NamedTemporaryFile)
         :return: File handler
         """
         if object_name is None:
@@ -584,7 +588,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Checks if an blob_name is updated in Google Cloud Storage.
+        Checks if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -605,7 +609,7 @@ class GCSHook(GoogleBaseHook):
         self, bucket_name: str, object_name: str, min_ts: datetime, max_ts: datetime
     ) -> bool:
         """
-        Checks if an blob_name is updated in Google Cloud Storage.
+        Checks if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -627,7 +631,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_before(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Checks if an blob_name is updated before given time in Google Cloud Storage.
+        Checks if a blob_name is updated before given time in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -703,17 +707,27 @@ class GCSHook(GoogleBaseHook):
         max_results: int | None = None,
         prefix: str | List[str] | None = None,
         delimiter: str | None = None,
-    ):
+        match_glob: str | None = None,
+    ) -> list[str]:
         """
-        List all objects from the bucket with the given a single prefix or multiple prefixes
+        List all objects from the bucket, given a single prefix or multiple prefixes
 
-        :param bucket_name: bucket name
+        :param bucket_name: name of the bucket
         :param versions: if true, list all versions of the objects
         :param max_results: max count of items to return in a single page of responses
         :param prefix: string or list of strings which filter objects whose name begin with it/them
-        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :param delimiter: (Deprecated) filters objects based on the suffix (for e.g '.csv')
+        :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+            (e.g, ``'**/*/.json'``).
         :return: a stream of object names matching the filtering criteria
         """
+        if delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            match_glob = match_glob if match_glob else f"**/*{delimiter}"
         objects = []
         if isinstance(prefix, list):
             for prefix_item in prefix:
@@ -723,7 +737,7 @@ class GCSHook(GoogleBaseHook):
                         versions=versions,
                         max_results=max_results,
                         prefix=prefix_item,
-                        delimiter=delimiter,
+                        match_glob=match_glob,
                     )
                 )
         else:
@@ -733,7 +747,7 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                     max_results=max_results,
                     prefix=prefix,
-                    delimiter=delimiter,
+                    match_glob=match_glob,
                 )
             )
         return objects
@@ -744,31 +758,46 @@ class GCSHook(GoogleBaseHook):
         versions: bool | None = None,
         max_results: int | None = None,
         prefix: str | None = None,
-        delimiter: str | None = None,
+        match_glob: str | None = None,
     ) -> List:
         """
         List all objects from the bucket with the give string prefix in name
 
         :param bucket_name: bucket name
+
         :param versions: if true, list all versions of the objects
         :param max_results: max count of items to return in a single page of responses
         :param prefix: string which filters objects whose name begin with it
-        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+            (e.g, ``'**/*/.json'``)
         :return: a stream of object names matching the filtering criteria
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name=bucket_name)
+        path = bucket.path + "/o"
 
         ids = []
         page_token = None
         while True:
-            blobs = bucket.list_blobs(
+            blobs = self._list_blobs(
+                bucket=bucket,
+                client=client,
+                match_glob=match_glob,
                 max_results=max_results,
                 page_token=page_token,
+                path=path,
                 prefix=prefix,
-                delimiter=delimiter,
-                versions=versions,
+                versions=versions
             )
+
+            # TODO: Uncomment and remove previous statement when matchGlob is supported in bucket.list_blobs
+            # blobs = bucket.list_blobs(
+            #     max_results=max_results,
+            #     page_token=page_token,
+            #     prefix=prefix,
+            #     matchGlob=match_glob,
+            #     versions=versions,
+            # )
 
             blob_names = []
             for blob in blobs:
@@ -786,6 +815,46 @@ class GCSHook(GoogleBaseHook):
                 break
         return ids
 
+    @staticmethod
+    def _list_blobs(bucket,
+                    client,
+                    match_glob: str | None,
+                    max_results: int,
+                    page_token: str,
+                    path: str,
+                    prefix: str | None,
+                    versions: bool | None) -> Any:
+        """
+        List blobs.
+        This method is patched from google.cloud.storage Client.list_blobs().
+        It is used as a workaround to support "matchGlob", as it isn't officially supported by GCS
+        Python client
+        (follow `issue #1035<https://github.com/googleapis/python-storage/issues/1035>`__).
+        """
+        extra_params = {}
+        if prefix is not None:
+            extra_params["prefix"] = prefix
+        if match_glob is not None:
+            extra_params["matchGlob"] = match_glob
+        if versions is not None:
+            extra_params["versions"] = versions
+        api_request = functools.partial(
+            client._connection.api_request, timeout=DEFAULT_TIMEOUT, retry=DEFAULT_RETRY
+        )
+        blobs = page_iterator.HTTPIterator(
+            client=client,
+            api_request=api_request,
+            path=path,
+            item_to_value=_item_to_blob,
+            page_token=page_token,
+            max_results=max_results,
+            extra_params=extra_params,
+            page_start=_blobs_page_start,
+        )
+        blobs.prefixes = set()
+        blobs.bucket = bucket
+        return blobs
+
     def list_by_timespan(
         self,
         bucket_name: str,
@@ -795,6 +864,7 @@ class GCSHook(GoogleBaseHook):
         max_results: int | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
+        match_glob: str | None = None,
     ) -> List[str]:
         """
         List all objects from the bucket with the give string prefix in name that were
@@ -805,25 +875,44 @@ class GCSHook(GoogleBaseHook):
         :param timespan_end: will return objects that were updated before this datetime (UTC)
         :param versions: if true, list all versions of the objects
         :param max_results: max count of items to return in a single page of responses
-        :param prefix: prefix string which filters objects whose name begin with
-            this prefix
-        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :param prefix: string which filters objects whose name begins with it
+        :param delimiter: (Deprecated) filters objects based on the suffix (for e.g '.csv').
+        :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+            (e.g, ``'**/*/.json'``).
         :return: a stream of object names matching the filtering criteria
         """
+        if delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead", DeprecationWarning
+            )
+            match_glob = match_glob if match_glob else f"**/*{delimiter}"
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
+        path = bucket.path + "/o"
 
         ids = []
         page_token = None
 
         while True:
-            blobs = bucket.list_blobs(
+            blobs = self._list_blobs(
+                bucket=bucket,
+                client=client,
+                match_glob=match_glob,
                 max_results=max_results,
                 page_token=page_token,
+                path=path,
                 prefix=prefix,
-                delimiter=delimiter,
-                versions=versions,
+                versions=versions
             )
+
+            # TODO: Uncomment and remove previous statement when matchGlob is supported in bucket.list_blobs
+            # blobs = bucket.list_blobs(
+            #     max_results=max_results,
+            #     page_token=page_token,
+            #     prefix=prefix,
+            #     match_glob=match_glob,
+            #     versions=versions,
+            # )
 
             blob_names = []
             for blob in blobs:
@@ -1225,6 +1314,7 @@ def gcs_object_is_directory(bucket: str) -> bool:
     return len(blob) == 0 or blob.endswith("/")
 
 
+# TODO: Make public as it is being imported in other modules
 def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     """
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a

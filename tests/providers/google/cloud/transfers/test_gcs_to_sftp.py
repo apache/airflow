@@ -120,12 +120,12 @@ class TestGoogleCloudStorageToSFTPOperator:
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
     @pytest.mark.parametrize(
-        "source_object, prefix, delimiter, gcs_files_list, target_objects, keep_directory_structure",
+        "source_object, prefix, match_glob, gcs_files_list, target_objects, keep_directory_structure",
         [
             (
                 "folder/test_object*.txt",
                 "folder/test_object",
-                ".txt",
+                "**/*.txt",
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -136,7 +136,7 @@ class TestGoogleCloudStorageToSFTPOperator:
             (
                 "folder/test_object/*",
                 "folder/test_object/",
-                "",
+                None,
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -147,7 +147,7 @@ class TestGoogleCloudStorageToSFTPOperator:
             (
                 "folder/test_object*.txt",
                 "folder/test_object",
-                ".txt",
+                "**/*.txt",
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -158,7 +158,7 @@ class TestGoogleCloudStorageToSFTPOperator:
             (
                 "folder/test_object/*",
                 "folder/test_object/",
-                "",
+                None,
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -176,7 +176,7 @@ class TestGoogleCloudStorageToSFTPOperator:
         gcs_hook_mock,
         source_object,
         prefix,
-        delimiter,
+        match_glob,
         gcs_files_list,
         target_objects,
         keep_directory_structure,
@@ -194,7 +194,9 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
         operator.execute(None)
 
-        gcs_hook_mock.return_value.list.assert_called_with(TEST_BUCKET, delimiter=delimiter, prefix=prefix)
+        gcs_hook_mock.return_value.list.assert_called_with(
+            bucket_name=TEST_BUCKET, match_glob=match_glob, prefix=prefix
+        )
 
         gcs_hook_mock.return_value.download.assert_has_calls(
             [
@@ -212,12 +214,12 @@ class TestGoogleCloudStorageToSFTPOperator:
         gcs_hook_mock.return_value.delete.assert_not_called()
 
     @pytest.mark.parametrize(
-        "source_object, prefix, delimiter, gcs_files_list, target_objects, keep_directory_structure",
+        "source_object, prefix, match_glob, gcs_files_list, target_objects, keep_directory_structure",
         [
             (
                 "folder/test_object*.txt",
                 "folder/test_object",
-                ".txt",
+                "**/*.txt",
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -228,7 +230,7 @@ class TestGoogleCloudStorageToSFTPOperator:
             (
                 "folder/test_object/*",
                 "folder/test_object/",
-                "",
+                None,
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -239,7 +241,7 @@ class TestGoogleCloudStorageToSFTPOperator:
             (
                 "folder/test_object*.txt",
                 "folder/test_object",
-                ".txt",
+                "**/*.txt",
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -250,7 +252,7 @@ class TestGoogleCloudStorageToSFTPOperator:
             (
                 "folder/test_object/*",
                 "folder/test_object/",
-                "",
+                None,
                 [
                     "folder/test_object/file1.txt",
                     "folder/test_object/file2.txt",
@@ -268,7 +270,7 @@ class TestGoogleCloudStorageToSFTPOperator:
         gcs_hook_mock,
         source_object,
         prefix,
-        delimiter,
+        match_glob,
         gcs_files_list,
         target_objects,
         keep_directory_structure,
@@ -286,7 +288,9 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
         operator.execute(None)
 
-        gcs_hook_mock.return_value.list.assert_called_with(TEST_BUCKET, delimiter=delimiter, prefix=prefix)
+        gcs_hook_mock.return_value.list.assert_called_with(
+            bucket_name=TEST_BUCKET, match_glob=match_glob, prefix=prefix
+        )
 
         gcs_hook_mock.return_value.download.assert_has_calls(
             [

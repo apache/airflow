@@ -48,7 +48,7 @@ SOURCE_OBJECT_MULTIPLE_WILDCARDS = "csv/*/test_*.csv"
 DESTINATION_BUCKET = "archive"
 DESTINATION_OBJECT = "foo/bar/"
 DESTINATION_OBJECT_PREFIX = "foo/bar"
-DELIMITER = ".json"
+SUFFIX = ".json"
 
 MOD_TIME_1 = datetime(2016, 1, 1)
 MOD_TIME_2 = datetime(2019, 1, 1)
@@ -73,7 +73,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter="test_object")
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix="", match_glob="**/*test_object"
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_execute_no_suffix(self, mock_hook):
@@ -85,7 +87,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="test_object", delimiter="")
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix="test_object", match_glob=None
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_execute_wildcard_with_replace_flag_false(self, mock_hook):
@@ -99,8 +103,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
-            mock.call(DESTINATION_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(bucket_name=TEST_BUCKET, prefix="test_object", match_glob=None),
+            mock.call(bucket_name=DESTINATION_BUCKET, prefix="test_object", match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -117,19 +121,19 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None),
-            mock.call(DESTINATION_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None),
+            mock.call(bucket_name=TEST_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, match_glob=None),
+            mock.call(bucket_name=DESTINATION_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_copy_file_with_exact_match(self, mock_hook):
-        SOURCE_FILES = [
+        source_files = [
             "test_object.txt",
             "test_object.txt.copy/",
             "test_object.txt.folder/",
         ]
-        mock_hook.return_value.list.return_value = SOURCE_FILES
+        mock_hook.return_value.list.return_value = source_files
         operator = GCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
@@ -140,7 +144,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None),
+            mock.call(bucket_name=TEST_BUCKET, prefix="test_object.txt", match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -154,7 +158,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="test", delimiter="object")
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix="test", match_glob="**/*object"
+        )
 
     # copy with wildcard
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -417,32 +423,28 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             destination_object=DESTINATION_OBJECT_PREFIX,
         )
 
-        total_wildcards = operator.source_object.count(WILDCARD)
+        total_wildcards = operator.source_objects[0].count(WILDCARD)
 
         error_msg = f"Only one wildcard '[*]' is allowed in source_object parameter. Found {total_wildcards}"
 
         with pytest.raises(AirflowException, match=error_msg):
             operator.execute(None)
 
+    @mock.patch.object(GCSToGCSOperator, "log")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_with_empty_destination_bucket(self, mock_hook):
+    def test_execute_with_empty_destination_bucket(self, mock_hook, log):
         mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST
-        operator = GCSToGCSOperator(
+        GCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_NO_WILDCARD,
             destination_bucket=None,
             destination_object=DESTINATION_OBJECT_PREFIX,
         )
+        log.info.assert_called_once_with(
+            "destination_bucket is None. Defaulting it to source_bucket (%s)", TEST_BUCKET
+        )
 
-        with mock.patch.object(operator.log, "warning") as mock_warn:
-            operator.execute(None)
-            mock_warn.assert_called_once_with(
-                "destination_bucket is None. Defaulting it to source_bucket (%s)", TEST_BUCKET
-            )
-            assert operator.destination_bucket == operator.source_bucket
-
-    # Tests the use of delimiter and source object as list
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_executes_with_empty_source_objects(self, mock_hook):
         operator = GCSToGCSOperator(
@@ -450,7 +452,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter=None)
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix="", match_glob=None
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_raises_exception_with_two_empty_list_inside_source_objects(self, mock_hook):
@@ -469,7 +473,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
-            TEST_BUCKET, prefix=SOURCE_OBJECTS_SINGLE_FILE[0], delimiter=None
+            bucket_name=TEST_BUCKET, prefix=SOURCE_OBJECTS_SINGLE_FILE[0], match_glob=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -480,26 +484,42 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_hook.return_value.list.assert_has_calls(
             [
-                mock.call(TEST_BUCKET, prefix="test_object/file1.txt", delimiter=None),
-                mock.call(TEST_BUCKET, prefix="test_object/file2.txt", delimiter=None),
+                mock.call(bucket_name=TEST_BUCKET, prefix="test_object/file1.txt", match_glob=None),
+                mock.call(bucket_name=TEST_BUCKET, prefix="test_object/file2.txt", match_glob=None),
             ],
             any_order=True,
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_executes_with_a_delimiter(self, mock_hook):
+    def test_executes_with_a_delimiter__deprecated(self, mock_hook):
+        with pytest.deprecated_call():
+            operator = GCSToGCSOperator(
+                task_id=TASK_ID,
+                source_bucket=TEST_BUCKET,
+                source_objects=SOURCE_OBJECTS_NO_FILE,
+                delimiter=SUFFIX,
+            )
+        operator.execute(None)
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix="", match_glob=f"**/*{SUFFIX}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_executes_with_a_match_glob(self, mock_hook):
         operator = GCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_objects=SOURCE_OBJECTS_NO_FILE,
-            delimiter=DELIMITER,
+            match_glob=f"**/*{SUFFIX}",
         )
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter=DELIMITER)
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix="", match_glob=f"**/*{SUFFIX}"
+        )
 
     # COPY
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_executes_with_delimiter_and_destination_object(self, mock_hook):
+    def test_executes_with_match_glob_and_destination_object(self, mock_hook):
         mock_hook.return_value.list.side_effect = [[], [], [SOURCE_OBJECTS_LIST[2]]]
         mock_hook.return_value.exists.return_value = False
 
@@ -509,7 +529,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             source_objects=SOURCE_OBJECTS_LIST,
             destination_bucket=DESTINATION_BUCKET,
             destination_object=DESTINATION_OBJECT,
-            delimiter=DELIMITER,
+            match_glob="**/*/SUFFIX",
         )
 
         operator.execute(None)
@@ -521,7 +541,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_executes_with_different_delimiter_and_destination_object(self, mock_hook):
+    def test_executes_with_different_match_glob_and_destination_object(self, mock_hook):
         mock_hook.return_value.list.side_effect = [[SOURCE_OBJECTS_LIST[0]], [SOURCE_OBJECTS_LIST[1]], []]
         mock_hook.return_value.exists.return_value = False
 
@@ -531,7 +551,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             source_objects=SOURCE_OBJECTS_LIST,
             destination_bucket=DESTINATION_BUCKET,
             destination_object=DESTINATION_OBJECT,
-            delimiter=".txt",
+            match_glob="**/*.txt",
         )
 
         operator.execute(None)
@@ -592,8 +612,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
-            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter=""),
+            mock.call(bucket_name=TEST_BUCKET, prefix="test_object", match_glob=None),
+            mock.call(bucket_name=DESTINATION_BUCKET, prefix="foo/bar", match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 

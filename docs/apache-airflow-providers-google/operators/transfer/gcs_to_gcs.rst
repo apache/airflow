@@ -80,13 +80,18 @@ This operator only deletes objects in the source bucket if the file move option 
 between two different buckets, this operator never deletes data in the destination bucket.
 
 When you use this operator, you can specify whether objects should be deleted from the source after
-they are transferred to the sink. Source objects can be specified using a single wildcard, as
-well as based on the file modification date.
+they are transferred to the sink. Source objects are defined as path strings relative to the bucket,
+for example: for a bucket ``my_bucket`` and an object which its absolute path is ``my_bucket/path/to/object.txt``,
+the source object should be ``path/to/object.txt``.
 
-The way this operator works by default can be compared to the ``cp`` command. When the file move option is active, this
-operator functions like the ``mv`` command.
+Filtering objects according to their path could be done by using the `the match_glob parameter <https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-object-glob>`__.
+You should avoid using a wildcard in the source object's path as it is deprecated.
+Additionally, filtering could be achieved based on the file's creation date (``is_older_than``) or modification date (``last_modified_time`` and ``maximum_modified_time``).
 
-Below are examples of using the GCSToGCSOperator to copy a single file, to copy multiple files with a wild card,
+The way this operator works by default can be compared to the ``gsutil cp`` `command <https://cloud.google.com/storage/docs/gsutil/commands/cp>`__.
+When the ``move_object`` parameter is set to ``True``, this operator functions like the ``gsutil mv`` `command <https://cloud.google.com/storage/docs/gsutil/commands/mv>`__.
+
+Below are examples of using the ``GCSToGCSOperator`` to copy a single file, to copy multiple files with a wild card,
 to copy multiple files, to move a single file, and to move multiple files.
 
 Copy single file
@@ -118,8 +123,8 @@ folder in ``BUCKET_1_DST``, with file names unchanged.
 .. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_gcs_to_gcs_delimiter]
-    :end-before: [END howto_operator_gcs_to_gcs_delimiter]
+    :start-after: [START howto_operator_gcs_to_gcs_match_glob]
+    :end-before: [END howto_operator_gcs_to_gcs_match_glob]
 
 For source_objects with no wildcard, all files in source_objects would be listed, using provided delimiter if any.
 Then copy files from source_objects to destination_object and rename each source file.
@@ -133,7 +138,7 @@ the ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bu
     :start-after: [START howto_operator_gcs_to_gcs_without_wildcard]
     :end-before: [END howto_operator_gcs_to_gcs_without_wildcard]
 
-The delimiter filed may be specified to select any source files starting with ``source_object`` and ending with the
+The delimiter field may be specified to select any source files starting with ``source_object`` and ending with the
 value supplied to ``delimiter``. This example uses the ``delimiter`` value to implement the same functionality as the
 prior example.
 

@@ -130,8 +130,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
 
                 raise AirflowException(error_msg)
 
-            prefix, delimiter = self.source_object.split(WILDCARD, 1)
-            objects = self.gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            prefix, suffix = self.source_object.split(WILDCARD, 1)
+            match_glob = f"**/*{suffix}" if suffix else None
+            objects = self.gcs_hook.list(self.source_bucket, prefix=prefix, match_glob=match_glob)
 
             for source_object in objects:
                 if self.destination_object is None:

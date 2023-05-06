@@ -763,16 +763,32 @@ class TestGCSHook:
         (
             (
                 "prefix",
-                [mock.call(delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None)],
+                [
+                    mock.call(
+                        match_glob="**/*.json",
+                        prefix="prefix",
+                        versions=None,
+                        max_results=None,
+                        page_token=None,
+                    )
+                ],
             ),
             (
                 ["prefix", "prefix_2"],
                 [
                     mock.call(
-                        delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None
+                        match_glob="**/*.json",
+                        prefix="prefix",
+                        versions=None,
+                        max_results=None,
+                        page_token=None,
                     ),
                     mock.call(
-                        delimiter=",", prefix="prefix_2", versions=None, max_results=None, page_token=None
+                        match_glob="**/*.json",
+                        prefix="prefix_2",
+                        versions=None,
+                        max_results=None,
+                        page_token=None,
                     ),
                 ],
             ),
@@ -784,8 +800,55 @@ class TestGCSHook:
         self.gcs_hook.list(
             bucket_name="test_bucket",
             prefix=prefix,
-            delimiter=",",
+            match_glob="**/*.json",
         )
+        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+
+    @pytest.mark.parametrize(
+        "prefix, result",
+        (
+            (
+                "prefix",
+                [
+                    mock.call(
+                        match_glob="**/*.json",
+                        prefix="prefix",
+                        versions=None,
+                        max_results=None,
+                        page_token=None,
+                    )
+                ],
+            ),
+            (
+                ["prefix", "prefix_2"],
+                [
+                    mock.call(
+                        match_glob="**/*.json",
+                        prefix="prefix",
+                        versions=None,
+                        max_results=None,
+                        page_token=None,
+                    ),
+                    mock.call(
+                        match_glob="**/*.json",
+                        prefix="prefix_2",
+                        versions=None,
+                        max_results=None,
+                        page_token=None,
+                    ),
+                ],
+            ),
+        ),
+    )
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_list__deprecated_delimiter(self, mock_service, prefix, result):
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+        with pytest.deprecated_call():
+            self.gcs_hook.list(
+                bucket_name="test_bucket",
+                prefix=prefix,
+                delimiter=".json",
+            )
         assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))

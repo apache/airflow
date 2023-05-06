@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Sequence
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
@@ -157,16 +158,16 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
 class GCSListObjectsOperator(GoogleCloudBaseOperator):
     """
-    List all objects from the bucket with the given string prefix and delimiter in name.
+    List all objects from the bucket.
 
     This operator returns a python list with the name of objects which can be used by
     XCom in the downstream task.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :param prefix: String or list of strings, which filter objects whose name begin with
-           it/them. (templated)
-    :param delimiter: The delimiter by which you want to filter the objects. (templated)
-        For example, to lists the CSV files from in a directory in GCS you would use
+    :param prefix: String or list of strings, which filter objects whose name begins with
+        it/them. (templated)
+    :param delimiter: (Deprecated) The suffix by which you want to filter the objects. (templated)
+        For example, to list the CSV files from in a directory in GCS, you would use
         delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -175,8 +176,10 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
+        Service Account Token Creator IAM role to the directly preceding identity, with the first
         account from the list granting this role to the originating account (templated).
+    :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+        (e.g, ``'**/*/.json'``)
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``
@@ -186,7 +189,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
                 task_id='GCS_Files',
                 bucket='data',
                 prefix='sales/sales-2017/',
-                delimiter='.avro',
+                match_glob='.avro',
                 gcp_conn_id=google_cloud_conn_id
             )
     """
@@ -195,6 +198,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         "bucket",
         "prefix",
         "delimiter",
+        "match_glob",
         "impersonation_chain",
     )
 
@@ -210,12 +214,21 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        match_glob: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter
+        if self.delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            match_glob = match_glob if match_glob else f"**/*{self.delimiter}"
+        self.match_glob = match_glob
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -226,9 +239,9 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info(
-            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix(es): %s",
+            "Getting list of the files. Bucket: %s; MatchGlob: %s; Prefix(es): %s",
             self.bucket,
-            self.delimiter,
+            self.match_glob,
             self.prefix,
         )
 
@@ -238,7 +251,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
             uri=self.bucket,
             project_id=hook.project_id,
         )
-        return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        return hook.list(bucket_name=self.bucket, prefix=self.prefix, match_glob=self.match_glob)
 
 
 class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):

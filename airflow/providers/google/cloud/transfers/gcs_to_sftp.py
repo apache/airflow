@@ -143,10 +143,11 @@ class GCSToSFTPOperator(BaseOperator):
                     f"Found {total_wildcards} in {self.source_object}."
                 )
 
-            prefix, delimiter = self.source_object.split(WILDCARD, 1)
+            prefix, suffix = self.source_object.split(WILDCARD, 1)
+            match_glob = f"**/*{suffix}" if suffix else None
             prefix_dirname = os.path.dirname(prefix)
 
-            objects = gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            objects = gcs_hook.list(bucket_name=self.source_bucket, prefix=prefix, match_glob=match_glob)
 
             for source_object in objects:
                 destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)

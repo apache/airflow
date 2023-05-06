@@ -19,7 +19,10 @@
 from __future__ import annotations
 
 import os
+import warnings
 from typing import TYPE_CHECKING, Sequence
+
+from exceptions import AirflowProviderDeprecationWarning
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -38,16 +41,16 @@ class GCSToS3Operator(BaseOperator):
         :ref:`howto/operator:GCSToS3Operator`
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :param prefix: Prefix string which filters objects whose name begin with
+    :param prefix: Prefix string which filters objects whose name begins with
         this prefix. (templated)
-    :param delimiter: The delimiter by which you want to filter the objects. (templated)
-        For e.g to lists the CSV files from in a directory in GCS you would use
-        delimiter='.csv'.
+    :param delimiter: (Deprecated) The suffix by which you want to filter the objects. (templated)
+        For example, to list the CSV files from in a directory in GCS, you would use
+        match_glob='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param dest_aws_conn_id: The destination S3 connection
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)
-    :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
+    :param dest_verify: Whether to verify SSL certificates for S3 connection.
+        By default, SSL certificates are verified.
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
@@ -57,9 +60,9 @@ class GCSToS3Operator(BaseOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
 
-    :param replace: Whether or not to verify the existence of the files in the
+    :param replace: Whether to verify the existence of the files in the
         destination bucket.
-        By default is set to False
+        By default, is set to False
         If set to True, will upload all the files replacing the existing ones in
         the destination bucket.
         If set to False, will upload only the files that are in the origin but not
@@ -70,18 +73,21 @@ class GCSToS3Operator(BaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
+        Service Account Token Creator IAM role to the directly preceding identity, with the first
         account from the list granting this role to the originating account (templated).
     :param s3_acl_policy: Optional The string to specify the canned ACL policy for the
         object to be uploaded in S3
     :param keep_directory_structure: (Optional) When set to False the path of the file
          on the bucket is recreated within path passed in dest_s3_key.
+    :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+        (e.g, ``'**/*/.json'``)
     """
 
     template_fields: Sequence[str] = (
         "bucket",
         "prefix",
         "delimiter",
+        "match_glob",
         "dest_s3_key",
         "google_impersonation_chain",
     )
@@ -102,6 +108,7 @@ class GCSToS3Operator(BaseOperator):
         dest_s3_extra_args: dict | None = None,
         s3_acl_policy: str | None = None,
         keep_directory_structure: bool = True,
+        match_glob: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -109,6 +116,13 @@ class GCSToS3Operator(BaseOperator):
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter
+        if self.delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            match_glob = match_glob if match_glob else f"**/*{self.delimiter}"
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
         self.dest_s3_key = dest_s3_key
@@ -118,6 +132,7 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
         self.keep_directory_structure = keep_directory_structure
+        self.match_glob = match_glob
 
     def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
@@ -127,13 +142,13 @@ class GCSToS3Operator(BaseOperator):
         )
 
         self.log.info(
-            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
+            "Getting list of the files. Bucket: %s; MatchGlob: %s; Prefix: %s",
             self.bucket,
-            self.delimiter,
+            self.match_glob,
             self.prefix,
         )
 
-        files = hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        files = hook.list(bucket_name=self.bucket, prefix=self.prefix, match_glob=self.match_glob)
 
         s3_hook = S3Hook(
             aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
