@@ -821,10 +821,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         Defaults to 4 seconds.
     :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
         (default: False).
-    :param job_id: The ID of the job. It will be suffixed with hash of job configuration unless
-        ``force_rerun`` is True. The ID must contain only letters (a-z, A-Z), numbers (0-9),
-        underscores (_), or dashes (-). The maximum length is 1,024 characters.
-        If not provided then uuid will be generated.
     :param force_rerun: If True then operator will use hash of uuid as job id suffix
     """
 
@@ -834,8 +830,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         "project_id",
         "max_results",
         "selected_fields",
-        "impersonation_chain",
-        "job_id",
+        "impersonation_chain"
     )
     ui_color = BigQueryUIColors.QUERY.value
 
@@ -853,7 +848,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         deferrable: bool = False,
         poll_interval: float = 4.0,
         as_dict: bool = False,
-        job_id: str = "",
         force_rerun: bool = True,
         **kwargs,
     ) -> None:
@@ -870,7 +864,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.as_dict = as_dict
-        self.job_id = job_id
         self.force_rerun = force_rerun
 
     def _submit_job(
@@ -889,7 +882,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         """Submit a new job and get the job id for polling the status using Triggerer."""
 
         job_id = hook.generate_job_id(
-            job_id=self.job_id,
+            job_id="",
             dag_id=self.dag_id,
             task_id=self.task_id,
             logical_date=logical_date,
