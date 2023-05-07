@@ -527,7 +527,7 @@ class GoogleBaseHook(BaseHook):
 
         The gcloud tool allows you to login to Google Cloud only - ``gcloud auth login`` and
         for the needs of Application Default Credentials ``gcloud auth application-default login``.
-        In our case, we want all commands to use only the credentials from ADCm so
+        In our case, we want all commands to use only the credentials from ADC so
         we need to configure the credentials in gcloud manually.
         """
         credentials_path = _cloud_sdk.get_application_default_credentials_path()
@@ -539,7 +539,7 @@ class GoogleBaseHook(BaseHook):
             exit_stack.enter_context(patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}))
 
             if CREDENTIALS in os.environ:
-                # This solves most cases when we are logged in using the service key in Airflow.
+                # Use credentials of type `service_account`
                 # Don't display stdout/stderr for security reason
                 check_output(
                     [
@@ -550,9 +550,9 @@ class GoogleBaseHook(BaseHook):
                     ]
                 )
             elif os.path.exists(credentials_path):
-                # If we are logged in by `gcloud auth application-default` then we need to log in manually.
-                # This will make the `gcloud auth application-default` and `gcloud auth` credentials equals.
+                # Use credentials of type `authorized_user`
                 with open(credentials_path) as creds_file:
+                    # Make the `gcloud auth application-default` and `gcloud auth` credentials equals.
                     creds_content = json.loads(creds_file.read())
                     # Don't display stdout/stderr for security reason
                     check_output(["gcloud", "config", "set", "auth/client_id", creds_content["client_id"]])
