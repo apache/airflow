@@ -482,7 +482,7 @@ class GoogleBaseHook(BaseHook):
 
         The gcloud tool allows you to login to Google Cloud only - ``gcloud auth login`` and
         for the needs of Application Default Credentials ``gcloud auth application-default login``.
-        In our case, we want all commands to use only the credentials from ADCm so
+        In our case, we want all commands to use only the credentials from ADC so
         we need to configure the credentials in gcloud manually.
         """
         credentials_path = _cloud_sdk.get_application_default_credentials_path()

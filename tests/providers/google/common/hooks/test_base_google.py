@@ -734,7 +734,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
                 # Do nothing
                 pass
 
-        mock_check_output.has_calls(
+        mock_check_output.assert_has_calls(
             [
                 mock.call(['gcloud', 'config', 'set', 'auth/client_id', 'CLIENT_ID']),
                 mock.call(['gcloud', 'config', 'set', 'auth/client_secret', 'CLIENT_SECRET']),
