@@ -60,7 +60,7 @@ const PieChart = ({ title, data, ...rest }: Props) => {
       left: "right",
       top: "bottom",
       textStyle: {
-        fontSize: "12px",
+        fontSize: "14px",
         color: theme.colors.gray["500"],
       },
     },
@@ -69,6 +69,7 @@ const PieChart = ({ title, data, ...rest }: Props) => {
     },
     legend: {
       left: "center",
+      type: "scroll",
     },
     series: [
       {
@@ -76,6 +77,7 @@ const PieChart = ({ title, data, ...rest }: Props) => {
         type: "pie",
         radius: ["35%", "60%"],
         avoidLabelOverlap: false,
+        top: "0%",
         itemStyle: {
           borderRadius: 5,
           borderColor: "#fff",

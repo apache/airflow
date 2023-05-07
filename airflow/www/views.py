@@ -3849,10 +3849,18 @@ class Airflow(AirflowBaseView):
             )
 
             data = {
-                "dag_run_types": {run_type: sum_value for run_type, sum_value in dag_runs_type},
-                "dag_run_states": {run_state: sum_value for run_state, sum_value in dag_run_states},
+                "dag_run_types": {
+                    **{dag_run_type.value: 0 for dag_run_type in DagRunType},
+                    **{run_type: sum_value for run_type, sum_value in dag_runs_type},
+                },
+                "dag_run_states": {
+                    **{dag_run_state.value: 0 for dag_run_state in DagRunState},
+                    **{run_state: sum_value for run_state, sum_value in dag_run_states},
+                },
                 "task_instance_states": {
-                    run_state or "no_status": sum_value for run_state, sum_value in task_instance_states
+                    "no_status": 0,
+                    **{ti_state.value: 0 for ti_state in TaskInstanceState},
+                    **{ti_state or "no_status": sum_value for ti_state, sum_value in task_instance_states},
                 },
             }
 

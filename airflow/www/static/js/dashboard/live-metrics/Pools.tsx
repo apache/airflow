@@ -26,29 +26,29 @@ import {
   CardHeader,
   Heading,
   Spinner,
-  useTheme,
 } from "@chakra-ui/react";
 import { usePools } from "src/api";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
 import type { API } from "src/types";
 
-const formatData = (data?: API.PoolCollection): Array<Array<any>> =>
+const formatData = (
+  data?: API.PoolCollection
+): Array<[string, number, number, number, number]> =>
   data?.pools?.map((pool) => [
-    pool.name,
-    pool.openSlots,
-    pool.queuedSlots,
-    pool.runningSlots,
-    pool.scheduledSlots,
+    pool.name || "",
+    pool.openSlots || 0,
+    pool.queuedSlots || 0,
+    pool.runningSlots || 0,
+    pool.scheduledSlots || 0,
   ]) || [];
 
 const Pools = (props: BoxProps) => {
   const { data, isSuccess } = usePools();
-  const theme = useTheme();
 
   const option: ReactEChartsProps["option"] = {
     dataset: {
       source: [
-        ["Pool", "Open", "Queued", "Running", "Scheduled"],
+        ["pool", "open", "queued", "running", "scheduled"],
         ...formatData(data),
       ],
     },
@@ -59,7 +59,7 @@ const Pools = (props: BoxProps) => {
       },
     },
     legend: {
-      data: ["Open", "Queued", "Running", "Scheduled"],
+      data: ["open", "queued", "running", "scheduled"],
     },
     grid: {
       left: "0%",
@@ -79,33 +79,21 @@ const Pools = (props: BoxProps) => {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
-        itemStyle: {
-          color: "green",
-        },
       },
       {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
-        itemStyle: {
-          color: theme.colors.gray["600"],
-        },
       },
       {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
-        itemStyle: {
-          color: theme.colors.blue["200"],
-        },
       },
       {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
-        itemStyle: {
-          color: theme.colors.yellow["700"],
-        },
       },
     ],
   };
