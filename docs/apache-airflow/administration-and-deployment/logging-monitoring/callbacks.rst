@@ -31,9 +31,9 @@ For example, you may wish to alert when certain tasks have failed, or have the l
 
 .. warning::
 
-    Callback functions are executed after the tasks are completed.
-    Errors in the callback functions will show up in scheduler logs rather than task logs.
-    By default scheduler logs do not show up in the ui. To enable, change the :doc:`configuration <./logging-tasks#advanced-configuration>`
+    Callback functions are executed after tasks are completed.
+    Errors in callback functions will show up in scheduler logs rather than task logs.
+    By default, scheduler logs do not show up in the UI. Change the logging config class (under :doc:`advanced configuration <./logging-tasks>`) to enable.
 
 Callback Types
 --------------
@@ -94,4 +94,4 @@ In the following example, failures in any task call the ``task_failure_alert`` f
     to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your DAG/task
     callbacks: e.g ``on_failure_callback=[callback_func_1, callback_func_2]``
     
-Full list of variables available in `context` in :docs:`docs <../../templates-ref>` and `code <https://github.com/apache/airflow/blob/main/airflow/utils/context.pyi>`.
+Full list of variables available in `context` in :doc:`docs <../../templates-ref>` and `code <https://github.com/apache/airflow/blob/main/airflow/utils/context.pyi>`.
