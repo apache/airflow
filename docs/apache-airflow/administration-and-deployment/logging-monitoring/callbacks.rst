@@ -29,6 +29,12 @@ For example, you may wish to alert when certain tasks have failed, or have the l
     As such, task changes set by the command line interface (:doc:`CLI <../../howto/usage-cli>`) or user interface (:doc:`UI <../../ui>`) do not
     execute callback functions.
 
+.. warning::
+
+    Callback functions are executed after the tasks are completed.
+    Errors in the callback functions will show up in scheduler logs rather than task logs.
+    By default scheduler logs do not show up in the ui. To enable, change the :doc:`configuration <./logging-tasks#advanced-configuration>`
+
 Callback Types
 --------------
 
