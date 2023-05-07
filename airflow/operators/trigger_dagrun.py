@@ -46,7 +46,7 @@ XCOM_RUN_ID = "trigger_run_id"
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class TriggerDagRunLink(BaseOperatorLink):

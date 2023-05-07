@@ -60,7 +60,7 @@ class GlueJobSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_states: list[str] = ["SUCCEEDED"]
         self.errored_states: list[str] = ["FAILED", "STOPPED", "TIMEOUT"]
-        self.next_log_token: str | None = None
+        self.next_log_tokens = GlueJobHook.LogContinuationTokens()
 
     @cached_property
     def hook(self):
@@ -69,14 +69,12 @@ class GlueJobSensor(BaseSensorOperator):
     def poke(self, context: Context):
         self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
         job_state = self.hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
-        job_failed = False
 
         try:
             if job_state in self.success_states:
                 self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)
                 return True
             elif job_state in self.errored_states:
-                job_failed = True
                 job_error_message = "Exiting Job %s Run State: %s", self.run_id, job_state
                 self.log.info(job_error_message)
                 raise AirflowException(job_error_message)
@@ -84,9 +82,8 @@ class GlueJobSensor(BaseSensorOperator):
                 return False
         finally:
             if self.verbose:
-                self.next_log_token = self.hook.print_job_logs(
+                self.hook.print_job_logs(
                     job_name=self.job_name,
                     run_id=self.run_id,
-                    job_failed=job_failed,
-                    next_token=self.next_log_token,
+                    continuation_tokens=self.next_log_tokens,
                 )

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from botocore.exceptions import ClientError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -201,7 +201,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             warnings.warn(
                 "Action 'increment' on job name conflict has been deprecated for performance reasons."
                 "The alternative to 'fail' is now 'timestamp'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         self.action_if_job_exists = action_if_job_exists
@@ -486,7 +486,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 warnings.warn(
                     "Action 'increment' on job name conflict has been deprecated for performance reasons."
                     "The alternative to 'fail' is now 'timestamp'.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             self.action_if_job_exists = action_if_job_exists
@@ -718,7 +718,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 warnings.warn(
                     "Action 'increment' on job name conflict has been deprecated for performance reasons."
                     "The alternative to 'fail' is now 'timestamp'.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             self.action_if_job_exists = action_if_job_exists

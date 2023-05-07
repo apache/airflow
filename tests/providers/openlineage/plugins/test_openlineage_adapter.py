@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import datetime
 import os
+import pathlib
 import uuid
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, patch
 
+import pytest
 from openlineage.client.facet import (
     DocumentationJobFacet,
     ErrorMessageRunFacet,
@@ -32,6 +34,7 @@ from openlineage.client.run import Job, Run, RunEvent, RunState
 
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
+from tests.test_utils.config import conf_vars
 
 
 @patch.dict(os.environ, {"OPENLINEAGE_URL": "http://ol-api:5000", "OPENLINEAGE_API_KEY": "api-key"})
@@ -41,6 +44,71 @@ def test_create_client_from_ol_env():
     assert client.transport.url == "http://ol-api:5000"
     assert "Authorization" in client.transport.session.headers
     assert client.transport.session.headers["Authorization"] == "Bearer api-key"
+
+
+@conf_vars(
+    {
+        ("openlineage", "transport"): '{"type": "http", "url": "http://ol-api:5000",'
+        ' "auth": {"type": "api_key", "apiKey": "api-key"}}'
+    }
+)
+def test_create_client_from_config_with_options():
+    client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+
+    assert client.transport.url == "http://ol-api:5000"
+    assert "Authorization" in client.transport.session.headers
+    assert client.transport.session.headers["Authorization"] == "Bearer api-key"
+
+
+@conf_vars(
+    {
+        ("openlineage", "transport"): '{"url": "http://ol-api:5000",'
+        ' "auth": {"type": "api_key", "apiKey": "api-key"}}'
+    }
+)
+def test_fails_to_create_client_without_type():
+    with pytest.raises(Exception):
+        OpenLineageAdapter().get_or_create_openlineage_client()
+
+
+def test_create_client_from_yaml_config():
+    current_folder = pathlib.Path(__file__).parent.resolve()
+    yaml_config = str((current_folder / "openlineage_configs" / "http.yaml").resolve())
+    with conf_vars({("openlineage", "config_path"): yaml_config}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+
+
+def test_create_client_from_env_var_config():
+    current_folder = pathlib.Path(__file__).parent.resolve()
+    yaml_config = str((current_folder / "openlineage_configs" / "http.yaml").resolve())
+    with patch.dict(os.environ, {"OPENLINEAGE_CONFIG": yaml_config}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+    assert client.transport.url == "http://localhost:5050"
+
+
+@patch.dict(
+    os.environ, {"OPENLINEAGE_URL": "http://ol-from-env:5000", "OPENLINEAGE_API_KEY": "api-key-from-env"}
+)
+@patch.dict(os.environ, {"OPENLINEAGE_CONFIG": "some/config.yml"})
+def test_create_client_overrides_env_vars():
+    current_folder = pathlib.Path(__file__).parent.resolve()
+    yaml_config = str((current_folder / "openlineage_configs" / "http.yaml").resolve())
+    with conf_vars({("openlineage", "config_path"): yaml_config}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+        assert client.transport.kind == "http"
+        assert client.transport.url == "http://localhost:5050"
+
+    with conf_vars({("openlineage", "transport"): '{"type": "console"}'}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+        assert client.transport.kind == "console"
 
 
 def test_emit_start_event():

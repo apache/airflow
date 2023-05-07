@@ -35,11 +35,11 @@ There are three ways you can run the Airflow dev env:
 2. With a local virtual environment (on your local machine).
 3. With a remote, managed environment (via remote development environment)
 
-Before deciding which method to choose, there are a couple factors to consider:
+Before deciding which method to choose, there are a couple of factors to consider:
 
 * Running Airflow in a container is the most reliable way: it provides a more consistent environment
   and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.).
-  However it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
+  However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
 * If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
   For a comprehensive venv tutorial - visit
   `Virtual Env guide <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_
@@ -48,13 +48,13 @@ Before deciding which method to choose, there are a couple factors to consider:
 Local machine development
 #########################
 
-If you do not work with remote development environment, you need those prerequisites.
+If you do not work in remote development environment, you need those prerequisites.
 
 1. Docker Community Edition (you can also use Colima, see instructions below)
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
 
-The below setup describe `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
+The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
 
 Docker Community Edition
 ------------------------

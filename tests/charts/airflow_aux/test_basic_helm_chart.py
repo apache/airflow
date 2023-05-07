@@ -37,13 +37,11 @@ class TestBaseChartTest:
         return values
 
     def _get_object_count(self, version):
-        if version == "2.3.2":
-            return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
-        elif version == "2.6.0":
+        if version == "2.3.2" or version == "default":
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployments(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
@@ -101,7 +99,7 @@ class TestBaseChartTest:
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-airflow-result-backend"))
-        if version == "2.6.0":
+        if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
         assert expected_object_count_in_basic_deployment == len(k8s_objects)
@@ -118,7 +116,7 @@ class TestBaseChartTest:
                 "test-label"
             ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
         # Dag Processor creates two extra objects compared to the basic deployment
         object_count_in_basic_deployment = self._get_object_count(version)
@@ -181,7 +179,7 @@ class TestBaseChartTest:
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-airflow-result-backend"))
-        if version == "2.6.0":
+        if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
         assert expected_object_count_with_standalone_scheduler == len(k8s_objects)
@@ -345,7 +343,7 @@ class TestBaseChartTest:
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
-            # (f"{release_name}-triggerer", "StatefulSet", "triggerer"),
+            (f"{release_name}-triggerer", "StatefulSet", "triggerer"),
             (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
@@ -542,4 +540,6 @@ class TestBaseChartTest:
 
     @staticmethod
     def default_trigger_obj(version):
-        return "StatefulSet" if version == "2.6.0" else "Deployment"
+        if version == "default":
+            return "StatefulSet"
+        return "Deployment"

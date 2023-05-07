@@ -106,6 +106,7 @@ PIP package                              Version required
 ``mypy-boto3-rds``                       ``>=1.24.0``
 ``mypy-boto3-redshift-data``             ``>=1.24.0``
 ``mypy-boto3-appflow``                   ``>=1.24.0``
+``mypy-boto3-s3``                        ``>=1.24.0``
 =======================================  ==================
 
 Cross provider package dependencies

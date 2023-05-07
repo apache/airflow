@@ -28,6 +28,8 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Iterable, Mapping
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
 try:
     import pandas
 except ImportError as e:
@@ -529,7 +531,7 @@ class HiveMetastoreHook(BaseHook):
         if "authMechanism" in conn.extra_dejson:
             warnings.warn(
                 "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             conn.extra_dejson["auth_mechanism"] = conn.extra_dejson["authMechanism"]
@@ -844,7 +846,7 @@ class HiveServer2Hook(DbApiHook):
         if "authMechanism" in db.extra_dejson:
             warnings.warn(
                 "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             db.extra_dejson["auth_mechanism"] = db.extra_dejson["authMechanism"]

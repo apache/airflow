@@ -641,6 +641,9 @@ export interface paths {
   "/config": {
     get: operations["get_config"];
   };
+  "/config/section/{section}/option/{option}": {
+    get: operations["get_value"];
+  };
   "/health": {
     /**
      * Get the status of Airflow's metadatabase and scheduler. It includes info about
@@ -1211,11 +1214,13 @@ export interface components {
       /** @description The number of slots used by running/queued tasks at the moment. */
       occupied_slots?: number;
       /** @description The number of slots used by running tasks at the moment. */
-      used_slots?: number;
+      running_slots?: number;
       /** @description The number of slots used by queued tasks at the moment. */
       queued_slots?: number;
       /** @description The number of free slots at the moment. */
       open_slots?: number;
+      /** @description The number of slots used by scheduled tasks at the moment. */
+      scheduled_slots?: number;
       /**
        * @description The description of the pool.
        *
@@ -4176,6 +4181,12 @@ export interface operations {
     };
   };
   get_config: {
+    parameters: {
+      query: {
+        /** If given, only return config of this section. */
+        section?: string;
+      };
+    };
     responses: {
       /** Success. */
       200: {
@@ -4186,6 +4197,27 @@ export interface operations {
       };
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  get_value: {
+    parameters: {
+      path: {
+        section: string;
+        option: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Config"];
+          "text/plain": string;
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /**
@@ -4988,6 +5020,12 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type GetConfigVariables = CamelCasedPropertiesDeep<
+  operations["get_config"]["parameters"]["query"]
+>;
+export type GetValueVariables = CamelCasedPropertiesDeep<
+  operations["get_value"]["parameters"]["path"]
 >;
 export type GetPluginsVariables = CamelCasedPropertiesDeep<
   operations["get_plugins"]["parameters"]["query"]

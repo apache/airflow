@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 
+from airflow.configuration import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.plugins.facets import (
@@ -39,8 +40,7 @@ class ExtractorManager(LoggingMixin):
         # Extractors should implement BaseExtractor
         from airflow.utils.module_loading import import_string
 
-        # TODO: use airflow config with OL backup
-        env_extractors = os.getenv("OPENLINEAGE_EXTRACTORS")
+        env_extractors = conf.get("openlinege", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
         if env_extractors is not None:
             for extractor in env_extractors.split(";"):
                 extractor: type[BaseExtractor] = import_string(extractor.strip())
