@@ -210,7 +210,8 @@ class BatchPredictionJobHook(GoogleBaseHook):
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
         :param create_request_timeout: Optional. The timeout for the create request in seconds.
-        :param batch_size: Optional. The number of the records (e.g. instances) of the operation given in each batch
+        :param batch_size: Optional. The number of the records (e.g. instances)
+            of the operation given in each batch
             to a machine replica. Machine type, and size of a single record should be considered
             when setting this parameter, higher value speeds up the batch operation's execution,
             but too high value will result in a whole batch not fitting in a machine's memory,
