@@ -86,7 +86,7 @@ info:
 
     ### Delete
 
-    Deleting a resource requires the resource `id` and is typically executing via an HTTP `DELETE` request.
+    Deleting a resource requires the resource `id` and is typically executed via an HTTP `DELETE` request.
     The response usually returns a `204 No Content` response code upon success.
 
     ## Conventions
@@ -150,7 +150,7 @@ info:
     Using a graphical tool such as [Postman](https://www.postman.com/) or [Insomnia](https://insomnia.rest/),
     it is possible to import the API specifications directly:
 
-    1. Download the API specification by clicking the **Download** button at top of this document
+    1. Download the API specification by clicking the **Download** button at the top of this document
     2. Import the JSON specification in the graphical tool of your choice.
       - In *Postman*, you can click the **import** button at the top
       - With *Insomnia*, you can just drag-and-drop the file on the UI

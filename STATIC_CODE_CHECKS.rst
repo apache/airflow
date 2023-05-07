@@ -112,13 +112,13 @@ Available pre-commit checks
 ...........................
 
 This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
-require Breeze Docker image to be build locally.
+require Breeze Docker image to be built locally.
 
 .. note:: Disabling particular checks
 
   In case you have a problem with running particular ``pre-commit`` check you can still continue using the
   benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
-  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example
+  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
   when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
   ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
