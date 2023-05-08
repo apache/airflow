@@ -23,12 +23,14 @@ from __future__ import annotations
 
 import json
 from copy import copy
+from datetime import datetime
 from decimal import Decimal
 from os.path import getsize
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -87,6 +89,10 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
+    :param export_time: Time in the past from which to export table data, counted in seconds from the start of
+     the Unix epoch. The table export will be a snapshot of the table's state at this point in time.
+    :param export_format: The format for the exported data. Valid values for ExportFormat are DYNAMODB_JSON
+     or ION.
     """
 
     template_fields: Sequence[str] = (
@@ -109,6 +115,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
+        export_time: datetime | None = None,
+        export_format: str = "DYNAMODB_JSON",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -118,11 +126,43 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
+        self.export_time = export_time
+        self.export_format = export_format
+
+        if self.export_time and self.export_time > datetime.now():
+            raise ValueError("The export_time parameter cannot be a future time.")
+
+    @cached_property
+    def hook(self):
+        """Create DynamoDBHook"""
+        return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
     def execute(self, context: Context) -> None:
-        hook = DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
-        table = hook.get_conn().Table(self.dynamodb_table_name)
+        if self.export_time:
+            self._export_table_to_point_in_time()
+        else:
+            self._export_entire_data()
 
+    def _export_table_to_point_in_time(self):
+        """
+        Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
+         state at this point in time.
+        """
+        client = self.hook.conn.meta.client
+        response = client.export_table_to_point_in_time(
+            TableArn=self.dynamodb_table_name,
+            ExportTime=self.export_time,
+            S3Bucket=self.s3_bucket_name,
+            S3Prefix=self.s3_key_prefix,
+            ExportFormat=self.export_format,
+        )
+        waiter = self.hook.get_waiter("export_table")
+        export_arn = response.get("ExportDescription", {}).get("ExportArn")
+        waiter.wait(ExportArn=export_arn)
+
+    def _export_entire_data(self):
+        """Export all data from the table."""
+        table = self.hook.get_conn().Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         f: IO[Any]
