@@ -62,7 +62,7 @@ class S3KeyTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize S3KeyTrigger arguments and classpath."""
         return (
-            "astronomer.providers.amazon.aws.triggers.s3.S3KeyTrigger",
+            "airflow.providers.amazon.aws.triggers.s3.S3KeyTrigger",
             {
                 "bucket_name": self.bucket_name,
                 "bucket_key": self.bucket_key,

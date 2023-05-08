@@ -229,7 +229,6 @@ class S3Hook(AwsBaseHook):
                 f"If `{bucket_param_name}` is provided, {key_param_name} should be a relative path "
                 "from root level, rather than a full s3:// url"
             )
-
         return bucket, key
 
     @provide_bucket_name
@@ -1288,11 +1287,13 @@ class S3AsyncHook(AwsBaseAsyncHook):
         :param bucket_keys: S3 keys that will point to the file
         :param wildcard_match: the path to the key
         """
-        return all(
-            await asyncio.gather(
-                *(self._check_key(client, bucket, wildcard_match, key) for key in bucket_keys)
+        if isinstance(bucket_keys, list):
+            return all(
+                await asyncio.gather(
+                    *(self._check_key(client, bucket, wildcard_match, key) for key in bucket_keys)
+                )
             )
-        )
+        return await self._check_key(client, bucket, wildcard_match, bucket_keys)
 
     async def _check_for_prefix(
         self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
