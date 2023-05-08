@@ -843,11 +843,12 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         if deferrable and not client:
             raise ValueError("client must be provided for a deferrable waiter.")
+        client = client or self.conn
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
             # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
             if self.resource_type:
                 credentials = self.get_credentials()
-                client = client or boto3.client(
+                client = boto3.client(
                     self.resource_type,
                     region_name=self.region_name,
                     aws_access_key_id=credentials.access_key,

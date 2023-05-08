@@ -284,21 +284,25 @@ class TestCustomDynamoDBServiceWaiters:
 
     def test_export_table_to_point_in_time_completed(self, mock_describe_export):
         """Test state transition from `in progress` to `completed` during init."""
-        mock_describe_export.side_effect = [
-            self.describe_export(self.STATUS_IN_PROGRESS),
-            self.describe_export(self.STATUS_COMPLETED),
-        ]
-        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
-        waiter.wait(
-            ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
-        )
+        with mock.patch("boto3.client") as client:
+            client.return_value = self.client
+            waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
+            mock_describe_export.side_effect = [
+                self.describe_export(self.STATUS_IN_PROGRESS),
+                self.describe_export(self.STATUS_COMPLETED),
+            ]
+            waiter.wait(
+                ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+            )
 
     def test_export_table_to_point_in_time_failed(self, mock_describe_export):
         """Test state transition from `in progress` to `failed` during init."""
-        mock_describe_export.side_effect = [
-            self.describe_export(self.STATUS_IN_PROGRESS),
-            self.describe_export(self.STATUS_FAILED),
-        ]
-        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
-        with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
-            waiter.wait(ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry")
+        with mock.patch("boto3.client") as client:
+            client.return_value = self.client
+            mock_describe_export.side_effect = [
+                self.describe_export(self.STATUS_IN_PROGRESS),
+                self.describe_export(self.STATUS_FAILED),
+            ]
+            waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
+            with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
+                waiter.wait(ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry")
