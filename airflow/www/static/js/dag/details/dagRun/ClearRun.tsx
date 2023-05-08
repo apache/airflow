@@ -29,8 +29,8 @@ import {
 } from "@chakra-ui/react";
 import { MdArrowDropDown } from "react-icons/md";
 import { getMetaValue } from "src/utils";
-import { useKeysPress } from "src/utils/useKeysPress";
-import { keyboardShortcutIdentifier } from "src/dag/keyboardShortcutIdentifier";
+import useKeysPress from "src/utils/useKeysPress";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import { useClearRun, useQueueRun } from "src/api";
 
 const canEdit = getMetaValue("can_edit") === "True";
@@ -59,7 +59,11 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
     onQueue({ confirmed: true });
   };
 
-  useKeysPress(keyboardShortcutIdentifier.dagRunClear, clearExistingTasks);
+  useKeysPress(
+    keyboardShortcutIdentifier.dagRunClear.primaryKey,
+    keyboardShortcutIdentifier.dagRunClear.secondaryKey,
+    clearExistingTasks
+  );
 
   const clearLabel = "Clear tasks or add new tasks";
   return (

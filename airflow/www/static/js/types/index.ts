@@ -157,6 +157,7 @@ export type {
   Task,
   TaskInstance,
   TaskState,
+  PrimaryShortcutKey,
   KeyboardShortcutKeys,
   KeyboardShortcutIdentifier,
 };

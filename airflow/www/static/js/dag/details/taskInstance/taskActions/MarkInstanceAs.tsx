@@ -35,9 +35,9 @@ import { MdArrowDropDown } from "react-icons/md";
 import { capitalize } from "lodash";
 
 import { getMetaValue } from "src/utils";
-import { useKeysPress } from "src/utils/useKeysPress";
+import useKeysPress from "src/utils/useKeysPress";
 import type { TaskState } from "src/types";
-import { keyboardShortcutIdentifier } from "src/dag/keyboardShortcutIdentifier";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import {
   useMarkFailedTask,
   useMarkSuccessTask,
@@ -98,16 +98,6 @@ const MarkInstanceAs = ({
   const mapIndexes =
     mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;
 
-  useKeysPress(keyboardShortcutIdentifier.taskMarkSuccess, () => {
-    if (1 - Number(!isMappedSummary && currentState === "success"))
-      markAsSuccess();
-  });
-
-  useKeysPress(keyboardShortcutIdentifier.taskMarkFailed, () => {
-    if (1 - Number(!isMappedSummary && currentState === "failed"))
-      markAsFailed();
-  });
-
   const { data: affectedTasks, isLoading: isLoadingDryRun } = useMarkTaskDryRun(
     {
       dagId,
@@ -167,6 +157,24 @@ const MarkInstanceAs = ({
 
   const markLabel = "Manually set task instance state";
   const isMappedSummary = isMapped && mapIndex === undefined;
+
+  useKeysPress(
+    keyboardShortcutIdentifier.taskMarkSuccess.primaryKey,
+    keyboardShortcutIdentifier.taskMarkSuccess.secondaryKey,
+    () => {
+      if (1 - Number(!isMappedSummary && currentState === "success"))
+        markAsSuccess();
+    }
+  );
+
+  useKeysPress(
+    keyboardShortcutIdentifier.taskMarkFailed.primaryKey,
+    keyboardShortcutIdentifier.taskMarkFailed.secondaryKey,
+    () => {
+      if (1 - Number(!isMappedSummary && currentState === "failed"))
+        markAsFailed();
+    }
+  );
 
   return (
     <>
