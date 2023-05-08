@@ -20,6 +20,7 @@ import jmespath
 import pytest
 
 from tests.charts.helm_template_generator import render_chart
+from tests.charts.log_groomer import LogGroomerTestBase
 
 
 class TestDagProcessor:
@@ -555,3 +556,8 @@ class TestDagProcessor:
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
+
+class TestDagProcessorLogGroomer(LogGroomerTestBase):
+    obj_name = "dag-processor"
+    folder = "dag-processor"
