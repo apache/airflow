@@ -63,7 +63,7 @@ spec:
         {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
-      securityContext: {{ $containerSecurityContext }}
+      securityContext: {{ $containerSecurityContext | nindent 8 }}
       name: base
       resources: {{- toYaml .Values.workers.resources | nindent 8 }}
       volumeMounts:
