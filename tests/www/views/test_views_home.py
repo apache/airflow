@@ -178,16 +178,23 @@ def working_dags_with_read_perm(tmpdir):
 @pytest.fixture()
 def working_dags_with_edit_perm(tmpdir):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
-    dag_contents_template_with_read_perm = (
+    dag_contents_template_with_edit_perm = (
         "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
         "access_control={{'role_single_dag':{{'can_edit'}}}}) "
+    )
+    dag_contents_template_with_pause_perm = (
+        "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
+        "access_control={{'role_single_dag':{{'can_pause'}}}}) "
     )
     with create_session() as session:
         for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             if dag_id == "filter_test_1":
                 with open(filename, "w") as f:
-                    f.writelines(dag_contents_template_with_read_perm.format(dag_id, tag))
+                    f.writelines(dag_contents_template_with_edit_perm.format(dag_id, tag))
+            elif dag_id == "filter_test_2":
+                with open(filename, "w") as f:
+                    f.writelines(dag_contents_template_with_pause_perm.format(dag_id, tag))
             else:
                 with open(filename, "w") as f:
                     f.writelines(dag_contents_template.format(dag_id, tag))
@@ -279,7 +286,7 @@ def test_home_dag_edit_permissions(capture_templates, working_dags_with_edit_per
     assert ("filter_test_2", False) in dag_edit_perm_tuple
 
 
-def test_home_dag_pause_permissions(capture_templates, working_dags, client_single_dag_edit):
+def test_home_dag_pause_permissions(capture_templates, working_dags_with_edit_perm, client_single_dag_edit):
     with capture_templates() as templates:
         client_single_dag_edit.get("home", follow_redirects=True)
 
