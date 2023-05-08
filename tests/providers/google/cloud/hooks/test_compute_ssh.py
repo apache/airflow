@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 
@@ -33,6 +35,10 @@ TEST_PUB_KEY2 = "root:NAME MNJ root"
 
 
 class TestComputeEngineHookWithPassedProjectId:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            ComputeEngineSSHHook(gcp_conn_id="gcpssh", delegate_to="delegate_to")
+
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
@@ -59,7 +65,7 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_paramiko.RSAKey.generate.assert_called_once_with(2048)
         mock_compute_hook.assert_has_calls(
             [
-                mock.call(delegate_to=None, gcp_conn_id="google_cloud_default"),
+                mock.call(gcp_conn_id="google_cloud_default"),
                 mock.call().get_instance_address(
                     project_id=TEST_PROJECT_ID,
                     resource_id=TEST_INSTANCE_NAME,
@@ -70,7 +76,7 @@ class TestComputeEngineHookWithPassedProjectId:
         )
         mock_os_login_hook.assert_has_calls(
             [
-                mock.call(delegate_to=None, gcp_conn_id="google_cloud_default"),
+                mock.call(gcp_conn_id="google_cloud_default"),
                 mock.call()._get_credentials_email(),
                 mock.call().import_ssh_public_key(
                     ssh_public_key={"key": "NAME AYZ root", "expiration_time_usec": mock.ANY},
@@ -118,7 +124,7 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_paramiko.RSAKey.generate.assert_called_once_with(2048)
         mock_compute_hook.assert_has_calls(
             [
-                mock.call(delegate_to=None, gcp_conn_id="google_cloud_default"),
+                mock.call(gcp_conn_id="google_cloud_default"),
                 mock.call().get_instance_address(
                     project_id=TEST_PROJECT_ID,
                     resource_id=TEST_INSTANCE_NAME,

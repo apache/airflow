@@ -18,7 +18,6 @@
 """This module contains a Google Cloud Storage operator."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
@@ -71,9 +70,6 @@ class GCSToGCSOperator(BaseOperator):
         If source_objects = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
         folder 'foo/bah/' with '.avro' delimiter will be copied to the destination object.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param last_modified_time: When specified, the objects will be copied or moved,
         only if they were modified after last_modified_time.
         If tzinfo has not been set, UTC will be assumed.
@@ -150,7 +146,7 @@ class GCSToGCSOperator(BaseOperator):
         )
 
     The following Operator would move all the Avro files from ``sales/sales-2019``
-     and ``sales/sales-2020` folder in ``data`` bucket to the same folder in the
+     and ``sales/sales-2020`` folder in ``data`` bucket to the same folder in the
      ``data_backup`` bucket, deleting the original files in the process. ::
 
         move_files = GCSToGCSOperator(
@@ -188,7 +184,6 @@ class GCSToGCSOperator(BaseOperator):
         move_object=False,
         replace=True,
         gcp_conn_id="google_cloud_default",
-        delegate_to=None,
         last_modified_time=None,
         maximum_modified_time=None,
         is_older_than=None,
@@ -208,11 +203,6 @@ class GCSToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.replace = replace
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.last_modified_time = last_modified_time
         self.maximum_modified_time = maximum_modified_time
         self.is_older_than = is_older_than
@@ -224,7 +214,6 @@ class GCSToGCSOperator(BaseOperator):
 
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         if self.source_objects and self.source_object:

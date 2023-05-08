@@ -26,6 +26,7 @@ import requests
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import ParamSpec
 
 PS = ParamSpec("PS")
@@ -63,7 +64,9 @@ class InternalApiConfig:
 
     @staticmethod
     def _init_values():
-        use_internal_api = conf.getboolean("core", "database_access_isolation")
+        use_internal_api = conf.getboolean("core", "database_access_isolation", fallback=False)
+        if use_internal_api and not _ENABLE_AIP_44:
+            raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
         internal_api_endpoint = ""
         if use_internal_api:
             internal_api_url = conf.get("core", "internal_api_url")
@@ -117,9 +120,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         if "cls" in arguments_dict:  # used by @classmethod
             del arguments_dict["cls"]
 
-        args_json = json.dumps(BaseSerialization.serialize(arguments_dict))
+        args_json = json.dumps(BaseSerialization.serialize(arguments_dict, use_pydantic_models=True))
         method_name = f"{func.__module__}.{func.__qualname__}"
         result = make_jsonrpc_request(method_name, args_json)
-        return BaseSerialization.deserialize(json.loads(result))
+        return BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)
 
     return wrapper

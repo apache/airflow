@@ -54,6 +54,12 @@ from yaml import safe_load
 
 ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
+MIN_AIRFLOW_VERSION = "2.4.0"
+# In case you have some providers that you want to have different min-airflow version for,
+# Add them as exceptions here. Make sure to remove it once the min-airflow version is bumped
+# to the same version that is required by the exceptional provider
+MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.6.0"}
+
 INITIAL_CHANGELOG_CONTENT = """
 
 
@@ -1109,6 +1115,9 @@ def get_provider_jinja_context(
     python_requires = "~=3.7"
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
+    min_airflow_version = MIN_AIRFLOW_VERSION
+    if MIN_AIRFLOW_VERSION_EXCEPTIONS.get(provider_details.provider_package_id):
+        min_airflow_version = MIN_AIRFLOW_VERSION_EXCEPTIONS[provider_details.provider_package_id]
     context: dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "README_FILE": "README.rst",
@@ -1146,6 +1155,8 @@ def get_provider_jinja_context(
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
         "PYTHON_REQUIRES": python_requires,
         "PLUGINS": provider_details.plugins,
+        "MIN_AIRFLOW_VERSION": min_airflow_version,
+        "PREINSTALLED_PROVIDER": provider_details.provider_package_id in PREINSTALLED_PROVIDERS,
     }
     return context
 
@@ -1318,6 +1329,25 @@ def update_release_notes(
     return True
 
 
+def update_min_airflow_version(provider_package_id: str, version_suffix: str):
+    provider_details = get_provider_details(provider_package_id)
+    provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+    jinja_context = get_provider_jinja_context(
+        provider_info=provider_info,
+        provider_details=provider_details,
+        current_release_version=provider_details.versions[0],
+        version_suffix=version_suffix,
+    )
+    generate_init_py_file_for_provider(
+        context=jinja_context,
+        target_path=provider_details.source_provider_package_path,
+    )
+    if not jinja_context["PREINSTALLED_PROVIDER"]:
+        replace_min_airflow_version_in_provider_yaml(
+            context=jinja_context, target_path=provider_details.source_provider_package_path
+        )
+
+
 def update_setup_files(
     provider_package_id: str,
     version_suffix: str,
@@ -1411,6 +1441,37 @@ def update_commits_rst(
         with open(index_file_path) as readme_file_read:
             old_text = readme_file_read.read()
     replace_content(index_file_path, old_text, new_text, provider_package_id)
+
+
+def replace_min_airflow_version_in_provider_yaml(
+    context: dict[str, Any],
+    target_path: str,
+):
+    provider_yaml_path = os.path.join(target_path, "provider.yaml")
+    with open(provider_yaml_path) as provider_yaml_file:
+        provider_yaml_txt = provider_yaml_file.read()
+    provider_yaml_txt = re.sub(
+        r"  - apache-airflow>=.*", f"  - apache-airflow>={context['MIN_AIRFLOW_VERSION']}", provider_yaml_txt
+    )
+    with open(provider_yaml_path, "w") as provider_yaml_file:
+        provider_yaml_file.write(provider_yaml_txt)
+
+
+def generate_init_py_file_for_provider(
+    context: dict[str, Any],
+    target_path: str,
+):
+    init_py_content = black_format(
+        render_template(
+            template_name="PROVIDER__INIT__PY",
+            context=context,
+            extension=".py",
+            keep_trailing_newline=True,
+        )
+    )
+    init_py_path = os.path.join(target_path, "__init__.py")
+    with open(init_py_path, "w") as init_py_file:
+        init_py_file.write(init_py_content)
 
 
 @lru_cache(maxsize=None)
@@ -1526,6 +1587,10 @@ def verify_changelog_exists(package: str) -> str:
 def list_providers_packages():
     """List all provider packages."""
     providers = get_all_providers()
+    # For now we should exclude open-lineage from being consider for releasing until it is ready to
+    # be released
+    if "openlineage" in providers:
+        providers.remove("openlineage")
     for provider in providers:
         console.print(provider)
 
@@ -1563,16 +1628,19 @@ def update_package_documentation(
     with with_group(f"Update release notes for package '{provider_package_id}' "):
         console.print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
-        if not update_release_notes(
-            provider_package_id,
-            version_suffix,
-            force=force,
-            verbose=verbose,
-            answer=answer,
-            base_branch=base_branch,
-        ):
-            # Returns 64 in case of skipped package
-            sys.exit(64)
+        only_min_version_upgrade = os.environ.get("ONLY_MIN_VERSION_UPDATE", "false").lower() == "true"
+        if not only_min_version_upgrade:
+            if not update_release_notes(
+                provider_package_id,
+                version_suffix,
+                force=force,
+                verbose=verbose,
+                answer=answer,
+                base_branch=base_branch,
+            ):
+                # Returns 64 in case of skipped package
+                sys.exit(64)
+        update_min_airflow_version(provider_package_id=provider_package_id, version_suffix=version_suffix)
 
 
 def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: bool):

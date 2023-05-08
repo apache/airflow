@@ -37,6 +37,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
+    option_airflow_constraints_location,
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
     option_builder,
@@ -168,6 +169,7 @@ def prod_image():
 @option_prepare_buildx_cache
 @option_push
 @option_empty_image
+@option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @click.option(
     "--installation-method",

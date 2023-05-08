@@ -20,6 +20,7 @@ from __future__ import annotations
 import warnings
 from typing import Any, Iterable, Mapping, Sequence, SupportsAbs
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -41,8 +42,6 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.
         Template references are recognized by str ending in '.sql'
-    :param autocommit: if True, each command is automatically committed.
-        (default value: True)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
@@ -99,7 +98,7 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
             Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>,
             'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,
             'session_parameters': <session_parameters>}`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 

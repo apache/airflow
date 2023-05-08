@@ -67,7 +67,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 5.2.1
+Release: 6.0.0
 
 Provider package
 ----------------
@@ -93,10 +93,7 @@ PIP package                       Version required
 ``azure-cosmos``                  ``>=4.0.0``
 ``azure-datalake-store``          ``>=0.0.45``
 ``azure-identity``                ``>=1.3.1``
-``azure-keyvault-secrets``        ``>=4.1.0,<5.0``
-``azure-kusto-data``              ``>=0.0.43,<0.1``
-``azure-mgmt-containerinstance``  ``>=1.5.0,<2.0``
-``azure-mgmt-datafactory``        ``>=1.0.0,<2.0``
+``azure-keyvault-secrets``        ``>=4.1.0``
 ``azure-mgmt-datalake-store``     ``>=0.5.0``
 ``azure-mgmt-resource``           ``>=2.2.0``
 ``azure-storage-blob``            ``>=12.14.0``
@@ -106,6 +103,9 @@ PIP package                       Version required
 ``azure-synapse-spark``
 ``adal``                          ``>=1.2.7``
 ``azure-storage-file-datalake``   ``>=12.9.1``
+``azure-mgmt-containerinstance``  ``>=1.5.0,<2.0``
+``azure-mgmt-datafactory``        ``>=1.0.0,<2.0``
+``azure-kusto-data``              ``>=0.0.43,<0.1``
 ================================  ==================
 
 Cross provider package dependencies
@@ -135,7 +135,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 5.2.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-5.2.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-5.2.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-5.2.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 5.2.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-5.2.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-5.2.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-5.2.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 6.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 6.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.0.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/microsoft/azure/CHANGELOG.rst

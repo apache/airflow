@@ -70,12 +70,15 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
     AirflowSkipException,
+    DagInvalidTriggerRule,
     DuplicateTaskIdFound,
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
+from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -88,13 +91,17 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import (
+    ContinuousTimetable,
+    DatasetTriggeredTimetable,
+    NullTimetable,
+    OnceTimetable,
+)
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -110,7 +117,6 @@ if TYPE_CHECKING:
     from airflow.models.dagbag import DagBag
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
-
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +135,6 @@ ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
 ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
-
 
 # Backward compatibility: If neither schedule_interval nor timetable is
 # *provided by the user*, default to a one-day interval.
@@ -182,6 +187,8 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return NullTimetable()
     if interval == "@once":
         return OnceTimetable()
+    if interval == "@continuous":
+        return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
@@ -351,6 +358,9 @@ class DAG(LoggingMixin):
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
+    :param fail_stop: Fails currently running tasks when task in DAG fails.
+        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
+        An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     """
 
     _comps = {
@@ -413,6 +423,7 @@ class DAG(LoggingMixin):
         tags: list[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
+        fail_stop: bool = False,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -547,6 +558,12 @@ class DAG(LoggingMixin):
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
+        if self.timetable.active_runs_limit is not None:
+            if self.timetable.active_runs_limit < self.max_active_runs:
+                raise AirflowException(
+                    f"Invalid max_active_runs: {type(self.timetable)} "
+                    f"requires max_active_runs <= {self.timetable.active_runs_limit}"
+                )
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
@@ -589,6 +606,8 @@ class DAG(LoggingMixin):
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
         self.auto_register = auto_register
+
+        self.fail_stop = fail_stop
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
@@ -1196,6 +1215,17 @@ class DAG(LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
+    def teardowns(self) -> list[Operator]:
+        return [task for task in self.tasks if getattr(task, "_is_teardown", None)]
+
+    @property
+    def tasks_upstream_of_teardowns(self) -> list[Operator]:
+        upstream_tasks = [t.upstream_list for t in self.teardowns]
+        return [
+            val for sublist in upstream_tasks for val in sublist if not getattr(val, "_is_teardown", None)
+        ]
+
+    @property
     def task_group(self) -> TaskGroup:
         return self._task_group
 
@@ -1347,17 +1377,16 @@ class DAG(LoggingMixin):
             or None,
             None,
         )
-        DAG.execute_callback(callbacks, context, self.dag_id, dagrun.run_id)
+        DAG.execute_callback(callbacks, context, self.dag_id)
 
     @classmethod
-    def execute_callback(cls, callbacks, context, dag_id: str, run_id: str):
+    def execute_callback(cls, callbacks, context, dag_id: str):
         """
         Triggers the callbacks with the given context
 
         :param callbacks: List of callbacks to call
         :param context: Context to pass to all callbacks
         :param dag_id: The dag_id of the DAG to find.
-        :param run_id: The run_id of the DagRun to find.
         """
         if callbacks:
             for callback in callbacks:
@@ -1366,7 +1395,7 @@ class DAG(LoggingMixin):
                     callback(context)
                 except Exception:
                     cls.logger().exception("failed to invoke dag state update callback")
-                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id, "run_id": run_id})
+                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id})
 
     def get_active_runs(self):
         """
@@ -1952,9 +1981,118 @@ class DAG(LoggingMixin):
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
-            exclude_task_ids={task_id},
+            exclude_task_ids=frozenset({task_id}),
         )
 
+        return altered
+
+    @provide_session
+    def set_task_group_state(
+        self,
+        *,
+        group_id: str,
+        execution_date: datetime | None = None,
+        run_id: str | None = None,
+        state: TaskInstanceState,
+        upstream: bool = False,
+        downstream: bool = False,
+        future: bool = False,
+        past: bool = False,
+        commit: bool = True,
+        session: Session = NEW_SESSION,
+    ) -> list[TaskInstance]:
+        """
+        Set the state of the TaskGroup to the given state, and clear its downstream tasks that are
+        in failed or upstream_failed state.
+
+        :param group_id: The group_id of the TaskGroup
+        :param execution_date: Execution date of the TaskInstance
+        :param run_id: The run_id of the TaskInstance
+        :param state: State to set the TaskInstance to
+        :param upstream: Include all upstream tasks of the given task_id
+        :param downstream: Include all downstream tasks of the given task_id
+        :param future: Include all future TaskInstances of the given task_id
+        :param commit: Commit changes
+        :param past: Include all past TaskInstances of the given task_id
+        :param session: new session
+        """
+        from airflow.api.common.mark_tasks import set_state
+
+        if not exactly_one(execution_date, run_id):
+            raise ValueError("Exactly one of execution_date or run_id must be provided")
+
+        tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
+        task_ids: list[str] = []
+        locked_dag_run_ids: list[int] = []
+
+        if execution_date is None:
+            dag_run = (
+                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
+            )  # Raises an error if not found
+            resolve_execution_date = dag_run.execution_date
+        else:
+            resolve_execution_date = execution_date
+
+        end_date = resolve_execution_date if not future else None
+        start_date = resolve_execution_date if not past else None
+
+        task_group_dict = self.task_group.get_task_group_dict()
+        task_group = task_group_dict.get(group_id)
+        if task_group is None:
+            raise ValueError("TaskGroup {group_id} could not be found")
+        tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
+        task_ids = [task.task_id for task in task_group.iter_tasks()]
+        dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == self.dag_id).with_for_update()
+
+        if start_date is None and end_date is None:
+            dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
+        else:
+            if start_date is not None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
+
+            if end_date is not None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
+
+        locked_dag_run_ids = dag_runs_query.all()
+
+        altered = set_state(
+            tasks=tasks_to_set_state,
+            execution_date=execution_date,
+            run_id=run_id,
+            upstream=upstream,
+            downstream=downstream,
+            future=future,
+            past=past,
+            state=state,
+            commit=commit,
+            session=session,
+        )
+
+        if not commit:
+            del locked_dag_run_ids
+            return altered
+
+        # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+        # Flush the session so that the tasks marked success are reflected in the db.
+        session.flush()
+        task_subset = self.partial_subset(
+            task_ids_or_regex=task_ids,
+            include_downstream=True,
+            include_upstream=False,
+        )
+
+        task_subset.clear(
+            start_date=start_date,
+            end_date=end_date,
+            include_subdags=True,
+            include_parentdag=True,
+            only_failed=True,
+            session=session,
+            # Exclude the task from the current group from being cleared
+            exclude_task_ids=frozenset(task_ids),
+        )
+
+        del locked_dag_run_ids
         return altered
 
     @property
@@ -2265,21 +2403,32 @@ class DAG(LoggingMixin):
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""
+            # We want to deepcopy _most but not all_ attributes of the task group, so we create a shallow copy
+            # and then manually deep copy the instances. (memo argument to deepcopy only works for instances
+            # of classes, not "native" properties of an instance)
             copied = copy.copy(group)
-            copied.used_group_ids = set(copied.used_group_ids)
-            copied._parent_group = parent_group
 
-            copied.children = {}
+            memo[id(group.children)] = {}
+            if parent_group:
+                memo[id(group.parent_group)] = parent_group
+            for attr, value in copied.__dict__.items():
+                if id(value) in memo:
+                    value = memo[id(value)]
+                else:
+                    value = copy.deepcopy(value, memo)
+                copied.__dict__[attr] = value
+
+            proxy = weakref.proxy(copied)
 
             for child in group.children.values():
                 if isinstance(child, AbstractOperator):
                     if child.task_id in dag.task_dict:
                         task = copied.children[child.task_id] = dag.task_dict[child.task_id]
-                        task.task_group = weakref.proxy(copied)
+                        task.task_group = proxy
                     else:
                         copied.used_group_ids.discard(child.task_id)
                 else:
-                    filtered_child = filter_task_group(child, copied)
+                    filtered_child = filter_task_group(child, proxy)
 
                     # Only include this child TaskGroup if it is non-empty.
                     if filtered_child.children:
@@ -2287,7 +2436,7 @@ class DAG(LoggingMixin):
 
             return copied
 
-        dag._task_group = filter_task_group(self._task_group, None)
+        dag._task_group = filter_task_group(self.task_group, None)
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
         # the cut.
@@ -2381,6 +2530,8 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
+        DagInvalidTriggerRule.check(self, task.trigger_rule)
+
         from airflow.utils.task_group import TaskGroupContext
 
         if not self.start_date and not task.start_date:
@@ -2481,7 +2632,7 @@ class DAG(LoggingMixin):
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
         """
-        from airflow.jobs.backfill_job import BackfillJob
+        from airflow.jobs.backfill_job_runner import BackfillJobRunner
 
         if not executor and local:
             from airflow.executors.local_executor import LocalExecutor
@@ -2491,12 +2642,15 @@ class DAG(LoggingMixin):
             from airflow.executors.executor_loader import ExecutorLoader
 
             executor = ExecutorLoader.get_default_executor()
-        job = BackfillJob(
-            self,
+        from airflow.jobs.job import Job
+
+        job = Job(executor=executor)
+        job_runner = BackfillJobRunner(
+            job=job,
+            dag=self,
             start_date=start_date,
             end_date=end_date,
             mark_success=mark_success,
-            executor=executor,
             donot_pickle=donot_pickle,
             ignore_task_deps=ignore_task_deps,
             ignore_first_depends_on_past=ignore_first_depends_on_past,
@@ -2510,7 +2664,7 @@ class DAG(LoggingMixin):
             continue_on_failures=continue_on_failures,
             disable_retry=disable_retry,
         )
-        job.run()
+        run_job(job=job, execute_callable=job_runner._execute)
 
     def cli(self):
         """Exposes a CLI specific to this DAG"""
@@ -2812,7 +2966,10 @@ class DAG(LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
-            orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
+            orm_dag.has_task_concurrency_limits = any(
+                t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
+                for t in dag.tasks
+            )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
@@ -3013,12 +3170,13 @@ class DAG(LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_num_task_instances(dag_id, task_ids=None, states=None, session=NEW_SESSION) -> int:
+    def get_num_task_instances(dag_id, run_id=None, task_ids=None, states=None, session=NEW_SESSION) -> int:
         """
         Returns the number of task instances in the given DAG.
 
         :param session: ORM session
         :param dag_id: ID of the DAG to get the task concurrency of
+        :param run_id: ID of the DAG run to get the task concurrency of
         :param task_ids: A list of valid task IDs for the given DAG
         :param states: A list of states to filter by if supplied
         :return: The number of running tasks
@@ -3026,6 +3184,10 @@ class DAG(LoggingMixin):
         qry = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == dag_id,
         )
+        if run_id:
+            qry = qry.filter(
+                TaskInstance.run_id == run_id,
+            )
         if task_ids:
             qry = qry.filter(
                 TaskInstance.task_id.in_(task_ids),
@@ -3072,6 +3234,7 @@ class DAG(LoggingMixin):
                 "has_on_success_callback",
                 "has_on_failure_callback",
                 "auto_register",
+                "fail_stop",
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id="test")).keys()) - exclusion_list
         return cls.__serialized_fields
@@ -3297,7 +3460,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dagmodel(dag_id, session=NEW_SESSION):
+    def get_dagmodel(dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
         return session.get(
             DagModel,
             dag_id,
@@ -3397,9 +3560,8 @@ class DagModel(Base):
 
         dag_models = session.query(cls).all()
         for dag_model in dag_models:
-            if dag_model.fileloc is not None:
-                if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
-                    dag_model.is_active = False
+            if dag_model.fileloc is not None and dag_model.fileloc not in alive_dag_filelocs:
+                dag_model.is_active = False
             else:
                 continue
 
@@ -3548,6 +3710,7 @@ def dag(
     tags: list[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
+    fail_stop: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
@@ -3601,6 +3764,7 @@ def dag(
                 schedule=schedule,
                 owner_links=owner_links,
                 auto_register=auto_register,
+                fail_stop=fail_stop,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:

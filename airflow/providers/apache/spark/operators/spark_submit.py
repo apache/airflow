@@ -69,7 +69,7 @@ class SparkSubmitOperator(BaseOperator):
     :param env_vars: Environment variables for spark-submit. It supports yarn and k8s mode too. (templated)
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
-                         Some distros may use spark2-submit.
+                         Some distros may use spark2-submit or spark3-submit.
     """
 
     template_fields: Sequence[str] = (

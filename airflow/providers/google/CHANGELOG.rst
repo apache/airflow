@@ -23,6 +23,114 @@
 Changelog
 ---------
 
+10.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google has announced sunset of Campaign Manager 360 v3.5 by Apr 20, 2023. For more information
+please check: `<https://developers.google.com/doubleclick-advertisers/deprecation>`_ . As a result, the
+default api version for Campaign Manager 360 operator was updated to the latest v4 version.
+
+.. warning::
+  In this version of the provider, deprecated ``delegate_to`` param is removed from all GCP operators, hooks, and triggers, as well as from firestore and gsuite
+  transfer operators that interact with GCS. Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+  The ``delegate_to`` param will still be available only in gsuite and marketing platform hooks and operators, that don't interact with Google Cloud.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+* ``Update Google Campaign Manager360 operators to use API v4 (#30598)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update DataprocCreateCluster operator to use 'label' parameter properly (#30741)``
+
+Misc
+~~~~
+
+* ``add missing project_id in BigQueryGetDataOperator (#30651)``
+* ``Display Video 360 cleanup v1 API usage (#30577)``
+
+9.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google  announced sunset of Bid manager API v1 and v1.1 by April 27, 2023 for more information
+please check: `docs <https://developers.google.com/bid-manager/v1.1>`_  As a result default value of api_version
+in GoogleDisplayVideo360Hook and related operators updated to v2
+
+This version of provider contains a temporary workaround to issue with ``v11`` version of
+google-ads API being discontinued, while the google provider dependencies preventing installing
+any google-ads client supporting ``v12`` API. This version contains vendored-in version of google-ads
+library ``20.0.0`` v12 support only. The workaround (and vendored-in library) will be removed
+as soon as dependencies of the provider will allow to use google-ads supporting newer
+API versions of google-ads.
+
+.. note::
+
+  ONLY v12 version of google ads is supported. You should set v12 when your create an operator or client.
+
+* ``Update DV360 operators to use API v2 (#30326)``
+* ``Fix dynamic imports in google ads vendored in library (#30544)``
+* ``Fix one more dynamic import needed for vendored-in google ads (#30564)``
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to GKEStartPodOperator (#29266)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``BigQueryHook list_rows/get_datasets_list can return iterator (#30543)``
+* ``Fix cloud build async credentials (#30441)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Small quotation fix (#30448)``
+
+8.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add missing 'poll_interval' in Bigquery operator (#30132)``
+* ``Add poll_interval param in BigQueryInsertJobOperator (#30091)``
+* ``Add 'job_id' to 'BigQueryToGCSOperator' templated_fields (#30006)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix setting project_id for gs to bq and bq to gs (#30053)``
+* ``Fix location on cloud build operators (#29937)``
+* ``'GoogleDriveHook': Fixing log message + adding more verbose documentation (#29694)``
+* ``Add "BOOLEAN" to type_map of MSSQLToGCSOperator, fix incorrect bit->int type conversion by specifying BIT fields explicitly (#29902)``
+* ``Google Cloud Providers - Fix _MethodDefault deepcopy failure (#29518)``
+* ``Handling project location param on async BigQuery dts trigger (#29786)``
+* ``Support CloudDataTransferServiceJobStatusSensor without specifying a project_id (#30035)``
+* ``Wait insert_job result in normal mode (#29925)``
+
+Misc
+~~~~
+
+* ``merge BigQueryTableExistenceAsyncSensor into BigQueryTableExistenceSensor (#30235)``
+* ``Remove  unnecessary upper constraints from google provider (#29915)``
+* ``Merge BigQueryTableExistencePartitionAsyncSensor into BigQueryTableExistencePartitionSensor (#30231)``
+* ``Merge GCSObjectExistenceAsyncSensor logic to GCSObjectExistenceSensor (#30014)``
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``Switch to using vendored-in google ads. (#30410)``
+* ``Merging of the google ads vendored-in code. (#30399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
 8.11.0
 ......
 

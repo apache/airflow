@@ -51,6 +51,7 @@ TEMPDIR_MOCK_RETURN_VALUE = "/mkdtemp"
                 "tls_ca_cert": "foo",
                 "tls_client_cert": "bar",
                 "tls_client_key": "spam",
+                "tls_verify": True,
                 "tls_hostname": "egg",
                 "tls_ssl_version": "super-secure",
             },
@@ -65,6 +66,7 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
         "ca_cert": tls_params.get("tls_ca_cert"),
         "client_cert": tls_params.get("tls_client_cert"),
         "client_key": tls_params.get("tls_client_key"),
+        "verify": tls_params.get("tls_verify", True),
         "assert_hostname": tls_params.get("tls_hostname"),
         "ssl_version": tls_params.get("tls_ssl_version"),
     }
@@ -514,9 +516,14 @@ class TestDockerOperator:
         "extra_kwargs, actual_exit_code, expected_exc",
         [
             (None, 99, AirflowException),
-            ({"skip_exit_code": 100}, 100, AirflowSkipException),
-            ({"skip_exit_code": 100}, 101, AirflowException),
-            ({"skip_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
         ],
     )
     def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
@@ -528,8 +535,11 @@ class TestDockerOperator:
             kwargs.update(**extra_kwargs)
         operator = DockerOperator(**kwargs)
 
-        with pytest.raises(expected_exc):
+        if expected_exc is None:
             operator.execute({})
+        else:
+            with pytest.raises(expected_exc):
+                operator.execute({})
 
     def test_execute_container_fails(self):
         failed_msg = {"StatusCode": 1}

@@ -22,7 +22,7 @@ from base64 import b64encode
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -139,11 +139,11 @@ class SSHOperator(BaseOperator):
         warnings.warn(
             "exec_ssh_client_command method on SSHOperator is deprecated, call "
             "`ssh_hook.exec_ssh_client_command` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         assert self.ssh_hook
         return self.ssh_hook.exec_ssh_client_command(
-            ssh_client, command, environment=self.environment, get_pty=self.get_pty
+            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
         )
 
     def raise_for_status(self, exit_status: int, stderr: bytes, context=None) -> None:
@@ -156,7 +156,7 @@ class SSHOperator(BaseOperator):
     def run_ssh_client_command(self, ssh_client: SSHClient, command: str, context=None) -> bytes:
         assert self.ssh_hook
         exit_status, agg_stdout, agg_stderr = self.ssh_hook.exec_ssh_client_command(
-            ssh_client, command, environment=self.environment, get_pty=self.get_pty
+            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
         )
         self.raise_for_status(exit_status, agg_stderr, context=context)
         return agg_stdout

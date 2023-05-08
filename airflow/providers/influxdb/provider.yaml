@@ -24,10 +24,11 @@ description: |
     `InfluxDB <https://www.influxdata.com/>`__
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - influxdb-client>=1.19.0
   - requests>=2.26.0
 
+suspended: false
 versions:
   - 2.1.0
   - 2.0.0

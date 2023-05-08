@@ -22,7 +22,9 @@ description: |
   `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
+suspended: false
 versions:
+  - 3.2.1
   - 3.2.0
   - 3.1.0
   - 3.0.1
@@ -38,7 +40,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - snakebite-py3
   - hdfs[avro,dataframe,kerberos]>=2.0.4
 

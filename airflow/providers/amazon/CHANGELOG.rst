@@ -24,6 +24,132 @@
 Changelog
 ---------
 
+8.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's parameter ``delegate_to`` is removed from the following operators: ``GCSToS3Operator``, ``GlacierToGCSOperator`` and ``GoogleApiToS3Operator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+  Removed deprecated parameter ``google_cloud_storage_conn_id`` from ``GCSToS3Operator``, ``gcp_conn_id`` should be used instead.
+
+  Removed deprecated parameter ``max_tries`` from the Athena & EMR hook & operators in favor of ``max_polling_attempts``.
+
+  Removed deprecated method ``waiter`` from emr hook in favor of the more generic ``airflow.providers.amazon.aws.utils.waiter.waiter``
+
+  Removed deprecated unused parameter ``cluster_identifier`` from Redshift Cluster's hook method ``get_cluster_snapshot_status``
+
+  Removed deprecated method ``find_processing_job_by_name`` from Sagemaker hook, use ``count_processing_jobs_by_name`` instead.
+
+  Removed deprecated module ``airflow.providers.amazon.aws.operators.aws_lambda`` in favor of ``airflow.providers.amazon.aws.operators.lambda_function``
+
+  Removed EcsOperator in favor of EcsRunTaskOperator.
+  EcsTaskLogFetcher and EcsProtocol should be imported from the hook.
+
+  Removed AwsLambdaInvokeFunctionOperator in favor of LambdaInvokeFunctionOperator.
+
+  Removed deprecated param ``await_result`` from RedshiftDataOperator in favor of ``wait_for_completion``.
+  Some methods from this operator should be imported from the hook instead.
+
+  Removed deprecated ``RedshiftSQLOperator`` in favor of the generic ``SQLExecuteQueryOperator``.
+  The parameter that was passed as ``redshift_conn_id`` needs to be changed to ``conn_id``, and the behavior should stay the same.
+
+  Removed deprecated method ``get_conn_uri`` from secrets manager in favor of ``get_conn_value``
+  Also removed deprecated method ``get_conn_uri`` from systems manager. ``deserialize_connection(...).get_uri()`` should be used instead.
+
+  Removed deprecated and unused param ``s3_conn_id`` from ``ImapAttachmentToS3Operator``, ``MongoToS3Operator`` and ``S3ToSFTPOperator``.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+* ``Remove deprecated code from Amazon provider (#30755)``
+
+Features
+~~~~~~~~
+
+* ``add a stop operator to emr serverless (#30720)``
+* ``SqlToS3Operator - Add feature to partition SQL table (#30460)``
+* ``New AWS sensor — DynamoDBValueSensor (#28338)``
+* ``Add a "force" option to emr serverless stop/delete operator (#30757)``
+* ``Add support for deferrable operators in AMPP (#30032)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed logging issue (#30703)``
+* ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
+* ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
+* ``Add support in AWS Batch Operator for multinode jobs (#29522)``
+* ``AWS logs. Exit fast when 3 consecutive responses are returned from AWS Cloudwatch logs (#30756)``
+* ``Fix async conn for none aws_session_token (#30868)``
+
+Misc
+~~~~
+
+* ``Remove @poke_mode_only from EmrStepSensor (#30774)``
+* ``Organize Amazon providers docs index (#30541)``
+* ``Remove duplicate param docstring in EksPodOperator (#30634)``
+* ``Update AWS EMR Cluster Link to use the new dashboard (#30844)``
+* ``Restore aiobotocore as optional dependency of amazon provider (#30874)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Decouple "job runner" from BaseJob ORM model (#30255)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``fixes to system tests following obsolete cleanup (#30804)``
+   * ``restore fallback to empty connection behavior (#30806)``
+   * ``Prepare docs for adhoc release of providers (#30787)``
+   * ``Prepare docs for ad-hoc release of Amazon provider (#30848)``
+
+7.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'RedshiftResumeClusterOperator' deferrable implementation (#30370)``
+
+Misc
+~~~~
+
+* ``Add more info to quicksight error messages (#30466)``
+* ``add template field for s3 bucket (#30472)``
+* ``Add s3_bucket to template fields in SFTP to S3 operator (#30444)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add AWS deferrable BatchOperator (#29300)``
+   * ``Revert "Add AWS deferrable BatchOperator (#29300)" (#30489)``
+   * ``Add mechanism to suspend providers (#30422)``
+
+7.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'RedshiftResumeClusterOperator' (#30090)``
+* ``Add 'AwsToAwsBaseOperator' (#30044)``
+* ``Add deferrable mode in RedshiftPauseClusterOperator (#28850)``
+* ``Add support of a different AWS connection for DynamoDB (#29452)``
+* ``Add 'EC2CreateInstanceOperator', 'EC2TerminateInstanceOperator' (#29548)``
+* ``Make update config behavior optional in GlueJobOperator (#30162)``
+* ``custom waiters with dynamic values, applied to appflow (#29911)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Misc
+~~~~
+* ``Move string enum class to utils module + add test (#29906)``
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``rewrite polling code for appflow hook (#28869)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move and convert all AWS example dags to system tests (#30003)``
+   * ``Remove aws async ci job (#30127)``
+
 7.3.0
 .....
 

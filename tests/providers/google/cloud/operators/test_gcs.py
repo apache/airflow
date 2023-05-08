@@ -38,6 +38,7 @@ TEST_BUCKET = "test-bucket"
 TEST_PROJECT = "test-project"
 DELIMITER = ".csv"
 PREFIX = "TEST"
+PREFIX_2 = "TEST2"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv", "OTHERTEST1.csv"]
 TEST_OBJECT = "dir1/test-object"
 LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
@@ -160,11 +161,9 @@ class TestGoogleCloudStorageListOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
-
         operator = GCSListObjectsOperator(
             task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
-
         files = operator.execute(context=mock.MagicMock())
         mock_hook.return_value.list.assert_called_once_with(
             bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
@@ -413,13 +412,11 @@ class TestGoogleCloudStorageSync:
             delete_extra_files=True,
             allow_overwrite=True,
             gcp_conn_id="GCP_CONN_ID",
-            delegate_to="DELEGATE_TO",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id="GCP_CONN_ID",
-            delegate_to="DELEGATE_TO",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.sync.assert_called_once_with(

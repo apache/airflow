@@ -47,6 +47,7 @@ from google.cloud.pubsub_v1.types import (
 from googleapiclient.errors import HttpError
 
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from airflow.version import version
@@ -67,16 +68,16 @@ class PubSubHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._client = None
@@ -146,7 +147,7 @@ class PubSubHook(GoogleBaseHook):
                     warnings.warn(
                         "The base 64 encoded string as 'data' field has been deprecated. "
                         "You should pass bytestring (utf-8 encoded).",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=4,
                     )
                 except ValueError:

@@ -21,6 +21,7 @@ name: Apache Kylin
 description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
+suspended: false
 versions:
   - 3.1.0
   - 3.0.0
@@ -33,7 +34,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - kylinpy>=2.6
 
 integrations:

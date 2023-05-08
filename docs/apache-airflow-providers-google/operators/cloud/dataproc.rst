@@ -155,7 +155,7 @@ Dataproc supports submitting jobs of different big data components.
 The list currently includes Spark, Hadoop, Pig and Hive.
 For more information on versions and images take a look at `Cloud Dataproc Image version list <https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions>`__
 
-To submit a job to the cluster you need a provide a job source file. The job source file can be on GCS, the cluster or on your local
+To submit a job to the cluster you need to provide a job source file. The job source file can be on GCS, the cluster or on your local
 file system. You can specify a file:/// path to refer to a local file on a cluster's primary node.
 
 The job configuration can be submitted by using:
@@ -264,7 +264,7 @@ Once a workflow is created users can trigger it using
 
 Also for all this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template_async]
@@ -278,6 +278,15 @@ The inline operator is an alternative. It creates a workflow, run it, and delete
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
     :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
+
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
+    :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
+
 
 Create a Batch
 --------------

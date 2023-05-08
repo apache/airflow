@@ -25,8 +25,6 @@ from typing import Any, Callable
 from flask import Response
 
 from airflow.api_connexion.types import APIResponse
-from airflow.models import Trigger, Variable, XCom
-from airflow.models.dagwarning import DagWarning
 from airflow.serialization.serialized_objects import BaseSerialization
 
 log = logging.getLogger(__name__)
@@ -36,8 +34,9 @@ log = logging.getLogger(__name__)
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
-    from airflow.models import TaskInstance
+    from airflow.models import TaskInstance, Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
+    from airflow.models.dagwarning import DagWarning
     from airflow.models.serialized_dag import SerializedDagModel
 
     functions: list[Callable] = [
@@ -91,7 +90,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     try:
         if body.get("params"):
             params_json = json.loads(str(body.get("params")))
-            params = BaseSerialization.deserialize(params_json)
+            params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
     except Exception as err:
         log.error("Error deserializing parameters.")
         log.error(err)
@@ -100,7 +99,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     log.debug("Calling method %.", {method_name})
     try:
         output = handler(**params)
-        output_json = BaseSerialization.serialize(output)
+        output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
         log.debug("Returning response")
         return Response(
             response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}

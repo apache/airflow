@@ -151,10 +151,17 @@ def fetch_inventories():
     failed, success = list(failed), list(success)
     print(f"Result: {len(success)} success, {len(failed)} failed")
     if failed:
+        terminate = False
         print("Failed packages:")
         for pkg_no, (pkg_name, _) in enumerate(failed, start=1):
             print(f"{pkg_no}. {pkg_name}")
-        print("Terminate execution.")
-        raise SystemExit(1)
+            if not terminate and not pkg_name.startswith("apache-airflow"):
+                # For solve situation that newly created Community Provider doesn't upload inventory yet.
+                # And we terminate execution only if any error happen during fetching
+                # third party intersphinx inventories.
+                terminate = True
+        if terminate:
+            print("Terminate execution.")
+            raise SystemExit(1)
 
     return [pkg_name for pkg_name, status in failed]

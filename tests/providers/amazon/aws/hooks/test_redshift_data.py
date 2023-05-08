@@ -22,7 +22,6 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 
-CONN_ID = "aws_conn_test"
 SQL = "sql"
 DATABASE = "database"
 STATEMENT_ID = "statement_id"
@@ -30,7 +29,7 @@ STATEMENT_ID = "statement_id"
 
 class TestRedshiftDataHook:
     def test_conn_attribute(self):
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         assert hasattr(hook, "conn")
         assert hook.conn.__class__.__name__ == "RedshiftDataAPIService"
         conn = hook.conn
@@ -41,7 +40,7 @@ class TestRedshiftDataHook:
     def test_execute_without_waiting(self, mock_conn):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         hook.execute_query(
             database=DATABASE,
             sql=SQL,
@@ -64,7 +63,7 @@ class TestRedshiftDataHook:
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         hook.execute_query(
             sql=SQL,
             database=DATABASE,
@@ -98,7 +97,7 @@ class TestRedshiftDataHook:
         secret_arn = "secret_arn"
         statement_name = "statement_name"
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         hook.execute_query(
             cluster_identifier=cluster_identifier,
             database=DATABASE,
@@ -132,7 +131,7 @@ class TestRedshiftDataHook:
             "Records": [[{"stringValue": "string"}]],
         }
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
 
         hook.get_table_primary_key(
             table=table,
@@ -170,7 +169,7 @@ class TestRedshiftDataHook:
             },
         ]
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
 
         hook.get_table_primary_key(
             table=table,
@@ -198,7 +197,7 @@ class TestRedshiftDataHook:
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED", "ResultRows": 123}
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         # https://docs.pytest.org/en/stable/how-to/logging.html
         with caplog.at_level(logging.INFO):
             hook.execute_query(
