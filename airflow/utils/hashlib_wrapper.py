@@ -20,19 +20,18 @@ from __future__ import annotations
 import hashlib
 
 from airflow import PY39
+from airflow.configuration import conf
 
 
-def md5(data: bytes, *, usedforsecurity: bool | None = None):
+def md5(data: bytes = b""):
     """
-    Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
-
+    Safely allows calling the hashlib.md5 function with the "usedforsecurity" disabled
+    when specified in the configuration.
     :param data: The data to hash.
-    :param usedforsecurity: The value to pass to the md5 function's "usedforsecurity" param.
-        Defaults to None.
+        Default to empty str.
     :return: The hashed value.
     :rtype: _Hash
     """
-    if PY39 and usedforsecurity is not None:
-        return hashlib.md5(data, usedforsecurity=usedforsecurity)  # type: ignore
-    else:
-        return hashlib.md5(data)
+    if PY39 and conf.getboolean("security", "disable_md5_for_security"):
+        return hashlib.md5(data, usedforsecurity=False)  # type: ignore
+    return hashlib.md5(data)

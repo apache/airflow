@@ -55,6 +55,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     "elasticsearch_configs",
     "kubernetes_executor",
     "sensors",
+    "security",
 ]
 
 DEFAULT_TEST_SECTIONS = [

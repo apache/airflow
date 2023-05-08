@@ -2878,3 +2878,17 @@ sensors:
       type: float
       example: ~
       default: "604800"
+
+security:
+  description: ~
+  options:
+    disable_md5_for_security:
+      description: |
+        Minimum Python 3.9 required for this configuration to take effect.
+        This configuration allows airflow to run in FIPS-enabled environments.
+        Disable the use of MD5 cryptography suite for security purposes.
+        MD5 is insecure and does not meet FIPS 140-3 requirements.
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
