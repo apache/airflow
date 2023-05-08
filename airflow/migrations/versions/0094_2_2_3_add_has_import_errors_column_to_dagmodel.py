@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add has_import_errors column to DagModel
+"""Add has_import_errors column to DagModel.
 
 Revision ID: be2bfac3da23
 Revises: 7b2661a43ba3
@@ -36,11 +36,11 @@ airflow_version = "2.2.3"
 
 
 def upgrade():
-    """Apply Add has_import_errors column to DagModel"""
+    """Apply Add has_import_errors column to DagModel."""
     op.add_column("dag", sa.Column("has_import_errors", sa.Boolean(), server_default="0"))
 
 
 def downgrade():
-    """Unapply Add has_import_errors column to DagModel"""
+    """Unapply Add has_import_errors column to DagModel."""
     with op.batch_alter_table("dag") as batch_op:
         batch_op.drop_column("has_import_errors", mssql_drop_default=True)

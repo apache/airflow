@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add DagWarning model
+"""Add DagWarning model.
 
 Revision ID: 424117c37d18
 Revises: 3c94c427fdf6
@@ -39,7 +39,7 @@ airflow_version = "2.4.0"
 
 
 def upgrade():
-    """Apply Add DagWarning model"""
+    """Apply Add DagWarning model."""
     op.create_table(
         "dag_warning",
         sa.Column("dag_id", StringID(), primary_key=True),
@@ -56,5 +56,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add DagWarning model"""
+    """Unapply Add DagWarning model."""
     op.drop_table("dag_warning")

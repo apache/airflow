@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Remove id column from xcom
+"""Remove id column from xcom.
 
 Revision ID: bbf4a7ad0465
 Revises: cf5dc11e79ad
@@ -64,7 +64,7 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
 
 def drop_column_constraints(operator, column_name, constraint_dict):
     """
-    Drop a primary key or unique constraint
+    Drop a primary key or unique constraint.
 
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
@@ -79,7 +79,7 @@ def drop_column_constraints(operator, column_name, constraint_dict):
 
 def create_constraints(operator, column_name, constraint_dict):
     """
-    Create a primary key or unique constraint
+    Create a primary key or unique constraint.
 
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
@@ -93,7 +93,7 @@ def create_constraints(operator, column_name, constraint_dict):
 
 
 def upgrade():
-    """Apply Remove id column from xcom"""
+    """Apply Remove id column from xcom."""
     conn = op.get_bind()
     inspector = inspect(conn)
 
@@ -111,7 +111,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Remove id column from xcom"""
+    """Unapply Remove id column from xcom."""
     conn = op.get_bind()
     with op.batch_alter_table("xcom") as bop:
         if conn.dialect.name != "mssql":

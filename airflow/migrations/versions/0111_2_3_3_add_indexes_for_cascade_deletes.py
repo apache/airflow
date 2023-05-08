@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add indexes for CASCADE deletes on task_instance
+"""Add indexes for CASCADE deletes on task_instance.
 
 Some databases don't add indexes on the FK columns so we have to add them for performance on CASCADE deletes.
 
@@ -55,7 +55,7 @@ def _mysql_tables_where_indexes_already_present(conn):
 
 
 def upgrade():
-    """Apply Add indexes for CASCADE deletes"""
+    """Apply Add indexes for CASCADE deletes."""
     conn = op.get_bind()
     tables_to_skip = set()
 
@@ -77,7 +77,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add indexes for CASCADE deletes"""
+    """Unapply Add indexes for CASCADE deletes."""
     conn = op.get_bind()
 
     # mysql requires indexes for FKs, so adding had the effect of renaming, and we cannot remove.

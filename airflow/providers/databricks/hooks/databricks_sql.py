@@ -95,7 +95,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         return lst[0]
 
     def get_conn(self) -> Connection:
-        """Returns a Databricks SQL connection object"""
+        """Returns a Databricks SQL connection object."""
         if not self._http_path:
             if self._sql_endpoint_name:
                 endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)

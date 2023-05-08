@@ -87,7 +87,7 @@ def parse_filename(
     :param filename: filename to parse.
     :param supported_file_formats: list of supported file extensions.
     :param fallback: fallback to given file format.
-    :returns: filetype and compression (if specified)
+    :returns: filetype and compression (if specified).
     """
     if not filename:
         raise ValueError("Expected 'filename' parameter is missing.")

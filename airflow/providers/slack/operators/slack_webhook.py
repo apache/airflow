@@ -158,7 +158,7 @@ class SlackWebhookOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> None:
-        """Call the SlackWebhookHook to post the provided Slack message"""
+        """Call the SlackWebhookHook to post the provided Slack message."""
         self.hook.send(
             text=self.message,
             attachments=self.attachments,

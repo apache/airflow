@@ -24,7 +24,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class RedshiftClusterTrigger(BaseTrigger):
-    """AWS Redshift trigger"""
+    """AWS Redshift trigger."""
 
     def __init__(
         self,

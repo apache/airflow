@@ -288,7 +288,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
 
 class RedshiftCreateClusterSnapshotOperator(BaseOperator):
     """
-    Creates a manual snapshot of the specified cluster. The cluster must be in the available state
+    Creates a manual snapshot of the specified cluster. The cluster must be in the available state.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -361,7 +361,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
 
 class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
     """
-    Deletes the specified manual snapshot
+    Deletes the specified manual snapshot.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -416,7 +416,7 @@ class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
 
 class RedshiftResumeClusterOperator(BaseOperator):
     """
-    Resume a paused AWS Redshift Cluster
+    Resume a paused AWS Redshift Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

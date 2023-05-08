@@ -69,7 +69,7 @@ class SlackAPIOperator(BaseOperator):
     def construct_api_call_params(self) -> Any:
         """
         Used by the execute function. Allows templating on the source fields
-        of the api_call_params dict before construction
+        of the api_call_params dict before construction.
 
         Override in child classes.
         Each SlackAPIOperator child class is responsible for
@@ -89,8 +89,7 @@ class SlackAPIOperator(BaseOperator):
 
 class SlackAPIPostOperator(SlackAPIOperator):
     """
-    Posts messages to a slack channel
-    Examples:
+    Posts messages to a Slack channel.
 
     .. code-block:: python
 
@@ -151,8 +150,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
 class SlackAPIFileOperator(SlackAPIOperator):
     """
-    Send a file to a slack channels
-    Examples:
+    Send a file to a Slack channels.
 
     .. code-block:: python
 

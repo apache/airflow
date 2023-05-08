@@ -399,10 +399,9 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
     creation is successful or an error occurs in the creation process. If the cluster
     already exists and ``use_if_exists`` is True then the operator will:
-
     - if cluster state is ERROR then delete it if specified and raise error
     - if cluster state is CREATING wait for it and then check for ERROR state
-    - if cluster state is DELETING wait for it and then create new cluster
+    - if cluster state is DELETING wait for it and then create new cluster.
 
     Please refer to
 
@@ -1009,7 +1008,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.polling_interval_seconds = polling_interval_seconds
 
     def create_job_template(self) -> DataProcJobBuilder:
-        """Initialize `self.job_template` with default values"""
+        """Initialize `self.job_template` with default values."""
         if self.project_id is None:
             raise AirflowException(
                 "project id should either be set via project_id "
@@ -1176,7 +1175,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
-        :return: Dict representing Dataproc job
+        :return: Dict representing Dataproc job.
         """
         job_template = self.create_job_template()
 
@@ -1252,7 +1251,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
-        :return: Dict representing Dataproc job
+        :return: Dict representing Dataproc job.
         """
         job_template = self.create_job_template()
         if self.query is None:
@@ -1327,7 +1326,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
-        :return: Dict representing Dataproc job
+        :return: Dict representing Dataproc job.
         """
         job_template = self.create_job_template()
         if self.query is None:
@@ -1404,7 +1403,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
-        :return: Dict representing Dataproc job
+        :return: Dict representing Dataproc job.
         """
         job_template = self.create_job_template()
         job_template.set_main(self.main_jar, self.main_class)
@@ -1477,7 +1476,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
-        :return: Dict representing Dataproc job
+        :return: Dict representing Dataproc job.
         """
         job_template = self.create_job_template()
         job_template.set_main(self.main_jar, self.main_class)
@@ -1575,7 +1574,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
-        :return: Dict representing Dataproc job
+        :return: Dict representing Dataproc job.
         """
         job_template = self.create_job_template()
         #  Check if the file is local, if that is the case, upload it to a bucket

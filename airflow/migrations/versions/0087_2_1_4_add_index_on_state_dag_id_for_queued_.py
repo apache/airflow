@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add index on state, dag_id for queued ``dagrun``
+"""Add index on state, dag_id for queued ``dagrun``.
 
 Revision ID: ccde3e26fe78
 Revises: 092435bf5d12
@@ -36,7 +36,7 @@ airflow_version = "2.1.4"
 
 
 def upgrade():
-    """Apply Add index on state, dag_id for queued ``dagrun``"""
+    """Apply Add index on state, dag_id for queued ``dagrun``."""
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.create_index(
             "idx_dag_run_queued_dags",
@@ -48,6 +48,6 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add index on state, dag_id for queued ``dagrun``"""
+    """Unapply Add index on state, dag_id for queued ``dagrun``."""
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.drop_index("idx_dag_run_queued_dags")

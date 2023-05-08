@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class MongoSensor(BaseSensorOperator):
     """
     Checks for the existence of a document which
-    matches the given query in MongoDB. Example:
+    matches the given query in MongoDB. Example.
 
     >>> mongo_sensor = MongoSensor(collection="coll",
     ...                            query={"key": "value"},

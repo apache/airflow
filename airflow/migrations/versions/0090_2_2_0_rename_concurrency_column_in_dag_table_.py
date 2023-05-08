@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``
+"""Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``.
 
 Revision ID: 30867afad44a
 Revises: e9304a3141f0
@@ -36,7 +36,7 @@ airflow_version = "2.2.0"
 
 
 def upgrade():
-    """Apply Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``"""
+    """Apply Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``."""
     conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
 
@@ -54,7 +54,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``"""
+    """Unapply Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``."""
     with op.batch_alter_table("dag") as batch_op:
         batch_op.alter_column(
             "max_active_tasks",

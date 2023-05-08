@@ -116,7 +116,7 @@ def get_dagbag_import_timeout(dag_file_path: str) -> int | float:  # type: ignor
 
 
 class DefaultPolicy:
-    """:meta private:"""
+    """:meta private:."""
 
     # Default implementations of the policy functions
 

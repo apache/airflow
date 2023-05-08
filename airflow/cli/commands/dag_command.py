@@ -272,7 +272,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
     >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
     running
     >>> airflow dags state a_dag_with_conf_passed 2015-01-01T00:00:00.000000
-    failed, {"name": "bob", "age": "42"}
+    failed, {"name": "bob", "age": "42"}.
     """
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
@@ -291,7 +291,7 @@ def dag_next_execution(args) -> None:
     """
     Returns the next execution datetime of a DAG at the command line.
     >>> airflow dags next-execution tutorial
-    2018-08-31 10:38:00
+    2018-08-31 10:38:00.
     """
     dag = get_dag(args.subdir, args.dag_id)
 
@@ -350,7 +350,7 @@ def dag_list_dags(args) -> None:
 @suppress_logs_and_warning
 @provide_session
 def dag_details(args, session=NEW_SESSION):
-    """Get DAG details given a DAG id"""
+    """Get DAG details given a DAG id."""
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")

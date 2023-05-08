@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Improve MSSQL compatibility
+"""Improve MSSQL compatibility.
 
 Revision ID: 83f031fd9f1c
 Revises: ccde3e26fe78
@@ -42,7 +42,7 @@ airflow_version = "2.2.0"
 
 def is_table_empty(conn, table_name):
     """
-    This function checks if the MS SQL table is empty
+    This function checks if the MS SQL table is empty.
 
     :param conn: SQL connection object
     :param table_name: table name
@@ -78,7 +78,7 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
 
 def drop_column_constraints(operator, column_name, constraint_dict):
     """
-    Drop a primary key or unique constraint
+    Drop a primary key or unique constraint.
 
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
@@ -93,7 +93,7 @@ def drop_column_constraints(operator, column_name, constraint_dict):
 
 def create_constraints(operator, column_name, constraint_dict):
     """
-    Create a primary key or unique constraint
+    Create a primary key or unique constraint.
 
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
@@ -121,7 +121,7 @@ def _is_timestamp(conn, table_name, column_name):
 def recreate_mssql_ts_column(conn, op, table_name, column_name):
     """
     Drop the timestamp column and recreate it as
-    datetime or datetime2(6)
+    datetime or datetime2(6).
     """
     if _is_timestamp(conn, table_name, column_name) and is_table_empty(conn, table_name):
         with op.batch_alter_table(table_name) as batch_op:
@@ -133,7 +133,7 @@ def recreate_mssql_ts_column(conn, op, table_name, column_name):
 
 
 def alter_mssql_datetime_column(conn, op, table_name, column_name, nullable):
-    """Update the datetime column to datetime2(6)"""
+    """Update the datetime column to datetime2(6)."""
     op.alter_column(
         table_name=table_name,
         column_name=column_name,
@@ -143,7 +143,7 @@ def alter_mssql_datetime_column(conn, op, table_name, column_name, nullable):
 
 
 def upgrade():
-    """Improve compatibility with MSSQL backend"""
+    """Improve compatibility with MSSQL backend."""
     conn = op.get_bind()
     if conn.dialect.name != "mssql":
         return
@@ -185,7 +185,7 @@ def upgrade():
 
 
 def downgrade():
-    """Reverse MSSQL backend compatibility improvements"""
+    """Reverse MSSQL backend compatibility improvements."""
     conn = op.get_bind()
     if conn.dialect.name != "mssql":
         return

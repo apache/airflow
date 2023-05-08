@@ -36,7 +36,7 @@ airflow_version = "2.4.0"
 
 
 def upgrade():
-    """Apply add processor_subdir to DagModel and SerializedDagModel"""
+    """Apply add processor_subdir to DagModel and SerializedDagModel."""
     conn = op.get_bind()
 
     with op.batch_alter_table("dag") as batch_op:
@@ -60,7 +60,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add processor_subdir to DagModel and SerializedDagModel"""
+    """Unapply Add processor_subdir to DagModel and SerializedDagModel."""
     conn = op.get_bind()
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_column("processor_subdir")

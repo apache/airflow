@@ -51,7 +51,7 @@ class JWTSigner:
         """
         Generate JWT with extra payload added.
         :param extra_payload: extra payload that is added to the signed token
-        :return: signed token
+        :return: signed token.
         """
         jwt_dict = {
             "aud": self._audience,

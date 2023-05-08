@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 class GlueCrawlerSensor(BaseSensorOperator):
     """
     Waits for an AWS Glue crawler to reach any of the statuses below
-    'FAILED', 'CANCELLED', 'SUCCEEDED'
+    'FAILED', 'CANCELLED', 'SUCCEEDED'.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -68,7 +68,7 @@ class GlueCrawlerSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> GlueCrawlerHook:
-        """Returns a new or pre-existing GlueCrawlerHook"""
+        """Returns a new or pre-existing GlueCrawlerHook."""
         return self.hook
 
     @cached_property

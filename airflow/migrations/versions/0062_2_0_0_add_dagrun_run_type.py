@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Add ``run_type`` column in ``dag_run`` table
+Add ``run_type`` column in ``dag_run`` table.
 
 Revision ID: 3c20cacc0044
 Revises: b25a55525161
@@ -43,7 +43,7 @@ Base = declarative_base()
 
 
 class DagRun(Base):  # type: ignore
-    """Minimal model definition for migrations"""
+    """Minimal model definition for migrations."""
 
     __tablename__ = "dag_run"
 
@@ -53,7 +53,7 @@ class DagRun(Base):  # type: ignore
 
 
 def upgrade():
-    """Apply Add ``run_type`` column in ``dag_run`` table"""
+    """Apply Add ``run_type`` column in ``dag_run`` table."""
     run_type_col_type = sa.String(length=50)
 
     conn = op.get_bind()
@@ -88,5 +88,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add ``run_type`` column in ``dag_run`` table"""
+    """Unapply Add ``run_type`` column in ``dag_run`` table."""
     op.drop_column("dag_run", "run_type")

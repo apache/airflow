@@ -91,7 +91,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def stop_instances(self, instance_ids: list) -> dict:
         """
-        Stop instances with given ids
+        Stop instances with given ids.
 
         :param instance_ids: List of instance ids to stop
         :return: Dict with key `StoppingInstances` and value as list of instances being stopped
@@ -103,7 +103,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def start_instances(self, instance_ids: list) -> dict:
         """
-        Start instances with given ids
+        Start instances with given ids.
 
         :param instance_ids: List of instance ids to start
         :return: Dict with key `StartingInstances` and value as list of instances being started
@@ -115,7 +115,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def terminate_instances(self, instance_ids: list) -> dict:
         """
-        Terminate instances with given ids
+        Terminate instances with given ids.
 
         :param instance_ids: List of instance ids to terminate
         :return: Dict with key `TerminatingInstances` and value as list of instances being terminated
@@ -127,7 +127,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def describe_instances(self, filters: list | None = None, instance_ids: list | None = None):
         """
-        Describe EC2 instances, optionally applying filters and selective instance ids
+        Describe EC2 instances, optionally applying filters and selective instance ids.
 
         :param filters: List of filters to specify instances to describe
         :param instance_ids: List of instance IDs to describe
@@ -144,7 +144,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def get_instances(self, filters: list | None = None, instance_ids: list | None = None) -> list:
         """
-        Get list of instance details, optionally applying filters and selective instance ids
+        Get list of instance details, optionally applying filters and selective instance ids.
 
         :param instance_ids: List of ids to get instances for
         :param filters: List of filters to specify instances to get
@@ -159,7 +159,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def get_instance_ids(self, filters: list | None = None) -> list:
         """
-        Get list of instance ids, optionally applying filters to fetch selective instances
+        Get list of instance ids, optionally applying filters to fetch selective instances.
 
         :param filters: List of filters to specify instances to get
         :return: List of instance ids

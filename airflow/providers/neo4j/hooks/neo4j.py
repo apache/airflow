@@ -72,7 +72,7 @@ class Neo4jHook(BaseHook):
         :param conn: Connection object.
         :param encrypted: boolean if encrypted connection or not.
         :param uri: uri string for connection.
-        :return: Driver
+        :return: Driver.
         """
         parsed_uri = urlsplit(uri)
         kwargs: dict[str, Any] = {}
@@ -86,7 +86,7 @@ class Neo4jHook(BaseHook):
         - Default - uses bolt scheme(bolt://)
         - neo4j_scheme - neo4j://
         - certs_self_signed - neo4j+ssc://
-        - certs_trusted_ca - neo4j+s://
+        - certs_trusted_ca - neo4j+s://.
 
         :param conn: connection object.
         :return: uri

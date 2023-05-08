@@ -31,7 +31,7 @@ from airflow.www.extensions.init_views import init_plugins
 
 @lru_cache(maxsize=None)
 def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
-    """Returns an appbuilder instance for the given app"""
+    """Returns an appbuilder instance for the given app."""
     init_appbuilder(app)
     init_plugins(app)
     return app.appbuilder  # type: ignore[attr-defined]

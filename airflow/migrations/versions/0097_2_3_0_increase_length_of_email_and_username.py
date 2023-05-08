@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase length of email and username in ``ab_user`` and ``ab_register_user`` table to ``256`` characters
+"""Increase length of email and username in ``ab_user`` and ``ab_register_user`` table to ``256`` characters.
 
 Revision ID: 5e3ec427fdd3
 Revises: 587bdf053233
@@ -38,7 +38,7 @@ airflow_version = "2.3.0"
 
 
 def upgrade():
-    """Increase length of email from 64 to 256 characters"""
+    """Increase length of email from 64 to 256 characters."""
     with op.batch_alter_table("ab_user") as batch_op:
         batch_op.alter_column("username", type_=sa.String(256))
         batch_op.alter_column("email", type_=sa.String(256))
@@ -48,7 +48,7 @@ def upgrade():
 
 
 def downgrade():
-    """Revert length of email from 256 to 64 characters"""
+    """Revert length of email from 256 to 64 characters."""
     conn = op.get_bind()
     if conn.dialect.name != "mssql":
         with op.batch_alter_table("ab_user") as batch_op:

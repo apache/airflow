@@ -538,7 +538,7 @@ class MLEngineHook(GoogleBaseHook):
 
 
 class MLEngineAsyncHook(GoogleBaseAsyncHook):
-    """Uses gcloud-aio library to retrieve Job details"""
+    """Uses gcloud-aio library to retrieve Job details."""
 
     sync_hook_class = MLEngineHook
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add map_index to TaskFail
+"""Add map_index to TaskFail.
 
 Drop index idx_task_fail_dag_task_date
 Add run_id and map_index
@@ -85,7 +85,7 @@ def _update_value_from_dag_run(
     Grabs a value from the source table ``dag_run`` and updates target with this value.
     :param dialect_name: dialect in use
     :param target_table: the table to update
-    :param target_column: the column to update
+    :param target_column: the column to update.
     """
     # for run_id:  dag_id, execution_date
     # otherwise:  dag_id, run_id

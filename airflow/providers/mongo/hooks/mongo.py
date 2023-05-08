@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Mongo DB"""
+"""Hook for Mongo DB."""
 from __future__ import annotations
 
 from ssl import CERT_NONE
@@ -35,7 +35,7 @@ class MongoHook(BaseHook):
     Mongo Connection Documentation
     https://docs.mongodb.com/manual/reference/connection-string/index.html
     You can specify connection string options in extra field of your connection
-    https://docs.mongodb.com/manual/reference/connection-string/index.html#connection-string-options
+    https://docs.mongodb.com/manual/reference/connection-string/index.html#connection-string-options.
 
     If you want use DNS seedlist, set `srv` to True.
 
@@ -73,7 +73,7 @@ class MongoHook(BaseHook):
             self.client = None
 
     def get_conn(self) -> MongoClient:
-        """Fetches PyMongo Client"""
+        """Fetches PyMongo Client."""
         if self.client is not None:
             return self.client
 
@@ -123,7 +123,7 @@ class MongoHook(BaseHook):
         """
         Runs an aggregation pipeline and returns the results
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.aggregate
-        https://pymongo.readthedocs.io/en/stable/examples/aggregation.html
+        https://pymongo.readthedocs.io/en/stable/examples/aggregation.html.
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -140,7 +140,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.cursor.Cursor:
         """
         Runs a mongo find query and returns the results
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.find
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.find.
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -154,7 +154,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.InsertOneResult:
         """
         Inserts a single document into a mongo collection
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_one.
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -165,7 +165,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.InsertManyResult:
         """
         Inserts many docs into a mongo collection.
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_many
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_many.
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -181,7 +181,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.UpdateResult:
         """
         Updates a single document in a mongo collection.
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_one.
 
         :param mongo_collection: The name of the collection to update.
         :param filter_doc: A query that matches the documents to update.
@@ -204,7 +204,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.UpdateResult:
         """
         Updates one or more documents in a mongo collection.
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_many
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_many.
 
         :param mongo_collection: The name of the collection to update.
         :param filter_doc: A query that matches the documents to update.
@@ -226,7 +226,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.UpdateResult:
         """
         Replaces a single document in a mongo collection.
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.replace_one.
 
         .. note::
             If no ``filter_doc`` is given, it is assumed that the replacement
@@ -295,7 +295,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.DeleteResult:
         """
         Deletes a single document in a mongo collection.
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_one.
 
         :param mongo_collection: The name of the collection to delete from.
         :param filter_doc: A query that matches the document to delete.
@@ -311,7 +311,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.DeleteResult:
         """
         Deletes one or more documents in a mongo collection.
-        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_many.
 
         :param mongo_collection: The name of the collection to delete from.
         :param filter_doc: A query that matches the documents to delete.

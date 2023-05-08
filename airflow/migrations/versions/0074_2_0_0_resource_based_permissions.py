@@ -312,7 +312,7 @@ def remap_permissions():
 
 
 def undo_remap_permissions():
-    """Unapply Map Airflow permissions"""
+    """Unapply Map Airflow permissions."""
     appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     for old, new in mapping.items():
         (new_resource_name, new_action_name) = new[0]

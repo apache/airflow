@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for HDFS operations"""
+"""Hook for HDFS operations."""
 from __future__ import annotations
 
 from typing import Any
@@ -33,7 +33,7 @@ except ImportError:
 
 
 class HDFSHookException(AirflowException):
-    """Exception specific for HDFS"""
+    """Exception specific for HDFS."""
 
 
 class HDFSHook(BaseHook):

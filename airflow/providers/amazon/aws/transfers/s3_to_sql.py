@@ -33,7 +33,7 @@ class S3ToSqlOperator(BaseOperator):
     """
         Loads Data from S3 into a SQL Database.
         You need to provide a parser function that takes a filename as an input
-        and returns an iterable of rows
+        and returns an iterable of rows.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

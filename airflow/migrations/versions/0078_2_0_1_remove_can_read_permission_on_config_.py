@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Remove ``can_read`` permission on config resource for ``User`` and ``Viewer`` role
+"""Remove ``can_read`` permission on config resource for ``User`` and ``Viewer`` role.
 
 Revision ID: 82b7c48c147f
 Revises: e959f08ac86c
@@ -38,7 +38,7 @@ airflow_version = "2.0.1"
 
 
 def upgrade():
-    """Remove can_read action from config resource for User and Viewer role"""
+    """Remove can_read action from config resource for User and Viewer role."""
     log = logging.getLogger()
     handlers = log.handlers[:]
 
@@ -58,7 +58,7 @@ def upgrade():
 
 
 def downgrade():
-    """Add can_read action on config resource for User and Viewer role"""
+    """Add can_read action on config resource for User and Viewer role."""
     appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     roles_to_modify = [role for role in appbuilder.sm.get_all_roles() if role.name in ["User", "Viewer"]]
     can_read_on_config_perm = appbuilder.sm.get_permission(

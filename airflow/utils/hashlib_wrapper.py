@@ -29,7 +29,7 @@ def md5(data: bytes, *, usedforsecurity: bool | None = None):
     :param usedforsecurity: The value to pass to the md5 function's "usedforsecurity" param.
         Defaults to None.
     :return: The hashed value.
-    :rtype: _Hash
+    :rtype: _Hash.
     """
     if PY39 and usedforsecurity is not None:
         return hashlib.md5(data, usedforsecurity=usedforsecurity)  # type: ignore

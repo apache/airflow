@@ -30,7 +30,7 @@ BASE_LINK = "https://console.cloud.google.com"
 
 
 class BaseGoogleLink(BaseOperatorLink):
-    """:meta private:"""
+    """:meta private:."""
 
     name: ClassVar[str]
     key: ClassVar[str]

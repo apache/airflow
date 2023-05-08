@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Resource based permissions for default ``Flask-AppBuilder`` views
+"""Resource based permissions for default ``Flask-AppBuilder`` views.
 
 Revision ID: a13f7613ad25
 Revises: e165e7455d70
@@ -164,7 +164,7 @@ def remap_permissions():
 
 
 def undo_remap_permissions():
-    """Unapply Map Airflow permissions"""
+    """Unapply Map Airflow permissions."""
     appbuilder = cached_app(config={"FAB_UPDATE_PERMS": False}).appbuilder
     for old, new in mapping.items():
         (new_resource_name, new_action_name) = new[0]

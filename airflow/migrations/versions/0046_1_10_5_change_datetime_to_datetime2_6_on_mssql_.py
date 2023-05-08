@@ -270,7 +270,7 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
 def reorder_columns(columns):
     """Reorder the columns for creating constraint.
     Preserve primary key ordering
-    ``['task_id', 'dag_id', 'execution_date']``
+    ``['task_id', 'dag_id', 'execution_date']``.
 
     :param columns: columns retrieved from DB related to constraint
     :return: ordered column
@@ -321,7 +321,7 @@ def modify_execution_date_with_constraint(conn, batch_operator, table_name, type
     """Change type of column execution_date.
     Helper function changes type of column execution_date by
     dropping and recreating any primary/unique constraint associated with
-    the column
+    the column.
 
     :param conn: sql connection object
     :param batch_operator: batch_alter_table for the table

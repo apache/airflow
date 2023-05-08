@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Adds ``trigger`` table and deferrable operator columns to task instance
+"""Adds ``trigger`` table and deferrable operator columns to task instance.
 
 Revision ID: 54bebd308c5f
 Revises: 30867afad44a
@@ -38,7 +38,7 @@ airflow_version = "2.2.0"
 
 
 def upgrade():
-    """Apply Adds ``trigger`` table and deferrable operator columns to task instance"""
+    """Apply Adds ``trigger`` table and deferrable operator columns to task instance."""
     op.create_table(
         "trigger",
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
@@ -59,7 +59,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Adds ``trigger`` table and deferrable operator columns to task instance"""
+    """Unapply Adds ``trigger`` table and deferrable operator columns to task instance."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.drop_constraint("task_instance_trigger_id_fkey", type_="foreignkey")
         batch_op.drop_index("ti_trigger_id")

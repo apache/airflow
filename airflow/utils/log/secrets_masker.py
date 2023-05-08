@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Mask sensitive information from logs"""
+"""Mask sensitive information from logs."""
 from __future__ import annotations
 
 import collections.abc
@@ -82,7 +82,7 @@ def get_sensitive_variables_fields():
 
 
 def should_hide_value_for_key(name):
-    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden"""
+    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden."""
     from airflow import settings
 
     if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
@@ -141,7 +141,7 @@ def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
 
 
 class SecretsMasker(logging.Filter):
-    """Redact secrets from logs"""
+    """Redact secrets from logs."""
 
     replacer: re.Pattern | None = None
     patterns: set[str]

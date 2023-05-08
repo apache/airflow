@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Create FAB Tables
+"""Create FAB Tables.
 
 Revision ID: 92c57b58940d
 Revises: da3f683c3a5a
@@ -37,7 +37,7 @@ airflow_version = "1.10.13"
 
 
 def upgrade():
-    """Create FAB Tables"""
+    """Create FAB Tables."""
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()
@@ -151,7 +151,7 @@ def upgrade():
 
 
 def downgrade():
-    """Drop FAB Tables"""
+    """Drop FAB Tables."""
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()

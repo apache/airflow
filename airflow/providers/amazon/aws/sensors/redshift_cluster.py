@@ -67,7 +67,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> RedshiftHook:
-        """Create and return a RedshiftHook"""
+        """Create and return a RedshiftHook."""
         return self.hook
 
     @cached_property

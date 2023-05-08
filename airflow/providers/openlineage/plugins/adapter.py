@@ -137,7 +137,7 @@ class OpenLineageAdapter(LoggingMixin):
         run_facets: dict[str, type[BaseFacet]] | None = None,  # Custom run facets
     ):
         """
-        Emits openlineage event of type START
+        Emits openlineage event of type START.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task in dag
@@ -195,7 +195,7 @@ class OpenLineageAdapter(LoggingMixin):
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
-        :param task: metadata container with information extracted from operator
+        :param task: metadata container with information extracted from operator.
         """
         event = RunEvent(
             eventType=RunState.COMPLETE,
@@ -214,7 +214,7 @@ class OpenLineageAdapter(LoggingMixin):
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
-        :param task: metadata container with information extracted from operator
+        :param task: metadata container with information extracted from operator.
         """
         event = RunEvent(
             eventType=RunState.FAIL,

@@ -266,11 +266,10 @@ class OracleHook(DbApiHook):
         A generic way to insert a set of tuples into a table,
         the whole set of inserts is treated as one transaction
         Changes from standard DbApiHook implementation:
-
         - Oracle SQL queries in oracledb can not be terminated with a semicolon (`;`)
         - Replace NaN values with NULL using `numpy.nan_to_num` (not using
           `is_nan()` because of input types error for strings)
-        - Coerce datetime cells to Oracle DATETIME format during insert
+        - Coerce datetime cells to Oracle DATETIME format during insert.
 
         :param table: target Oracle table, use dot notation to target a
             specific database

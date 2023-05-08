@@ -76,7 +76,7 @@ class DefaultExtractor(BaseExtractor):
     def get_operator_classnames(cls) -> list[str]:
         """
         Default extractor is chosen not on the classname basis, but
-        by existence of get_openlineage_facets method on operator
+        by existence of get_openlineage_facets method on operator.
         """
         return []
 

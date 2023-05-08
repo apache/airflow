@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add DagRunNote and TaskInstanceNote
+"""Add DagRunNote and TaskInstanceNote.
 
 Revision ID: 1986afd32c1b
 Revises: ee8d93fcc81e
@@ -41,7 +41,7 @@ airflow_version = "2.5.0"
 
 
 def upgrade():
-    """Apply Add DagRunNote and TaskInstanceNote"""
+    """Apply Add DagRunNote and TaskInstanceNote."""
     op.create_table(
         "dag_run_note",
         sa.Column("user_id", sa.Integer(), nullable=True),
@@ -89,6 +89,6 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add DagRunNote and TaskInstanceNote"""
+    """Unapply Add DagRunNote and TaskInstanceNote."""
     op.drop_table("task_instance_note")
     op.drop_table("dag_run_note")

@@ -41,7 +41,7 @@ from airflow.utils import timezone
 class LogState:
     """
     Enum-style class holding all possible states of CloudWatch log streams.
-    https://sagemaker.readthedocs.io/en/stable/session.html#sagemaker.session.LogState
+    https://sagemaker.readthedocs.io/en/stable/session.html#sagemaker.session.LogState.
     """
 
     STARTING = 1
@@ -57,7 +57,7 @@ Position = collections.namedtuple("Position", ["timestamp", "skip"])
 
 
 def argmin(arr, f: Callable) -> int | None:
-    """Return the index, i, in arr that minimizes f(arr[i])"""
+    """Return the index, i, in arr that minimizes f(arr[i])."""
     min_value = None
     min_idx = None
     for idx, item in enumerate(arr):
@@ -158,7 +158,7 @@ class SageMakerHook(AwsBaseHook):
 
     def tar_and_s3_upload(self, path: str, key: str, bucket: str) -> None:
         """
-        Tar the local file or directory and upload to s3
+        Tar the local file or directory and upload to s3.
 
         :param path: local file or directory
         :param key: s3 key
@@ -197,7 +197,7 @@ class SageMakerHook(AwsBaseHook):
 
     def check_s3_url(self, s3url: str) -> bool:
         """
-        Check if an S3 URL exists
+        Check if an S3 URL exists.
 
         :param s3url: S3 url
         """
@@ -219,7 +219,7 @@ class SageMakerHook(AwsBaseHook):
 
     def check_training_config(self, training_config: dict) -> None:
         """
-        Check if a training configuration is valid
+        Check if a training configuration is valid.
 
         :param training_config: training_config
         :return: None
@@ -231,7 +231,7 @@ class SageMakerHook(AwsBaseHook):
 
     def check_tuning_config(self, tuning_config: dict) -> None:
         """
-        Check if a tuning configuration is valid
+        Check if a tuning configuration is valid.
 
         :param tuning_config: tuning_config
         :return: None
@@ -543,7 +543,7 @@ class SageMakerHook(AwsBaseHook):
 
     def describe_training_job(self, name: str):
         """
-        Return the training job info associated with the name
+        Return the training job info associated with the name.
 
         .. seealso::
             - :external+boto3:py:meth:`SageMaker.Client.describe_training_job`
@@ -563,7 +563,7 @@ class SageMakerHook(AwsBaseHook):
         last_description: dict,
         last_describe_job_call: float,
     ):
-        """Return the training job info associated with job_name and print CloudWatch logs"""
+        """Return the training job info associated with job_name and print CloudWatch logs."""
         log_group = "/aws/sagemaker/TrainingJobs"
 
         if len(stream_names) < instance_count:
@@ -616,7 +616,7 @@ class SageMakerHook(AwsBaseHook):
 
     def describe_tuning_job(self, name: str) -> dict:
         """
-        Return the tuning job info associated with the name
+        Return the tuning job info associated with the name.
 
         .. seealso::
             - :external+boto3:py:meth:`SageMaker.Client.describe_hyper_parameter_tuning_job`
@@ -628,7 +628,7 @@ class SageMakerHook(AwsBaseHook):
 
     def describe_model(self, name: str) -> dict:
         """
-        Return the SageMaker model info associated with the name
+        Return the SageMaker model info associated with the name.
 
         :param name: the name of the SageMaker model
         :return: A dict contains all the model info
@@ -637,7 +637,7 @@ class SageMakerHook(AwsBaseHook):
 
     def describe_transform_job(self, name: str) -> dict:
         """
-        Return the transform job info associated with the name
+        Return the transform job info associated with the name.
 
         .. seealso::
             - :external+boto3:py:meth:`SageMaker.Client.describe_transform_job`
@@ -649,7 +649,7 @@ class SageMakerHook(AwsBaseHook):
 
     def describe_processing_job(self, name: str) -> dict:
         """
-        Return the processing job info associated with the name
+        Return the processing job info associated with the name.
 
         .. seealso::
             - :external+boto3:py:meth:`SageMaker.Client.describe_processing_job`
@@ -661,7 +661,7 @@ class SageMakerHook(AwsBaseHook):
 
     def describe_endpoint_config(self, name: str) -> dict:
         """
-        Return the endpoint config info associated with the name
+        Return the endpoint config info associated with the name.
 
         .. seealso::
             - :external+boto3:py:meth:`SageMaker.Client.describe_endpoint_config`
@@ -693,7 +693,7 @@ class SageMakerHook(AwsBaseHook):
         non_terminal_states: set | None = None,
     ) -> dict:
         """
-        Check status of a SageMaker resource
+        Check status of a SageMaker resource.
 
         :param job_name: name of the resource to check status, can be a job but also pipeline for instance.
         :param key: the key of the response dict that points to the state
@@ -833,7 +833,7 @@ class SageMakerHook(AwsBaseHook):
         """
         This method wraps boto3's `list_training_jobs`. The training job name and max results are configurable
         via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
-        CamelCase format, for example:
+        CamelCase format, for example.
 
         .. code-block:: python
 
@@ -861,7 +861,7 @@ class SageMakerHook(AwsBaseHook):
         This method wraps boto3's `list_transform_jobs`.
         The transform job name and max results are configurable via arguments.
         Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
-        CamelCase format, for example:
+        CamelCase format, for example.
 
         .. code-block:: python
 
@@ -885,7 +885,7 @@ class SageMakerHook(AwsBaseHook):
     def list_processing_jobs(self, **kwargs) -> list[dict]:
         """
         This method wraps boto3's `list_processing_jobs`. All arguments should be provided via kwargs.
-        Note boto3 expects these in CamelCase format, for example:
+        Note boto3 expects these in CamelCase format, for example.
 
         .. code-block:: python
 
@@ -1116,7 +1116,7 @@ class SageMakerHook(AwsBaseHook):
         verbose: bool = True,
         fail_if_not_running: bool = False,
     ) -> str:
-        """Stop SageMaker pipeline execution
+        """Stop SageMaker pipeline execution.
 
         .. seealso::
             - :external+boto3:py:meth:`SageMaker.Client.stop_pipeline_execution`
@@ -1182,7 +1182,7 @@ class SageMakerHook(AwsBaseHook):
 
     def create_model_package_group(self, package_group_name: str, package_group_desc: str = "") -> bool:
         """
-        Creates a Model Package Group if it does not already exist
+        Creates a Model Package Group if it does not already exist.
 
         .. seealso::
             - :external+boto3:py:meth:`SageMaker.Client.create_model_package_group`

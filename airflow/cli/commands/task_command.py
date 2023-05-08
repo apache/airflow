@@ -468,7 +468,7 @@ def task_state(args) -> None:
     """
     Returns the state of a TaskInstance at the command line.
     >>> airflow tasks state tutorial sleep 2015-01-01
-    success
+    success.
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)

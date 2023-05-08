@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 class LocalFilesystemToADLSOperator(BaseOperator):
     """
-    Upload file(s) to Azure Data Lake
+    Upload file(s) to Azure Data Lake.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

@@ -107,7 +107,7 @@ class ListValidator(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def test(self, name: str) -> bool:
-        """Test if name is allowed"""
+        """Test if name is allowed."""
         raise NotImplementedError
 
 

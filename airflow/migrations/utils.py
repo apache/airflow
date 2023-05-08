@@ -29,7 +29,7 @@ def get_mssql_table_constraints(conn, table_name) -> dict[str, dict[str, list[st
     retrieve any primary or unique constraint name.
     :param conn: sql connection object
     :param table_name: table name
-    :return: a dictionary of ((constraint name, constraint type), column name) of table
+    :return: a dictionary of ((constraint name, constraint type), column name) of table.
     """
     query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc

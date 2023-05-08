@@ -1030,7 +1030,7 @@ class DataformRemoveDirectoryOperator(GoogleCloudBaseOperator):
 
 class DataformInstallNpmPackagesOperator(GoogleCloudBaseOperator):
     """
-    Installs npm dependencies in the provided workspace. Requires "package.json" to be created in workspace
+    Installs npm dependencies in the provided workspace. Requires "package.json" to be created in workspace.
 
     :param project_id: Required. The ID of the Google Cloud project where workspace located.
     :param region: Required. The ID of the Google Cloud region where workspace located.

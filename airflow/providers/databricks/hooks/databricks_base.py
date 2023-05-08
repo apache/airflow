@@ -197,14 +197,14 @@ class BaseDatabricksHook(BaseHook):
     def _get_retry_object(self) -> Retrying:
         """
         Instantiate a retry object.
-        :return: instance of Retrying class
+        :return: instance of Retrying class.
         """
         return Retrying(**self.retry_args)
 
     def _a_get_retry_object(self) -> AsyncRetrying:
         """
         Instantiate an async retry object.
-        :return: instance of AsyncRetrying class
+        :return: instance of AsyncRetrying class.
         """
         return AsyncRetrying(**self.retry_args)
 
@@ -279,7 +279,7 @@ class BaseDatabricksHook(BaseHook):
         """
         Async version of `_get_aad_token()`.
         :param resource: resource to issue token to
-        :return: AAD token, or raise an exception
+        :return: AAD token, or raise an exception.
         """
         aad_token = self.aad_tokens.get(resource)
         if aad_token and self._is_aad_token_valid(aad_token):
@@ -344,7 +344,7 @@ class BaseDatabricksHook(BaseHook):
     def _get_aad_headers(self) -> dict:
         """
         Fill AAD headers if necessary (SPN is outside of the workspace).
-        :return: dictionary with filled AAD headers
+        :return: dictionary with filled AAD headers.
         """
         headers = {}
         if "azure_resource_id" in self.databricks_conn.extra_dejson:
@@ -358,7 +358,7 @@ class BaseDatabricksHook(BaseHook):
     async def _a_get_aad_headers(self) -> dict:
         """
         Async version of `_get_aad_headers()`.
-        :return: dictionary with filled AAD headers
+        :return: dictionary with filled AAD headers.
         """
         headers = {}
         if "azure_resource_id" in self.databricks_conn.extra_dejson:
@@ -386,7 +386,7 @@ class BaseDatabricksHook(BaseHook):
     def _check_azure_metadata_service() -> None:
         """
         Check for Azure Metadata Service.
-        https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
+        https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service.
         """
         try:
             jsn = requests.get(

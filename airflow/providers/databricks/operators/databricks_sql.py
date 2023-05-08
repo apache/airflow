@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
     """
-    Executes SQL code in a Databricks SQL endpoint or a Databricks cluster
+    Executes SQL code in a Databricks SQL endpoint or a Databricks cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

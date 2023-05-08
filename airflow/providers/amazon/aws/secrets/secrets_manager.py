@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing secrets from AWS Secrets Manager"""
+"""Objects relating to sourcing secrets from AWS Secrets Manager."""
 from __future__ import annotations
 
 import json
@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection or Variables from AWS Secrets Manager
+    Retrieves Connection or Variables from AWS Secrets Manager.
 
     Configurable via ``airflow.cfg`` like so:
 
@@ -178,7 +178,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self):
-        """Create a Secrets Manager client"""
+        """Create a Secrets Manager client."""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
         from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
@@ -198,7 +198,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         return session.client(service_name="secretsmanager", **client_kwargs)
 
     def _standardize_secret_keys(self, secret: dict[str, Any]) -> dict[str, Any]:
-        """Standardize the names of the keys in the dict. These keys align with"""
+        """Standardize the names of the keys in the dict. These keys align with."""
         possible_words_for_conn_fields = {
             "login": ["login", "user", "username", "user_name"],
             "password": ["password", "pass", "key"],
@@ -225,7 +225,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         return conn_d
 
     def _remove_escaping_in_secret_dict(self, secret: dict[str, Any]) -> dict[str, Any]:
-        """Un-escape secret values that are URL-encoded"""
+        """Un-escape secret values that are URL-encoded."""
         for k, v in secret.copy().items():
             if k == "extra" and isinstance(v, dict):
                 # The old behavior was that extras were _not_ urlencoded inside the secret.
@@ -239,7 +239,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_value(self, conn_id: str) -> str | None:
         """
-        Get serialized representation of Connection
+        Get serialized representation of Connection.
 
         :param conn_id: connection id
         """
@@ -272,7 +272,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get Airflow Variable
         :param key: Variable Key
-        :return: Variable Value
+        :return: Variable Value.
         """
         if self.variables_prefix is None:
             return None
@@ -283,7 +283,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get Airflow Configuration
         :param key: Configuration Option Key
-        :return: Configuration Option Value
+        :return: Configuration Option Value.
         """
         if self.config_prefix is None:
             return None
@@ -296,7 +296,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
         :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in
-            Secrets Manager
+            Secrets Manager.
         """
         if lookup_pattern and not re.match(lookup_pattern, secret_id, re.IGNORECASE):
             return None

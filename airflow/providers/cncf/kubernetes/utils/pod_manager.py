@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Launches PODs"""
+"""Launches PODs."""
 from __future__ import annotations
 
 import json
@@ -52,7 +52,7 @@ class PodLaunchFailedException(AirflowException):
 
 
 def should_retry_start_pod(exception: BaseException) -> bool:
-    """Check if an Exception indicates a transient error and warrants retrying"""
+    """Check if an Exception indicates a transient error and warrants retrying."""
     if isinstance(exception, ApiException):
         return exception.status == 409
     return False
@@ -73,7 +73,7 @@ class PodPhase:
 
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
-    """Retrieves container status"""
+    """Retrieves container status."""
     container_statuses = pod.status.container_statuses if pod and pod.status else None
     if container_statuses:
         # In general the variable container_statuses can store multiple items matching different containers.
@@ -120,7 +120,7 @@ class PodLogsConsumer:
     """
     PodLogsConsumer is responsible for pulling pod logs from a stream with checking a container status before
     reading data.
-    This class is a workaround for the issue https://github.com/apache/airflow/issues/23497
+    This class is a workaround for the issue https://github.com/apache/airflow/issues/23497.
 
     :param response: HTTP response with logs
     :param pod: Pod instance from Kubernetes client
@@ -204,7 +204,7 @@ class PodLogsConsumer:
 
 @dataclass
 class PodLoggingStatus:
-    """Used for returning the status of the pod and last log time when exiting from `fetch_container_logs`"""
+    """Used for returning the status of the pod and last log time when exiting from `fetch_container_logs`."""
 
     running: bool
     last_log_time: DateTime | None
@@ -213,7 +213,7 @@ class PodLoggingStatus:
 class PodManager(LoggingMixin):
     """
     Helper class for creating, monitoring, and otherwise interacting with Kubernetes pods
-    for use with the KubernetesPodOperator
+    for use with the KubernetesPodOperator.
     """
 
     def __init__(
@@ -230,7 +230,7 @@ class PodManager(LoggingMixin):
         self._watch = watch.Watch()
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
-        """Runs POD asynchronously"""
+        """Runs POD asynchronously."""
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
@@ -248,7 +248,7 @@ class PodManager(LoggingMixin):
         return resp
 
     def delete_pod(self, pod: V1Pod) -> None:
-        """Deletes POD"""
+        """Deletes POD."""
         try:
             self._client.delete_namespaced_pod(
                 pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
@@ -270,7 +270,7 @@ class PodManager(LoggingMixin):
 
     def await_pod_start(self, pod: V1Pod, startup_timeout: int = 120) -> None:
         """
-        Waits for the pod to reach phase other than ``Pending``
+        Waits for the pod to reach phase other than ``Pending``.
 
         :param pod:
         :param startup_timeout: Timeout (in seconds) for startup of the pod
@@ -375,7 +375,7 @@ class PodManager(LoggingMixin):
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
         """
-        Waits for the given container in the given pod to be completed
+        Waits for the given container in the given pod to be completed.
 
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
@@ -385,7 +385,7 @@ class PodManager(LoggingMixin):
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:
         """
-        Monitors a pod and returns the final state
+        Monitors a pod and returns the final state.
 
         :param pod: pod spec that will be monitored
         :return: tuple[State, str | None]
@@ -400,7 +400,7 @@ class PodManager(LoggingMixin):
 
     def parse_log_line(self, line: str) -> tuple[DateTime | None, str]:
         """
-        Parse K8s log line and returns the final state
+        Parse K8s log line and returns the final state.
 
         :param line: k8s log line
         :return: timestamp and log message
@@ -423,12 +423,12 @@ class PodManager(LoggingMixin):
         return last_log_time, message
 
     def container_is_running(self, pod: V1Pod, container_name: str) -> bool:
-        """Reads pod and checks if container is running"""
+        """Reads pod and checks if container is running."""
         remote_pod = self.read_pod(pod)
         return container_is_running(pod=remote_pod, container_name=container_name)
 
     def container_is_terminated(self, pod: V1Pod, container_name: str) -> bool:
-        """Reads pod and checks if container is terminated"""
+        """Reads pod and checks if container is terminated."""
         remote_pod = self.read_pod(pod)
         return container_is_terminated(pod=remote_pod, container_name=container_name)
 
@@ -443,7 +443,7 @@ class PodManager(LoggingMixin):
         follow=True,
         post_termination_timeout: int = 120,
     ) -> PodLogsConsumer:
-        """Reads log from the POD"""
+        """Reads log from the POD."""
         additional_kwargs = {}
         if since_seconds:
             additional_kwargs["since_seconds"] = since_seconds
@@ -475,7 +475,7 @@ class PodManager(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
-        """Reads events from the POD"""
+        """Reads events from the POD."""
         try:
             return self._client.list_namespaced_event(
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
@@ -485,7 +485,7 @@ class PodManager(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod(self, pod: V1Pod) -> V1Pod:
-        """Read POD information"""
+        """Read POD information."""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
@@ -504,7 +504,7 @@ class PodManager(LoggingMixin):
             time.sleep(1)
 
     def extract_xcom(self, pod: V1Pod) -> str:
-        """Retrieves XCom value and kills xcom sidecar container"""
+        """Retrieves XCom value and kills xcom sidecar container."""
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,

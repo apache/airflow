@@ -91,7 +91,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         timeout: float | None = None,
     ) -> SynthesizeSpeechResponse:
         """
-        Synthesizes text input
+        Synthesizes text input.
 
         :param input_data: text input to be synthesized. See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesisInput

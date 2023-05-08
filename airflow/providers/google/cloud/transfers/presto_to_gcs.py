@@ -71,11 +71,11 @@ class _PrestoToGCSPrestoCursorAdapter:
 
     @property
     def rowcount(self) -> int:
-        """The read-only attribute specifies the number of rows"""
+        """The read-only attribute specifies the number of rows."""
         return self.cursor.rowcount
 
     def close(self) -> None:
-        """Close the cursor now"""
+        """Close the cursor now."""
         self.cursor.close()
 
     def execute(self, *args, **kwargs) -> PrestoResult:
@@ -127,10 +127,8 @@ class _PrestoToGCSPrestoCursorAdapter:
         return result
 
     def __next__(self) -> Any:
-        """
-        Return the next row from the currently executing SQL statement using the same semantics as
+        """Return the next row from the currently executing SQL statement using the same semantics as
         ``.fetchone()``.  A ``StopIteration`` exception is raised when the result set is exhausted.
-        :return:
         """
         result = self.fetchone()
         if result is None:
@@ -138,7 +136,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return result
 
     def __iter__(self) -> _PrestoToGCSPrestoCursorAdapter:
-        """Return self to make cursors compatible to the iteration protocol"""
+        """Return self to make cursors compatible to the iteration protocol."""
         return self
 
 

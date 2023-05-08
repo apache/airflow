@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Calendar API hook"""
+"""This module contains a Google Calendar API hook."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -31,7 +31,7 @@ class GoogleCalendarHook(GoogleBaseHook):
     """
     Interact with Google Calendar via Google Cloud connection
     Reading and writing cells in Google Sheet:
-    https://developers.google.com/calendar/api/v3/reference
+    https://developers.google.com/calendar/api/v3/reference.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param api_version: API Version. For example v3
@@ -98,7 +98,7 @@ class GoogleCalendarHook(GoogleBaseHook):
     ) -> list:
         """
         Gets events from Google Calendar from a single calendar_id
-        https://developers.google.com/calendar/api/v3/reference/events/list
+        https://developers.google.com/calendar/api/v3/reference/events/list.
 
         :param calendar_id: The Google Calendar ID to interact with
         :param i_cal_uid: Optional. Specifies event ID in the ``iCalendar`` format in the response.
@@ -171,7 +171,7 @@ class GoogleCalendarHook(GoogleBaseHook):
     ) -> dict:
         """
         Create event on the specified calendar
-        https://developers.google.com/calendar/api/v3/reference/events/insert
+        https://developers.google.com/calendar/api/v3/reference/events/insert.
 
         :param calendar_id: The Google Calendar ID to interact with
         :param conference_data_version: Optional. Version number of conference data

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase length of user identifier columns in ``ab_user`` and ``ab_register_user`` tables
+"""Increase length of user identifier columns in ``ab_user`` and ``ab_register_user`` tables.
 
 Revision ID: 98ae134e6fff
 Revises: 6abdffdd4815
@@ -39,7 +39,7 @@ airflow_version = "2.6.0"
 
 
 def upgrade():
-    """Increase length of user identifier columns in ab_user and ab_register_user tables"""
+    """Increase length of user identifier columns in ab_user and ab_register_user tables."""
     with op.batch_alter_table("ab_user") as batch_op:
         batch_op.alter_column("first_name", type_=sa.String(256), existing_nullable=False)
         batch_op.alter_column("last_name", type_=sa.String(256), existing_nullable=False)
@@ -61,7 +61,7 @@ def upgrade():
 
 
 def downgrade():
-    """Revert length of user identifier columns in ab_user and ab_register_user tables"""
+    """Revert length of user identifier columns in ab_user and ab_register_user tables."""
     conn = op.get_bind()
     if conn.dialect.name != "mssql":
         with op.batch_alter_table("ab_user") as batch_op:

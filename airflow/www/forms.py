@@ -93,7 +93,7 @@ class DateTimeWithTimezoneField(Field):
 
 
 class DateTimeForm(FlaskForm):
-    """Date filter form needed for task views"""
+    """Date filter form needed for task views."""
 
     execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
 
@@ -101,7 +101,7 @@ class DateTimeForm(FlaskForm):
 class DateTimeWithNumRunsForm(FlaskForm):
     """
     Date time and number of runs form for tree view, task duration
-    and landing times
+    and landing times.
     """
 
     base_date = DateTimeWithTimezoneField(
@@ -121,7 +121,7 @@ class DateTimeWithNumRunsForm(FlaskForm):
 
 
 class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """Date time and number of runs and dag runs form for graph and gantt view"""
+    """Date time and number of runs and dag runs form for graph and gantt view."""
 
     execution_date = SelectField("DAG run")
 
@@ -153,7 +153,7 @@ class DagRunEditForm(DynamicForm):
 
 
 class TaskInstanceEditForm(DynamicForm):
-    """Form for editing TaskInstance"""
+    """Form for editing TaskInstance."""
 
     dag_id = StringField(lazy_gettext("Dag Id"), validators=[InputRequired()], widget=BS3TextFieldROWidget())
     task_id = StringField(

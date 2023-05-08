@@ -37,7 +37,7 @@ class GCSToPrestoOperator(BaseOperator):
     Assumptions:
     1. CSV file should not have headers
     2. Presto table with requisite columns is already created
-    3. Optionally, a separate JSON file with headers or list of headers can be provided
+    3. Optionally, a separate JSON file with headers or list of headers can be provided.
 
     :param source_bucket: Source GCS bucket that contains the csv
     :param source_object: csv file including the path

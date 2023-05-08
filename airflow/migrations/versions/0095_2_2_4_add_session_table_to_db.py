@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Create a ``session`` table to store web session data
+"""Create a ``session`` table to store web session data.
 
 Revision ID: c381b21cb7e4
 Revises: be2bfac3da23
@@ -38,7 +38,7 @@ TABLE_NAME = "session"
 
 
 def upgrade():
-    """Apply Create a ``session`` table to store web session data"""
+    """Apply Create a ``session`` table to store web session data."""
     op.create_table(
         TABLE_NAME,
         sa.Column("id", sa.Integer()),
@@ -51,5 +51,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Create a ``session`` table to store web session data"""
+    """Unapply Create a ``session`` table to store web session data."""
     op.drop_table(TABLE_NAME)

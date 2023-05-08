@@ -66,7 +66,7 @@ class OSSKeySensor(BaseSensorOperator):
         Check if the object exists in the bucket to pull key.
         @param self - the object itself
         @param context - the context of the object
-        @returns True if the object exists, False otherwise
+        @returns True if the object exists, False otherwise.
         """
         if self.bucket_name is None:
             parsed_url = urlsplit(self.bucket_key)
@@ -88,7 +88,7 @@ class OSSKeySensor(BaseSensorOperator):
 
     @cached_property
     def get_hook(self) -> OSSHook:
-        """Create and return an OSSHook"""
+        """Create and return an OSSHook."""
         if self.hook:
             return self.hook
 

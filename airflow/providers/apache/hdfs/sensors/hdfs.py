@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 class HdfsSensor(BaseSensorOperator):
     """
-    Waits for a file or folder to land in HDFS
+    Waits for a file or folder to land in HDFS.
 
     :param filepath: The route to a stored file.
     :param hdfs_conn_id: The Airflow connection used for HDFS credentials.
@@ -74,7 +74,7 @@ class HdfsSensor(BaseSensorOperator):
     @staticmethod
     def filter_for_filesize(result: list[dict[Any, Any]], size: int | None = None) -> list[dict[Any, Any]]:
         """
-        Will test the filepath result and test if its size is at least self.filesize
+        Will test the filepath result and test if its size is at least self.filesize.
 
         :param result: a list of dicts returned by Snakebite ls
         :param size: the file size in MB a file should be at least to trigger True
@@ -92,7 +92,7 @@ class HdfsSensor(BaseSensorOperator):
         result: list[dict[Any, Any]], ignored_ext: list[str], ignore_copying: bool
     ) -> list[dict[Any, Any]]:
         """
-        Will filter if instructed to do so the result to remove matching criteria
+        Will filter if instructed to do so the result to remove matching criteria.
 
         :param result: list of dicts returned by Snakebite ls
         :param ignored_ext: list of ignored extensions
@@ -134,7 +134,7 @@ class HdfsSensor(BaseSensorOperator):
 
 class HdfsRegexSensor(HdfsSensor):
     """
-    Waits for matching files by matching on regex
+    Waits for matching files by matching on regex.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -147,7 +147,7 @@ class HdfsRegexSensor(HdfsSensor):
 
     def poke(self, context: Context) -> bool:
         """
-        Poke matching files in a directory with self.regex
+        Poke matching files in a directory with self.regex.
 
         :return: Bool depending on the search criteria
         """
@@ -167,7 +167,7 @@ class HdfsRegexSensor(HdfsSensor):
 
 class HdfsFolderSensor(HdfsSensor):
     """
-    Waits for a non-empty directory
+    Waits for a non-empty directory.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -180,7 +180,7 @@ class HdfsFolderSensor(HdfsSensor):
 
     def poke(self, context: Context) -> bool:
         """
-        Poke for a non empty directory
+        Poke for a non empty directory.
 
         :return: Bool depending on the search criteria
         """

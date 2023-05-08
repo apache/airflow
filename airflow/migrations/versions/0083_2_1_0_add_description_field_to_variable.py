@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add description field to ``Variable`` model
+"""Add description field to ``Variable`` model.
 
 Revision ID: e165e7455d70
 Revises: 90d1635d7b86
@@ -36,12 +36,12 @@ airflow_version = "2.1.0"
 
 
 def upgrade():
-    """Apply Add description field to ``Variable`` model"""
+    """Apply Add description field to ``Variable`` model."""
     with op.batch_alter_table("variable", schema=None) as batch_op:
         batch_op.add_column(sa.Column("description", sa.Text(), nullable=True))
 
 
 def downgrade():
-    """Unapply Add description field to ``Variable`` model"""
+    """Unapply Add description field to ``Variable`` model."""
     with op.batch_alter_table("variable", schema=None) as batch_op:
         batch_op.drop_column("description")

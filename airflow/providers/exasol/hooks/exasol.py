@@ -67,7 +67,7 @@ class ExasolHook(DbApiHook):
 
     def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
         """
-        Executes the sql and returns a pandas dataframe
+        Executes the sql and returns a pandas dataframe.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -139,7 +139,7 @@ class ExasolHook(DbApiHook):
         Copied implementation from DB2-API wrapper.
         More info https://github.com/exasol/pyexasol/blob/master/docs/DBAPI_COMPAT.md#db-api-20-wrapper
         :param statement: Exasol statement
-        :return: description sequence of t
+        :return: description sequence of t.
         """
         cols = []
         for k, v in statement.columns().items():
@@ -168,7 +168,7 @@ class ExasolHook(DbApiHook):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
-        sequentially
+        sequentially.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -225,7 +225,7 @@ class ExasolHook(DbApiHook):
 
     def set_autocommit(self, conn, autocommit: bool) -> None:
         """
-        Sets the autocommit flag on the connection
+        Sets the autocommit flag on the connection.
 
         :param conn: Connection to set autocommit setting to.
         :param autocommit: The autocommit setting to set.

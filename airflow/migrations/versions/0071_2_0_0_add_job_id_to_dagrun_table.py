@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``creating_job_id`` to ``DagRun`` table
+"""Add ``creating_job_id`` to ``DagRun`` table.
 
 Revision ID: 364159666cbd
 Revises: 52d53670a240
@@ -36,10 +36,10 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-    """Apply Add ``creating_job_id`` to ``DagRun`` table"""
+    """Apply Add ``creating_job_id`` to ``DagRun`` table."""
     op.add_column("dag_run", sa.Column("creating_job_id", sa.Integer))
 
 
 def downgrade():
-    """Unapply Add job_id to DagRun table"""
+    """Unapply Add job_id to DagRun table."""
     op.drop_column("dag_run", "creating_job_id")

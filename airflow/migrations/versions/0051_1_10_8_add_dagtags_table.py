@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``DagTags`` table
+"""Add ``DagTags`` table.
 
 Revision ID: 7939bcff74ba
 Revises: fe461863935f
@@ -38,7 +38,7 @@ airflow_version = "1.10.8"
 
 
 def upgrade():
-    """Apply Add ``DagTags`` table"""
+    """Apply Add ``DagTags`` table."""
     op.create_table(
         "dag_tag",
         sa.Column("name", sa.String(length=100), nullable=False),
@@ -52,5 +52,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add ``DagTags`` table"""
+    """Unapply Add ``DagTags`` table."""
     op.drop_table("dag_tag")

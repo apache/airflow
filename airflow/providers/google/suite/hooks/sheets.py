@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Sheets API hook"""
+"""This module contains a Google Sheets API hook."""
 from __future__ import annotations
 
 from typing import Any, Sequence
@@ -30,7 +30,7 @@ class GSheetsHook(GoogleBaseHook):
     """
     Interact with Google Sheets via Google Cloud connection
     Reading and writing cells in Google Sheet:
-    https://developers.google.com/sheets/api/guides/values
+    https://developers.google.com/sheets/api/guides/values.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param api_version: API Version
@@ -86,7 +86,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> list:
         """
         Gets values from Google Sheet from a single range
-        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get.
 
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param range_: The A1 notation of the values to retrieve.
@@ -125,7 +125,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Gets values from Google Sheet from a list of ranges
-        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchGet
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchGet.
 
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param ranges: The A1 notation of the values to retrieve.
@@ -167,7 +167,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Updates values from Google Sheet from a single range
-        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update.
 
         :param spreadsheet_id: The Google Sheet ID to interact with.
         :param range_: The A1 notation of the values to retrieve.
@@ -217,7 +217,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Updates values from Google Sheet for multiple ranges
-        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchUpdate
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchUpdate.
 
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param ranges: The A1 notation of the values to retrieve.
@@ -275,7 +275,7 @@ class GSheetsHook(GoogleBaseHook):
     ) -> dict:
         """
         Append values from Google Sheet from a single range
-        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/append
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/append.
 
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param range_: The A1 notation of the values to retrieve.
@@ -318,7 +318,7 @@ class GSheetsHook(GoogleBaseHook):
     def clear(self, spreadsheet_id: str, range_: str) -> dict:
         """
         Clear values from Google Sheet from a single range
-        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/clear
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/clear.
 
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param range_: The A1 notation of the values to retrieve.
@@ -338,7 +338,7 @@ class GSheetsHook(GoogleBaseHook):
     def batch_clear(self, spreadsheet_id: str, ranges: list) -> dict:
         """
         Clear values from Google Sheet from a list of ranges
-        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchClear
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchClear.
 
         :param spreadsheet_id: The Google Sheet ID to interact with
         :param ranges: The A1 notation of the values to retrieve.

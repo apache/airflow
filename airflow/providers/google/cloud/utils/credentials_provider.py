@@ -141,10 +141,9 @@ def provide_gcp_conn_and_credentials(
 ) -> Generator[None, None, None]:
     """
     Context manager that provides both:
-
     - Google Cloud credentials for application supporting `Application Default Credentials (ADC)
       strategy`__.
-    - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection
+    - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection.
 
     :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :param scopes: OAuth scopes for the connection
@@ -166,7 +165,7 @@ def provide_gcp_conn_and_credentials(
 
 class _CredentialProvider(LoggingMixin):
     """
-    Prepare the Credentials object for Google API and the associated project_id
+    Prepare the Credentials object for Google API and the associated project_id.
 
     Only either `key_path` or `keyfile_dict` should be provided, or an exception will
     occur. If neither of them are provided, return default credentials for the current environment

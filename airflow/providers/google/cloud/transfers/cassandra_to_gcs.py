@@ -45,7 +45,7 @@ NOT_SET = NotSetType(object())
 
 class CassandraToGCSOperator(BaseOperator):
     """
-    Copy data from Cassandra to Google Cloud Storage in JSON format
+    Copy data from Cassandra to Google Cloud Storage in JSON format.
 
     Note: Arrays of arrays are not supported.
 

@@ -1201,7 +1201,7 @@ class CloudVisionRemoveProductFromProductSetOperator(GoogleCloudBaseOperator):
 
 class CloudVisionDetectTextOperator(GoogleCloudBaseOperator):
     """
-    Detects Text in the image
+    Detects Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1283,7 +1283,7 @@ class CloudVisionDetectTextOperator(GoogleCloudBaseOperator):
 
 class CloudVisionTextDetectOperator(GoogleCloudBaseOperator):
     """
-    Detects Document Text in the image
+    Detects Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1364,7 +1364,7 @@ class CloudVisionTextDetectOperator(GoogleCloudBaseOperator):
 
 class CloudVisionDetectImageLabelsOperator(GoogleCloudBaseOperator):
     """
-    Detects Document Text in the image
+    Detects Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1435,7 +1435,7 @@ class CloudVisionDetectImageLabelsOperator(GoogleCloudBaseOperator):
 
 class CloudVisionDetectImageSafeSearchOperator(GoogleCloudBaseOperator):
     """
-    Detects Document Text in the image
+    Detects Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1509,7 +1509,7 @@ def prepare_additional_parameters(
 ) -> dict | None:
     """
     Creates additional_properties parameter based on language_hints, web_detection_params and
-    additional_properties parameters specified by the user
+    additional_properties parameters specified by the user.
     """
     if language_hints is None and web_detection_params is None:
         return additional_properties

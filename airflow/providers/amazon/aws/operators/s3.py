@@ -37,7 +37,7 @@ BUCKET_DOES_NOT_EXIST_MSG = "Bucket with name: %s doesn't exist"
 
 class S3CreateBucketOperator(BaseOperator):
     """
-    This operator creates an S3 bucket
+    This operator creates an S3 bucket.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -78,7 +78,7 @@ class S3CreateBucketOperator(BaseOperator):
 
 class S3DeleteBucketOperator(BaseOperator):
     """
-    This operator deletes an S3 bucket
+    This operator deletes an S3 bucket.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -118,7 +118,7 @@ class S3DeleteBucketOperator(BaseOperator):
 
 class S3GetBucketTaggingOperator(BaseOperator):
     """
-    This operator gets tagging from an S3 bucket
+    This operator gets tagging from an S3 bucket.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

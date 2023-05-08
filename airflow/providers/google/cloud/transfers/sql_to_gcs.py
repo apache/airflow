@@ -322,7 +322,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             yield file_to_upload
 
     def _get_file_to_upload(self, file_mime_type, file_no):
-        """Returns a dictionary that represents the file to upload"""
+        """Returns a dictionary that represents the file to upload."""
         tmp_file_handle = NamedTemporaryFile(delete=True)
         return (
             {

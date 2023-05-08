@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""add dag_owner_attributes table
+"""add dag_owner_attributes table.
 
 Revision ID: 1486deb605b4
 Revises: f4ff391becb5
@@ -38,7 +38,7 @@ airflow_version = "2.4.0"
 
 
 def upgrade():
-    """Apply Add ``DagOwnerAttributes`` table"""
+    """Apply Add ``DagOwnerAttributes`` table."""
     op.create_table(
         "dag_owner_attributes",
         sa.Column("dag_id", StringID(), nullable=False),
@@ -50,5 +50,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add Dataset model"""
+    """Unapply Add Dataset model."""
     op.drop_table("dag_owner_attributes")

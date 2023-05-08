@@ -132,7 +132,7 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
     Checks for the existence of a file in Google Cloud Storage.
     Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release.
-    Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead
+    Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead.
 
     :param bucket: The Google Cloud Storage bucket where the object is.
     :param object: The name of the object to check in the Google cloud storage bucket.
@@ -317,7 +317,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         return bool(self._matches)
 
     def execute(self, context: Context):
-        """Overridden to allow matches to be passed"""
+        """Overridden to allow matches to be passed."""
         self.log.info("Checking for existence of object: %s, %s", self.bucket, self.prefix)
         if not self.deferrable:
             super().execute(context)
@@ -341,7 +341,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
         """
         Callback for when the trigger fires; returns immediately.
-        Relies on trigger to throw a success event
+        Relies on trigger to throw a success event.
         """
         self.log.info("Resuming from trigger and checking status")
         if event["status"] == "success":

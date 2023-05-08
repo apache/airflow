@@ -75,7 +75,7 @@ class ComputeEngineHook(GoogleBaseHook):
         """
         Retrieves connection to Google Compute Engine.
         :return: Google Compute Engine services object
-        :rtype: dict
+        :rtype: dict.
         """
         if not self._conn:
             http_authorized = self._authorize()
