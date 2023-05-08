@@ -53,10 +53,10 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="approle", role_id="role", url="http://localhost:8180", secret_id="pass"
+            auth_type="approle", role_id="role", url="http://localhost:8180", secret_id="pass", session=None
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -71,9 +71,10 @@ class TestVaultClient:
             url="http://localhost:8180",
             secret_id="pass",
             auth_mount_point="other",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -90,10 +91,15 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="aws_iam", role_id="role", url="http://localhost:8180", key_id="user", secret_id="pass"
+            auth_type="aws_iam",
+            role_id="role",
+            url="http://localhost:8180",
+            key_id="user",
+            secret_id="pass",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.aws.iam_login.assert_called_with(
             access_key="user",
             secret_key="pass",
@@ -113,9 +119,10 @@ class TestVaultClient:
             key_id="user",
             secret_id="pass",
             auth_mount_point="other",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.aws.iam_login.assert_called_with(
             access_key="user", secret_key="pass", role="role", mount_point="other"
         )
@@ -133,9 +140,10 @@ class TestVaultClient:
             url="http://localhost:8180",
             key_id="user",
             secret_id="pass",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.azure.configure.assert_called_with(
             tenant_id="tenant_id",
             resource="resource",
@@ -157,9 +165,10 @@ class TestVaultClient:
             key_id="user",
             secret_id="pass",
             auth_mount_point="other",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.azure.configure.assert_called_with(
             tenant_id="tenant_id",
             resource="resource",
@@ -205,15 +214,19 @@ class TestVaultClient:
         mock_get_scopes.return_value = ["scope1", "scope2"]
         mock_get_credentials.return_value = ("credentials", "project_id")
         vault_client = _VaultClient(
-            auth_type="gcp", gcp_key_path="path.json", gcp_scopes="scope1,scope2", url="http://localhost:8180"
+            auth_type="gcp",
+            gcp_key_path="path.json",
+            gcp_scopes="scope1,scope2",
+            url="http://localhost:8180",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.gcp.configure.assert_called_with(
             credentials="credentials",
         )
@@ -234,14 +247,15 @@ class TestVaultClient:
             gcp_scopes="scope1,scope2",
             url="http://localhost:8180",
             auth_mount_point="other",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
             key_path="path.json", keyfile_dict=None, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.gcp.configure.assert_called_with(credentials="credentials", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -259,14 +273,15 @@ class TestVaultClient:
             gcp_keyfile_dict={"key": "value"},
             gcp_scopes="scope1,scope2",
             url="http://localhost:8180",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_get_scopes.assert_called_with("scope1,scope2")
         mock_get_credentials.assert_called_with(
             key_path=None, keyfile_dict={"key": "value"}, scopes=["scope1", "scope2"]
         )
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.gcp.configure.assert_called_with(
             credentials="credentials",
         )
@@ -278,10 +293,10 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="github", token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180"
+            auth_type="github", token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180", session=None
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.github.login.assert_called_with(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -295,9 +310,10 @@ class TestVaultClient:
             token="s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             url="http://localhost:8180",
             auth_mount_point="other",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.github.login.assert_called_with(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -315,12 +331,12 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="kubernetes", kubernetes_role="kube_role", url="http://localhost:8180"
+            auth_type="kubernetes", kubernetes_role="kube_role", url="http://localhost:8180", session=None
         )
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
             client = vault_client.client
         mock_file.assert_called_with("/var/run/secrets/kubernetes.io/serviceaccount/token")
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(role="kube_role", jwt="data")
         client.is_authenticated.assert_called_with()
@@ -336,11 +352,12 @@ class TestVaultClient:
             kubernetes_role="kube_role",
             kubernetes_jwt_path="path",
             url="http://localhost:8180",
+            session=None,
         )
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
             client = vault_client.client
         mock_file.assert_called_with("path")
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(role="kube_role", jwt="data")
         client.is_authenticated.assert_called_with()
@@ -357,11 +374,12 @@ class TestVaultClient:
             kubernetes_jwt_path="path",
             auth_mount_point="other",
             url="http://localhost:8180",
+            session=None,
         )
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
             client = vault_client.client
         mock_file.assert_called_with("path")
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(
             role="kube_role", jwt="data", mount_point="other"
@@ -393,10 +411,10 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="ldap", username="user", password="pass", url="http://localhost:8180"
+            auth_type="ldap", username="user", password="pass", url="http://localhost:8180", session=None
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.ldap.login.assert_called_with(username="user", password="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -411,9 +429,10 @@ class TestVaultClient:
             password="pass",
             auth_mount_point="other",
             url="http://localhost:8180",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.ldap.login.assert_called_with(username="user", password="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -437,10 +456,14 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="radius", radius_host="radhost", radius_secret="pass", url="http://localhost:8180"
+            auth_type="radius",
+            radius_host="radhost",
+            radius_secret="pass",
+            url="http://localhost:8180",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.radius.configure.assert_called_with(host="radhost", secret="pass", port=None)
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -455,9 +478,10 @@ class TestVaultClient:
             radius_secret="pass",
             auth_mount_point="other",
             url="http://localhost:8180",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.radius.configure.assert_called_with(
             host="radhost", secret="pass", port=None, mount_point="other"
         )
@@ -474,9 +498,10 @@ class TestVaultClient:
             radius_port=8110,
             radius_secret="pass",
             url="http://localhost:8180",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.radius.configure.assert_called_with(host="radhost", secret="pass", port=8110)
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -493,10 +518,10 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="token", token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180"
+            auth_type="token", token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180", session=None
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert 2 == vault_client.kv_engine_version
@@ -509,10 +534,10 @@ class TestVaultClient:
         with open("/tmp/test_token.txt", "w+") as the_file:
             the_file.write("s.7AU0I51yv1Q1lxOIg1F3ZRAS")
         vault_client = _VaultClient(
-            auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180"
+            auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180", session=None
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert 2 == vault_client.kv_engine_version
@@ -525,10 +550,10 @@ class TestVaultClient:
         with open("/tmp/test_token.txt", "w+") as the_file:
             the_file.write("  s.7AU0I51yv1Q1lxOIg1F3ZRAS\n")
         vault_client = _VaultClient(
-            auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180"
+            auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180", session=None
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert 2 == vault_client.kv_engine_version
@@ -538,9 +563,11 @@ class TestVaultClient:
     def test_default_auth_type(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        vault_client = _VaultClient(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180")
+        vault_client = _VaultClient(
+            token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180", session=None
+        )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.is_authenticated.assert_called_with()
         assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
         assert "token" == vault_client.auth_type
@@ -552,10 +579,10 @@ class TestVaultClient:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         vault_client = _VaultClient(
-            auth_type="userpass", username="user", password="pass", url="http://localhost:8180"
+            auth_type="userpass", username="user", password="pass", url="http://localhost:8180", session=None
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.userpass.login.assert_called_with(username="user", password="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
@@ -570,9 +597,10 @@ class TestVaultClient:
             password="pass",
             auth_mount_point="other",
             url="http://localhost:8180",
+            session=None,
         )
         client = vault_client.client
-        mock_hvac.Client.assert_called_with(url="http://localhost:8180")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.userpass.login.assert_called_with(username="user", password="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
