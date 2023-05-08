@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -171,11 +172,15 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     :param print_log: if the operator should print the cloudwatch log during processing
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the processing job
+    :param max_attempts: Number of times to poll for query state before returning the current state,
+        defaults to None.
     :param max_ingestion_time: If wait is set to True, the operation fails if the processing job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
         (default), "increment" (deprecated) and "fail".
+    :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
+        set to True.
     :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
     """
 
@@ -187,8 +192,10 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         action_if_job_exists: str = "timestamp",
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -208,7 +215,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
+        self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
+        self.deferrable = deferrable
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -234,14 +243,45 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.hook.describe_processing_job,
         )
 
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "Setting deferrable to True does not have effect when wait_for_completion is set to False."
+            )
+
+        wait_for_completion = self.wait_for_completion
+        if self.deferrable and self.wait_for_completion:
+            # Set wait_for_completion to False so that it waits for the status in the deferred task.
+            wait_for_completion = False
+
         response = self.hook.create_processing_job(
             self.config,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=wait_for_completion,
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Processing Job creation failed: {response}")
+
+        if self.deferrable and self.wait_for_completion:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=SageMakerTrigger(
+                    job_name=self.config["ProcessingJobName"],
+                    job_type="Processing",
+                    poke_interval=self.check_interval,
+                    max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+        return {"Processing": serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))}
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info(event["message"])
         return {"Processing": serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))}
 
 
