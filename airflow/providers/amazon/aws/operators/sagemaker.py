@@ -723,6 +723,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param print_log: if the operator should print the cloudwatch log during training
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the training job
+    :param max_attempts: Number of times to poll for query state before returning the current state,
+        defaults to None.
     :param max_ingestion_time: If wait is set to True, the operation fails if the training job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
@@ -731,6 +733,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
         (default), "increment" (deprecated) and "fail".
         This is only relevant if check_if_job_exists is True.
+    :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
+        set to True.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
 
@@ -742,15 +746,18 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
+        self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
         if action_if_job_exists in {"timestamp", "increment", "fail"}:
@@ -767,6 +774,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
+        self.deferrable = deferrable
 
     def expand_role(self) -> None:
         """Expands an IAM role name into an ARN."""
@@ -793,17 +801,50 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             )
 
         self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
+
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "Setting deferrable to True does not have effect when wait_for_completion is set to False."
+            )
+
+        wait_for_completion = self.wait_for_completion
+        if self.deferrable and self.wait_for_completion:
+            # Set wait_for_completion to False so that it waits for the status in the deferred task.
+            wait_for_completion = False
+
         response = self.hook.create_training_job(
             self.config,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=wait_for_completion,
             print_log=self.print_log,
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Training Job creation failed: {response}")
+
+        if self.deferrable and self.wait_for_completion:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=SageMakerTrigger(
+                    job_name=self.config["TrainingJobName"],
+                    job_type="Training",
+                    poke_interval=self.check_interval,
+                    max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+        result = {"Training": serialize(self.hook.describe_training_job(self.config["TrainingJobName"]))}
+        return result
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
         else:
-            return {"Training": serialize(self.hook.describe_training_job(self.config["TrainingJobName"]))}
+            self.log.info(event["message"])
+        result = {"Training": serialize(self.hook.describe_training_job(self.config["TrainingJobName"]))}
+        return result
 
 
 class SageMakerDeleteModelOperator(SageMakerBaseOperator):
