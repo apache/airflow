@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 class GlueCrawlerSensor(BaseSensorOperator):
     """
-    Waits for an AWS Glue crawler to reach any of the statuses below
-    'FAILED', 'CANCELLED', 'SUCCEEDED'.
+    Waits for an AWS Glue crawler to reach any of the statuses 'FAILED', 'CANCELLED', 'SUCCEEDED'.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

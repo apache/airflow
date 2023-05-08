@@ -41,7 +41,8 @@ from airflow.utils import timezone
 class LogState:
     """
     Enum-style class holding all possible states of CloudWatch log streams.
-    https://sagemaker.readthedocs.io/en/stable/session.html#sagemaker.session.LogState.
+
+    https://sagemaker.readthedocs.io/en/stable/session.html#sagemaker.session.LogState
     """
 
     STARTING = 1

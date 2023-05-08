@@ -297,16 +297,18 @@ def setup_logging(filename):
 
 def sigint_handler(sig, frame):
     """
-    Returns without error on SIGINT or SIGTERM signals in interactive command mode
-    e.g. CTRL+C or kill <PID>.
+    Returns without error on SIGINT or SIGTERM signals in interactive command mode.
+
+    e.g. CTRL+C or kill <PID>
     """
     sys.exit(0)
 
 
 def sigquit_handler(sig, frame):
     """
-    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
-    e.g. kill -s QUIT <PID> or CTRL+.
+    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT.
+
+    e.g. kill -s QUIT <PID> or CTRL+
     """
     print(f"Dumping stack traces for all threads in PID {os.getpid()}")
     id_to_name = {th.ident: th.name for th in threading.enumerate()}

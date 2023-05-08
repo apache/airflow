@@ -146,7 +146,6 @@ class StackdriverTaskHandler(logging.Handler):
         return self.transport_type(self._client, self.name)  # type: ignore[call-arg]
 
     def _get_labels(self, task_instance=None):
-        """When."""
         if task_instance:
             ti_labels = self._task_instance_to_labels(task_instance)
         else:

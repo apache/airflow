@@ -242,9 +242,10 @@ def cross_downstream(*args, **kwargs):
 
 def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     """
-    Build airflow url using base_url and default_view and provided query
+    Build airflow url using base_url and default_view and provided query.
+
     For example:
-    'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587.
+    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     import flask
 

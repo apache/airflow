@@ -132,9 +132,10 @@ class SubDagOperator(BaseSensorOperator):
         Set task instance states to allow for execution.
         Set the DagRun state to RUNNING and set the failed TaskInstances to None state
         for scheduler to pick up.
+
         :param dag_run: DAG run
         :param execution_date: Execution date
-        :return: None.
+        :return: None
         """
         with create_session() as session:
             dag_run.state = State.RUNNING

@@ -762,8 +762,9 @@ def _get_current_revision(session):
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
+
     :param timeout: Timeout for the migration in seconds
-    :return: None.
+    :return: None
     """
     timeout = timeout or 1  # run the loop at least 1
     with _configured_alembic_environment() as env:

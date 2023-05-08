@@ -164,8 +164,9 @@ def reap_process_group(
 def execute_in_subprocess(cmd: list[str], cwd: str | None = None) -> None:
     """
     Execute a process and stream output to logger.
+
     :param cmd: command and arguments to run
-    :param cwd: Current working directory passed to the Popen constructor.
+    :param cwd: Current working directory passed to the Popen constructor
     """
     execute_in_subprocess_with_kwargs(cmd, cwd=cwd)
 

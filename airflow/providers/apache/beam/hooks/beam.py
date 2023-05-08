@@ -42,8 +42,7 @@ from airflow.utils.python_virtualenv import prepare_virtualenv
 class BeamRunnerType:
     """
     Helper class for listing runner types.
-    For more information about runners see:
-    https://beam.apache.org/documentation/.
+    For more information about runners see https://beam.apache.org/documentation/.
     """
 
     DataflowRunner = "DataflowRunner"

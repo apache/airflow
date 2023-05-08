@@ -386,7 +386,8 @@ class BaseDatabricksHook(BaseHook):
     def _check_azure_metadata_service() -> None:
         """
         Check for Azure Metadata Service.
-        https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service.
+
+        https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
         """
         try:
             jsn = requests.get(

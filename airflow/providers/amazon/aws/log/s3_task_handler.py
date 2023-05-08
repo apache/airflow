@@ -31,8 +31,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
-    TODO: delete this function when min airflow version >= 2.6.
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
+    TODO: delete this function when min airflow version >= 2.6
     """
     from airflow.version import version
 

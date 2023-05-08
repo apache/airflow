@@ -30,8 +30,7 @@ if TYPE_CHECKING:
 
 class GlueJobSensor(BaseSensorOperator):
     """
-    Waits for an AWS Glue Job to reach any of the status below
-    'FAILED', 'STOPPED', 'SUCCEEDED'.
+    Waits for an AWS Glue Job to reach any of the status 'FAILED', 'STOPPED', 'SUCCEEDED'.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

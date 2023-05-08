@@ -51,9 +51,10 @@ log = logging.getLogger("flask_appbuilder.base")
 
 def dynamic_class_import(class_path):
     """
-    Will dynamically import a class from a string path
+    Will dynamically import a class from a string path.
+
     :param class_path: string with class path
-    :return: class.
+    :return: class
     """
     # Split first occurrence of path
     try:
@@ -172,6 +173,7 @@ class AirflowAppBuilder:
     def init_app(self, app, session):
         """
         Will initialize the Flask app, supporting the app factory pattern.
+
         :param app:
         :param session: The SQLAlchemy session.
         """
@@ -260,8 +262,9 @@ class AirflowAppBuilder:
     @property
     def get_app(self):
         """
-        Get current or configured flask app
-        :return: Flask App.
+        Get current or configured flask app.
+
+        :return: Flask App
         """
         if self.app:
             return self.app
@@ -272,31 +275,35 @@ class AirflowAppBuilder:
     def get_session(self):
         """
         Get the current sqlalchemy session.
-        :return: SQLAlchemy Session.
+
+        :return: SQLAlchemy Session
         """
         return self.session
 
     @property
     def app_name(self):
         """
-        Get the App name
-        :return: String with app name.
+        Get the App name.
+
+        :return: String with app name
         """
         return self.get_app.config["APP_NAME"]
 
     @property
     def app_theme(self):
         """
-        Get the App theme name
-        :return: String app theme name.
+        Get the App theme name.
+
+        :return: String app theme name
         """
         return self.get_app.config["APP_THEME"]
 
     @property
     def app_icon(self):
         """
-        Get the App icon location
-        :return: String with relative app icon location.
+        Get the App icon location.
+
+        :return: String with relative app icon location
         """
         return self.get_app.config["APP_ICON"]
 
@@ -307,8 +314,9 @@ class AirflowAppBuilder:
     @property
     def version(self):
         """
-        Get the current F.A.B. version
-        :return: String with the current F.A.B. version.
+        Get the current F.A.B. version.
+
+        :return: String with the current F.A.B. version
         """
         return __version__
 
@@ -564,14 +572,15 @@ class AirflowAppBuilder:
 
     def security_converge(self, dry=False) -> dict:
         """
-            This method is useful when you use:
-            - `class_permission_name`
-            - `previous_class_permission_name`
-            - `method_permission_name`
-            - `previous_method_permission_name`
-            migrates all permissions to the new names on all the Roles
+        This method is useful when you use:
+        - `class_permission_name`
+        - `previous_class_permission_name`
+        - `method_permission_name`
+        - `previous_method_permission_name`
+        Migrates all permissions to the new names on all the Roles.
+
         :param dry: If True will not change DB
-        :return: Dict with all computed necessary operations.
+        :return: Dict with all computed necessary operations
         """
         return self.sm.security_converge(self.baseviews, self.menu, dry)
 
