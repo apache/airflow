@@ -32,7 +32,7 @@ from enum import Enum
 from functools import partial
 from pathlib import PurePath
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, NamedTuple, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
 from urllib.parse import quote
 
 import dill
@@ -92,6 +92,7 @@ from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
 from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComAccess, XCom
@@ -122,6 +123,7 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -138,7 +140,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
-    from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+    from airflow.utils.task_group import TaskGroup
 
     # This is a workaround because mypy doesn't work with hybrid_property
     # TODO: remove this hack and move hybrid_property back to main import block
@@ -343,40 +345,6 @@ def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
     return True
 
 
-class TaskInstanceKey(NamedTuple):
-    """Key used to identify task instance."""
-
-    dag_id: str
-    task_id: str
-    run_id: str
-    try_number: int = 1
-    map_index: int = -1
-
-    @property
-    def primary(self) -> tuple[str, str, str, int]:
-        """Return task instance primary key part of the key"""
-        return self.dag_id, self.task_id, self.run_id, self.map_index
-
-    @property
-    def reduced(self) -> TaskInstanceKey:
-        """Remake the key by subtracting 1 from try number to match in memory information"""
-        return TaskInstanceKey(
-            self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1), self.map_index
-        )
-
-    def with_try_number(self, try_number: int) -> TaskInstanceKey:
-        """Returns TaskInstanceKey with provided ``try_number``"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
-
-    @property
-    def key(self) -> TaskInstanceKey:
-        """For API-compatibly with TaskInstance.
-
-        Returns self
-        """
-        return self
-
-
 def _creator_note(val):
     """Custom creator for the ``note`` association proxy."""
     if isinstance(val, str):
@@ -455,6 +423,15 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_dag_run", dag_id, run_id),
         Index("ti_state", state),
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
+        # The below index has been added to improve performance on postgres setups with tens of millions of
+        # taskinstance rows. Aim is to improve the below query (it can be used to find the last successful
+        # execution date of a task instance):
+        #    SELECT start_date FROM task_instance WHERE dag_id = 'xx' AND task_id = 'yy' AND state = 'success'
+        #    ORDER BY start_date DESC NULLS LAST LIMIT 1;
+        # Existing "ti_state_lkp" is not enough for such query when this table has millions of rows, since
+        # rows have to be fetched in order to retrieve the start_date column. With this index, INDEX ONLY SCAN
+        # is performed and that query runs within milliseconds.
+        Index("ti_state_incl_start_date", dag_id, task_id, state, postgresql_include=["start_date"]),
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),

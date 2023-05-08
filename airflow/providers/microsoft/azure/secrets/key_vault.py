@@ -24,6 +24,7 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
@@ -128,7 +129,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
                 "in a future release.  Please use method `get_conn_value` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         return self.get_conn_value(conn_id)

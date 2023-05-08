@@ -16,19 +16,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is the template for Airflow's default configuration. When Airflow is
-# imported, it looks for a configuration file at $AIRFLOW_HOME/airflow.cfg. If
-# it doesn't exist, Airflow uses this template to generate it by replacing
-# variables in curly braces with their global values from configuration.py.
+"""Add index to task_instance table
 
-# Users should not modify this file; they should customize the generated
-# airflow.cfg instead.
+Revision ID: 937cbd173ca1
+Revises: 98ae134e6fff
+Create Date: 2023-05-03 11:31:32.527362
+
+"""
+from __future__ import annotations
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = "937cbd173ca1"
+down_revision = "98ae134e6fff"
+branch_labels = None
+depends_on = None
+airflow_version = "2.7.0"
 
 
-# ----------------------- TEMPLATE BEGINS HERE -----------------------
+def upgrade():
+    """Apply Add index to task_instance table"""
+    op.create_index(
+        "ti_state_incl_start_date",
+        "task_instance",
+        ["dag_id", "task_id", "state"],
+        postgresql_include=["start_date"],
+    )
 
-[providers_google]
 
-# Options for google provider
-# Sets verbose logging for google provider
-verbose_logging = False
+def downgrade():
+    """Unapply Add index to task_instance table"""
+    op.drop_index("ti_state_incl_start_date", table_name="task_instance")

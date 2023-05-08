@@ -98,7 +98,7 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
 
     from airflow.models.dag import DAG
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
@@ -962,22 +962,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @classmethod
     def as_setup(cls, *args, **kwargs):
-        from airflow.settings import _ENABLE_AIP_52
-
-        if not _ENABLE_AIP_52:
-            raise AirflowException("AIP-52 Setup tasks are disabled.")
-
         op = cls(*args, **kwargs)
         op._is_setup = True
         return op
 
     @classmethod
     def as_teardown(cls, *args, **kwargs):
-        from airflow.settings import _ENABLE_AIP_52
-
-        if not _ENABLE_AIP_52:
-            raise AirflowException("AIP-52 Teardown tasks are disabled.")
-
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
         if "trigger_rule" in kwargs:
             raise ValueError("Cannot set trigger rule for teardown tasks.")

@@ -30,7 +30,7 @@ from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.utils import yaml
@@ -351,7 +351,7 @@ class KubernetesHook(BaseHook):
                 "not defined in the connection so that it's clear whether user intends 'default' or "
                 "whether namespace is unset (which is required in order to apply precedence logic in "
                 "KubernetesPodOperator).",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
             )
             return "default"
         return namespace

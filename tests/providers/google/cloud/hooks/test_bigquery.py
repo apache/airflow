@@ -29,7 +29,7 @@ from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryAsyncHook,
     BigQueryCursor,
@@ -2060,7 +2060,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
         bq_cursor = BigQueryCursor(mock.MagicMock(), PROJECT_ID, mock_bq_hook)
         func = getattr(bq_cursor, func_name)
 
-        with pytest.warns(DeprecationWarning, match=message_regex):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=message_regex):
             _ = func(*args, **kwargs)
 
         mocked_func.assert_called_once_with(*args, **kwargs)

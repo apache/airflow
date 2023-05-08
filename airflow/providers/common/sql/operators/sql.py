@@ -622,7 +622,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _generate_sql_query(self):
-        self.log.info("Partition clause: %s", self.partition_clause)
+        self.log.debug("Partition clause: %s", self.partition_clause)
 
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:

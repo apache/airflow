@@ -71,7 +71,7 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.settings import _ENABLE_AIP_52, TIMEZONE
+from airflow.settings import TIMEZONE
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -1103,7 +1103,6 @@ class TestTaskInstance:
     # of the trigger_rule under various circumstances
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, removed, done
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     @pytest.mark.parametrize(
         "trigger_rule, upstream_setups, upstream_states, flag_upstream_failed, expect_state, expect_passed",
         [

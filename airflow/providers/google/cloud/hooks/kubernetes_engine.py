@@ -50,7 +50,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow import version
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -100,7 +100,7 @@ class GKEHook(GoogleBaseHook):
     def get_conn(self) -> container_v1.ClusterManagerClient:
         warnings.warn(
             "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.get_cluster_manager_client()
 
@@ -109,7 +109,7 @@ class GKEHook(GoogleBaseHook):
     def get_client(self) -> ClusterManagerClient:
         warnings.warn(
             "The get_client method has been deprecated. You should use the get_conn method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.get_conn()
 

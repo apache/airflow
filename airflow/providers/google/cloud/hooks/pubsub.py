@@ -47,6 +47,7 @@ from google.cloud.pubsub_v1.types import (
 from googleapiclient.errors import HttpError
 
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from airflow.version import version
@@ -146,7 +147,7 @@ class PubSubHook(GoogleBaseHook):
                     warnings.warn(
                         "The base 64 encoded string as 'data' field has been deprecated. "
                         "You should pass bytestring (utf-8 encoded).",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=4,
                     )
                 except ValueError:
