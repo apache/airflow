@@ -115,7 +115,14 @@ spec:
           resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          volumeMounts: {{- include "airflow_config_mount" . | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.dagProcessor.extraVolumeMounts }}
+              {{- toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
