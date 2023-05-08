@@ -151,6 +151,21 @@ passed to the execute method of the operators via the :class:`~airflow.models.ta
   _api/airflow/models/taskinstance/index
 
 
+Task Instance Keys
+------------------
+
+Task instance keys are unique identifiers of task instances in a DAG (in a DAG Run). A key is a tuple that consists of
+``dag_id``, ``task_id``, ``run_id``, ``try_number``, and ``map_index``. The key of a task instance can be retrieved via
+:meth:`~airflow.models.taskinstance.TaskInstance.key`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/taskinstancekey/index
+
+
 Hooks
 -----
 

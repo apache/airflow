@@ -70,7 +70,7 @@ Content
 
 
 Package apache-airflow-providers-openlineage
---------------------------------------------
+------------------------------------------------------
 
 `OpenLineage <https://openlineage.io/>`__
 
@@ -93,10 +93,16 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.6.0``
-==================  ==================
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+
+=======================================  ==================
+PIP package                              Version required
+=======================================  ==================
+``apache-airflow``                       ``>=2.6.0``
+``apache-airflow-providers-common-sql``  ``>=1.3.1``
+``attrs``                                ``>=22.2``
+``openlineage-integration-common``       ``>=0.22.0``
+``openlineage-python``                   ``>=0.22.0``
+=======================================  ==================
 
 .. include:: ../../airflow/providers/openlineage/CHANGELOG.rst

@@ -218,7 +218,7 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert "Deployment" == jmespath.search("kind", docs[0])
+        assert "StatefulSet" == jmespath.search("kind", docs[0])
         assert "foo" == jmespath.search(
             "spec.template.spec.affinity.nodeAffinity."
             "requiredDuringSchedulingIgnoredDuringExecution."

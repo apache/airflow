@@ -164,10 +164,13 @@ with DAG(
         task_id="add_steps",
         job_flow_id=create_job_flow.output,
         steps=SPARK_STEPS,
-        wait_for_completion=True,
         execution_role_arn=execution_role_arn,
     )
     # [END howto_operator_emr_add_steps]
+    add_steps.wait_for_completion = True
+    # On rare occasion (1 in 50ish?) this system test times out.  Extending the
+    # max_attempts from the default 60 to attempt to mitigate the flaky test.
+    add_steps.waiter_max_attempts = 90
 
     # [START howto_sensor_emr_step]
     wait_for_step = EmrStepSensor(
