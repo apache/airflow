@@ -626,6 +626,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 },
                 synchronize_session=False,
             )
+            for ti in executable_tis:
+                ti.emit_state_change_metric(State.QUEUED)
 
         for ti in executable_tis:
             make_transient(ti)

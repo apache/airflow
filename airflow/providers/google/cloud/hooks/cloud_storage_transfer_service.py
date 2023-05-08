@@ -29,7 +29,7 @@ from typing import Sequence
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 log = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
                     raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
-                warnings.warn("Use 'request_filter' instead of 'filter'", DeprecationWarning)
+                warnings.warn("Use 'request_filter' instead of 'filter'", AirflowProviderDeprecationWarning)
             else:
                 raise TypeError("list_transfer_job missing 1 required positional argument: 'request_filter'")
 
@@ -364,7 +364,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
                     raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
-                warnings.warn("Use 'request_filter' instead of 'filter'", DeprecationWarning)
+                warnings.warn("Use 'request_filter' instead of 'filter'", AirflowProviderDeprecationWarning)
             else:
                 raise TypeError(
                     "list_transfer_operations missing 1 required positional argument: 'request_filter'"

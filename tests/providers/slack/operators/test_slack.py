@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.slack.operators.slack import (
     SlackAPIFileOperator,
@@ -271,7 +272,7 @@ class TestSlackAPIFileOperator:
             r"Argument `channel` is deprecated and will removed in a future releases\. "
             r"Please use `channels` instead\."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             op = SlackAPIFileOperator(
                 task_id="slack",
                 slack_conn_id=SLACK_API_TEST_CONNECTION_ID,

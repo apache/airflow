@@ -32,7 +32,7 @@ from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class SequentialExecutor(BaseExecutor):

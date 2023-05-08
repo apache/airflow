@@ -605,8 +605,7 @@ class DagBag(LoggingMixin):
         -------------------------------------------------------------------
         Number of DAGs: {dag_num}
         Total task number: {task_num}
-        DagBag parsing time: {duration}
-        {table}
+        DagBag parsing time: {duration}\n{table}
         """
         )
         return report

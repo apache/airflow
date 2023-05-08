@@ -54,7 +54,7 @@ from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TaskInstance key, command, configuration, pod_template_file
     KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]

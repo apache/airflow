@@ -33,7 +33,7 @@ from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 
@@ -224,7 +224,7 @@ class DockerOperator(BaseOperator):
         if type(auto_remove) == bool:
             warnings.warn(
                 "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         if str(auto_remove) == "False":
@@ -280,7 +280,9 @@ class DockerOperator(BaseOperator):
         self.ipc_mode = ipc_mode
         if skip_exit_code is not None:
             warnings.warn(
-                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
+                "skip_exit_code is deprecated. Please use skip_on_exit_code",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             skip_on_exit_code = skip_exit_code
 
