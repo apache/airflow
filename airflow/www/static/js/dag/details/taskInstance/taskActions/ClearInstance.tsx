@@ -30,10 +30,10 @@ import {
 } from "@chakra-ui/react";
 
 import { getMetaValue } from "src/utils";
-import { useKeysPress } from "src/utils/useKeysPress";
+import useKeysPress from "src/utils/useKeysPress";
 import { useClearTask } from "src/api";
 import useClearTaskDryRun from "src/api/useClearTaskDryRun";
-import { keyboardShortcutIdentifier } from "src/dag/keyboardShortcutIdentifier";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 
 import ActionButton from "./ActionButton";
 import ActionModal from "./ActionModal";
@@ -81,7 +81,11 @@ const ClearInstance = ({
 
   const initialClearButtonFocusRef = useRef<HTMLButtonElement>(null);
 
-  useKeysPress(keyboardShortcutIdentifier.taskRunClear, onOpen);
+  useKeysPress(
+    keyboardShortcutIdentifier.taskRunClear.primaryKey,
+    keyboardShortcutIdentifier.taskRunClear.secondaryKey,
+    onOpen
+  );
 
   const mapIndexes =
     mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;

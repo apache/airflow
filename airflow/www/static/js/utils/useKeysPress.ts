@@ -20,10 +20,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { debounce } from "lodash";
 
-import type { KeyboardShortcutKeys } from "src/types";
+import type { PrimaryShortcutKey } from "src/types";
 
 const useKeysPress = (
-  keyboardShortcutKey: KeyboardShortcutKeys,
+  primaryShortcutKey: PrimaryShortcutKey,
+  secondaryShortcutKeys: Array<string>,
   callback: Function,
   node = null
 ) => {
@@ -37,24 +38,22 @@ const useKeysPress = (
     (event: KeyboardEvent) => {
       // check if one of the primaryKey and secondaryKey are pressed at once
       if (
-        event[keyboardShortcutKey.primaryKey] &&
-        keyboardShortcutKey.secondaryKey.some((key: String) => event.key === key)
+        event[primaryShortcutKey] &&
+        secondaryShortcutKeys.some((key: String) => event.key === key)
       ) {
         callbackRef.current(event);
       }
     },
-    [keyboardShortcutKey.secondaryKey]
+    [primaryShortcutKey, secondaryShortcutKeys]
   );
 
-  const deboucedHandleKeyPress = debounce(handleKeyPress, 25);
-
   useEffect(() => {
+    const deboucedHandleKeyPress = debounce(handleKeyPress, 25);
     // target is either the provided node or the document
     const targetNode = node ?? document;
 
     // attach the event listener
-    targetNode &&
-      targetNode.addEventListener("keydown", deboucedHandleKeyPress);
+    targetNode?.addEventListener("keydown", deboucedHandleKeyPress);
 
     // remove the event listener
     return () =>
@@ -63,4 +62,4 @@ const useKeysPress = (
   }, [handleKeyPress, node]);
 };
 
-export { useKeysPress };
+export default useKeysPress;

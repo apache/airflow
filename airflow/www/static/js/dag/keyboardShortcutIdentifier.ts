@@ -19,7 +19,7 @@
 
 import type { KeyboardShortcutIdentifier } from "src/types";
 
-export const keyboardShortcutIdentifier: KeyboardShortcutIdentifier = {
+const keyboardShortcutIdentifier: KeyboardShortcutIdentifier = {
   dagRunClear: {
     primaryKey: "shiftKey",
     secondaryKey: ["c", "C"],
@@ -56,3 +56,5 @@ export const keyboardShortcutIdentifier: KeyboardShortcutIdentifier = {
     detail: "addOrEditNotes",
   },
 };
+
+export default keyboardShortcutIdentifier;

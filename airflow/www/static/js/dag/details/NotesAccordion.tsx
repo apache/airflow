@@ -37,8 +37,8 @@ import { getMetaValue } from "src/utils";
 import { useSetDagRunNote, useSetTaskInstanceNote } from "src/api";
 import { MdEdit } from "react-icons/md";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { useKeysPress } from "src/utils/useKeysPress";
-import { keyboardShortcutIdentifier } from "src/dag/keyboardShortcutIdentifier";
+import useKeysPress from "src/utils/useKeysPress";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 
 interface Props {
   dagId: string;
@@ -82,9 +82,13 @@ const NotesAccordion = ({
     setEditMode(false);
   };
 
-  useKeysPress(keyboardShortcutIdentifier.addOrEditNotes, () => {
-    if (canEdit) setEditMode(true);
-  });
+  useKeysPress(
+    keyboardShortcutIdentifier.addOrEditNotes.primaryKey,
+    keyboardShortcutIdentifier.addOrEditNotes.secondaryKey,
+    () => {
+      if (canEdit) setEditMode(true);
+    }
+  );
 
   return (
     <>
