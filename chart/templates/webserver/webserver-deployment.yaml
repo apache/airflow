@@ -1,19 +1,21 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
 
 ################################
 ## Airflow Webserver Deployment
@@ -63,8 +65,8 @@ spec:
       maxUnavailable: 0
     {{- else }}
     type: Recreate
-    {{- end}}
-    {{- end}}
+    {{- end }}
+    {{- end }}
   selector:
     matchLabels:
       tier: airflow
@@ -94,10 +96,9 @@ spec:
           {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
-{{- if .Values.webserver.hostAliases }}
-      hostAliases:
-{{ toYaml .Values.webserver.hostAliases | indent 8 }}
-{{- end }}
+      {{- if .Values.webserver.hostAliases }}
+      hostAliases: {{- toYaml .Values.webserver.hostAliases | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
       {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
@@ -196,7 +197,7 @@ spec:
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:
-              path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url}}
               httpHeaders:
@@ -204,10 +205,10 @@ spec:
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
               {{- end }}
               scheme: {{ .Values.webserver.livenessProbe.scheme | default "http" }}
-            initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
-            timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
-            failureThreshold: {{ .Values.webserver.livenessProbe.failureThreshold | default 20 }}
-            periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds | default 5 }}
+            initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.webserver.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
               path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
@@ -218,10 +219,10 @@ spec:
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
               {{- end }}
               scheme: {{ .Values.webserver.readinessProbe.scheme | default "http" }}
-            initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
-            timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
-            failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold | default 20 }}
-            periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds | default 5 }}
+            initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}

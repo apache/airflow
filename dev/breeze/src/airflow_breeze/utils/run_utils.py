@@ -56,7 +56,7 @@ def run_command(
     check: bool = True,
     no_output_dump_on_exception: bool = False,
     env: Mapping[str, str] | None = None,
-    cwd: Path | None = None,
+    cwd: Path | str | None = None,
     input: str | None = None,
     output: Output | None = None,
     output_outside_the_group: bool = False,

@@ -1,4 +1,0 @@
-The pgbouncer and pgbouncer-images are based on newer software/os. They are also multi-platform AMD/ARM images:
-
-* pgbouncer: 1.16.1 based on alpine 3.14 (airflow-pgbouncer-2023.02.24-1.16.1)
-* pgbouncer-exporter: 0.14.0 based on alpine 3.17 (apache/airflow:airflow-pgbouncer-exporter-2023.02.21-0.14.0)

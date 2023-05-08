@@ -17,9 +17,33 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from airflow.providers.apache.drill.hooks.drill import DrillHook
+
+
+@pytest.mark.parametrize(
+    "host, expect_error", [("host_with/", True), ("host_with&", True), ("good_host", False)]
+)
+def test_get_host(host, expect_error):
+    with patch(
+        "airflow.providers.apache.drill.hooks.drill.DrillHook.get_connection"
+    ) as mock_get_connection, patch("sqlalchemy.engine.base.Engine.raw_connection") as raw_connection:
+        raw_connection.return_value = MagicMock()
+        mock_get_connection.return_value = MagicMock(
+            host=host, port=80, login="drill_user", password="secret"
+        )
+        mock_get_connection.return_value.extra_dejson = {
+            "dialect_driver": "drill+sadrill",
+            "storage_plugin": "dfs",
+        }
+        if expect_error:
+            with pytest.raises(ValueError):
+                DrillHook().get_conn()
+        else:
+            assert DrillHook().get_conn()
 
 
 class TestDrillHook:

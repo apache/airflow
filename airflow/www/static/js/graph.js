@@ -253,6 +253,7 @@ function draw() {
 }
 
 let zoom = null;
+const maxZoom = 0.3;
 
 function setUpZoomSupport() {
   // Set up zoom support for Graph
@@ -272,12 +273,14 @@ function setUpZoomSupport() {
   const padding = width * 0.05;
 
   // Calculate applicable scale for zoom
+
   const zoomScale =
-    Math.min(Math.min(width / graphWidth, height / graphHeight)) * 0.8;
+    Math.min(Math.min(width / graphWidth, height / graphHeight), maxZoom) * 0.8;
 
   zoom.translate([width / 2 - (graphWidth * zoomScale) / 2 + padding, padding]);
   zoom.scale(zoomScale);
   zoom.event(innerSvg);
+  zoom.scaleExtent([0, maxZoom]);
 }
 
 function highlightNodes(nodes) {
@@ -664,7 +667,7 @@ function focusGroup(nodeId, followMouse = true) {
 
     // Calculate zoom scale to fill most of the canvas with the node/cluster in focus.
     const scale =
-      Math.min(Math.min(width / nodeWidth, height / nodeHeight), 1) * 0.2;
+      Math.min(Math.min(width / nodeWidth, height / nodeHeight), maxZoom) * 0.4;
 
     // Move the graph so that the node that was expanded/collapsed is centered around
     // the mouse click.

@@ -23,7 +23,7 @@ import string
 import pendulum
 from slugify import slugify
 
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 
 log = logging.getLogger(__name__)
 

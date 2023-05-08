@@ -28,7 +28,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import task, task_group
+from airflow.decorators import setup, task, task_group, teardown
 from airflow.models import (
     DAG,
     DagBag,
@@ -39,6 +39,7 @@ from airflow.models import (
     clear_task_instances,
 )
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRunNote
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
@@ -81,6 +82,7 @@ class TestDagRun:
         task_states: Mapping[str, TaskInstanceState] | None = None,
         execution_date: datetime.datetime | None = None,
         is_backfill: bool = False,
+        state: DagRunState = DagRunState.RUNNING,
         session: Session,
     ):
         now = timezone.utcnow()
@@ -98,7 +100,7 @@ class TestDagRun:
             execution_date=execution_date,
             data_interval=data_interval,
             start_date=now,
-            state=DagRunState.RUNNING,
+            state=state,
             external_trigger=False,
         )
 
@@ -110,11 +112,30 @@ class TestDagRun:
 
         return dag_run
 
-    def test_clear_task_instances_for_backfill_dagrun(self, session):
+    @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
+    def test_clear_task_instances_for_backfill_unfinished_dagrun(self, state, session):
         now = timezone.utcnow()
         dag_id = "test_clear_task_instances_for_backfill_dagrun"
         dag = DAG(dag_id=dag_id, start_date=now)
-        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, session=session)
+        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, state=state, session=session)
+
+        task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
+        ti0 = TI(task=task0, run_id=dag_run.run_id)
+        ti0.run()
+
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+        clear_task_instances(qry, session)
+        session.commit()
+        ti0.refresh_from_db()
+        dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
+        assert dr0.state == state
+
+    @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    def test_clear_task_instances_for_backfill_finished_dagrun(self, state, session):
+        now = timezone.utcnow()
+        dag_id = "test_clear_task_instances_for_backfill_dagrun"
+        dag = DAG(dag_id=dag_id, start_date=now)
+        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, state=state, session=session)
 
         task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
         ti0 = TI(task=task0, run_id=dag_run.run_id)
@@ -854,6 +875,7 @@ class TestDagRun:
         """
         dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule_interval)
         dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
+        expected_stat_tags = {"dag_id": f"{dag.dag_id}", "run_type": DagRunType.SCHEDULED}
 
         try:
             info = dag.next_dagrun_info(None)
@@ -888,12 +910,9 @@ class TestDagRun:
 
             if expected:
                 true_delay = ti.start_date - dag_run.data_interval_end
-                sched_delay_stat_call = call(
-                    metric_name,
-                    true_delay,
-                )
+                sched_delay_stat_call = call(metric_name, true_delay, tags=expected_stat_tags)
                 sched_delay_stat_call_with_tags = call(
-                    "dagrun.first_task_scheduling_delay", true_delay, tags={"dag_id": f"{dag.dag_id}"}
+                    "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
                 )
                 assert (
                     sched_delay_stat_call in stats_mock.mock_calls
@@ -940,6 +959,7 @@ class TestDagRun:
 @mock.patch.object(Stats, "incr")
 def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type, expected_tis):
     """Test that tasks with specific dates are only created for backfill runs"""
+
     with DAG("test", start_date=DEFAULT_DATE) as dag:
         EmptyOperator(task_id="without")
         EmptyOperator(task_id="with_start_date", start_date=DEFAULT_DATE + datetime.timedelta(1))
@@ -960,7 +980,9 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
     tis = dag_run.task_instances
     assert len(tis) == expected_tis
 
-    Stats_incr.assert_called_with("task_instance_created-EmptyOperator", expected_tis)
+    Stats_incr.assert_called_with(
+        "task_instance_created-EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+    )
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
@@ -1702,7 +1724,6 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         session.merge(ti)
     session.flush()
     with caplog.at_level(logging.DEBUG):
-
         # Run verify_integrity as a whole and assert the tasks were removed
         dr.verify_integrity()
         tis = dr.get_task_instances()
@@ -2267,3 +2288,168 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     dr1.task_instance_scheduling_decisions(session)
     for table in [TaskFail, XCom]:
         assert session.query(table).count() == 0
+
+
+def test_dagrun_with_note(dag_maker, session):
+    with dag_maker():
+
+        @task
+        def the_task():
+            print("Hi")
+
+        the_task()
+
+    dr: DagRun = dag_maker.create_dagrun()
+    dr.note = "dag run with note"
+
+    session.add(dr)
+    session.commit()
+
+    dr_note = session.query(DagRunNote).filter(DagRunNote.dag_run_id == dr.id).one()
+    assert dr_note.content == "dag run with note"
+
+    session.delete(dr)
+    session.commit()
+
+    assert session.query(DagRun).filter(DagRun.id == dr.id).one_or_none() is None
+    assert session.query(DagRunNote).filter(DagRunNote.dag_run_id == dr.id).one_or_none() is None
+
+
+@pytest.mark.parametrize(
+    "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
+)
+def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state, on_failure_fail_dagrun):
+    with dag_maker():
+
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        def teardowntask():
+            print(1)
+
+        @task
+        def mytask():
+            print(1)
+
+        mytask() >> teardowntask()
+
+    dr = dag_maker.create_dagrun()
+    ti1 = dr.get_task_instance(task_id="mytask")
+    td1 = dr.get_task_instance(task_id="teardowntask")
+    ti1.state = State.SUCCESS
+    td1.state = State.FAILED
+    session.merge(ti1)
+    session.merge(td1)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    dr = session.query(DagRun).one()
+    assert dr.state == dag_run_state
+
+
+@pytest.mark.parametrize(
+    "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
+)
+def test_teardown_failure_on_non_leave_behaviour_on_dagrun(
+    dag_maker, session, dag_run_state, on_failure_fail_dagrun
+):
+    with dag_maker():
+
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        def teardowntask():
+            print(1)
+
+        @teardown
+        def teardowntask2():
+            print(1)
+
+        @task
+        def mytask():
+            print(1)
+
+        mytask() >> teardowntask() >> teardowntask2()
+
+    dr = dag_maker.create_dagrun()
+    ti1 = dr.get_task_instance(task_id="mytask")
+    td1 = dr.get_task_instance(task_id="teardowntask")
+    td2 = dr.get_task_instance(task_id="teardowntask2")
+    ti1.state = State.SUCCESS
+    td1.state = State.FAILED
+    td2.state = State.FAILED
+    session.merge(ti1)
+    session.merge(td1)
+    session.merge(td2)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    dr = session.query(DagRun).one()
+    assert dr.state == dag_run_state
+
+
+def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session):
+    with dag_maker():
+
+        @setup
+        def setuptask():
+            print(2)
+
+        @teardown
+        def teardown_task():
+            print(1)
+
+        @task
+        def mytask():
+            print(1)
+
+        with setuptask() >> teardown_task():
+            mytask()
+
+    dr = dag_maker.create_dagrun()
+    s1 = dr.get_task_instance(task_id="setuptask")
+    td1 = dr.get_task_instance(task_id="teardown_task")
+    t1 = dr.get_task_instance(task_id="mytask")
+    s1.state = TaskInstanceState.SUCCESS
+    td1.state = TaskInstanceState.SUCCESS
+    t1.state = TaskInstanceState.FAILED
+    session.merge(s1)
+    session.merge(td1)
+    session.merge(t1)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    dr = session.query(DagRun).one()
+    assert dr.state == DagRunState.FAILED
+
+
+def test_failure_of_leave_task_not_connected_to_teardown_task(dag_maker, session):
+    with dag_maker():
+
+        @setup
+        def setuptask():
+            print(2)
+
+        @teardown
+        def teardown_task():
+            print(1)
+
+        @task
+        def mytask():
+            print(1)
+
+        setuptask()
+        teardown_task()
+        mytask()
+
+    dr = dag_maker.create_dagrun()
+    s1 = dr.get_task_instance(task_id="setuptask")
+    td1 = dr.get_task_instance(task_id="teardown_task")
+    t1 = dr.get_task_instance(task_id="mytask")
+    s1.state = TaskInstanceState.SUCCESS
+    td1.state = TaskInstanceState.SUCCESS
+    t1.state = TaskInstanceState.FAILED
+    session.merge(s1)
+    session.merge(td1)
+    session.merge(t1)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    dr = session.query(DagRun).one()
+    assert dr.state == DagRunState.FAILED

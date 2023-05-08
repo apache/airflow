@@ -21,7 +21,10 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor
+from airflow.providers.microsoft.azure.sensors.wasb import (
+    WasbBlobSensor,
+    WasbPrefixSensor,
+)
 from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 
 # Ignore missing args provided by default_args
@@ -35,16 +38,25 @@ GCP_BUCKET_NAME = os.environ.get("GCP_BUCKET_NAME", "INVALID BUCKET NAME")
 GCP_OBJECT_NAME = os.environ.get("GCP_OBJECT_NAME", "file.txt")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_azure_blob_to_gcs"
+PREFIX_NAME = os.environ.get("AZURE_PREFIX_NAME", "20230421")
 
 # [START how_to_azure_blob_to_gcs]
 with DAG(
     DAG_ID,
     schedule=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
-    default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME},
+    default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME, "prefix": PREFIX_NAME},
 ) as dag:
-
     wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")
+
+    wait_for_blob_async = WasbBlobSensor(task_id="wait_for_blob_async", deferrable=True)
+
+    wait_for_blob_prefix = WasbPrefixSensor(task_id="wait_for_blob_prefix")
+
+    wait_for_blob_prefix_async = WasbPrefixSensor(
+        task_id="wait_for_blob_prefix_async",
+        deferrable=True,
+    )
 
     transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
         task_id="transfer_files_to_gcs",
@@ -55,12 +67,17 @@ with DAG(
         object_name=GCP_OBJECT_NAME,
         filename=GCP_BUCKET_FILE_PATH,
         gzip=False,
-        delegate_to=None,
         impersonation_chain=None,
     )
     # [END how_to_azure_blob_to_gcs]
 
-    wait_for_blob >> transfer_files_to_gcs
+    (
+        wait_for_blob
+        >> wait_for_blob_async
+        >> wait_for_blob_prefix
+        >> wait_for_blob_prefix_async
+        >> transfer_files_to_gcs
+    )
 
     from tests.system.utils.watcher import watcher
 

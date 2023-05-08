@@ -44,8 +44,9 @@ def provider_get(args):
                 output=args.output,
             )
         else:
-            print(f"Provider: {args.provider_name}")
-            print(f"Version: {provider_version}")
+            AirflowConsole().print_as(
+                data=[{"Provider": args.provider_name, "Version": provider_version}], output=args.output
+            )
     else:
         raise SystemExit(f"No such provider installed: {args.provider_name}")
 
@@ -76,6 +77,19 @@ def hooks_list(args):
             "conn_id_attribute_name": x[1].connection_id_attribute_name if x[1] else ERROR_IMPORTING_HOOK,
             "package_name": x[1].package_name if x[1] else ERROR_IMPORTING_HOOK,
             "hook_name": x[1].hook_name if x[1] else ERROR_IMPORTING_HOOK,
+        },
+    )
+
+
+@suppress_logs_and_warning
+def triggers_list(args):
+    AirflowConsole().print_as(
+        data=ProvidersManager().trigger,
+        output=args.output,
+        mapper=lambda x: {
+            "package_name": x.package_name,
+            "class": x.trigger_class_name,
+            "integration_name": x.integration_name,
         },
     )
 

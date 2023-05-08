@@ -31,10 +31,10 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
 )
-from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -150,15 +150,15 @@ with DAG(
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
 
-    create_table_redshift_data = RedshiftSQLOperator(
+    create_table_redshift_data = SQLExecuteQueryOperator(
         task_id="create_table_redshift_data",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql=SQL_CREATE_TABLE,
     )
 
-    insert_data = RedshiftSQLOperator(
+    insert_data = SQLExecuteQueryOperator(
         task_id="insert_data",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql=SQL_INSERT_DATA,
     )
 
@@ -172,6 +172,18 @@ with DAG(
         replace=True,
     )
     # [END howto_transfer_sql_to_s3]
+
+    # [START howto_transfer_sql_to_s3_with_groupby_param]
+    sql_to_s3_task_with_groupby = SqlToS3Operator(
+        task_id="sql_to_s3_with_groupby_task",
+        sql_conn_id=conn_id_name,
+        query=SQL_QUERY,
+        s3_bucket=bucket_name,
+        s3_key=key,
+        replace=True,
+        groupby_kwargs={"by": "color"},
+    )
+    # [END howto_transfer_sql_to_s3_with_groupby_param]
 
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
@@ -202,6 +214,7 @@ with DAG(
         insert_data,
         # TEST BODY
         sql_to_s3_task,
+        sql_to_s3_task_with_groupby,
         # TEST TEARDOWN
         delete_bucket,
         delete_cluster,

@@ -45,6 +45,9 @@ class TestPipelineRunStatusSensor:
             "poke_interval": 15,
         }
         self.sensor = AzureDataFactoryPipelineRunStatusSensor(task_id="pipeline_run_sensor", **self.config)
+        self.defered_sensor = AzureDataFactoryPipelineRunStatusSensor(
+            task_id="pipeline_run_sensor_defered", deferrable=True, **self.config
+        )
 
     def test_init(self):
         assert self.sensor.azure_data_factory_conn_id == self.config["azure_data_factory_conn_id"]
@@ -81,6 +84,42 @@ class TestPipelineRunStatusSensor:
             with pytest.raises(AzureDataFactoryPipelineRunException, match=error_message):
                 self.sensor.poke({})
 
+    @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
+    def test_adf_pipeline_status_sensor_async(self, mock_hook):
+        """Assert execute method defer for Azure Data factory pipeline run status sensor"""
+        mock_hook.return_value.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED
+        with pytest.raises(TaskDeferred) as exc:
+            self.defered_sensor.execute(mock.MagicMock())
+        assert isinstance(
+            exc.value.trigger, ADFPipelineRunStatusSensorTrigger
+        ), "Trigger is not a ADFPipelineRunStatusSensorTrigger"
+
+    @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.sensors.data_factory"
+        ".AzureDataFactoryPipelineRunStatusSensor.defer"
+    )
+    def test_adf_pipeline_status_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        mock_hook.return_value.get_pipeline_run_status.return_value = (
+            AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        )
+        self.defered_sensor.execute(mock.MagicMock())
+        assert not mock_defer.called
+
+    def test_adf_pipeline_status_sensor_execute_complete_success(self):
+        """Assert execute_complete log success message when trigger fire with target status"""
+
+        msg = f"Pipeline run {self.config['run_id']} has been succeeded."
+        with mock.patch.object(self.defered_sensor.log, "info") as mock_log_info:
+            self.defered_sensor.execute_complete(context={}, event={"status": "success", "message": msg})
+        mock_log_info.assert_called_with(msg)
+
+    def test_adf_pipeline_status_sensor_execute_complete_failure(self):
+        """Assert execute_complete method fail"""
+
+        with pytest.raises(AirflowException):
+            self.defered_sensor.execute_complete(context={}, event={"status": "error", "message": ""})
+
 
 class TestAzureDataFactoryPipelineRunStatusAsyncSensor:
     RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
@@ -89,9 +128,10 @@ class TestAzureDataFactoryPipelineRunStatusAsyncSensor:
         run_id=RUN_ID,
     )
 
-    def test_adf_pipeline_status_sensor_async(self):
+    @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
+    def test_adf_pipeline_status_sensor_async(self, mock_hook):
         """Assert execute method defer for Azure Data factory pipeline run status sensor"""
-
+        mock_hook.return_value.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute({})
         assert isinstance(

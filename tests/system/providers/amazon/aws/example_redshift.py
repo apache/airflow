@@ -36,8 +36,8 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftResumeClusterOperator,
 )
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
-from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -176,12 +176,6 @@ with DAG(
         task_id="resume_cluster",
         cluster_identifier=redshift_cluster_identifier,
     )
-
-    resume_cluster_in_deferred_mode = RedshiftResumeClusterOperator(
-        task_id="resume_cluster_in_deferred_mode",
-        cluster_identifier=redshift_cluster_identifier,
-        deferrable=True,
-    )
     # [END howto_operator_redshift_resume_cluster]
 
     wait_cluster_available_after_resume = RedshiftClusterSensor(
@@ -229,26 +223,9 @@ with DAG(
         wait_for_completion=True,
     )
 
-    # [START howto_operator_redshift_sql]
-    select_data = RedshiftSQLOperator(
-        task_id="select_data",
-        redshift_conn_id=conn_id_name,
-        sql="""CREATE TABLE more_fruit AS SELECT * FROM fruit;""",
-    )
-    # [END howto_operator_redshift_sql]
-
-    # [START howto_operator_redshift_sql_with_params]
-    select_filtered_data = RedshiftSQLOperator(
-        task_id="select_filtered_data",
-        redshift_conn_id=conn_id_name,
-        sql="""CREATE TABLE filtered_fruit AS SELECT * FROM fruit WHERE color = '{{ params.color }}';""",
-        params={"color": "Red"},
-    )
-    # [END howto_operator_redshift_sql_with_params]
-
-    drop_table = RedshiftSQLOperator(
+    drop_table = SQLExecuteQueryOperator(
         task_id="drop_table",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql="DROP TABLE IF EXISTS fruit",
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -285,12 +262,10 @@ with DAG(
         pause_cluster,
         wait_cluster_paused,
         resume_cluster,
-        resume_cluster_in_deferred_mode,
         wait_cluster_available_after_resume,
         set_up_connection,
         create_table_redshift_data,
         insert_data,
-        [select_data, select_filtered_data],
         drop_table,
         delete_cluster_snapshot,
         delete_cluster,

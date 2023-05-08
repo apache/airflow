@@ -21,10 +21,10 @@ import contextlib
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Union, overload
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import XComNotFound
+from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
@@ -32,6 +32,8 @@ from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.state import State
 from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -203,6 +205,15 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
+    def __enter__(self):
+        if not self.operator._is_setup and not self.operator._is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self.operator)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
+
 
 class PlainXComArg(XComArg):
     """Reference to one single XCom without any additional semantics.
@@ -299,11 +310,26 @@ class PlainXComArg(XComArg):
         return super().zip(*others, fillvalue=fillvalue)
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        from airflow.models.taskinstance import TaskInstance
         from airflow.models.taskmap import TaskMap
         from airflow.models.xcom import XCom
 
         task = self.operator
         if isinstance(task, MappedOperator):
+            unfinished_ti_count_query = session.query(func.count(TaskInstance.map_index)).filter(
+                TaskInstance.dag_id == task.dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id == task.task_id,
+                # Special NULL treatment is needed because 'state' can be NULL.
+                # The "IN" part would produce "NULL NOT IN ..." and eventually
+                # "NULl = NULL", which is a big no-no in SQL.
+                or_(
+                    TaskInstance.state.is_(None),
+                    TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                ),
+            )
+            if unfinished_ti_count_query.scalar():
+                return None  # Not all of the expanded tis are done yet.
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
@@ -322,7 +348,11 @@ class PlainXComArg(XComArg):
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        from airflow.models.taskinstance import TaskInstance
+
         ti = context["ti"]
+        assert isinstance(ti, TaskInstance), "Wait for AIP-44 implementation to complete"
+
         task_id = self.operator.task_id
         map_indexes = ti.get_relevant_upstream_map_indexes(
             self.operator,

@@ -29,7 +29,7 @@ from airflow.exceptions import RemovedInAirflow3Warning
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-    from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources  # noqa: autoflake
+    from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources
 
 warnings.warn(
     "This module is deprecated. Please use `kubernetes.client.models` for `V1ResourceRequirements` and `Port`.",

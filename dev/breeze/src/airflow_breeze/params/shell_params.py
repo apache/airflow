@@ -47,6 +47,7 @@ from airflow_breeze.utils.path_utils import (
     MSSQL_TMP_DIR_NAME,
     SCRIPTS_CI_DIR,
 )
+from airflow_breeze.utils.run_tests import file_name_from_test_type
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
 from airflow_breeze.utils.shared_options import get_verbose
 
@@ -76,6 +77,7 @@ class ShellParams:
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
     ci: bool = False
+    collect_only: bool = False
     db_reset: bool = False
     dev_mode: bool = False
     extra_args: tuple = ()
@@ -90,6 +92,7 @@ class ShellParams:
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_providers_from_sources: bool = True
+    install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
     load_default_connections: bool = False
@@ -102,17 +105,19 @@ class ShellParams:
     platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+    remove_arm_packages: bool = False
     skip_environment_initialization: bool = False
     skip_constraints: bool = False
+    skip_provider_tests: bool = False
     start_airflow: str = "false"
     test_type: str | None = None
-    skip_provider_tests: bool = False
     use_airflow_version: str | None = None
     use_packages_from_dist: bool = False
     version_suffix_for_pypi: str = ""
     dry_run: bool = False
     verbose: bool = False
     upgrade_boto: bool = False
+    only_min_version_update: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -265,9 +270,13 @@ class ShellParams:
     @property
     def mssql_data_volume(self) -> str:
         docker_filesystem = get_filesystem_type("/var/lib/docker")
-        # in case of Providers[....], only leave Providers
-        base_test_type = self.test_type.split("[")[0] if self.test_type else None
-        volume_name = f"tmp-mssql-volume-{base_test_type}" if base_test_type else "tmp-mssql-volume"
+        # Make sure the test type is not too long to be used as a volume name in docker-compose
+        # The tmp directory in our self-hosted runners can be quite long, so we should limit the volume name
+        volume_name = (
+            "tmp-mssql-volume-" + file_name_from_test_type(self.test_type)[:20]
+            if self.test_type
+            else "tmp-mssql-volume"
+        )
         if docker_filesystem == "tmpfs":
             return os.fspath(Path.home() / MSSQL_TMP_DIR_NAME / f"{volume_name}-{self.mssql_version}")
         else:

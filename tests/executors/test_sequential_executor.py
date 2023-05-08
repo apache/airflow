@@ -48,8 +48,18 @@ class TestSequentialExecutor:
         executor = SequentialExecutor()
         executor.heartbeat()
         calls = [
-            mock.call("executor.open_slots", mock.ANY),
-            mock.call("executor.queued_tasks", mock.ANY),
-            mock.call("executor.running_tasks", mock.ANY),
+            mock.call(
+                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "SequentialExecutor"}
+            ),
+            mock.call(
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "name": "SequentialExecutor"},
+            ),
+            mock.call(
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "name": "SequentialExecutor"},
+            ),
         ]
         mock_stats_gauge.assert_has_calls(calls)

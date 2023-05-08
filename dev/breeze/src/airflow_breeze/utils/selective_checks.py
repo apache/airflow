@@ -24,7 +24,13 @@ from enum import Enum
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_SOURCES_ROOT,
+    DOCS_DIR,
+    SYSTEM_TESTS_PROVIDERS_ROOT,
+    TESTS_PROVIDERS_ROOT,
+)
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -35,6 +41,8 @@ else:
 from functools import lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
+
+from typing_extensions import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -52,6 +60,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     GithubEvents,
     SelectiveUnitTestTypes,
+    all_helm_test_packages,
     all_selective_test_types,
 )
 from airflow_breeze.utils.console import get_console
@@ -188,12 +197,8 @@ TEST_TYPE_MATCHES = HashableDict(
     }
 )
 
-TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
-AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
-
-def find_provider_affected(changed_file: str) -> str | None:
+def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
     for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_ROOT):
@@ -204,6 +209,13 @@ def find_provider_affected(changed_file: str) -> str | None:
         except ValueError:
             pass
     else:
+        if include_docs:
+            try:
+                relative_path = file_path.relative_to(DOCS_DIR)
+                if relative_path.parts[0].startswith("apache-airflow-providers-"):
+                    return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
+            except ValueError:
+                pass
         return None
 
     for parent_dir_path in file_path.parents:
@@ -228,18 +240,56 @@ def add_dependent_providers(
             providers.add(dep_name)
 
 
-def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
+def find_all_providers_affected(
+    changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
+) -> list[str] | Literal["ALL_PROVIDERS"] | None:
     all_providers: set[str] = set()
-    for changed_file in changed_files:
-        provider = find_provider_affected(changed_file)
-        if provider == "Providers":
-            return set()
-        if provider is not None:
-            all_providers.add(provider)
     dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+    all_providers_affected = False
+    suspended_providers: set[str] = set()
+    for changed_file in changed_files:
+        provider = find_provider_affected(changed_file, include_docs=include_docs)
+        if provider == "Providers":
+            all_providers_affected = True
+        elif provider is not None:
+            if provider not in dependencies:
+                suspended_providers.add(provider)
+            else:
+                all_providers.add(provider)
+    if all_providers_affected:
+        return "ALL_PROVIDERS"
+    if suspended_providers:
+        # We check for suspended providers only after we have checked if all providers are affected.
+        # No matter if we found that we are modifying a suspended provider individually, if all providers are
+        # affected, then it means that we are ok to proceed because likely we are running some kind of
+        # global refactoring that affects multiple providers including the suspended one. This is a
+        # potential escape hatch if someone would like to modify suspended provider,
+        # but it can be found at the review time and is anyway harmless as the provider will not be
+        # released nor tested nor used in CI anyway.
+        get_console().print("[yellow]You are modifying suspended providers.\n")
+        get_console().print(
+            "[info]Some providers modified by this change have been suspended, "
+            "and before attempting such changes you should fix the reason for suspension."
+        )
+        get_console().print(
+            "[info]When fixing it, you should set suspended = false in provider.yaml "
+            "to make changes to the provider."
+        )
+        get_console().print(f"Suspended providers: {suspended_providers}")
+        if fail_if_suspended_providers_affected:
+            get_console().print(
+                "[error]This PR did not have `allow suspended provider changes` label set so it will fail."
+            )
+            sys.exit(1)
+        else:
+            get_console().print(
+                "[info]This PR had `allow suspended provider changes` label set so it will continue"
+            )
+    if len(all_providers) == 0:
+        return None
     for provider in list(all_providers):
         add_dependent_providers(all_providers, provider, dependencies)
-    return all_providers
+    return sorted(all_providers)
 
 
 class SelectiveChecks:
@@ -276,7 +326,9 @@ class SelectiveChecks:
         output = []
         for field_name in dir(self):
             if not field_name.startswith("_"):
-                output.append(get_ga_output(field_name, getattr(self, field_name)))
+                value = getattr(self, field_name)
+                if value is not None:
+                    output.append(get_ga_output(field_name, value))
         return "\n".join(output)
 
     default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
@@ -360,11 +412,6 @@ class SelectiveChecks:
         return HELM_VERSION
 
     @cached_property
-    def providers_package_format_exclude(self) -> list[dict[str, str]]:
-        # Exclude sdist format unless full tests are run
-        return [{"package-format": "sdist"}] if not self.full_tests_needed else []
-
-    @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
         if not self.full_tests_needed:
             # Only basic combination so we do not need to exclude anything
@@ -416,7 +463,7 @@ class SelectiveChecks:
         return " ".join(self.kubernetes_versions)
 
     @cached_property
-    def kubernetes_combos(self) -> str:
+    def kubernetes_combos_list_as_string(self) -> str:
         python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
         kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
@@ -482,7 +529,12 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        return "amazon" in self.test_types or "Providers" in self.test_types.split(" ")
+        if self.parallel_test_types_list_as_string is None:
+            return False
+        return (
+            "amazon" in self.parallel_test_types_list_as_string
+            or "Providers" in self.parallel_test_types_list_as_string.split(" ")
+        )
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -513,6 +565,14 @@ class SelectiveChecks:
             test_types.add(test_type.value)
             get_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
         return matched_files
+
+    def _are_all_providers_affected(self) -> bool:
+        # if "Providers" test is present in the list of tests, it means that we should run all providers tests
+        # prepare all providers packages and build all providers documentation
+        return "Providers" in self._get_test_types_to_run()
+
+    def _fail_if_suspended_providers_affected(self):
+        return "allow suspended provider changes" not in self._pr_labels
 
     def _get_test_types_to_run(self) -> list[str]:
         candidate_test_types: set[str] = {"Always"}
@@ -547,8 +607,12 @@ class SelectiveChecks:
             candidate_test_types.update(all_selective_test_types())
         else:
             if "Providers" in candidate_test_types:
-                affected_providers = find_all_providers_affected(changed_files=self._files)
-                if len(affected_providers) != 0:
+                affected_providers = find_all_providers_affected(
+                    changed_files=self._files,
+                    include_docs=False,
+                    fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
+                )
+                if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
                     candidate_test_types.remove("Providers")
                     candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
             get_console().print(
@@ -559,10 +623,40 @@ class SelectiveChecks:
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
+    @staticmethod
+    def _extract_long_provider_tests(current_test_types: set[str]):
+        """
+        In case there are Provider tests in the list of test to run (either in the form of
+        Providers or Providers[...] we subtract them from the test type,
+        and add them to the list of tests to run individually.
+
+        In case of Providers, we need to replace it with Providers[-<list_of_long_tests>], but
+        in case of Providers[list_of_tests] we need to remove the long tests from the list.
+
+        """
+        long_tests = ["amazon", "google"]
+        for original_test_type in tuple(current_test_types):
+            if original_test_type == "Providers":
+                current_test_types.remove(original_test_type)
+                for long_test in long_tests:
+                    current_test_types.add(f"Providers[{long_test}]")
+                current_test_types.add(f"Providers[-{','.join(long_tests)}]")
+            elif original_test_type.startswith("Providers["):
+                provider_tests_to_run = (
+                    original_test_type.replace("Providers[", "").replace("]", "").split(",")
+                )
+                if any(long_test in provider_tests_to_run for long_test in long_tests):
+                    current_test_types.remove(original_test_type)
+                    for long_test in long_tests:
+                        if long_test in provider_tests_to_run:
+                            current_test_types.add(f"Providers[{long_test}]")
+                            provider_tests_to_run.remove(long_test)
+                    current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
+
     @cached_property
-    def test_types(self) -> str:
+    def parallel_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
-            return ""
+            return None
         if self.full_tests_needed:
             current_test_types = set(all_selective_test_types())
         else:
@@ -577,7 +671,25 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
-        return " ".join(sorted(current_test_types))
+
+        self._extract_long_provider_tests(current_test_types)
+
+        # this should be hard-coded as we want to have very specific sequence of tests
+        sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
+
+        def sort_key(t: str) -> str:
+            # Put the test types in the order we want them to run
+            if t in sorting_order:
+                return str(sorting_order.index(t))
+            else:
+                return str(len(sorting_order)) + t
+
+        return " ".join(
+            sorted(
+                current_test_types,
+                key=sort_key,
+            )
+        )
 
     @cached_property
     def basic_checks_only(self) -> bool:
@@ -590,12 +702,37 @@ class SelectiveChecks:
         ) > 0 or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
 
     @cached_property
-    def docs_filter(self) -> str:
-        return (
-            ""
-            if self._default_branch == "main"
-            else "--package-filter apache-airflow --package-filter docker-stack"
+    def docs_filter_list_as_string(self) -> str | None:
+        _ALL_DOCS_LIST = ""
+        if not self.docs_build:
+            return None
+        if self._default_branch != "main":
+            return "--package-filter apache-airflow --package-filter docker-stack"
+        if self.full_tests_needed:
+            return _ALL_DOCS_LIST
+        providers_affected = find_all_providers_affected(
+            changed_files=self._files,
+            include_docs=True,
+            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
         )
+        if (
+            providers_affected == "ALL_PROVIDERS"
+            or "docs/conf.py" in self._files
+            or "docs/build_docs.py" in self._files
+            or self._are_all_providers_affected()
+        ):
+            return _ALL_DOCS_LIST
+        packages = []
+        if any([file.startswith("airflow/") for file in self._files]):
+            packages.append("apache-airflow")
+        if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
+            packages.append("helm-chart")
+        if any([file.startswith("docs/docker-stack/") for file in self._files]):
+            packages.append("docker-stack")
+        if providers_affected:
+            for provider in providers_affected:
+                packages.append(f"apache-airflow-providers-{provider.replace('.', '-')}")
+        return " ".join([f"--package-filter {package}" for package in packages])
 
     @cached_property
     def skip_pre_commits(self) -> str:
@@ -603,7 +740,9 @@ class SelectiveChecks:
 
     @cached_property
     def skip_provider_tests(self) -> bool:
-        return self._default_branch != "main"
+        return self._default_branch != "main" or not any(
+            test_type.startswith("Providers") for test_type in self._get_test_types_to_run()
+        )
 
     @cached_property
     def cache_directive(self) -> str:
@@ -612,3 +751,25 @@ class SelectiveChecks:
     @cached_property
     def debug_resources(self) -> bool:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
+
+    @cached_property
+    def helm_test_packages(self) -> str:
+        return json.dumps(all_helm_test_packages())
+
+    @cached_property
+    def affected_providers_list_as_string(self) -> str | None:
+        _ALL_PROVIDERS_LIST = ""
+        if self.full_tests_needed:
+            return _ALL_PROVIDERS_LIST
+        if self._are_all_providers_affected():
+            return _ALL_PROVIDERS_LIST
+        affected_providers = find_all_providers_affected(
+            changed_files=self._files,
+            include_docs=True,
+            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
+        )
+        if not affected_providers:
+            return None
+        if affected_providers == "ALL_PROVIDERS":
+            return _ALL_PROVIDERS_LIST
+        return " ".join(sorted(affected_providers))

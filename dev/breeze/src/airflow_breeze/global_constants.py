@@ -42,14 +42,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = [
-    "cassandra",
-    "celery",
-    "kerberos",
-    "mongo",
-    "pinot",
-    "trino",
-]
+TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd"]
 ALL_INTEGRATIONS = sorted(
     [
@@ -72,7 +65,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.12", "v1.25.8", "v1.26.3"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -88,7 +81,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.0.1"
+PIP_VERSION = "23.1.2"
 
 
 @lru_cache(maxsize=None)
@@ -109,10 +102,27 @@ class SelectiveUnitTestTypes(Enum):
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
     *all_selective_test_types(),
-    "Helm",
+    "PlainAsserts",
     "Postgres",
     "MySQL",
     "Quarantine",
+]
+
+
+@lru_cache(maxsize=None)
+def all_helm_test_packages() -> list[str]:
+    return sorted(
+        [
+            candidate.name
+            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
+            if candidate.is_dir()
+        ]
+    )
+
+
+ALLOWED_HELM_TEST_PACKAGES = [
+    "all",
+    *all_helm_test_packages(),
 ]
 
 ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
@@ -239,7 +249,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.17.0"
+KIND_VERSION = "v0.18.0"
 HELM_VERSION = "v3.9.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass

@@ -28,7 +28,11 @@ description: |
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
+suspended: false
 versions:
+  - 10.0.0
+  - 9.0.0
+  - 8.12.0
   - 8.11.0
   - 8.10.0
   - 8.9.0
@@ -61,7 +65,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
@@ -76,8 +80,18 @@ dependencies:
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
-  - google-ads>=15.1.1
-  - google-api-core>=2.7.0,<3.0.0
+  # needed by vendored-in google-ads
+  - googleapis-common-protos<2.0.0,>=1.5.8
+  - google-api-core==2.8.2
+  - google-auth-oauthlib<1.0.0,>=0.3.0
+  - grpcio<2.0.0,>=1.38.1
+  - grpcio-status<2.0.0,>=1.38.1
+  - PyYAML<7.0,>=5.1
+  - proto-plus==1.19.6
+  - protobuf!=3.18.*,!=3.19.*,<=3.20.0,>=3.12.0
+  # Temporary commented out until we have google-ads vendored-in
+  # - google-ads>=15.1.1
+  # - google-api-core>=2.7.0,<3.0.0
   - google-api-python-client>=1.6.0,<2.0.0
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1
@@ -121,9 +135,6 @@ dependencies:
   - pandas-gbq
   - pandas>=0.17.1
   - sqlalchemy-bigquery>=1.2.1
-  # A transient dependency of google-cloud-bigquery-datatransfer, but we
-  # further constrain it since older versions are buggy.
-  - proto-plus>=1.19.6
 
 integrations:
   - integration-name: Google Analytics360
@@ -834,35 +845,47 @@ hooks:
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
-    python-modules:
-      - airflow.providers.google.cloud.triggers.bigquery_dts
+    class-names:
+      - airflow.providers.google.cloud.triggers.bigquery_dts.BigQueryDataTransferRunTrigger
   - integration-name: Google BigQuery
-    python-modules:
-      - airflow.providers.google.cloud.triggers.bigquery
+    class-names:
+      - airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger
+      - airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger
+      - airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger
+      - airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger
+      - airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger
+      - airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger
+      - airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionExistenceTrigger
   - integration-name: Google Cloud Build
-    python-modules:
-      - airflow.providers.google.cloud.triggers.cloud_build
+    class-names:
+      - airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger
   - integration-name: Google Cloud Composer
-    python-modules:
-      - airflow.providers.google.cloud.triggers.cloud_composer
+    class-names:
+      - airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger
   - integration-name: Google Dataflow
-    python-modules:
-      - airflow.providers.google.cloud.triggers.dataflow
+    class-names:
+      - airflow.providers.google.cloud.triggers.dataflow.TemplateJobStartTrigger
   - integration-name: Google Data Fusion
-    python-modules:
-      - airflow.providers.google.cloud.triggers.datafusion
+    class-names:
+      - airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger
   - integration-name: Google Dataproc
-    python-modules:
-      - airflow.providers.google.cloud.triggers.dataproc
+    class-names:
+      - airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger
+      - airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger
+      - airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger
+      - airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger
+      - airflow.providers.google.cloud.triggers.dataproc.DataprocDeleteClusterTrigger
+      - airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger
   - integration-name: Google Cloud Storage (GCS)
-    python-modules:
-      - airflow.providers.google.cloud.triggers.gcs
+    class-names:
+      - airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger
   - integration-name: Google Kubernetes Engine
-    python-modules:
-      - airflow.providers.google.cloud.triggers.kubernetes_engine
+    class-names:
+      - airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger
+      - airflow.providers.google.cloud.triggers.kubernetes_engine.GKEOperationTrigger
   - integration-name: Google Machine Learning Engine
-    python-modules:
-      - airflow.providers.google.cloud.triggers.mlengine
+    class-names:
+      - airflow.providers.google.cloud.triggers.mlengine.MLEngineStartTrainingJobTrigger
 
 transfers:
   - source-integration-name: Presto

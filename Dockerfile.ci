@@ -393,7 +393,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.0.1"
+            export AIRFLOW_PIP_VERSION="23.1.2"
         fi
     fi
 }
@@ -553,7 +553,6 @@ set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
-: "${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS:?Should be set}"
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -606,6 +605,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
+
 . "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
 LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
@@ -628,7 +628,9 @@ function wait_for_asset_compilation() {
         echo
         local counter=0
         while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
-            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            if (( counter % 5 == 2 )); then
+                echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            fi
             sleep 1
             ((counter=counter+1))
             if [[ ${counter} == "30" ]]; then
@@ -763,23 +765,66 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             exit 1
         fi
         echo
+        if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+            IFS=\, read -ra selected_providers <<<"${INSTALL_SELECTED_PROVIDERS}"
+            echo
+            echo "${COLOR_BLUE}Selected providers to install: '${selected_providers[*]}'${COLOR_RESET}"
+            echo
+        else
+            echo
+            echo "${COLOR_BLUE}Installing all found providers${COLOR_RESET}"
+            echo
+            selected_providers=()
+        fi
         installable_files=()
         for file in /dist/*.{whl,tar.gz}
         do
-            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
-                # Skip Apache Airflow package - it's just been installed above with extras
-                echo "Skipping ${file}"
+            if [[ ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
+                # Skip Apache Airflow package - it's just been installed above if
+                # --use-airflow-version was set and should be skipped otherwise
+                echo "${COLOR_BLUE}Skipping airflow core package ${file} from provider installation.${COLOR_RESET}"
                 continue
             fi
             if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache_airflow_providers_//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
             if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache-airflow-providers-//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
         done
+        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
+            echo
+            echo "${COLOR_BLUE}Also adding airflow in specified version ${USE_AIRFLOW_VERSION} to make sure it is not upgraded by >= limits${COLOR_RESET}"
+            echo
+            installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
+        fi
+        echo
+        echo "${COLOR_BLUE}Installing: ${installable_files[*]}${COLOR_RESET}"
+        echo
         if (( ${#installable_files[@]} )); then
             pip install --root-user-action ignore "${installable_files[@]}"
         fi
@@ -852,14 +897,21 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
+rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+
 set +u
 if [[ "${RUN_TESTS}" != "true" ]]; then
     exec /bin/bash "${@}"
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
-export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.txt"
+else
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+fi
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -876,17 +928,31 @@ EXTRA_PYTEST_ARGS=(
     "--teardown-timeout=${TEST_TIMEOUT}"
     "--output=${WARNINGS_FILE}"
     "--disable-warnings"
-    # Only display summary for non-expected case
+    # Only display summary for non-expected cases
+    #
     # f - failed
     # E - error
     # X - xpassed (passed even if expected to fail)
-    # The following cases are not displayed:
     # s - skipped
+    #
+    # The following cases are not displayed:
     # x - xfailed (expected to fail and failed)
     # p - passed
     # P - passed with output
-    "-rfEX"
+    #
+    "-rfEXs"
 )
+
+if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
+    for provider in ${SUSPENDED_PROVIDERS_FOLDERS=}; do
+        echo "Skipping tests for suspended provider: ${provider}"
+        EXTRA_PYTEST_ARGS+=(
+            "--ignore=tests/providers/${provider}"
+            "--ignore=tests/system/providers/${provider}"
+            "--ignore=tests/integration/providers/${provider}"
+        )
+    done
+fi
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
@@ -910,12 +976,30 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     )
 fi
 
+if [[ ${COLLECT_ONLY:="false"} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "--collect-only"
+        "-qqqq"
+        "--disable-warnings"
+    )
+fi
+
+if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
+    # Test what happens if we do not have ARM packages installed.
+    # This is useful to see if pytest collection works without ARM packages which is important
+    # for the MacOS M1 users running tests in their ARM machines with `breeze testing tests` command
+    python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
+fi
+
 declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
 
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
+    # The output of the find command should be sorted to make sure that the order is always the same
+    # when we run the tests, to avoid cross-package side effects causing different test results
+    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -934,7 +1018,7 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
     SELECTED_TESTS=("${@}")
 else
     CLI_TESTS=("tests/cli")
-    API_TESTS=("tests/api" "tests/api_connexion")
+    API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
@@ -964,7 +1048,7 @@ else
     )
 
     NO_PROVIDERS_INTEGRATION_TESTS=(
-        "tests/integration/api"
+        "tests/integration/api_experimental"
         "tests/integration/cli"
         "tests/integration/executors"
         "tests/integration/security"
@@ -983,7 +1067,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
-        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+        else
+            SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
         if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
             SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
@@ -998,6 +1086,19 @@ else
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
             ${TEST_TYPE} == "Long" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[\-(.*)\] ]]; then
+        # When providers start with `-` it means that we should run all provider tests except those
+        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            providers_dir="tests/providers/${provider//./\/}"
+            if [[ -d ${providers_dir} ]]; then
+                echo "${COLOR_BLUE}Ignoring ${providers_dir} as it has been deselected.${COLOR_RESET}"
+                EXTRA_PYTEST_ARGS+=("--ignore=tests/providers/${provider//./\/}")
+            else
+                echo "${COLOR_YELLOW}Skipping ${providers_dir} as the directory does not exist.${COLOR_RESET}"
+            fi
+        done
     elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
         SELECTED_TESTS=()
         for provider in ${BASH_REMATCH[1]//,/ }
@@ -1009,6 +1110,16 @@ else
                 echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
             fi
         done
+    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
+        # Those tests fail when --asert=rewrite is set, therefore we run them separately
+        # with --assert=plain to make sure they pass.
+        SELECTED_TESTS=(
+            # this on is mysteriously failing dill serialization. It could be removed once
+            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
+            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
+        )
+        EXTRA_PYTEST_ARGS+=("--assert=plain")
+        export PYTEST_PLAIN_ASSERTS="true"
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
@@ -1071,6 +1182,32 @@ COPY <<"EOF" /entrypoint_exec.sh
 . /opt/airflow/scripts/in_container/run_init_script.sh
 
 exec /bin/bash "${@}"
+EOF
+
+# The content below is automatically copied from scripts/docker/patch_cassandra_type_code.py
+COPY <<"EOF" /patch_cassandra_type_code.py
+#!/usr/bin/env python
+
+from __future__ import annotations
+
+import cassandra.type_codes as cassandra_type_codes
+
+if __name__ == "__main__":
+    print()
+    path_to_patch = cassandra_type_codes.__file__
+    with open(path_to_patch, "r+") as f:
+        content = f.read()
+        if "PYTEST_DONT_REWRITE" in content:
+            print(f"The {path_to_patch} is already patched with PYTEST_DONT_REWRITE")
+            print()
+            exit(0)
+        f.seek(0)
+        content = content.replace('"""', '"""\nPYTEST_DONT_REWRITE', 1)
+        f.write(content)
+        f.truncate()
+        print(f"Patched {path_to_patch} with PYTEST_DONT_REWRITE")
+        print()
+        exit(0)
 EOF
 
 FROM ${PYTHON_BASE_IMAGE} as main
@@ -1171,7 +1308,7 @@ ARG AIRFLOW_CI_BUILD_EPOCH="4"0
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
-ARG AIRFLOW_PIP_VERSION=23.0.1
+ARG AIRFLOW_PIP_VERSION=23.1.2
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1223,18 +1360,10 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
 # Those are additional constraints that are needed for some extras but we do not want to
-# force them on the main Airflow package. Those limitations are:
-# * dill<0.3.3 required by apache-beam
-# * pyarrow>=6.0.0 is because pip resolver decides for Python 3.10 to downgrade pyarrow to 5 even if it is OK
-#   for python 3.10 and other dependencies adding the limit helps resolver to make better decisions
-# We need to limit the protobuf library to < 4.21.0 because not all google libraries we use
-# are compatible with the new protobuf version. All the google python client libraries need
-# to be upgraded to >= 2.0.0 in order to able to lift that limitation
-# https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates
-# * authlib, gcloud_aio_auth, adal are needed to generate constraints for PyPI packages and can be removed after we release
-#   new google, azure providers
-# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 protobuf<4.21.0 authlib>=1.0.0 gcloud_aio_auth>=4.0.0 adal>=1.2.7"
+# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
+# dependency resolution and we do not need to limit the versions of the dependencies
+# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
@@ -1301,6 +1430,15 @@ RUN bash /scripts/docker/install_pip_version.sh; \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
+COPY --from=scripts patch_cassandra_type_code.py /patch_cassandra_type_code.py
+
+# Patch cassandra type_code to avoide accidental type_code assert rewriting breaking pytest
+# test discovery and execution.
+# This one can be fixed once https://github.com/pytest-dev/pytest/issues/10844
+# is fixed and released or once the workaround is merged in cassandra-driver
+# https://github.com/datastax/python-driver/pull/1142
+RUN python /patch_cassandra_type_code.py
+
 # Install autocomplete for airflow
 RUN if command -v airflow; then \
         register-python-argcomplete airflow >> ~/.bashrc ; \
@@ -1308,6 +1446,7 @@ RUN if command -v airflow; then \
 
 # Install autocomplete for Kubectl
 RUN echo "source /etc/bash_completion" >> ~/.bashrc
+
 
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
 # copying over stuff that is accidentally generated or that we do not need (such as egg-info)

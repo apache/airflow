@@ -17,7 +17,6 @@
 """This module contains Google Dataplex sensors."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
@@ -54,8 +53,6 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         will not be retried.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -78,7 +75,6 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
@@ -92,18 +88,12 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.retry = retry
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
         self.log.info("Waiting for task %s to be %s", self.dataplex_task_id, TaskState.ACTIVE)
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
