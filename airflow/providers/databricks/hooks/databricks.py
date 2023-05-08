@@ -46,6 +46,7 @@ CANCEL_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel")
 DELETE_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/delete")
 REPAIR_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/repair")
 OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "api/2.1/jobs/runs/get-output")
+CANCEL_ALL_RUNS_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel-all")
 
 INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
@@ -352,6 +353,15 @@ class DatabricksHook(BaseDatabricksHook):
         """
         json = {"run_id": run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
+
+    def cancel_all_runs(self, job_id: int) -> None:
+        """
+        Cancels all active runs of a job. The runs are canceled asynchronously.
+
+        :param job_id: The canonical identifier of the job to cancel all runs of
+        """
+        json = {"job_id": job_id}
+        self._do_api_call(CANCEL_ALL_RUNS_ENDPOINT, json)
 
     def delete_run(self, run_id: int) -> None:
         """

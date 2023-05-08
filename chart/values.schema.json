@@ -1864,6 +1864,14 @@
                                         "string"
                                     ],
                                     "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for scheduler.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
                                 }
                             }
                         }
@@ -3359,6 +3367,14 @@
                                         "string"
                                     ],
                                     "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for webserver.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
                                 }
                             }
                         }
@@ -4427,6 +4443,14 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for PgBouncer.",
                                     "type": [
                                         "integer",
                                         "string"
