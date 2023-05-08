@@ -46,7 +46,6 @@ env:
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
-  AIRFLOW_ENABLE_AIP_52: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -1066,7 +1065,6 @@ jobs:
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       AIRFLOW_ENABLE_AIP_44: "false"
-      AIRFLOW_ENABLE_AIP_52: "false"
       JOB_ID: >
         postgres-in-progress-disabled-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}

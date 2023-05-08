@@ -2146,10 +2146,22 @@ celery_broker_transport_options:
         ETA you're planning to use.
         visibility_timeout is only supported for Redis and SQS celery brokers.
         See:
-        http://docs.celeryproject.org/en/master/userguide/configuration.html#std:setting-broker_transport_options
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#visibility-timeout
       version_added: ~
       type: string
       example: "21600"
+      default: ~
+    sentinel_kwargs:
+      description: |
+        The sentinel_kwargs parameter allows passing additional options to the Sentinel client.
+        In a typical scenario where Redis Sentinel is used as the broker and Redis servers are
+        password-protected, the password needs to be passed through this parameter. Although its
+        type is string, it is required to pass a string that conforms to the dictionary format.
+        See:
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration
+      version_added: 2.7.0
+      type: string
+      example: '{"password": "password_for_redis_server"}'
       default: ~
 dask:
   description: |
