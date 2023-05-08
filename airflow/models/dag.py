@@ -1219,7 +1219,7 @@ class DAG(LoggingMixin):
 
     @property
     def tasks_upstream_of_teardowns(self) -> list[Operator]:
-        upstream_tasks = [t.upstream_list if isinstance(t.upstream_list, list) else [t.upstream_list]) t.upstream_list for t in self.teardowns]
+        upstream_tasks = [t.upstream_list for t in self.teardowns]
         return [
             val for sublist in upstream_tasks for val in sublist if not getattr(val, "_is_teardown", None)
         ]
