@@ -135,7 +135,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         conn_config = self._get_conn_params()
 
         req_id = uuid.uuid4()
-        url = f"https://{conn_config['account']}.snowflakecomputing.com/api/v2/statements"
+        url = f"https://{conn_config['account']}.{conn_config['region']}.snowflakecomputing.com/api/v2/statements"
         params: dict[str, Any] | None = {"requestId": str(req_id), "async": True, "pageSize": 10}
         headers = self.get_headers()
         if bindings is None:
@@ -206,7 +206,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         req_id = uuid.uuid4()
         header = self.get_headers()
         params = {"requestId": str(req_id), "page": 2, "pageSize": 10}
-        url = f"https://{conn_config['account']}.snowflakecomputing.com/api/v2/statements/{query_id}"
+        url = f"https://{conn_config['account']}.{conn_config['region']}.snowflakecomputing.com/api/v2/statements/{query_id}"
         return header, params, url
 
     def check_query_output(self, query_ids: list[str]) -> None:
@@ -235,7 +235,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", {query_id})
         header, params, url = self.get_request_url_header_params(query_id)
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, headers=header)
         status_code = response.status_code
         resp = response.json()
         self.log.info("Snowflake SQL GET statements status API response: %s", resp)

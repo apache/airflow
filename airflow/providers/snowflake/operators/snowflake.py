@@ -21,6 +21,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
 
+from airflow import AirflowException
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -501,42 +502,27 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
         if self.do_xcom_push:
             context["ti"].xcom_push(key="query_ids", value=self.query_ids)
 
-        self.poll_on_queries()
+        statement_status = self.poll_on_queries()
+        if statement_status["error"]:
+            raise AirflowException(statement_status["error"])
         self._hook.check_query_output(self.query_ids)
 
     def poll_on_queries(self):
         """Poll on requested queries"""
-        statement_query_ids: list[str] = []
         queries_in_progress = set(self.query_ids)
+        statement_success_status = {}
+        statement_error_status = {}
         while queries_in_progress:
             for query_id in self.query_ids:
-                statement_status = {}
+                self.log.info("checking : %s", query_id)
                 try:
                     statement_status = self._hook.get_sql_api_query_status(query_id)
                 except Exception as e:
-                    yield ValueError({"status": "error", "message": str(e)})
+                    raise ValueError({"status": "error", "message": str(e)})
                 if statement_status.get("status") == "error":
                     queries_in_progress.remove(query_id)
-                    print(statement_status)  # ToDo: change this
+                    statement_error_status[query_id] = statement_status
                 if statement_status.get("status") == "success":
-                    statement_query_ids.extend(statement_status["statement_handles"])
+                    statement_success_status[query_id] = statement_status
                     queries_in_progress.remove(query_id)
-        return statement_query_ids
-
-    # def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
-    #     """
-    #     Callback for when the trigger fires - returns immediately.
-    #     Relies on trigger to throw an exception, otherwise it assumes execution was
-    #     successful.
-    #     """
-    #     if event:
-    #         if "status" in event and event["status"] == "error":
-    #             msg = f"{event['status']}: {event['message']}"
-    #             raise AirflowException(msg)
-    #         elif "status" in event and event["status"] == "success":
-    #             hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
-    #             query_ids = cast(List[str], event["statement_query_ids"])
-    #             hook.check_query_output(query_ids)
-    #             self.log.info("%s completed successfully.", self.task_id)
-    #     else:
-    #         self.log.info("%s completed successfully.", self.task_id)
+        return {"success": statement_success_status, "error": statement_error_status}
