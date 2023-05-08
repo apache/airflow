@@ -30,43 +30,43 @@ RELEASE_NAME = "test-extra-env-env-from"
 # Test Params: k8s object key and paths with expected env / envFrom
 PARAMS = [
     (
-        ("Job", f"{RELEASE_NAME}-airflow-create-user"),
+        ("Job", f"{RELEASE_NAME}-create-user"),
         ("spec.template.spec.containers[0]",),
     ),
     (
-        ("Job", f"{RELEASE_NAME}-airflow-run-airflow-migrations"),
+        ("Job", f"{RELEASE_NAME}-run-airflow-migrations"),
         ("spec.template.spec.containers[0]",),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-airflow-scheduler"),
+        ("Deployment", f"{RELEASE_NAME}-scheduler"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("StatefulSet", f"{RELEASE_NAME}-airflow-worker"),
+        ("StatefulSet", f"{RELEASE_NAME}-worker"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-airflow-webserver"),
+        ("Deployment", f"{RELEASE_NAME}-webserver"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("StatefulSet", f"{RELEASE_NAME}-airflow-triggerer"),
+        ("StatefulSet", f"{RELEASE_NAME}-triggerer"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-airflow-flower"),
+        ("Deployment", f"{RELEASE_NAME}-flower"),
         ("spec.template.spec.containers[0]",),
     ),
 ]

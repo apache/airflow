@@ -41,7 +41,7 @@ class TestPgbouncer:
         )
 
         assert "Deployment" == jmespath.search("kind", docs[0])
-        assert "release-name-airflow-pgbouncer" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-pgbouncer" == jmespath.search("metadata.name", docs[0])
         assert "pgbouncer" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     def test_should_create_pgbouncer_service(self):
@@ -51,7 +51,7 @@ class TestPgbouncer:
         )
 
         assert "Service" == jmespath.search("kind", docs[0])
-        assert "release-name-airflow-pgbouncer" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-pgbouncer" == jmespath.search("metadata.name", docs[0])
         assert "true" == jmespath.search('metadata.annotations."prometheus.io/scrape"', docs[0])
         assert "9127" == jmespath.search('metadata.annotations."prometheus.io/port"', docs[0])
 
@@ -174,7 +174,7 @@ class TestPgbouncer:
 
         assert {
             "name": "pgbouncer-config",
-            "secret": {"secretName": "test-pgbouncer-config-airflow-pgbouncer-config"},
+            "secret": {"secretName": "test-pgbouncer-config-pgbouncer-config"},
         } == jmespath.search("spec.template.spec.volumes[0]", docs[0])
 
     def test_existing_secret(self):

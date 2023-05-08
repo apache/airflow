@@ -44,6 +44,12 @@
             "default": "",
             "x-docsSection": null
         },
+        "useStandardNaming": {
+            "description": "Use standard naming for all resources using airflow.fullname template",
+            "type": "boolean",
+            "default": false,
+            "x-docsSection": null
+        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",

@@ -769,7 +769,7 @@ class TestWebserverService:
             show_only=["templates/webserver/webserver-service.yaml"],
         )
 
-        assert "release-name-airflow-webserver" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-webserver" == jmespath.search("metadata.name", docs[0])
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert {"tier": "airflow", "component": "webserver", "release": "release-name"} == jmespath.search(
             "spec.selector", docs[0]
