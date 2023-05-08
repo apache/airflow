@@ -153,12 +153,6 @@ class BaseSessionFactory(LoggingMixin):
 
     def create_session(self, deferrable: bool = False) -> boto3.session.Session:
         """Create boto3 or aiobotocore Session from connection config."""
-        from aiobotocore.session import get_session as async_get_session
-
-        return async_get_session()
-
-    def create_session(self, deferrable: bool = False) -> boto3.session.Session:
-        """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
                 "No connection ID provided. Fallback on boto3 credential strategy (region_name=%r). "
@@ -661,14 +655,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return self.get_resource_type(region_name=self.region_name)
 
     @property
-    def async_conn(self):
-        """Get an aiobotocore client to use for async operations."""
-        if not self.client_type:
-            raise ValueError("client_type must be specified.")
-
-        return self.get_client_type(region_name=self.region_name, deferrable=True)
-
-    @cached_property
     def async_conn(self):
         """Get an aiobotocore client to use for async operations."""
         if not self.client_type:
