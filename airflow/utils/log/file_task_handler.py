@@ -96,7 +96,7 @@ def _fetch_logs_from_service(url, log_relative_path):
     return response
 
 
-_parse_timestamp = conf.getimport("core", "interleave_timestamp_parser", fallback=None)
+_parse_timestamp = conf.getimport("logging", "interleave_timestamp_parser", fallback=None)
 
 if not _parse_timestamp:
 

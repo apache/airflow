@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceAsyncSensor,
     BigQueryTableExistencePartitionAsyncSensor,
@@ -64,7 +64,24 @@ class TestBigqueryTableExistenceSensor:
             project_id=TEST_PROJECT_ID, dataset_id=TEST_DATASET_ID, table_id=TEST_TABLE_ID
         )
 
-    def test_execute_defered(self):
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor.defer")
+    def test_table_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        task = BigQueryTableExistenceSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        mock_hook.return_value.table_exists.return_value = True
+        task.execute(mock.MagicMock())
+        assert not mock_defer.called
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_execute_deferred(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryTableExistenceTrigger will be fired
         when the BigQueryTableExistenceAsyncSensor is executed.
@@ -76,13 +93,14 @@ class TestBigqueryTableExistenceSensor:
             table_id=TEST_TABLE_ID,
             deferrable=True,
         )
+        mock_hook.return_value.table_exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            task.execute(context={})
+            task.execute(mock.MagicMock())
         assert isinstance(
             exc.value.trigger, BigQueryTableExistenceTrigger
         ), "Trigger is not a BigQueryTableExistenceTrigger"
 
-    def test_excute_defered_failure(self):
+    def test_execute_deferred_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
         task = BigQueryTableExistenceSensor(
             task_id="task-id",
@@ -148,7 +166,9 @@ class TestBigqueryTablePartitionExistenceSensor:
             partition_id=TEST_PARTITION_ID,
         )
 
-    def test_execute_with_deferrable_mode(self):
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor.defer")
+    def test_table_partition_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryTablePartitionExistenceTrigger will be fired
         when the BigQueryTablePartitionExistenceSensor is executed and deferrable is set to True.
@@ -161,6 +181,25 @@ class TestBigqueryTablePartitionExistenceSensor:
             partition_id=TEST_PARTITION_ID,
             deferrable=True,
         )
+        mock_hook.return_value.table_partition_exists.return_value = True
+        task.execute(mock.MagicMock())
+        assert not mock_defer.called
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_execute_with_deferrable_mode(self, mock_hook):
+        """
+        Asserts that a task is deferred and a BigQueryTablePartitionExistenceTrigger will be fired
+        when the BigQueryTablePartitionExistenceSensor is executed and deferrable is set to True.
+        """
+        task = BigQueryTablePartitionExistenceSensor(
+            task_id="test_task_id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            partition_id=TEST_PARTITION_ID,
+            deferrable=True,
+        )
+        mock_hook.return_value.table_partition_exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(
@@ -228,18 +267,20 @@ class TestBigQueryTableExistenceAsyncSensor:
         "set `deferrable` attribute to `True` instead"
     )
 
-    def test_big_query_table_existence_sensor_async(self):
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_big_query_table_existence_sensor_async(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryTableExistenceTrigger will be fired
         when the BigQueryTableExistenceAsyncSensor is executed.
         """
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="check_table_exists",
                 project_id=TEST_PROJECT_ID,
                 dataset_id=TEST_DATASET_ID,
                 table_id=TEST_TABLE_ID,
             )
+            mock_hook.return_value.table_exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(
@@ -248,7 +289,7 @@ class TestBigQueryTableExistenceAsyncSensor:
 
     def test_big_query_table_existence_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
@@ -260,7 +301,7 @@ class TestBigQueryTableExistenceAsyncSensor:
 
     def test_big_query_table_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
@@ -274,7 +315,7 @@ class TestBigQueryTableExistenceAsyncSensor:
 
     def test_big_query_sensor_async_execute_complete_event_none(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
@@ -293,12 +334,13 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
         "set `deferrable` attribute to `True` instead"
     )
 
-    def test_big_query_table_existence_partition_sensor_async(self):
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_big_query_table_existence_partition_sensor_async(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryTablePartitionExistenceTrigger will be fired
         when the BigQueryTableExistencePartitionAsyncSensor is executed.
         """
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="test_task_id",
                 project_id=TEST_PROJECT_ID,
@@ -306,15 +348,16 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
                 table_id=TEST_TABLE_ID,
                 partition_id=TEST_PARTITION_ID,
             )
+            mock_hook.return_value.table_partition_exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            task.execute(context={})
+            task.execute(mock.MagicMock())
         assert isinstance(
             exc.value.trigger, BigQueryTablePartitionExistenceTrigger
         ), "Trigger is not a BigQueryTablePartitionExistenceTrigger"
 
     def test_big_query_table_existence_partition_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="test_task_id",
                 project_id=TEST_PROJECT_ID,
@@ -327,7 +370,7 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
 
     def test_big_query_table_existence_partition_sensor_async_execute_complete_event_none(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
@@ -340,7 +383,7 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
 
     def test_big_query_table_existence_partition_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,

@@ -26,7 +26,7 @@ from google.cloud.container_v1.types import Cluster
 from kubernetes.client.models import V1Pod
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -428,7 +428,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "Currently the default for this parameter is `False` but in a future release the default "
                 "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
                 "set `is_delete_operator_pod=False` explicitly.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             is_delete_operator_pod = False
@@ -438,7 +438,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 f"You have set parameter use_internal_ip in class {self.__class__.__name__}. "
                 "In current implementation of the operator the parameter is not used and will "
                 "be deleted in future.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -447,7 +447,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 f"You have set parameter regional in class {self.__class__.__name__}. "
                 "In current implementation of the operator the parameter is not used and will "
                 "be deleted in future.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -478,7 +478,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         warnings.warn(
             "The `get_gke_config_file` method is deprecated, "
             "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 

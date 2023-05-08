@@ -21,6 +21,7 @@
 CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
 
 LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+CONSTRAINTS_MARKDOWN_DIFF="${CONSTRAINTS_DIR}/diff-${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.md"
 mkdir -pv "${CONSTRAINTS_DIR}"
 
 
@@ -111,6 +112,25 @@ echo "Constraints generated in ${CURRENT_CONSTRAINT_FILE}"
 echo
 
 set +e
-diff --color=always "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}"
+if diff "--ignore-matching-lines=#" --color=always "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}"; then
+    echo
+    echo "${COLOR_GREEN}No changes in constraints - exiting${COLOR_RESET}"
+    echo
+    rm -f "${CONSTRAINTS_MARKDOWN_DIFF}"
+    exit 0
+fi
+
+cat <<EOF >"${CONSTRAINTS_MARKDOWN_DIFF}"
+# Dependencies updated for Python ${PYTHON_MAJOR_MINOR_VERSION}
+
+\`\`\`diff
+$(diff --unified=0 --ignore-matching-lines=# "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}")
+\`\`\`
+EOF
+
+echo
+echo "Constraints error markdown generated in ${CONSTRAINTS_MARKDOWN_DIFF}"
+echo
+
 
 exit 0

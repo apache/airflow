@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.base import _DEPRECATION_MSG
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
@@ -169,7 +170,7 @@ class TestDynamodbToS3:
         mock_s3_hook.return_value.get_conn = s3_client
 
         aws_conn_id = "test-conn-id"
-        with pytest.warns(DeprecationWarning, match=_DEPRECATION_MSG):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=_DEPRECATION_MSG):
             dynamodb_to_s3_operator = DynamoDBToS3Operator(
                 task_id="dynamodb_to_s3",
                 dynamodb_table_name="airflow_rocks",

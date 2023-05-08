@@ -209,8 +209,8 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. Before, the provider dependencies were kept here. THEY ARE NOT HERE ANYMORE.
 #
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
-# If you change this mark you should also change ./scripts/ci/check_order_setup.py
+# 'Start dependencies group' and 'End dependencies group' are marks for ./scripts/ci/check_order_setup.py
+# If you change these marks you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
     "eventlet>=0.33.3",
@@ -815,7 +815,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     elif extra == "apache.hive":
         # We moved the hive macros to the hive provider, and they are available in hive provider only as of
         # 5.1.0 version only, so we have to make sure minimum version is used
-        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-hive>=5.1.0"]
+        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-apache-hive>=5.1.0"]
     else:
         EXTRAS_DEPENDENCIES[extra] = [
             get_provider_package_name_from_package_id(package_name) for package_name in providers

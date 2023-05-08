@@ -34,7 +34,7 @@ from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
@@ -464,7 +464,11 @@ class KubernetesPodOperator(BaseOperator):
         return hook
 
     def get_hook(self):
-        warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "get_hook is deprecated. Please use hook instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return self.hook
 
     @cached_property
@@ -577,7 +581,7 @@ class KubernetesPodOperator(BaseOperator):
         """Converts passed config_file to dict format."""
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)

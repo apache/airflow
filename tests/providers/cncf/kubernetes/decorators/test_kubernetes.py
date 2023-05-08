@@ -23,7 +23,6 @@ from unittest import mock
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
@@ -167,7 +166,6 @@ def test_kubernetes_with_input_output(
     assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_kubernetes_with_marked_as_setup(
     dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
 ) -> None:
@@ -190,7 +188,6 @@ def test_kubernetes_with_marked_as_setup(
     assert setup_task._is_setup
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_kubernetes_with_marked_as_teardown(
     dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
 ) -> None:

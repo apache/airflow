@@ -194,7 +194,6 @@ class BaseSessionFactory(LoggingMixin):
     def _create_session_with_assume_role(
         self, session_kwargs: dict[str, Any], deferrable: bool = False
     ) -> boto3.session.Session:
-        from aiobotocore.session import get_session as async_get_session
 
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
@@ -212,7 +211,12 @@ class BaseSessionFactory(LoggingMixin):
                 method="sts-assume-role",
             )
 
-        session = async_get_session() if deferrable else botocore.session.get_session()
+        if deferrable:
+            from aiobotocore.session import get_session as async_get_session
+
+            session = async_get_session()
+        else:
+            session = botocore.session.get_session()
 
         session._credentials = credentials
         session.set_config_variable("region", self.basic_session.region_name)

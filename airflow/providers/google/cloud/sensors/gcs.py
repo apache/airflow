@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from google.api_core.retry import Retry
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -151,7 +151,7 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
         warnings.warn(
             "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
             "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         super().__init__(deferrable=True, **kwargs)
 
@@ -323,19 +323,20 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
             super().execute(context)
             return self._matches
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=GCSPrefixBlobTrigger(
-                    bucket=self.bucket,
-                    prefix=self.prefix,
-                    poke_interval=self.poke_interval,
-                    google_cloud_conn_id=self.google_cloud_conn_id,
-                    hook_params={
-                        "impersonation_chain": self.impersonation_chain,
-                    },
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=GCSPrefixBlobTrigger(
+                        bucket=self.bucket,
+                        prefix=self.prefix,
+                        poke_interval=self.poke_interval,
+                        google_cloud_conn_id=self.google_cloud_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
         """
