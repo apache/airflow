@@ -232,7 +232,7 @@ class Trigger(Base):
 
     @classmethod
     def get_sorted_triggers(cls, capacity, alive_triggerer_ids, session):
-        trigger_ids_query = with_row_locks(
+        return with_row_locks(
             session.query(cls.id)
             .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
             .order_by(cls.created_date)
