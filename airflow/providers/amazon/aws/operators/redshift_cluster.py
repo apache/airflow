@@ -540,20 +540,20 @@ class RedshiftPauseClusterOperator(BaseOperator):
         # These parameters are used to address an issue with the boto3 API where the API
         # prematurely reports the cluster as available to receive requests. This causes the cluster
         # to reject initial attempts to pause the cluster despite reporting the correct state.
-        self._attempts = 10
+        self._remaining_attempts = 10
         self._attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        while self._attempts >= 1:
+        while self._remaining_attempts >= 1:
             try:
                 redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._attempts = self._attempts - 1
+                self._remaining_attempts = self._remaining_attempts - 1
 
-                if self._attempts > 0:
-                    self.log.error("Unable to pause cluster. %d attempts remaining.", self._attempts)
+                if self._remaining_attempts > 0:
+                    self.log.error("Unable to pause cluster. %d attempts remaining.", self._remaining_attempts)
                     time.sleep(self._attempt_interval)
                 else:
                     raise error
