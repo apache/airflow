@@ -392,7 +392,7 @@ class TestPauseClusterOperator:
             redshift_operator.execute(None)
         assert mock_conn.pause_cluster.call_count == 10
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    @mock.patch.object(RedshiftHook, "get_conn")
     def test_pause_cluster_deferrable_mode(self, mock_get_conn):
         """Test Pause cluster operator with defer when deferrable param is true"""
         mock_get_conn().pause_cluster.return_value = True

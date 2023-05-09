@@ -13,16 +13,16 @@
                     "state": "success"
                 },
                 {
-                    "expected": "ClusterNotFound",
-                    "argument": "Clusters[].ClusterStatus",
                     "matcher": "error",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "ClusterNotFound",
                     "state": "retry"
                 },
                 {
-                    "expected": "deleting",
                     "matcher": "pathAny",
-                    "state": "failure",
-                    "argument": "Clusters[].ClusterStatus"
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "deleting",
+                    "state": "failure"
                 }
             ]
         }
