@@ -371,9 +371,9 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
 
 class SnowflakeSqlApiOperator(SnowflakeOperator):
     """
-    Implemented Async Snowflake SQL API Operator to support multiple SQL statements sequentially,
+    Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially,
     which is the behavior of the SnowflakeOperator, the Snowflake SQL API allows submitting
-    multiple SQL statements in a single request. In combination with aiohttp, make post request to submit SQL
+    multiple SQL statements in a single request. It make post request to submit SQL
     statements for execution, poll to check the status of the execution of a statement. Fetch query results
     concurrently.
     This Operator currently uses key pair authentication, so you need tp provide private key raw content or
@@ -513,17 +513,18 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
         queries_in_progress = set(self.query_ids)
         statement_success_status = {}
         statement_error_status = {}
-        while queries_in_progress:
-            for query_id in self.query_ids:
-                self.log.info("checking : %s", query_id)
-                try:
-                    statement_status = self._hook.get_sql_api_query_status(query_id)
-                except Exception as e:
-                    raise ValueError({"status": "error", "message": str(e)})
-                if statement_status.get("status") == "error":
-                    queries_in_progress.remove(query_id)
-                    statement_error_status[query_id] = statement_status
-                if statement_status.get("status") == "success":
-                    statement_success_status[query_id] = statement_status
-                    queries_in_progress.remove(query_id)
+        for query_id in self.query_ids:
+            if not len(queries_in_progress):
+                break
+            self.log.info("checking : %s", query_id)
+            try:
+                statement_status = self._hook.get_sql_api_query_status(query_id)
+            except Exception as e:
+                raise ValueError({"status": "error", "message": str(e)})
+            if statement_status.get("status") == "error":
+                queries_in_progress.remove(query_id)
+                statement_error_status[query_id] = statement_status
+            if statement_status.get("status") == "success":
+                statement_success_status[query_id] = statement_status
+                queries_in_progress.remove(query_id)
         return {"success": statement_success_status, "error": statement_error_status}
