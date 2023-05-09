@@ -240,4 +240,3 @@ class Trigger(Base):
             session,
             skip_locked=True,
         ).all()
-        return trigger_ids_query
