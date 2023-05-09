@@ -175,6 +175,7 @@ class KubernetesPodOperator(BaseOperator):
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
+    :param active_deadline_seconds: the active_deadline_seconds from V1PodSpec.
     :param get_logs: get the stdout of the base container as logs of the tasks.
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
@@ -267,6 +268,7 @@ class KubernetesPodOperator(BaseOperator):
         labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
+        active_deadline_seconds: int | Nont = None,
         get_logs: bool = True,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
@@ -321,6 +323,7 @@ class KubernetesPodOperator(BaseOperator):
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
+        self.active_deadline_seconds = active_deadline_seconds
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
@@ -798,6 +801,7 @@ class KubernetesPodOperator(BaseOperator):
                 affinity=self.affinity,
                 tolerations=self.tolerations,
                 init_containers=self.init_containers,
+                active_deadline_seconds=self.active_deadline_seconds,
                 containers=[
                     k8s.V1Container(
                         image=self.image,
