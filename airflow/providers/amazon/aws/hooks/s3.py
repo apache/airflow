@@ -39,15 +39,12 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-
 try:
     from aiobotocore.client import AioBaseClient
 except ImportError:
     pass
-
 from asgiref.sync import sync_to_async
-from boto3.s3.transfer import S3Transfer, TransferConfig
-
+from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
