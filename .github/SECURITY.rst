@@ -83,7 +83,7 @@ There are certain expectations from the members of the security team:
 * They have to have an `ICLA <https://www.apache.org/licenses/contributor-agreements.html>`_ signed with
   Apache Software Foundation.
 
-* The security team members might inform 3rd parties about fixes, for example in order to asses if the fix
+* The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
   is solving the problem or in order to assess its applicability to be applied by 3rd parties, as soon
   as a PR solving the issue is opened in the public airflow repository.
 
