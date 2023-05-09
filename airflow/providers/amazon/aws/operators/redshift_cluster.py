@@ -553,7 +553,9 @@ class RedshiftPauseClusterOperator(BaseOperator):
                 self._remaining_attempts = self._remaining_attempts - 1
 
                 if self._remaining_attempts > 0:
-                    self.log.error("Unable to pause cluster. %d attempts remaining.", self._remaining_attempts)
+                    self.log.error(
+                        "Unable to pause cluster. %d attempts remaining.", self._remaining_attempts
+                    )
                     time.sleep(self._attempt_interval)
                 else:
                     raise error
