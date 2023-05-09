@@ -510,7 +510,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod=pod,
                 startup_timeout=self.startup_timeout_seconds,
                 startup_check_interval=self.startup_check_interval_seconds,
-                )
+            )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 for event in self.pod_manager.read_pod_events(pod).items:
@@ -610,7 +610,7 @@ class KubernetesPodOperator(BaseOperator):
                 should_delete_pod=self.is_delete_operator_pod,
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
-                startup_check_interval=self.startup_check_interval,
+                startup_check_interval=self.startup_check_interval_seconds,
                 base_container_name=self.base_container_name,
             ),
             method_name="execute_complete",
