@@ -216,7 +216,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
             when setting this parameter, higher value speeds up the batch operation's execution,
             but too high value will result in a whole batch not fitting in a machine's memory,
             and the whole operation will fail.
-            The default value is 64.
+            The default value is same as in the aiplatform's BatchPredictionJob.
         """
         self._batch_prediction_job = BatchPredictionJob.create(
             job_display_name=job_display_name,
