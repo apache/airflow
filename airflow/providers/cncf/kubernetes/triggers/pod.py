@@ -77,6 +77,7 @@ class KubernetesPodTrigger(BaseTrigger):
         should_delete_pod: bool = True,
         get_logs: bool = True,
         startup_timeout: int = 120,
+        startup_check_interval: int = 60,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -91,6 +92,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.should_delete_pod = should_delete_pod
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+        self.startup_check_interval = startup_check_interval
 
         self._hook: AsyncKubernetesHook | None = None
         self._since_time = None
