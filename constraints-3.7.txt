@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-08T18:06:37Z
+# This constraints file was automatically generated on 2023-05-09T19:45:32Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-6-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@ Jinja2==3.1.2
 Mako==1.2.4
 Markdown==3.4.3
 MarkupSafe==2.1.2
-PyGithub==1.58.1
+PyGithub==1.58.2
 PyHive==0.6.5
 PyJWT==2.6.0
 PyNaCl==1.5.0
@@ -171,7 +171,7 @@ azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.0.0
 azure-nspkg==3.0.2
-azure-servicebus==7.9.0
+azure-servicebus==7.10.0
 azure-storage-blob==12.16.0
 azure-storage-common==2.1.0
 azure-storage-file-datalake==12.11.0
@@ -224,7 +224,7 @@ croniter==1.3.14
 cryptography==40.0.2
 curlify==2.2.1
 dask==2022.2.0
-databricks-sql-connector==2.5.1
+databricks-sql-connector==2.5.2
 datadog==0.45.0
 db-dtypes==1.1.1
 decorator==5.1.1
@@ -236,7 +236,7 @@ distributed==2022.2.0
 dnspython==2.3.0
 docker==6.1.1
 docopt==0.6.2
-docutils==0.19
+docutils==0.20
 ecdsa==0.18.0
 elasticsearch-dbapi==0.2.10
 elasticsearch-dsl==7.4.1
@@ -475,7 +475,7 @@ pycparser==2.21
 pycryptodome==3.17
 pycryptodomex==3.17
 pydantic==1.10.7
-pydata-google-auth==1.7.0
+pydata-google-auth==1.8.0
 pydot==1.4.2
 pydruid==0.6.5
 pyenchant==3.2.2
@@ -613,12 +613,12 @@ types-certifi==2021.10.8.3
 types-croniter==1.3.2.9
 types-docutils==0.19.1.9
 types-paramiko==3.0.0.9
-types-protobuf==4.22.0.2
+types-protobuf==4.23.0.0
 types-pyOpenSSL==23.1.0.2
 types-python-dateutil==2.8.19.12
 types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
-types-redis==4.5.4.2
+types-redis==4.5.5.0
 types-requests==2.30.0.0
 types-setuptools==67.7.0.1
 types-tabulate==0.9.0.2
@@ -628,7 +628,6 @@ types-urllib3==1.26.25.12
 typing_extensions==4.5.0
 tzdata==2023.3
 tzlocal==4.3
-uamqp==1.6.4
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
 uritemplate==3.0.1
