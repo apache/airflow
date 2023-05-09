@@ -33,8 +33,8 @@ from google.cloud.vision_v1.types import (
     ReferenceImage,
 )
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 MetaData = Sequence[Tuple[str, str]]
 
 
-class CloudVisionCreateProductSetOperator(BaseOperator):
+class CloudVisionCreateProductSetOperator(GoogleCloudBaseOperator):
     """
     Creates a new ProductSet resource.
 
@@ -136,7 +136,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
             return self.product_set_id
 
 
-class CloudVisionGetProductSetOperator(BaseOperator):
+class CloudVisionGetProductSetOperator(GoogleCloudBaseOperator):
     """
     Gets information associated with a ProductSet.
 
@@ -214,7 +214,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         )
 
 
-class CloudVisionUpdateProductSetOperator(BaseOperator):
+class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
     """
     Makes changes to a `ProductSet` resource. Only display_name can be updated currently.
 
@@ -315,7 +315,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         )
 
 
-class CloudVisionDeleteProductSetOperator(BaseOperator):
+class CloudVisionDeleteProductSetOperator(GoogleCloudBaseOperator):
     """
     Permanently deletes a `ProductSet`. `Products` and `ReferenceImages` in the
     `ProductSet` are not deleted. The actual image files are not deleted from Google
@@ -395,7 +395,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         )
 
 
-class CloudVisionCreateProductOperator(BaseOperator):
+class CloudVisionCreateProductOperator(GoogleCloudBaseOperator):
     """
     Creates and returns a new product resource.
 
@@ -493,7 +493,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
             return self.product_id
 
 
-class CloudVisionGetProductOperator(BaseOperator):
+class CloudVisionGetProductOperator(GoogleCloudBaseOperator):
     """
     Gets information associated with a `Product`.
 
@@ -575,7 +575,7 @@ class CloudVisionGetProductOperator(BaseOperator):
         )
 
 
-class CloudVisionUpdateProductOperator(BaseOperator):
+class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
     """
     Makes changes to a Product resource. Only the display_name, description, and labels fields can be
     updated right now.
@@ -687,7 +687,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         )
 
 
-class CloudVisionDeleteProductOperator(BaseOperator):
+class CloudVisionDeleteProductOperator(GoogleCloudBaseOperator):
     """
     Permanently deletes a product and its reference images.
 
@@ -772,7 +772,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         )
 
 
-class CloudVisionImageAnnotateOperator(BaseOperator):
+class CloudVisionImageAnnotateOperator(GoogleCloudBaseOperator):
     """
     Run image detection and annotation for an image or a batch of images.
 
@@ -840,7 +840,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
         return response
 
 
-class CloudVisionCreateReferenceImageOperator(BaseOperator):
+class CloudVisionCreateReferenceImageOperator(GoogleCloudBaseOperator):
     """
     Creates and returns a new ReferenceImage ID resource.
 
@@ -941,7 +941,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
             return self.reference_image_id
 
 
-class CloudVisionDeleteReferenceImageOperator(BaseOperator):
+class CloudVisionDeleteReferenceImageOperator(GoogleCloudBaseOperator):
     """
     Deletes a ReferenceImage ID resource.
 
@@ -1027,7 +1027,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         )
 
 
-class CloudVisionAddProductToProductSetOperator(BaseOperator):
+class CloudVisionAddProductToProductSetOperator(GoogleCloudBaseOperator):
     """
     Adds a Product to the specified ProductSet. If the Product is already present, no change is made.
 
@@ -1116,7 +1116,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         )
 
 
-class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
+class CloudVisionRemoveProductFromProductSetOperator(GoogleCloudBaseOperator):
     """
     Removes a Product from the specified ProductSet.
 
@@ -1199,7 +1199,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         )
 
 
-class CloudVisionDetectTextOperator(BaseOperator):
+class CloudVisionDetectTextOperator(GoogleCloudBaseOperator):
     """
     Detects Text in the image
 
@@ -1281,7 +1281,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
         )
 
 
-class CloudVisionTextDetectOperator(BaseOperator):
+class CloudVisionTextDetectOperator(GoogleCloudBaseOperator):
     """
     Detects Document Text in the image
 
@@ -1362,7 +1362,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
         )
 
 
-class CloudVisionDetectImageLabelsOperator(BaseOperator):
+class CloudVisionDetectImageLabelsOperator(GoogleCloudBaseOperator):
     """
     Detects Document Text in the image
 
@@ -1433,7 +1433,7 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         )
 
 
-class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
+class CloudVisionDetectImageSafeSearchOperator(GoogleCloudBaseOperator):
     """
     Detects Document Text in the image
 

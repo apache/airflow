@@ -59,6 +59,7 @@ with DAG(
             "MasterUsername": RDS_USERNAME,
             "MasterUserPassword": RDS_PASSWORD,
             "AllocatedStorage": 20,
+            "PubliclyAccessible": False,
         },
     )
     # [END howto_operator_rds_create_db_instance]

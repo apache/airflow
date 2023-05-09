@@ -169,7 +169,7 @@ As well as a single parameter it is possible to pass multiple parameters to expa
     # add(x=8, y=5)
     # add(x=8, y=10)
 
-This would result in the add task being called 6 times. Please note however that the order of expansion is not guaranteed.
+This would result in the add task being called 6 times. Please note, however, that the order of expansion is not guaranteed.
 
 Mapping with non-TaskFlow operators
 ===================================
@@ -522,7 +522,7 @@ There are two limits that you can place on a task:
 
   If you wish to not have a large mapped task consume all available runner slots you can use the ``max_active_tis_per_dag`` setting on the task to restrict how many can be running at the same time.
 
-  Note however that this applies to all copies of that task against all active DagRuns, not just to this one specific DagRun.
+  Note, however, that this applies to all copies of that task against all active DagRuns, not just to this one specific DagRun.
 
   .. code-block:: python
 

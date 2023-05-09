@@ -39,9 +39,6 @@ def show_config(args):
 
 def get_value(args):
     """Get one value from configuration."""
-    if not conf.has_section(args.section):
-        raise SystemExit(f"The section [{args.section}] is not found in config.")
-
     if not conf.has_option(args.section, args.option):
         raise SystemExit(f"The option [{args.section}/{args.option}] is not found in config.")
 

@@ -30,9 +30,11 @@ from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.helpers import prune_dict
+from kubernetes.watch import Watch
+
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

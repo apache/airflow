@@ -32,8 +32,14 @@ class TestSequentialExecutor:
     def test_is_local_default_value(self):
         assert SequentialExecutor.is_local
 
+    def test_is_production_default_value(self):
+        assert not SequentialExecutor.is_production
+
     def test_serve_logs_default_value(self):
         assert SequentialExecutor.serve_logs
+
+    def test_is_single_threaded_default_value(self):
+        assert SequentialExecutor.is_single_threaded
 
     @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
@@ -42,8 +48,18 @@ class TestSequentialExecutor:
         executor = SequentialExecutor()
         executor.heartbeat()
         calls = [
-            mock.call("executor.open_slots", mock.ANY),
-            mock.call("executor.queued_tasks", mock.ANY),
-            mock.call("executor.running_tasks", mock.ANY),
+            mock.call(
+                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "SequentialExecutor"}
+            ),
+            mock.call(
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "name": "SequentialExecutor"},
+            ),
+            mock.call(
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "name": "SequentialExecutor"},
+            ),
         ]
         mock_stats_gauge.assert_has_calls(calls)

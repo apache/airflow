@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
@@ -33,7 +32,7 @@ GCS_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
+class TestS3ToGoogleCloudStorageOperator:
     def test_init(self):
         """Test S3ToGCSOperator instance is properly initialized."""
 
@@ -88,7 +87,6 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
-            delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
@@ -117,7 +115,6 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         operator.execute(None)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
-            delegate_to=None,
             impersonation_chain=None,
         )
         gcs_mock_hook.return_value.upload.assert_has_calls(

@@ -55,7 +55,7 @@ class TestCopyFromExternalStageToSnowflake:
         sql = """
         COPY INTO schema.table(col1, col2)
              FROM  @stage/prefix
-        FILES='file1.csv','file2.csv'
+        FILES=('file1.csv','file2.csv')
         PATTERN='*.csv'
         FILE_FORMAT=CSV
         copy_options

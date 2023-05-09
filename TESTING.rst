@@ -232,13 +232,42 @@ for debugging purposes, enter:
     pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
 
 
+Running Tests using Breeze interactive shell
+--------------------------------------------
+
+You can run tests interactively using regular pytest commands inside the Breeze shell. This has the
+advantage, that Breeze container has all the dependencies installed that are needed to run the tests
+and it will ask you to rebuild the image if it is needed and some new dependencies should be installed.
+
+By using interactive shell and iterating over the tests, you can iterate and re-run tests one-by-one
+or group by group right after you modified them.
+
+Entering the shell is as easy as:
+
+.. code-block:: bash
+
+     breeze
+
+This should drop you into the container.
+
+You can also use other switches (like ``--backend`` for example) to configure the environment for your
+tests (and for example to switch to different database backend - see ``--help`` for more details).
+
+Once you enter the container, you might run regular pytest commands. For example:
+
+.. code-block:: bash
+
+    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
+
+
 Running Tests using Breeze from the Host
 ----------------------------------------
 
 If you wish to only run tests and not to drop into the shell, apply the
 ``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
 often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
-to breeze.
+to breeze command. The Breeze image usually will have all the dependencies needed and it
+will ask you to rebuild the image if it is needed and some new dependencies should be installed.
 
 .. code-block:: bash
 
@@ -268,55 +297,17 @@ In case of Providers tests, you can run tests for all providers
 
     breeze testing tests --test-type Providers
 
-You can also limit the set of providers you would like to run tests of
+You can limit the set of providers you would like to run tests of
 
 .. code-block:: bash
 
     breeze testing tests --test-type "Providers[airbyte,http]"
 
-Running Tests of a specified type from the Host
------------------------------------------------
+You can also run all providers but exclude the providers you would like to skip
 
-You can also run tests for a specific test type. For the stability and performance point of view,
-we separated tests into different test types to be run separately.
+.. code-block:: bash
 
-You can select the test type by adding ``--test-type TEST_TYPE`` before the test command. There are two
-kinds of test types:
-
-* Per-directories types are added to select subset of the tests based on sub-directories in ``tests`` folder.
-  Example test types there - Core, Providers, CLI. The only action that happens when you choose the right
-  test folders are pre-selected. It is only useful for those types of tests to choose the test type
-  when you do not specify test to run.
-
-  Runs all core tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Core  --db-reset tests
-
-  Runs all provider tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Providers --db-reset tests
-
-* Special kinds of tests Quarantined, Postgres, MySQL, which are marked with pytest
-  marks and for those you need to select the type using test-type switch. If you want to run such tests
-  using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
-  Similarly to the per-directory tests if you do not specify the test or tests to run,
-  all tests of a given type are run
-
-  Run quarantined test_task_command.py test:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
-
-  Run all Quarantined tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Quarantined tests --db-reset
+    breeze testing tests --test-type "Providers[-amazon,google]"
 
 
 Running full Airflow unit test suite in parallel
@@ -476,7 +467,8 @@ environment with enabled integrations and in the CI. See `CI <CI.rst>`_ for deta
 When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
 switch when starting Breeze. You can specify multiple integrations by repeating the ``--integration`` switch
-or using the ``--integration all`` switch that enables all integrations.
+or using the ``--integration all-testable`` switch that enables all testable integrations and
+``--integration all`` switch that enables all integrations.
 
 NOTE: Every integration requires a separate container with the corresponding integration image.
 These containers take precious resources on your PC, mainly the memory. The started integrations are not stopped
@@ -515,11 +507,17 @@ To start ``mongo`` and ``cassandra`` integrations, enter:
 
     breeze --integration mongo --integration cassandra
 
+To start all testable integrations, enter:
+
+.. code-block:: bash
+
+    breeze --integration all-testable
+
 To start all integrations, enter:
 
 .. code-block:: bash
 
-    breeze --integration all
+    breeze --integration all-testable
 
 Note that Kerberos is a special kind of integration. Some tests run differently when
 Kerberos integration is enabled (they retrieve and use a Kerberos authentication token) and differently when the
@@ -584,7 +582,7 @@ Runs all integration tests:
 
   .. code-block:: bash
 
-       breeze testing integration-tests  --db-reset --integration all
+       breeze testing integration-tests  --db-reset --integration all-testable
 
 Runs all mongo DB tests:
 
@@ -614,7 +612,7 @@ Example test here:
 
 .. code-block:: python
 
-    from tests.charts.helm_template_generator import render_chart, render_k8s_object
+    from tests.charts.common.helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:
@@ -641,6 +639,16 @@ following command (but it takes quite a long time even in a multi-processor mach
 .. code-block:: bash
 
     breeze testing helm-tests
+
+You can also execute tests from a selected package only. Tests in ``tests/chart`` are grouped by packages
+so rather than running all tests, you can run only tests from a selected package. For example:
+
+.. code-block:: bash
+
+    breeze testing helm-tests --helm-test-package basic
+
+Will run all tests from ``tests/charts/basic`` package.
+
 
 You can also run Helm tests individually via the usual ``breeze`` command. Just enter breeze and run the
 tests with pytest as you would do with regular unit tests (you can add ``-n auto`` command to run Helm
@@ -1162,15 +1170,15 @@ The virtualenv required will be created automatically when the scripts are run.
     ========================================================================================= test session starts ==========================================================================================
     platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/python
     cachedir: .pytest_cache
-    rootdir: /Users/jarek/IdeaProjects/airflow, configfile: pytest.ini
+    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes_tests
     plugins: anyio-3.6.1, instafail-0.4.2, xdist-2.5.0, forked-1.4.0, timeouts-1.2.1, cov-3.0.0
     setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
     collected 55 items
 
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
 
 8b) You can enter an interactive shell to run tests one-by-one
 
@@ -1247,11 +1255,12 @@ and this is where KUBECONFIG env should point to.
 
 You can iterate with tests while you are in the virtualenv. All the tests requiring Kubernetes cluster
 are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
-print output generated test logs and print statements to the terminal immediately.
+print output generated test logs and print statements to the terminal immediately. You should have
+kubernetes_tests as your working directory.
 
 .. code-block:: bash
 
-    pytest kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+    pytest test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
 
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 Airflow to KinD cluster.

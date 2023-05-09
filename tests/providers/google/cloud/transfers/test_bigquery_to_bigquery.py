@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
@@ -28,7 +27,7 @@ TEST_DATASET = "test-dataset"
 TEST_TABLE_ID = "test-table-id"
 
 
-class TestBigQueryToBigQueryOperator(unittest.TestCase):
+class TestBigQueryToBigQueryOperator:
     @mock.patch(BQ_HOOK_PATH)
     def test_execute_without_location_should_execute_successfully(self, mock_hook):
         source_project_dataset_tables = f"{TEST_DATASET}.{TEST_TABLE_ID}"

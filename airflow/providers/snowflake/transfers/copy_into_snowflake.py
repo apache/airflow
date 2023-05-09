@@ -132,7 +132,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         sql = f"""
         COPY INTO {into}
              FROM  @{self.stage}/{self.prefix or ""}
-        {"FILES=" + ",".join(map(enclose_param ,self.files)) if self.files else ""}
+        {"FILES=(" + ",".join(map(enclose_param, self.files)) + ")" if self.files else ""}
         {"PATTERN=" + enclose_param(self.pattern) if self.pattern else ""}
         FILE_FORMAT={self.file_format}
         {self.copy_options or ""}

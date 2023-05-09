@@ -24,6 +24,31 @@
 Changelog
 ---------
 
+4.2.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SFTPSensor when using newer_than and there are multiple matched files (#29794)``
+
+4.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sftp sensor with pattern (#29467)``
+
+4.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SFTP operator's template fields processing (#29068)``
+* ``FTP operator has logic in __init__ (#29073)``
+
 4.2.1
 .....
 

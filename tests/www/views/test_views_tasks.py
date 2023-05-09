@@ -22,6 +22,7 @@ import json
 import re
 import unittest.mock
 import urllib.parse
+from getpass import getuser
 
 import pytest
 import time_machine
@@ -29,12 +30,10 @@ import time_machine
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.executors.local_executor import LocalExecutor
 from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
-from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
@@ -79,6 +78,14 @@ def init_dagruns(app, reset_dagruns):
             state=State.RUNNING,
         )
         app.dag_bag.get_dag("example_xcom").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
+        app.dag_bag.get_dag("latest_only").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -264,6 +271,11 @@ def client_ti_without_dag_edit(app):
             "dags/example_bash_operator/calendar",
             ["example_bash_operator"],
             id="existing-dagbag-calendar",
+        ),
+        pytest.param(
+            "dags/latest_only/calendar",
+            ["latest_only"],
+            id="existing-dagbag-non-cron-schedule-calendar",
         ),
         pytest.param(
             "dag_details?dag_id=example_bash_operator",
@@ -471,24 +483,12 @@ def test_code_from_db_all_example_dags(admin_client):
             ),
             "example_bash_operator",
         ),
-        (
-            "run",
-            dict(
-                task_id="runme_0",
-                dag_id="example_bash_operator",
-                ignore_all_deps="false",
-                ignore_ti_state="true",
-                execution_date=DEFAULT_DATE,
-            ),
-            "",
-        ),
     ],
     ids=[
         "paused",
         "failed-flash-hint",
         "success-flash-hint",
         "clear",
-        "run",
     ],
 )
 def test_views_post(admin_client, url, data, content):
@@ -517,120 +517,6 @@ def test_dag_never_run(admin_client, url):
 class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
     def heartbeat(self):
         return True
-
-
-@pytest.mark.parametrize("state", RUNNABLE_STATES)
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=_ForceHeartbeatCeleryExecutor(),
-)
-def test_run_with_runnable_states(_, admin_client, session, state):
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": state, "end_date": timezone.utcnow()}
-    )
-    session.commit()
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="false",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-    check_content_in_response("", resp)
-
-    msg = f"Task is in the &#39;{state}&#39 state."
-    assert not re.search(msg, resp.get_data(as_text=True))
-
-
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=_ForceHeartbeatCeleryExecutor(),
-)
-def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session, time_machine):
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": State.SCHEDULED, "queued_dttm": None}
-    )
-    session.commit()
-
-    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [(None,)]
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="true",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    now = timezone.utcnow()
-
-    time_machine.move_to(now, tick=False)
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-
-    assert resp.status_code == 200
-    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).scalar() == now
-
-
-@pytest.mark.parametrize("state", QUEUEABLE_STATES)
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=CeleryExecutor(),
-)
-def test_run_with_not_runnable_states(_, admin_client, session, state):
-    assert state not in RUNNABLE_STATES
-
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": state, "end_date": timezone.utcnow()}
-    )
-    session.commit()
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="false",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-    check_content_in_response("", resp)
-
-    msg = f"Task is in the &#39;{state}&#39; state."
-    assert re.search(msg, resp.get_data(as_text=True))
-
-
-@pytest.mark.parametrize("state", QUEUEABLE_STATES)
-@unittest.mock.patch(
-    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
-    return_value=LocalExecutor(),
-)
-def test_run_with_the_unsupported_executor(_, admin_client, session, state):
-    assert state not in RUNNABLE_STATES
-
-    task_id = "runme_0"
-    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
-        {"state": state, "end_date": timezone.utcnow()}
-    )
-    session.commit()
-
-    form = dict(
-        task_id=task_id,
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="false",
-        dag_run_id=DEFAULT_DAGRUN,
-        origin="/home",
-    )
-    resp = admin_client.post("run", data=form, follow_redirects=True)
-    check_content_in_response("", resp)
-
-    msg = "LocalExecutor does not support ad hoc task runs"
-    assert re.search(msg, resp.get_data(as_text=True))
 
 
 @pytest.fixture()
@@ -780,10 +666,10 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
 
     Example usage::
 
-        >>> from airflow.www.views import TaskInstanceModelView
-        >>> ti = session.Query(TaskInstance).filter(...).one()
-        >>> pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
-        >>> client.post("...", data={"action": "...", "rowid": pk})
+        from airflow.www.views import TaskInstanceModelView
+        ti = session.Query(TaskInstance).filter(...).one()
+        pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
+        client.post("...", data={"action": "...", "rowid": pk})
     """
     pk_value = model_view_cls.datamodel.get_pk_value(instance)
     return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
@@ -820,26 +706,37 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
-def test_task_instance_clear(session, admin_client):
+@pytest.mark.parametrize(
+    "client_fixture, should_succeed",
+    [
+        ("admin_client", True),
+        ("user_client", True),
+        ("viewer_client", False),
+        ("anonymous_client", False),
+    ],
+)
+def test_task_instance_clear(session, request, client_fixture, should_succeed):
+    client = request.getfixturevalue(client_fixture)
     task_id = "runme_0"
+    initial_state = State.SUCCESS
 
     # Set the state to success for clearing.
     ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
-    ti_q.update({"state": State.SUCCESS})
+    ti_q.update({"state": initial_state})
     session.commit()
 
     # Send a request to clear.
     rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
-    resp = admin_client.post(
+    resp = client.post(
         "/taskinstance/action_post",
         data={"action": "clear", "rowid": rowid},
         follow_redirects=True,
     )
-    assert resp.status_code == 200
+    assert resp.status_code == (200 if should_succeed else 404)
 
     # Now the state should be None.
     state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
-    assert state == State.NONE
+    assert state == (State.NONE if should_succeed else initial_state)
 
 
 def test_task_instance_clear_failure(admin_client):
@@ -1059,7 +956,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_after_loop": {
@@ -1089,7 +986,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_this_last": {
@@ -1119,7 +1016,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_0": {
@@ -1149,7 +1046,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_1": {
@@ -1179,7 +1076,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_2": {
@@ -1209,7 +1106,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "this_will_skip": {
@@ -1239,7 +1136,7 @@ def test_task_instances(admin_client):
             "trigger_id": None,
             "trigger_timeout": None,
             "try_number": 1,
-            "unixname": "root",
+            "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
     }

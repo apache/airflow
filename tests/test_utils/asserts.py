@@ -19,33 +19,21 @@ from __future__ import annotations
 import logging
 import re
 import traceback
-import warnings
 from collections import Counter
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
 
 from sqlalchemy import event
 
 # Long import to not create a copy of the reference, but to refer to one place.
 import airflow.settings
 
-if TYPE_CHECKING:
-    from unittest import TestCase
-
 log = logging.getLogger(__name__)
 
 
-def assert_equal_ignore_multiple_spaces(case: TestCase | None, first, second, msg=None):
+def assert_equal_ignore_multiple_spaces(first, second, msg=None):
     def _trim(s):
         return re.sub(r"\s+", " ", s.strip())
 
-    if case:
-        warnings.warn(
-            "Passing `case` has no effect and will be remove in the future. "
-            "Please set to `None` for avoid this warning.",
-            FutureWarning,
-            stacklevel=3,
-        )
     first_trim = _trim(first)
     second_trim = _trim(second)
     msg = msg or f"{first_trim} != {second_trim}"

@@ -20,7 +20,6 @@ from __future__ import annotations
 import time
 from collections import deque
 from datetime import datetime, timedelta
-from enum import Enum
 from logging import Logger
 from threading import Event, Thread
 from typing import Generator
@@ -31,6 +30,7 @@ from botocore.waiter import Waiter
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.utils import _StringCompareEnum
 from airflow.typing_compat import Protocol, runtime_checkable
 
 
@@ -55,7 +55,7 @@ def should_retry_eni(exception: Exception):
     return False
 
 
-class EcsClusterStates(Enum):
+class EcsClusterStates(_StringCompareEnum):
     """Contains the possible State values of an ECS Cluster."""
 
     ACTIVE = "ACTIVE"
@@ -65,14 +65,15 @@ class EcsClusterStates(Enum):
     INACTIVE = "INACTIVE"
 
 
-class EcsTaskDefinitionStates(Enum):
+class EcsTaskDefinitionStates(_StringCompareEnum):
     """Contains the possible State values of an ECS Task Definition."""
 
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
+    DELETE_IN_PROGRESS = "DELETE_IN_PROGRESS"
 
 
-class EcsTaskStates(Enum):
+class EcsTaskStates(_StringCompareEnum):
     """Contains the possible State values of an ECS Task."""
 
     PROVISIONING = "PROVISIONING"

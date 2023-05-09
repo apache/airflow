@@ -54,7 +54,6 @@ def configured_app(minimal_app_for_api):
         username="test",
         role_name="Test",
         permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
@@ -118,14 +117,14 @@ class TestDagEndpoint:
         self.clean_db()
 
     @provide_session
-    def _create_dag_models(self, count, session=None):
+    def _create_dag_models(self, count, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
         for num in range(1, count + 1):
             dag_model = DagModel(
-                dag_id=f"TEST_DAG_{num}",
+                dag_id=f"{dag_id_prefix}_{num}",
                 fileloc=f"/tmp/dag_{num}.py",
                 schedule_interval="2 2 * * *",
                 is_active=True,
-                is_paused=False,
+                is_paused=is_paused,
             )
             session.add(dag_model)
 
@@ -822,6 +821,166 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test_no_permissions"})
 
         assert response.status_code == 403
+
+    def test_paused_true_returns_paused_dags(self, url_safe_serializer):
+        self._create_dag_models(1, dag_id_prefix="TEST_DAG_PAUSED", is_paused=True)
+        self._create_dag_models(1, dag_id_prefix="TEST_DAG_UNPAUSED", is_paused=False)
+        response = self.client.get("api/v1/dags?paused=True", environ_overrides={"REMOTE_USER": "test"})
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_PAUSED_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": file_token,
+                    "is_paused": True,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                    "next_dagrun": None,
+                    "has_task_concurrency_limits": True,
+                    "next_dagrun_data_interval_start": None,
+                    "next_dagrun_data_interval_end": None,
+                    "max_active_runs": 16,
+                    "next_dagrun_create_after": None,
+                    "last_expired": None,
+                    "max_active_tasks": 16,
+                    "last_pickled": None,
+                    "default_view": None,
+                    "last_parsed_time": None,
+                    "scheduler_lock": None,
+                    "timetable_description": None,
+                    "has_import_errors": False,
+                    "pickle_id": None,
+                }
+            ],
+            "total_entries": 1,
+        } == response.json
+
+    def test_paused_false_returns_unpaused_dags(self, url_safe_serializer):
+        self._create_dag_models(1, dag_id_prefix="TEST_DAG_PAUSED", is_paused=True)
+        self._create_dag_models(1, dag_id_prefix="TEST_DAG_UNPAUSED", is_paused=False)
+        response = self.client.get("api/v1/dags?paused=False", environ_overrides={"REMOTE_USER": "test"})
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": file_token,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                    "next_dagrun": None,
+                    "has_task_concurrency_limits": True,
+                    "next_dagrun_data_interval_start": None,
+                    "next_dagrun_data_interval_end": None,
+                    "max_active_runs": 16,
+                    "next_dagrun_create_after": None,
+                    "last_expired": None,
+                    "max_active_tasks": 16,
+                    "last_pickled": None,
+                    "default_view": None,
+                    "last_parsed_time": None,
+                    "scheduler_lock": None,
+                    "timetable_description": None,
+                    "has_import_errors": False,
+                    "pickle_id": None,
+                }
+            ],
+            "total_entries": 1,
+        } == response.json
+
+    def test_paused_none_returns_all_dags(self, url_safe_serializer):
+        self._create_dag_models(1, dag_id_prefix="TEST_DAG_PAUSED", is_paused=True)
+        self._create_dag_models(1, dag_id_prefix="TEST_DAG_UNPAUSED", is_paused=False)
+        response = self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_PAUSED_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": file_token,
+                    "is_paused": True,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                    "next_dagrun": None,
+                    "has_task_concurrency_limits": True,
+                    "next_dagrun_data_interval_start": None,
+                    "next_dagrun_data_interval_end": None,
+                    "max_active_runs": 16,
+                    "next_dagrun_create_after": None,
+                    "last_expired": None,
+                    "max_active_tasks": 16,
+                    "last_pickled": None,
+                    "default_view": None,
+                    "last_parsed_time": None,
+                    "scheduler_lock": None,
+                    "timetable_description": None,
+                    "has_import_errors": False,
+                    "pickle_id": None,
+                },
+                {
+                    "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": file_token,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                    "next_dagrun": None,
+                    "has_task_concurrency_limits": True,
+                    "next_dagrun_data_interval_start": None,
+                    "next_dagrun_data_interval_end": None,
+                    "max_active_runs": 16,
+                    "next_dagrun_create_after": None,
+                    "last_expired": None,
+                    "max_active_tasks": 16,
+                    "last_pickled": None,
+                    "default_view": None,
+                    "last_parsed_time": None,
+                    "scheduler_lock": None,
+                    "timetable_description": None,
+                    "has_import_errors": False,
+                    "pickle_id": None,
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -1561,6 +1720,86 @@ class TestPatchDags(TestDagEndpoint):
         assert len(dags_not_updated.all()) == 8
         dags_updated = session.query(DagModel).filter(DagModel.is_paused)
         assert len(dags_updated.all()) == 2
+
+    @provide_session
+    def test_should_respond_200_and_reverse_ordering(self, session, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        self._create_dag_models(2)
+        file_token10 = url_safe_serializer.dumps("/tmp/dag_2.py")
+
+        response = self.client.get(
+            "/api/v1/dags?order_by=-dag_id",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_2",
+                    "description": None,
+                    "fileloc": "/tmp/dag_2.py",
+                    "file_token": file_token10,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                    "next_dagrun": None,
+                    "has_task_concurrency_limits": True,
+                    "next_dagrun_data_interval_start": None,
+                    "next_dagrun_data_interval_end": None,
+                    "max_active_runs": 16,
+                    "next_dagrun_create_after": None,
+                    "last_expired": None,
+                    "max_active_tasks": 16,
+                    "last_pickled": None,
+                    "default_view": None,
+                    "last_parsed_time": None,
+                    "scheduler_lock": None,
+                    "timetable_description": None,
+                    "has_import_errors": False,
+                    "pickle_id": None,
+                },
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": file_token,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                    "next_dagrun": None,
+                    "has_task_concurrency_limits": True,
+                    "next_dagrun_data_interval_start": None,
+                    "next_dagrun_data_interval_end": None,
+                    "max_active_runs": 16,
+                    "next_dagrun_create_after": None,
+                    "last_expired": None,
+                    "max_active_tasks": 16,
+                    "last_pickled": None,
+                    "default_view": None,
+                    "last_parsed_time": None,
+                    "scheduler_lock": None,
+                    "timetable_description": None,
+                    "has_import_errors": False,
+                    "pickle_id": None,
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
 
     def test_should_respons_400_dag_id_pattern_missing(self):
         self._create_dag_models(1)

@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
-import { getMetaValue } from '../utils';
+import axios, { AxiosResponse } from "axios";
+import { useQuery } from "react-query";
+import { getMetaValue } from "../utils";
 
-const extraLinksUrl = getMetaValue('extra_links_url');
+const extraLinksUrl = getMetaValue("extra_links_url");
 
 interface LinkData {
   url: string | null;
@@ -29,19 +29,26 @@ interface LinkData {
 }
 
 export default function useExtraLinks({
-  dagId, taskId, executionDate, extraLinks,
+  dagId,
+  taskId,
+  executionDate,
+  extraLinks,
 }: {
-  dagId: string, taskId: string, executionDate: string, extraLinks: string[],
+  dagId: string;
+  taskId: string;
+  executionDate: string;
+  extraLinks: string[];
 }) {
-  return useQuery(
-    ['extraLinks', dagId, taskId, executionDate],
-    async () => {
-      const data = await Promise.all(extraLinks.map(async (link) => {
-        const url = `${extraLinksUrl
-        }?task_id=${encodeURIComponent(taskId)
-        }&dag_id=${encodeURIComponent(dagId)
-        }&execution_date=${encodeURIComponent(executionDate)
-        }&link_name=${encodeURIComponent(link)}`;
+  return useQuery(["extraLinks", dagId, taskId, executionDate], async () => {
+    const data = await Promise.all(
+      extraLinks.map(async (link) => {
+        const url = `${extraLinksUrl}?task_id=${encodeURIComponent(
+          taskId
+        )}&dag_id=${encodeURIComponent(
+          dagId
+        )}&execution_date=${encodeURIComponent(
+          executionDate
+        )}&link_name=${encodeURIComponent(link)}`;
         try {
           const datum = await axios.get<AxiosResponse, LinkData>(url);
           return {
@@ -52,11 +59,11 @@ export default function useExtraLinks({
           console.error(e);
           return {
             name: link,
-            url: '',
+            url: "",
           };
         }
-      }));
-      return data;
-    },
-  );
+      })
+    );
+    return data;
+  });
 }

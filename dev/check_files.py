@@ -24,7 +24,9 @@ import rich_click as click
 from rich import print
 
 PROVIDERS_DOCKER = """\
-FROM apache/airflow:latest
+FROM ghcr.io/apache/airflow/main/ci/python3.10
+RUN rm -rf /opt/airflow/airflow/providers
+
 
 # Install providers
 {}
@@ -81,7 +83,8 @@ def create_docker(txt: str):
     print(
         """\
         docker build -f Dockerfile.pmc --tag local/airflow .
-        docker run --rm local/airflow airflow info
+        docker run --rm --entrypoint "airflow" local/airflow info
+        docker image rm local/airflow
         """
     )
 

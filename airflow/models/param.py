@@ -18,12 +18,16 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import datetime
 import json
 import logging
 import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMapping, ValuesView
 
+from pendulum.parsing import parse_iso8601
+
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
+from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -72,6 +76,27 @@ class Param:
                 RemovedInAirflow3Warning,
             )
 
+    @staticmethod
+    def _warn_if_not_rfc3339_dt(value):
+        """Fallback to iso8601 datetime validation if rfc3339 failed."""
+        try:
+            iso8601_value = parse_iso8601(value)
+        except Exception:
+            return None
+        if not isinstance(iso8601_value, datetime.datetime):
+            return None
+        warnings.warn(
+            f"The use of non-RFC3339 datetime: {value!r} is deprecated "
+            "and will be removed in a future release",
+            RemovedInAirflow3Warning,
+        )
+        if timezone.is_naive(iso8601_value):
+            warnings.warn(
+                "The use naive datetime is deprecated and will be removed in a future release",
+                RemovedInAirflow3Warning,
+            )
+        return value
+
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
         Runs the validations and returns the Param's final value.
@@ -98,6 +123,11 @@ class Param:
         try:
             jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
         except ValidationError as err:
+            if err.schema.get("format") == "date-time":
+                rfc3339_value = self._warn_if_not_rfc3339_dt(final_val)
+                if rfc3339_value:
+                    self.value = rfc3339_value
+                    return rfc3339_value
             if suppress_exception:
                 return None
             raise ParamValidationError(err) from None
@@ -135,7 +165,7 @@ class ParamsDict(MutableMapping[str, Any]):
     __version__: ClassVar[int] = 1
     __slots__ = ["__dict", "suppress_exception"]
 
-    def __init__(self, dict_obj: dict | None = None, suppress_exception: bool = False):
+    def __init__(self, dict_obj: MutableMapping | None = None, suppress_exception: bool = False):
         """
         :param dict_obj: A dict or dict like object to init ParamsDict
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict

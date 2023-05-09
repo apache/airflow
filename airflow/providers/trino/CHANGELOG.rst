@@ -24,11 +24,34 @@
 Changelog
 ---------
 
+5.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's param ``delegate_to`` is removed from ``GCSToPrestoOperator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add mechanism to suspend providers (#30422)``
+
+4.3.2
+.....
+
+Misc
+~~~~
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 4.3.1
 .....
 
 Misc
 ~~~~
+
 * ``Remove outdated compat imports/code from providers (#28507)``
 
 .. Below changes are excluded from the changelog. Move them to

@@ -49,7 +49,7 @@ the response text back.
 
    For historical reasons, configuring ``HTTPS`` connectivity via HTTP operator is, well, difficult and
    counter-intuitive. The Operator defaults to ``http`` protocol and you can change the schema used by the
-   operator via ``scheme`` connection attribute. However this field was originally added to connection for
+   operator via ``scheme`` connection attribute. However, this field was originally added to connection for
    database type of URIs, where database schemes are set traditionally as first component of URI ``path``.
    Therefore if you want to configure as ``https`` connection via URI, you need to pass ``https`` scheme
    to the SimpleHttpOperator. AS stupid as it looks, your connection URI will look like this:
@@ -58,8 +58,8 @@ the response text back.
    ``https://your_host:443/my_endpoint`` you need to set the endpoint parameter to ``my_endpoint``.
    Alternatively, if you want, you could also percent-encode the host including the ``https://`` prefix,
    and as long it contains ``://`` (percent-encoded ``%3a%2f%2f``), the first component of the path will
-   not be used as scheme. Your URI definition might then look like: ``http://https%3a%2f%2fyour_host:443/``
-   In this case however the ``path`` will not be used at all - you still need to use ``endpoint``
+   not be used as scheme. Your URI definition might then look like ``http://https%3a%2f%2fyour_host:443/``.
+   In this case, however, the ``path`` will not be used at all - you still need to use ``endpoint``
    parameter in the task if wish to make a request with specific path. As counter-intuitive as it is, this
    is historically the way how the operator/hook works and it's not easy to change without breaking
    backwards compatibility because there are other operators build on top of the ``SimpleHttpOperator`` that

@@ -33,6 +33,7 @@ import pendulum
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
@@ -72,6 +73,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     MAX_LINE_PER_PAGE = 1000
     LOG_NAME = "Elasticsearch"
 
+    trigger_should_wrap = True
+
     def __init__(
         self,
         base_log_folder: str,
@@ -103,7 +106,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
             )
 
         self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
@@ -324,7 +327,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         :param ti: task instance object
         """
-        self.mark_end_on_close = not ti.raw
+        is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
+        is_ti_raw = getattr(ti, "raw", None)
+        self.mark_end_on_close = not is_ti_raw and not is_trigger_log_context
 
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
@@ -360,7 +365,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.closed:
             return
 
-        if not self.mark_end_on_close:
+        # todo: remove `getattr` when min airflow version >= 2.6
+        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
+            # when we're closing due to task deferral, don't mark end of log
             self.closed = True
             return
 

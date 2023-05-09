@@ -99,7 +99,7 @@ def test_trigger_dag_conf_not_dict(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"conf": "string and not a dict"})
-    check_content_in_response("must be a dict", response)
+    check_content_in_response("Invalid JSON configuration", response)
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
@@ -192,13 +192,9 @@ def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
     else:
         test_request_conf = json.dumps(request_conf, indent=4)
         resp = admin_client.get(f"trigger?dag_id={test_dag_id}&conf={test_request_conf}&doc_md={doc_md}")
-
-    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
-
-    check_content_in_response(
-        f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>',
-        resp,
-    )
+    for key in expected_conf.keys():
+        check_content_in_response(key, resp)
+        check_content_in_response(str(expected_conf[key]), resp)
 
 
 def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkeypatch):
@@ -231,7 +227,8 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
         resp = admin_client.get(f"trigger?dag_id={DAG_ID}")
 
     check_content_in_response(
-        f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>', resp
+        f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
+        resp,
     )
 
 
@@ -263,3 +260,29 @@ def test_viewer_cant_trigger_dag(app):
         resp = client.get(url, follow_redirects=True)
         response_data = resp.data.decode()
         assert "Access is Denied" in response_data
+
+
+def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, session, app, monkeypatch):
+    """
+    Test that textarea in Trigger DAG UI is pre-populated
+    with param value None and type ["null", "array"] set in DAG.
+    """
+    expected_conf = {"dag_param": None}
+    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
+    DAG_ID = "params_dag"
+    param = Param(
+        None,
+        type=["null", "array"],
+        minItems=0,
+    )
+    with monkeypatch.context() as m:
+        with dag_maker(dag_id=DAG_ID, serialized=True, session=session, params={"dag_param": param}):
+            EmptyOperator(task_id="task1")
+
+        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        resp = admin_client.get(f"trigger?dag_id={DAG_ID}")
+
+    check_content_in_response(
+        f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
+        resp,
+    )

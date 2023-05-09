@@ -82,7 +82,6 @@ with DAG(
     github_list_repos = GithubOperator(
         task_id="github_list_repos",
         github_method="get_user",
-        github_method_args={},
         result_processor=lambda user: logging.info(list(user.get_repos())),
     )
 

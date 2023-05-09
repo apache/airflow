@@ -71,15 +71,15 @@ class TestCliConfigGetValue:
         assert "test_value" == temp_stdout.getvalue().strip()
 
     @mock.patch("airflow.cli.commands.config_command.conf")
-    def test_should_raise_exception_when_section_is_missing(self, mock_conf):
+    def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(
+        self, mock_conf
+    ):
+        # no section in config
         mock_conf.has_section.return_value = False
+        # pretend that the option is defined by other means
         mock_conf.has_option.return_value = True
 
-        with pytest.raises(SystemExit) as ctx:
-            config_command.get_value(
-                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-            )
-        assert "The section [missing-section] is not found in config." == str(ctx.value)
+        config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
 
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_should_raise_exception_when_option_is_missing(self, mock_conf):

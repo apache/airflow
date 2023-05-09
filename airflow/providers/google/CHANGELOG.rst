@@ -23,6 +23,199 @@
 Changelog
 ---------
 
+10.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google has announced sunset of Campaign Manager 360 v3.5 by Apr 20, 2023. For more information
+please check: `<https://developers.google.com/doubleclick-advertisers/deprecation>`_ . As a result, the
+default api version for Campaign Manager 360 operator was updated to the latest v4 version.
+
+.. warning::
+  In this version of the provider, deprecated ``delegate_to`` param is removed from all GCP operators, hooks, and triggers, as well as from firestore and gsuite
+  transfer operators that interact with GCS. Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+  The ``delegate_to`` param will still be available only in gsuite and marketing platform hooks and operators, that don't interact with Google Cloud.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+* ``Update Google Campaign Manager360 operators to use API v4 (#30598)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update DataprocCreateCluster operator to use 'label' parameter properly (#30741)``
+
+Misc
+~~~~
+
+* ``add missing project_id in BigQueryGetDataOperator (#30651)``
+* ``Display Video 360 cleanup v1 API usage (#30577)``
+
+9.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Google  announced sunset of Bid manager API v1 and v1.1 by April 27, 2023 for more information
+please check: `docs <https://developers.google.com/bid-manager/v1.1>`_  As a result default value of api_version
+in GoogleDisplayVideo360Hook and related operators updated to v2
+
+This version of provider contains a temporary workaround to issue with ``v11`` version of
+google-ads API being discontinued, while the google provider dependencies preventing installing
+any google-ads client supporting ``v12`` API. This version contains vendored-in version of google-ads
+library ``20.0.0`` v12 support only. The workaround (and vendored-in library) will be removed
+as soon as dependencies of the provider will allow to use google-ads supporting newer
+API versions of google-ads.
+
+.. note::
+
+  ONLY v12 version of google ads is supported. You should set v12 when your create an operator or client.
+
+* ``Update DV360 operators to use API v2 (#30326)``
+* ``Fix dynamic imports in google ads vendored in library (#30544)``
+* ``Fix one more dynamic import needed for vendored-in google ads (#30564)``
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to GKEStartPodOperator (#29266)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``BigQueryHook list_rows/get_datasets_list can return iterator (#30543)``
+* ``Fix cloud build async credentials (#30441)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Small quotation fix (#30448)``
+
+8.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add missing 'poll_interval' in Bigquery operator (#30132)``
+* ``Add poll_interval param in BigQueryInsertJobOperator (#30091)``
+* ``Add 'job_id' to 'BigQueryToGCSOperator' templated_fields (#30006)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix setting project_id for gs to bq and bq to gs (#30053)``
+* ``Fix location on cloud build operators (#29937)``
+* ``'GoogleDriveHook': Fixing log message + adding more verbose documentation (#29694)``
+* ``Add "BOOLEAN" to type_map of MSSQLToGCSOperator, fix incorrect bit->int type conversion by specifying BIT fields explicitly (#29902)``
+* ``Google Cloud Providers - Fix _MethodDefault deepcopy failure (#29518)``
+* ``Handling project location param on async BigQuery dts trigger (#29786)``
+* ``Support CloudDataTransferServiceJobStatusSensor without specifying a project_id (#30035)``
+* ``Wait insert_job result in normal mode (#29925)``
+
+Misc
+~~~~
+
+* ``merge BigQueryTableExistenceAsyncSensor into BigQueryTableExistenceSensor (#30235)``
+* ``Remove  unnecessary upper constraints from google provider (#29915)``
+* ``Merge BigQueryTableExistencePartitionAsyncSensor into BigQueryTableExistencePartitionSensor (#30231)``
+* ``Merge GCSObjectExistenceAsyncSensor logic to GCSObjectExistenceSensor (#30014)``
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``Switch to using vendored-in google ads. (#30410)``
+* ``Merging of the google ads vendored-in code. (#30399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
+8.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to BigQueryTablePartitionExistenceSensor. (#29735)``
+* ``Add a new param for BigQuery operators to support additional actions when resource exists (#29394)``
+* ``Add deferrable mode to DataprocInstantiateWorkflowTemplateOperator (#28618)``
+* ``Dataproc batches (#29136)``
+* ``Add 'CloudSQLCloneInstanceOperator' (#29726)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'NoneType' object is not subscriptable. (#29820)``
+* ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
+* ``Don't push secret in XCOM in BigQueryCreateDataTransferOperator (#29348)``
+
+Misc
+~~~~
+
+* ``Google Cloud Providers - Introduce GoogleCloudBaseOperator (#29680)``
+* ``Update google cloud dlp package and adjust hook and operators (#29234)``
+* ``Refactor Dataproc Trigger (#29364)``
+* ``Remove <2.0.0 limit on google-cloud-bigtable (#29644)``
+* ``Move help message to the google auth code (#29888)``
+
+8.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add defer mode to GKECreateClusterOperator and GKEDeleteClusterOperator (#28406)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Move cloud_sql_binary_path from connection to Hook (#29499)``
+* ``Check that cloud sql provider version is valid (#29497)``
+* ``'GoogleDriveHook': Add folder_id param to upload_file (#29477)``
+
+Misc
+~~~~
+* ``Add documentation for BigQuery transfer operators (#29466)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade Mypy to 1.0 (#29468)``
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+   * ``Revert "Upgrade mypy to 0.991 (#28926)" (#29470)``
+   * ``Upgrade mypy to 0.991 (#28926)``
+
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable capability to existing ''DataprocDeleteClusterOperator'' (#29349)``
+* ``Add deferrable mode to dataflow operators (#27776)``
+* ``Add deferrable mode to DataprocCreateBatchOperator (#28457)``
+* ``Add deferrable mode to DataprocCreateClusterOperator and DataprocUpdateClusterOperator (#28529)``
+* ``Add deferrable mode to MLEngineStartTrainingJobOperator (#27405)``
+* ``Add deferrable mode to DataFusionStartPipelineOperator (#28690)``
+* ``Add deferrable mode for Big Query Transfer operator (#27833)``
+* ``Add support for write_on_empty in BaseSQLToGCSOperator (#28959)``
+* ``Add DataprocCancelOperationOperator (#28456)``
+* ``Enable individual trigger logging (#27758)``
+* ``Auto ML assets (#25466)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GoogleDriveHook writing files to trashed folders on upload v2 (#29119)``
+* ``fix Google provider CHANGELOG.rst (#29122)``
+* ``fix Google provider CHANGELOG.rst (#29114)``
+* ``Keyfile dict can be dict not str (#29135)``
+* ``GCSTaskHandler may use remote log conn id (#29117)``
+
+Misc
+~~~~
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 8.8.0
 .....
 
@@ -70,6 +263,7 @@ Bug Fixes
 
 Misc
 ~~~~
+
 * ``Remove 'pylint' messages control instructions (#28555)``
 * ``Remove deprecated AIPlatformConsoleLinkk from google/provider.yaml (#28449)``
 * ``Use object instead of array in config.yml for config template (#28417)``
@@ -127,7 +321,7 @@ So for example you may store the keyfile json as ``keyfile_dict`` instead of
 ``extra__google_cloud_platform__keyfile_dict``.  If both are present, the short name will be preferred.
 
 * ``Add backward compatibility with old versions of Apache Beam (#27263)``
-* ``Add deferrable mode to GCPToBigQueryOperator + tests (#27052)``
+* ``Add deferrable mode to GCSToBigQueryOperator + tests (#27052)``
 * ``Add system tests for Vertex AI operators in new approach (#27053)``
 * ``Dataform operators, links, update system tests and docs (#27144)``
 * ``Allow values in WorkflowsCreateExecutionOperator execution argument to be dicts (#27361)``

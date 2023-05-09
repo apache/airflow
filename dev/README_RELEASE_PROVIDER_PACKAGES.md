@@ -45,6 +45,7 @@
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
 
@@ -333,6 +334,14 @@ cd airflow-site
 export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```
 
+Note if this is not the first time you clone the repo make sure main branch is rebased:
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+git checkout main
+git pull --rebase
+```
+
 - Then you can go to the directory and build the necessary documentation packages
 
 ```shell script
@@ -443,7 +452,7 @@ set as your environment variable.
 You can also pass the token as `--github-token` option in the script.
 
 ```shell script
-breeze release-management generate-issue-content --only-available-in-dist
+breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
 You can also generate the token by following
@@ -452,7 +461,7 @@ You can also generate the token by following
 If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
 
 ```shell script
-breeze release-management generate-issue-content --only-available-in-dist --suffix rc2
+breeze release-management generate-issue-content-providers --only-available-in-dist --suffix rc2
 ```
 
 
@@ -537,6 +546,8 @@ problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
+
 ## Verify the release by PMC members
 
 ### SVN check
@@ -561,12 +572,22 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
+script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
+may help with verifying installation of the packages.
 
 ```shell script
 # Copy the list of packages (pypi urls) into `packages.txt` then run:
 python check_files.py providers -p {PATH_TO_SVN}
+```
+
+After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
+package and verify the correct versions are installed:
+
+```shell script
+docker build -f Dockerfile.pmc --tag local/airflow .
+docker run --rm --entrypoint "airflow" local/airflow info
+docker image rm local/airflow
 ```
 
 ### Licences check
@@ -901,7 +922,7 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-Copy links to updated packages.
+Copy links to updated packages, sort it aphabeticly and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -937,11 +958,7 @@ the artifacts have been published.
 
 Subject:
 
-```shell script
-cat <<EOF
-Airflow Providers released on $(date "+%B %d, %Y") are ready
-EOF
-```
+[ANNOUNCE] Apache Airflow Providers prepared on <DATE OF CUT RC> are released
 
 Body:
 
@@ -973,6 +990,22 @@ It is more reliable to send it via the web ui at https://lists.apache.org/list.h
 Note If you choose sending it with your email client make sure the email is set to plain text mode.
 Trying to send HTML content will result in failure.
 
+## Announce about the release in social media
+
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+Example for special case: an exciting new capability that the community waited for and should have big impact.
+
 ## Add release data to Apache Committee Report Helper
 
 Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
@@ -980,3 +1013,9 @@ Add the release data (version and date) at: https://reporter.apache.org/addrelea
 ## Close the testing status issue
 
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
+```shell script
+Thank you everyone.
+Providers are released
+I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
+```

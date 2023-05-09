@@ -18,11 +18,9 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 try:
     from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
@@ -37,26 +35,42 @@ BUCKET = "gs://test"
 JSON_FILENAME = "test_{}.ndjson"
 GZIP = False
 
-ROWS = [("mock_row_content_1", 42), ("mock_row_content_2", 43), ("mock_row_content_3", 44)]
+ROWS = [
+    ("mock_row_content_1", 42, True, True),
+    ("mock_row_content_2", 43, False, False),
+    ("mock_row_content_3", 44, True, True),
+]
 CURSOR_DESCRIPTION = (
     ("some_str", 0, None, None, None, None, None),
     ("some_num", 3, None, None, None, None, None),
+    ("some_binary", 2, None, None, None, None, None),
+    ("some_bit", 3, None, None, None, None, None),
 )
 NDJSON_LINES = [
-    b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
-    b'{"some_num": 43, "some_str": "mock_row_content_2"}\n',
-    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n',
+    b'{"some_binary": true, "some_bit": true, "some_num": 42, "some_str": "mock_row_content_1"}\n',
+    b'{"some_binary": false, "some_bit": false, "some_num": 43, "some_str": "mock_row_content_2"}\n',
+    b'{"some_binary": true, "some_bit": true, "some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
 SCHEMA_FILENAME = "schema_test.json"
 SCHEMA_JSON = [
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ',
-    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]',
+    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}, ',
+    b'{"mode": "NULLABLE", "name": "some_binary", "type": "BOOLEAN"}, ',
+    b'{"mode": "NULLABLE", "name": "some_bit", "type": "BOOLEAN"}]',
+]
+
+SCHEMA_JSON_BIT_FIELDS = [
+    b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ',
+    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}, ',
+    b'{"mode": "NULLABLE", "name": "some_binary", "type": "BOOLEAN"}, ',
+    b'{"mode": "NULLABLE", "name": "some_bit", "type": "INTEGER"}]',
 ]
 
 
 @pytest.mark.backend("mssql")
-class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
-    @parameterized.expand(
+class TestMsSqlToGoogleCloudStorageOperator:
+    @pytest.mark.parametrize(
+        "value, expected",
         [
             ("string", "string"),
             (32.9, 32.9),
@@ -66,7 +80,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
             (datetime.datetime(1970, 1, 1, 1, 0), "1970-01-01T01:00:00"),
             (datetime.time(hour=0, minute=0, second=0), "00:00:00"),
             (datetime.time(hour=23, minute=59, second=59), "23:59:59"),
-        ]
+        ],
     )
     def test_convert_type(self, value, expected):
         op = MSSQLToGCSOperator(
@@ -149,7 +163,10 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
-    def test_schema_file(self, gcs_hook_mock_class, mssql_hook_mock_class):
+    @pytest.mark.parametrize(
+        "bit_fields,schema_json", [(None, SCHEMA_JSON), (["bit_fields", SCHEMA_JSON_BIT_FIELDS])]
+    )
+    def test_schema_file(self, gcs_hook_mock_class, mssql_hook_mock_class, bit_fields, schema_json):
         """Test writing schema files."""
         mssql_hook_mock = mssql_hook_mock_class.return_value
         mssql_hook_mock.get_conn().cursor().__iter__.return_value = iter(ROWS)
@@ -165,7 +182,12 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         gcs_hook_mock.upload.side_effect = _assert_upload
 
         op = MSSQLToGCSOperator(
-            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME, schema_filename=SCHEMA_FILENAME
+            task_id=TASK_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=JSON_FILENAME,
+            schema_filename=SCHEMA_FILENAME,
+            bit_fields=["some_bit"],
         )
         op.execute(None)
 

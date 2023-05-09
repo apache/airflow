@@ -31,12 +31,12 @@ class JiraOperator(BaseOperator):
     JiraOperator to interact and perform action on Jira issue tracking system.
     This operator is designed to use Atlassian Jira SDK: https://atlassian-python-api.readthedocs.io/jira.html
 
-    :param jira_conn_id: reference to a pre-defined Jira Connection
-    :param jira_method: method name from Atlassian Jira Python SDK to be called
-    :param jira_method_args: required method parameters for the jira_method. (templated)
-    :param result_processor: function to further process the response from Jira
-    :param get_jira_resource_method: function or operator to get jira resource
-                                    on which the provided jira_method will be executed
+    :param jira_conn_id: Reference to a pre-defined Jira Connection.
+    :param jira_method: Method name from Atlassian Jira Python SDK to be called.
+    :param jira_method_args: Method parameters for the jira_method. (templated)
+    :param result_processor: Function to further process the response from Jira.
+    :param get_jira_resource_method: Function or operator to get Jira resource on which the provided
+        jira_method will be executed.
     """
 
     template_fields: Sequence[str] = ("jira_method_args",)
@@ -54,7 +54,7 @@ class JiraOperator(BaseOperator):
         super().__init__(**kwargs)
         self.jira_conn_id = jira_conn_id
         self.method_name = jira_method
-        self.jira_method_args = jira_method_args
+        self.jira_method_args = jira_method_args or {}
         self.result_processor = result_processor
         self.get_jira_resource_method = get_jira_resource_method
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 
@@ -37,7 +38,7 @@ DOCS_ROOT = AIRFLOW_SOURCES_ROOT / "docs"
 PREFIX = "apache-airflow-providers-"
 
 
-errors = []
+errors: list[Any] = []
 
 
 def check_system_test_entry_hidden(provider_index: Path):

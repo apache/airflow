@@ -33,17 +33,21 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from boto3.s3.transfer import S3Transfer, TransferConfig
+from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.service_resource import Object as S3ResourceObject
 
 T = TypeVar("T", bound=Callable)
 
@@ -73,7 +77,7 @@ def provide_bucket_name(func: T) -> T:
                     "s3 conn_type, and the associated schema field, is deprecated."
                     " Please use aws conn_type instead, and specify `bucket_name`"
                     " in `service_config.s3` within `extras`.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 bound_args.arguments["bucket_name"] = self.conn_config.schema
@@ -520,7 +524,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
-    def get_key(self, key: str, bucket_name: str | None = None) -> S3Transfer:
+    def get_key(self, key: str, bucket_name: str | None = None) -> S3ResourceObject:
         """
         Returns a :py:class:`S3.Object`.
 
@@ -625,7 +629,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def get_wildcard_key(
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
-    ) -> S3Transfer:
+    ) -> S3ResourceObject | None:
         """
         Returns a boto3.s3.Object object matching the wildcard expression
 
@@ -1063,36 +1067,43 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def put_bucket_tagging(
         self,
-        tag_set: list[dict[str, str]] | None = None,
+        tag_set: dict[str, str] | list[dict[str, str]] | None = None,
         key: str | None = None,
         value: str | None = None,
         bucket_name: str | None = None,
     ) -> None:
         """
-        Overwrites the existing TagSet with provided tags.  Must provide either a TagSet or a key/value pair.
+        Overwrites the existing TagSet with provided tags.
+        Must provide a TagSet, a key/value pair, or both.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.put_bucket_tagging`
 
-        :param tag_set: A List containing the key/value pairs for the tags.
+        :param tag_set: A dictionary containing the key/value pairs for the tags,
+            or a list already formatted for the API
         :param key: The Key for the new TagSet entry.
         :param value: The Value for the new TagSet entry.
         :param bucket_name: The name of the bucket.
+
         :return: None
         """
-        self.log.info("S3 Bucket Tag Info:\tKey: %s\tValue: %s\tSet: %s", key, value, tag_set)
-        if not tag_set:
-            tag_set = []
+        formatted_tags = format_tags(tag_set)
+
         if key and value:
-            tag_set.append({"Key": key, "Value": value})
-        elif not tag_set or (key or value):
-            message = "put_bucket_tagging() requires either a predefined TagSet or a key/value pair."
+            formatted_tags.append({"Key": key, "Value": value})
+        elif key or value:
+            message = (
+                "Key and Value must be specified as a pair. "
+                f"Only one of the two had a value (key: '{key}', value: '{value}')"
+            )
             self.log.error(message)
             raise ValueError(message)
 
+        self.log.info("Tagging S3 Bucket %s with %s", bucket_name, formatted_tags)
+
         try:
             s3_client = self.get_conn()
-            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={"TagSet": tag_set})
+            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={"TagSet": formatted_tags})
         except ClientError as e:
             self.log.error(e)
             raise e

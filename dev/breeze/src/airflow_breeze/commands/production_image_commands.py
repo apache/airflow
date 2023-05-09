@@ -37,6 +37,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
+    option_airflow_constraints_location,
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
     option_builder,
@@ -168,6 +169,7 @@ def prod_image():
 @option_prepare_buildx_cache
 @option_push
 @option_empty_image
+@option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @click.option(
     "--installation-method",
@@ -482,9 +484,9 @@ def run_build_production_image(
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(image_params=prod_image_params, output=output)
     else:
+        env = os.environ.copy()
+        env["DOCKER_BUILDKIT"] = "1"
         if prod_image_params.empty_image:
-            env = os.environ.copy()
-            env["DOCKER_BUILDKIT"] = "1"
             get_console(output=output).print(
                 f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n"
             )
@@ -504,6 +506,7 @@ def run_build_production_image(
                 ),
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
+                env=env,
                 text=True,
                 output=output,
             )
@@ -523,6 +526,7 @@ def run_build_production_image(
                     cwd=AIRFLOW_SOURCES_ROOT,
                     check=False,
                     text=True,
+                    env=env,
                     output=output,
                 )
             if build_command_result.returncode == 0:

@@ -18,9 +18,9 @@
  */
 
 /* global calendarData, statesColors, document, window, $, d3, moment */
-import { getMetaValue } from './utils';
+import { getMetaValue } from "./utils";
 
-const gridUrl = getMetaValue('grid_url');
+const gridUrl = getMetaValue("grid_url");
 
 function getGridViewURL(d) {
   return `${gridUrl}?base_date=${encodeURIComponent(d.toISOString())}`;
@@ -28,7 +28,7 @@ function getGridViewURL(d) {
 
 // date helpers
 function formatDay(d) {
-  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d];
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d];
 }
 
 function toMoment(y, m, d) {
@@ -48,7 +48,7 @@ function weekOfYear(y, m) {
 }
 
 function daysInMonth(y, m) {
-  const lastDay = toMoment(y, m, 1).add(1, 'month').subtract(1, 'day');
+  const lastDay = toMoment(y, m, 1).add(1, "month").subtract(1, "day");
   return lastDay.date();
 }
 
@@ -58,16 +58,17 @@ function weeksInMonth(y, m) {
   return Math.floor((daysInMonth(y, m) + monthOffset) / 7) + 1;
 }
 
-const dateFormat = 'YYYY-MM-DD';
+const dateFormat = "YYYY-MM-DD";
 
-document.addEventListener('DOMContentLoaded', () => {
-  $('span.status_square').tooltip({ html: true });
+document.addEventListener("DOMContentLoaded", () => {
+  $("span.status_square").tooltip({ html: true });
 
   // JSON.parse is faster for large payloads than an object literal
   const rootData = JSON.parse(calendarData);
 
-  const dayTip = d3.tip()
-    .attr('class', 'tooltip d3-tip')
+  const dayTip = d3
+    .tip()
+    .attr("class", "tooltip d3-tip")
     .html((toolTipHtml) => toolTipHtml);
 
   // draw the calendar
@@ -112,140 +113,165 @@ document.addEventListener('DOMContentLoaded', () => {
       .sort((data) => data.year);
 
     // root SVG element
-    const fullWidth = (
-      leftRightMargin * 2 + yearLabelWidth + dayLabelWidth
-      + maxWeeksInYear * cellSize
-    );
-    const yearsHeight = (yearHeight + yearPadding) * dagStates.length + yearPadding;
+    const fullWidth =
+      leftRightMargin * 2 +
+      yearLabelWidth +
+      dayLabelWidth +
+      maxWeeksInYear * cellSize;
+    const yearsHeight =
+      (yearHeight + yearPadding) * dagStates.length + yearPadding;
     const fullHeight = titleHeight + legendHeight + yearsHeight;
 
     const svg = d3
-      .select('#calendar-svg')
-      .attr('width', fullWidth)
-      .attr('height', fullHeight)
+      .select("#calendar-svg")
+      .attr("width", fullWidth)
+      .attr("height", fullHeight)
       .call(dayTip);
 
     // Add the legend
     const legend = svg
-      .append('g')
-      .attr('transform', `translate(0, ${titleHeight + legendHeight / 2})`);
+      .append("g")
+      .attr("transform", `translate(0, ${titleHeight + legendHeight / 2})`);
 
     let legendXOffset = fullWidth - leftRightMargin;
 
-    function drawLegend(rightState, leftState, numSwatches = 1, swatchesWidth = cellSize) {
+    function drawLegend(
+      rightState,
+      leftState,
+      numSwatches = 1,
+      swatchesWidth = cellSize
+    ) {
       const startColor = statesColors[leftState || rightState];
       const endColor = statesColors[rightState];
 
       legendXOffset -= legendSwtchesTextWidth;
       legend
-        .append('text')
-        .attr('x', legendXOffset)
-        .attr('y', cellSize / 2)
-        .attr('text-anchor', 'start')
-        .attr('class', 'status-label')
-        .attr('alignment-baseline', 'middle')
+        .append("text")
+        .attr("x", legendXOffset)
+        .attr("y", cellSize / 2)
+        .attr("text-anchor", "start")
+        .attr("class", "status-label")
+        .attr("alignment-baseline", "middle")
         .text(rightState);
       legendXOffset -= legendSwatchesPadding;
 
       legendXOffset -= swatchesWidth;
       legend
-        .append('g')
-        .attr('transform', `translate(${legendXOffset}, 0)`)
-        .selectAll('g')
+        .append("g")
+        .attr("transform", `translate(${legendXOffset}, 0)`)
+        .selectAll("g")
         .data(d3.range(numSwatches))
         .enter()
-        .append('rect')
-        .attr('x', (v) => v * (swatchesWidth / numSwatches))
-        .attr('width', swatchesWidth / numSwatches)
-        .attr('height', cellSize)
-        .attr('class', 'day')
-        .attr('fill', (v) => (startColor.startsWith('url') ? startColor : d3.interpolateHsl(startColor, endColor)(v / numSwatches)));
+        .append("rect")
+        .attr("x", (v) => v * (swatchesWidth / numSwatches))
+        .attr("width", swatchesWidth / numSwatches)
+        .attr("height", cellSize)
+        .attr("class", "day")
+        .attr("fill", (v) =>
+          startColor.startsWith("url")
+            ? startColor
+            : d3.interpolateHsl(startColor, endColor)(v / numSwatches)
+        );
       legendXOffset -= legendSwatchesPadding;
 
       if (leftState !== undefined) {
         legend
-          .append('text')
-          .attr('x', legendXOffset)
-          .attr('y', cellSize / 2)
-          .attr('text-anchor', 'end')
-          .attr('class', 'status-label')
-          .attr('alignment-baseline', 'middle')
+          .append("text")
+          .attr("x", legendXOffset)
+          .attr("y", cellSize / 2)
+          .attr("text-anchor", "end")
+          .attr("class", "status-label")
+          .attr("alignment-baseline", "middle")
           .text(leftState);
         legendXOffset -= legendSwtchesTextWidth;
       }
     }
 
-    drawLegend('no_status');
-    drawLegend('planned');
-    drawLegend('running');
-    drawLegend('failed', 'success', 10, 100);
+    drawLegend("no_status");
+    drawLegend("planned");
+    drawLegend("running");
+    drawLegend("failed", "success", 10, 100);
 
     // Add the years groups, each holding one year of data.
     const years = svg
-      .append('g')
-      .attr('transform', `translate(${leftRightMargin}, ${titleHeight + legendHeight})`);
+      .append("g")
+      .attr(
+        "transform",
+        `translate(${leftRightMargin}, ${titleHeight + legendHeight})`
+      );
 
     const year = years
-      .selectAll('g')
+      .selectAll("g")
       .data(dagStates)
       .enter()
-      .append('g')
-      .attr('transform', (d, i) => `translate(0, ${yearPadding + (yearHeight + yearPadding) * i})`);
+      .append("g")
+      .attr(
+        "transform",
+        (d, i) =>
+          `translate(0, ${yearPadding + (yearHeight + yearPadding) * i})`
+      );
 
     year
-      .append('text')
-      .attr('x', -yearHeight * 0.5)
-      .attr('transform', 'rotate(270)')
-      .attr('text-anchor', 'middle')
-      .attr('class', 'year-label')
+      .append("text")
+      .attr("x", -yearHeight * 0.5)
+      .attr("transform", "rotate(270)")
+      .attr("text-anchor", "middle")
+      .attr("class", "year-label")
       .text((d) => d.year);
 
     // write day names
     year
-      .append('g')
-      .attr('transform', `translate(${yearLabelWidth}, ${dayLabelPadding})`)
-      .attr('text-anchor', 'end')
-      .selectAll('g')
+      .append("g")
+      .attr("transform", `translate(${yearLabelWidth}, ${dayLabelPadding})`)
+      .attr("text-anchor", "end")
+      .selectAll("g")
       .data(d3.range(7))
       .enter()
-      .append('text')
-      .attr('y', (i) => (i + 0.5) * cellSize)
-      .attr('class', 'day-label')
+      .append("text")
+      .attr("y", (i) => (i + 0.5) * cellSize)
+      .attr("class", "day-label")
       .text(formatDay);
 
     // create months groups to old the individual day cells & month outline for each month.
     const months = year
-      .append('g')
-      .attr('transform', `translate(${yearLabelWidth + dayLabelWidth}, 0)`);
+      .append("g")
+      .attr("transform", `translate(${yearLabelWidth + dayLabelWidth}, 0)`);
 
     const month = months
-      .append('g')
-      .selectAll('g')
-      .data((data) => d3
-        .range(12)
-        .map((i) => ({
+      .append("g")
+      .selectAll("g")
+      .data((data) =>
+        d3.range(12).map((i) => ({
           year: data.year,
           month: i,
           dagStates: data.dagStates[i] || {},
-        })))
+        }))
+      )
       .enter()
-      .append('g')
-      .attr('transform', (data) => `translate(${weekOfYear(data.year, data.month) * cellSize}, 0)`);
+      .append("g")
+      .attr(
+        "transform",
+        (data) =>
+          `translate(${weekOfYear(data.year, data.month) * cellSize}, 0)`
+      );
 
     const tipHtml = (data) => {
-      const stateCounts = d3.entries(data.dagStates).map((kv) => `${kv.value[0].count} ${kv.key}`);
+      const stateCounts = d3
+        .entries(data.dagStates)
+        .map((kv) => `${kv.value[0].count} ${kv.key}`);
       const date = toMoment(data.year, data.month, data.day);
       const daySr = formatDay(date.day());
       const dateStr = date.format(dateFormat);
-      return `<strong>${daySr} ${dateStr}</strong><br>${stateCounts.join('<br>')}`;
+      return `<strong>${daySr} ${dateStr}</strong><br>${stateCounts.join(
+        "<br>"
+      )}`;
     };
 
     // Create the day cells
     month
-      .selectAll('g')
-      .data((data) => d3
-        .range(daysInMonth(data.year, data.month))
-        .map((i) => {
+      .selectAll("g")
+      .data((data) =>
+        d3.range(daysInMonth(data.year, data.month)).map((i) => {
           const day = i + 1;
           const dagRunsByState = data.dagStates[day] || {};
           return {
@@ -254,23 +280,31 @@ document.addEventListener('DOMContentLoaded', () => {
             day,
             dagStates: dagRunsByState,
           };
-        }))
+        })
+      )
       .enter()
-      .append('rect')
-      .attr('x', (data) => weekOfMonth(data.year, data.month, data.day) * cellSize)
-      .attr('y', (data) => toMoment(data.year, data.month, data.day).day() * cellSize)
-      .attr('width', cellSize)
-      .attr('height', cellSize)
-      .attr('class', 'day')
-      .attr('fill', (data) => {
-        const getCount = (state) => (data.dagStates[state] || [{ count: 0 }])[0].count;
-        const runningCount = getCount('running');
+      .append("rect")
+      .attr(
+        "x",
+        (data) => weekOfMonth(data.year, data.month, data.day) * cellSize
+      )
+      .attr(
+        "y",
+        (data) => toMoment(data.year, data.month, data.day).day() * cellSize
+      )
+      .attr("width", cellSize)
+      .attr("height", cellSize)
+      .attr("class", "day")
+      .attr("fill", (data) => {
+        const getCount = (state) =>
+          (data.dagStates[state] || [{ count: 0 }])[0].count;
+        const runningCount = getCount("running");
         if (runningCount > 0) return statesColors.running;
 
-        const successCount = getCount('success');
-        const failedCount = getCount('failed');
+        const successCount = getCount("success");
+        const failedCount = getCount("failed");
         if (successCount + failedCount === 0) {
-          const plannedCount = getCount('planned');
+          const plannedCount = getCount("planned");
           if (plannedCount > 0) return statesColors.planned;
           return statesColors.no_status;
         }
@@ -281,36 +315,44 @@ document.addEventListener('DOMContentLoaded', () => {
           // We use a minimum color interpolation floor, so that days with low failures ratios
           // don't appear almost as green as days with not failure at all.
           const floor = 0.5;
-          ratioFailures = floor + (failedCount / (failedCount + successCount)) * (1 - floor);
+          ratioFailures =
+            floor + (failedCount / (failedCount + successCount)) * (1 - floor);
         }
-        return d3.interpolateHsl(statesColors.success, statesColors.failed)(ratioFailures);
+        return d3.interpolateHsl(
+          statesColors.success,
+          statesColors.failed
+        )(ratioFailures);
       })
-      .on('click', (data) => {
+      .on("click", (data) => {
         window.location.href = getGridViewURL(
           // add 1 day and subtract 1 ms to not show any run from the next day.
-          toMoment(data.year, data.month, data.day).add(1, 'day').subtract(1, 'ms'),
+          toMoment(data.year, data.month, data.day)
+            .add(1, "day")
+            .subtract(1, "ms")
         );
       })
-      .on('mouseover', function showTip(data) {
+      .on("mouseover", function showTip(data) {
         const tt = tipHtml(data);
-        dayTip.direction('n');
+        dayTip.direction("n");
         dayTip.show(tt, this);
       })
-      .on('mouseout', function hideTip(data) {
+      .on("mouseout", function hideTip(data) {
         dayTip.hide(data, this);
       });
 
     // add outline (path) around month
     month
-      .selectAll('g')
+      .selectAll("g")
       .data((data) => [data])
       .enter()
-      .append('path')
-      .attr('class', 'month')
-      .style('fill', 'none')
-      .attr('d', (data) => {
+      .append("path")
+      .attr("class", "month")
+      .style("fill", "none")
+      .attr("d", (data) => {
         const firstDayOffset = toMoment(data.year, data.month, 1).day();
-        const lastDayOffset = toMoment(data.year, data.month, 1).add(1, 'month').day();
+        const lastDayOffset = toMoment(data.year, data.month, 1)
+          .add(1, "month")
+          .day();
         const weeks = weeksInMonth(data.year, data.month);
         return d3.svg.line()([
           [0, firstDayOffset * cellSize],
@@ -327,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function update() {
-    $('#loading').remove();
+    $("#loading").remove();
     draw();
   }
 

@@ -24,8 +24,7 @@ from json import JSONDecodeError
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import reconstructor, synonym
+from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning

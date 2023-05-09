@@ -32,7 +32,6 @@ from google.cloud.automl_v1beta1 import (
     TableSpec,
 )
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.links.automl import (
     AutoMLDatasetLink,
@@ -41,6 +40,7 @@ from airflow.providers.google.cloud.links.automl import (
     AutoMLModelPredictLink,
     AutoMLModelTrainLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 MetaData = Sequence[Tuple[str, str]]
 
 
-class AutoMLTrainModelOperator(BaseOperator):
+class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     """
     Creates Google Cloud AutoML model.
 
@@ -144,7 +144,7 @@ class AutoMLTrainModelOperator(BaseOperator):
         return result
 
 
-class AutoMLPredictOperator(BaseOperator):
+class AutoMLPredictOperator(GoogleCloudBaseOperator):
     """
     Runs prediction operation on Google Cloud AutoML.
 
@@ -236,7 +236,7 @@ class AutoMLPredictOperator(BaseOperator):
         return PredictResponse.to_dict(result)
 
 
-class AutoMLBatchPredictOperator(BaseOperator):
+class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
     """
     Perform a batch prediction on Google Cloud AutoML.
 
@@ -345,7 +345,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         return result
 
 
-class AutoMLCreateDatasetOperator(BaseOperator):
+class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
     """
     Creates a Google Cloud AutoML dataset.
 
@@ -437,7 +437,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         return result
 
 
-class AutoMLImportDataOperator(BaseOperator):
+class AutoMLImportDataOperator(GoogleCloudBaseOperator):
     """
     Imports data to a Google Cloud AutoML dataset.
 
@@ -530,7 +530,7 @@ class AutoMLImportDataOperator(BaseOperator):
             )
 
 
-class AutoMLTablesListColumnSpecsOperator(BaseOperator):
+class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists column specs in a table.
 
@@ -640,7 +640,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         return result
 
 
-class AutoMLTablesUpdateDatasetOperator(BaseOperator):
+class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     Updates a dataset.
 
@@ -727,7 +727,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         return Dataset.to_dict(result)
 
 
-class AutoMLGetModelOperator(BaseOperator):
+class AutoMLGetModelOperator(GoogleCloudBaseOperator):
     """
     Get Google Cloud AutoML model.
 
@@ -814,7 +814,7 @@ class AutoMLGetModelOperator(BaseOperator):
         return model
 
 
-class AutoMLDeleteModelOperator(BaseOperator):
+class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
     """
     Delete Google Cloud AutoML model.
 
@@ -890,7 +890,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
         operation.result()
 
 
-class AutoMLDeployModelOperator(BaseOperator):
+class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
     """
     Deploys a model. If a model is already deployed, deploying it with the same parameters
     has no effect. Deploying with different parameters (as e.g. changing node_number) will
@@ -980,7 +980,7 @@ class AutoMLDeployModelOperator(BaseOperator):
         self.log.info("Model deployed.")
 
 
-class AutoMLTablesListTableSpecsOperator(BaseOperator):
+class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists table specs in a dataset.
 
@@ -1080,7 +1080,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         return result
 
 
-class AutoMLListDatasetOperator(BaseOperator):
+class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
     """
     Lists AutoML Datasets in project.
 
@@ -1162,7 +1162,7 @@ class AutoMLListDatasetOperator(BaseOperator):
         return result
 
 
-class AutoMLDeleteDatasetOperator(BaseOperator):
+class AutoMLDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     Deletes a dataset and all of its contents.
 

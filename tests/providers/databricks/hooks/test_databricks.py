@@ -138,9 +138,30 @@ def get_run_output_endpoint(host):
 
 def cancel_run_endpoint(host):
     """
-    Utility function to generate the get run endpoint given the host.
+    Utility function to generate the cancel run endpoint given the host.
     """
     return f"https://{host}/api/2.1/jobs/runs/cancel"
+
+
+def cancel_all_runs_endpoint(host):
+    """
+    Utility function to generate the cancel all runs endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/runs/cancel-all"
+
+
+def delete_run_endpoint(host):
+    """
+    Utility function to generate delete run endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/runs/delete"
+
+
+def repair_run_endpoint(host):
+    """
+    Utility function to generate delete run endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/runs/repair"
 
 
 def start_cluster_endpoint(host):
@@ -515,6 +536,67 @@ class TestDatabricksHook:
         mock_requests.post.assert_called_once_with(
             cancel_run_endpoint(HOST),
             json={"run_id": RUN_ID},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_cancel_all_runs(self, mock_requests):
+        mock_requests.post.return_value.json.return_value = {}
+
+        self.hook.cancel_all_runs(JOB_ID)
+
+        mock_requests.post.assert_called_once_with(
+            cancel_all_runs_endpoint(HOST),
+            json={"job_id": JOB_ID},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_delete_run(self, mock_requests):
+        mock_requests.post.return_value.json.return_value = {}
+
+        self.hook.delete_run(RUN_ID)
+
+        mock_requests.post.assert_called_once_with(
+            delete_run_endpoint(HOST),
+            json={"run_id": RUN_ID},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_repair_run(self, mock_requests):
+        mock_requests.post.return_value.json.return_value = {"repair_id": 734650698524280}
+        json = (
+            {
+                "run_id": 455644833,
+                "rerun_tasks": ["task0", "task1"],
+                "latest_repair_id": 734650698524280,
+                "rerun_all_failed_tasks": False,
+                "jar_params": ["john", "doe", "35"],
+                "notebook_params": {"name": "john doe", "age": "35"},
+                "python_params": ["john doe", "35"],
+                "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"],
+                "python_named_params": {"name": "task", "data": "dbfs:/path/to/data.json"},
+                "pipeline_params": {"full_refresh": True},
+                "sql_params": {"name": "john doe", "age": "35"},
+                "dbt_commands": ["dbt deps", "dbt seed", "dbt run"],
+            },
+        )
+
+        self.hook.repair_run(json)
+
+        mock_requests.post.assert_called_once_with(
+            repair_run_endpoint(HOST),
+            json=json,
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,

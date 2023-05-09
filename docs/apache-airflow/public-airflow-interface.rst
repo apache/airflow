@@ -58,7 +58,9 @@ DAGs
 ----
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
-instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file.
+instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
+them via :class::`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
+can also have parameters specified via :class::`~airflow.models.param.Param` class.
 
 Airflow has a set of example DAGs that you can use to learn how to write DAGs
 
@@ -72,6 +74,17 @@ Airflow has a set of example DAGs that you can use to learn how to write DAGs
 You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 
 .. _pythonapi:operators:
+
+References for the modules used in DAGs are here:
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/dag/index
+  _api/airflow/models/dagbag/index
+  _api/airflow/models/param/index
 
 Operators
 ---------
@@ -114,6 +127,45 @@ Also you can learn how to write a custom operator in :doc:`howto/custom-operator
 
 .. _pythonapi:hooks:
 
+References for the modules used in for operators are here:
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/baseoperator/index
+
+
+Task Instances
+--------------
+
+Task instances are the individual runs of a single task in a DAG (in a DAG Run). They are available in the context
+passed to the execute method of the operators via the :class:`~airflow.models.taskinstance.TaskInstance` class.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/taskinstance/index
+
+
+Task Instance Keys
+------------------
+
+Task instance keys are unique identifiers of task instances in a DAG (in a DAG Run). A key is a tuple that consists of
+``dag_id``, ``task_id``, ``run_id``, ``try_number``, and ``map_index``. The key of a task instance can be retrieved via
+:meth:`~airflow.models.taskinstance.TaskInstance.key`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/taskinstancekey/index
+
+
 Hooks
 -----
 
@@ -143,6 +195,19 @@ use the following classes:
 
 You can read more about the public Airflow utilities in :doc:`howto/connection`,
 :doc:`core-concepts/variables`, :doc:`core-concepts/xcoms`
+
+
+Reference for classes used for the utilities are here:
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/connection/index
+  _api/airflow/models/variable/index
+  _api/airflow/models/xcom/index
+
 
 Public Exceptions
 -----------------
@@ -245,24 +310,17 @@ Executors are the mechanism by which task instances get run. All executors are
 derived from :class:`~airflow.executors.base_executor.BaseExecutor`. There are several
 executor implementations built-in Airflow, each with its own unique characteristics and capabilities.
 
-Airflow has a set of Executors that are considered public. You are free to extend their functionality
-by extending them:
-
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
-
-  _api/airflow/executors/index
+The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
 
 You can read more about executors in :doc:`core-concepts/executor/index`.
 
 .. versionadded:: 2.6
 
-  Executor interface was available in earlier version of Airflow but only as of version 2.6 executors are
-  fully decoupled and Airflow does not rely on built-in set of executors.
-  You could have implemented (and succeeded) with implementing Executors before Airflow 2.6 and a number
-  of people succeeded in doing so, but there were some hard-coded behaviours that preferred in-built
+  The executor interface has been present in Airflow for quite some time but prior to 2.6, there was executor-specific
+  code elsewhere in the codebase.  As of version 2.6 executors are fully decoupled, in the sense that Airflow core no
+  longer needs to know about the behavior of specific executors.
+  You could have succeeded with implementing a custom executor before Airflow 2.6, and a number
+  of people did, but there were some hard-coded behaviours that preferred in-built
   executors, and custom executors could not provide full functionality that built-in executors had.
 
 Secrets Backends
@@ -337,6 +395,11 @@ Email notifications
 Airflow has a built-in way of sending email notifications and it allows to extend it by adding custom
 email notification classes. You can read more about email notifications in :doc:`howto/email-config`.
 
+Notifications
+-------------
+Airflow has a built-in extensible way of sending notifications using the various ``on_*_callback``. You can read more
+about notifications in :doc:`howto/notifications`.
+
 Cluster Policies
 ----------------
 
@@ -348,6 +411,8 @@ Lineage
 
 Airflow can help track origins of data, what happens to it and where it moves over time. You can read more
 about lineage in :doc:`administration-and-deployment/lineage`.
+
+
 
 
 What is not part of the Public Interface of Apache Airflow?

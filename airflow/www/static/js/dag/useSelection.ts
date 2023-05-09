@@ -17,17 +17,16 @@
  * under the License.
  */
 
-import { useSearchParams } from 'react-router-dom';
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
+import { useSearchParams } from "react-router-dom";
 
-const RUN_ID = 'dag_run_id';
-const TASK_ID = 'task_id';
-const MAP_INDEX = 'map_index';
+const RUN_ID = "dag_run_id";
+const TASK_ID = "task_id";
+const MAP_INDEX = "map_index";
 
 export interface SelectionProps {
-  runId?: string | null ;
+  runId?: string | null;
   taskId?: string | null;
-  mapIndex?: number | null;
+  mapIndex?: number;
 }
 
 const useSelection = () => {
@@ -42,7 +41,8 @@ const useSelection = () => {
   };
 
   const onSelect = ({ runId, taskId, mapIndex }: SelectionProps) => {
-    const params = new URLSearchParamsWrapper(searchParams);
+    // Check the window, in case params have changed since this hook was loaded
+    const params = new URLSearchParams(window.location.search);
 
     if (runId) params.set(RUN_ID, runId);
     else params.delete(RUN_ID);
@@ -59,7 +59,8 @@ const useSelection = () => {
   const runId = searchParams.get(RUN_ID);
   const taskId = searchParams.get(TASK_ID);
   const mapIndexParam = searchParams.get(MAP_INDEX);
-  const mapIndex = mapIndexParam !== null ? parseInt(mapIndexParam, 10) : null;
+  const mapIndex =
+    mapIndexParam !== null ? parseInt(mapIndexParam, 10) : undefined;
 
   return {
     selected: {

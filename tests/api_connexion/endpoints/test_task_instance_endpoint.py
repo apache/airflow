@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 import datetime as dt
+import urllib
 from unittest import mock
 
 import pendulum
 import pytest
 from sqlalchemy.orm import contains_eager
 
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
@@ -38,6 +40,9 @@ from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
+
+QUOTED_DEFAULT_DATETIME_STR_1 = urllib.parse.quote(DEFAULT_DATETIME_STR_1)
+QUOTED_DEFAULT_DATETIME_STR_2 = urllib.parse.quote(DEFAULT_DATETIME_STR_2)
 
 
 @pytest.fixture(scope="module")
@@ -227,7 +232,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         )[0]
         ti.trigger = Trigger("none", {})
         ti.trigger.created_date = now
-        ti.triggerer_job = TriggererJob()
+        ti.triggerer_job = Job()
+        TriggererJobRunner(job=ti.triggerer_job)
         ti.triggerer_job.state = "running"
         session.commit()
         response = self.client.get(
@@ -480,7 +486,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/~/"
-                    f"taskInstances?execution_date_lte={DEFAULT_DATETIME_STR_1}"
+                    f"taskInstances?execution_date_lte={QUOTED_DEFAULT_DATETIME_STR_1}"
                 ),
                 1,
                 id="test execution date filter",
@@ -494,7 +500,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances"
-                    f"?start_date_gte={DEFAULT_DATETIME_STR_1}&start_date_lte={DEFAULT_DATETIME_STR_2}"
+                    f"?start_date_gte={QUOTED_DEFAULT_DATETIME_STR_1}&"
+                    f"start_date_lte={QUOTED_DEFAULT_DATETIME_STR_2}"
                 ),
                 2,
                 id="test start date filter",
@@ -508,7 +515,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 True,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances?"
-                    f"end_date_gte={DEFAULT_DATETIME_STR_1}&end_date_lte={DEFAULT_DATETIME_STR_2}"
+                    f"end_date_gte={QUOTED_DEFAULT_DATETIME_STR_1}&"
+                    f"end_date_lte={QUOTED_DEFAULT_DATETIME_STR_2}"
                 ),
                 2,
                 id="test end date filter",
@@ -867,15 +875,23 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 403
 
+    def test_should_raise_400_for_no_json(self):
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json["detail"] == "Request body must not be empty"
+
     @pytest.mark.parametrize(
         "payload, expected",
         [
-            ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"start_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"start_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"execution_date_gte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
-            ({"execution_date_lte": "2020-11-10T12:42:39.442973"}, "Naive datetime is disallowed"),
+            ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"start_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"start_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"execution_date_gte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
+            ({"execution_date_lte": "2020-11-10T12:42:39.442973"}, "is not a 'date-time'"),
         ],
     )
     @provide_session
@@ -887,7 +903,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
+        assert expected in response.json["detail"]
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
@@ -1598,13 +1614,14 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+        mock_set_task_instance_state.return_value = session.get(
+            TaskInstance,
             {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
                 "map_index": -1,
-            }
+            },
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
@@ -1636,13 +1653,14 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.query(TaskInstance).get(
+        mock_set_task_instance_state.return_value = session.get(
+            TaskInstance,
             {
                 "task_id": "print_the_context",
                 "dag_id": "example_python_operator",
                 "run_id": "TEST_DAG_RUN_ID",
                 "map_index": -1,
-            }
+            },
         )
         response = self.client.patch(
             self.ENDPOINT_URL,

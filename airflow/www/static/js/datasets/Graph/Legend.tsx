@@ -17,14 +17,14 @@
  * under the License.
  */
 
-import React from 'react';
+import React from "react";
+import { Flex, Box, IconButton, Text } from "@chakra-ui/react";
 import {
-  Flex, Box, IconButton, Text,
-} from '@chakra-ui/react';
-import {
-  MdOutlineZoomOutMap, MdFilterCenterFocus, MdOutlineAccountTree,
-} from 'react-icons/md';
-import { HiDatabase } from 'react-icons/hi';
+  MdOutlineZoomOutMap,
+  MdFilterCenterFocus,
+  MdOutlineAccountTree,
+} from "react-icons/md";
+import { HiDatabase } from "react-icons/hi";
 
 interface Props {
   zoom: any;

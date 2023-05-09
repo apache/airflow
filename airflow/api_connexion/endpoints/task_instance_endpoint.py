@@ -152,6 +152,8 @@ def get_mapped_task_instance(
         "start_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "updated_at_gte": format_datetime,
+        "updated_at_lte": format_datetime,
     },
 )
 @security.requires_access(
@@ -173,6 +175,8 @@ def get_mapped_task_instances(
     start_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     duration_gte: float | None = None,
     duration_lte: float | None = None,
     state: list[str] | None = None,
@@ -216,6 +220,7 @@ def get_mapped_task_instances(
     query = _apply_range_filter(query, key=TI.start_date, value_range=(start_date_gte, start_date_lte))
     query = _apply_range_filter(query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
     query = _apply_range_filter(query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    query = _apply_range_filter(query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte))
     query = _apply_array_filter(query, key=TI.state, values=states)
     query = _apply_array_filter(query, key=TI.pool, values=pool)
     query = _apply_array_filter(query, key=TI.queue, values=queue)
@@ -286,6 +291,8 @@ def _apply_range_filter(query: Query, key: ClauseElement, value_range: tuple[T, 
         "start_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "updated_at_gte": format_datetime,
+        "updated_at_lte": format_datetime,
     },
 )
 @security.requires_access(
@@ -307,6 +314,8 @@ def get_task_instances(
     start_date_lte: str | None = None,
     end_date_gte: str | None = None,
     end_date_lte: str | None = None,
+    updated_at_gte: str | None = None,
+    updated_at_lte: str | None = None,
     duration_gte: float | None = None,
     duration_lte: float | None = None,
     state: list[str] | None = None,
@@ -335,6 +344,9 @@ def get_task_instances(
     )
     base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
     base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    base_query = _apply_range_filter(
+        base_query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte)
+    )
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
@@ -530,8 +542,8 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
             detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
         )
 
-    if run_id and not session.query(TI).get(
-        {"task_id": task_id, "dag_id": dag_id, "run_id": run_id, "map_index": -1}
+    if run_id and not session.get(
+        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": run_id, "map_index": -1}
     ):
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
         raise NotFound(detail=error_message)
@@ -583,8 +595,8 @@ def patch_task_instance(
     if not dag.has_task(task_id):
         raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
 
-    ti: TI | None = session.query(TI).get(
-        {"task_id": task_id, "dag_id": dag_id, "run_id": dag_run_id, "map_index": map_index}
+    ti: TI | None = session.get(
+        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": dag_run_id, "map_index": map_index}
     )
 
     if not ti:

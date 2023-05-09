@@ -42,6 +42,15 @@ class TestGithubOperator:
             )
         )
 
+    def test_operator_init_with_optional_args(self):
+        github_operator = GithubOperator(
+            task_id="github_list_repos",
+            github_method="get_user",
+        )
+
+        assert github_operator.github_method_args == {}
+        assert github_operator.result_processor is None
+
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
     )

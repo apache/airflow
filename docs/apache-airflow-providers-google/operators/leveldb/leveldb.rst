@@ -48,5 +48,5 @@ Reference
 
 For further information, look at:
 
-* `Product Documentation <https://github.com/google/leveldb/blob/master/doc/index.md>`__
+* `Product Documentation <https://github.com/google/leveldb/blob/main/doc/index.md>`__
 * `Client Library Documentation <https://plyvel.readthedocs.io/en/latest/>`__

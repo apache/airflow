@@ -17,31 +17,31 @@
  * under the License.
  */
 
-import React from 'react';
+import React from "react";
 import {
   Button,
   IconButton,
   Tooltip,
   useClipboard,
   forwardRef,
-} from '@chakra-ui/react';
-import { FiCopy } from 'react-icons/fi';
+} from "@chakra-ui/react";
+import { FiCopy } from "react-icons/fi";
 
-import { useContainerRef } from 'src/context/containerRef';
+import { useContainerRef } from "src/context/containerRef";
 
 export const ClipboardButton = forwardRef(
   (
     {
       value,
-      variant = 'outline',
+      variant = "outline",
       iconOnly = false,
-      label = 'copy',
-      title = 'Copy',
-      colorScheme = 'blue',
-      'aria-label': ariaLabel = 'Copy',
+      label = "copy",
+      title = "Copy",
+      colorScheme = "blue",
+      "aria-label": ariaLabel = "Copy",
       ...rest
     },
-    ref,
+    ref
   ) => {
     const { hasCopied, onCopy } = useClipboard(value);
     const containerRef = useContainerRef();
@@ -64,7 +64,11 @@ export const ClipboardButton = forwardRef(
         portalProps={{ containerRef }}
       >
         {iconOnly ? (
-          <IconButton icon={<FiCopy />} aria-label={ariaLabel} {...commonProps} />
+          <IconButton
+            icon={<FiCopy />}
+            aria-label={ariaLabel}
+            {...commonProps}
+          />
         ) : (
           <Button leftIcon={<FiCopy />} {...commonProps}>
             {label}
@@ -72,16 +76,23 @@ export const ClipboardButton = forwardRef(
         )}
       </Tooltip>
     );
-  },
+  }
 );
 
 interface Props {
-  value: string
+  value: string;
 }
 
 export const ClipboardText = ({ value }: Props) => (
   <>
     {value}
-    <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="xl" ml={1} />
+    <ClipboardButton
+      value={value}
+      iconOnly
+      variant="ghost"
+      size="xs"
+      fontSize="xl"
+      ml={1}
+    />
   </>
 );

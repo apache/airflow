@@ -16,36 +16,33 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.jobs.base_job import BaseJob
+from sqlalchemy.orm import Session
+
+from airflow.jobs.job import Job
 from airflow.utils.net import get_hostname
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
 
 @provide_session
-def check(args, session=None):
+def check(args, session: Session = NEW_SESSION) -> None:
     """Checks if job(s) are still alive."""
     if args.allow_multiple and not args.limit > 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")
 
-    query = (
-        session.query(BaseJob)
-        .filter(BaseJob.state == State.RUNNING)
-        .order_by(BaseJob.latest_heartbeat.desc())
-    )
+    query = session.query(Job).filter(Job.state == State.RUNNING).order_by(Job.latest_heartbeat.desc())
     if args.job_type:
-        query = query.filter(BaseJob.job_type == args.job_type)
+        query = query.filter(Job.job_type == args.job_type)
     if args.hostname:
-        query = query.filter(BaseJob.hostname == args.hostname)
+        query = query.filter(Job.hostname == args.hostname)
     if args.local:
-        query = query.filter(BaseJob.hostname == get_hostname())
+        query = query.filter(Job.hostname == get_hostname())
     if args.limit > 0:
         query = query.limit(args.limit)
 
-    jobs: list[BaseJob] = query.all()
-    alive_jobs = [job for job in jobs if job.is_alive()]
+    alive_jobs: list[Job] = [job for job in query.all() if job.is_alive()]
 
     count_alive_jobs = len(alive_jobs)
     if count_alive_jobs == 0:

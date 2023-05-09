@@ -51,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_github_repository,
     option_image_tag_for_running,
     option_include_mypy_volume,
+    option_install_selected_providers,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -123,6 +124,7 @@ class TimerThread(threading.Thread):
 @option_airflow_extras
 @option_airflow_constraints_reference
 @option_use_packages_from_dist
+@option_install_selected_providers
 @option_installation_package_format
 @option_mount_sources
 @option_integration
@@ -145,6 +147,7 @@ def shell(
     forward_credentials: bool,
     mount_sources: str,
     use_packages_from_dist: bool,
+    install_selected_providers: str,
     package_format: str,
     use_airflow_version: str | None,
     airflow_extras: str,
@@ -179,6 +182,7 @@ def shell(
         airflow_extras=airflow_extras,
         airflow_constraints_reference=airflow_constraints_reference,
         use_packages_from_dist=use_packages_from_dist,
+        install_selected_providers=install_selected_providers,
         package_format=package_format,
         force_build=force_build,
         db_reset=db_reset,
@@ -312,6 +316,11 @@ def start_airflow(
     "Implies --clean-build",
     is_flag=True,
 )
+@click.option(
+    "--one-pass-only",
+    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
+    is_flag=True,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -320,6 +329,7 @@ def build_docs(
     spellcheck_only: bool,
     for_production: bool,
     clean_build: bool,
+    one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
@@ -373,9 +383,9 @@ def build_docs(
 @click.option(
     "-t",
     "--type",
-    help="Type(s) of the static checks to run (multiple can be added).",
+    "type_",
+    help="Type(s) of the static checks to run.",
     type=BetterChoice(PRE_COMMIT_LIST),
-    multiple=True,
 )
 @click.option("-a", "--all-files", help="Run checks on all files.", is_flag=True)
 @click.option("-f", "--file", help="List of files to run the checks on.", type=click.Path(), multiple=True)
@@ -404,7 +414,7 @@ def static_checks(
     show_diff_on_failure: bool,
     last_commit: bool,
     commit_ref: str,
-    type: tuple[str],
+    type_: str,
     file: Iterable[str],
     precommit_args: tuple,
     github_repository: str,
@@ -415,8 +425,8 @@ def static_checks(
     if last_commit and commit_ref:
         get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
         sys.exit(1)
-    for single_check in type:
-        command_to_execute.append(single_check)
+    if type_:
+        command_to_execute.append(type_)
     if all_files:
         command_to_execute.append("--all-files")
     if show_diff_on_failure:
@@ -472,12 +482,18 @@ def compile_www_assets(dev: bool):
 @click.option(
     "-p",
     "--preserve-volumes",
-    help="Skip removing volumes when stopping Breeze.",
+    help="Skip removing database volumes when stopping Breeze.",
+    is_flag=True,
+)
+@click.option(
+    "-c",
+    "--cleanup-mypy-cache",
+    help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
 @option_verbose
 @option_dry_run
-def stop(preserve_volumes: bool):
+def stop(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
     command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
     if not preserve_volumes:
@@ -485,6 +501,9 @@ def stop(preserve_volumes: bool):
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, env=env_variables)
+    if cleanup_mypy_cache:
+        command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute, env=env_variables)
 
 
 @main.command(name="exec", help="Joins the interactive shell of running airflow container.")
@@ -545,8 +564,14 @@ def enter_shell(**kwargs) -> RunCommandResult:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            get_console().print("\n[error]MySQL is not supported on ARM architecture.[/]\n")
-            sys.exit(1)
+            if shell_params.mysql_version == "8":
+                get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+            else:
+                get_console().print(
+                    f"\n[error]Only MySQL 8.0 is supported on ARM architecture, "
+                    f"but got {shell_params.mysql_version}[/]\n"
+                )
+                sys.exit(1)
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)

@@ -22,8 +22,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
 
 from sqlalchemy import or_
-from sqlalchemy.orm import lazyload
-from sqlalchemy.orm.session import Session as SASession
+from sqlalchemy.orm import Session as SASession, lazyload
 
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun

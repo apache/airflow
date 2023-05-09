@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from enum import Enum
 
-from airflow.settings import STATE_COLORS
-
 
 class TaskInstanceState(str, Enum):
     """
@@ -97,6 +95,9 @@ class State:
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
 
+    finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
+    unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
+
     task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
 
     dag_states: tuple[DagRunState, ...] = (
@@ -122,7 +123,6 @@ class State:
         TaskInstanceState.SCHEDULED: "tan",
         TaskInstanceState.DEFERRED: "mediumpurple",
     }
-    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):

@@ -22,13 +22,12 @@
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
+  - [Making the cherry picking](#making-the-cherry-picking)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
-  - [Prepare API clients RC packages](#prepare-api-clients-rc-packages)
-  - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -39,7 +38,6 @@
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Manually release API clients](#manually-release-api-clients)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
@@ -50,11 +48,12 @@
   - [Close the milestone](#close-the-milestone)
   - [Close the testing status issue](#close-the-testing-status-issue)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
-  - [Tweet about the release](#tweet-about-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
   - [Update EndOfLife data](#update-endoflife-data)
+  - [API clients](#api-clients)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -87,12 +86,12 @@ For a patch release, find out other bug fixes that are not marked with the targe
 and mark those as well. You can accomplish this by running the following command:
 
 ```
- ./dev/airflow-github needs-categorization 2.3.2 HEAD
- ```
+./dev/airflow-github needs-categorization 2.3.2 HEAD
+```
 
 Often you also want to cherry-pick changes related to CI and development tools, to include the latest
 stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes:
+changes via (this will exclude already merged changes):
 
 ```shell
 git fetch apache
@@ -116,8 +115,26 @@ git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airf
 Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
 land in documentation part of the changelog. The tool to review and assign the labels is described below.
 
+## Making the cherry picking
+
+To see cherry picking candidates (unmerged PR with the appropriate milestone), from the test
+branch you can run:
+
+```shell
+./dev/airflow-github compare 2.1.2 --unmerged
+```
+
+Be careful and verify the hash commit specified. This is a 'best effort' to find it, and
+could be inaccurate if the PR was referenced in other commits after it was merged. You can start
+cherry picking from the bottom of the list. (older commits first)
+
 When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch.
-You'll move them over to be on `vX-Y-stable` once the release is cut.
+You'll move them over to be on `vX-Y-stable` once the release is cut. Use the `-x` option
+to keep a reference to the original commit we cherry picked from. ("cherry picked from commit ...")
+
+```shell
+git cherry-pick <hash-commit> -x
+```
 
 ## Reviewing cherry-picked PRs and assigning labels
 
@@ -138,7 +155,7 @@ You can also add `--skip-assigned` flag if you want to automatically skip the qu
 for the PRs that are already correctly assigned to the milestone. You can also avoid the "Are you OK?"
 question with `--assume-yes` flag.
 
-You cn review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
+You can review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
 assumes the `--skip-assigned` flag, so that the summary can be produced without questions:
 
 ```shell
@@ -215,7 +232,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pipx install -e ./dev/breeze
     ```
 
-- For major/minor version release,run the following commands to create the 'test' and 'stable' branches.
+- For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
     ```shell script
     breeze release-management create-minor-branch --version-branch ${VERSION_BRANCH}
@@ -228,9 +245,11 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `setup.py` and `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
+- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
+  the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
 
   Preview with:
@@ -239,9 +258,17 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     towncrier build --draft --version=${VERSION_WITHOUT_RC} --date=2021-12-15 --dir . --config newsfragments/config.toml
     ```
 
+
   Then remove the `--draft` flag to have towncrier build the release notes for real.
 
-  If no significant changes where added in this release, add the header and put "No significant changes." (e.g. `2.1.4`).
+  If no significant changes were added in this release, add the header and put "No significant changes." (e.g. `2.1.4`).
+
+  This will partly generate the release note based on the fragments (adjust to rst format). All PRs does not necessarily
+  create a fragment to document its change, to generate the body of the release note based on the cherry picked commits:
+
+  ```
+  ./dev/airflow-github changelog v2-3-stable v2-3-test
+  ```
 
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
@@ -260,6 +287,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
 
     ```shell script
+    git checkout main
+    git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
     ```
 
@@ -284,69 +313,6 @@ When you trigger it you need to pass:
 ![Release prod image](images/release_prod_image_rc.png)
 
 The manual building is described in [MANUALLY_BUILDING_IMAGES.md](MANUALLY_BUILDING_IMAGES.md).
-
-
-## Prepare API clients RC packages
-
-### API Clients versioning policy
-
-For major/minor version release, always release new versions of the API clients.
-
-- [Python client](https://github.com/apache/airflow-client-python)
-- [Go client](https://github.com/apache/airflow-client-go)
-
-For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
-A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
-There are other external reasons for which we might want to release a patch version for clients only, but they are not
-tied to an airflow release and therefore out of scope.
-
-> The patch version of each API client is not necessarily in sync with the patch that you are releasing. You need to check for
-> each client what is the next patch version to be released.
-
-### Prepare the vote artifacts
-
-If API clients are to be released in this airflow version:
-
-- Set environment variables (useful for the rest of the process)
-
-    ```shell script
-    # Set Version
-    export GO_API_CLIENT_VERSION=2.1.3
-    export PYTHON_API_CLIENT_VERSION=2.1.1
-    ```
-
-- Follow the specific release process of each API client to generate the artifacts and push to PyPI a
-    release candidate client package:
-
-    - [Python client](https://github.com/apache/airflow-client-python#release-process)
-    - [Go client](https://github.com/apache/airflow-client-go#release-process)
-
-
-## Prepare issue for testing status of rc
-
-For now this part works for bugfix releases only, for major/minor ones we will experiment and
-see if there is a way to only extract important/not tested bugfixes and high-level changes to
-make the process manageable.
-
-
-Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
-(for example 2.1.0).
-
-```shell script
-cat <<EOF
-Status of testing of Apache Airflow ${VERSION}
-EOF
-```
-
-Content is generated with:
-
-```shell
-./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_RELEASE> \
-    --current-release ${VERSION}
-
-```
-
-Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -385,11 +351,6 @@ https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
-
-TODO:REMOVE PARAGRAPH IF NOT RELEVANT
-New API clients were generated:
-- Python ${PYTHON_API_CLIENT_VERSION}
-- GO ${GO_API_CLIENT_VERSION}
 
 Please vote accordingly:
 
@@ -438,6 +399,7 @@ Cheers,
 EOF
 ```
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
 # Verify the release candidate by PMCs
 
@@ -683,12 +645,6 @@ export RC=2.0.2rc5
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
 
-## Manually release API clients
-
-If API clients are part of the release, publish new versions of the clients to PyPI without the rc suffix
-based on the vote artifacts.
-
-
 ## Manually prepare production Docker Image
 
 Building the image is triggered by running the
@@ -720,7 +676,6 @@ docker pull apache/airflow:${VERSION}
 breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
-
 ## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
@@ -750,7 +705,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ./docs/start_doc_server.sh
     ```
 
-- Copy the documentation to the ``airflow-site`` repository, create commit, push changes and open a PR.
+- Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
     ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
@@ -848,9 +803,19 @@ Thanks to all the contributors who made this possible.
 EOF
 ```
 
-## Tweet about the release
+## Announce about the release in social media
 
-Tweet about the release:
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Tweet and post on Linkedin about the release:
 
 ```shell
 cat <<EOF
@@ -882,7 +847,7 @@ Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in t
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
 
-Also add a note to `UPDATING.rst` that the default version of Airflow has changed.
+Add or adjust significant `chart/newsfragments` to express that the default version of Airflow has changed.
 
 In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
 
@@ -902,3 +867,40 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 - Make a PR [EndOfLife](https://github.com/endoflife-date/endoflife.date) with release date, latest version and updated
 changelog link.
+
+## API clients
+
+After releasing airflow core, we need to check if we have to follow up with API clients release.
+
+Clients are released in a separate process, with their own vote mostly because their version can mismatch the core release.
+ASF policy does not allow to vote against multiple artifacts with different versions.
+
+### API Clients versioning policy
+
+For major/minor version release, always release new versions of the API clients.
+
+- [Python client](https://github.com/apache/airflow-client-python)
+- [Go client](https://github.com/apache/airflow-client-go)
+
+For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
+A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
+There are other external reasons for which we might want to release a patch version for clients only, but they are not
+tied to an airflow release and therefore out of scope.
+
+To determine if you should also release API clients you can run:
+
+```shell
+./dev/airflow-github api-clients-policy 2.3.2 2.3.3
+```
+
+> The patch version of each API client is not necessarily in sync with the patch that you are releasing.
+> You need to check for each client what is the next patch version to be released.
+
+### Releasing the clients
+
+According to the policy above, if we have to release clients:
+
+- Follow the specific release process for each API client:
+
+    - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)

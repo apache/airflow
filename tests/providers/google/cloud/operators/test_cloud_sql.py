@@ -18,15 +18,14 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.operators.cloud_sql import (
+    CloudSQLCloneInstanceOperator,
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator,
@@ -149,7 +148,7 @@ IMPORT_BODY = {
 }
 
 
-class TestCloudSql(unittest.TestCase):
+class TestCloudSql:
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_sql"
         ".CloudSQLCreateInstanceOperator._check_if_instance_exists"
@@ -360,6 +359,36 @@ class TestCloudSql(unittest.TestCase):
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance=INSTANCE_NAME
+        )
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCloneInstanceOperator._check_if_instance_exists"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    def test_instance_clone(self, mock_hook, _check_if_instance_exists):
+        destination_instance_name = "clone-test-name"
+        _check_if_instance_exists.return_value = True
+        op = CloudSQLCloneInstanceOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            destination_instance_name=destination_instance_name,
+            task_id="id",
+        )
+        result = op.execute(None)
+        assert result
+        mock_hook.assert_called_once_with(
+            api_version="v1beta4",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+        )
+        body = {
+            "cloneContext": {
+                "kind": "sql#cloneContext",
+                "destinationInstanceName": destination_instance_name,
+            }
+        }
+        mock_hook.return_value.clone_instance.assert_called_once_with(
+            project_id=PROJECT_ID, instance=INSTANCE_NAME, body=body
         )
 
     @mock.patch(
@@ -673,7 +702,7 @@ class TestCloudSql(unittest.TestCase):
         assert result
 
 
-class TestCloudSqlQueryValidation(unittest.TestCase):
+class TestCloudSqlQueryValidation:
     @staticmethod
     def _setup_connections(get_connection, uri):
         gcp_connection = mock.MagicMock()
@@ -683,7 +712,8 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         cloudsql_connection2 = Connection(uri=uri)
         get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, location, instance_name, database_type, use_proxy, use_ssl, sql, message",
         [
             (
                 "project_id",
@@ -736,11 +766,12 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
                 "SELECT * FROM TEST",
                 "SSL connections requires sslcert to be set",
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_create_operator_with_wrong_parameters(
         self,
+        get_connection,
         project_id,
         location,
         instance_name,
@@ -749,7 +780,6 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         use_ssl,
         sql,
         message,
-        get_connection,
     ):
         uri = (
             f"gcpcloudsql://user:password@127.0.0.1:3200/testdb?"

@@ -50,6 +50,24 @@ Older versions of ``docker-compose`` do not support all the features required by
 
         docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
 
+.. warning::
+
+    Some operating systems (Fedora, ArchLinux, RHEL, Rocky) have recently introduced Kernel changes that result in
+    Airflow in Docker Compose consuming 100% memory when run inside the community Docker implementation maintained
+    by the OS teams.
+
+    This is an issue with backwards-incompatible containerd configuration that some of Airflow dependencies
+    have problems with and is tracked in a few issues:
+
+    * `Moby issue <https://github.com/moby/moby/issues/43361>`_
+    * `Containerd issue <https://github.com/containerd/containerd/>`_
+
+    There is no solution yet from the containerd team, but seems that installing
+    `Docker Desktop on Linux <https://docs.docker.com/desktop/install/linux-install/>`_ solves the problem as
+    stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
+    run Breeze with no problems.
+
+
 
 Fetching ``docker-compose.yaml``
 ================================
@@ -68,6 +86,7 @@ This file contains several service definitions:
   task instances once their dependencies are complete.
 - ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
+- ``airflow-triggerer`` - The triggerer runs an event loop for deferrable tasks.
 - ``airflow-init`` - The initialization service.
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
@@ -82,6 +101,7 @@ Some directories in the container are mounted, which means that their contents a
 
 - ``./dags`` - you can put your DAG files here.
 - ``./logs`` - contains logs from task execution and scheduler.
+- ``./config`` - you can add custom log parser or add ``airflow_local_settings.py`` to configure cluster policy.
 - ``./plugins`` - you can put your :doc:`custom plugins </authoring-and-scheduling/plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
@@ -105,7 +125,7 @@ You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
-    mkdir -p ./dags ./logs ./plugins
+    mkdir -p ./dags ./logs ./plugins ./config
     echo -e "AIRFLOW_UID=$(id -u)" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
@@ -269,6 +289,40 @@ to rebuild the images on-the-fly when you run other ``docker compose`` commands.
 
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
+
+Special case - adding dependencies via requirements.txt file
+============================================================
+
+Usual case for custom images, is when you want to add a set of requirements to it - usually stored in
+``requirements.txt`` file. For development, you might be tempted to add it dynamically when you are
+starting the original airflow image, but this has a number of side effects (for example your containers
+will start much slower - each additional dependency will further delay your containers start up time).
+Also it is completely unnecessary, because docker compose has the development workflow built-in.
+You can - following the previous chapter, automatically build and use your custom image when you
+iterate with docker compose locally. Specifically when you want to add your own requirement file,
+you should do those steps:
+
+1) Comment out the ``image: ...`` line and remove comment from the ``build: .`` line in the
+   ``docker-compose.yaml`` file. The relevant part of the docker-compose file of yours should look similar
+   to (use correct image tag):
+
+```
+#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.5.1}
+build: .
+```
+
+2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
+
+```
+FROM apache/airflow:2.5.1
+ADD requirements.txt .
+RUN pip install -r requirements.txt
+```
+
+3) Place ``requirements.txt`` file in the same directory.
+
+Run ``docker compose build`` to build the image, or add ``--build`` flag to ``docker compose up`` or
+``docker compose run`` commands to build the image automatically as needed.
 
 Networking
 ==========

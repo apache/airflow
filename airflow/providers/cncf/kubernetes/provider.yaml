@@ -21,7 +21,14 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
+suspended: false
 versions:
+  - 6.1.0
+  - 6.0.0
+  - 5.3.0
+  - 5.2.2
+  - 5.2.1
+  - 5.2.0
   - 5.1.1
   - 5.1.0
   - 5.0.0
@@ -51,7 +58,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
+  - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
   # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
@@ -62,6 +70,12 @@ dependencies:
   # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
   # core is not hard-limited via install-requirements, only by extra).
   - kubernetes>=21.7.0,<24
+  # The Kubernetes_asyncio package is used for providing Asynchronous (AsyncIO) client library for
+  # standard Kubernetes API. The version is limited by minimum 18.20.1 because of introducing the ability to
+  # load kubernetes config file from dictionary in that release and is limited to the next MAJOR version
+  # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
+  #  major changes in the package.
+  - kubernetes_asyncio>=18.20.1,<25
 
 integrations:
   - integration-name: Kubernetes
@@ -79,6 +93,7 @@ operators:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
+      - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
 
 sensors:
@@ -90,6 +105,11 @@ hooks:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.hooks.kubernetes
+
+triggers:
+  - integration-name: Kubernetes
+    class-names:
+      - airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger
 
 
 connection-types:

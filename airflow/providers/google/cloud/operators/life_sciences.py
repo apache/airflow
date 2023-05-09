@@ -21,15 +21,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
 from airflow.providers.google.cloud.links.life_sciences import LifeSciencesLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class LifeSciencesRunPipelineOperator(BaseOperator):
+class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
     """
     Runs a Life Sciences Pipeline
 

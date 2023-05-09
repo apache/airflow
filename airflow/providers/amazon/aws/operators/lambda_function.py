@@ -118,7 +118,7 @@ class LambdaCreateFunctionOperator(BaseOperator):
         return response.get("FunctionArn")
 
 
-class AwsLambdaInvokeFunctionOperator(BaseOperator):
+class LambdaInvokeFunctionOperator(BaseOperator):
     """
     Invokes an AWS Lambda function. You can invoke a function synchronously (and wait for the response),
     or asynchronously.
@@ -127,7 +127,7 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AwsLambdaInvokeFunctionOperator`
+        :ref:`howto/operator:LambdaInvokeFunctionOperator`
 
     :param function_name: The name of the AWS Lambda function, version, or alias.
     :param log_type: Set to Tail to include the execution log in the response. Otherwise, set to "None".

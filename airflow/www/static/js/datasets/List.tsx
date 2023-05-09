@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Heading,
@@ -31,17 +31,17 @@ import {
   IconButton,
   ButtonGroup,
   Button,
-} from '@chakra-ui/react';
-import { snakeCase } from 'lodash';
-import type { Row, SortingRule } from 'react-table';
-import { MdClose, MdSearch } from 'react-icons/md';
-import { useSearchParams } from 'react-router-dom';
+} from "@chakra-ui/react";
+import { snakeCase } from "lodash";
+import type { Row, SortingRule } from "react-table";
+import { MdClose, MdSearch } from "react-icons/md";
+import { useSearchParams } from "react-router-dom";
 
-import { useDatasets } from 'src/api';
-import { Table, TimeCell } from 'src/components/Table';
-import type { API } from 'src/types';
-import { getMetaValue } from 'src/utils';
-import type { DateOption } from 'src/api/useDatasets';
+import { useDatasets } from "src/api";
+import { Table, TimeCell } from "src/components/Table";
+import type { API } from "src/types";
+import { getMetaValue } from "src/utils";
+import type { DateOption } from "src/api/useDatasets";
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -52,8 +52,8 @@ interface CellProps {
     value: any;
     row: {
       original: Record<string, any>;
-    }
-  }
+    };
+  };
 }
 
 const DetailCell = ({ cell: { row } }: CellProps) => {
@@ -62,22 +62,20 @@ const DetailCell = ({ cell: { row } }: CellProps) => {
     <Box data-testid="dataset-list-item">
       <Text>{uri}</Text>
       <Text fontSize="sm" mt={2}>
-        Total Updates:
-        {' '}
-        {totalUpdates}
+        Total Updates: {totalUpdates}
       </Text>
     </Box>
   );
 };
 
-const SEARCH_PARAM = 'search';
-const DATE_FILTER_PARAM = 'updated_within';
+const SEARCH_PARAM = "search";
+const DATE_FILTER_PARAM = "updated_within";
 
 const dateOptions: Record<string, DateOption> = {
-  month: { count: 30, unit: 'days' },
-  week: { count: 7, unit: 'days' },
-  day: { count: 24, unit: 'hours' },
-  hour: { count: 1, unit: 'hour' },
+  month: { count: 30, unit: "days" },
+  week: { count: 7, unit: "days" },
+  day: { count: 24, unit: "hours" },
+  hour: { count: 1, unit: "hour" },
 };
 
 const DatasetsList = ({ onSelect }: Props) => {
@@ -86,15 +84,20 @@ const DatasetsList = ({ onSelect }: Props) => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const search = decodeURIComponent(searchParams.get(SEARCH_PARAM) || '');
+  const search = decodeURIComponent(searchParams.get(SEARCH_PARAM) || "");
   const dateFilter = searchParams.get(DATE_FILTER_PARAM) || undefined;
 
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'lastDatasetUpdate', desc: true }]);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
+    { id: "lastDatasetUpdate", desc: true },
+  ]);
   const sort = sortBy[0];
-  const order = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+  const order = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
   const uri = search.length > 2 ? search : undefined;
 
-  const { data: { datasets, totalEntries }, isLoading } = useDatasets({
+  const {
+    data: { datasets, totalEntries },
+    isLoading,
+  } = useDatasets({
     limit,
     offset,
     order,
@@ -105,30 +108,27 @@ const DatasetsList = ({ onSelect }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'URI',
-        accessor: 'uri',
+        Header: "URI",
+        accessor: "uri",
         Cell: DetailCell,
       },
       {
-        Header: 'Last Update',
-        accessor: 'lastDatasetUpdate',
+        Header: "Last Update",
+        accessor: "lastDatasetUpdate",
         Cell: TimeCell,
       },
     ],
-    [],
+    []
   );
 
-  const data = useMemo(
-    () => datasets,
-    [datasets],
-  );
+  const data = useMemo(() => datasets, [datasets]);
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
     if (row.original.uri) onSelect(row.original.uri);
   };
 
-  const docsUrl = getMetaValue('datasets_docs');
+  const docsUrl = getMetaValue("datasets_docs");
 
   const onSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     searchParams.set(SEARCH_PARAM, encodeURIComponent(e.target.value));
@@ -149,10 +149,10 @@ const DatasetsList = ({ onSelect }: Props) => {
       </Flex>
       {!datasets.length && !isLoading && !search && !dateFilter && (
         <Text mb={4} data-testid="no-datasets-msg">
-          Looks like you do not have any datasets yet. Check out the
-          {' '}
-          <Link color="blue" href={docsUrl} isExternal>docs</Link>
-          {' '}
+          Looks like you do not have any datasets yet. Check out the{" "}
+          <Link color="blue" href={docsUrl} isExternal>
+            docs
+          </Link>{" "}
           to learn how to create a dataset.
         </Text>
       )}
@@ -164,8 +164,8 @@ const DatasetsList = ({ onSelect }: Props) => {
               searchParams.delete(DATE_FILTER_PARAM);
               setSearchParams(searchParams);
             }}
-            variant={!dateFilter ? 'solid' : 'outline'}
-            fontWeight={!dateFilter ? 'bold' : 'normal'}
+            variant={!dateFilter ? "solid" : "outline"}
+            fontWeight={!dateFilter ? "bold" : "normal"}
           >
             All Time
           </Button>
@@ -183,12 +183,10 @@ const DatasetsList = ({ onSelect }: Props) => {
                   }
                   setSearchParams(searchParams);
                 }}
-                variant={isSelected ? 'solid' : 'outline'}
-                fontWeight={isSelected ? 'bold' : 'normal'}
+                variant={isSelected ? "solid" : "outline"}
+                fontWeight={isSelected ? "bold" : "normal"}
               >
-                {filter.count}
-                {' '}
-                {filter.unit}
+                {filter.count} {filter.unit}
               </Button>
             );
           })}
@@ -205,7 +203,13 @@ const DatasetsList = ({ onSelect }: Props) => {
         />
         {search.length > 0 && (
           <InputRightElement>
-            <IconButton aria-label="Clear search" title="Clear search" icon={<MdClose />} variant="ghost" onClick={onClear} />
+            <IconButton
+              aria-label="Clear search"
+              title="Clear search"
+              icon={<MdClose />}
+              variant="ghost"
+              onClick={onClear}
+            />
           </InputRightElement>
         )}
       </InputGroup>

@@ -62,8 +62,8 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 .. note::
     The scheduler is designed for high throughput. This is an informed design decision to achieve scheduling
     tasks as soon as possible. The scheduler checks how many free slots available in a pool and schedule at most that number of tasks instances in one iteration.
-    This means that task priority will only come in to effect when there are more scheduled tasks
-    waiting than the queue slots. Thus there can be cases where low priority tasks will be schedule before high priority tasks if they share the same batch.
+    This means that task priority will only come into effect when there are more scheduled tasks
+    waiting than the queue slots. Thus there can be cases where low priority tasks will be scheduled before high priority tasks if they share the same batch.
     For more read about that you can reference `this GitHub discussion <https://github.com/apache/airflow/discussions/28809>`__.
 
 
@@ -111,7 +111,7 @@ outline of the scheduling loop is:
 - Select schedulable TaskInstances, and whilst respecting Pool limits and other concurrency limits, enqueue
   them for execution
 
-This does however place some requirements on the Database.
+This does, however, place some requirements on the Database.
 
 .. _scheduler:ha:db_requirements:
 
@@ -215,7 +215,7 @@ Generally for fine-tuning, your approach should be the same as for any performan
 optimizations (we will not recommend any specific tools - just use the tools that you usually use
 to observe and monitor your systems):
 
-* its extremely important to monitor your system with the right set of tools that you usually use to
+* it's extremely important to monitor your system with the right set of tools that you usually use to
   monitor your system. This document does not go into details of particular metrics and tools that you
   can use, it just describes what kind of resources you should monitor, but you should follow your best
   practices for monitoring to grab the right data.
@@ -274,7 +274,7 @@ There are several areas of resource usage that you should pay attention to:
   which dramatically decreases performance. Note that Airflow Scheduler in versions prior to ``2.1.4``
   generated a lot of ``Page Cache`` memory used by log files (when the log files were not removed).
   This was generally harmless, as the memory is just cache and could be reclaimed at any time by the system,
-  however in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
+  however, in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
   Regardless - make sure when you look at memory usage, pay attention to the kind of memory you are observing.
   Usually you should look at ``working memory``(names might vary depending on your deployment) rather
   than ``total memory used``.
@@ -304,7 +304,7 @@ When you know what your resource usage is, the improvements that you can conside
   simply exchanging one performance aspect for another. For example if you want to decrease the
   CPU usage, you might increase file processing interval (but the result will be that new DAGs will
   appear with bigger delay). Usually performance tuning is the art of balancing different aspects.
-* sometimes you change scheduler behaviour slightly (for example change parsing sort order)
+* sometimes you change scheduler behavior slightly (for example change parsing sort order)
   in order to get better fine-tuned results for your particular deployment.
 
 
@@ -314,8 +314,8 @@ Scheduler Configuration options
 """""""""""""""""""""""""""""""
 
 The following config settings can be used to control aspects of the Scheduler.
-However you can also look at other non-performance-related scheduler configuration parameters available at
-:doc:`../configurations-ref` in ``[scheduler]`` section.
+However, you can also look at other non-performance-related scheduler configuration parameters available at
+:doc:`../configurations-ref` in the ``[scheduler]`` section.
 
 - :ref:`config:scheduler__max_dagruns_to_create_per_loop`
 

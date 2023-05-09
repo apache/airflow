@@ -23,7 +23,6 @@ import re
 import tarfile
 import tempfile
 import time
-import warnings
 from collections import Counter
 from datetime import datetime
 from functools import partial
@@ -35,6 +34,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils import timezone
 
 
@@ -976,21 +976,6 @@ class SageMakerHook(AwsBaseHook):
             else:
                 next_token = response["NextToken"]
 
-    def find_processing_job_by_name(self, processing_job_name: str) -> bool:
-        """
-        Query processing job by name
-
-        This method is deprecated.
-        Please use `airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.
-        """
-        warnings.warn(
-            "This method is deprecated. "
-            "Please use `airflow.providers.amazon.aws.hooks.sagemaker.count_processing_jobs_by_name`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return bool(self.count_processing_jobs_by_name(processing_job_name))
-
     @staticmethod
     def _name_matches_pattern(
         processing_job_name: str,
@@ -1100,9 +1085,7 @@ class SageMakerHook(AwsBaseHook):
 
         :return: the ARN of the pipeline execution launched.
         """
-        if pipeline_params is None:
-            pipeline_params = {}
-        formatted_params = [{"Name": kvp[0], "Value": kvp[1]} for kvp in pipeline_params.items()]
+        formatted_params = format_tags(pipeline_params, key_label="Name")
 
         try:
             res = self.conn.start_pipeline_execution(

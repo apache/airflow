@@ -249,12 +249,15 @@ def test_dag_autocomplete_success(client_all_dags):
         "dagmodel/autocomplete?query=flow",
         follow_redirects=False,
     )
-    assert resp.json == [
+    expected = [
         {"name": "airflow", "type": "owner"},
+        {"name": "example_setup_teardown_taskflow", "type": "dag"},
         {"name": "test_mapped_taskflow", "type": "dag"},
         {"name": "tutorial_taskflow_api", "type": "dag"},
         {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
     ]
+
+    assert resp.json == expected
 
 
 @pytest.mark.parametrize(
@@ -634,19 +637,6 @@ def test_success(request, client, url, expected_content):
 def test_failure(dag_faker_client, url, unexpected_content):
     resp = dag_faker_client.get(url, follow_redirects=True)
     check_content_not_in_response(unexpected_content, resp)
-
-
-@pytest.mark.parametrize("client", ["dag_test_client", "all_dag_user_client"])
-def test_run_success(request, client):
-    form = dict(
-        task_id="runme_0",
-        dag_id="example_bash_operator",
-        ignore_all_deps="false",
-        ignore_ti_state="true",
-        execution_date=DEFAULT_DATE,
-    )
-    resp = request.getfixturevalue(client).post("run", data=form)
-    assert resp.status_code == 302
 
 
 def test_blocked_success(client_all_dags_dagruns):

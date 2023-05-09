@@ -37,7 +37,18 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     """
 
     def __init__(self, **kwargs):
-        pass
+
+        # these values are set by triggerer when preparing to run the instance
+        # when run, they are injected into logger record.
+        self.task_instance = None
+        self.trigger_id = None
+
+    def _set_context(self, context):
+        """
+        This method, part of LoggingMixin, is used mainly for configuration of logging
+        for tasks, but is not used for triggers.
+        """
+        raise NotImplementedError
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -49,7 +60,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement serialize()")
 
     @abc.abstractmethod
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Runs the trigger in an asynchronous context.
 
@@ -68,12 +79,18 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement run()")
         yield  # To convince Mypy this is an async iterator.
 
-    def cleanup(self) -> None:
+    async def cleanup(self) -> None:
         """
         Cleanup the trigger.
 
         Called when the trigger is no longer needed, and it's being removed
         from the active triggerer process.
+
+        This method follows the async/await pattern to allow to run the cleanup
+        in triggerer main event loop. Exceptions raised by the cleanup method
+        are ignored, so if you would like to be able to debug them and be notified
+        that cleanup method failed, you should wrap your code with try/except block
+        and handle it appropriately (in async-compatible way).
         """
 
     def __repr__(self) -> str:

@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+2.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle 'github_method_args' in GithubOperator when not provided (#29699)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Exclude v1.58 of 'PyGithub' package in GitHub provider (#29728)``
+
 2.2.0
 .....
 

@@ -21,7 +21,9 @@ import json
 import os
 import re
 from io import StringIO
+from pathlib import Path
 from unittest import mock
+from unittest.mock import patch
 
 import google.auth
 import pytest
@@ -34,6 +36,7 @@ from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import _DEFAULT_SCOPES
 from airflow.providers.google.common.hooks import base_google as hook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
@@ -165,6 +168,37 @@ class TestProvideGcpCredentialFile:
             "Please provide only one value.",
         ):
             assert_gcp_credential_file_in_env(self.instance)
+
+    def test_provide_gcp_credential_keyfile_dict_json(self):
+        """
+        Historically, keyfile_dict had to be str in the conn extra.  Now it
+        can be dict and this is verified here.
+        """
+        conn_dict = {
+            "extra": {
+                "keyfile_dict": {"foo": "bar", "private_key": "hi"},  # notice keyfile_dict is dict not str
+            }
+        }
+
+        @GoogleBaseHook.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(instance):
+            assert Path(os.environ[CREDENTIALS]).read_text() == json.dumps(conn_dict["extra"]["keyfile_dict"])
+
+        with patch.dict("os.environ", AIRFLOW_CONN_MY_GOOGLE=json.dumps(conn_dict)):
+            # keyfile dict is handled in two different areas
+
+            hook = GoogleBaseHook("my_google")
+
+            # the first is in provide_gcp_credential_file
+            assert_gcp_credential_file_in_env(hook)
+
+            with patch("google.oauth2.service_account.Credentials.from_service_account_info") as m:
+                # the second is in get_credentials_and_project_id
+                hook.get_credentials_and_project_id()
+                m.assert_called_once_with(
+                    conn_dict["extra"]["keyfile_dict"],
+                    scopes=("https://www.googleapis.com/auth/cloud-platform",),
+                )
 
     def test_provide_gcp_credential_file_decorator_key_path(self):
         key_path = "/test/key-path"

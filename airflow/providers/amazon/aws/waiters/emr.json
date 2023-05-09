@@ -1,0 +1,80 @@
+{
+    "version": 2,
+    "waiters": {
+        "notebook_running": {
+            "operation": "DescribeNotebookExecution",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "RUNNING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FINISHED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "notebook_stopped": {
+            "operation": "DescribeNotebookExecution",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "STOPPED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FINISHED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "notebookexecution.status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "job_flow_waiting": {
+            "operation": "DescribeCluster",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "cluster.status",
+                    "expected": "WAITING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "cluster.status",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "cluster.status",
+                    "expected": "TERMINATED_WITH_ERRORS",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

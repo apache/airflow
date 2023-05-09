@@ -21,15 +21,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.providers.google.cloud.links.spanner import SpannerDatabaseLink, SpannerInstanceLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SpannerDeployInstanceOperator(BaseOperator):
+class SpannerDeployInstanceOperator(GoogleCloudBaseOperator):
     """
     Creates a new Cloud Spanner instance, or if an instance with the same instance_id
     exists in the specified project, updates the Cloud Spanner instance.
@@ -126,7 +126,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         )
 
 
-class SpannerDeleteInstanceOperator(BaseOperator):
+class SpannerDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
     Deletes a Cloud Spanner instance. If an instance does not exist,
     no action is taken and the operator succeeds.
@@ -196,7 +196,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
             return True
 
 
-class SpannerQueryDatabaseInstanceOperator(BaseOperator):
+class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
     """
     Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
@@ -307,7 +307,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
             del queries[-1]
 
 
-class SpannerDeployDatabaseInstanceOperator(BaseOperator):
+class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
     """
     Creates a new Cloud Spanner database, or if database exists,
     the operator does nothing.
@@ -412,7 +412,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         return True
 
 
-class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
+class SpannerUpdateDatabaseInstanceOperator(GoogleCloudBaseOperator):
     """
     Updates a Cloud Spanner database with the specified DDL statement.
 
@@ -514,7 +514,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
             )
 
 
-class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
+class SpannerDeleteDatabaseInstanceOperator(GoogleCloudBaseOperator):
     """
     Deletes a Cloud Spanner database.
 

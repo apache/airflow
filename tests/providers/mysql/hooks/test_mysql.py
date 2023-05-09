@@ -182,63 +182,6 @@ class TestMySqlHookConn:
         )
 
 
-class TestMySqlHookConnMySqlConnectorPython:
-    def setup_method(self):
-        self.connection = Connection(
-            login="login",
-            password="password",
-            host="host",
-            schema="schema",
-            extra='{"client": "mysql-connector-python"}',
-        )
-
-        self.db_hook = MySqlHook()
-        self.db_hook.get_connection = mock.Mock()
-        self.db_hook.get_connection.return_value = self.connection
-
-    @mock.patch("mysql.connector.connect")
-    def test_get_conn(self, mock_connect):
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert kwargs["user"] == "login"
-        assert kwargs["password"] == "password"
-        assert kwargs["host"] == "host"
-        assert kwargs["database"] == "schema"
-
-    @mock.patch("mysql.connector.connect")
-    def test_get_conn_port(self, mock_connect):
-        self.connection.port = 3307
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert kwargs["port"] == 3307
-
-    @mock.patch("mysql.connector.connect")
-    def test_get_conn_allow_local_infile(self, mock_connect):
-        extra_dict = self.connection.extra_dejson
-        self.connection.extra = json.dumps(extra_dict)
-        self.db_hook.local_infile = True
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert kwargs["allow_local_infile"] == 1
-
-    @mock.patch("mysql.connector.connect")
-    def test_get_ssl_mode(self, mock_connect):
-        extra_dict = self.connection.extra_dejson
-        extra_dict.update(ssl_disabled=True)
-        self.connection.extra = json.dumps(extra_dict)
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert kwargs["ssl_disabled"] == 1
-
-
 class MockMySQLConnectorConnection:
     DEFAULT_AUTOCOMMIT = "default"
 
@@ -469,4 +412,4 @@ class TestMySql:
                 SELECT * INTO OUTFILE '{tmp_file}'
                 FROM {table}
             """
-            assert_equal_ignore_multiple_spaces(None, mock_execute.call_args[0][0], query)
+            assert_equal_ignore_multiple_spaces(mock_execute.call_args[0][0], query)

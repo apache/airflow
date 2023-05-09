@@ -24,6 +24,41 @@
 Changelog
 ---------
 
+5.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS and Dataflow hooks' param ``delegate_to`` is removed from all Beam operators.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add mechanism to suspend providers (#30422)``
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Get rid of state in Apache Beam provider hook (#29503)``
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for running a Beam Go pipeline with an executable binary (#28764)``
+
+Misc
+~~~~
+* ``Deprecate 'delegate_to' param in GCP operators and update docs (#29088)``
+
 4.1.1
 .....
 

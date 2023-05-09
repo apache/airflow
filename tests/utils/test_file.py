@@ -19,13 +19,20 @@ from __future__ import annotations
 
 import os
 import os.path
+import zipfile
 from pathlib import Path
 from unittest import mock
 
 import pytest
 
+from airflow.utils import file as file_utils
 from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.config import conf_vars
+
+
+def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
+    return False
 
 
 class TestCorrectMaybeZipped:
@@ -163,3 +170,47 @@ class TestListPyFilesPath:
                 f"Detected recursive loop when walking DAG directory {test_dir}: "
                 f"{Path(recursing_tgt).resolve()} has appeared more than once."
             )
+
+    def test_might_contain_dag_with_default_callable(self):
+        file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
+
+        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+
+    @conf_vars({("core", "might_contain_dag_callable"): "tests.utils.test_file.might_contain_dag"})
+    def test_might_contain_dag(self):
+        """Test might_contain_dag_callable"""
+        file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
+
+        # There is a DAG defined in the file_path_with_dag, however, the might_contain_dag_callable
+        # returns False no matter what, which is used to test might_contain_dag_callable actually
+        # overrides the default function
+        assert not file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+
+        # With safe_mode is False, the user defined callable won't be invoked
+        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)
+
+    def test_get_modules(self):
+        file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.py")
+
+        modules = list(file_utils.iter_airflow_imports(file_path))
+
+        assert len(modules) == 4
+        assert "airflow.utils" in modules
+        assert "airflow.decorators" in modules
+        assert "airflow.models" in modules
+        assert "airflow.sensors" in modules
+        # this one is a local import, we don't want it.
+        assert "airflow.local_import" not in modules
+        # this one is in a comment, we don't want it
+        assert "airflow.in_comment" not in modules
+        # we don't want imports under conditions
+        assert "airflow.if_branch" not in modules
+        assert "airflow.else_branch" not in modules
+
+    def test_get_modules_from_invalid_file(self):
+        file_path = os.path.join(TEST_DAGS_FOLDER, "README.md")  # just getting a non-python file
+
+        # should not error
+        modules = list(file_utils.iter_airflow_imports(file_path))
+
+        assert len(modules) == 0

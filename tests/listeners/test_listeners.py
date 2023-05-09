@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -20,13 +19,12 @@ from __future__ import annotations
 import pytest as pytest
 
 from airflow import AirflowException
-from airflow.jobs.base_job import BaseJob
-from airflow.listeners import events
+from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, TaskInstanceState
 from tests.listeners import (
     class_listener,
     full_listener,
@@ -34,17 +32,19 @@ from tests.listeners import (
     partial_listener,
     throwing_listener,
 )
+from tests.utils.test_helpers import MockJobRunner
+
+LISTENERS = [
+    class_listener,
+    full_listener,
+    lifecycle_listener,
+    partial_listener,
+    throwing_listener,
+]
 
 DAG_ID = "test_listener_dag"
 TASK_ID = "test_listener_task"
 EXECUTION_DATE = timezone.utcnow()
-
-
-@pytest.fixture(scope="module", autouse=True)
-def register_events():
-    events.register_task_instance_state_events()
-    yield
-    events.unregister_task_instance_state_events()
 
 
 @pytest.fixture(autouse=True)
@@ -54,8 +54,8 @@ def clean_listener_manager():
     yield
     lm = get_listener_manager()
     lm.clear()
-    full_listener.clear()
-    lifecycle_listener.clear()
+    for listener in LISTENERS:
+        listener.clear()
 
 
 @provide_session
@@ -63,14 +63,14 @@ def test_listener_gets_calls(create_task_instance, session=None):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
 
-    ti = create_task_instance(session=session, state=State.QUEUED)
+    ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     # Using ti.run() instead of ti._run_raw_task() to capture state change to RUNNING
     # that only happens on `check_and_change_state_before_execution()` that is called before
     # `run()` calls `_run_raw_task()`
     ti.run()
 
     assert len(full_listener.state) == 2
-    assert full_listener.state == [State.RUNNING, State.SUCCESS]
+    assert full_listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
 
 
 @provide_session
@@ -78,10 +78,13 @@ def test_multiple_listeners(create_task_instance, session=None):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
     lm.add_listener(lifecycle_listener)
+    class_based_listener = class_listener.ClassBasedListener()
+    lm.add_listener(class_based_listener)
 
-    job = BaseJob()
+    job = Job()
+    job_runner = MockJobRunner(job=job)
     try:
-        job.run()
+        run_job(job=job, execute_callable=job_runner._execute)
     except NotImplementedError:
         pass  # just for lifecycle
 
@@ -89,6 +92,7 @@ def test_multiple_listeners(create_task_instance, session=None):
     assert lifecycle_listener.started_component is job
     assert full_listener.stopped_component is job
     assert lifecycle_listener.stopped_component is job
+    assert class_based_listener.state == [DagRunState.RUNNING, DagRunState.SUCCESS]
 
 
 @provide_session
@@ -96,14 +100,14 @@ def test_listener_gets_only_subscribed_calls(create_task_instance, session=None)
     lm = get_listener_manager()
     lm.add_listener(partial_listener)
 
-    ti = create_task_instance(session=session, state=State.QUEUED)
+    ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     # Using ti.run() instead of ti._run_raw_task() to capture state change to RUNNING
     # that only happens on `check_and_change_state_before_execution()` that is called before
     # `run()` calls `_run_raw_task()`
     ti.run()
 
     assert len(partial_listener.state) == 1
-    assert partial_listener.state == [State.RUNNING]
+    assert partial_listener.state == [TaskInstanceState.RUNNING]
 
 
 @provide_session
@@ -111,7 +115,7 @@ def test_listener_throws_exceptions(create_task_instance, session=None):
     lm = get_listener_manager()
     lm.add_listener(throwing_listener)
 
-    ti = create_task_instance(session=session, state=State.QUEUED)
+    ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     with pytest.raises(RuntimeError):
         ti._run_raw_task()
 
@@ -127,8 +131,22 @@ def test_listener_captures_failed_taskinstances(create_task_instance_of_operator
     with pytest.raises(AirflowException):
         ti._run_raw_task()
 
-    assert full_listener.state == [State.FAILED]
-    assert len(full_listener.state) == 1
+    assert full_listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
+    assert len(full_listener.state) == 2
+
+
+@provide_session
+def test_listener_captures_longrunning_taskinstances(create_task_instance_of_operator, session=None):
+    lm = get_listener_manager()
+    lm.add_listener(full_listener)
+
+    ti = create_task_instance_of_operator(
+        BashOperator, dag_id=DAG_ID, execution_date=EXECUTION_DATE, task_id=TASK_ID, bash_command="sleep 5"
+    )
+    ti._run_raw_task()
+
+    assert full_listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
+    assert len(full_listener.state) == 2
 
 
 @provide_session
@@ -137,11 +155,11 @@ def test_class_based_listener(create_task_instance, session=None):
     listener = class_listener.ClassBasedListener()
     lm.add_listener(listener)
 
-    ti = create_task_instance(session=session, state=State.QUEUED)
+    ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     # Using ti.run() instead of ti._run_raw_task() to capture state change to RUNNING
     # that only happens on `check_and_change_state_before_execution()` that is called before
     # `run()` calls `_run_raw_task()`
     ti.run()
 
     assert len(listener.state) == 2
-    assert listener.state == [State.RUNNING, State.SUCCESS]
+    assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]

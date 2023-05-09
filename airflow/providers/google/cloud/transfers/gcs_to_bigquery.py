@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import BadRequest, Conflict
@@ -128,9 +127,6 @@ class GCSToBigQueryOperator(BaseOperator):
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :param src_fmt_configs: configure optional fields specific to the source format
@@ -208,7 +204,6 @@ class GCSToBigQueryOperator(BaseOperator):
         encoding="UTF-8",
         max_id_key=None,
         gcp_conn_id="google_cloud_default",
-        delegate_to=None,
         schema_update_options=(),
         src_fmt_configs=None,
         external_table=False,
@@ -227,6 +222,7 @@ class GCSToBigQueryOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
+        project_id: str | None = None,
         **kwargs,
     ) -> None:
 
@@ -249,6 +245,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         # BQ config
         self.destination_project_dataset_table = destination_project_dataset_table
+        self.project_id = project_id
         self.schema_fields = schema_fields
         if source_format.upper() not in ALLOWED_FORMATS:
             raise ValueError(
@@ -272,11 +269,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
         self.max_id_key = max_id_key
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
@@ -306,7 +298,7 @@ class GCSToBigQueryOperator(BaseOperator):
         # Submit a new job without waiting for it to complete.
         return hook.insert_job(
             configuration=self.configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id,
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
@@ -322,7 +314,6 @@ class GCSToBigQueryOperator(BaseOperator):
     def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -354,7 +345,6 @@ class GCSToBigQueryOperator(BaseOperator):
             if self.schema_object and self.source_format != "DATASTORE_BACKUP":
                 gcs_hook = GCSHook(
                     gcp_conn_id=self.gcp_conn_id,
-                    delegate_to=self.delegate_to,
                     impersonation_chain=self.impersonation_chain,
                 )
                 self.schema_fields = json.loads(
@@ -465,7 +455,6 @@ class GCSToBigQueryOperator(BaseOperator):
     def _find_max_value_in_column(self):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -507,9 +496,9 @@ class GCSToBigQueryOperator(BaseOperator):
                 raise RuntimeError(f"The {select_command} returned no rows!")
 
     def _create_empty_table(self):
-        project_id, dataset_id, table_id = self.hook.split_tablename(
+        self.project_id, dataset_id, table_id = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
-            default_project_id=self.hook.project_id or "",
+            default_project_id=self.project_id or self.hook.project_id,
         )
 
         external_config_api_repr = {
@@ -556,7 +545,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         # build table definition
         table = Table(
-            table_ref=TableReference.from_string(self.destination_project_dataset_table, project_id)
+            table_ref=TableReference.from_string(self.destination_project_dataset_table, self.project_id)
         )
         table.external_data_configuration = external_config
         if self.labels:
@@ -573,15 +562,18 @@ class GCSToBigQueryOperator(BaseOperator):
 
         self.log.info("Creating external table: %s", self.destination_project_dataset_table)
         self.hook.create_empty_table(
-            table_resource=table_obj_api_repr, project_id=project_id, location=self.location, exists_ok=True
+            table_resource=table_obj_api_repr,
+            project_id=self.project_id,
+            location=self.location,
+            exists_ok=True,
         )
         self.log.info("External table created successfully: %s", self.destination_project_dataset_table)
         return table_obj_api_repr
 
     def _use_existing_table(self):
-        destination_project, destination_dataset, destination_table = self.hook.split_tablename(
+        self.project_id, destination_dataset, destination_table = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
-            default_project_id=self.hook.project_id or "",
+            default_project_id=self.project_id or self.hook.project_id,
             var_name="destination_project_dataset_table",
         )
 
@@ -601,7 +593,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "createDisposition": self.create_disposition,
                 "destinationTable": {
-                    "projectId": destination_project,
+                    "projectId": self.project_id,
                     "datasetId": destination_dataset,
                     "tableId": destination_table,
                 },

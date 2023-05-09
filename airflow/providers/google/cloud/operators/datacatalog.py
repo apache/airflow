@@ -33,19 +33,19 @@ from google.cloud.datacatalog import (
 )
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
 from airflow.providers.google.cloud.links.datacatalog import (
     DataCatalogEntryGroupLink,
     DataCatalogEntryLink,
     DataCatalogTagTemplateLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudDataCatalogCreateEntryOperator(BaseOperator):
+class CloudDataCatalogCreateEntryOperator(GoogleCloudBaseOperator):
     """
     Creates an entry.
 
@@ -163,7 +163,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         return Entry.to_dict(result)
 
 
-class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
+class CloudDataCatalogCreateEntryGroupOperator(GoogleCloudBaseOperator):
     """
     Creates an EntryGroup.
 
@@ -276,7 +276,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         return EntryGroup.to_dict(result)
 
 
-class CloudDataCatalogCreateTagOperator(BaseOperator):
+class CloudDataCatalogCreateTagOperator(GoogleCloudBaseOperator):
     """
     Creates a tag on an entry.
 
@@ -412,7 +412,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         return Tag.to_dict(tag)
 
 
-class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
+class CloudDataCatalogCreateTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Creates a tag template.
 
@@ -522,7 +522,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         return TagTemplate.to_dict(result)
 
 
-class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
+class CloudDataCatalogCreateTagTemplateFieldOperator(GoogleCloudBaseOperator):
     r"""
     Creates a field in a tag template.
 
@@ -641,7 +641,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         return TagTemplateField.to_dict(result)
 
 
-class CloudDataCatalogDeleteEntryOperator(BaseOperator):
+class CloudDataCatalogDeleteEntryOperator(GoogleCloudBaseOperator):
     """
     Deletes an existing entry.
 
@@ -726,7 +726,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
             self.log.info("Entry doesn't exists. Skipping.")
 
 
-class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
+class CloudDataCatalogDeleteEntryGroupOperator(GoogleCloudBaseOperator):
     """
     Deletes an EntryGroup.
 
@@ -808,7 +808,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
             self.log.info("Entry doesn't exists. skipping")
 
 
-class CloudDataCatalogDeleteTagOperator(BaseOperator):
+class CloudDataCatalogDeleteTagOperator(GoogleCloudBaseOperator):
     """
     Deletes a tag.
 
@@ -898,7 +898,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
             self.log.info("Entry doesn't exists. skipping")
 
 
-class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
+class CloudDataCatalogDeleteTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Deletes a tag template and all tags using the template.
 
@@ -985,7 +985,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
             self.log.info("Tag Template doesn't exists. skipping")
 
 
-class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
+class CloudDataCatalogDeleteTagTemplateFieldOperator(GoogleCloudBaseOperator):
     """
     Deletes a field in a tag template and all uses of that field.
 
@@ -1075,7 +1075,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
             self.log.info("Tag Template field doesn't exists. skipping")
 
 
-class CloudDataCatalogGetEntryOperator(BaseOperator):
+class CloudDataCatalogGetEntryOperator(GoogleCloudBaseOperator):
     """
     Gets an entry.
 
@@ -1167,7 +1167,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         return Entry.to_dict(result)
 
 
-class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
+class CloudDataCatalogGetEntryGroupOperator(GoogleCloudBaseOperator):
     """
     Gets an entry group.
 
@@ -1261,7 +1261,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         return EntryGroup.to_dict(result)
 
 
-class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
+class CloudDataCatalogGetTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Gets a tag template.
 
@@ -1347,7 +1347,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         return TagTemplate.to_dict(result)
 
 
-class CloudDataCatalogListTagsOperator(BaseOperator):
+class CloudDataCatalogListTagsOperator(GoogleCloudBaseOperator):
     """
     Lists the tags on an Entry.
 
@@ -1447,7 +1447,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         return [Tag.to_dict(item) for item in result]
 
 
-class CloudDataCatalogLookupEntryOperator(BaseOperator):
+class CloudDataCatalogLookupEntryOperator(GoogleCloudBaseOperator):
     r"""
     Get an entry by target resource name.
 
@@ -1538,7 +1538,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         return Entry.to_dict(result)
 
 
-class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
+class CloudDataCatalogRenameTagTemplateFieldOperator(GoogleCloudBaseOperator):
     """
     Renames a field in a tag template.
 
@@ -1635,7 +1635,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         )
 
 
-class CloudDataCatalogSearchCatalogOperator(BaseOperator):
+class CloudDataCatalogSearchCatalogOperator(GoogleCloudBaseOperator):
     r"""
     Searches Data Catalog for multiple resources like entries, tags that match a query.
 
@@ -1745,7 +1745,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         return [SearchCatalogResult.to_dict(item) for item in result]
 
 
-class CloudDataCatalogUpdateEntryOperator(BaseOperator):
+class CloudDataCatalogUpdateEntryOperator(GoogleCloudBaseOperator):
     """
     Updates an existing entry.
 
@@ -1855,7 +1855,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         )
 
 
-class CloudDataCatalogUpdateTagOperator(BaseOperator):
+class CloudDataCatalogUpdateTagOperator(GoogleCloudBaseOperator):
     """
     Updates an existing tag.
 
@@ -1969,7 +1969,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         )
 
 
-class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
+class CloudDataCatalogUpdateTagTemplateOperator(GoogleCloudBaseOperator):
     """
     Updates a tag template.
 
@@ -2078,7 +2078,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         )
 
 
-class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
+class CloudDataCatalogUpdateTagTemplateFieldOperator(GoogleCloudBaseOperator):
     """
     Updates a field in a tag template. This method cannot be used to update the field type.
 

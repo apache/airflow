@@ -19,21 +19,33 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import importlib
 import time
 from threading import Thread
+from unittest.mock import patch
 
+import pendulum
 import pytest
 
-from airflow.jobs.triggerer_job import TriggererJob, TriggerRunner
+from airflow import DAG
+from airflow.config_templates import airflow_local_settings
+from airflow.jobs.job import Job
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner, setup_queue_listener
+from airflow.logging_config import configure_logging
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
+from airflow.utils.log.logging_mixin import RedirectStdHandler
+from airflow.utils.log.trigger_handler import LocalQueueHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.types import DagRunType
+from tests.core.test_logging_config import reset_logging
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
@@ -73,10 +85,73 @@ def session():
         yield session
 
 
+def create_trigger_in_db(session, trigger, operator=None):
+    dag_model = DagModel(dag_id="test_dag")
+    dag = DAG(dag_id=dag_model.dag_id, start_date=pendulum.datetime(2023, 1, 1))
+    run = DagRun(
+        dag_id=dag_model.dag_id,
+        run_id="test_run",
+        execution_date=pendulum.datetime(2023, 1, 1),
+        run_type=DagRunType.MANUAL,
+    )
+    trigger_orm = Trigger.from_object(trigger)
+    trigger_orm.id = 1
+    if operator:
+        operator.dag = dag
+    else:
+        operator = BaseOperator(task_id="test_ti", dag=dag)
+    task_instance = TaskInstance(operator, execution_date=run.execution_date, run_id=run.run_id)
+    task_instance.trigger_id = trigger_orm.id
+    session.add(dag_model)
+    session.add(run)
+    session.add(trigger_orm)
+    session.add(task_instance)
+    session.commit()
+    return dag_model, run, trigger_orm, task_instance
+
+
+def test_trigger_logging_sensitive_info(session, capsys):
+    """
+    Checks that when a trigger fires, it doesn't log any sensitive
+    information from arguments
+    """
+
+    class SensitiveArgOperator(BaseOperator):
+        def __init__(self, password, **kwargs):
+            self.password = password
+            super().__init__(**kwargs)
+
+    # Use a trigger that will immediately succeed
+    trigger = SuccessTrigger()
+    op = SensitiveArgOperator(task_id="sensitive_arg_task", password="some_password")
+    create_trigger_in_db(session, trigger, operator=op)
+    triggerer_job = Job()
+    triggerer_job_runner = TriggererJobRunner(triggerer_job)
+    triggerer_job_runner.load_triggers()
+    # Now, start TriggerRunner up (and set it as a daemon thread during tests)
+    triggerer_job_runner.daemon = True
+    triggerer_job_runner.trigger_runner.start()
+    try:
+        # Wait for up to 3 seconds for it to fire and appear in the event queue
+        for _ in range(30):
+            if triggerer_job_runner.trigger_runner.events:
+                assert list(triggerer_job_runner.trigger_runner.events) == [(1, TriggerEvent(True))]
+                break
+            time.sleep(0.1)
+        else:
+            pytest.fail("TriggerRunner never sent the trigger event out")
+    finally:
+        # We always have to stop the runner
+        triggerer_job_runner.trigger_runner.stop = True
+    stdout = capsys.readouterr().out
+    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in stdout
+    assert "some_password" not in stdout
+
+
 def test_is_alive():
     """Checks the heartbeat logic"""
     # Current time
-    triggerer_job = TriggererJob(None, heartrate=10, state=State.RUNNING)
+    triggerer_job = Job(heartrate=10, state=State.RUNNING)
     assert triggerer_job.is_alive()
 
     # Slightly old, but still fresh
@@ -96,15 +171,16 @@ def test_is_alive():
 def test_is_needed(session):
     """Checks the triggerer-is-needed logic"""
     # No triggers, no need
-    triggerer_job = TriggererJob(None, heartrate=10, state=State.RUNNING)
-    assert triggerer_job.is_needed() is False
+    triggerer_job = Job(heartrate=10, state=State.RUNNING)
+    triggerer_job_runner = TriggererJobRunner(triggerer_job)
+    assert triggerer_job_runner.is_needed() is False
     # Add a trigger, it's needed
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     trigger_orm = Trigger.from_object(trigger)
     trigger_orm.id = 1
     session.add(trigger_orm)
     session.commit()
-    assert triggerer_job.is_needed() is True
+    assert triggerer_job_runner.is_needed() is True
 
 
 def test_capacity_decode():
@@ -118,8 +194,9 @@ def test_capacity_decode():
         None,
     ]
     for input_str in variants:
-        job = TriggererJob(capacity=input_str)
-        assert job.capacity == input_str or job.capacity == 1000
+        job = Job()
+        job_runner = TriggererJobRunner(job, capacity=input_str)
+        assert job_runner.capacity == input_str or job_runner.capacity == 1000
 
     # Negative cases
     variants = [
@@ -130,7 +207,8 @@ def test_capacity_decode():
     ]
     for input_str in variants:
         with pytest.raises(ValueError):
-            TriggererJob(capacity=input_str)
+            job = Job()
+            TriggererJobRunner(job=job, capacity=input_str)
 
 
 def test_trigger_lifecycle(session):
@@ -141,23 +219,21 @@ def test_trigger_lifecycle(session):
     # Use a trigger that will not fire for the lifetime of the test
     # (we want to avoid it firing and deleting itself)
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
-    trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
-    session.add(trigger_orm)
-    session.commit()
-    # Make a TriggererJob and have it retrieve DB tasks
-    job = TriggererJob()
-    job.load_triggers()
+    dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    # Make a TriggererJobRunner and have it retrieve DB tasks
+    job = Job()
+    job_runner = TriggererJobRunner(job)
+    job_runner.load_triggers()
     # Make sure it turned up in TriggerRunner's queue
-    assert [x for x, y in job.runner.to_create] == [1]
+    assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
-    job.runner.daemon = True
-    job.runner.start()
+    job_runner.daemon = True
+    job_runner.trigger_runner.start()
     try:
         # Wait for up to 3 seconds for it to appear in the TriggerRunner's storage
         for _ in range(30):
-            if job.runner.triggers:
-                assert list(job.runner.triggers.keys()) == [1]
+            if job_runner.trigger_runner.triggers:
+                assert list(job_runner.trigger_runner.triggers.keys()) == [1]
                 break
             time.sleep(0.1)
         else:
@@ -166,17 +242,17 @@ def test_trigger_lifecycle(session):
         session.delete(trigger_orm)
         session.commit()
         # Re-load the triggers
-        job.load_triggers()
+        job_runner.load_triggers()
         # Wait for up to 3 seconds for it to vanish from the TriggerRunner's storage
         for _ in range(30):
-            if not job.runner.triggers:
+            if not job_runner.trigger_runner.triggers:
                 break
             time.sleep(0.1)
         else:
             pytest.fail("TriggerRunner never deleted trigger")
     finally:
         # We always have to stop the runner
-        job.runner.stop = True
+        job_runner.trigger_runner.stop = True
 
 
 def test_trigger_create_race_condition_18392(session, tmp_path):
@@ -226,13 +302,13 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
                 await self.wait_for_job_method_count("handle_events", 1)
             await super().cleanup_finished_triggers()
 
-    class TriggererJob_(TriggererJob):
+    class TriggererJob_(TriggererJobRunner):
         """We do some waiting for runner thread looping (and track calls in job thread)"""
 
         def wait_for_runner_loop(self, runner_loop_count):
             for _ in range(30):
                 time.sleep(0.1)
-                if getattr(self.runner, "call_count", 0) >= runner_loop_count:
+                if getattr(self.trigger_runner, "call_count", 0) >= runner_loop_count:
                     break
             else:
                 pytest.fail("did not observe 2 loops in the runner thread")
@@ -240,13 +316,17 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
         def load_triggers(self):
             """On second run, make sure that runner has called create_triggers in its second loop"""
             super().load_triggers()
-            self.runner.load_triggers_count = getattr(self.runner, "load_triggers_count", 0) + 1
-            if self.runner.load_triggers_count == 2:
+            self.trigger_runner.load_triggers_count = (
+                getattr(self.trigger_runner, "load_triggers_count", 0) + 1
+            )
+            if self.trigger_runner.load_triggers_count == 2:
                 self.wait_for_runner_loop(runner_loop_count=2)
 
         def handle_events(self):
             super().handle_events()
-            self.runner.handle_events_count = getattr(self.runner, "handle_events_count", 0) + 1
+            self.trigger_runner.handle_events_count = (
+                getattr(self.trigger_runner, "handle_events_count", 0) + 1
+            )
 
     trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
     trigger_orm = Trigger.from_object(trigger)
@@ -264,21 +344,22 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
 
     session.commit()
 
-    job = TriggererJob_()
-    job.runner = TriggerRunner_()
-    thread = Thread(target=job._execute)
+    job = Job()
+    job_runner = TriggererJob_(job)
+    job_runner.trigger_runner = TriggerRunner_()
+    thread = Thread(target=job_runner._execute)
     thread.start()
     try:
         for _ in range(40):
             time.sleep(0.1)
             # ready to evaluate after 2 loops
-            if getattr(job.runner, "loop_count", 0) >= 2:
+            if getattr(job_runner.trigger_runner, "loop_count", 0) >= 2:
                 break
         else:
             pytest.fail("did not observe 2 loops in the runner thread")
     finally:
-        job.runner.stop = True
-        job.runner.join()
+        job_runner.trigger_runner.stop = True
+        job_runner.trigger_runner.join()
         thread.join()
     instances = path.read_text().splitlines()
     assert len(instances) == 1
@@ -296,11 +377,12 @@ def test_trigger_from_dead_triggerer(session):
     trigger_orm.triggerer_id = 999  # Non-existent triggerer
     session.add(trigger_orm)
     session.commit()
-    # Make a TriggererJob and have it retrieve DB tasks
-    job = TriggererJob()
-    job.load_triggers()
+    # Make a TriggererJobRunner and have it retrieve DB tasks
+    job = Job()
+    job_runner = TriggererJobRunner(job)
+    job_runner.load_triggers()
     # Make sure it turned up in TriggerRunner's queue
-    assert [x for x, y in job.runner.to_create] == [1]
+    assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
 def test_trigger_from_expired_triggerer(session):
@@ -314,19 +396,20 @@ def test_trigger_from_expired_triggerer(session):
     trigger_orm.id = 1
     trigger_orm.triggerer_id = 42
     session.add(trigger_orm)
-    # Use a TriggererJob with an expired heartbeat
-    triggerer_job_orm = TriggererJob()
+    # Use a TriggererJobRunner with an expired heartbeat
+    triggerer_job_orm = Job(TriggererJobRunner.job_type)
     triggerer_job_orm.id = 42
     triggerer_job_orm.start_date = timezone.utcnow() - datetime.timedelta(hours=1)
     triggerer_job_orm.end_date = None
     triggerer_job_orm.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
     session.add(triggerer_job_orm)
     session.commit()
-    # Make a TriggererJob and have it retrieve DB tasks
-    job = TriggererJob()
-    job.load_triggers()
+    # Make a TriggererJobRunner and have it retrieve DB tasks
+    job = Job(TriggererJobRunner.job_type)
+    job_runner = TriggererJobRunner(job)
+    job_runner.load_triggers()
     # Make sure it turned up in TriggerRunner's queue
-    assert [x for x, y in job.runner.to_create] == [1]
+    assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
 def test_trigger_firing(session):
@@ -336,28 +419,26 @@ def test_trigger_firing(session):
     """
     # Use a trigger that will immediately succeed
     trigger = SuccessTrigger()
-    trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
-    session.add(trigger_orm)
-    session.commit()
-    # Make a TriggererJob and have it retrieve DB tasks
-    job = TriggererJob()
-    job.load_triggers()
+    create_trigger_in_db(session, trigger)
+    # Make a TriggererJobRunner and have it retrieve DB tasks
+    job = Job()
+    job_runner = TriggererJobRunner(job)
+    job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
-    job.runner.daemon = True
-    job.runner.start()
+    job_runner.daemon = True
+    job_runner.trigger_runner.start()
     try:
         # Wait for up to 3 seconds for it to fire and appear in the event queue
         for _ in range(30):
-            if job.runner.events:
-                assert list(job.runner.events) == [(1, TriggerEvent(True))]
+            if job_runner.trigger_runner.events:
+                assert list(job_runner.trigger_runner.events) == [(1, TriggerEvent(True))]
                 break
             time.sleep(0.1)
         else:
             pytest.fail("TriggerRunner never sent the trigger event out")
     finally:
         # We always have to stop the runner
-        job.runner.stop = True
+        job_runner.trigger_runner.stop = True
 
 
 def test_trigger_failing(session):
@@ -367,22 +448,20 @@ def test_trigger_failing(session):
     """
     # Use a trigger that will immediately fail
     trigger = FailureTrigger()
-    trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
-    session.add(trigger_orm)
-    session.commit()
-    # Make a TriggererJob and have it retrieve DB tasks
-    job = TriggererJob()
-    job.load_triggers()
+    create_trigger_in_db(session, trigger)
+    # Make a TriggererJobRunner and have it retrieve DB tasks
+    job = Job()
+    job_runner = TriggererJobRunner(job)
+    job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
-    job.runner.daemon = True
-    job.runner.start()
+    job_runner.daemon = True
+    job_runner.trigger_runner.start()
     try:
         # Wait for up to 3 seconds for it to fire and appear in the event queue
         for _ in range(30):
-            if job.runner.failed_triggers:
-                assert len(job.runner.failed_triggers) == 1
-                trigger_id, exc = list(job.runner.failed_triggers)[0]
+            if job_runner.trigger_runner.failed_triggers:
+                assert len(job_runner.trigger_runner.failed_triggers) == 1
+                trigger_id, exc = list(job_runner.trigger_runner.failed_triggers)[0]
                 assert trigger_id == 1
                 assert isinstance(exc, ValueError)
                 assert exc.args[0] == "Deliberate trigger failure"
@@ -392,7 +471,7 @@ def test_trigger_failing(session):
             pytest.fail("TriggerRunner never marked the trigger as failed")
     finally:
         # We always have to stop the runner
-        job.runner.stop = True
+        job_runner.trigger_runner.stop = True
 
 
 def test_trigger_cleanup(session):
@@ -436,15 +515,16 @@ def test_invalid_trigger(session, dag_maker):
     task_instance.trigger_id = 1
     session.commit()
 
-    # Make a TriggererJob and have it retrieve DB tasks
-    job = TriggererJob()
-    job.load_triggers()
+    # Make a TriggererJobRunner and have it retrieve DB tasks
+    job = Job()
+    job_runner = TriggererJobRunner(job)
+    job_runner.load_triggers()
 
     # Make sure it turned up in the failed queue
-    assert len(job.runner.failed_triggers) == 1
+    assert len(job_runner.trigger_runner.failed_triggers) == 1
 
     # Run the failed trigger handler
-    job.handle_failed_triggers()
+    job_runner.handle_failed_triggers()
 
     # Make sure it marked the task instance as failed (which is actually the
     # scheduled state with a payload to make it fail)
@@ -453,3 +533,52 @@ def test_invalid_trigger(session, dag_maker):
     assert task_instance.next_method == "__fail__"
     assert task_instance.next_kwargs["error"] == "Trigger failure"
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+
+@pytest.mark.parametrize("should_wrap", (True, False))
+@patch("airflow.jobs.triggerer_job_runner.configure_trigger_log_handler")
+def test_handler_config_respects_donot_wrap(mock_configure, should_wrap):
+    from airflow.jobs import triggerer_job_runner
+
+    triggerer_job_runner.DISABLE_WRAPPER = not should_wrap
+    job = Job()
+    TriggererJobRunner(job=job)
+    if should_wrap:
+        mock_configure.assert_called()
+    else:
+        mock_configure.assert_not_called()
+
+
+@patch("airflow.jobs.triggerer_job_runner.setup_queue_listener")
+def test_triggerer_job_always_creates_listener(mock_setup):
+    mock_setup.assert_not_called()
+    job = Job()
+    TriggererJobRunner(job=job)
+    mock_setup.assert_called()
+
+
+def test_queue_listener():
+    """
+    When listener func called, root handlers should be moved to queue listener
+    and replaced with queuehandler.
+    """
+    reset_logging()
+    importlib.reload(airflow_local_settings)
+    configure_logging()
+
+    def non_pytest_handlers(val):
+        return [h for h in val if "pytest" not in h.__module__]
+
+    import logging
+
+    log = logging.getLogger()
+    handlers = non_pytest_handlers(log.handlers)
+    assert len(handlers) == 1
+    handler = handlers[0]
+    assert handler.__class__ == RedirectStdHandler
+    listener = setup_queue_listener()
+    assert handler not in non_pytest_handlers(log.handlers)
+    qh = log.handlers[-1]
+    assert qh.__class__ == LocalQueueHandler
+    assert qh.queue == listener.queue
+    listener.stop()

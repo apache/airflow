@@ -30,6 +30,11 @@ from airflow.utils import db
 TELEGRAM_TOKEN = "dummy token"
 
 
+class AsyncMock(mock.MagicMock):
+    async def __call__(self, *args, **kwargs):
+        return super(AsyncMock, self).__call__(*args, **kwargs)
+
+
 class TestTelegramHook:
     def setup_method(self):
         db.merge_conn(
@@ -90,7 +95,7 @@ class TestTelegramHook:
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_all_parameters_are_correctly_provided(self, mock_get_conn):
-        mock_get_conn.return_value = mock.Mock(password="some_token")
+        mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id="telegram_default")
         hook.send_message({"chat_id": -420913222, "text": "test telegram message"})
@@ -109,7 +114,7 @@ class TestTelegramHook:
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_chat_id_is_provided_through_constructor(self, mock_get_conn):
-        mock_get_conn.return_value = mock.Mock(password="some_token")
+        mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id="telegram_default", chat_id=-420913222)
         hook.send_message({"text": "test telegram message"})
@@ -128,7 +133,7 @@ class TestTelegramHook:
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_chat_id_is_provided_in_connection(self, mock_get_conn):
-        mock_get_conn.return_value = mock.Mock(password="some_token")
+        mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
         hook.send_message({"text": "test telegram message"})
@@ -148,7 +153,7 @@ class TestTelegramHook:
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_retry_when_any_telegram_error_is_encountered(self, mock_get_conn):
         excepted_retry_count = 5
-        mock_get_conn.return_value = mock.Mock(password="some_token")
+        mock_get_conn.return_value = AsyncMock(password="some_token")
 
         def side_effect(*args, **kwargs):
             raise telegram.error.TelegramError("cosmic rays caused bit flips")
@@ -175,7 +180,7 @@ class TestTelegramHook:
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_token_is_provided(self, mock_get_conn):
-        mock_get_conn.return_value = mock.Mock(password="some_token")
+        mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(token=TELEGRAM_TOKEN, chat_id=-420913222)
         hook.send_message({"text": "test telegram message"})

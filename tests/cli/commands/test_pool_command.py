@@ -20,7 +20,6 @@ from __future__ import annotations
 import io
 import json
 import os
-import unittest
 from contextlib import redirect_stdout
 
 import pytest
@@ -33,17 +32,14 @@ from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
 
 
-class TestCliPools(unittest.TestCase):
+class TestCliPools:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.dagbag = models.DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
-
-    def setUp(self):
-        super().setUp()
         settings.configure_orm()
-        self.session = Session
-        self._cleanup()
+        cls.session = Session
+        cls._cleanup()
 
     def tearDown(self):
         self._cleanup()
