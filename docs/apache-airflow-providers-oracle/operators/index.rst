@@ -28,14 +28,13 @@ Execute SQL in an Oracle database
 To execute arbitrary SQL in an Oracle database, use the
 :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`.
 
-    .. code-block:: python
+An example of executing a simple query is as follows:
 
-        run_sql = OracleOperator(
-            task_id="run_sql",
-            oracle_conn_id="oracle_default",
-            sql="SELECT 1 FROM DUAL",
-            autocommit=True,
-        )
+.. exampleinclude:: /../../airflow/providers/oracle/example_dags/example_oracle.py
+    :language: python
+    :start-after: [START howto_oracle_operator]
+    :end-before: [END howto_oracle_operator]
+
 
 Execute a Stored Procedure in an Oracle database
 ------------------------------------------------
@@ -59,27 +58,19 @@ a single integer argument, val_out. This can be represented with the following
 call using :class:`~airflow.providers.oracle.operators.oracle.OracleStoredProcedureOperator`
 with parameters passed positionally as a list:
 
-    .. code-block:: python
-
-        run_stored_procedure = OracleStoredProcedureOperator(
-            task_id="run_stored_procedure",
-            oracle_conn_id="oracle_default",
-            procedure="TEST_PROCEDURE",
-            parameters=[3, int],
-        )
+.. exampleinclude:: /../../airflow/providers/oracle/example_dags/example_oracle.py
+    :language: python
+    :start-after: [START howto_oracle_stored_procedure_operator_with_list_inout]
+    :end-before: [END howto_oracle_stored_procedure_operator_with_list_inout]
 
 
 Alternatively, parameters can be passed as keyword arguments using a dictionary
 as well.
 
-    .. code-block:: python
-
-        run_stored_procedure = OracleStoredProcedureOperator(
-            task_id="run_stored_procedure",
-            oracle_conn_id="oracle_default",
-            procedure="TEST_PROCEDURE",
-            parameters={"val_in": 3, "val_out": int},
-        )
+.. exampleinclude:: /../../airflow/providers/oracle/example_dags/example_oracle.py
+    :language: python
+    :start-after: [START howto_oracle_stored_procedure_operator_with_dict_inout]
+    :end-before: [END howto_oracle_stored_procedure_operator_with_dict_inout]
 
 Both input and output will be passed to xcom provided that xcom push is requested.
 
