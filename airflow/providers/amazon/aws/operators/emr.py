@@ -889,7 +889,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> str | None:
         response = self.hook.conn.create_application(
             clientToken=self.client_request_token,
             releaseLabel=self.release_label,
@@ -1004,7 +1004,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: Context) -> dict:
+    def execute(self, context: Context) -> str | None:
         self.log.info("Starting job on Application: %s", self.application_id)
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
@@ -1089,6 +1089,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                         countdown=self.waiter_countdown,
                         check_interval_seconds=self.waiter_check_interval_seconds,
                     )
+
 
 class EmrServerlessStopApplicationOperator(BaseOperator):
     """
