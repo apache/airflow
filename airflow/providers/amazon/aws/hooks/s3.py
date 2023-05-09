@@ -496,6 +496,26 @@ class S3Hook(AwsBaseHook):
                 files += page["Contents"]
         return files
 
+    async def get_file_metadata_async(
+        self,
+        prefix: str,
+        bucket_name: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> list:
+
+        config = {
+            "PageSize": page_size,
+            "MaxItems": max_items,
+        }
+        async with self.async_conn as client:
+            paginator = client.get_paginator("list_objects_v2")
+            files = []
+            async for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig=config):
+                if "Contents" in page:
+                    files += page["Contents"]
+        return files
+
     @unify_bucket_name_and_key
     @provide_bucket_name
     def head_object(self, key: str, bucket_name: str | None = None) -> dict | None:
@@ -511,6 +531,16 @@ class S3Hook(AwsBaseHook):
         """
         try:
             return self.get_conn().head_object(Bucket=bucket_name, Key=key)
+        except ClientError as e:
+            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                return None
+            else:
+                raise e
+
+    async def head_object_async(self, key: str, bucket_name: str | None = None) -> dict | None:
+        try:
+            async with self.async_conn as client:
+                return await client.head_object(Bucket=bucket_name, Key=key)
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
                 return None

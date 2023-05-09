@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
@@ -225,3 +225,29 @@ class TestS3KeySensor:
 
         mock_head_object.return_value = {"ContentLength": 1}
         assert op.poke(None) is True
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    def test_poke_with_check_function_with_multiple_files(self, mock_head_object):
+        def check_fn(files: list) -> bool:
+            return all(f.get("Size", 0) > 0 for f in files)
+
+        op = S3KeySensor(
+            task_id="s3_key_sensor",
+            bucket_key=["s3://test_bucket/file", "s3://test_bucket_2/file"],
+            check_fn=check_fn,
+        )
+
+        mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
+        assert op.poke(None) is False
+
+        mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 1}]
+        assert op.poke(None) is False
+
+        mock_head_object.side_effect = [{"ContentLength": 1}, {"ContentLength": 1}]
+        assert op.poke(None) is True
+
+    def test_deferrable_mode(self):
+        op = S3KeySensor(task_id="s3_key_sensor", bucket_key="s3://test_bucket/file", deferrable=True)
+
+        with pytest.raises(TaskDeferred):
+            op.execute(None)

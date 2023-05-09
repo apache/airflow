@@ -22,7 +22,7 @@ import os
 import re
 from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from deprecated import deprecated
 
@@ -71,6 +71,8 @@ class S3KeySensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+    :param deferrable: If True, the sensor will run in deferrable mode.
+        Note that in deferrable mode, check_fn is not supported.
     """
 
     template_fields: Sequence[str] = ("bucket_key", "bucket_name")
@@ -84,6 +86,7 @@ class S3KeySensor(BaseSensorOperator):
         check_fn: Callable[..., bool] | None = None,
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -93,52 +96,100 @@ class S3KeySensor(BaseSensorOperator):
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.deferrable = deferrable
 
-    def _check_key(self, key):
-        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
-        self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
+    def execute(self, context: Context) -> Any:
+        if self.deferrable:
+            from airflow.providers.amazon.aws.triggers.s3 import S3KeyTrigger
 
-        """
-        Set variable `files` which contains a list of dict which contains only the size
-        If needed we might want to add other attributes later
-        Format: [{
-            'Size': int
-        }]
-        """
-        if self.wildcard_match:
-            prefix = re.split(r"[\[\*\?]", key, 1)[0]
-            keys = self.hook.get_file_metadata(prefix, bucket_name)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
-                return False
-
-            # Reduce the set of metadata to size only
-            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
+            self.defer(
+                trigger=S3KeyTrigger(
+                    bucket_name=self.bucket_name,
+                    bucket_key=self.bucket_key,
+                    wildcard_match=self.wildcard_match,
+                    aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                ),
+                method_name="execute_complete",
+            )
         else:
-            obj = self.hook.head_object(key, bucket_name)
-            if obj is None:
-                return False
-            files = [{"Size": obj["ContentLength"]}]
-
-        if self.check_fn is not None:
-            return self.check_fn(files)
-
-        return True
+            super().execute(context=context)
 
     def poke(self, context: Context):
         if isinstance(self.bucket_key, str):
-            return self._check_key(self.bucket_key)
+            self.bucket_keys = [self.bucket_key]
         else:
-            return all(self._check_key(key) for key in self.bucket_key)
+            self.bucket_keys = self.bucket_key
+        wildcard_keys = []
+        objs = []
+        bucket_key_names = []
+        for i in range(len(self.bucket_keys)):
+            bucket_key_names.append(
+                S3Hook.get_s3_bucket_key(self.bucket_name, self.bucket_keys[i], "bucket_name", "bucket_key")
+            )
+            bucket_name = bucket_key_names[i][0]
+            key = bucket_key_names[i][1]
+            self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
+            if self.wildcard_match:
+                prefix = re.split(r"[\[\*\?]", key, 1)[0]
+                wildcard_keys.append(self.hook.get_file_metadata(prefix, bucket_name))
+            else:
+                objs.append(self.hook.head_object(key, bucket_name))
+
+        results = process_files(
+            self.bucket_keys, self.wildcard_match, wildcard_keys, objs, self.check_fn, bucket_key_names
+        )[0]
+        return all(results)
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook."""
         return self.hook
 
+    def execute_complete(self, context, event=None):
+        self.log.info("Inside execute complete")
+        if event["status"] != "success":
+            raise AirflowException(f"Error: {event}")
+        else:
+            results = []
+            self.log.info("Success: %s", event)
+            if self.check_fn is not None:
+                for files in event["files_list"]:
+                    results.append(self.check_fn(files))
+                return all(results)
+
     @cached_property
     def hook(self) -> S3Hook:
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+
+
+def process_files(bucket_keys, wildcard_match, wildcard_keys, obj, check_fn, bucket_key_names):
+    results = []
+    files_list = []
+    for i in range(len(bucket_keys)):
+        key = bucket_key_names[i][1]
+        if wildcard_match:
+            key_matches = [k for k in wildcard_keys[i] if fnmatch.fnmatch(k["Key"], bucket_key_names[i][1])]
+            if len(key_matches) == 0:
+                results.append(False)
+                continue
+            # Reduce the set of metadata to size only
+            files_list.append(list(map(lambda f: {"Size": f["Size"]}, key_matches)))
+        else:
+            if obj[i] is None:
+                results.append(False)
+                continue
+
+            files_list.append([{"Size": obj[i]["ContentLength"]}])
+
+        if check_fn is not None:
+            for files in files_list:
+                results.append(check_fn(files))
+                continue
+
+        results.append(True)
+
+    return [results, files_list]
 
 
 @poke_mode_only
