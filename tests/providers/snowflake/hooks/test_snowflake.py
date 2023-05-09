@@ -29,9 +29,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.models import Connection
-from airflow.providers.snowflake.hooks.snowflake import (
-    SnowflakeHook,
-)
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 _PASSWORD = "snowflake42"
