@@ -19,7 +19,7 @@
 """Append dag pause on dag edit
 
 Revision ID: bd59965b3fe5
-Revises: 98ae134e6fff
+Revises: 937cbd173ca1
 Create Date: 2023-04-23 13:23:39.037211
 
 """
@@ -30,10 +30,10 @@ from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
 revision = "bd59965b3fe5"
-down_revision = "98ae134e6fff"
+down_revision = "10b52ebd31f7"
 branch_labels = None
 depends_on = None
-airflow_version = "2.6.0"
+airflow_version = "2.8.1"
 
 
 def append_dag_pause():
