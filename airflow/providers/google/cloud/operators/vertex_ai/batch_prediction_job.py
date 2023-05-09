@@ -146,7 +146,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         when setting this parameter, higher value speeds up the batch operation's execution,
         but too high value will result in a whole batch not fitting in a machine's memory,
         and the whole operation will fail.
-        The default value is 64.
+        The default value is same as in the aiplatform's BatchPredictionJob.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
