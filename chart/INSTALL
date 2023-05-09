@@ -12,3 +12,33 @@ kubectl create namespace airflow
 
 ## Install the chart in that namespace
 helm install airflow -n airflow .
+
+# Naming conventions
+
+# For new installations it is highly recommended to start using standard naming conventions.
+# It is not enabled by default as this may cause unexpected behaviours on existing installations
+helm install airflow -n airflow . --set useStandardNaming=true
+
+# For existing installations, you can use standard naming convetions by adding useStandardNaming=true.
+# All your resources will be recreated with a new name and helm will delete previous resources.
+
+helm upgrade airflow -n airflow . --set useStandardNaming=true
+# or
+helm upgrade airflow -n airflow . --set fullnameOverride=airflow-override,useStandardNaming=true
+
+# Note: This won't delete existing PVCs for logs used by statefulset/deployments, but it will recreate them with brand new PVCs.
+# If you do want to preserve logs history you'll need to manually copy the data of these volumes into the new volumes after
+# deployment. Depending on what storage backend/class you're using this procedure may vary. If you don't mind starting
+# with fresh logs/redis volumes, you can just delete the old pvcs that will be names, for example:
+
+kubectl delete pvc -n airflow logs-gta-triggerer-0
+kubectl delete pvc -n airflow logs-gta-worker-0
+kubectl delete pvc -n airflow redis-db-gta-redis-0
+
+# You may need to delete the below secrets as these are not managed by helm and these are installed via helm hooks instead
+kubectl delete secret -n airflow airflow-fernet-key
+kubectl delete secret -n airflow airflow-broker-url
+kubectl delete secret -n airflow airflow-redis-password
+
+# If you do not change useStandardNaming or fullnameOverride after upgrade, you can proceed as usual and no unexpected
+# behaviours will be presented

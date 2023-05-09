@@ -44,7 +44,7 @@ If release name contains chart name it will be used as a full name.
 */}}
 {{- define "airflow.name" -}}
   {{ if .Values.fullnameOverride }}
-    {{- printf "%s-airflow" .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+    {{- printf "%s" .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
   {{- else }}
     {{- $name := default .Chart.Name .Values.nameOverride }}
     {{- if contains $name .Release.Name }}
@@ -507,7 +507,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_config" -}}
-  {{- printf "%s-airflow-config" .Release.Name }}
+  {{- printf "%s-config" (include "airflow.name" .) }}
 {{- end }}
 
 {{- define "airflow_config_mount" -}}

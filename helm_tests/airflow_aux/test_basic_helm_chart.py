@@ -71,13 +71,13 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
-            ("ConfigMap", "test-basic-airflow-config"),
+            ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
             ("Role", "test-basic-pod-launcher-role"),
             ("Role", "test-basic-pod-log-reader-role"),
@@ -100,7 +100,7 @@ class TestBaseChartTest:
             ("Job", "test-basic-run-airflow-migrations"),
         }
         if version == "2.3.2":
-            expected.add(("Secret", "test-basic-airflow-result-backend"))
+            expected.add(("Secret", "test-basic-result-backend"))
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
@@ -195,13 +195,13 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-dag-processor"),
             ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
+            ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
             ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-webserver-secret-key"),
             ("Secret", "test-basic-postgresql"),
             ("Secret", "test-basic-redis-password"),
-            ("ConfigMap", "test-basic-airflow-config"),
+            ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
             ("Role", "test-basic-pod-launcher-role"),
             ("Role", "test-basic-pod-log-reader-role"),
@@ -225,7 +225,7 @@ class TestBaseChartTest:
             ("Job", "test-basic-run-airflow-migrations"),
         }
         if version == "2.3.2":
-            expected.add(("Secret", "test-basic-airflow-result-backend"))
+            expected.add(("Secret", "test-basic-result-backend"))
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
