@@ -785,8 +785,9 @@ class TestBigQueryOperator:
 
 
 class TestBigQueryGetDataOperator:
+    @pytest.mark.parametrize("as_dict", [True, False])
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, as_dict):
         max_results = 100
         selected_fields = "DATE"
         operator = BigQueryGetDataOperator(
@@ -797,6 +798,7 @@ class TestBigQueryGetDataOperator:
             max_results=max_results,
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,
+            as_dict=as_dict,
         )
         operator.execute(None)
         mock_hook.return_value.list_rows.assert_called_once_with(
@@ -840,9 +842,10 @@ class TestBigQueryGetDataOperator:
             exc.value.trigger, BigQueryGetDataTrigger
         ), "Trigger is not a BigQueryGetDataTrigger"
 
+    @pytest.mark.parametrize("as_dict", [True, False])
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_get_data_operator_async_without_selected_fields(
-        self, mock_hook, create_task_instance_of_operator
+        self, mock_hook, create_task_instance_of_operator, as_dict
     ):
         """
         Asserts that a task is deferred and a BigQueryGetDataTrigger will be fired
@@ -862,6 +865,7 @@ class TestBigQueryGetDataOperator:
             table_id=TEST_TABLE_ID,
             max_results=100,
             deferrable=True,
+            as_dict=as_dict,
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -871,7 +875,8 @@ class TestBigQueryGetDataOperator:
             exc.value.trigger, BigQueryGetDataTrigger
         ), "Trigger is not a BigQueryGetDataTrigger"
 
-    def test_bigquery_get_data_operator_execute_failure(self):
+    @pytest.mark.parametrize("as_dict", [True, False])
+    def test_bigquery_get_data_operator_execute_failure(self, as_dict):
         """Tests that an AirflowException is raised in case of error event"""
 
         operator = BigQueryGetDataOperator(
@@ -880,6 +885,7 @@ class TestBigQueryGetDataOperator:
             table_id="any",
             max_results=100,
             deferrable=True,
+            as_dict=as_dict,
         )
 
         with pytest.raises(AirflowException):
@@ -887,7 +893,8 @@ class TestBigQueryGetDataOperator:
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_bigquery_get_data_op_execute_complete_with_records(self):
+    @pytest.mark.parametrize("as_dict", [True, False])
+    def test_bigquery_get_data_op_execute_complete_with_records(self, as_dict):
         """Asserts that exception is raised with correct expected exception message"""
 
         operator = BigQueryGetDataOperator(
@@ -896,6 +903,7 @@ class TestBigQueryGetDataOperator:
             table_id="any",
             max_results=100,
             deferrable=True,
+            as_dict=as_dict,
         )
 
         with mock.patch.object(operator.log, "info") as mock_log_info:
