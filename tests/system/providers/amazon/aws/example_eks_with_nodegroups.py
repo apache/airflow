@@ -143,13 +143,14 @@ with DAG(
 
     describe_pod = BashOperator(
         task_id="describe_pod",
-        bash_command=""
-        # using reinstall option so that it doesn't fail if already present
-        "install_aws.sh --reinstall " "&& install_kubectl.sh --reinstall "
-        # configure kubectl to hit the cluster created
-        f"&& aws eks update-kubeconfig --name {cluster_name} "
-        # once all this setup is done, actually describe the pod
-        "&& kubectl describe pod {{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}",
+        bash_command=f"""
+            # using reinstall option so that it doesn't fail if already present
+            install_aws.sh --reinstall;
+            install_kubectl.sh --reinstall;
+            # configure kubectl to hit the cluster created
+            aws eks update-kubeconfig --name {cluster_name};
+            # once all this setup is done, actually describe the pod
+            kubectl describe pod {{{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}}}""",
         # only describe the pod if the task above failed, to help diagnose
         trigger_rule=TriggerRule.ONE_FAILED,
     )
