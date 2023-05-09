@@ -26,6 +26,7 @@ import {
   Button,
   Checkbox,
   Icon,
+  Spinner
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
 
@@ -266,12 +267,14 @@ const Logs = ({
               <Text fontSize="sm">{warning}</Text>
             </Flex>
           )}
-          {!!parsedLogs && (
+          {parsedLogs ? (
             <LogBlock
               parsedLogs={parsedLogs}
               wrap={wrap}
               tryNumber={taskTryNumber}
             />
+          ) : (
+            <Spinner />
           )}
         </>
       )}
