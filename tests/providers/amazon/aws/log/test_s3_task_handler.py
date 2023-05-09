@@ -138,6 +138,7 @@ class TestS3TaskHandler:
     def test_read_when_s3_log_missing(self):
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
+        self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], []))
         log, metadata = self.s3_task_handler.read(ti)
         assert 1 == len(log)
         assert len(log) == len(metadata)
