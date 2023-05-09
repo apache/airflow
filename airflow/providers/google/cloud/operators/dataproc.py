@@ -36,7 +36,7 @@ from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataproc import (
@@ -496,7 +496,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 "Please provide cluster_config object using `cluster_config` parameter. "
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
                 "method to obtain cluster object.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=1,
             )
             # Remove result of apply defaults
@@ -738,7 +738,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{type(self).__name__}` operator is deprecated, "
             "please use `DataprocUpdateClusterOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1164,7 +1164,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1238,7 +1238,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1313,7 +1313,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1390,7 +1390,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1463,7 +1463,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1561,7 +1561,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             "The `{cls}` operator is deprecated, please use `DataprocSubmitJobOperator` instead. You can use"
             " `generate_job` method of `{cls}` to generate dictionary representing your job"
             " and use it with the new operator.".format(cls=type(self).__name__),
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -1780,7 +1780,6 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         else:
             self.defer(
                 trigger=DataprocWorkflowTrigger(
-                    template_name=self.template_id,
                     name=operation.operation.name,
                     project_id=self.project_id,
                     region=self.region,
@@ -1843,6 +1842,8 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param polling_interval_seconds: Time (seconds) to wait between calls to check the run status.
     """
 
     template_fields: Sequence[str] = ("template", "impersonation_chain")
@@ -1861,9 +1862,13 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
+        polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if deferrable and polling_interval_seconds <= 0:
+            raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
         self.template = template
         self.project_id = project_id
         self.region = region
@@ -1874,13 +1879,15 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context):
         self.log.info("Instantiating Inline Template")
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
-            project_id=self.project_id,
+            project_id=self.project_id or hook.project_id,
             region=self.region,
             request_id=self.request_id,
             retry=self.retry,
@@ -1891,9 +1898,34 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         DataprocLink.persist(
             context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=self.workflow_id
         )
-        self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
-        operation.result()
-        self.log.info("Workflow %s completed successfully", self.workflow_id)
+        if not self.deferrable:
+            self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
+            operation.result()
+            self.log.info("Workflow %s completed successfully", self.workflow_id)
+        else:
+            self.defer(
+                trigger=DataprocWorkflowTrigger(
+                    name=operation.operation.name,
+                    project_id=self.project_id or hook.project_id,
+                    region=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "failed" or event["status"] == "error":
+            self.log.exception("Unexpected error in the operation.")
+            raise AirflowException(event["message"])
+
+        self.log.info("Workflow %s completed successfully", event["operation_name"])
 
 
 class DataprocSubmitJobOperator(GoogleCloudBaseOperator):

@@ -22,6 +22,7 @@ from typing import Mapping, Sequence
 
 from psycopg2.sql import SQL, Identifier
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
@@ -86,6 +87,6 @@ class PostgresOperator(SQLExecuteQueryOperator):
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
             Also, you can provide `hook_params={'schema': <database>}`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

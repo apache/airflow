@@ -1071,3 +1071,50 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, labels, expected_outputs, should_fail",
+    [
+        pytest.param(
+            ("airflow/providers/yandex/test.py",),
+            (),
+            None,
+            True,
+            id="Suspended provider changes should fail",
+        ),
+        pytest.param(
+            ("airflow/providers/yandex/test.py",),
+            ("allow suspended provider changes",),
+            {"affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED},
+            False,
+            id="Suspended provider changes should not fail if appropriate label is set",
+        ),
+        pytest.param(
+            ("airflow/providers/yandex/test.py", "airflow/providers/airbyte/test.py"),
+            ("allow suspended provider changes",),
+            {"affected-providers-list-as-string": "airbyte http"},
+            False,
+            id="Only non-suspended provider changes should be listed",
+        ),
+    ],
+)
+def test_suspended_providers(
+    files: tuple[str, ...], labels: tuple[str], expected_outputs: dict[str, str], should_fail: bool
+):
+    failed = False
+    try:
+        stderr = str(
+            SelectiveChecks(
+                files=files,
+                commit_ref="HEAD",
+                github_event=GithubEvents.PULL_REQUEST,
+                pr_labels=labels,
+                default_branch="main",
+            )
+        )
+    except SystemExit:
+        failed = True
+    assert failed == should_fail
+    if not failed:
+        assert_outputs_are_printed(expected_outputs, str(stderr))

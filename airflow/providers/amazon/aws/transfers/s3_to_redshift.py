@@ -76,6 +76,7 @@ class S3ToRedshiftOperator(BaseOperator):
         "column_list",
         "copy_options",
         "redshift_conn_id",
+        "method",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#99e699"
@@ -113,9 +114,6 @@ class S3ToRedshiftOperator(BaseOperator):
         self.upsert_keys = upsert_keys
         self.redshift_data_api_kwargs = redshift_data_api_kwargs
 
-        if self.method not in AVAILABLE_METHODS:
-            raise AirflowException(f"Method not found! Available methods: {AVAILABLE_METHODS}")
-
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:
                 if arg in self.redshift_data_api_kwargs.keys():
@@ -132,6 +130,9 @@ class S3ToRedshiftOperator(BaseOperator):
         """
 
     def execute(self, context: Context) -> None:
+        if self.method not in AVAILABLE_METHODS:
+            raise AirflowException(f"Method not found! Available methods: {AVAILABLE_METHODS}")
+
         redshift_hook: RedshiftDataHook | RedshiftSQLHook
         if self.redshift_data_api_kwargs:
             redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)

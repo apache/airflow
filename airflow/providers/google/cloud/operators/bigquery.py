@@ -28,7 +28,7 @@ from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
@@ -52,9 +52,8 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
-
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
@@ -759,12 +758,19 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
 
 class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
-    and returns data in a python list. The number of elements in the returned list will
-    be equal to the number of rows fetched. Each element in the list will again be a list
-    where element would represent the columns values for that row.
+    Fetches the data from a BigQuery table (alternatively fetch data for selected columns) and returns data
+    in either of the following two formats, based on "as_dict" value:
+    1. False (Default) - A Python list of lists, with the number of nested lists equal to the number of rows
+    fetched. Each nested list represents a row, where the elements within it correspond to the column values
+    for that particular row.
 
-    **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
+    **Example Result**: ``[['Tony', 10], ['Mike', 20]``
+
+
+    2. True - A Python list of dictionaries, where each dictionary represents a row. In each dictionary,
+    the keys are the column names and the values are the corresponding values for those columns.
+
+    **Example Result**: ``[{'name': 'Tony', 'age': 10}, {'name': 'Mike', 'age': 20}]``
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -811,6 +817,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
+    :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
+        (default: False).
     """
 
     template_fields: Sequence[str] = (
@@ -836,6 +844,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         poll_interval: float = 4.0,
+        as_dict: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -850,6 +859,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.as_dict = as_dict
 
     def _submit_job(
         self,
@@ -885,7 +895,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.hook = hook
 
         if not self.deferrable:
             self.log.info(
@@ -911,21 +920,26 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
 
             self.log.info("Total extracted rows: %s", len(rows))
 
-            table_data = [row.values() for row in rows]
+            if self.as_dict:
+                table_data = [{k: v for k, v in row.items()} for row in rows]
+            else:
+                table_data = [row.values() for row in rows]
+
             return table_data
 
         job = self._submit_job(hook, job_id="")
-        self.job_id = job.job_id
-        context["ti"].xcom_push(key="job_id", value=self.job_id)
+
+        context["ti"].xcom_push(key="job_id", value=job.job_id)
         self.defer(
             timeout=self.execution_timeout,
             trigger=BigQueryGetDataTrigger(
                 conn_id=self.gcp_conn_id,
-                job_id=self.job_id,
+                job_id=job.job_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 project_id=hook.project_id,
                 poll_interval=self.poll_interval,
+                as_dict=self.as_dict,
             ),
             method_name="execute_complete",
         )
@@ -1067,7 +1081,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         warnings.warn(
             "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 
@@ -1314,7 +1328,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             gcp_conn_id = bigquery_conn_id
@@ -1338,7 +1352,10 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
-            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            warnings.warn(
+                "`exists_ok` parameter is deprecated, please use `if_exists`",
+                AirflowProviderDeprecationWarning,
+            )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:
             self.if_exists = IfExistAction(if_exists)
@@ -1431,6 +1448,8 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         If provided all other parameters are ignored. External schema from object will be resolved.
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
+    :param gcs_schema_bucket: GCS bucket name where the schema JSON is stored (templated).
+        The default value is self.bucket.
     :param source_format: File format of the data.
     :param autodetect: Try to detect schema and format options automatically.
         The schema_fields and schema_object options will be honored when specified explicitly.
@@ -1478,6 +1497,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         "bucket",
         "source_objects",
         "schema_object",
+        "gcs_schema_bucket",
         "destination_project_dataset_table",
         "labels",
         "table_resource",
@@ -1496,6 +1516,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         table_resource: dict[str, Any] | None = None,
         schema_fields: list | None = None,
         schema_object: str | None = None,
+        gcs_schema_bucket: str | None = None,
         source_format: str | None = None,
         autodetect: bool = False,
         compression: str | None = None,
@@ -1518,7 +1539,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             gcp_conn_id = bigquery_conn_id
@@ -1549,11 +1570,13 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             warnings.warn(
                 "Passing table parameters via keywords arguments will be deprecated. "
                 "Please provide table definition using `table_resource` parameter.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if not bucket:
                 raise ValueError("`bucket` is required when not using `table_resource`.")
+            if not gcs_schema_bucket:
+                gcs_schema_bucket = bucket
             if not source_objects:
                 raise ValueError("`source_objects` is required when not using `table_resource`.")
             if not source_format:
@@ -1571,6 +1594,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             self.bucket = bucket
             self.source_objects = source_objects
             self.schema_object = schema_object
+            self.gcs_schema_bucket = gcs_schema_bucket
             self.destination_project_dataset_table = destination_project_dataset_table
             self.schema_fields = schema_fields
             self.source_format = source_format
@@ -1583,6 +1607,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             self.bucket = ""
             self.source_objects = []
             self.schema_object = None
+            self.gcs_schema_bucket = ""
             self.destination_project_dataset_table = ""
 
         if table_resource and kwargs_passed:
@@ -1626,7 +1651,9 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
                 gcp_conn_id=self.google_cloud_storage_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
-            schema_fields = json.loads(gcs_hook.download(self.bucket, self.schema_object).decode("utf-8"))
+            schema_fields = json.loads(
+                gcs_hook.download(self.gcs_schema_bucket, self.schema_object).decode("utf-8")
+            )
         else:
             schema_fields = self.schema_fields
 
@@ -1820,7 +1847,10 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
-            warnings.warn("`exists_ok` parameter is deprecated, please use `if_exists`", DeprecationWarning)
+            warnings.warn(
+                "`exists_ok` parameter is deprecated, please use `if_exists`",
+                AirflowProviderDeprecationWarning,
+            )
             self.if_exists = IfExistAction.IGNORE if exists_ok else IfExistAction.LOG
         else:
             self.if_exists = IfExistAction(if_exists)
@@ -2029,7 +2059,7 @@ class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
     ) -> None:
         warnings.warn(
             "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         self.dataset_id = dataset_id

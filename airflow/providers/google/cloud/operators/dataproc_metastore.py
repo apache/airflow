@@ -37,7 +37,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 

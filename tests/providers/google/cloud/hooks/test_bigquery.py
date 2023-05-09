@@ -29,7 +29,7 @@ from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryAsyncHook,
     BigQueryCursor,
@@ -2060,7 +2060,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
         bq_cursor = BigQueryCursor(mock.MagicMock(), PROJECT_ID, mock_bq_hook)
         func = getattr(bq_cursor, func_name)
 
-        with pytest.warns(DeprecationWarning, match=message_regex):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=message_regex):
             _ = func(*args, **kwargs)
 
         mocked_func.assert_called_once_with(*args, **kwargs)
@@ -2348,3 +2348,29 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert isinstance(result[0][0], int)
         assert isinstance(result[0][1], float)
         assert isinstance(result[0][2], str)
+
+    def test_get_records_as_dict(self):
+        query_result = {
+            "kind": "bigquery#getQueryResultsResponse",
+            "etag": "test_etag",
+            "schema": {
+                "fields": [
+                    {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                    {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+            "jobReference": {
+                "projectId": "test_airflow-providers",
+                "jobId": "test_jobid",
+                "location": "US",
+            },
+            "totalRows": "1",
+            "rows": [{"f": [{"v": "22"}, {"v": "3.14"}, {"v": "PI"}]}],
+            "totalBytesProcessed": "0",
+            "jobComplete": True,
+            "cacheHit": False,
+        }
+        hook = BigQueryAsyncHook()
+        result = hook.get_records(query_result, as_dict=True)
+        assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]

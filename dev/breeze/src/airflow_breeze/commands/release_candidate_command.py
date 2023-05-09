@@ -164,6 +164,8 @@ def push_artifacts_to_asf_repo(version, repo_root):
             check=True,
         )
         console_print("Files pushed to svn")
+        # Remove old releases
+        remove_old_releases(version, repo_root)
         os.chdir(repo_root)
         run_command(["rm", "-rf", "asf-dist"], dry_run_override=DRY_RUN, check=True)
 
@@ -374,9 +376,6 @@ def publish_release_candidate(version, previous_version, github_token):
     # Create issue for testing
     os.chdir(airflow_repo_root)
     create_issue_for_testing(version, previous_version, github_token)
-
-    # Remove old releases
-    remove_old_releases(version, airflow_repo_root)
 
     console_print()
     console_print("Done!")

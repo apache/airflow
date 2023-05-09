@@ -19,6 +19,8 @@
 
 import React, { useState, useRef } from "react";
 import {
+  Alert,
+  AlertIcon,
   Flex,
   Button,
   Menu,
@@ -55,6 +57,7 @@ interface Props extends MenuButtonProps {
   runId: string;
   taskId: string;
   state?: TaskState;
+  isGroup?: boolean;
   mapIndex?: number;
   isMapped?: boolean;
 }
@@ -62,6 +65,7 @@ interface Props extends MenuButtonProps {
 const MarkInstanceAs = ({
   runId,
   taskId,
+  isGroup,
   mapIndex,
   isMapped,
   state: currentState,
@@ -104,6 +108,7 @@ const MarkInstanceAs = ({
       runId,
       taskId,
       state: newState,
+      isGroup: !!isGroup,
       past,
       future,
       upstream,
@@ -117,6 +122,7 @@ const MarkInstanceAs = ({
       dagId,
       runId,
       taskId,
+      isGroup: !!isGroup,
     });
 
   const { mutateAsync: markSuccessMutation, isLoading: isMarkSuccessLoading } =
@@ -124,6 +130,7 @@ const MarkInstanceAs = ({
       dagId,
       runId,
       taskId,
+      isGroup: !!isGroup,
     });
 
   const resetModal = () => {
@@ -283,6 +290,16 @@ const MarkInstanceAs = ({
             />
           </ButtonGroup>
         </Box>
+        {isGroup && (past || future) && (
+          <Alert status="warning" my={3}>
+            <AlertIcon />
+            Marking a TaskGroup as {capitalize(newState)} in the future and/or
+            past will affect all the tasks of this group across multiple dag
+            runs.
+            <br />
+            This can take a while to complete.
+          </Alert>
+        )}
       </ActionModal>
     </>
   );

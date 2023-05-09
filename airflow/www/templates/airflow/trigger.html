@@ -80,9 +80,11 @@
     {% elif form_details.schema and "array" in form_details.schema.type %}
       <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="array" rows="6"
         {%- if not "null" in form_details.schema.type %} required=""{% endif -%}>
-        {%- for txt in form_details.value -%}
-          {{ txt }}{{ "\n" }}
-        {%- endfor -%}
+        {%- if form_details.value is sequence %}
+          {%- for txt in form_details.value -%}
+            {{ txt }}{{ "\n" }}
+          {%- endfor -%}
+        {% endif -%}
       </textarea>
     {% elif form_details.schema and "object" in form_details.schema.type %}
       <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="object" rows="6"

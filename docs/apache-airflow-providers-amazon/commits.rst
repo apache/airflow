@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.0.0
 .....
 
-Latest change: 2023-04-24
+Latest change: 2023-04-26
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`a044a21859 <https://github.com/apache/airflow/commit/a044a218593f2caeac53cce2681a5d7940b85984>`_  2023-04-26   ``Fix async conn for none aws_session_token (#30868)``
+`b335e474e2 <https://github.com/apache/airflow/commit/b335e474e2738cec4f9bd2b67b6b4bb4e5aae865>`_  2023-04-26   ``Restore aiobotocore as optional dependency of amazon provider (#30874)``
+`84e9cec701 <https://github.com/apache/airflow/commit/84e9cec7016a152b885df670c83a090e0b187621>`_  2023-04-25   ``Prepare docs for ad-hoc release of Amazon provider (#30848)``
 `f3aa33aa13 <https://github.com/apache/airflow/commit/f3aa33aa13a60f6dc750f3757af9cb9ea478e949>`_  2023-04-24   ``Update AWS EMR Cluster Link to use the new dashboard (#30844)``
 `ecaffd5892 <https://github.com/apache/airflow/commit/ecaffd5892874e359a180f2e7a1d613ae8eb33a3>`_  2023-04-24   ``Add a "force" option to emr serverless stop/delete operator (#30757)``
 `62ea0ff21c <https://github.com/apache/airflow/commit/62ea0ff21ccc900e1bb717937b1a3ab1509767a6>`_  2023-04-24   ``Add support for deferrable operators in AMPP (#30032)``

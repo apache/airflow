@@ -189,7 +189,7 @@ The following features are supported in the Trigger UI Form:
       You can add the parameters ``minimum`` and ``maximum`` to restrict number range accepted.
     - ``boolean``: Generates a toggle button to be used as ``True`` or ``False``.
     - ``date``, ``datetime`` and ``time``: Generate date and/or time picker
-    - ``list``: Generates a HTML multi line text field, every line edited will be made into a string array as value
+    - ``array``: Generates a HTML multi line text field, every line edited will be made into a string array as value
     - ``object``: Generates a JSON entry field
     - Note: Per default if you specify a type, a field will be made required with input - because of JSON validation.
       If you want to have a field value being added optional only, you must allow JSON schema validation allowing null values via:

@@ -444,9 +444,9 @@ class TestAwsS3Hook:
             temp_file.write(b"Content")
             temp_file.seek(0)
             hook.load_file_obj(temp_file, "my_key", s3_bucket)
-            hook.copy_object("my_key", "my_key", s3_bucket, s3_bucket)
+            hook.copy_object("my_key", "my_key2", s3_bucket, s3_bucket)
             response = boto3.client("s3").get_object_acl(
-                Bucket=s3_bucket, Key="my_key", RequestPayer="requester"
+                Bucket=s3_bucket, Key="my_key2", RequestPayer="requester"
             )
             assert (response["Grants"][0]["Permission"] == "FULL_CONTROL") and (len(response["Grants"]) == 1)
 

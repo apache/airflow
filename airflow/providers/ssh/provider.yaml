@@ -46,7 +46,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - paramiko>=2.6.0
   - sshtunnel>=0.3.2
 
