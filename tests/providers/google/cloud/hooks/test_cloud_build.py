@@ -28,7 +28,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, GetBuildRequest
 
-from airflow import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook, CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
