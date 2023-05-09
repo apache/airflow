@@ -132,8 +132,8 @@ with DAG(
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
         get_logs=True,
-        # Delete the pod when it reaches its final state, or the execution is interrupted.
-        is_delete_operator_pod=True,
+        # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
+        is_delete_operator_pod=False,
     )
     # [END howto_operator_eks_pod_operator]
 
