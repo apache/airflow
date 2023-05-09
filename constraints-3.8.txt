@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-09T13:43:39Z
+# This constraints file was automatically generated on 2023-05-09T17:32:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -171,7 +171,7 @@ azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.0.0
 azure-nspkg==3.0.2
-azure-servicebus==7.9.0
+azure-servicebus==7.10.0
 azure-storage-blob==12.16.0
 azure-storage-common==2.1.0
 azure-storage-file-datalake==12.11.0
@@ -480,7 +480,7 @@ pycparser==2.21
 pycryptodome==3.17
 pycryptodomex==3.17
 pydantic==1.10.7
-pydata-google-auth==1.7.0
+pydata-google-auth==1.8.0
 pydot==1.4.2
 pydruid==0.6.5
 pyenchant==3.2.2
@@ -624,7 +624,7 @@ types-pyOpenSSL==23.1.0.2
 types-python-dateutil==2.8.19.12
 types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
-types-redis==4.5.4.2
+types-redis==4.5.5.0
 types-requests==2.30.0.0
 types-setuptools==67.7.0.1
 types-tabulate==0.9.0.2
@@ -634,7 +634,6 @@ types-urllib3==1.26.25.12
 typing_extensions==4.5.0
 tzdata==2023.3
 tzlocal==4.3
-uamqp==1.6.4
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
 uritemplate==3.0.1
