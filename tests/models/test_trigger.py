@@ -213,6 +213,5 @@ def test_get_sorted_triggers(session, create_task_instance):
     assert session.query(Trigger).count() == 2
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
-    session.expire_all()
 
     assert trigger_ids_query == [(1,), (2,)]
