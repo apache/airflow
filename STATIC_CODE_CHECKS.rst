@@ -26,7 +26,7 @@ All the static code checks can be run through pre-commit hooks.
 The pre-commit hooks perform all the necessary installation when you run them
 for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
 
-You can also run some static code checks via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
+You can also run some `static code check <BREEZE.rst#running-static-checks>`_ via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
 using available bash scripts.
 
 Pre-commit hooks
