@@ -581,7 +581,7 @@ class TestEmrServerlessStartJobOperator:
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
         mock_conn.get_job_run.return_value = {"jobRun": {"state": "RUNNING"}}
-        
+
         operator = EmrServerlessStartJobOperator(
             task_id=task_id,
             client_request_token=client_request_token,
@@ -589,15 +589,16 @@ class TestEmrServerlessStartJobOperator:
             execution_role_arn=execution_role_arn,
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
-            wait_for_completion=False
+            wait_for_completion=False,
         )
-        
+
         id = operator.execute(None)
         operator.on_kill()
         mock_conn.cancel_job_run.assert_called_once_with(
             applicationId=application_id,
             jobRunId=id,
         )
+
 
 class TestEmrServerlessDeleteOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
