@@ -31,6 +31,7 @@ from airflow_breeze.utils.path_utils import (
     SYSTEM_TESTS_PROVIDERS_ROOT,
     TESTS_PROVIDERS_ROOT,
 )
+from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -228,23 +229,11 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     return "Providers"
 
 
-def add_dependent_providers(
-    providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
-):
-    for provider, provider_info in dependencies.items():
-        # Providers that use this provider
-        if provider_to_check in provider_info["cross-providers-deps"]:
-            providers.add(provider)
-        # and providers we use directly
-        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
-            providers.add(dep_name)
-
-
 def find_all_providers_affected(
     changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
 ) -> list[str] | Literal["ALL_PROVIDERS"] | None:
     all_providers: set[str] = set()
-    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+
     all_providers_affected = False
     suspended_providers: set[str] = set()
     for changed_file in changed_files:
@@ -252,7 +241,7 @@ def find_all_providers_affected(
         if provider == "Providers":
             all_providers_affected = True
         elif provider is not None:
-            if provider not in dependencies:
+            if provider not in DEPENDENCIES:
                 suspended_providers.add(provider)
             else:
                 all_providers.add(provider)
@@ -288,7 +277,9 @@ def find_all_providers_affected(
     if len(all_providers) == 0:
         return None
     for provider in list(all_providers):
-        add_dependent_providers(all_providers, provider, dependencies)
+        all_providers.update(
+            get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+        )
     return sorted(all_providers)
 
 
