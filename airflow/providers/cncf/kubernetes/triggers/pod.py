@@ -77,7 +77,7 @@ class KubernetesPodTrigger(BaseTrigger):
         should_delete_pod: bool = True,
         get_logs: bool = True,
         startup_timeout: int = 120,
-        startup_check_interval: int = 60,
+        startup_check_interval: int = 1,
     ):
         super().__init__()
         self.pod_name = pod_name
