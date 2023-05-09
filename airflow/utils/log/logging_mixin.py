@@ -32,7 +32,10 @@ ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
 # Private: A sentinel objects
 class SetContextPropagate(enum.Enum):
-    """:meta private:."""
+    """Sentinel objects for log propagation contexts.
+
+    :meta private:
+    """
 
     # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
     # special value.

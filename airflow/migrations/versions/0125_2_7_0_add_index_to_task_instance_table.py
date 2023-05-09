@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add index to task_instance table
+"""Add index to task_instance table.
 
 Revision ID: 937cbd173ca1
 Revises: 98ae134e6fff
@@ -36,7 +36,7 @@ airflow_version = "2.7.0"
 
 
 def upgrade():
-    """Apply Add index to task_instance table"""
+    """Apply Add index to task_instance table."""
     op.create_index(
         "ti_state_incl_start_date",
         "task_instance",
@@ -46,5 +46,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add index to task_instance table"""
+    """Unapply Add index to task_instance table."""
     op.drop_index("ti_state_incl_start_date", table_name="task_instance")

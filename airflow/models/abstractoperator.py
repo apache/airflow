@@ -243,7 +243,7 @@ class AbstractOperator(Templater, DAGNode):
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
         """Return mapped task groups this task belongs to.
 
-        Groups are returned from the closest to the outmost.
+        Groups are returned from the innermost to the outmost.
 
         :meta private:
         """
@@ -254,7 +254,10 @@ class AbstractOperator(Templater, DAGNode):
             parent = parent.task_group
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
-        """:meta private:."""
+        """Get the mapped task group "closest" to this task in the DAG.
+
+        :meta private:
+        """
         return next(self.iter_mapped_task_groups(), None)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:

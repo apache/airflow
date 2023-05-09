@@ -1128,7 +1128,10 @@ class DAG(LoggingMixin):
 
     @property
     def full_filepath(self) -> str:
-        """:meta private:."""
+        """Full file path to the DAG.
+
+        :meta private:
+        """
         warnings.warn(
             "DAG.full_filepath is deprecated in favour of fileloc",
             RemovedInAirflow3Warning,
@@ -1230,7 +1233,10 @@ class DAG(LoggingMixin):
 
     @property
     def filepath(self) -> str:
-        """:meta private:."""
+        """Relative file path to the DAG.
+
+        :meta private:
+        """
         warnings.warn(
             "filepath is deprecated, use relative_fileloc instead",
             RemovedInAirflow3Warning,

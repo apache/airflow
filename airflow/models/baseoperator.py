@@ -1077,11 +1077,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """:meta private:."""
+        """Gets inlet definitions on this task.
+
+        :meta private:
+        """
         return self.inlets
 
     def get_outlet_defs(self):
-        """:meta private:."""
+        """Gets outlet definitions on this task.
+
+        :meta private:
+        """
         return self.outlets
 
     def get_dag(self) -> DAG | None:
@@ -1567,7 +1573,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """:meta private:."""
+        """Get the "normal" operator from the current operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original operator.
+
+        :meta private:
+        """
         return self
 
 

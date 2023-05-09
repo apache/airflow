@@ -99,7 +99,10 @@ class DependencyMixin:
 
 
 class TaskMixin(DependencyMixin):
-    """:meta private:."""
+    """Mixin to provide task-related things.
+
+    :meta private:
+    """
 
     def __init_subclass__(cls) -> None:
         warnings.warn(
