@@ -31,7 +31,7 @@ import pendulum
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -130,6 +130,10 @@ def _interleave_logs(*logs):
         if v != last:  # dedupe
             yield v
         last = v
+
+
+class NoHostnameForWorkerLogs(AirflowException):
+    """Raised when trying to build URL for worker-served logs but none found."""
 
 
 class FileTaskHandler(logging.Handler):
@@ -369,6 +373,8 @@ class FileTaskHandler(logging.Handler):
             log_relative_path = self.add_triggerer_suffix(log_relative_path, job_id=ti.triggerer_job.id)
         else:
             hostname = ti.hostname
+            if not hostname:
+                raise NoHostnameForWorkerLogs
             config_key = "worker_log_server_port"
             config_default = 8793
         return (
@@ -499,6 +505,7 @@ class FileTaskHandler(logging.Handler):
     def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
         messages = []
         logs = []
+        url = ""
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
@@ -517,9 +524,13 @@ class FileTaskHandler(logging.Handler):
             if response.text:
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
+        except NoHostnameForWorkerLogs:
+            logger.debug("Could not fetch logs from worker because no hostname on TI object %s", ti)
+            return [], []
         except Exception as e:
-            messages.append(f"Could not read served logs: {str(e)}")
-            logger.exception("Could not read served logs")
+            msg = f"Could not fetch logs from worker; url={url};"
+            messages.append(f"{msg} exception: {str(e)}")
+            logger.exception(msg)
         return messages, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None):
