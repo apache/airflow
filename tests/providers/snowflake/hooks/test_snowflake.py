@@ -34,8 +34,6 @@ from airflow.providers.snowflake.hooks.snowflake import (
 )
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
-POLL_INTERVAL = 1
-
 _PASSWORD = "snowflake42"
 
 BASE_CONNECTION_KWARGS: dict = {
