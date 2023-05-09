@@ -127,7 +127,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
          in the request
         :param query_tag: (Optional) Query tag that you want to associate with the SQL statement.
             For details, see https://docs.snowflake.com/en/sql-reference/parameters.html#label-query-tag
-             parameter.
+            parameter.
         :param bindings: (Optional) Values of bind variables in the SQL statement.
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.

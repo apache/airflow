@@ -43,7 +43,7 @@ class JWTGenerator:
     """
     Creates and signs a JWT with the specified private key file, username, and account identifier.
     The JWTGenerator keeps the generated token and only regenerates the token if a specified period
-     of time has passed.
+    of time has passed.
 
     Creates an object that generates JWTs for the specified user, account identifier, and private key
 
@@ -93,7 +93,7 @@ class JWTGenerator:
         """
         Prepare the account identifier for use in the JWT.
         For the JWT, the account identifier must not include the subdomain or any region or cloud provider
-         information.
+        information.
 
         :param raw_account: The specified account identifier.
         """
