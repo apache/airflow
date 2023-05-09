@@ -49,7 +49,7 @@ class S3KeySensor(BaseSensorOperator):
         or relative path from root level. When it's specified as a full s3://
         url, please leave bucket_name as `None`
     :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
-        is not provided as a full s3:// url. When specified, all the keys passed to ``bucket_key``
+        is not provided as a full ``s3://`` url. When specified, all the keys passed to ``bucket_key``
         refers to this bucket
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
@@ -62,8 +62,9 @@ class S3KeySensor(BaseSensorOperator):
             def check_fn(files: List) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in files)
     :param aws_conn_id: a reference to the s3 connection
-    :param verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
+    :param deferrable: Run operator in the deferrable mode
+    :param verify: Whether to verify SSL certificates for S3 connection.
+        By default, SSL certificates are verified.
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
@@ -72,7 +73,6 @@ class S3KeySensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-     :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = ("bucket_key", "bucket_name")
