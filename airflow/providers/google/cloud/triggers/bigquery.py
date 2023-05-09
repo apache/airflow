@@ -165,7 +165,16 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
 
 
 class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
-    """BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class"""
+    """
+    BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class
+
+    :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
+        (default: False).
+    """
+
+    def __init__(self, as_dict: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.as_dict = as_dict
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryInsertJobTrigger arguments and classpath."""
@@ -190,7 +199,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 response_from_hook = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if response_from_hook == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(query_results)
+                    records = hook.get_records(query_results=query_results, as_dict=self.as_dict)
                     self.log.debug("Response from hook: %s", response_from_hook)
                     yield TriggerEvent(
                         {
