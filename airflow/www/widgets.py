@@ -40,6 +40,9 @@ class AirflowDateTimePickerWidget:
         "</div>"
     )
 
+    def __init__(self, input_required: bool = True):
+        self.input_required = input_required
+
     def __call__(self, field, **kwargs):
         kwargs.setdefault("id", field.id)
         kwargs.setdefault("name", field.name)
@@ -48,7 +51,8 @@ class AirflowDateTimePickerWidget:
         template = self.data_template
 
         return Markup(
-            template % {"text": html_params(type="text", value=field.data, required=True, **kwargs)}
+            template
+            % {"text": html_params(type="text", value=field.data, required=self.input_required, **kwargs)}
         )
 
 
