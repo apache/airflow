@@ -97,11 +97,19 @@ class TaskLogReader:
 
     @cached_property
     def log_handler(self):
-        """Log handler, which is configured to read logs."""
-        logger = logging.getLogger("airflow.task")
+        """Get the log handler which is configured to read logs."""
         task_log_reader = conf.get("logging", "task_log_reader")
-        handler = next((handler for handler in logger.handlers if handler.name == task_log_reader), None)
-        return handler
+
+        def handlers():
+            """
+            Yield all handlers first from airflow.task logger then root logger.
+
+            Depending on whether we're in a running task, it could be in either of these locations.
+            """
+            yield from logging.getLogger("airflow.task").handlers
+            yield from logging.getLogger().handlers
+
+        return next((h for h in handlers() if h.name == task_log_reader), None)
 
     @property
     def supports_read(self):

@@ -14,14 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-providers_google:
-  description: Options for google provider
-  options:
-    verbose_logging:
-      description: |
-        Sets verbose logging for google provider
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"

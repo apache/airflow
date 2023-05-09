@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This is the template for Airflow's default configuration. When Airflow is
-# imported, it looks for a configuration file at $AIRFLOW_HOME/airflow.cfg. If
-# it doesn't exist, Airflow uses this template to generate it by replacing
-# variables in curly braces with their global values from configuration.py.
-
-# Users should not modify this file; they should customize the generated
-# airflow.cfg instead.
-
-
-# ----------------------- TEMPLATE BEGINS HERE -----------------------
-
-[providers_google]
-
-# Options for google provider
-# Sets verbose logging for google provider
-verbose_logging = False

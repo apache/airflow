@@ -18,12 +18,16 @@ from __future__ import annotations
 
 import os
 
+from airflow.configuration import conf
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.openlineage.plugins.macros import lineage_parent_id, lineage_run_id
 
 
 def _is_disabled() -> bool:
-    return os.getenv("OPENLINEAGE_DISABLED", "false").lower() == "true"
+    return (
+        conf.getboolean("openlineage", "disabled")
+        or os.getenv("OPENLINEAGE_DISABLED", "false").lower() == "true"
+    )
 
 
 class OpenLineageProviderPlugin(AirflowPlugin):

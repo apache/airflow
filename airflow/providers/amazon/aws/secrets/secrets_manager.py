@@ -25,6 +25,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -149,7 +150,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 "The `full_url_mode` kwarg is deprecated. Going forward, the `SecretsManagerBackend`"
                 " will support both URL-encoded and JSON-encoded secrets at the same time. The encoding"
                 " of the secret will be determined automatically.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -159,7 +160,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 " migrating away from URL-encoding secret values for JSON secrets."
                 " To remove this warning, make sure your JSON secrets are *NOT* URL-encoded, and then"
                 " remove this kwarg from backend_kwargs.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             self.are_secret_values_urlencoded = kwargs.pop("are_secret_values_urlencoded", None)

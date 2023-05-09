@@ -626,6 +626,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 },
                 synchronize_session=False,
             )
+            for ti in executable_tis:
+                ti.emit_state_change_metric(State.QUEUED)
 
         for ti in executable_tis:
             make_transient(ti)
@@ -779,7 +781,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # but that is handled by the zombie detection.
 
             ti_queued = ti.try_number == buffer_key.try_number and ti.state == TaskInstanceState.QUEUED
-            ti_requeued = ti.queued_by_job_id != self.job.id or self.job.executor.has_task(ti)
+            ti_requeued = (
+                ti.queued_by_job_id != self.job.id  # Another scheduler has queued this task again
+                or self.job.executor.has_task(ti)  # This scheduler has this task already
+            )
 
             if ti_queued and not ti_requeued:
                 Stats.incr(

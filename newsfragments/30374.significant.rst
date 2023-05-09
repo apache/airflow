@@ -1,5 +1,0 @@
-The gauge ``scheduler.tasks.running`` no longer exist
-
-The gauge has never been working and its value has always been 0. Having an accurate
-value for this metric is complex so it has been decided that removing this gauge makes
-more sense than fixing it with no certainty of the correctness of its value.

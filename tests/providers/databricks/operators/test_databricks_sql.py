@@ -152,7 +152,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, descriptions, hook_results",
+    "return_last, split_statements, sql, descriptions, hook_results, do_xcom_push",
     [
         pytest.param(
             True,
@@ -160,6 +160,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and split_statement  False",
         ),
         pytest.param(
@@ -168,6 +169,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            True,
             id="Non-Scalar: return_last False and split_statement True",
         ),
         pytest.param(
@@ -176,6 +178,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and no split_statement True",
         ),
         pytest.param(
@@ -184,6 +187,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last False and split_statement is False",
         ),
         pytest.param(
@@ -195,6 +199,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
                 [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")],
                 [Row(id=1, value="value1"), Row(id=2, value="value2")],
             ],
+            True,
             id="Non-Scalar: return_last False and split_statement is True",
         ),
         pytest.param(
@@ -203,6 +208,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy2; select * from dummy",
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and split_statement is True",
         ),
         pytest.param(
@@ -211,6 +217,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy2; select * from dummy",
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and split_statement is True",
         ),
         pytest.param(
@@ -219,6 +226,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             ["select * from dummy2", "select * from dummy"],
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            True,
             id="Non-Scalar: sql is list and return_last is True",
         ),
         pytest.param(
@@ -227,11 +235,21 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             ["select * from dummy2", "select * from dummy"],
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            True,
             id="Non-Scalar: sql is list and return_last is False",
+        ),
+        pytest.param(
+            False,
+            True,
+            ["select * from dummy2", "select * from dummy"],
+            [[("id2",), ("value2",)], [("id",), ("value",)]],
+            [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            False,
+            id="Write output when do_xcom_push is False",
         ),
     ],
 )
-def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_results):
+def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_results, do_xcom_push):
     """
     Test the execute function in case where SQL query was successful and data is written as CSV
     """
@@ -242,6 +260,7 @@ def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_
             sql=sql,
             output_path=tempfile_path,
             return_last=return_last,
+            do_xcom_push=do_xcom_push,
             split_statements=split_statements,
         )
         db_mock = db_mock_class.return_value

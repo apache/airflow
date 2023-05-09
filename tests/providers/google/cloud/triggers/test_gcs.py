@@ -24,7 +24,11 @@ import pytest
 from gcloud.aio.storage import Bucket, Storage
 
 from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
-from airflow.providers.google.cloud.triggers.gcs import GCSBlobTrigger, GCSCheckBlobUpdateTimeTrigger
+from airflow.providers.google.cloud.triggers.gcs import (
+    GCSBlobTrigger,
+    GCSCheckBlobUpdateTimeTrigger,
+    GCSPrefixBlobTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
@@ -127,6 +131,97 @@ class TestGCSBlobTrigger:
         res = await trigger._object_exists(hook, TEST_BUCKET, TEST_OBJECT)
         assert res == response
         bucket.blob_exists.assert_called_once_with(blob_name=TEST_OBJECT)
+
+
+class TestGCSPrefixBlobTrigger:
+    TRIGGER = GCSPrefixBlobTrigger(
+        bucket=TEST_BUCKET,
+        prefix=TEST_PREFIX,
+        poke_interval=TEST_POLLING_INTERVAL,
+        google_cloud_conn_id=TEST_GCP_CONN_ID,
+        hook_params=TEST_HOOK_PARAMS,
+    )
+
+    def test_gcs_prefix_blob_trigger_serialization(self):
+        """
+        Asserts that the GCSPrefixBlobTrigger correctly serializes its arguments
+        and classpath.
+        """
+
+        classpath, kwargs = self.TRIGGER.serialize()
+        assert classpath == "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger"
+        assert kwargs == {
+            "bucket": TEST_BUCKET,
+            "prefix": TEST_PREFIX,
+            "poke_interval": TEST_POLLING_INTERVAL,
+            "google_cloud_conn_id": TEST_GCP_CONN_ID,
+            "hook_params": TEST_HOOK_PARAMS,
+        }
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
+    )
+    async def test_gcs_prefix_blob_trigger_success(self, mock_list_blobs_with_prefixs):
+        """
+        Tests that the GCSPrefixBlobTrigger is success case
+        """
+        mock_list_blobs_with_prefixs.return_value = ["success"]
+
+        generator = self.TRIGGER.run()
+        actual = await generator.asend(None)
+        assert (
+            TriggerEvent({"status": "success", "message": "Successfully completed", "matches": ["success"]})
+            == actual
+        )
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
+    )
+    async def test_gcs_prefix_blob_trigger_exception(self, mock_list_blobs_with_prefixs):
+        """
+        Tests the GCSPrefixBlobTrigger does fire if there is an exception.
+        """
+        mock_list_blobs_with_prefixs.side_effect = AsyncMock(side_effect=Exception("Test exception"))
+
+        task = [i async for i in self.TRIGGER.run()]
+        assert len(task) == 1
+        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
+    )
+    async def test_gcs_prefix_blob_trigger_pending(self, mock_list_blobs_with_prefixs):
+        """
+        Test that GCSPrefixBlobTrigger is in loop if file isn't found.
+        """
+        mock_list_blobs_with_prefixs.return_value = []
+
+        task = asyncio.create_task(self.TRIGGER.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        # TriggerEvent was not returned
+        assert task.done() is False
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    async def test_list_blobs_with_prefix(self):
+        """
+        Tests to check if a particular object in Google Cloud Storage
+        is found or not
+        """
+        hook = AsyncMock(GCSAsyncHook)
+        storage = AsyncMock(Storage)
+        hook.get_storage_client.return_value = storage
+        bucket = AsyncMock(Bucket)
+        storage.get_bucket.return_value = bucket
+        bucket.list_blobs.return_value = ["test_string"]
+
+        res = await self.TRIGGER._list_blobs_with_prefix(hook, TEST_BUCKET, TEST_PREFIX)
+        assert res == ["test_string"]
+        bucket.list_blobs.assert_called_once_with(prefix=TEST_PREFIX)
 
 
 class TestGCSCheckBlobUpdateTimeTrigger:

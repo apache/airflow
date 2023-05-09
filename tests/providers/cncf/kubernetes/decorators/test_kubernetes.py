@@ -23,7 +23,6 @@ from unittest import mock
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
@@ -167,7 +166,6 @@ def test_kubernetes_with_input_output(
     assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_kubernetes_with_marked_as_setup(
     dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
 ) -> None:
@@ -190,7 +188,6 @@ def test_kubernetes_with_marked_as_setup(
     assert setup_task._is_setup
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_kubernetes_with_marked_as_teardown(
     dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
 ) -> None:
@@ -211,3 +208,27 @@ def test_kubernetes_with_marked_as_teardown(
     assert len(dag.task_group.children) == 1
     teardown_task = dag.task_group.children["f"]
     assert teardown_task._is_teardown
+
+
+def test_kubernetes_with_mini_scheduler(
+    dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
+) -> None:
+    with dag_maker(session=session):
+
+        @task.kubernetes(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        def f(arg1, arg2, kwarg1=None, kwarg2=None):
+            return {"key1": "value1", "key2": "value2"}
+
+        f1 = f.override(task_id="my_task_id", do_xcom_push=True)("arg1", "arg2", kwarg1="kwarg1")
+        f.override(task_id="my_task_id2", do_xcom_push=False)("arg1", "arg2", kwarg1=f1)
+
+    dr = dag_maker.create_dagrun()
+    (ti, _) = dr.task_instances
+
+    # check that mini-scheduler works
+    ti.schedule_downstream_tasks()

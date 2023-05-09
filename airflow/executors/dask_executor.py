@@ -36,7 +36,7 @@ from airflow.executors.base_executor import BaseExecutor
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 # queue="default" is a special case since this is the base config default queue name,

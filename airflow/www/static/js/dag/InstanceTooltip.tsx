@@ -19,6 +19,7 @@
 
 import React from "react";
 import { Box, Text } from "@chakra-ui/react";
+import { snakeCase } from "lodash";
 
 import { getGroupAndMapSummary } from "src/utils";
 import { formatDuration, getDuration } from "src/datetime_utils";
@@ -46,11 +47,11 @@ const InstanceTooltip = ({
   });
 
   childTaskMap.forEach((key, val) => {
+    const childState = snakeCase(val);
     if (key > 0) {
       summary.push(
-        // eslint-disable-next-line react/no-array-index-key
-        <Text key={val} ml="10px">
-          {val}
+        <Text key={childState} ml="10px">
+          {childState}
           {": "}
           {key}
         </Text>
