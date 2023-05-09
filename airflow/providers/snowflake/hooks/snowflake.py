@@ -28,7 +28,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection, util_text
-from snowflake.connector.cursor import SnowflakeCursor
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
@@ -417,15 +416,3 @@ class SnowflakeHook(DbApiHook):
         finally:
             if cursor is not None:
                 cursor.close()
-
-
-def fetch_all_snowflake_handler(
-    cursor: SnowflakeCursor,
-) -> list[tuple[Any, ...]] | list[dict[Any, Any]]:
-    """Handler for SnowflakeCursor to return results"""
-    return cursor.fetchall()
-
-
-def fetch_one_snowflake_handler(cursor: SnowflakeCursor) -> dict[str, Any] | tuple[Any, ...] | None:
-    """Handler for SnowflakeCursor to return results"""
-    return cursor.fetchone()
