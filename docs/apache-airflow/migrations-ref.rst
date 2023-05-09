@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``98ae134e6fff`` (head)         | ``6abdffdd4815``  | ``2.6.0``         | Increase length of user identifier columns in ``ab_user``    |
+| ``937cbd173ca1`` (head)         | ``98ae134e6fff``  | ``2.7.0``         | Add index to task_instance table                             |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``98ae134e6fff``                | ``6abdffdd4815``  | ``2.6.0``         | Increase length of user identifier columns in ``ab_user``    |
 |                                 |                   |                   | and ``ab_register_user`` tables                              |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``6abdffdd4815``                | ``290244fb8b83``  | ``2.6.0``         | add dttm index on log table                                  |
