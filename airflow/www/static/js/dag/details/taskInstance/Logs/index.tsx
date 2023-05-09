@@ -26,7 +26,7 @@ import {
   Button,
   Checkbox,
   Icon,
-  Spinner
+  Spinner,
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
 
