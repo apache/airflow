@@ -22,7 +22,6 @@ from json import JSONDecodeError
 
 from wtforms.validators import EqualTo, ValidationError
 
-from airflow import AirflowException
 from airflow.utils import helpers
 
 
@@ -96,5 +95,5 @@ class ValidKey:
         if field.data:
             try:
                 helpers.validate_key(field.data, self.max_length)
-            except AirflowException as e:
+            except Exception as e:
                 raise ValidationError(e)
