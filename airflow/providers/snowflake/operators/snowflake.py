@@ -376,7 +376,7 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
     multiple SQL statements in a single request. It make post request to submit SQL
     statements for execution, poll to check the status of the execution of a statement. Fetch query results
     concurrently.
-    This Operator currently uses key pair authentication, so you need tp provide private key raw content or
+    This Operator currently uses key pair authentication, so you need to provide private key raw content or
     private key file path in the snowflake connection along with other details
 
     .. seealso::
