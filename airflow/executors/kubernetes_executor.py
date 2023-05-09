@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import logging
 import multiprocessing
+import re
 import time
 from collections import defaultdict
 from contextlib import suppress
@@ -794,7 +795,7 @@ class KubernetesExecutor(BaseExecutor):
 
             client = get_kube_client()
 
-            messages.append(f"Trying to get logs (last 100 lines) from worker pod {ti.hostname}")
+            messages.append(f"Attempting to fetch logs from pod {ti.hostname} through kube API")
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -820,9 +821,11 @@ class KubernetesExecutor(BaseExecutor):
                 tail_lines=100,
                 _preload_content=False,
             )
-
+            ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
             for line in res:
-                log.append(line.decode())
+                log.append(ansi_escape.sub("", line.decode()))
+            if log:
+                messages.append("Found logs through kube API")
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {str(e)}")
         return messages, ["\n".join(log)]
