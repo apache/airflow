@@ -137,6 +137,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
+            r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
             r"^providers",
