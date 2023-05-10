@@ -72,10 +72,6 @@ Code contribution
 5.  Has made a significant improvement or added an integration with services/technologies important to the Airflow
     Ecosystem
 
-6.  Actively participated in the security process, as a member of security team, discussing, assessing and
-    fixing security issues.
-
-
 Community contributions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -148,8 +144,6 @@ Code contribution
   * Code reviews
   * Merging pull requests
   * Fixing bugs and implementing improvements
-  * Actively participating in the security process and significantly contributing to overall security of
-    Airflow
 
 
 Only a current PMC member can nominate a current committer to be part of PMC.
