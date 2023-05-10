@@ -144,6 +144,12 @@ class KubernetesHook(BaseHook):
 
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:
+        """
+        Return requested connection.
+
+        If missing and conn_id is "kubernetes_default", will return empty connection so that hook will
+        default to cluster-derived creds.
+        """
         try:
             return super().get_connection(conn_id)
         except AirflowNotFoundException as e:
