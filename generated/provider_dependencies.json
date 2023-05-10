@@ -522,7 +522,7 @@
     "deps": [
       "apache-airflow>=2.4.0",
       "dnspython>=1.13.0",
-      "pymongo>=3.6.0,<4.0.0"
+      "pymongo>=3.6.0"
     ],
     "cross-providers-deps": []
   },
