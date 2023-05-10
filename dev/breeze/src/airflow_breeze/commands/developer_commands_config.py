@@ -163,6 +163,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--show-diff-on-failure",
                 "--last-commit",
                 "--commit-ref",
+                "--initialize-environment",
+                "--max-initialization-attempts",
                 "--github-repository",
             ],
         },
