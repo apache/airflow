@@ -156,14 +156,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         log: logging.Logger | None = None,
         processor_poll_interval: float | None = None,
     ):
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         self.subdir = subdir
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
