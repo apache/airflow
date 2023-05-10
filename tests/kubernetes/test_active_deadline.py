@@ -44,7 +44,6 @@ class TestKubernetesPodOperator:
 
         pod = operator.find_pod()
         pod_name = pod.metadata.name
-        # namespace = pod.metadata.namespace
 
         k8s_client = client.CoreV1Api()
         config.load_kube_config()
@@ -52,11 +51,7 @@ class TestKubernetesPodOperator:
         time.sleep(active_deadline_seconds)
 
         pod_status = k8s_client.read_namespaced_pod_status(name=pod_name, namespace=namespace)
-
-        # TODO: Check the state is correct
-
         phase = pod_status.status.phase
-        conditions = pod_status.status.conditions
 
-        assert pod.status.phase == "Succeeded"
+        assert phase == "Failed"
 
