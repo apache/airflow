@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+from datetime import timedelta
 
 import time
 from typing import TYPE_CHECKING, Any, Sequence
@@ -358,10 +359,13 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
                 trigger=RedshiftCreateClusterSnapshotTrigger(
                     cluster_identifier=self.cluster_identifier,
                     poll_interval=self.poll_interval,
-                    max_attempt=self.max_attempt,
+                    max_attempts=self.max_attempt,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.max_attempt * self.poll_interval + 60),
             )
 
         if self.wait_for_completion:

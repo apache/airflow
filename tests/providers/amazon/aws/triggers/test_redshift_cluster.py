@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import sys
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 
 import pytest
+from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftCreateClusterSnapshotTrigger,
@@ -82,7 +84,7 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         redshift_create_cluster_trigger = RedshiftCreateClusterSnapshotTrigger(
             cluster_identifier=TEST_CLUSTER_IDENTIFIER,
             poll_interval=TEST_POLL_INTERVAL,
-            max_attempt=TEST_MAX_ATTEMPT,
+            max_attempts=TEST_MAX_ATTEMPT,
             aws_conn_id=TEST_AWS_CONN_ID,
         )
         class_path, args = redshift_create_cluster_trigger.serialize()
@@ -92,11 +94,11 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         )
         assert args["cluster_identifier"] == TEST_CLUSTER_IDENTIFIER
         assert args["poll_interval"] == str(TEST_POLL_INTERVAL)
-        assert args["max_attempt"] == str(TEST_MAX_ATTEMPT)
+        assert args["max_attempts"] == str(TEST_MAX_ATTEMPT)
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
+    @async_mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_create_cluster_snapshot_trigger_run(self, mock_async_conn):
         mock = async_mock.MagicMock()
         mock_async_conn.__aenter__.return_value = mock
@@ -105,7 +107,7 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         redshift_create_cluster_trigger = RedshiftCreateClusterSnapshotTrigger(
             cluster_identifier=TEST_CLUSTER_IDENTIFIER,
             poll_interval=TEST_POLL_INTERVAL,
-            max_attempt=TEST_MAX_ATTEMPT,
+            max_attempts=TEST_MAX_ATTEMPT,
             aws_conn_id=TEST_AWS_CONN_ID,
         )
 
@@ -113,3 +115,110 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
+
+
+    @pytest.mark.asyncio
+    @async_mock.patch("asyncio.sleep")
+    @async_mock.patch.object(RedshiftHook, "async_conn")
+    async def test_redshift_create_cluster_snapshot_trigger_run_multiple_attempts(
+        self, mock_async_conn, mock_sleep
+    ):
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+        error = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"Snapshots": [{"Status": "available"}]},
+        )
+        mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
+        mock_sleep.return_value = True
+
+        redshift_create_cluster_snapshot_trigger = RedshiftCreateClusterSnapshotTrigger(
+            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_attempts=TEST_MAX_ATTEMPT,
+            aws_conn_id=TEST_AWS_CONN_ID,
+        )
+
+        generator = redshift_create_cluster_snapshot_trigger.run()
+        response = await generator.asend(None)
+
+        assert mock.get_waiter().wait.call_count == 3
+        assert response == TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
+
+
+    @pytest.mark.asyncio
+    @async_mock.patch("asyncio.sleep")
+    @async_mock.patch.object(RedshiftHook, "async_conn")
+    async def test_redshift_create_cluster_snapshot_trigger_run_attempts_exceeded(
+        self, mock_async_conn, mock_sleep
+    ):
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+        error = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"Snapshots": [{"Status": "available"}]},
+        )
+        mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
+        mock_sleep.return_value = True
+
+        redshift_create_cluster_snapshot_trigger = RedshiftCreateClusterSnapshotTrigger(
+            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_attempts=2,
+            aws_conn_id=TEST_AWS_CONN_ID,
+        )
+
+        generator = redshift_create_cluster_snapshot_trigger.run()
+        response = await generator.asend(None)
+
+        assert mock.get_waiter().wait.call_count == 2
+        assert response == TriggerEvent(
+                {"status": "failure", "message": "Create Cluster Snapshot Cluster Failed - max attempts reached."}
+            )
+    
+
+    @pytest.mark.asyncio
+    @async_mock.patch("asyncio.sleep")
+    @async_mock.patch.object(RedshiftHook, "async_conn")
+    async def test_redshift_create_cluster_snapshot_trigger_run_attempts_failed(
+        self, mock_async_conn, mock_sleep
+    ):
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+
+        mock = async_mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = mock
+        error_available = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"Snapshots": [{"Status": "available"}]},
+        )
+        
+        error_failed = WaiterError(
+            name="test_name",
+            reason="Waiter encountered a terminal failure state:",
+            last_response={"Snapshots": [{"Status": "available"}]},
+        )
+        mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error_available, error_available, error_failed])
+        mock_sleep.return_value = True
+
+        redshift_create_cluster_snapshot_trigger = RedshiftCreateClusterSnapshotTrigger(
+            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_attempts=TEST_MAX_ATTEMPT,
+            aws_conn_id=TEST_AWS_CONN_ID,
+        )
+
+        generator = redshift_create_cluster_snapshot_trigger.run()
+        response = await generator.asend(None)
+
+        assert mock.get_waiter().wait.call_count == 3
+        assert response == TriggerEvent({"status": "failure", "message": f"Create Cluster Snapshot Failed: {error_failed}"})

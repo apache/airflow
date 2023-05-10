@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+import asyncio
 
 from typing import Any, AsyncIterator
 
@@ -22,6 +23,7 @@ from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
+from botocore.exceptions import WaiterError
 
 class RedshiftClusterTrigger(BaseTrigger):
     """AWS Redshift trigger"""
@@ -147,7 +149,7 @@ class RedshiftCreateClusterSnapshotTrigger(BaseTrigger):
 
     :param cluster_identifier:  A unique identifier for the cluster.
     :param poll_interval: The amount of time in seconds to wait between attempts.
-    :param max_attempt: The maximum number of attempts to be made.
+    :param max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -155,33 +157,55 @@ class RedshiftCreateClusterSnapshotTrigger(BaseTrigger):
         self,
         cluster_identifier: str,
         poll_interval: int,
-        max_attempt: int,
+        max_attempts: int,
         aws_conn_id: str,
     ):
         self.cluster_identifier = cluster_identifier
         self.poll_interval = poll_interval
-        self.max_attempt = max_attempt
+        self.max_attempts = max_attempts
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftCreateClusterSnapshotTrigger",
             {
-                "cluster_identifier": str(self.cluster_identifier),
+                "cluster_identifier": self.cluster_identifier,
                 "poll_interval": str(self.poll_interval),
-                "max_attempt": str(self.max_attempt),
-                "aws_conn_id": str(self.aws_conn_id),
+                "max_attempts": str(self.max_attempts),
+                "aws_conn_id": self.aws_conn_id,
             },
         )
 
+    @cached_property
+    def hook(self) -> RedshiftHook:
+        return RedshiftHook(aws_conn_id=self.aws_conn_id)
+
     async def run(self):
-        self.redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        async with self.redshift_hook.async_conn as client:
-            await client.get_waiter("snapshot_available").wait(
-                ClusterIdentifier=self.cluster_identifier,
-                WaiterConfig={
-                    "Delay": int(self.poll_interval),
-                    "MaxAttempts": int(self.max_attempt),
-                },
+        async with self.hook.async_conn as client:
+            attempt = 0
+            waiter = client.get_waiter("snapshot_available")
+            while attempt < int(self.max_attempts):
+                attempt = attempt + 1
+                try:
+                    await waiter.wait(
+                        ClusterIdentifier=self.cluster_identifier,
+                        WaiterConfig={
+                            "Delay": int(self.poll_interval),
+                            "MaxAttempts": 1,
+                        },
+                    )
+                    break
+                except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        yield TriggerEvent({"status": "failure", "message": f"Create Cluster Snapshot Failed: {error}"})
+                        break
+                    self.log.info(
+                        "Status of cluster snapshot is %s", error.last_response["Snapshots"][0]["Status"]
+                    )
+                    await asyncio.sleep(int(self.poll_interval))
+        if attempt >= int(self.max_attempts):
+            yield TriggerEvent(
+                {"status": "failure", "message": "Create Cluster Snapshot Cluster Failed - max attempts reached."}
             )
-        yield TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
+        else:
+            yield TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
