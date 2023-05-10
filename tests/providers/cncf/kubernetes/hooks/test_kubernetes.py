@@ -411,7 +411,7 @@ class TestKubernetesHook:
             assert kubernetes_hook.get_namespace() == "test"
 
     def test_missing_default_connection_is_ok(self, remove_default_conn):
-        # prove to ourselves that the default conn no exist
+        # prove to ourselves that the default conn doesn't exist
         with pytest.raises(AirflowNotFoundException):
             BaseHook.get_connection(DEFAULT_CONN_ID)
 
