@@ -152,11 +152,11 @@ class KubernetesHook(BaseHook):
         """
         try:
             return super().get_connection(conn_id)
-        except AirflowNotFoundException as e:
+        except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)
             else:
-                raise e
+                raise
 
     @cached_property
     def conn_extras(self):
