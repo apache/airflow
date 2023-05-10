@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
@@ -458,34 +459,38 @@ class RedshiftResumeClusterOperator(BaseOperator):
         # These parameters are used to address an issue with the boto3 API where the API
         # prematurely reports the cluster as available to receive requests. This causes the cluster
         # to reject initial attempts to resume the cluster despite reporting the correct state.
-        self._attempts = 10
+        self._remaining_attempts = 10
         self._attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Starting resume cluster")
-        while self._attempts >= 1:
+        while self._remaining_attempts >= 1:
             try:
                 redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._attempts = self._attempts - 1
+                self._remaining_attempts = self._remaining_attempts - 1
 
-                if self._attempts > 0:
-                    self.log.error("Unable to resume cluster. %d attempts remaining.", self._attempts)
+                if self._remaining_attempts > 0:
+                    self.log.error(
+                        "Unable to resume cluster. %d attempts remaining.", self._remaining_attempts
+                    )
                     time.sleep(self._attempt_interval)
                 else:
                     raise error
         if self.deferrable:
             self.defer(
-                timeout=self.execution_timeout,
                 trigger=RedshiftResumeClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
                     poll_interval=self.poll_interval,
-                    max_attempt=self.max_attempts,
+                    max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
             )
         if self.wait_for_completion:
             waiter = redshift_hook.get_waiter("cluster_resumed")

@@ -246,7 +246,7 @@ class TestResumeClusterOperator:
         assert redshift_operator.cluster_identifier == "test_cluster"
         assert redshift_operator.aws_conn_id == "aws_conn_test"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
+    @mock.patch.object(RedshiftHook, "get_conn")
     def test_resume_cluster_is_called_when_cluster_is_paused(self, mock_get_conn):
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
@@ -254,7 +254,7 @@ class TestResumeClusterOperator:
         redshift_operator.execute(None)
         mock_get_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch.object(RedshiftHook, "conn")
     @mock.patch("time.sleep", return_value=None)
     def test_resume_cluster_multiple_attempts(self, mock_sleep, mock_conn):
         exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
@@ -270,7 +270,7 @@ class TestResumeClusterOperator:
         redshift_operator.execute(None)
         assert mock_conn.resume_cluster.call_count == 3
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.conn")
+    @mock.patch.object(RedshiftHook, "conn")
     @mock.patch("time.sleep", return_value=None)
     def test_resume_cluster_multiple_attempts_fail(self, mock_sleep, mock_conn):
         exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
@@ -288,10 +288,10 @@ class TestResumeClusterOperator:
             redshift_operator.execute(None)
         assert mock_conn.resume_cluster.call_count == 10
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.get_conn")
-    def test_resume_cluster_deferrable(self, mock_get_conn):
-        """Test Resume cluster operator run"""
-        mock_get_conn.resume_cluster.return_value = True
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_resume_cluster_deferrable(self, mock_conn):
+        """Test Resume cluster operator deferrable"""
+        mock_conn.resume_cluster.return_value = True
 
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test",
@@ -306,6 +306,28 @@ class TestResumeClusterOperator:
         assert isinstance(
             exc.value.trigger, RedshiftResumeClusterTrigger
         ), "Trigger is not a RedshiftResumeClusterTrigger"
+
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_resume_cluster_wait_for_completion(self, mock_conn, mock_get_waiter):
+        """Test Resume cluster operator wait for complettion"""
+        mock_conn.resume_cluster.return_value = True
+        mock_get_waiter().wait.return_value = None
+
+        redshift_operator = RedshiftResumeClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=True,
+        )
+        redshift_operator.execute(None)
+        mock_conn.resume_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
+
+        mock_get_waiter.assert_called_with("cluster_resumed")
+        assert mock_get_waiter.call_count == 2
+        mock_get_waiter().wait.assert_called_once_with(
+            ClusterIdentifier="test_cluster", WaiterConfig={"Delay": 10, "MaxAttempts": 10}
+        )
 
     def test_resume_cluster_failure(self):
         """Test Resume cluster operator Failure"""
