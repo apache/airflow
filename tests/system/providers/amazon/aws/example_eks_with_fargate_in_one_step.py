@@ -107,9 +107,8 @@ with DAG(
     describe_pod = BashOperator(
         task_id="describe_pod",
         bash_command=f"""
-            # using reinstall option so that it doesn't fail if already present
-            install_aws.sh --reinstall;
-            install_kubectl.sh --reinstall;
+            install_aws.sh || true;
+            install_kubectl.sh || true;
             # configure kubectl to hit the cluster created
             aws eks update-kubeconfig --name {cluster_name};
             # once all this setup is done, actually describe the pod
