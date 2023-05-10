@@ -120,7 +120,7 @@ const Logs = ({
   const { timezone } = useTimezone();
 
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
-  const { data, isFetching } = useTaskLog({
+  const { data, isLoading } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
@@ -267,7 +267,7 @@ const Logs = ({
               <Text fontSize="sm">{warning}</Text>
             </Flex>
           )}
-          {isFetching ? (
+          {isLoading ? (
             <Spinner />
           ) : (
             !!parsedLogs && (
