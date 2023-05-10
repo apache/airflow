@@ -205,7 +205,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         conn_config = self._get_conn_params()
         req_id = uuid.uuid4()
         header = self.get_headers()
-        params = {"requestId": str(req_id), "page": 2, "pageSize": 10}
+        params = {"requestId": str(req_id)}
         url = f"https://{conn_config['account']}.{conn_config['region']}.snowflakecomputing.com/api/v2/statements/{query_id}"
         return header, params, url
 
