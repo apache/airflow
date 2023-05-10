@@ -132,10 +132,10 @@ with DAG(
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
         get_logs=True,
-        # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
-        is_delete_operator_pod=False,
     )
     # [END howto_operator_eks_pod_operator]
+    # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
+    start_pod.is_delete_operator_pod = False
 
     # In this specific situation we want to keep the pod to be able to describe it,
     # it is cleaned anyway with the cluster later on.
