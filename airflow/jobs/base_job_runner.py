@@ -33,6 +33,11 @@ class BaseJobRunner:
     job_type = "undefined"
 
     def __init__(self, job):
+        if job.job_type and job.job_type != self.job_type:
+            raise Exception(
+                f"The job is already assigned a different job_type: {job.job_type}."
+                f"This is a bug and should be reported."
+            )
         self.job = job
         self.job.job_type = self.job_type
 

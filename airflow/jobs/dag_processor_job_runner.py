@@ -47,11 +47,6 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         **kwargs,
     ):
         super().__init__(job)
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
         self.processor = processor
         self.processor.heartbeat = lambda: perform_heartbeat(
             job=self.job,
