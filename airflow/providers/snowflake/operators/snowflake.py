@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
@@ -451,12 +452,6 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
         bindings: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        self.warehouse = warehouse
-        self.database = database
-        self.role = role
-        self.schema = schema
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
         self.snowflake_conn_id = snowflake_conn_id
         self.poll_interval = poll_interval
         self.statement_count = statement_count
@@ -527,4 +522,5 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
             if statement_status.get("status") == "success":
                 statement_success_status[query_id] = statement_status
                 queries_in_progress.remove(query_id)
+            time.sleep(self.poll_interval)
         return {"success": statement_success_status, "error": statement_error_status}
