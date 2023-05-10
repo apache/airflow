@@ -61,7 +61,7 @@ The security issues in Airflow are handled by the Airflow Security Team. The tea
 of selected PMC members that are interested in looking at, discussing about and fixing the
 security issues, but it can also include committers and non-committer contributors that are
 not PMC members yet and have been approved by the PMC members in a vote. You can request to
-be added to the team by sending a message to private@airflow.apache.org, however, the team
+be added to the team by sending a message to private@airflow.apache.org. However, the team
 should be small and focused on solving security issues, so the requests will be evaluated
 on-case-by-case and the team size will be kept relatively small, limited to only actively
 security-focused contributors.
