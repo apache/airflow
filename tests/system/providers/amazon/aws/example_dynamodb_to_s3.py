@@ -132,6 +132,7 @@ with DAG(
     backup_db_to_point_in_time = DynamoDBToS3Operator(
         task_id="backup_db_to_point_in_time",
         dynamodb_table_name=table_name,
+        file_size=1000,
         s3_bucket_name=bucket_name,
         export_time=datetime(year=2023, month=4, day=10),
     )
