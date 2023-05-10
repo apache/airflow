@@ -60,11 +60,10 @@ def test_create_connection(admin_client, session):
 def test_invalid_connection_id_trailing_blanks(admin_client, session):
     invalid_conn_id = "conn_id_with_trailing_blanks   "
     invalid_connection = {**CONNECTION, "conn_id": invalid_conn_id}
-    resp = admin_client.post(
-        "/connection/add", data=invalid_connection, follow_redirects=True
-    )
+    resp = admin_client.post("/connection/add", data=invalid_connection, follow_redirects=True)
     check_content_in_response(
-        f"The key '{invalid_conn_id}' has to be made of alphanumeric characters, dashes, dots and underscores exclusively",
+        f"The key '{invalid_conn_id}' has to be made of alphanumeric characters, "
+        + "dashes, dots and underscores exclusively",
         resp,
     )
 

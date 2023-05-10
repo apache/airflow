@@ -96,4 +96,4 @@ class ValidKey:
             try:
                 helpers.validate_key(field.data, self.max_length)
             except Exception as e:
-                raise ValidationError(e)
+                raise ValidationError(str(e))
