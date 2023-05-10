@@ -862,14 +862,14 @@ class TestPokeModeOnly:
 
     def test_poke_mode_only_bad_class_method(self):
         sensor = DummyPokeOnlySensor(task_id="foo", mode="poke", poke_changes_mode=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             sensor.change_mode("reschedule")
 
     def test_poke_mode_only_bad_init(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             DummyPokeOnlySensor(task_id="foo", mode="reschedule", poke_changes_mode=False)
 
     def test_poke_mode_only_bad_poke(self):
         sensor = DummyPokeOnlySensor(task_id="foo", mode="poke", poke_changes_mode=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             sensor.poke({})

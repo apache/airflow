@@ -93,6 +93,7 @@ class ShellParams:
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_providers_from_sources: bool = True
+    install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
     load_default_connections: bool = False
@@ -108,9 +109,9 @@ class ShellParams:
     remove_arm_packages: bool = False
     skip_environment_initialization: bool = False
     skip_constraints: bool = False
+    skip_provider_tests: bool = False
     start_airflow: str = "false"
     test_type: str | None = None
-    skip_provider_tests: bool = False
     use_airflow_version: str | None = None
     use_packages_from_dist: bool = False
     version_suffix_for_pypi: str = ""
@@ -118,6 +119,7 @@ class ShellParams:
     verbose: bool = False
     upgrade_boto: bool = False
     executor: str = DEFAULT_ALLOWED_EXECUTORS
+    only_min_version_update: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)

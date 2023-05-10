@@ -44,7 +44,6 @@ BATCH_CONFIG = {
 TEST_CLUSTER_NAME = "cluster_name"
 TEST_POLL_INTERVAL = 5
 TEST_GCP_CONN_ID = "google_cloud_default"
-TEST_TEMPLATE_NAME = "template_name"
 TEST_OPERATION_NAME = "name"
 
 
@@ -76,7 +75,6 @@ def batch_trigger():
 @pytest.fixture
 def workflow_trigger():
     return DataprocWorkflowTrigger(
-        template_name=TEST_TEMPLATE_NAME,
         name=TEST_OPERATION_NAME,
         project_id=TEST_PROJECT_ID,
         region=TEST_REGION,
@@ -291,12 +289,10 @@ class TestDataprocWorkflowTrigger:
         classpath, kwargs = workflow_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger"
         assert kwargs == {
-            "template_name": TEST_TEMPLATE_NAME,
             "name": TEST_OPERATION_NAME,
             "project_id": TEST_PROJECT_ID,
             "region": TEST_REGION,
             "gcp_conn_id": TEST_GCP_CONN_ID,
-            "delegate_to": None,
             "impersonation_chain": None,
             "polling_interval_seconds": TEST_POLL_INTERVAL,
         }

@@ -26,7 +26,7 @@ All the static code checks can be run through pre-commit hooks.
 The pre-commit hooks perform all the necessary installation when you run them
 for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
 
-You can also run some static code checks via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
+You can also run some `static code check <BREEZE.rst#running-static-checks>`_ via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
 using available bash scripts.
 
 Pre-commit hooks
@@ -112,13 +112,13 @@ Available pre-commit checks
 ...........................
 
 This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
-require Breeze Docker image to be build locally.
+require Breeze Docker image to be built locally.
 
 .. note:: Disabling particular checks
 
   In case you have a problem with running particular ``pre-commit`` check you can still continue using the
   benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
-  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example
+  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
   when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
   ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
@@ -143,6 +143,8 @@ require Breeze Docker image to be build locally.
 | black                                                     | Run black (Python formatter)                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files           |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                      | Checks for consistency between config.yml and default_config.cfg |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -195,6 +197,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |
@@ -226,6 +230,8 @@ require Breeze Docker image to be build locally.
 | check-system-tests-present                                | Check if system tests have required segments of code             |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                        |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase      |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                                       |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -260,7 +266,8 @@ require Breeze Docker image to be build locally.
 |                                                           | * Add license for all Shell files                                |         |
 |                                                           | * Add license for all Python files                               |         |
 |                                                           | * Add license for all XML files                                  |         |
-|                                                           | * Add license for all YAML files                                 |         |
+|                                                           | * Add license for all Helm template files                        |         |
+|                                                           | * Add license for all YAML files except Helm templates           |         |
 |                                                           | * Add license for all Markdown files                             |         |
 |                                                           | * Add license for all other files                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -427,7 +434,7 @@ Run the ``mypy`` check for all files:
 
      breeze static-checks --type mypy-core --all-files
 
-Run the ``ruff`` check for the ``tests.core.py`` file with verbose output:
+Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
 .. code-block:: bash
 
@@ -438,6 +445,14 @@ Run the ``ruff for the ``tests.core`` package with verbose output:
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
+
+Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+``airflow/example_dags/example_python_operator.py``:
+
+.. code-block:: bash
+
+     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+         airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:
 

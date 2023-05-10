@@ -71,7 +71,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current job execution status and yields a TriggerEvent"""
         hook = self._get_async_hook()
         while True:
@@ -122,7 +122,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current job execution status and yields a TriggerEvent"""
         hook = self._get_async_hook()
         while True:
@@ -165,7 +165,16 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
 
 
 class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
-    """BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class"""
+    """
+    BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class
+
+    :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
+        (default: False).
+    """
+
+    def __init__(self, as_dict: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.as_dict = as_dict
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryInsertJobTrigger arguments and classpath."""
@@ -181,7 +190,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current job execution status and yields a TriggerEvent with response data"""
         hook = self._get_async_hook()
         while True:
@@ -190,7 +199,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 response_from_hook = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if response_from_hook == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(query_results)
+                    records = hook.get_records(query_results=query_results, as_dict=self.as_dict)
                     self.log.debug("Response from hook: %s", response_from_hook)
                     yield TriggerEvent(
                         {
@@ -286,7 +295,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current job execution status and yields a TriggerEvent"""
         hook = self._get_async_hook()
         while True:
@@ -414,7 +423,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current job execution status and yields a TriggerEvent"""
         hook = self._get_async_hook()
         while True:
@@ -487,7 +496,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
     def _get_async_hook(self) -> BigQueryTableAsyncHook:
         return BigQueryTableAsyncHook(gcp_conn_id=self.gcp_conn_id)
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Will run until the table exists in the Google Big Query."""
         while True:
             try:
@@ -562,7 +571,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Will run until the table exists in the Google Big Query."""
         hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id)
         job_id = None

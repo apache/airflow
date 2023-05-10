@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import enum
-import warnings
 from typing import Sequence
 
 from google.cloud.bigtable import Client, enums
@@ -43,16 +42,16 @@ class BigtableHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._client: Client | None = None
@@ -249,7 +248,7 @@ class BigtableHook(GoogleBaseHook):
         """
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance is None:
-            raise RuntimeError("Instance %s did not exist; unable to delete table %s" % instance_id, table_id)
+            raise RuntimeError(f"Instance {instance_id} did not exist; unable to delete table {table_id}")
         table = instance.table(table_id=table_id)
         table.delete()
 

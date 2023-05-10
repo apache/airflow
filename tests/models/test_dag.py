@@ -43,7 +43,7 @@ import airflow
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
-from airflow.decorators import task as task_decorator
+from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
@@ -1718,6 +1718,42 @@ class TestDag:
         )
         assert dr.creating_job_id == job_id
 
+    def test_dag_add_task_checks_trigger_rule(self):
+        # A non fail stop dag should allow any trigger rule
+        from airflow.exceptions import DagInvalidTriggerRule
+        from airflow.utils.trigger_rule import TriggerRule
+
+        task_with_non_default_trigger_rule = EmptyOperator(
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.DUMMY
+        )
+        non_fail_stop_dag = DAG(
+            dag_id="test_dag_add_task_checks_trigger_rule", start_date=DEFAULT_DATE, fail_stop=False
+        )
+        try:
+            non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
+        except DagInvalidTriggerRule as exception:
+            assert False, f"dag add_task() raises DagInvalidTriggerRule for non fail stop dag: {exception}"
+
+        # a fail stop dag should allow default trigger rule
+        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+
+        fail_stop_dag = DAG(
+            dag_id="test_dag_add_task_checks_trigger_rule", start_date=DEFAULT_DATE, fail_stop=True
+        )
+        task_with_default_trigger_rule = EmptyOperator(
+            task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
+        )
+        try:
+            fail_stop_dag.add_task(task_with_default_trigger_rule)
+        except DagInvalidTriggerRule as exception:
+            assert (
+                False
+            ), f"dag.add_task() raises exception for fail-stop dag & default trigger rule: {exception}"
+
+        # a fail stop dag should not allow a non-default trigger rule
+        with pytest.raises(DagInvalidTriggerRule):
+            fail_stop_dag.add_task(task_with_non_default_trigger_rule)
+
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", start_date=DEFAULT_DATE)
         task_without_task_group = EmptyOperator(task_id="task_without_group_id")
@@ -3085,6 +3121,123 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         (task_id, 0, dr2.run_id, TaskInstanceState.FAILED),
         (task_id, 1, dr2.run_id, TaskInstanceState.SUCCESS),
     ]
+
+
+@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ("test-run-id", None)])
+def test_set_task_group_state(run_id, execution_date, session, dag_maker):
+    """Test that set_task_group_state updates the TaskGroup state and clear downstream failed"""
+
+    start_date = datetime_tz(2020, 1, 1)
+    with dag_maker("test_set_task_group_state", start_date=start_date, session=session) as dag:
+        start = EmptyOperator(task_id="start")
+
+        with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
+            task_1 = EmptyOperator(task_id="task_1")
+            task_2 = EmptyOperator(task_id="task_2")
+            task_3 = EmptyOperator(task_id="task_3")
+
+            task_1 >> [task_2, task_3]
+
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
+        task_6 = EmptyOperator(task_id="task_6")
+        task_7 = EmptyOperator(task_id="task_7")
+        task_8 = EmptyOperator(task_id="task_8")
+
+        start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
+
+    dagrun = dag_maker.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+    )
+
+    def get_ti_from_db(task):
+        return (
+            session.query(TI)
+            .filter(
+                TI.dag_id == dag.dag_id,
+                TI.task_id == task.task_id,
+                TI.run_id == dagrun.run_id,
+            )
+            .one()
+        )
+
+    get_ti_from_db(task_1).state = State.FAILED
+    get_ti_from_db(task_2).state = State.SUCCESS
+    get_ti_from_db(task_3).state = State.UPSTREAM_FAILED
+    get_ti_from_db(task_4).state = State.SUCCESS
+    get_ti_from_db(task_5).state = State.UPSTREAM_FAILED
+    get_ti_from_db(task_6).state = State.FAILED
+    get_ti_from_db(task_7).state = State.SKIPPED
+
+    session.flush()
+
+    altered = dag.set_task_group_state(
+        group_id=section_1.group_id,
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.SUCCESS,
+        session=session,
+    )
+
+    # After _mark_task_instance_state, task_1 is marked as SUCCESS
+    assert get_ti_from_db(task_1).state == State.SUCCESS
+    # task_2 remains as SUCCESS
+    assert get_ti_from_db(task_2).state == State.SUCCESS
+    # task_3 should be marked as SUCCESS
+    assert get_ti_from_db(task_3).state == State.SUCCESS
+    # task_4 should remain as SUCCESS
+    assert get_ti_from_db(task_4).state == State.SUCCESS
+    # task_5 and task_6 are cleared because they were in FAILED/UPSTREAM_FAILED state
+    assert get_ti_from_db(task_5).state == State.NONE
+    assert get_ti_from_db(task_6).state == State.NONE
+    # task_7 remains as SKIPPED
+    assert get_ti_from_db(task_7).state == State.SKIPPED
+    dagrun.refresh_from_db(session=session)
+    # dagrun should be set to QUEUED
+    assert dagrun.get_state() == State.QUEUED
+
+    assert {t.key for t in altered} == {
+        ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 1, -1),
+        ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 1, -1),
+    }
+
+
+def test_dag_teardowns_property_lists_all_teardown_tasks(dag_maker):
+    @setup
+    def setup_task():
+        return 1
+
+    @teardown
+    def teardown_task():
+        return 1
+
+    @teardown
+    def teardown_task2():
+        return 1
+
+    @teardown
+    def teardown_task3():
+        return 1
+
+    @task_decorator
+    def mytask():
+        return 1
+
+    with dag_maker() as dag:
+        t1 = setup_task()
+        t2 = teardown_task()
+        t3 = teardown_task2()
+        t4 = teardown_task3()
+        with t1 >> t2:
+            with t3:
+                with t4:
+                    mytask()
+
+    assert {t.task_id for t in dag.teardowns} == {"teardown_task", "teardown_task2", "teardown_task3"}
+    assert {t.task_id for t in dag.tasks_upstream_of_teardowns} == {"setup_task", "mytask"}
 
 
 @pytest.mark.parametrize(

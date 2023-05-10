@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.0.0
   - 7.4.1
   - 7.4.0
   - 7.3.0
@@ -56,7 +57,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
   - boto3>=1.24.0
   - asgiref
@@ -71,6 +72,8 @@ dependencies:
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
   - mypy-boto3-appflow>=1.24.0
+  - mypy-boto3-s3>=1.24.0
+
 
 integrations:
   - integration-name: Amazon Athena
@@ -304,7 +307,6 @@ operators:
       - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: AWS Lambda
     python-modules:
-      - airflow.providers.amazon.aws.operators.aws_lambda
       - airflow.providers.amazon.aws.operators.lambda_function
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
@@ -326,7 +328,6 @@ operators:
       - airflow.providers.amazon.aws.operators.rds
   - integration-name: Amazon Redshift
     python-modules:
-      - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
       - airflow.providers.amazon.aws.operators.redshift_data
   - integration-name: Amazon QuickSight
@@ -610,7 +611,7 @@ additional-extras:
       - pandas>=0.17.1
   # There is conflict between boto3 and aiobotocore dependency botocore.
   # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-  # boto3 have native aync support and we move away from aio aiobotocore
+  # boto3 have native async support and we move away from aio aiobotocore
   - name: aiobotocore
     dependencies:
-      - aiobotocore>=2.1.1
+      - aiobotocore[boto3]>=2.2.0

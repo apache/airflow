@@ -24,6 +24,26 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+* ``In 'DockerOperator', adding an attribute 'tls_verify' to choose whether to validate certificate (#30309) (#30310)``
+
+Misc
+~~~~
+
+* ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
+   * ``Remove "boilerplate" from all taskflow decorators (#30118)``
+   * ``Add mechanism to suspend providers (#30422)``
+
 3.5.1
 .....
 

@@ -53,7 +53,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred
+from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -98,7 +98,7 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
 
     from airflow.models.dag import DAG
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
@@ -258,7 +258,7 @@ def partial(
 
     dag = dag or DagContext.get_current_dag()
     if dag:
-        task_group = TaskGroupContext.get_current_task_group(dag)
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
     if task_group:
         task_id = task_group.child_id(task_id)
 
@@ -801,6 +801,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
+        DagInvalidTriggerRule.check(dag, trigger_rule)
+
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
             task_group.add(self)
@@ -960,27 +962,28 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @classmethod
     def as_setup(cls, *args, **kwargs):
-        from airflow.settings import _ENABLE_AIP_52
-
-        if not _ENABLE_AIP_52:
-            raise AirflowException("AIP-52 Setup tasks are disabled.")
-
         op = cls(*args, **kwargs)
         op._is_setup = True
         return op
 
     @classmethod
     def as_teardown(cls, *args, **kwargs):
-        from airflow.settings import _ENABLE_AIP_52
-
-        if not _ENABLE_AIP_52:
-            raise AirflowException("AIP-52 Teardown tasks are disabled.")
-
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        op = cls(*args, **kwargs)
+        if "trigger_rule" in kwargs:
+            raise ValueError("Cannot set trigger rule for teardown tasks.")
+        op = cls(*args, **kwargs, trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         op._is_teardown = True
         op._on_failure_fail_dagrun = on_failure_fail_dagrun
         return op
+
+    def __enter__(self):
+        if not self._is_setup and not self._is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
 
     def __eq__(self, other):
         if type(self) is type(other):

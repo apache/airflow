@@ -454,23 +454,6 @@ argument_packages = click.argument(
     required=False,
     type=BetterChoice(get_available_documentation_packages(short_version=True)),
 )
-option_timezone = click.option(
-    "--timezone",
-    default="UTC",
-    type=str,
-    help="Timezone to use during the check.",
-)
-option_updated_on_or_after = click.option(
-    "--updated-on-or-after",
-    type=str,
-    help="Date when the release was updated after.",
-)
-option_max_age = click.option(
-    "--max-age",
-    type=int,
-    default=3,
-    help="Max age of the last release (used if no updated-on-or-after if specified).",
-)
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
@@ -562,4 +545,16 @@ option_executor = click.option(
     help="Specify the executor to use with airflow.",
     default=DEFAULT_ALLOWED_EXECUTORS,
     show_default=True,
+)
+option_install_selected_providers = click.option(
+    "--install-selected-providers",
+    help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",
+    envvar="INSTALL_SELECTED_PROVIDERS",
+    default="",
+)
+option_skip_constraints = click.option(
+    "--skip-constraints",
+    is_flag=True,
+    help="Do not use constraints when installing providers.",
+    envvar="SKIP_CONSTRAINTS",
 )

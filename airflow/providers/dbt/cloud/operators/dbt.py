@@ -173,7 +173,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 )
             return self.run_id
 
-    def execute_complete(self, context: "Context", event: dict[str, Any]) -> int:
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
         """
         Callback for when the trigger fires - returns immediately.
         Relies on trigger to throw an exception, otherwise it assumes execution was

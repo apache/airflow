@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import google
+import pytest
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.instance import Instance
 
@@ -49,6 +50,10 @@ CBT_REPLICATE_CLUSTERS = [
 
 
 class TestBigtableHookNoDefaultProjectId:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            BigtableHook(gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

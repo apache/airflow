@@ -20,7 +20,7 @@ import time
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -62,7 +62,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
                     warnings.warn(
                         "Argument `poll_interval` is deprecated and will be removed "
                         "in a future release.  Please use `poke_interval` instead.",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                 else:
@@ -99,17 +99,18 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
             super().execute(context)
         else:
             end_time = time.time() + self.timeout
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=DbtCloudRunJobTrigger(
-                    run_id=self.run_id,
-                    conn_id=self.dbt_cloud_conn_id,
-                    account_id=self.account_id,
-                    poll_interval=self.poke_interval,
-                    end_time=end_time,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=DbtCloudRunJobTrigger(
+                        run_id=self.run_id,
+                        conn_id=self.dbt_cloud_conn_id,
+                        account_id=self.account_id,
+                        poll_interval=self.poke_interval,
+                        end_time=end_time,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
         """
@@ -134,7 +135,7 @@ class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
         warnings.warn(
             "Class `DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. "
             "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(deferrable=True, **kwargs)
