@@ -149,8 +149,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
          state at this point in time.
         """
         client = self.hook.conn.meta.client
+        table_description = client.describe_table(TableName=self.dynamodb_table_name)
         response = client.export_table_to_point_in_time(
-            TableArn=self.dynamodb_table_name,
+            TableArn=table_description.get("Table", {}).get("TableArn"),
             ExportTime=self.export_time,
             S3Bucket=self.s3_bucket_name,
             S3Prefix=self.s3_key_prefix,

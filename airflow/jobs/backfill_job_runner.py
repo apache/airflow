@@ -148,14 +148,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param args:
         :param kwargs:
         """
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date

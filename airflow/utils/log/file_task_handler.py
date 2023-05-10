@@ -303,7 +303,6 @@ class FileTaskHandler(logging.Handler):
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
         remote_logs: list[str] = []
-        running_logs: list[str] = []
         local_logs: list[str] = []
         executor_messages: list[str] = []
         executor_logs: list[str] = []
@@ -317,18 +316,24 @@ class FileTaskHandler(logging.Handler):
                 executor_messages, executor_logs = response
             if executor_messages:
                 messages_list.extend(messages_list)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-            messages_list.extend(served_messages)
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+        elif ti.state not in State.unfinished and not (local_logs or remote_logs):
+            # ordinarily we don't check served logs, with the assumption that users set up
+            # remote logging or shared drive for logs for persistence, but that's not always true
+            # so even if task is done, if no local logs or remote logs are found, we'll check the worker
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+
         logs = "\n".join(
             _interleave_logs(
                 *local_logs,
-                *running_logs,
                 *remote_logs,
                 *(executor_logs or []),
                 *served_logs,

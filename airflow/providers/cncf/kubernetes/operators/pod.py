@@ -197,6 +197,9 @@ class KubernetesPodOperator(BaseOperator):
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
+    :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
+    :param hostname: hostname for the pod.
+    :param subdomain: subdomain for the pod.
     :param schedulername: Specify a schedulername for the pod
     :param full_pod_spec: The complete podSpec
     :param init_containers: init container for the launched Pod
@@ -282,6 +285,9 @@ class KubernetesPodOperator(BaseOperator):
         security_context: dict | None = None,
         container_security_context: dict | None = None,
         dnspolicy: str | None = None,
+        dns_config: k8s.V1PodDNSConfig | None = None,
+        hostname: str | None = None,
+        subdomain: str | None = None,
         schedulername: str | None = None,
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
@@ -351,6 +357,9 @@ class KubernetesPodOperator(BaseOperator):
         self.security_context = security_context or {}
         self.container_security_context = container_security_context
         self.dnspolicy = dnspolicy
+        self.dns_config = dns_config
+        self.hostname = hostname
+        self.subdomain = subdomain
         self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
@@ -816,8 +825,11 @@ class KubernetesPodOperator(BaseOperator):
                 image_pull_secrets=self.image_pull_secrets,
                 service_account_name=self.service_account_name,
                 host_network=self.hostnetwork,
+                hostname=self.hostname,
+                subdomain=self.subdomain,
                 security_context=self.security_context,
                 dns_policy=self.dnspolicy,
+                dns_config=self.dns_config,
                 scheduler_name=self.schedulername,
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,
