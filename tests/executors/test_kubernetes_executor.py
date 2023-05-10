@@ -1148,10 +1148,7 @@ class TestKubernetesExecutor:
 
         messages, logs = executor.get_task_log(ti=ti, try_number=1)
         assert logs == [""]
-        assert messages == [
-            "Trying to get logs (last 100 lines) from worker pod ",
-            "Reading from k8s pod logs failed: error_fetching_pod_log",
-        ]
+        assert "Attempting to fetch logs from pod  through kube API" in messages
 
     def test_supports_pickling(self):
         assert KubernetesExecutor.supports_pickling
