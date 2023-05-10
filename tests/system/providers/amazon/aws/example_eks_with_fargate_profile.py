@@ -132,7 +132,9 @@ with DAG(
             # configure kubectl to hit the cluster created
             aws eks update-kubeconfig --name {cluster_name};
             # once all this setup is done, actually describe the pod
-            kubectl describe pod {{{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}}}""",
+            echo "vvv pod description below vvv";
+            kubectl describe pod {{{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}}};
+            echo "^^^ pod description above ^^^" """,
         # only describe the pod if the task above failed, to help diagnose
         trigger_rule=TriggerRule.ONE_FAILED,
     )
