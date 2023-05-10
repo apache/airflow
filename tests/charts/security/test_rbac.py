@@ -116,7 +116,7 @@ class TestRBAC:
     @staticmethod
     def _get_object_tuples(version):
         tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
-        if version == "2.6.0":
+        if version == "default":
             tuples.append(("Service", "test-rbac-triggerer"))
             tuples.append(("StatefulSet", "test-rbac-triggerer"))
         else:
@@ -125,7 +125,7 @@ class TestRBAC:
             tuples.append(("Secret", "test-rbac-airflow-result-backend"))
         return tuples
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -163,7 +163,7 @@ class TestRBAC:
         ]
         assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(version))
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -184,7 +184,7 @@ class TestRBAC:
         real_list_of_kind_names = self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -222,7 +222,7 @@ class TestRBAC:
         real_list_of_kind_names = self._get_object_tuples(version) + RBAC_ENABLED_KIND_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "2.6.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",

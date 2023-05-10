@@ -92,6 +92,7 @@ installed. Please install Hive Provider > 5.1.0 when using those macros.
 
 New Features
 ^^^^^^^^^^^^
+- AIP-50 Trigger DAG UI Extension with Flexible User Form Concept (#27063,#29376)
 - Skip PythonVirtualenvOperator task when it returns a provided exit code (#30690)
 - rename skip_exit_code to skip_on_exit_code and allow providing multiple codes (#30692)
 - Add skip_on_exit_code also to ExternalPythonOperator (#30738)

@@ -40,6 +40,14 @@ runs:
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints-source-providers
       if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
+    - name: "Print dependency upgrade summary"
+      shell: bash
+      run: |
+        for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+          echo "Summarizing Python $PYTHON_VERSION"
+          cat "files/constraints-${PYTHON_VERSION}/*.md" >> $GITHUB_STEP_SUMMARY || true
+        done
+      if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
     - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE }}
       if: failure() || cancelled()
       shell: bash

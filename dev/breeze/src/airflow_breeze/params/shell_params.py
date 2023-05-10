@@ -117,6 +117,7 @@ class ShellParams:
     dry_run: bool = False
     verbose: bool = False
     upgrade_boto: bool = False
+    only_min_version_update: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)

@@ -21,8 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import AirflowException
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.models.connection import Connection
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, DbtCloudJobRunSensor
@@ -171,7 +170,7 @@ class TestDbtCloudJobRunSensorAsync:
     def test_dbt_job_run_sensor_async(self, mock_hook):
         """Assert execute method defer for Dbt cloud job run status sensors"""
 
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = DbtCloudJobRunAsyncSensor(
                 dbt_cloud_conn_id=self.CONN_ID,
                 task_id=self.TASK_ID,
@@ -185,7 +184,7 @@ class TestDbtCloudJobRunSensorAsync:
 
     def test_dbt_job_run_sensor_async_execute_complete_success(self):
         """Assert execute_complete log success message when trigger fire with target status"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = DbtCloudJobRunAsyncSensor(
                 dbt_cloud_conn_id=self.CONN_ID,
                 task_id=self.TASK_ID,
@@ -209,7 +208,7 @@ class TestDbtCloudJobRunSensorAsync:
     )
     def test_dbt_job_run_sensor_async_execute_complete_failure(self, mock_status, mock_message):
         """Assert execute_complete method to raise exception on the cancelled and error status"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = DbtCloudJobRunAsyncSensor(
                 dbt_cloud_conn_id=self.CONN_ID,
                 task_id=self.TASK_ID,

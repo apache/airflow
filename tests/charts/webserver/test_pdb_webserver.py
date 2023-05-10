@@ -47,3 +47,16 @@ class TestWebserverPdb:
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_pass_validation_with_pdb_enabled_and_min_available_param(self):
+        render_chart(
+            values={
+                "webserver": {
+                    "podDisruptionBudget": {
+                        "enabled": True,
+                        "config": {"maxUnavailable": None, "minAvailable": 1},
+                    }
+                }
+            },
+            show_only=["templates/webserver/webserver-poddisruptionbudget.yaml"],
+        )  # checks that no validation exception is raised

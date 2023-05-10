@@ -43,7 +43,8 @@ from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstanceKey, TaskInstanceStateType
+    from airflow.models.taskinstance import TaskInstanceStateType
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # This is a work to be executed by a worker.
     # It can Key and Command - but it can also be None, None which is actually a

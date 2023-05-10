@@ -113,8 +113,12 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
         hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         execution_status = hook.describe_execution(self.execution_arn)
-        execution_output = json.loads(execution_status["output"]) if "output" in execution_status else None
+        response = None
+        if "output" in execution_status:
+            response = json.loads(execution_status["output"])
+        elif "error" in execution_status:
+            response = json.loads(execution_status["error"])
 
         self.log.info("Got State Machine Execution output for %s", self.execution_arn)
 
-        return execution_output
+        return response

@@ -28,7 +28,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
-    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class CeleryKubernetesExecutor(LoggingMixin):

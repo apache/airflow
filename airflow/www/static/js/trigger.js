@@ -46,7 +46,7 @@ function updateJSONconf() {
             values[values.length] = lines[j].trim();
           }
         }
-        params[keyName] = values;
+        params[keyName] = values.length === 0 ? params[keyName] : values;
       } else if (elements[i].value.length === 0) {
         params[keyName] = null;
       } else if (

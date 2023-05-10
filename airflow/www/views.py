@@ -197,8 +197,6 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     base_date = www_request.args.get("base_date")
     if base_date:
         base_date = _safe_parse_datetime(base_date)
-    elif run_id:
-        base_date = (timezone.utcnow() + datetime.timedelta(seconds=1)).replace(microsecond=0)
     else:
         # The DateTimeField widget truncates milliseconds and would loose
         # the first dag run. Round to next second.
@@ -1725,7 +1723,7 @@ class Airflow(AirflowBaseView):
             )
 
         task_attrs = [
-            (attr_name, attr)
+            (attr_name, secrets_masker.redact(attr, attr_name))
             for attr_name, attr in (
                 (attr_name, getattr(task, attr_name)) for attr_name in filter(include_task_attrs, dir(task))
             )

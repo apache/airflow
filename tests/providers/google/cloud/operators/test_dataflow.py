@@ -76,6 +76,7 @@ TEST_FLEX_PARAMETERS = {
     },
 }
 TEST_LOCATION = "custom-location"
+TEST_REGION = "custom-region"
 TEST_PROJECT = "test-project"
 TEST_SQL_JOB_NAME = "test-sql-job-name"
 TEST_DATASET = "test-dataset"
@@ -533,6 +534,42 @@ class TestDataflowTemplateOperator:
         }
         with pytest.raises(ValueError):
             DataflowTemplatedJobStartOperator(**init_kwargs)
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_custom_region(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "dataflow_default_options": {
+                "region": TEST_REGION,
+            },
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert kwargs["variables"]["region"] == TEST_REGION
+        assert kwargs["location"] is None
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_location(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "location": TEST_LOCATION,
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert not kwargs["variables"]
+        assert kwargs["location"] == TEST_LOCATION
 
 
 class TestDataflowStartFlexTemplateOperator:

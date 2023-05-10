@@ -144,12 +144,24 @@ class TestRedshiftCreateClusterSnapshotOperator:
             cluster_identifier="test_cluster",
             snapshot_identifier="test_snapshot",
             retention_period=1,
+            tags=[
+                {
+                    "Key": "user",
+                    "Value": "airflow",
+                }
+            ],
         )
         create_snapshot.execute(None)
         mock_get_conn.return_value.create_cluster_snapshot.assert_called_once_with(
             ClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
             ManualSnapshotRetentionPeriod=1,
+            Tags=[
+                {
+                    "Key": "user",
+                    "Value": "airflow",
+                }
+            ],
         )
 
         mock_get_conn.return_value.get_waiter.assert_not_called()
