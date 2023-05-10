@@ -1140,7 +1140,10 @@ class TestKubernetesExecutor:
         messages, logs = executor.get_task_log(ti=ti, try_number=1)
 
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
-        assert "Attempting to fetch logs from pod  through kube API" in messages
+        assert messages == [
+            "Attempting to fetch logs from pod  through kube API",
+            "Found logs through kube API",
+        ]
         assert logs[0] == "a_\nb_\nc_"
 
         mock_kube_client.reset_mock()
@@ -1148,7 +1151,10 @@ class TestKubernetesExecutor:
 
         messages, logs = executor.get_task_log(ti=ti, try_number=1)
         assert logs == [""]
-        assert "Attempting to fetch logs from pod  through kube API" in messages
+        assert messages == [
+            "Attempting to fetch logs from pod  through kube API",
+            "Reading from k8s pod logs failed: error_fetching_pod_log",
+        ]
 
     def test_supports_pickling(self):
         assert KubernetesExecutor.supports_pickling
