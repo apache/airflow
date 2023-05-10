@@ -32,6 +32,10 @@ class BaseJobRunner:
 
     job_type = "undefined"
 
+    def __init__(self, job):
+        self.job = job
+        self.job.job_type = self.job_type
+
     def _execute(self) -> int | None:
         """
         Executes the logic connected to the runner. This method should be
