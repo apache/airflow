@@ -88,7 +88,7 @@ class TestRedshiftAsyncHook:
     async def test_resume_cluster(self, mock_make_api_call):
         """Test Resume cluster async hook function by mocking return value of resume_cluster"""
 
-        hook = RedshiftAsyncHook(aws_conn_id="test_aws_connection_id")
+        hook = RedshiftAsyncHook()
         await hook.resume_cluster(cluster_identifier="redshift_cluster_1")
         mock_make_api_call.assert_called_once_with(
             "ResumeCluster", {"ClusterIdentifier": "redshift_cluster_1"}

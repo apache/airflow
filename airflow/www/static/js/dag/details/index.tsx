@@ -46,6 +46,10 @@ import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
 import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
 import FilterTasks from "./FilterTasks";
+import ClearRun from "./dagRun/ClearRun";
+import MarkRunAs from "./dagRun/MarkRunAs";
+import ClearInstance from "./taskInstance/taskActions/ClearInstance";
+import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -147,9 +151,39 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Flex alignItems="center" justifyContent="space-between">
+      <Flex alignItems="center" justifyContent="space-between" ml={6}>
         <Header />
-        <Flex>{taskId && runId && <FilterTasks taskId={taskId} />}</Flex>
+        <Flex>
+          {runId && !taskId && (
+            <>
+              <ClearRun runId={runId} mr={2} />
+              <MarkRunAs runId={runId} state={run?.state} />
+            </>
+          )}
+          {runId && taskId && (
+            <>
+              <ClearInstance
+                taskId={taskId}
+                runId={runId}
+                executionDate={run?.executionDate || ""}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mr={2}
+              />
+              <MarkInstanceAs
+                taskId={taskId}
+                runId={runId}
+                state={instance?.state}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mr={2}
+              />
+            </>
+          )}
+          {taskId && runId && <FilterTasks taskId={taskId} />}
+        </Flex>
       </Flex>
       <Divider my={2} />
       <Tabs

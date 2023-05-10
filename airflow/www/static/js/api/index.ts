@@ -28,7 +28,7 @@ import useClearTask from "./useClearTask";
 import useMarkFailedTask from "./useMarkFailedTask";
 import useMarkSuccessTask from "./useMarkSuccessTask";
 import useExtraLinks from "./useExtraLinks";
-import useConfirmMarkTask from "./useConfirmMarkTask";
+import useMarkTaskDryRun from "./useMarkTaskDryRun";
 import useGraphData from "./useGraphData";
 import useGridData from "./useGridData";
 import useMappedInstances from "./useMappedInstances";
@@ -50,7 +50,7 @@ axios.defaults.headers.common.Accept = "application/json";
 export {
   useClearRun,
   useClearTask,
-  useConfirmMarkTask,
+  useMarkTaskDryRun,
   useDataset,
   useDatasetDependencies,
   useDatasetEvents,

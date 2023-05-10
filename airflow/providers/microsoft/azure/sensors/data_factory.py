@@ -20,7 +20,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -94,17 +94,18 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context=context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=ADFPipelineRunStatusSensorTrigger(
-                    run_id=self.run_id,
-                    azure_data_factory_conn_id=self.azure_data_factory_conn_id,
-                    resource_group_name=self.resource_group_name,
-                    factory_name=self.factory_name,
-                    poke_interval=self.poke_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=ADFPipelineRunStatusSensorTrigger(
+                        run_id=self.run_id,
+                        azure_data_factory_conn_id=self.azure_data_factory_conn_id,
+                        resource_group_name=self.resource_group_name,
+                        factory_name=self.factory_name,
+                        poke_interval=self.poke_interval,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
@@ -137,7 +138,7 @@ class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunSt
             "will be removed in a future release. "
             "Please use `AzureDataFactoryPipelineRunStatusSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs, deferrable=True)

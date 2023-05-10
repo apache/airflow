@@ -21,12 +21,13 @@ name: Apache Impala
 description: |
     `Apache Impala <https://impala.apache.org/>`__.
 
+suspended: false
 versions:
   - 1.0.0
 
 dependencies:
   - impyla>=0.18.0,<1.0
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
 
 integrations:
   - integration-name: Apache Impala

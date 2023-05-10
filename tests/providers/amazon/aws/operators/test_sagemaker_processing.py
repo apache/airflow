@@ -21,10 +21,11 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerProcessingOperator
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 
 CREATE_PROCESSING_PARAMS: dict = {
     "AppSpecification": {
@@ -236,3 +237,21 @@ class TestSageMakerProcessingOperator:
                 config=CREATE_PROCESSING_PARAMS,
                 action_if_job_exists="not_fail_or_increment",
             )
+
+    @mock.patch.object(SageMakerHook, "create_processing_job")
+    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator._check_if_job_exists")
+    def test_operator_defer(self, mock_job_exists, mock_processing):
+        mock_processing.return_value = {
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_job_exists.return_value = False
+        sagemaker_operator = SageMakerProcessingOperator(
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+            deferrable=True,
+        )
+        sagemaker_operator.wait_for_completion = True
+        with pytest.raises(TaskDeferred) as exc:
+            sagemaker_operator.execute(context=None)
+        assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"

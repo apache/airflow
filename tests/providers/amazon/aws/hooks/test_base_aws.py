@@ -27,6 +27,7 @@ from unittest.mock import MagicMock, PropertyMock, mock_open
 from uuid import UUID
 
 import boto3
+import botocore
 import jinja2
 import pytest
 from botocore.config import Config
@@ -46,6 +47,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
 )
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from tests.test_utils.config import conf_vars
+
+pytest.importorskip("aiobotocore")
 
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
@@ -227,20 +230,58 @@ class TestSessionFactory:
         mock_boto3_session.assert_called_once_with(**expected_arguments)
         assert session == MOCK_BOTO3_SESSION
 
+    @pytest.mark.parametrize("region_name", ["eu-central-1", None])
+    @pytest.mark.parametrize("profile_name", ["default", None])
+    def test_async_create_session_from_credentials(self, region_name, profile_name):
+        mock_conn = Connection(
+            conn_type=MOCK_CONN_TYPE, conn_id=MOCK_AWS_CONN_ID, extra={"profile_name": profile_name}
+        )
+        mock_conn_config = AwsConnectionWrapper(conn=mock_conn)
+        sf = BaseSessionFactory(conn=mock_conn_config, region_name=region_name, config=None)
+        async_session = sf.create_session(deferrable=True)
+        if region_name:
+            session_region = async_session.get_config_variable("region")
+            assert session_region == region_name
+
+        session_profile = async_session.get_config_variable("profile")
+
+        assert session_profile == profile_name
+
+    @pytest.mark.asyncio
+    async def test_async_create_a_session_from_credentials_without_token(self):
+        mock_conn = Connection(
+            conn_type=MOCK_CONN_TYPE,
+            conn_id=MOCK_AWS_CONN_ID,
+            extra={
+                "aws_access_key_id": "test_aws_access_key_id",
+                "aws_secret_access_key": "test_aws_secret_access_key",
+                "region_name": "eu-central-1",
+            },
+        )
+        mock_conn_config = AwsConnectionWrapper(conn=mock_conn)
+        sf = BaseSessionFactory(conn=mock_conn_config, config=None)
+        async_session = sf.create_session(deferrable=True)
+        cred = await async_session.get_credentials()
+        assert cred.access_key == "test_aws_access_key_id"
+        assert cred.secret_key == "test_aws_secret_access_key"
+        assert cred.token is None
+
+    config_for_credentials_test = [
+        (
+            "assume-with-initial-creds",
+            {
+                "aws_access_key_id": "mock_aws_access_key_id",
+                "aws_secret_access_key": "mock_aws_access_key_id",
+                "aws_session_token": "mock_aws_session_token",
+            },
+        ),
+        ("assume-without-initial-creds", {}),
+    ]
+
     @mock_sts
     @pytest.mark.parametrize(
         "conn_id, conn_extra",
-        [
-            (
-                "assume-with-initial-creds",
-                {
-                    "aws_access_key_id": "mock_aws_access_key_id",
-                    "aws_secret_access_key": "mock_aws_access_key_id",
-                    "aws_session_token": "mock_aws_session_token",
-                },
-            ),
-            ("assume-without-initial-creds", {}),
-        ],
+        config_for_credentials_test,
     )
     @pytest.mark.parametrize("region_name", ["ap-southeast-2", "sa-east-1"])
     def test_get_credentials_from_role_arn(self, conn_id, conn_extra, region_name):
@@ -257,6 +298,41 @@ class TestSessionFactory:
         # Validate method of botocore credentials provider.
         # It shouldn't be 'explicit' which refers in this case to initial credentials.
         assert session.get_credentials().method == "sts-assume-role"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "conn_id, conn_extra",
+        config_for_credentials_test,
+    )
+    @pytest.mark.parametrize("region_name", ["ap-southeast-2", "sa-east-1"])
+    async def test_async_get_credentials_from_role_arn(self, conn_id, conn_extra, region_name):
+        """Test RefreshableCredentials with assume_role for async_conn."""
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory._refresh_credentials"
+        ) as mock_refresh:
+
+            def side_effect():
+                return {
+                    "access_key": "mock-AccessKeyId",
+                    "secret_key": "mock-SecretAccessKey",
+                    "token": "mock-SessionToken",
+                    "expiry_time": datetime.now(timezone.utc).isoformat(),
+                }
+
+            mock_refresh.side_effect = side_effect
+            extra = {
+                **conn_extra,
+                "role_arn": "arn:aws:iam::123456:role/role_arn",
+                "region_name": region_name,
+            }
+            conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
+            sf = BaseSessionFactory(conn=conn)
+            session = sf.create_session(deferrable=True)
+            assert session.region_name == region_name
+            # Validate method of botocore credentials provider.
+            # It shouldn't be 'explicit' which refers in this case to initial credentials.
+            credentials = await session.get_credentials()
+            assert credentials.method == "sts-assume-role"
 
 
 class TestAwsBaseHook:
@@ -394,7 +470,12 @@ class TestAwsBaseHook:
 
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.base_aws.requests.Session.get"
-        ) as mock_get, mock.patch("airflow.providers.amazon.aws.hooks.base_aws.boto3") as mock_boto3:
+        ) as mock_get, mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.boto3"
+        ) as mock_boto3, mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             mock_get.return_value.ok = True
 
             mock_client = mock_boto3.session.Session.return_value.client
@@ -589,7 +670,12 @@ class TestAwsBaseHook:
 
         with mock.patch("builtins.__import__", side_effect=import_mock), mock.patch(
             "airflow.providers.amazon.aws.hooks.base_aws.requests.Session.get"
-        ) as mock_get, mock.patch("airflow.providers.amazon.aws.hooks.base_aws.boto3") as mock_boto3:
+        ) as mock_get, mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.boto3"
+        ) as mock_boto3, mock.patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             mock_get.return_value.ok = True
 
             mock_client = mock_boto3.session.Session.return_value.client
@@ -798,17 +884,6 @@ class TestAwsBaseHook:
         assert isinstance(conn_config_empty, AwsConnectionWrapper)
         assert not conn_config_empty
 
-    def test_conn_config_conn_id_not_exists(self):
-        """Test fallback connection config if aws_conn_id not exists."""
-        warning_message = (
-            r"Unable to find AWS Connection ID '.*', switching to empty\. "
-            r"This behaviour is deprecated and will be removed in a future releases"
-        )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            conn_config_fallback_not_exists = AwsBaseHook(aws_conn_id="aws-conn-not-exists").conn_config
-        assert isinstance(conn_config_fallback_not_exists, AwsConnectionWrapper)
-        assert not conn_config_fallback_not_exists
-
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     @pytest.mark.parametrize("hook_region_name", [None, "eu-west-1"])
     @pytest.mark.parametrize(
@@ -831,26 +906,6 @@ class TestAwsBaseHook:
         )
         assert mock_session_factory_instance.create_session.assert_called_once
         assert session == MOCK_BOTO3_SESSION
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.get_session",
-        return_value=MOCK_BOTO3_SESSION,
-    )
-    @pytest.mark.parametrize("region_name", [None, "aws-global", "eu-west-1"])
-    def test_deprecate_private_method__get_credentials(self, mock_boto3_session, region_name):
-        """Test deprecated method AwsGenericHook._get_credentials."""
-        hook = AwsBaseHook(aws_conn_id=None)
-        warning_message = (
-            r"`AwsGenericHook._get_credentials` method deprecated and will be removed in a future releases\. "
-            r"Please use `AwsGenericHook.get_session` method and "
-            r"`AwsGenericHook.conn_config.endpoint_url` property instead\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            session, endpoint = hook._get_credentials(region_name)
-
-        mock_boto3_session.assert_called_once_with(region_name=region_name)
-        assert session == MOCK_BOTO3_SESSION
-        assert endpoint == hook.conn_config.endpoint_url
 
     @pytest.mark.parametrize("verify", [None, "path/to/cert/hook-bundle.pem", False])
     @pytest.mark.parametrize("conn_verify", [None, "path/to/cert/conn-bundle.pem", False])
@@ -1027,3 +1082,14 @@ def test_waiter_config_param_wrong_format(waiter_path_mock: MagicMock):
 
     with pytest.raises(jinja2.TemplateSyntaxError):
         hook.get_waiter("bad_param_wait")
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_custom_waiter_with_resource_type(waiter_path_mock: MagicMock):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(resource_type="dynamodb")  # needs to be a real client type
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter") as BaseBotoWaiter:
+        hook.get_waiter("other_wait")
+
+    assert isinstance(BaseBotoWaiter.call_args[1]["client"], botocore.client.BaseClient)

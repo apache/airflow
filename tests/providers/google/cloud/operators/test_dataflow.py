@@ -76,6 +76,7 @@ TEST_FLEX_PARAMETERS = {
     },
 }
 TEST_LOCATION = "custom-location"
+TEST_REGION = "custom-region"
 TEST_PROJECT = "test-project"
 TEST_SQL_JOB_NAME = "test-sql-job-name"
 TEST_DATASET = "test-dataset"
@@ -95,7 +96,6 @@ GROUP BY sales_region;
 """
 TEST_SQL_JOB = {"id": "test-job-id"}
 GCP_CONN_ID = "test_gcp_conn_id"
-DELEGATE_TO = "delegating_to_something"
 IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
 
@@ -147,7 +147,6 @@ class TestDataflowPythonOperator:
         mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=mock.ANY,
             poll_sleep=POLL_SLEEP,
             impersonation_chain=None,
             drain_pipeline=False,
@@ -481,7 +480,6 @@ class TestDataflowTemplateOperator:
             environment={"maxWorkers": 2},
             deferrable=True,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             cancel_timeout=CANCEL_TIMEOUT,
         )
@@ -531,12 +529,47 @@ class TestDataflowTemplateOperator:
             "wait_until_finished": True,
             "deferrable": True,
             "gcp_conn_id": GCP_CONN_ID,
-            "delegate_to": DELEGATE_TO,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "cancel_timeout": CANCEL_TIMEOUT,
         }
         with pytest.raises(ValueError):
             DataflowTemplatedJobStartOperator(**init_kwargs)
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_custom_region(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "dataflow_default_options": {
+                "region": TEST_REGION,
+            },
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert kwargs["variables"]["region"] == TEST_REGION
+        assert kwargs["location"] is None
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_location(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "location": TEST_LOCATION,
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert not kwargs["variables"]
+        assert kwargs["location"] == TEST_LOCATION
 
 
 class TestDataflowStartFlexTemplateOperator:
@@ -566,7 +599,6 @@ class TestDataflowStartFlexTemplateOperator:
         sync_operator.execute(mock.MagicMock())
         mock_dataflow.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=None,
             drain_pipeline=False,
             cancel_timeout=600,
             wait_until_finished=None,
@@ -629,7 +661,6 @@ class TestDataflowSqlOperator:
         start_sql.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=None,
             drain_pipeline=False,
             impersonation_chain=None,
         )

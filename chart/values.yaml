@@ -49,16 +49,21 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.5.3"
+defaultAirflowTag: "2.6.0"
+
+# Default airflow digest. If specified, it takes precedence over tag
+defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.5.3"
+airflowVersion: "2.6.0"
 
 # Images
 images:
   airflow:
     repository: ~
     tag: ~
+    # Specifying digest takes precedence over tag.
+    digest: ~
     pullPolicy: IfNotPresent
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
@@ -705,7 +710,9 @@ scheduler:
 
     # PDB configuration
     config:
+      # minAvailable and maxUnavailable are mutually exclusive
       maxUnavailable: 1
+      # minAvailable: 1
 
   resources: {}
   #  limits:
@@ -953,16 +960,16 @@ webserver:
   allowPodLogReading: true
   livenessProbe:
     initialDelaySeconds: 15
-    timeoutSeconds: 30
-    failureThreshold: 20
-    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
     scheme: HTTP
 
   readinessProbe:
     initialDelaySeconds: 15
-    timeoutSeconds: 30
-    failureThreshold: 20
-    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
     scheme: HTTP
 
   # Number of webservers
@@ -992,7 +999,9 @@ webserver:
 
     # PDB configuration
     config:
+      # minAvailable and maxUnavailable are mutually exclusive
       maxUnavailable: 1
+      # minAvailable: 1
 
   # Allow overriding Update Strategy for Webserver
   strategy: ~
@@ -1352,6 +1361,23 @@ dagProcessor:
 
   podAnnotations: {}
 
+  logGroomerSidecar:
+    # Whether to deploy the Airflow dag processor log groomer sidecar.
+    enabled: true
+    # Command to use when running the Airflow dag processor log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow dag processor log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+    # Number of days to retain logs
+    retentionDays: 15
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1542,6 +1568,8 @@ pgbouncer:
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
+  podAnnotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1584,7 +1612,9 @@ pgbouncer:
 
     # PDB configuration
     config:
+      # minAvailable and maxUnavailable are mutually exclusive
       maxUnavailable: 1
+      # minAvailable: 1
 
   # Limit the resources to PgBouncer.
   # When you specify the resource request the k8s scheduler uses this information to decide which node to

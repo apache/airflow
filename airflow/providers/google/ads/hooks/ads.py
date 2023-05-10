@@ -26,21 +26,21 @@ from google.auth.exceptions import GoogleAuthError
 from airflow import AirflowException
 from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
-from airflow.providers.google.ads._vendor.googleads.client import GoogleAdsClient
-from airflow.providers.google.ads._vendor.googleads.errors import GoogleAdsException
-from airflow.providers.google.ads._vendor.googleads.v12.services.services.customer_service import (
+from airflow.providers.google.common.hooks.base_google import get_field
+from airflow.providers.google_vendor.googleads.client import GoogleAdsClient
+from airflow.providers.google_vendor.googleads.errors import GoogleAdsException
+from airflow.providers.google_vendor.googleads.v12.services.services.customer_service import (
     CustomerServiceClient,
 )
-from airflow.providers.google.ads._vendor.googleads.v12.services.services.google_ads_service import (
+from airflow.providers.google_vendor.googleads.v12.services.services.google_ads_service import (
     GoogleAdsServiceClient,
 )
-from airflow.providers.google.ads._vendor.googleads.v12.services.services.google_ads_service.pagers import (
+from airflow.providers.google_vendor.googleads.v12.services.services.google_ads_service.pagers import (
     SearchPager,
 )
-from airflow.providers.google.ads._vendor.googleads.v12.services.types.google_ads_service import (
+from airflow.providers.google_vendor.googleads.v12.services.types.google_ads_service import (
     GoogleAdsRow,
 )
-from airflow.providers.google.common.hooks.base_google import get_field
 
 
 class GoogleAdsHook(BaseHook):

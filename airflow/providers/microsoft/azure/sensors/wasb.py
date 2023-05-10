@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger
+from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -38,6 +39,8 @@ class WasbBlobSensor(BaseSensorOperator):
     :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
     :param check_options: Optional keyword arguments that
         `WasbHook.check_for_blob()` takes.
+    :param deferrable: Run sensor in the deferrable mode.
+    :param public_read: whether an anonymous public read access should be used. Default is False
     """
 
     template_fields: Sequence[str] = ("container_name", "blob_name")
@@ -49,6 +52,8 @@ class WasbBlobSensor(BaseSensorOperator):
         blob_name: str,
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
+        public_read: bool = False,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -58,11 +63,45 @@ class WasbBlobSensor(BaseSensorOperator):
         self.container_name = container_name
         self.blob_name = blob_name
         self.check_options = check_options
+        self.public_read = public_read
+        self.deferrable = deferrable
 
     def poke(self, context: Context):
         self.log.info("Poking for blob: %s\n in wasb://%s", self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         return hook.check_for_blob(self.container_name, self.blob_name, **self.check_options)
+
+    def execute(self, context: Context) -> None:
+        """Defers trigger class to poll for state of the job run until
+        it reaches a failure state or success state
+        """
+        if not self.deferrable:
+            super().execute(context=context)
+        else:
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=WasbBlobSensorTrigger(
+                    container_name=self.container_name,
+                    blob_name=self.blob_name,
+                    wasb_conn_id=self.wasb_conn_id,
+                    public_read=self.public_read,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event:
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+            self.log.info(event["message"])
+        else:
+            raise AirflowException("Did not receive valid event from the triggerer")
 
 
 class WasbBlobAsyncSensor(WasbBlobSensor):
@@ -77,51 +116,16 @@ class WasbBlobAsyncSensor(WasbBlobSensor):
     :param timeout: Time, in seconds before the task times out and fails.
     """
 
-    def __init__(
-        self,
-        *,
-        container_name: str,
-        blob_name: str,
-        wasb_conn_id: str = "wasb_default",
-        public_read: bool = False,
-        poke_interval: float = 5.0,
-        **kwargs: Any,
-    ):
-        self.container_name = container_name
-        self.blob_name = blob_name
-        self.poke_interval = poke_interval
-        super().__init__(container_name=container_name, blob_name=blob_name, **kwargs)
-        self.wasb_conn_id = wasb_conn_id
-        self.public_read = public_read
-
-    def execute(self, context: Context) -> None:
-        """Defers trigger class to poll for state of the job run until it reaches
-        a failure state or success state
-        """
-        self.defer(
-            timeout=timedelta(seconds=self.timeout),
-            trigger=WasbBlobSensorTrigger(
-                container_name=self.container_name,
-                blob_name=self.blob_name,
-                wasb_conn_id=self.wasb_conn_id,
-                public_read=self.public_read,
-                poke_interval=self.poke_interval,
-            ),
-            method_name="execute_complete",
+    def __init__(self, **kwargs: Any) -> None:
+        warnings.warn(
+            "Class `WasbBlobAsyncSensor` is deprecated and "
+            "will be removed in a future release. "
+            "Please use `WasbBlobSensor` and "
+            "set `deferrable` attribute to `True` instead",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
-
-    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event:
-            if event["status"] == "error":
-                raise AirflowException(event["message"])
-            self.log.info(event["message"])
-        else:
-            raise AirflowException("Did not receive valid event from the triggerer")
+        super().__init__(**kwargs, deferrable=True)
 
 
 class WasbPrefixSensor(BaseSensorOperator):
@@ -144,6 +148,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         prefix: str,
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -153,8 +158,40 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.container_name = container_name
         self.prefix = prefix
         self.check_options = check_options
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking for prefix: %s in wasb://%s", self.prefix, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         return hook.check_for_prefix(self.container_name, self.prefix, **self.check_options)
+
+    def execute(self, context: Context) -> None:
+        """Defers trigger class to poll for state of the job run until it
+        reaches a failure state or success state
+        """
+        if not self.deferrable:
+            super().execute(context=context)
+        else:
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=WasbPrefixSensorTrigger(
+                    container_name=self.container_name,
+                    prefix=self.prefix,
+                    wasb_conn_id=self.wasb_conn_id,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event:
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+            self.log.info(event["message"])
+        else:
+            raise AirflowException("Did not receive valid event from the triggerer")

@@ -26,6 +26,7 @@ import pytest
 
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.utils.task_group import TaskGroup
 from airflow.www import views
 from airflow.www.views import (
     get_key_paths,
@@ -319,6 +320,109 @@ def test_mark_task_instance_state(test_app):
         assert dagrun.get_state() == State.QUEUED
 
 
+def test_mark_task_group_state(test_app):
+    """
+    Test that _mark_task_group_state() does all three things:
+    - Marks the given TaskGroup as SUCCESS;
+    - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
+    - Set DagRun to QUEUED.
+    """
+    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.session import create_session
+    from airflow.utils.state import State
+    from airflow.utils.timezone import datetime
+    from airflow.utils.types import DagRunType
+    from airflow.www.views import Airflow
+    from tests.test_utils.db import clear_db_runs
+
+    clear_db_runs()
+    start_date = datetime(2020, 1, 1)
+    with DAG("test_mark_task_group_state", start_date=start_date) as dag:
+        start = EmptyOperator(task_id="start")
+
+        with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
+            task_1 = EmptyOperator(task_id="task_1")
+            task_2 = EmptyOperator(task_id="task_2")
+            task_3 = EmptyOperator(task_id="task_3")
+
+            task_1 >> [task_2, task_3]
+
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
+        task_6 = EmptyOperator(task_id="task_6")
+        task_7 = EmptyOperator(task_id="task_7")
+        task_8 = EmptyOperator(task_id="task_8")
+
+        start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
+
+    dagrun = dag.create_dagrun(
+        start_date=start_date,
+        execution_date=start_date,
+        data_interval=(start_date, start_date),
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+    )
+
+    def get_task_instance(session, task):
+        return (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == task.task_id,
+                TaskInstance.execution_date == start_date,
+            )
+            .one()
+        )
+
+    with create_session() as session:
+        get_task_instance(session, task_1).state = State.FAILED
+        get_task_instance(session, task_2).state = State.SUCCESS
+        get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
+        get_task_instance(session, task_4).state = State.SUCCESS
+        get_task_instance(session, task_5).state = State.UPSTREAM_FAILED
+        get_task_instance(session, task_6).state = State.FAILED
+        get_task_instance(session, task_7).state = State.SKIPPED
+
+        session.commit()
+
+    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
+    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    with test_app.test_request_context():
+        view = Airflow()
+
+        view._mark_task_group_state(
+            dag_id=dag.dag_id,
+            run_id=dagrun.run_id,
+            group_id=section_1.group_id,
+            origin="",
+            upstream=False,
+            downstream=False,
+            future=False,
+            past=False,
+            state=State.SUCCESS,
+        )
+
+    with create_session() as session:
+        # After _mark_task_group_state, task_1 is marked as SUCCESS
+        assert get_task_instance(session, task_1).state == State.SUCCESS
+        # task_2 should remain as SUCCESS
+        assert get_task_instance(session, task_2).state == State.SUCCESS
+        # task_3 should be marked as SUCCESS
+        assert get_task_instance(session, task_3).state == State.SUCCESS
+        # task_4 should remain as SUCCESS
+        assert get_task_instance(session, task_4).state == State.SUCCESS
+        # task_5 and task_6 are cleared because they were in FAILED/UPSTREAM_FAILED state
+        assert get_task_instance(session, task_5).state == State.NONE
+        assert get_task_instance(session, task_6).state == State.NONE
+        # task_7 remains as SKIPPED
+        assert get_task_instance(session, task_7).state == State.SKIPPED
+        dagrun.refresh_from_db(session=session)
+        # dagrun should be set to QUEUED
+        assert dagrun.get_state() == State.QUEUED
+
+
 TEST_CONTENT_DICT = {"key1": {"key2": "val2", "key3": "val3", "key4": {"key5": "val5"}}}
 
 
@@ -408,7 +512,7 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/log?execution_date=invalid",
+            "/log?dag_id=tutorial&execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (

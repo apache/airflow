@@ -91,7 +91,7 @@ you should set LIBRARY\_PATH before running ``pip install``:
 
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
 
-You are STRONGLY encouraged to also install and use `pre-commit hooks <TESTING.rst#pre-commit-hooks>`_
+You are STRONGLY encouraged to also install and use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`_
 for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
