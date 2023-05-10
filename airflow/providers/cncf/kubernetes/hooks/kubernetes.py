@@ -148,7 +148,7 @@ class KubernetesHook(BaseHook):
         Return requested connection.
 
         If missing and conn_id is "kubernetes_default", will return empty connection so that hook will
-        default to cluster-derived creds.
+        default to cluster-derived credentials.
         """
         try:
             return super().get_connection(conn_id)
