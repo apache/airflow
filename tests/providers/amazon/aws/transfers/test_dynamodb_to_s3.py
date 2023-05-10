@@ -316,3 +316,44 @@ class TestDynamodbToS3:
         assert "2020-01-01" == getattr(operator, "s3_bucket_name")
         assert "2020-01-01" == getattr(operator, "dynamodb_table_name")
         assert "2020-01-01" == getattr(operator, "s3_key_prefix")
+
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator._export_entire_data")
+    def test_dynamodb_execute_calling_export_entire_data(self, _export_entire_data):
+        """Test that DynamoDBToS3Operator when called without export_time will call _export_entire_data"""
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
+            file_size=4000,
+        )
+        dynamodb_to_s3_operator.execute(context={})
+        _export_entire_data.assert_called()
+
+    @patch(
+        "airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator."
+        "_export_table_to_point_in_time"
+    )
+    def test_dynamodb_execute_calling_export_table_to_point_in_time(self, _export_table_to_point_in_time):
+        """Test that DynamoDBToS3Operator when called without export_time will call
+        _export_table_to_point_in_time. Which implements point in time recovery logic"""
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
+            file_size=4000,
+            export_time=datetime(year=1983, month=1, day=1),
+        )
+        dynamodb_to_s3_operator.execute(context={})
+        _export_table_to_point_in_time.assert_called()
+
+    def test_dynamodb_with_future_date(self):
+        """Test that DynamoDBToS3Operator should raise a exception when future date is passed in
+        export_time parameter"""
+        with pytest.raises(ValueError, match="The export_time parameter cannot be a future time."):
+            DynamoDBToS3Operator(
+                task_id="dynamodb_to_s3",
+                dynamodb_table_name="airflow_rocks",
+                s3_bucket_name="airflow-bucket",
+                file_size=4000,
+                export_time=datetime(year=3000, month=1, day=1),
+            )
