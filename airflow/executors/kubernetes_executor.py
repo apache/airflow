@@ -26,7 +26,6 @@ from __future__ import annotations
 import json
 import logging
 import multiprocessing
-import re
 import time
 from collections import defaultdict
 from contextlib import suppress
@@ -49,7 +48,7 @@ from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, c
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.event_scheduler import EventScheduler
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
@@ -821,9 +820,8 @@ class KubernetesExecutor(BaseExecutor):
                 tail_lines=100,
                 _preload_content=False,
             )
-            ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
             for line in res:
-                log.append(ansi_escape.sub("", line.decode()))
+                log.append(remove_escape_codes(line.decode()))
             if log:
                 messages.append("Found logs through kube API")
         except Exception as e:
