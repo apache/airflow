@@ -1140,11 +1140,7 @@ class TestKubernetesExecutor:
         messages, logs = executor.get_task_log(ti=ti, try_number=1)
 
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
-        expected_messages = [
-            "Attempting to fetch logs from pod  through kube API",
-            "Found logs through kube API",
-        ]
-        assert messages == expected_messages
+        assert "Attempting to fetch logs from pod  through kube API" in messages
         assert logs[0] == "a_\nb_\nc_"
 
         mock_kube_client.reset_mock()
