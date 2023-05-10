@@ -704,14 +704,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
-            self.log.info(
-                "Executor reports execution of %s.%s run_id=%s exited with status %s for try_number %s",
-                ti_key.dag_id,
-                ti_key.task_id,
-                ti_key.run_id,
-                state,
-                ti_key.try_number,
-            )
+            self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
             if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
