@@ -53,6 +53,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 f"The job is already assigned a different job_type: {job.job_type}."
                 f"This is a bug and should be reported."
             )
+        self.job.job_type = self.job_type
         self.processor = processor
         self.processor.heartbeat = lambda: perform_heartbeat(
             job=self.job,
