@@ -26,8 +26,8 @@ from distributed import LocalCluster
 from airflow.exceptions import AirflowException
 from airflow.executors.dask_executor import DaskExecutor
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
-from airflow.jobs.job import Job, run_job
 from airflow.models import DagBag
+from airflow.models.job import Job, run_job
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 

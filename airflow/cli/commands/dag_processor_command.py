@@ -28,7 +28,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-from airflow.jobs.job import Job, run_job
+from airflow.models.job import Job, run_job
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 

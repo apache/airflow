@@ -21,9 +21,9 @@ import datetime
 import pytest
 import pytz
 
-from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
+from airflow.models.job import Job
 from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone

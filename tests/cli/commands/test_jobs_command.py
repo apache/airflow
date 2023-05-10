@@ -23,8 +23,8 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import jobs_command
-from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.job import Job
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_jobs

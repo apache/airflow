@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
     DagModel,
@@ -46,6 +45,7 @@ from airflow.models.dataset import (
     DatasetModel,
     TaskOutletDatasetReference,
 )
+from airflow.models.job import Job
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables

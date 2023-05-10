@@ -28,10 +28,10 @@ from unittest.mock import patch
 import psutil
 import pytest
 
-from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagBag
+from airflow.models.job import Job
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone

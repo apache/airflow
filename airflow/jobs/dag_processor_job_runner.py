@@ -21,7 +21,7 @@ from typing import Any
 
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.models.job import Job, perform_heartbeat
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

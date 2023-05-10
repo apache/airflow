@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from pydantic import parse_raw_as
 
-from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
@@ -27,6 +26,7 @@ from airflow.models.dataset import (
     DatasetModel,
     TaskOutletDatasetReference,
 )
+from airflow.models.job import Job
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.jobs.job import Job
+from airflow.models.job import Job
 
 
 class JobSchema(SQLAlchemySchema):

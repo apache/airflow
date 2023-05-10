@@ -201,7 +201,7 @@ class Trigger(Base):
         Takes a triggerer_id and the capacity for that triggerer and assigns unassigned
         triggers until that capacity is reached, or there are no more unassigned triggers.
         """
-        from airflow.jobs.job import Job  # To avoid circular import
+        from airflow.models.job import Job  # To avoid circular import
 
         count = session.query(func.count(cls.id)).filter(cls.triggerer_id == triggerer_id).scalar()
         capacity -= count

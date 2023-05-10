@@ -37,12 +37,12 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.job import Job, run_job
 from airflow.models.operator import Operator, needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode

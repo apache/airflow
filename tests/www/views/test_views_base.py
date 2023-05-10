@@ -22,8 +22,8 @@ import json
 
 import pytest
 
-from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.job import Job
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www import app as application

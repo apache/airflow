@@ -24,9 +24,9 @@ import pendulum
 import pytest
 from sqlalchemy.orm import contains_eager
 
-from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
+from airflow.models.job import Job
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
 from airflow.utils.platform import getuser

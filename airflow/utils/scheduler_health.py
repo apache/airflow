@@ -20,8 +20,8 @@ import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from airflow.configuration import conf
-from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.job import Job
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 

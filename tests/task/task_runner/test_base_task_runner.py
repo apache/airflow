@@ -21,9 +21,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.job import Job
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 
 

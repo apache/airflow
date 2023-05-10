@@ -23,7 +23,7 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from airflow.jobs.job import Job, run_job
+from airflow.models.job import Job, run_job
 
 # Setup environment before any Airflow import
 DAG_FOLDER = os.path.join(os.path.dirname(__file__), "dags")

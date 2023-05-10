@@ -38,9 +38,9 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.job import Job, perform_heartbeat
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS

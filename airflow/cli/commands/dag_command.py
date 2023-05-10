@@ -36,9 +36,9 @@ from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.job import Job
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.base import DataInterval
 from airflow.utils import cli as cli_utils, timezone

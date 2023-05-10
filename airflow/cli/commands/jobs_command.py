@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from airflow.jobs.job import Job
+from airflow.models.job import Job
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State

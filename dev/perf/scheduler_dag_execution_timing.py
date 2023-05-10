@@ -28,7 +28,7 @@ from operator import attrgetter
 
 import rich_click as click
 
-from airflow.jobs.job import run_job
+from airflow.models.job import run_job
 
 MAX_DAG_RUNS_ALLOWED = 1
 
@@ -242,9 +242,9 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     if pre_create_dag_runs:
         os.environ["AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE"] = "False"
 
-    from airflow.jobs.job import Job
     from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
     from airflow.models.dagbag import DagBag
+    from airflow.models.job import Job
     from airflow.utils import db
 
     dagbag = DagBag()

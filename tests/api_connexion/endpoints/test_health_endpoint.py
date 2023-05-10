@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.job import Job
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State

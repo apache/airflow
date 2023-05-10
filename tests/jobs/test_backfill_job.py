@@ -40,10 +40,10 @@ from airflow.exceptions import (
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
-from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
+from airflow.models.job import Job, run_job
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap

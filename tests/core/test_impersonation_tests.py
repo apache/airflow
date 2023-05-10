@@ -25,8 +25,8 @@ import sys
 import pytest
 
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
-from airflow.jobs.job import Job, run_job
 from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models.job import Job, run_job
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime

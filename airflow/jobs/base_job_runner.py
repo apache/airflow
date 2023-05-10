@@ -24,7 +24,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.jobs.job import Job
+    from airflow.models.job import Job
 
 
 class BaseJobRunner:
@@ -59,6 +59,6 @@ class BaseJobRunner:
     @provide_session
     def most_recent_job(cls, session: Session = NEW_SESSION) -> Job | None:
         """Returns the most recent job of this type, if any, based on last heartbeat received."""
-        from airflow.jobs.job import most_recent_job
+        from airflow.models.job import most_recent_job
 
         return most_recent_job(cls.job_type, session=session)

@@ -38,12 +38,12 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
-from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
 from airflow.models.dagrun import DagRun
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, ExpandInput, create_expand_input, get_map_type_key
+from airflow.models.job import Job
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict

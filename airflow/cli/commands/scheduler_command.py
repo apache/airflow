@@ -28,8 +28,8 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.job import Job, run_job
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
 from airflow.utils.scheduler_health import serve_health_check

@@ -75,13 +75,13 @@ from airflow.exceptions import (
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
-from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.job import run_job
 from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
@@ -2591,7 +2591,7 @@ class DAG(LoggingMixin):
             from airflow.executors.executor_loader import ExecutorLoader
 
             executor = ExecutorLoader.get_default_executor()
-        from airflow.jobs.job import Job
+        from airflow.models.job import Job
 
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(

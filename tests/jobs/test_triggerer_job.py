@@ -29,11 +29,11 @@ import pytest
 
 from airflow import DAG
 from airflow.config_templates import airflow_local_settings
-from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner, setup_queue_listener
 from airflow.logging_config import configure_logging
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.job import Job
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.triggers.base import TriggerEvent

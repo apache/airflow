@@ -25,8 +25,8 @@ from pytest import raises
 from sqlalchemy.exc import OperationalError
 
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.jobs.job import Job, most_recent_job, perform_heartbeat, run_job
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.job import Job, most_recent_job, perform_heartbeat, run_job
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -55,7 +55,6 @@ class TestJob:
         assert job.end_date is not None
 
     def test_base_job_respects_plugin_hooks(self):
-
         import sys
 
         job = Job()
@@ -148,7 +147,7 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @patch("airflow.jobs.job.create_session")
+    @patch("airflow.models.job.create_session")
     def test_heartbeat_failed(self, mock_create_session):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
         with create_session() as session:
@@ -170,9 +169,9 @@ class TestJob:
             ("core", "executor"): "SequentialExecutor",
         }
     )
-    @patch("airflow.jobs.job.ExecutorLoader.get_default_executor")
-    @patch("airflow.jobs.job.get_hostname")
-    @patch("airflow.jobs.job.getuser")
+    @patch("airflow.models.job.ExecutorLoader.get_default_executor")
+    @patch("airflow.models.job.get_hostname")
+    @patch("airflow.models.job.getuser")
     def test_essential_attr(self, mock_getuser, mock_hostname, mock_default_executor):
         mock_sequential_executor = SequentialExecutor()
         mock_hostname.return_value = "test_hostname"
@@ -191,7 +190,7 @@ class TestJob:
         assert test_job.executor == mock_sequential_executor
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
-        monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)
+        monkeypatch.setattr("airflow.models.job.sleep", frozen_sleep)
         with create_session() as session:
             job = Job(heartrate=10)
             job.latest_heartbeat = timezone.utcnow()

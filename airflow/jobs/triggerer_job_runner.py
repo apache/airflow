@@ -34,7 +34,7 @@ from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.models.job import Job, perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats

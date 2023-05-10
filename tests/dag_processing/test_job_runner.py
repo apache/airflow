@@ -50,9 +50,9 @@ from airflow.dag_processing.manager import (
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DbCallbackRequest, errors
 from airflow.models.dagcode import DagCode
+from airflow.models.job import Job
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
