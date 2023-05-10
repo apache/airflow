@@ -22,6 +22,8 @@ import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
+from botocore.config import Config
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
@@ -102,10 +104,22 @@ class EmrAddStepsOperator(BaseOperator):
         self.waiter_max_attempts = waiter_max_attempts
         self.execution_role_arn = execution_role_arn
 
-    def execute(self, context: Context) -> list[str]:
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+    @cached_property
+    def hook(self) -> EmrHook:
+        """Create and return an EmrHook."""
+        # Increase the number of max attempts (default 5) because the AddJobFlowSteps API gets throttled,
+        # replenishment is quite slow.
+        # See https://docs.aws.amazon.com/general/latest/gr/emr.html#limits_emr
+        config = Config(
+            retries={
+                "max_attempts": 10,
+                "mode": "legacy",
+            }
+        )
+        return EmrHook(aws_conn_id=self.aws_conn_id, config=config)
 
-        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
+    def execute(self, context: Context) -> list[str]:
+        job_flow_id = self.job_flow_id or self.hook.get_cluster_id_by_name(
             str(self.job_flow_name), self.cluster_states
         )
 
@@ -118,17 +132,17 @@ class EmrAddStepsOperator(BaseOperator):
         EmrClusterLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=job_flow_id,
         )
         EmrLogsLink.persist(
             context=context,
             operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
             job_flow_id=self.job_flow_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=job_flow_id),
+            log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=job_flow_id),
         )
 
         self.log.info("Adding steps to %s", job_flow_id)
@@ -138,7 +152,7 @@ class EmrAddStepsOperator(BaseOperator):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
-        return emr_hook.add_job_flow_steps(
+        return self.hook.add_job_flow_steps(
             job_flow_id=job_flow_id,
             steps=steps,
             wait_for_completion=self.wait_for_completion,
