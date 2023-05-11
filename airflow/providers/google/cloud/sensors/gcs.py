@@ -525,23 +525,24 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
         if not self.deferrable:
             super().execute(context)
-        else:
-            if not self.poke(context=context):
-                self.defer(
-                    timeout=timedelta(seconds=self.timeout),
-                    trigger=GCSUploadSessionTrigger(
-                        bucket=self.bucket,
-                        prefix=self.prefix,
-                        poke_interval=self.poke_interval,
-                        google_cloud_conn_id=self.google_cloud_conn_id,
-                        inactivity_period=self.inactivity_period,
-                        min_objects=self.min_objects,
-                        previous_objects=self.previous_objects,
-                        allow_delete=self.allow_delete,
-                        hook_params=hook_params,
-                    ),
-                    method_name="execute_complete",
-                )
+            return
+
+        if not self.poke(context=context):
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=GCSUploadSessionTrigger(
+                    bucket=self.bucket,
+                    prefix=self.prefix,
+                    poke_interval=self.poke_interval,
+                    google_cloud_conn_id=self.google_cloud_conn_id,
+                    inactivity_period=self.inactivity_period,
+                    min_objects=self.min_objects,
+                    previous_objects=self.previous_objects,
+                    allow_delete=self.allow_delete,
+                    hook_params=hook_params,
+                ),
+                method_name="execute_complete",
+            )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
