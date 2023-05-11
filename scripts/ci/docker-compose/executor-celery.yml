@@ -40,7 +40,5 @@ services:
     environment:
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/
     depends_on:
-      redis:
-        condition: service_healthy
-      celery:
-        condition: service_healthy
+      - redis
+      - celery
