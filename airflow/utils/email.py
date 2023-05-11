@@ -241,6 +241,7 @@ def send_mime_email(
     smtp_user = None
     smtp_password = None
 
+    found_email_connection = False
     if conn_id is not None:
         try:
             from airflow.hooks.base import BaseHook
@@ -248,21 +249,25 @@ def send_mime_email(
             airflow_conn = BaseHook.get_connection(conn_id)
             smtp_user = airflow_conn.login
             smtp_password = airflow_conn.password
+            found_email_connection = True
         except AirflowException:
             pass
-    else:
-        warnings.warn(
-            "Fetching SMTP credentials from configuration variables will be deprecated in a future "
-            "release. Please set credentials using a connection instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-    if smtp_user is None or smtp_password is None:
+    if not found_email_connection:
         try:
             smtp_user = conf.get("smtp", "SMTP_USER")
             smtp_password = conf.get("smtp", "SMTP_PASSWORD")
         except AirflowConfigException:
-            log.debug("No user/password found for SMTP, so logging in with no authentication.")
+            pass
+        # if at this point smtp_user or smtp_password is set it came from conf.get, trigger warning
+        if smtp_user is not None or smtp_password is not None:
+            warnings.warn(
+                "Fetching SMTP credentials from configuration variables will be deprecated in a future "
+                "release. Please set credentials using a connection instead.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
+    if smtp_user is None or smtp_password is None:
+        log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
         for attempt in range(1, smtp_retry_limit + 1):
