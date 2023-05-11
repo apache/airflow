@@ -856,6 +856,7 @@ class AirflowConfigParser(ConfigParser):
             raise AirflowConfigException(f"Unable to parse [{section}] {key!r} as valid json") from e
 
     def get_log_level(self, section: str, key: str, fallback: Any = None, **kwargs) -> int:
+        """Interpret config section as log level and if successful return it."""
         val = self.get(section, key, fallback=fallback, _extra_stacklevel=1, **kwargs)
         is_empty = val is None or isinstance(val, str) and not val.strip()
         if is_empty and fallback is None:
