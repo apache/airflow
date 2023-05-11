@@ -387,25 +387,29 @@ no_value_set =
         # invalid and no fallback fails
         with pytest.raises(
             AirflowConfigException,
-            match='Failed to convert value Some val to log level. Please correct key "invalid_str" in section "type_validation".',
+            match="Failed to convert value Some val to log level. "
+            'Please correct key "invalid_str" in section "type_validation".',
         ):
             test_conf.get_log_level("type_validation", "invalid_str")
         # invalid fails even *with* fallback
         with pytest.raises(
             AirflowConfigException,
-            match='Failed to convert value Some val to log level. Please correct key "invalid_str" in section "type_validation".',
+            match="Failed to convert value Some val to log level. "
+            'Please correct key "invalid_str" in section "type_validation".',
         ):
             test_conf.get_log_level("type_validation", "invalid_str", fallback=10)
         # missing key no fallback fails
         with pytest.raises(
             AirflowConfigException,
-            match='No value set for key "entirely_missing_key" in section "type_validation"; please set config or supply a fallback at call site.',
+            match='No value set for key "entirely_missing_key" in section "type_validation"; '
+            "please set config or supply a fallback at call site.",
         ):
             test_conf.get_log_level("type_validation", "entirely_missing_key")
         # missing value no fallback fails
         with pytest.raises(
             AirflowConfigException,
-            match='No value set for key "no_value_set" in section "type_validation"; please set config or supply a fallback at call site.',
+            match='No value set for key "no_value_set" in section "type_validation"; '
+            "please set config or supply a fallback at call site.",
         ):
             test_conf.get_log_level("type_validation", "no_value_set")
         # when given integer, accepted
