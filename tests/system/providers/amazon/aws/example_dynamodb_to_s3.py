@@ -135,6 +135,7 @@ with DAG(
         file_size=1000,
         s3_bucket_name=bucket_name,
         export_time=datetime(year=2023, month=4, day=10),
+        s3_key_prefix=f"{S3_KEY_PREFIX}-3-",
     )
     # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time]
 
