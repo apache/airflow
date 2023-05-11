@@ -133,7 +133,7 @@ class TestWasbBlobAsyncSensor:
     def test_wasb_blob_sensor_finish_before_deferred(self, mock_defer, mock_hook):
         mock_hook.return_value.check_for_blob.return_value = True
         self.SENSOR.execute(mock.MagicMock())
-        assert mock_defer.assert_not_called()
+        assert not mock_defer.called
 
     @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
     def test_wasb_blob_sensor_async(self, mock_hook):
