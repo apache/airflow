@@ -24,11 +24,11 @@ import React, { useRef, useState } from "react";
 import { Box, Button } from "@chakra-ui/react";
 
 SyntaxHighlighter.registerLanguage("python", python);
+
 interface Props {
   code: string;
-  language: string;
 }
-export default function CodeBlock({ code, language }: Props) {
+export default function CodeBlock({ code }: Props) {
   const dagCodeRef = useRef(null);
   const [codeWrap, setCodeWrap] = useState(false);
   const toggleCodeWrap = () => setCodeWrap(!codeWrap);
@@ -41,6 +41,7 @@ export default function CodeBlock({ code, language }: Props) {
       borderWidth={2}
       borderColor="gray:100"
       position="relative"
+      fontSize="13.5px"
     >
       <Button
         colorScheme="cyan"
@@ -50,12 +51,13 @@ export default function CodeBlock({ code, language }: Props) {
         position="absolute"
         top="15px"
         right="15px"
+        fontSize="13.5px"
         onClick={toggleCodeWrap}
       >
         Toggle Wrap
       </Button>
       <SyntaxHighlighter
-        language={language}
+        language="python"
         style={oneLight}
         showLineNumbers
         wrapLongLines={codeWrap}

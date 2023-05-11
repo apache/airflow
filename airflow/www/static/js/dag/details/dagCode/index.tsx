@@ -17,48 +17,25 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from "axios";
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { Box, Heading } from "@chakra-ui/react";
-import { getMetaValue, useOffsetTop } from "src/utils";
+import { useOffsetTop } from "src/utils";
 import Time from "src/components/Time";
-import type { API } from "src/types";
+
+import { useDagCode } from "src/api";
 import CodeBlock from "./CodeBlock";
 
 const DagCode = () => {
   const dagCodeRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(dagCodeRef);
-
-  const [lastParsedTime, setLastParsedTime] = useState("");
-  const [dagCode, setDagCode] = useState("");
-
-  const dagApiUrl = getMetaValue("dag_api");
-  if (dagApiUrl) {
-    axios.get<AxiosResponse, API.DAG>(dagApiUrl).then((dagResp) => {
-      setLastParsedTime(dagResp.lastParsedTime ?? "");
-      const fileToken =
-        dagResp.fileToken !== undefined ? dagResp.fileToken : "";
-
-      let dagSourceApiUrl = getMetaValue("dag_source_api")!;
-      if (dagSourceApiUrl && fileToken !== "") {
-        dagSourceApiUrl = dagSourceApiUrl.replace("_FILE_TOKEN_", fileToken);
-        axios
-          .get<AxiosResponse, string>(dagSourceApiUrl, {
-            headers: { Accept: "text/plain" },
-          })
-          .then((dagSourceResp) => {
-            setDagCode(dagSourceResp);
-          });
-      }
-    });
-  }
+  const { lastParsedTime, codeSource = "" } = useDagCode();
 
   return (
     <Box ref={dagCodeRef} height={`calc(100% - ${offsetTop}px)`}>
-      <Heading as="h4" size="md" paddingBottom="10px">
+      <Heading as="h4" size="md" paddingBottom="10px" fontSize="14px">
         Parsed at: <Time dateTime={lastParsedTime} />
       </Heading>
-      <CodeBlock code={dagCode} language="python" />
+      <CodeBlock code={codeSource} />
     </Box>
   );
 };
