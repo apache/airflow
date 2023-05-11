@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import io
 import logging
 import os
@@ -371,3 +372,23 @@ def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.Zi
             content = dag_file.read()
     content = content.lower()
     return all(s in content for s in (b"dag", b"airflow"))
+
+
+def _find_imported_modules(module: ast.Module) -> Generator[str, None, None]:
+    for st in module.body:
+        if isinstance(st, ast.Import):
+            for n in st.names:
+                yield n.name
+        elif isinstance(st, ast.ImportFrom) and st.module is not None:
+            yield st.module
+
+
+def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
+    """Find Airflow modules imported in the given file."""
+    try:
+        parsed = ast.parse(Path(file_path).read_bytes())
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return
+    for m in _find_imported_modules(parsed):
+        if m.startswith("airflow."):
+            yield m

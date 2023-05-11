@@ -46,7 +46,6 @@
 !.coveragerc
 !.rat-excludes
 !.dockerignore
-!pytest.ini
 !RELEASE_NOTES.rst
 !LICENSE
 !MANIFEST.in
@@ -71,6 +70,7 @@
 # Setup/version configuration
 !setup.cfg
 !setup.py
+!pyproject.toml
 !manifests
 !generated
 # Now - ignore unnecessary files inside allowed directories

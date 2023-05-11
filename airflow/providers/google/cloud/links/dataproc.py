@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.links.base import BASE_LINK
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"

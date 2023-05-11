@@ -21,6 +21,7 @@ name: Apache Cassandra
 description: |
     `Apache Cassandra <http://cassandra.apache.org/>`__.
 
+suspended: false
 versions:
   - 3.1.1
   - 3.1.0
@@ -35,7 +36,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - cassandra-driver>=3.13.0
 
 integrations:

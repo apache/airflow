@@ -29,7 +29,7 @@ from typing import Sequence
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 log = logging.getLogger(__name__)
@@ -127,16 +127,16 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
@@ -233,7 +233,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
                     raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
-                warnings.warn("Use 'request_filter' instead of 'filter'", DeprecationWarning)
+                warnings.warn("Use 'request_filter' instead of 'filter'", AirflowProviderDeprecationWarning)
             else:
                 raise TypeError("list_transfer_job missing 1 required positional argument: 'request_filter'")
 
@@ -364,7 +364,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
                     raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
-                warnings.warn("Use 'request_filter' instead of 'filter'", DeprecationWarning)
+                warnings.warn("Use 'request_filter' instead of 'filter'", AirflowProviderDeprecationWarning)
             else:
                 raise TypeError(
                     "list_transfer_operations missing 1 required positional argument: 'request_filter'"

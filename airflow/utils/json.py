@@ -44,7 +44,12 @@ class AirflowJsonProvider(JSONProvider):
 
 
 class WebEncoder(json.JSONEncoder):
-    """This encodes values into a web understandable format. There is no deserializer"""
+    """This encodes values into a web understandable format. There is no deserializer.
+
+    This parses datetime, dates, Decimal and bytes. In order to parse the custom
+    classes and the other types, and since it's just to show the result in the UI,
+    we return repr(object) for everything else.
+    """
 
     def default(self, o: Any) -> Any:
         if isinstance(o, datetime):
@@ -59,7 +64,11 @@ class WebEncoder(json.JSONEncoder):
             data = serialize(o)
             if isinstance(data, dict) and DATA in data:
                 return data[DATA]
-
+        if isinstance(o, bytes):
+            try:
+                return o.decode("unicode_escape")
+            except UnicodeDecodeError:
+                return repr(o)
         try:
             data = serialize(o)
             if isinstance(data, dict) and CLASSNAME in data:
@@ -71,7 +80,7 @@ class WebEncoder(json.JSONEncoder):
                     return data[DATA]
             return data
         except TypeError:
-            raise
+            return repr(o)
 
 
 class XComEncoder(json.JSONEncoder):
@@ -87,6 +96,10 @@ class XComEncoder(json.JSONEncoder):
         # checked here and in serialize
         if isinstance(o, dict) and (CLASSNAME in o or SCHEMA_ID in o):
             raise AttributeError(f"reserved key {CLASSNAME} found in dict to serialize")
+
+        # tuples are not preserved by std python serializer
+        if isinstance(o, tuple):
+            o = self.default(o)
 
         return super().encode(o)
 

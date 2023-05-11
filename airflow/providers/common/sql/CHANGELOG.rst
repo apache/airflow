@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add option to show output of 'SQLExecuteQueryOperator' in the log (#29954)``
+
+Misc
+~~~~
+
+* ``Fix Python API docs formatting for Common SQL provider (#29863)``
+
 1.3.4
 .....
 

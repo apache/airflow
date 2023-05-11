@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, Sequence
 
 import botocore.exceptions
@@ -157,7 +156,11 @@ class RedshiftHook(AwsBaseHook):
         return response["Cluster"] if response["Cluster"] else None
 
     def create_cluster_snapshot(
-        self, snapshot_identifier: str, cluster_identifier: str, retention_period: int = -1
+        self,
+        snapshot_identifier: str,
+        cluster_identifier: str,
+        retention_period: int = -1,
+        tags: list[Any] | None = None,
     ) -> str:
         """
         Creates a snapshot of a cluster
@@ -169,30 +172,24 @@ class RedshiftHook(AwsBaseHook):
         :param cluster_identifier: unique identifier of a cluster
         :param retention_period: The number of days that a manual snapshot is retained.
             If the value is -1, the manual snapshot is retained indefinitely.
+        :param tags: A list of tag instances
         """
+        if tags is None:
+            tags = []
         response = self.get_conn().create_cluster_snapshot(
             SnapshotIdentifier=snapshot_identifier,
             ClusterIdentifier=cluster_identifier,
             ManualSnapshotRetentionPeriod=retention_period,
+            Tags=tags,
         )
         return response["Snapshot"] if response["Snapshot"] else None
 
-    def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str | None = None):
+    def get_cluster_snapshot_status(self, snapshot_identifier: str):
         """
         Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``
 
         :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
-        :param cluster_identifier: (deprecated) The unique identifier of the cluster
-            the snapshot was created from
         """
-        if cluster_identifier:
-            warnings.warn(
-                "Parameter `cluster_identifier` is deprecated."
-                "This option will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         try:
             response = self.get_conn().describe_cluster_snapshots(
                 SnapshotIdentifier=snapshot_identifier,
@@ -255,6 +252,35 @@ class RedshiftAsyncHook(AwsBaseAsyncHook):
                 return {"status": "error", "cluster_state": status}
         except botocore.exceptions.ClientError as error:
             return {"status": "error", "message": str(error)}
+
+    async def resume_cluster(
+        self,
+        cluster_identifier: str,
+        polling_period_seconds: float = 5.0,
+    ) -> dict[str, Any]:
+        """
+        Connects to the AWS redshift cluster via aiobotocore and
+        resume the cluster for the cluster_identifier passed
+
+        :param cluster_identifier: unique identifier of a cluster
+        :param polling_period_seconds: polling period in seconds to check for the status
+        """
+        async with await self.get_client_async() as client:
+            try:
+                response = await client.resume_cluster(ClusterIdentifier=cluster_identifier)
+                status = response["Cluster"]["ClusterStatus"] if response and response["Cluster"] else None
+                if status == "resuming":
+                    flag = asyncio.Event()
+                    while True:
+                        expected_response = await asyncio.create_task(
+                            self.get_cluster_status(cluster_identifier, "available", flag)
+                        )
+                        await asyncio.sleep(polling_period_seconds)
+                        if flag.is_set():
+                            return expected_response
+                return {"status": "error", "cluster_state": status}
+            except botocore.exceptions.ClientError as error:
+                return {"status": "error", "message": str(error)}
 
     async def get_cluster_status(
         self,

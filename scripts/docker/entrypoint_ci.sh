@@ -19,6 +19,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
+
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
@@ -52,7 +53,9 @@ function wait_for_asset_compilation() {
         echo
         local counter=0
         while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
-            echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            if (( counter % 5 == 2 )); then
+                echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
+            fi
             sleep 1
             ((counter=counter+1))
             if [[ ${counter} == "30" ]]; then
@@ -187,23 +190,66 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             exit 1
         fi
         echo
+        if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+            IFS=\, read -ra selected_providers <<<"${INSTALL_SELECTED_PROVIDERS}"
+            echo
+            echo "${COLOR_BLUE}Selected providers to install: '${selected_providers[*]}'${COLOR_RESET}"
+            echo
+        else
+            echo
+            echo "${COLOR_BLUE}Installing all found providers${COLOR_RESET}"
+            echo
+            selected_providers=()
+        fi
         installable_files=()
         for file in /dist/*.{whl,tar.gz}
         do
-            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
-                # Skip Apache Airflow package - it's just been installed above with extras
-                echo "Skipping ${file}"
+            if [[ ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
+                # Skip Apache Airflow package - it's just been installed above if
+                # --use-airflow-version was set and should be skipped otherwise
+                echo "${COLOR_BLUE}Skipping airflow core package ${file} from provider installation.${COLOR_RESET}"
                 continue
             fi
             if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache_airflow_providers_//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
             if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache-airflow-providers-//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
         done
+        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
+            echo
+            echo "${COLOR_BLUE}Also adding airflow in specified version ${USE_AIRFLOW_VERSION} to make sure it is not upgraded by >= limits${COLOR_RESET}"
+            echo
+            installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
+        fi
+        echo
+        echo "${COLOR_BLUE}Installing: ${installable_files[*]}${COLOR_RESET}"
+        echo
         if (( ${#installable_files[@]} )); then
             pip install --root-user-action ignore "${installable_files[@]}"
         fi
@@ -276,6 +322,10 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
+# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# but may still be present in the local directory if the user has old breeze image
+rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" != "true" ]]; then
@@ -283,8 +333,13 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
-export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.txt"
+else
+    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
+fi
 
 EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
@@ -301,17 +356,31 @@ EXTRA_PYTEST_ARGS=(
     "--teardown-timeout=${TEST_TIMEOUT}"
     "--output=${WARNINGS_FILE}"
     "--disable-warnings"
-    # Only display summary for non-expected case
+    # Only display summary for non-expected cases
+    #
     # f - failed
     # E - error
     # X - xpassed (passed even if expected to fail)
-    # The following cases are not displayed:
     # s - skipped
+    #
+    # The following cases are not displayed:
     # x - xfailed (expected to fail and failed)
     # p - passed
     # P - passed with output
-    "-rfEX"
+    #
+    "-rfEXs"
 )
+
+if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
+    for provider in ${SUSPENDED_PROVIDERS_FOLDERS=}; do
+        echo "Skipping tests for suspended provider: ${provider}"
+        EXTRA_PYTEST_ARGS+=(
+            "--ignore=tests/providers/${provider}"
+            "--ignore=tests/system/providers/${provider}"
+            "--ignore=tests/integration/providers/${provider}"
+        )
+    done
+fi
 
 if [[ "${TEST_TYPE}" == "Helm" ]]; then
     _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
@@ -335,6 +404,21 @@ if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     )
 fi
 
+if [[ ${COLLECT_ONLY:="false"} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "--collect-only"
+        "-qqqq"
+        "--disable-warnings"
+    )
+fi
+
+if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
+    # Test what happens if we do not have ARM packages installed.
+    # This is useful to see if pytest collection works without ARM packages which is important
+    # for the MacOS M1 users running tests in their ARM machines with `breeze testing tests` command
+    python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
+fi
+
 declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
 
@@ -342,7 +426,10 @@ declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TES
 # - so that we do not skip any in the future if new directories are added
 function find_all_other_tests() {
     local all_tests_dirs
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__')
+    # The output of the find command should be sorted to make sure that the order is always the same
+    # when we run the tests, to avoid cross-package side effects causing different test results
+    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
+    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
     all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
     local path
@@ -361,7 +448,7 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
     SELECTED_TESTS=("${@}")
 else
     CLI_TESTS=("tests/cli")
-    API_TESTS=("tests/api" "tests/api_connexion")
+    API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
@@ -391,7 +478,7 @@ else
     )
 
     NO_PROVIDERS_INTEGRATION_TESTS=(
-        "tests/integration/api"
+        "tests/integration/api_experimental"
         "tests/integration/cli"
         "tests/integration/executors"
         "tests/integration/security"
@@ -410,7 +497,11 @@ else
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
-        SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
+            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+        else
+            SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+        fi
     elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
         if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
             SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
@@ -425,6 +516,19 @@ else
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
             ${TEST_TYPE} == "Long" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[\-(.*)\] ]]; then
+        # When providers start with `-` it means that we should run all provider tests except those
+        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            providers_dir="tests/providers/${provider//./\/}"
+            if [[ -d ${providers_dir} ]]; then
+                echo "${COLOR_BLUE}Ignoring ${providers_dir} as it has been deselected.${COLOR_RESET}"
+                EXTRA_PYTEST_ARGS+=("--ignore=tests/providers/${provider//./\/}")
+            else
+                echo "${COLOR_YELLOW}Skipping ${providers_dir} as the directory does not exist.${COLOR_RESET}"
+            fi
+        done
     elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
         SELECTED_TESTS=()
         for provider in ${BASH_REMATCH[1]//,/ }
@@ -436,6 +540,16 @@ else
                 echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
             fi
         done
+    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
+        # Those tests fail when --asert=rewrite is set, therefore we run them separately
+        # with --assert=plain to make sure they pass.
+        SELECTED_TESTS=(
+            # this on is mysteriously failing dill serialization. It could be removed once
+            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
+            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
+        )
+        EXTRA_PYTEST_ARGS+=("--assert=plain")
+        export PYTEST_PLAIN_ASSERTS="true"
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"

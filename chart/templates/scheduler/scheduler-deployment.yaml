@@ -1,19 +1,21 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
 
 ################################
 ## Airflow Scheduler Deployment/StatefulSet
@@ -125,10 +127,9 @@ spec:
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
       {{- end }}
-{{- if .Values.scheduler.hostAliases }}
-      hostAliases:
-{{ toYaml .Values.scheduler.hostAliases | indent 8 }}
-{{- end }}
+      {{- if .Values.scheduler.hostAliases }}
+      hostAliases: {{- toYaml .Values.scheduler.hostAliases | nindent 8 }}
+      {{- end }}
       initContainers:
         {{- if .Values.scheduler.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -184,11 +185,11 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
-                  {{- if .Values.scheduler.livenessProbe.command }}
-                    {{- toYaml .Values.scheduler.livenessProbe.command  | nindent 16 }}
-                  {{- else}}
-                    {{- include "scheduler_liveness_check_command" . | nindent 16 }}
-                  {{- end }}
+                {{- if .Values.scheduler.livenessProbe.command }}
+                  {{- toYaml .Values.scheduler.livenessProbe.command  | nindent 16 }}
+                {{- else }}
+                  {{- include "scheduler_liveness_check_command" . | indent 14 }}
+                {{- end }}
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
           ports:
@@ -219,7 +220,7 @@ spec:
               {{- toYaml .Values.scheduler.extraVolumeMounts | nindent 12 }}
             {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
-        {{- include "git_sync_container" . | indent 8 }}
+          {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
         {{- if .Values.scheduler.logGroomerSidecar.enabled }}
         - name: scheduler-log-groomer
@@ -232,7 +233,7 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{ if .Values.scheduler.logGroomerSidecar.retentionDays }}
+          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
@@ -271,7 +272,7 @@ spec:
         - name: dags
           emptyDir: {}
         {{- if .Values.dags.gitSync.sshKeySecret }}
-        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
         {{- end }}

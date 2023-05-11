@@ -51,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_github_repository,
     option_image_tag_for_running,
     option_include_mypy_volume,
+    option_install_selected_providers,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -123,6 +124,7 @@ class TimerThread(threading.Thread):
 @option_airflow_extras
 @option_airflow_constraints_reference
 @option_use_packages_from_dist
+@option_install_selected_providers
 @option_installation_package_format
 @option_mount_sources
 @option_integration
@@ -145,6 +147,7 @@ def shell(
     forward_credentials: bool,
     mount_sources: str,
     use_packages_from_dist: bool,
+    install_selected_providers: str,
     package_format: str,
     use_airflow_version: str | None,
     airflow_extras: str,
@@ -179,6 +182,7 @@ def shell(
         airflow_extras=airflow_extras,
         airflow_constraints_reference=airflow_constraints_reference,
         use_packages_from_dist=use_packages_from_dist,
+        install_selected_providers=install_selected_providers,
         package_format=package_format,
         force_build=force_build,
         db_reset=db_reset,
@@ -312,6 +316,11 @@ def start_airflow(
     "Implies --clean-build",
     is_flag=True,
 )
+@click.option(
+    "--one-pass-only",
+    help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
+    is_flag=True,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -320,6 +329,7 @@ def build_docs(
     spellcheck_only: bool,
     for_production: bool,
     clean_build: bool,
+    one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
@@ -395,6 +405,18 @@ def build_docs(
     "(can be any git commit-ish reference). "
     "Mutually exclusive with --last-commit.",
 )
+@click.option(
+    "--initialize-environment",
+    help="Initialize environment before running checks.",
+    is_flag=True,
+)
+@click.option(
+    "--max-initialization-attempts",
+    help="Maximum number of attempts to initialize environment before giving up.",
+    show_default=True,
+    type=click.IntRange(1, 10),
+    default=3,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -407,10 +429,36 @@ def static_checks(
     type_: str,
     file: Iterable[str],
     precommit_args: tuple,
+    initialize_environment: bool,
+    max_initialization_attempts: int,
     github_repository: str,
 ):
     assert_pre_commit_installed()
     perform_environment_checks()
+
+    if initialize_environment:
+        get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
+        get_console().print(
+            f"[info]Trying to install the environments up to {max_initialization_attempts} "
+            f"times in case of flakiness[/]"
+        )
+        i = 0
+        while True:
+            get_console().print(f"[info]Attempt number {i+1} to install pre-commit environments")
+            initialization_result = run_command(
+                [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
+                check=False,
+                no_output_dump_on_exception=True,
+                text=True,
+            )
+            if initialization_result.returncode == 0:
+                break
+            get_console().print(f"[warning]Attempt number {i+1} failed - retrying[/]")
+            if i == max_initialization_attempts - 1:
+                get_console().print("[error]Could not install pre-commit environments[/]")
+                sys.exit(initialization_result.returncode)
+            i += 1
+
     command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
     if last_commit and commit_ref:
         get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")

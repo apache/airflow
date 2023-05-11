@@ -19,6 +19,7 @@
 
 import React from "react";
 import { Box, Text } from "@chakra-ui/react";
+import { snakeCase } from "lodash";
 
 import { getGroupAndMapSummary } from "src/utils";
 import { formatDuration, getDuration } from "src/datetime_utils";
@@ -32,7 +33,7 @@ interface Props {
 
 const InstanceTooltip = ({
   group,
-  instance: { startDate, endDate, state, runId, mappedStates, note },
+  instance: { taskId, startDate, endDate, state, runId, mappedStates, note },
 }: Props) => {
   if (!group) return null;
   const isGroup = !!group.children;
@@ -46,11 +47,11 @@ const InstanceTooltip = ({
   });
 
   childTaskMap.forEach((key, val) => {
+    const childState = snakeCase(val);
     if (key > 0) {
       summary.push(
-        // eslint-disable-next-line react/no-array-index-key
-        <Text key={val} ml="10px">
-          {val}
+        <Text key={childState} ml="10px">
+          {childState}
           {": "}
           {key}
         </Text>
@@ -60,6 +61,7 @@ const InstanceTooltip = ({
 
   return (
     <Box py="2px">
+      <Text>Task Id: {taskId}</Text>
       {group.tooltip && <Text>{group.tooltip}</Text>}
       {isMapped && totalTasks > 0 && (
         <Text>

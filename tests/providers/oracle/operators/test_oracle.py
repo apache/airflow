@@ -23,6 +23,7 @@ from unittest import mock
 import oracledb
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import TaskInstance
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.oracle.hooks.oracle import OracleHook
@@ -39,7 +40,7 @@ class TestOracleOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        with pytest.warns(DeprecationWarning, match="This class is deprecated.*"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This class is deprecated.*"):
             operator = OracleOperator(
                 sql=sql,
                 oracle_conn_id=oracle_conn_id,

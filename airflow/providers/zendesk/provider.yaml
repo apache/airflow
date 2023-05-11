@@ -21,6 +21,7 @@ name: Zendesk
 description: |
     `Zendesk <https://www.zendesk.com/>`__
 
+suspended: false
 versions:
   - 4.2.0
   - 4.1.0
@@ -35,7 +36,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - zenpy>=2.0.24
 
 integrations:

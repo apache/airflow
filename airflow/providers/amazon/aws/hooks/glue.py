@@ -20,16 +20,13 @@ from __future__ import annotations
 import time
 
 import boto3
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 DEFAULT_LOG_SUFFIX = "output"
-FAILURE_LOG_SUFFIX = "error"
-# A filter value of ' ' translates to "match all".
-# see: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html
-DEFAULT_LOG_FILTER = " "
-FAILURE_LOG_FILTER = "?ERROR ?Exception"
+ERROR_LOG_SUFFIX = "error"
 
 
 class GlueJobHook(AwsBaseHook):
@@ -47,6 +44,7 @@ class GlueJobHook(AwsBaseHook):
     :param region_name: aws region name (example: us-east-1)
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :param create_job_kwargs: Extra arguments for Glue Job Creation
+    :param update_config: Update job configuration on Glue (default: False)
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -56,6 +54,13 @@ class GlueJobHook(AwsBaseHook):
     """
 
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
+
+    class LogContinuationTokens:
+        """Used to hold the continuation tokens when reading logs from both streams Glue Jobs write to."""
+
+        def __init__(self):
+            self.output_stream_continuation: str | None = None
+            self.error_stream_continuation: str | None = None
 
     def __init__(
         self,
@@ -68,6 +73,7 @@ class GlueJobHook(AwsBaseHook):
         num_of_dpus: int | float | None = None,
         iam_role_name: str | None = None,
         create_job_kwargs: dict | None = None,
+        update_config: bool = False,
         *args,
         **kwargs,
     ):
@@ -80,6 +86,7 @@ class GlueJobHook(AwsBaseHook):
         self.role_name = iam_role_name
         self.s3_glue_logs = "logs/glue-logs/"
         self.create_job_kwargs = create_job_kwargs or {}
+        self.update_config = update_config
 
         worker_type_exists = "WorkerType" in self.create_job_kwargs
         num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
@@ -132,7 +139,7 @@ class GlueJobHook(AwsBaseHook):
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_jobs`
         """
-        return self.get_conn().get_jobs()
+        return self.conn.get_jobs()
 
     def get_iam_execution_role(self) -> dict:
         """Get IAM Role for job execution."""
@@ -162,8 +169,12 @@ class GlueJobHook(AwsBaseHook):
         run_kwargs = run_kwargs or {}
 
         try:
-            job_name = self.create_or_update_glue_job()
-            return self.get_conn().start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
+            if self.update_config:
+                job_name = self.create_or_update_glue_job()
+            else:
+                job_name = self.get_or_create_glue_job()
+
+            return self.conn.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -180,53 +191,68 @@ class GlueJobHook(AwsBaseHook):
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
         """
-        job_run = self.get_conn().get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
+        job_run = self.conn.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
         return job_run["JobRun"]["JobRunState"]
 
     def print_job_logs(
         self,
         job_name: str,
         run_id: str,
-        job_failed: bool = False,
-        next_token: str | None = None,
-    ) -> str | None:
-        """Prints the batch of logs to the Airflow task log and returns nextToken."""
+        continuation_tokens: LogContinuationTokens,
+    ):
+        """
+        Prints the latest job logs to the Airflow task log and updates the continuation tokens.
+
+        :param continuation_tokens: the tokens where to resume from when reading logs.
+            The object gets updated with the new tokens by this method.
+        """
         log_client = boto3.client("logs")
-        response = {}
+        paginator = log_client.get_paginator("filter_log_events")
 
-        filter_pattern = FAILURE_LOG_FILTER if job_failed else DEFAULT_LOG_FILTER
-        log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
-        log_group_suffix = FAILURE_LOG_SUFFIX if job_failed else DEFAULT_LOG_SUFFIX
-        log_group_name = f"{log_group_prefix}/{log_group_suffix}"
-
-        try:
-            if next_token:
-                response = log_client.filter_log_events(
-                    logGroupName=log_group_name,
+        def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
+            """Internal method to mutualize iteration over the 2 different log streams glue jobs write to"""
+            fetched_logs = []
+            next_token = continuation_token
+            try:
+                for response in paginator.paginate(
+                    logGroupName=log_group,
                     logStreamNames=[run_id],
-                    filterPattern=filter_pattern,
-                    nextToken=next_token,
-                )
+                    PaginationConfig={"StartingToken": continuation_token},
+                ):
+                    fetched_logs.extend([event["message"] for event in response["events"]])
+                    # if the response is empty there is no nextToken in it
+                    next_token = response.get("nextToken") or next_token
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                    # we land here when the log groups/streams don't exist yet
+                    self.log.warning(
+                        "No new Glue driver logs so far.\nIf this persists, check the CloudWatch dashboard "
+                        f"at: https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home"
+                    )
+                else:
+                    raise
+
+            if len(fetched_logs):
+                # Add a tab to indent those logs and distinguish them from airflow logs.
+                # Log lines returned already contain a newline character at the end.
+                messages = "\t".join(fetched_logs)
+                self.log.info("Glue Job Run %s Logs:\n\t%s", log_group, messages)
             else:
-                response = log_client.filter_log_events(
-                    logGroupName=log_group_name,
-                    logStreamNames=[run_id],
-                    filterPattern=filter_pattern,
-                )
-            if len(response["events"]):
-                messages = "\t".join([event["message"] for event in response["events"]])
-                self.log.info("Glue Job Run Logs:\n\t%s", messages)
+                self.log.info("No new log from the Glue Job in %s", log_group)
+            return next_token
 
-        except log_client.exceptions.ResourceNotFoundException:
-            self.log.warning(
-                "No new Glue driver logs found. This might be because there are no new logs, "
-                "or might be an error.\nIf the error persists, check the CloudWatch dashboard "
-                f"at: https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home"
-            )
+        log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
+        log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
+        log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
 
-        # If no new log events are available, filter_log_events will return None.
-        # In that case, check the same token again next pass.
-        return response.get("nextToken") or next_token
+        # one would think that the error log group would contain only errors, but it actually contains
+        # a lot of interesting logs too, so it's valuable to have both
+        continuation_tokens.output_stream_continuation = display_logs_from(
+            log_group_default, continuation_tokens.output_stream_continuation
+        )
+        continuation_tokens.error_stream_continuation = display_logs_from(
+            log_group_error, continuation_tokens.error_stream_continuation
+        )
 
     def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
@@ -240,35 +266,30 @@ class GlueJobHook(AwsBaseHook):
         """
         failed_states = ["FAILED", "TIMEOUT"]
         finished_states = ["SUCCEEDED", "STOPPED"]
-        next_log_token = None
-        job_failed = False
-
+        next_log_tokens = self.LogContinuationTokens()
         while True:
-            try:
-                job_run_state = self.get_job_state(job_name, run_id)
-                if job_run_state in finished_states:
-                    self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
-                    return {"JobRunState": job_run_state, "JobRunId": run_id}
-                if job_run_state in failed_states:
-                    job_failed = True
-                    job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
-                    self.log.info(job_error_message)
-                    raise AirflowException(job_error_message)
-                else:
-                    self.log.info(
-                        "Polling for AWS Glue Job %s current run state with status %s",
-                        job_name,
-                        job_run_state,
-                    )
-                    time.sleep(self.JOB_POLL_INTERVAL)
-            finally:
-                if verbose:
-                    next_log_token = self.print_job_logs(
-                        job_name=job_name,
-                        run_id=run_id,
-                        job_failed=job_failed,
-                        next_token=next_log_token,
-                    )
+            if verbose:
+                self.print_job_logs(
+                    job_name=job_name,
+                    run_id=run_id,
+                    continuation_tokens=next_log_tokens,
+                )
+
+            job_run_state = self.get_job_state(job_name, run_id)
+            if job_run_state in finished_states:
+                self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
+                return {"JobRunState": job_run_state, "JobRunId": run_id}
+            if job_run_state in failed_states:
+                job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
+                self.log.info(job_error_message)
+                raise AirflowException(job_error_message)
+            else:
+                self.log.info(
+                    "Polling for AWS Glue Job %s current run state with status %s",
+                    job_name,
+                    job_run_state,
+                )
+                time.sleep(self.JOB_POLL_INTERVAL)
 
     def has_job(self, job_name) -> bool:
         """
@@ -283,9 +304,9 @@ class GlueJobHook(AwsBaseHook):
         self.log.info("Checking if job already exists: %s", job_name)
 
         try:
-            self.get_conn().get_job(JobName=job_name)
+            self.conn.get_job(JobName=job_name)
             return True
-        except self.get_conn().exceptions.EntityNotFoundException:
+        except self.conn.exceptions.EntityNotFoundException:
             return False
 
     def update_job(self, **job_kwargs) -> bool:
@@ -299,18 +320,36 @@ class GlueJobHook(AwsBaseHook):
         :return: True if job was updated and false otherwise
         """
         job_name = job_kwargs.pop("Name")
-        current_job = self.get_conn().get_job(JobName=job_name)["Job"]
+        current_job = self.conn.get_job(JobName=job_name)["Job"]
 
         update_config = {
             key: value for key, value in job_kwargs.items() if current_job.get(key) != job_kwargs[key]
         }
         if update_config != {}:
             self.log.info("Updating job: %s", job_name)
-            self.get_conn().update_job(JobName=job_name, JobUpdate=job_kwargs)
+            self.conn.update_job(JobName=job_name, JobUpdate=job_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
         else:
             return False
+
+    def get_or_create_glue_job(self) -> str | None:
+        """
+        Get (or creates) and returns the Job name.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.create_job`
+
+        :return:Name of the Job
+        """
+        if self.has_job(self.job_name):
+            return self.job_name
+
+        config = self.create_glue_job_config()
+        self.log.info("Creating job: %s", self.job_name)
+        self.conn.create_job(**config)
+
+        return self.job_name
 
     def create_or_update_glue_job(self) -> str | None:
         """
@@ -328,6 +367,6 @@ class GlueJobHook(AwsBaseHook):
             self.update_job(**config)
         else:
             self.log.info("Creating job: %s", self.job_name)
-            self.get_conn().create_job(**config)
+            self.conn.create_job(**config)
 
         return self.job_name

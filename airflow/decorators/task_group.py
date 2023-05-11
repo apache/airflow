@@ -114,13 +114,15 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         return task_group
 
     def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
-        return attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})
+        # TODO: fixme when mypy gets compatible with new attrs
+        return attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})  # type: ignore[arg-type]
 
     def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         self._validate_arg_names("partial", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(self.partial_kwargs)
-        return attr.evolve(self, partial_kwargs=kwargs)
+        # TODO: fixme when mypy gets compatible with new attrs
+        return attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
 
     def expand(self, **kwargs: OperatorExpandArgument) -> DAGNode:
         if not kwargs:

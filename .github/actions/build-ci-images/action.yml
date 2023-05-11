@@ -40,16 +40,20 @@ runs:
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints-source-providers
       if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
+    - name: "Print dependency upgrade summary"
+      shell: bash
+      run: |
+        for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+          echo "Summarizing Python $PYTHON_VERSION"
+          cat "files/constraints-${PYTHON_VERSION}/*.md" >> $GITHUB_STEP_SUMMARY || true
+        done
+      if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
     - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE }}
       if: failure() || cancelled()
       shell: bash
       run: breeze ci-image build --push --empty-image --run-in-parallel
       env:
         IMAGE_TAG: ${{ env.IMAGE_TAG }}
-    - name: "Candidates for pip resolver backtrack triggers"
-      shell: bash
-      run: breeze ci find-newer-dependencies --max-age 1 --python 3.7
-      if: failure() || cancelled()
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

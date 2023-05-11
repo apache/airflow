@@ -66,6 +66,7 @@ from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.operator_resources import Resources
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
@@ -111,7 +112,7 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
 
 
 def ensure_xcomarg_return_value(arg: Any) -> None:
-    from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
+    from airflow.models.xcom_arg import XComArg
 
     if isinstance(arg, XComArg):
         for operator, key in arg.iter_references():
@@ -449,6 +450,10 @@ class MappedOperator(AbstractOperator):
     @property
     def max_active_tis_per_dag(self) -> int | None:
         return self.partial_kwargs.get("max_active_tis_per_dag")
+
+    @property
+    def max_active_tis_per_dagrun(self) -> int | None:
+        return self.partial_kwargs.get("max_active_tis_per_dagrun")
 
     @property
     def resources(self) -> Resources | None:

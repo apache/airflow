@@ -178,17 +178,31 @@ def tag_image_as_latest(image_params: CommonBuildParams, output: Output | None) 
             f"[info]Skip tagging {image_params.airflow_image_name} as latest as it is already 'latest'[/]"
         )
         return subprocess.CompletedProcess(returncode=0, args=[])
-    return run_command(
+    command = run_command(
         [
             "docker",
             "tag",
             image_params.airflow_image_name_with_tag,
-            image_params.airflow_image_name,
+            image_params.airflow_image_name + ":latest",
         ],
         output=output,
         capture_output=True,
         check=False,
     )
+    if command.returncode != 0:
+        return command
+    if image_params.push:
+        command = run_command(
+            [
+                "docker",
+                "push",
+                image_params.airflow_image_name + ":latest",
+            ],
+            output=output,
+            capture_output=True,
+            check=False,
+        )
+    return command
 
 
 def run_pull_and_verify_image(
