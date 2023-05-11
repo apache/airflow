@@ -28,6 +28,7 @@ from airflow.providers.openlineage import version as OPENLINEAGE_PROVIDER_VERSIO
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.stats import Stats
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.facet import (
     BaseFacet,
@@ -117,8 +118,10 @@ class OpenLineageAdapter(LoggingMixin):
             self._client = self.get_or_create_openlineage_client()
         event = self._redacter.redact(event, max_depth=20)
         try:
-            return self._client.emit(event)
+            with Stats.timer("ol.emit.attempts"):
+                return self._client.emit(event)
         except requests.exceptions.RequestException:
+            Stats.incr("ol.emit.failed")
             self.log.exception(f"Failed to emit OpenLineage event of id {event.run.runId}")
 
     def start_task(
