@@ -46,7 +46,6 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -54,6 +53,7 @@ from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
+    from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TaskInstance key, command, configuration, pod_template_file
@@ -753,6 +753,7 @@ class KubernetesExecutor(BaseExecutor):
     ) -> None:
         if TYPE_CHECKING:
             assert self.kube_scheduler
+        from airflow.models.taskinstance import TaskInstance
 
         if state == State.RUNNING:
             self.event_buffer[key] = state, None
