@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-11T02:45:08Z
+# This constraints file was automatically generated on 2023-05-11T19:59:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -20,7 +20,7 @@ Flask-JWT-Extended==4.4.4
 Flask-Limiter==3.3.1
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
-Flask-Session==0.4.1
+Flask-Session==0.5.0
 Flask-WTF==1.1.1
 Flask==2.2.5
 GitPython==3.1.31
@@ -160,7 +160,7 @@ azure-common==1.1.28
 azure-core==1.26.4
 azure-cosmos==4.3.1
 azure-datalake-store==0.0.53
-azure-identity==1.12.0
+azure-identity==1.13.0
 azure-keyvault-secrets==4.7.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
@@ -235,7 +235,7 @@ dill==0.3.1.1
 distlib==0.3.6
 distributed==2022.2.0
 dnspython==2.3.0
-docker==6.1.1
+docker==6.1.2
 docopt==0.6.2
 docutils==0.20
 ecdsa==0.18.0
@@ -374,7 +374,7 @@ limits==3.4.0
 linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
-looker-sdk==23.6.0
+looker-sdk==23.8.1
 lxml==4.9.2
 lz4==4.3.2
 markdown-it-py==2.2.0
@@ -624,7 +624,7 @@ types-pyOpenSSL==23.1.0.3
 types-python-dateutil==2.8.19.13
 types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
-types-redis==4.5.5.1
+types-redis==4.5.5.2
 types-requests==2.30.0.0
 types-setuptools==67.7.0.2
 types-tabulate==0.9.0.2

@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-11T02:37:30Z
+# This constraints file was automatically generated on 2023-05-11T19:52:12Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -20,7 +20,7 @@ Flask-JWT-Extended==4.4.4
 Flask-Limiter==3.3.1
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
-Flask-Session==0.4.1
+Flask-Session==0.5.0
 Flask-WTF==1.1.1
 Flask==2.2.5
 GitPython==3.1.31
@@ -295,7 +295,7 @@ limits==3.4.0
 linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
-looker-sdk==23.6.0
+looker-sdk==23.8.1
 lxml==4.9.2
 lz4==4.3.2
 markdown-it-py==2.2.0
@@ -544,7 +544,7 @@ types-pyOpenSSL==23.1.0.3
 types-python-dateutil==2.8.19.13
 types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
-types-redis==4.5.5.1
+types-redis==4.5.5.2
 types-requests==2.30.0.0
 types-setuptools==67.7.0.2
 types-tabulate==0.9.0.2
