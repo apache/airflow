@@ -788,20 +788,25 @@ class Airflow(AirflowBaseView):
                 )
                 if arg_sorting_direction == "desc":
                     current_dags = current_dags.order_by(
-                        dag_run_subquery.c.max_execution_date.is_(None),
+                        case([(dag_run_subquery.c.max_execution_date is None, 1)], else_=0),
                         dag_run_subquery.c.max_execution_date.desc(),
                     )
                 else:
                     current_dags = current_dags.order_by(
-                        dag_run_subquery.c.max_execution_date.is_(None), dag_run_subquery.c.max_execution_date
+                        case([(dag_run_subquery.c.max_execution_date is None, 1)], else_=0),
+                        dag_run_subquery.c.max_execution_date,
                     )
             else:
                 sort_column = DagModel.__table__.c.get(arg_sorting_key)
                 if sort_column is not None:
                     if arg_sorting_direction == "desc":
-                        current_dags = current_dags.order_by(sort_column.is_(None), sort_column.desc())
+                        current_dags = current_dags.order_by(
+                            case([(sort_column is None, 1)], else_=0), sort_column.desc()
+                        )
                     else:
-                        current_dags = current_dags.order_by(sort_column.is_(None), sort_column)
+                        current_dags = current_dags.order_by(
+                            case([(sort_column is None, 1)], else_=0), sort_column
+                        )
 
             dags = current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
             user_permissions = g.user.perms
