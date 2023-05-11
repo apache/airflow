@@ -881,7 +881,7 @@ logging:
       type: boolean
       example: ~
       default: "False"
-    log_level_optional_feauture_disabled:
+    log_level_optional_feature_disabled:
       description: |
         Level for messages notifying when disabled optional features are detected.
       version_added: 2.7.0

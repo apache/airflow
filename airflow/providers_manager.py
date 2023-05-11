@@ -230,8 +230,8 @@ T = TypeVar("T", bound=Callable)
 
 logger = logging.getLogger(__name__)
 
-LOG_LEVEL_OPTIONAL_FEAUTURE_DISABLED = conf.get_log_level(
-    "logging", "log_level_optional_feauture_disabled", fallback=logging.INFO
+LOG_LEVEL_OPTIONAL_FEATURE_DISABLED = conf.get_log_level(
+    "logging", "log_level_optional_feature_disabled", fallback=logging.INFO
 )
 LOG_LEVEL_PROVIDER_IMPORT_ERROR = conf.get_log_level(
     "logging", "log_level_provider_import_error", fallback=logging.WARNING
@@ -257,7 +257,7 @@ def log_optional_feature_disabled(class_name, e, provider_package):
         exc_info=e,
     )
     log.log(
-        LOG_LEVEL_OPTIONAL_FEAUTURE_DISABLED,
+        LOG_LEVEL_OPTIONAL_FEATURE_DISABLED,
         "Optional provider feature disabled when importing '%s' from '%s' package",
         class_name,
         provider_package,
