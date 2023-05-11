@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import datetime
 import io
+import logging
 import os
 import re
 import tempfile
@@ -369,6 +370,51 @@ key8 = true #123
         assert test_conf.getboolean("false", "key6") is False
         assert test_conf.getboolean("false", "key7") is False
         assert test_conf.getboolean("inline-comment", "key8") is True
+
+    def test_get_log_level(self):
+        """Test AirflowConfigParser.get_log_level"""
+        test_config = """
+[type_validation]
+good_debug_str = debug
+mixed_warning_str = WarNing
+lower_warning_str = warning
+upper_warning_str = WARNING
+given_num = 23
+invalid_str = Some val
+no_value_set =
+"""
+        test_conf = AirflowConfigParser(default_config=test_config)
+        # invalid and no fallback fails
+        with pytest.raises(
+            AirflowConfigException,
+            match='Failed to convert value Some val to log level. Please correct key "invalid_str" in section "type_validation".',
+        ):
+            test_conf.get_log_level("type_validation", "invalid_str")
+        # invalid fails even *with* fallback
+        with pytest.raises(
+            AirflowConfigException,
+            match='Failed to convert value Some val to log level. Please correct key "invalid_str" in section "type_validation".',
+        ):
+            test_conf.get_log_level("type_validation", "invalid_str", fallback=10)
+        # missing key no fallback fails
+        with pytest.raises(
+            AirflowConfigException,
+            match='No value set for key "entirely_missing_key" in section "type_validation"; please set config or supply a fallback at call site.',
+        ):
+            test_conf.get_log_level("type_validation", "entirely_missing_key")
+        # missing value no fallback fails
+        with pytest.raises(
+            AirflowConfigException,
+            match='No value set for key "no_value_set" in section "type_validation"; please set config or supply a fallback at call site.',
+        ):
+            test_conf.get_log_level("type_validation", "no_value_set")
+        # when given integer, accepted
+        assert test_conf.get_log_level("type_validation", "given_num") == 23
+        # when given string that resolves, accept
+        assert test_conf.get_log_level("type_validation", "mixed_warning_str") == logging.WARNING
+        assert test_conf.get_log_level("type_validation", "lower_warning_str") == logging.WARNING
+        assert test_conf.get_log_level("type_validation", "upper_warning_str") == logging.WARNING
+        assert test_conf.get_log_level("type_validation", "good_debug_str") == logging.DEBUG
 
     def test_getint(self):
         """Test AirflowConfigParser.getint"""

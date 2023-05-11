@@ -855,6 +855,32 @@ class AirflowConfigParser(ConfigParser):
         except JSONDecodeError as e:
             raise AirflowConfigException(f"Unable to parse [{section}] {key!r} as valid json") from e
 
+    def get_log_level(self, section: str, key: str, fallback: Any = None, **kwargs) -> int:
+        val = self.get(section, key, fallback=fallback, _extra_stacklevel=1, **kwargs)
+        is_empty = val is None or isinstance(val, str) and not val.strip()
+        if is_empty and fallback is None:
+            raise AirflowConfigException(
+                f'No value set for key "{key}" in section "{section}"; please set config '
+                "or supply a fallback at call site."
+            )
+        if isinstance(val, str):
+            if not val and fallback is not None:
+                return fallback
+            try:
+                # user may supply my_level = 23 for arbitrary log level
+                return int(val)
+            except ValueError:
+                pass
+            level = logging.getLevelName(val.upper())
+            if isinstance(level, int):
+                return level
+            else:
+                raise AirflowConfigException(
+                    f"Failed to convert value {val} to log level. "
+                    f'Please correct key "{key}" in section "{section}".'
+                )
+        return fallback
+
     def gettimedelta(
         self, section: str, key: str, fallback: Any = None, **kwargs
     ) -> datetime.timedelta | None:

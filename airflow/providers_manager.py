@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, Typ
 
 from packaging.utils import canonicalize_name
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
@@ -229,6 +230,13 @@ T = TypeVar("T", bound=Callable)
 
 logger = logging.getLogger(__name__)
 
+LOG_LEVEL_OPTIONAL_FEAUTURE_DISABLED = conf.get_log_level(
+    "logging", "log_level_optional_feauture_disabled", fallback=logging.INFO
+)
+LOG_LEVEL_PROVIDER_IMPORT_ERROR = conf.get_log_level(
+    "logging", "log_level_provider_import_error", fallback=logging.WARNING
+)
+
 
 def log_debug_import_from_sources(class_name, e, provider_package):
     """Log debug imports from sources."""
@@ -248,16 +256,18 @@ def log_optional_feature_disabled(class_name, e, provider_package):
         provider_package,
         exc_info=e,
     )
-    log.info(
+    log.log(
+        LOG_LEVEL_OPTIONAL_FEAUTURE_DISABLED,
         "Optional provider feature disabled when importing '%s' from '%s' package",
         class_name,
         provider_package,
     )
 
 
-def log_import_warning(class_name, e, provider_package):
-    """Log import warning."""
-    log.warning(
+def log_import_error(class_name, e, provider_package):
+    """Log import error."""
+    log.log(
+        LOG_LEVEL_PROVIDER_IMPORT_ERROR,
         "Exception when importing '%s' from '%s' package",
         class_name,
         provider_package,
@@ -317,10 +327,10 @@ def _sanity_check(
                 log_optional_feature_disabled(class_name, e, provider_package)
                 return None
         # But when we have no idea - we print warning to logs
-        log_import_warning(class_name, e, provider_package)
+        log_import_error(class_name, e, provider_package)
         return None
     except Exception as e:
-        log_import_warning(class_name, e, provider_package)
+        log_import_error(class_name, e, provider_package)
         return None
     return imported_class
 
