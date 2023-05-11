@@ -67,7 +67,6 @@ Example Code:
                     summary="DISK at 99%",
                     severity="critical",
                     source="database",
-                    # action=self.action,
                     dedup_key="srv0555/mysql",
                     custom_details={"free space": "1%", "ping time": "1500ms", "load avg": 0.75},
                     group="prod-datapipe",
