@@ -250,13 +250,14 @@ def send_mime_email(
             smtp_password = airflow_conn.password
         except AirflowException:
             pass
-    if smtp_user is None or smtp_password is None:
+    else:
         warnings.warn(
             "Fetching SMTP credentials from configuration variables will be deprecated in a future "
             "release. Please set credentials using a connection instead.",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
+    if smtp_user is None or smtp_password is None:
         try:
             smtp_user = conf.get("smtp", "SMTP_USER")
             smtp_password = conf.get("smtp", "SMTP_PASSWORD")
