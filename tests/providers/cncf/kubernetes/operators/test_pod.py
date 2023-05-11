@@ -324,6 +324,41 @@ class TestKubernetesPodOperator:
             "already_checked!=True,!airflow-worker"
         )
 
+    @patch(HOOK_CLASS, new=MagicMock)
+    def test_pod_dns_options(self):
+        dns_config = k8s.V1PodDNSConfig(
+            nameservers=["192.0.2.1", "192.0.2.3"],
+            searches=["ns1.svc.cluster-domain.example", "my.dns.search.suffix"],
+            options=[
+                k8s.V1PodDNSConfigOption(
+                    name="ndots",
+                    value="2",
+                )
+            ],
+        )
+        hostname = "busybox-2"
+        subdomain = "busybox-subdomain"
+
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            dns_config=dns_config,
+            hostname=hostname,
+            subdomain=subdomain,
+        )
+
+        self.run_pod(k)
+        pod_spec = k.pod.spec
+        assert pod_spec.dns_config == dns_config
+        assert pod_spec.subdomain == subdomain
+        assert pod_spec.hostname == hostname
+
     @pytest.mark.parametrize(
         "val",
         [
