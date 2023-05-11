@@ -158,33 +158,57 @@ class AbstractOperator(Templater, DAGNode):
         self,
         upstream: bool = False,
         found_descendants: set[str] | None = None,
+        setup_only: bool = False,
+        teardown_only: bool = False,
     ) -> set[str]:
         """Get a flat set of relative IDs, upstream or downstream."""
+        if setup_only and not upstream:
+            raise RuntimeError("Unexpected combination: downstream and setup only.")
+        if teardown_only and upstream:
+            raise RuntimeError("Unexpected combination: upstream and teardown only.")
         dag = self.get_dag()
         if not dag:
             return set()
 
         if found_descendants is None:
             found_descendants = set()
-
+        # todo: shall we be smart about inferring setups.... i.e. don't clear it if not connected to
+        #    a downstream teardown
+        downstream_teardowns = set()
+        if not teardown_only:
+            downstream_teardowns.update(self.get_flat_relative_ids(teardown_only=True))
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
                 if task_id in found_descendants:
                     continue
-                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                found_descendants.add(task_id)
+                task = dag.task_dict[task_id]
+                if teardown_only and task._is_teardown:
+                    found_descendants.add(task_id)
+                task_ids_to_trace_next |= task.get_direct_relative_ids(upstream)
+                if task._is_setup:
+                    is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardowns)
+                    if setup_only and not is_relevant_setup:
+                        continue
+                    else:
+                        found_descendants.add(task_id)  # add the setup task
+                        found_descendants.update(  # add the setup's teardowns
+                            [x.task_id for x in task.downstream_list if x._is_teardown and not x == self]
+                        )
+                elif not setup_only:
+                    found_descendants.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
-
         return found_descendants
 
-    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
+    def get_flat_relatives(self, upstream: bool = False, setup_only: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
+        return [
+            dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream, setup_only=setup_only)
+        ]
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.

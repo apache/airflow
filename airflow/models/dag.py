@@ -2335,6 +2335,9 @@ class DAG(LoggingMixin):
                 also_include.extend(t.get_flat_relatives(upstream=False))
             if include_upstream:
                 also_include.extend(t.get_flat_relatives(upstream=True))
+            else:
+                upstream_setup_tasks = t.get_flat_relatives(upstream=True, setup_only=True)
+                also_include.extend(upstream_setup_tasks)
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
