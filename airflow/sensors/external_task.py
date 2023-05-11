@@ -23,7 +23,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 
 import attr
-from sqlalchemy import func, tuple_
+from sqlalchemy import func
 
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperatorLink
@@ -36,6 +36,7 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -367,7 +368,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             external_task_group_task_ids = self.get_external_task_group_task_ids(session, dttm_filter)
             count = (
                 self._count_query(TI, session, states, dttm_filter)
-                .filter(tuple_(TI.task_id, TI.map_index).in_(external_task_group_task_ids))
+                .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
                 .scalar()
             ) / len(external_task_group_task_ids)
         else:
