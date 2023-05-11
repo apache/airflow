@@ -70,7 +70,16 @@ def send_email(
     """
     backend = conf.getimport("email", "EMAIL_BACKEND")
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
-    from_email = conf.get("email", "from_email", fallback=None)
+
+    conf_from_email = conf.get("email", "from_email", fallback=None)
+    conn_from_email = None
+    try:
+        from airflow.hooks.base import BaseHook
+        conn = BaseHook.get_connection(conn_id)
+        from_email = conn.extra_dejson.get("from_email", conf_from_email)
+    except AirflowException:
+        from_email = conf_from_email
+        pass
 
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
