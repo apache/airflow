@@ -31,7 +31,8 @@ export const getErrorDescription = (
   if (error instanceof Error) {
     let { message } = error;
     if (axios.isAxiosError(error)) {
-      message = error.response?.data?.detail || error.message;
+      message =
+        error.response?.data?.detail || error.response?.data || error.message;
     }
     return message;
   }
