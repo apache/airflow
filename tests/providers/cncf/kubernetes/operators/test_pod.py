@@ -604,6 +604,7 @@ class TestKubernetesPodOperator:
         self.await_pod_mock.side_effect = AirflowException("fake failure")
         with pytest.raises(AirflowException, match="my-failure"):
             context = create_context(k)
+            context["ti"].xcom_push = MagicMock()
             k.execute(context=context)
         delete_pod_mock.assert_called_with(find_pod_mock.return_value)
 

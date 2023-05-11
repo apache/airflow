@@ -23,7 +23,6 @@ import boto3
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -33,6 +32,7 @@ from airflow.providers.amazon.aws.operators.eks import (
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_eks_with_nodegroup_in_one_step"
 
@@ -114,18 +114,11 @@ with DAG(
         is_delete_operator_pod=False,
     )
 
-    describe_pod = BashOperator(
-        task_id="describe_pod",
-        bash_command=""
-        # using reinstall option so that it doesn't fail if already present
-        "install_aws.sh --reinstall " "&& install_kubectl.sh --reinstall "
-        # configure kubectl to hit the cluster created
-        f"&& aws eks update-kubeconfig --name {cluster_name} "
-        # once all this setup is done, actually describe the pod
-        "&& kubectl describe pod {{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}",
-        # only describe the pod if the task above failed, to help diagnose
-        trigger_rule=TriggerRule.ONE_FAILED,
+    describe_pod = get_describe_pod_operator(
+        cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
     )
+    # only describe the pod if the task above failed, to help diagnose
+    describe_pod.trigger_rule = (TriggerRule.ONE_FAILED,)
 
     # [START howto_operator_eks_force_delete_cluster]
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
