@@ -146,9 +146,13 @@ class SqlToS3Operator(BaseOperator):
         for col in df:
 
             if df[col].dtype.name == "object" and file_format == "parquet":
-                # if the type wasn't identified or converted, change it to a string so if can still be
-                # processed.
-                df[col] = df[col].astype(str)
+                # if the type wasn't identified or converted, try parsing it to datetime
+                try:
+                    df[col] = pd.to_datetime(df[col])
+                    df[col].fillna(pd.to_datetime('1970-01-01'),inplace=True)
+                except ValueError:
+                    # if parsing as datetime fails, parse as string instead
+                    df[col] = df[col].astype(str)
 
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
