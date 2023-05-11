@@ -586,10 +586,9 @@ jobs:
           # yamllint disable-line rule:line-length
           key: "pre-commit-full-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}
-            pre-commit-full
+            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-
       - name: "Static checks"
-        run: breeze static-checks --all-files --show-diff-on-failure --color always
+        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
         env:
           VERBOSE: "false"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
@@ -637,10 +636,8 @@ jobs:
           restore-keys: "\
             pre-commit-full-${{steps.breeze.outputs.host-python-version}}-\
             ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-basic-${{steps.breeze.outputs.host-python-version}}\n
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}\n
-            pre-commit-basic-\n
-            pre-commit-full-"
+            pre-commit-basic-${{steps.breeze.outputs.host-python-version}}-\n
+            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-"
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v3
         with:
@@ -649,7 +646,7 @@ jobs:
           persist-credentials: false
       - name: "Static checks: basic checks only"
         run: >
-          breeze static-checks --all-files --show-diff-on-failure --color always
+          breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
           --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"

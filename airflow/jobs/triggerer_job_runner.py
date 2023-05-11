@@ -252,14 +252,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         job: Job | JobPydantic,
         capacity=None,
     ):
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         if capacity is None:
             self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
         elif isinstance(capacity, int) and capacity > 0:
