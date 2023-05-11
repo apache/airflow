@@ -200,10 +200,10 @@ To monitor the state of an EMR job step you can use
 Throttling
 ----------
 
-Amazon EMR has some pretty low service quotas, see details `here <https://docs.aws.amazon.com/general/latest/gr/emr.html#limits_emr>`__.
-As a consequence, you might get throttled quite fast when using any of the operators and sensors listed in this page.
-To go around that limitation, you might want to customize the AWS configuration to change the default Boto3 retry
-strategy and/or increase the number of attempts. `See AWS connection configuration documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/connections/aws.html#avoid-throttling-exceptions>`__.
+Amazon EMR has relatively low service quotas, which can be viewed in detail `here <https://docs.aws.amazon.com/general/latest/gr/emr.html#limits_emr>`__.
+As a consequence, you might experience throttling issues when using any of the operators and sensors listed in this
+page. To circumvent this limitation, consider customizing the AWS connection configuration to modify the default Boto3
+retry strategy. `See AWS connection configuration documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/connections/aws.html#avoid-throttling-exceptions>`__.
 
 Reference
 ---------
