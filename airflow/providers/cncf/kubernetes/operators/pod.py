@@ -861,18 +861,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            sidecar_container_image = None
-            sidecar_container_resources = None
-            if hasattr(self.hook, "get_xcom_sidecar_container_image"):
-                sidecar_container_image = self.hook.get_xcom_sidecar_container_image()
-            if hasattr(self.hook, "get_xcom_sidecar_container_resources"):
-                sidecar_container_resources = self.hook.get_xcom_sidecar_container_resources()
-            pod = xcom_sidecar.add_xcom_sidecar(
-                pod,
-                sidecar_container_image=sidecar_container_image,
-                sidecar_container_resources=sidecar_container_resources,
-            )
-
+            pod = self._add_xcom_sidecar(pod)
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
 
@@ -888,6 +877,22 @@ class KubernetesPodOperator(BaseOperator):
         )
         pod_mutation_hook(pod)
         return pod
+
+    def _add_xcom_sidecar(self, pod):
+        """Add xcom sidecar to pod."""
+        sidecar_container_image = None
+        sidecar_container_resources = None
+        # self.hook may not be subclass of KubernetesHook (see GKEStartPodOperator) so we must
+        # check to make sure these methods exist before calling
+        if hasattr(self.hook, "get_xcom_sidecar_container_image"):
+            sidecar_container_image = self.hook.get_xcom_sidecar_container_image()
+        if hasattr(self.hook, "get_xcom_sidecar_container_resources"):
+            sidecar_container_resources = self.hook.get_xcom_sidecar_container_resources()
+        return xcom_sidecar.add_xcom_sidecar(
+            pod,
+            sidecar_container_image=sidecar_container_image,
+            sidecar_container_resources=sidecar_container_resources,
+        )
 
     def dry_run(self) -> None:
         """
