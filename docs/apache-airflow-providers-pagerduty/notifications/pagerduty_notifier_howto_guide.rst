@@ -20,7 +20,7 @@ How-to Guide for Pagerduty notifications
 
 Introduction
 ------------
-Pagerduty notifier (:class:`airflow.providers.pagerduty.notifications.pagerduty_notifier.PagerdutyNotifier`) allows users to send
+Pagerduty notifier (:class:`airflow.providers.pagerduty.notifications.notifier.PagerdutyNotifier`) allows users to send
 messages to a pagerduty using the various ``on_*_callbacks`` at both the DAG level and Task level
 
 Example Code:
@@ -31,56 +31,21 @@ Example Code:
     from datetime import datetime
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.providers.pagerduty.notifications.pagerduty_notifier import send_pagerduty_notification
+    from airflow.providers.pagerduty.notifications.notifier import send_pagerduty_notification
 
-    with DAG(
-        dag_id="pagerduty_notifier",
-        schedule_interval=None,
-        start_date=datetime(2023, 1, 1),
-        catchup=False,
-        on_success_callback=[
-            send_pagerduty_notification(
-                summary="DISK at 99%",
-                severity="critical",
-                source="database",
-                # action=self.action,
-                dedup_key="srv055/mysql",
-                custom_details={"free space": "1%", "ping time": "1500ms", "load avg": 0.75},
-                group="prod-datapipe",
-                component="database",
-                class_type="disk",
-                images=[
-                    {
-                        "src": "https://chart.googleapis.com/chart",
-                        "href": "https://google.com",
-                        "alt": "An example link with an image",
-                    }
-                ],
-                links=[{"href": "http://pagerduty.example.com", "text": "An example link."}],
-            )
-        ],
-    ):
+    with DAG(dag_id="pagerduty_notifier", schedule_interval=None, start_date=datetime(2023, 1, 1), catchup=False):
         BashOperator(
             task_id="mytask",
+            bash_command="redis-cli ping",
             on_failure_callback=[
                 send_pagerduty_notification(
-                    summary="DISK at 99%",
+                    summary="The task {{ ti.task_id }} failed",
                     severity="critical",
-                    source="database",
-                    dedup_key="srv0555/mysql",
-                    custom_details={"free space": "1%", "ping time": "1500ms", "load avg": 0.75},
-                    group="prod-datapipe",
-                    component="database",
-                    class_type="disk",
-                    images=[
-                        {
-                            "src": "https://chart.googleapis.com/chart",
-                            "href": "https://google.com",
-                            "alt": "An example link with an image",
-                        }
-                    ],
-                    links=[{"href": "http://pagerduty.example.com", "text": "An example link."}],
+                    source="airflow dag_id: {{dag.dag_id}}",
+                    dedup_key="{{dag.dag_id}}-{{ti.task_id}}",
+                    group="{{dag.dag_id}}",
+                    component="airflow",
+                    class_type="Prod Data Pipeline",
                 )
             ],
-            bash_command="fail",
         )
