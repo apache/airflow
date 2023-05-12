@@ -35,9 +35,9 @@ python_config=(
 
 validate_input "$@"
 
-gen_client python \
+gen_client python-nextgen \
     --package-name client \
-    --git-repo-id airflow-client-python \
+    --git-repo-id airflow-client-python-nextgen \
     --additional-properties "${python_config[*]}"
 
 echo "--- Patching generated code..."
