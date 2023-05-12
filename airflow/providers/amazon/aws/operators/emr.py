@@ -1061,34 +1061,31 @@ class EmrServerlessStartJobOperator(BaseOperator):
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
             response = self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
-            http_status_code = None
-            try:
-                http_status_code = response["ResponseMetadata"]["HTTPStatusCode"]
-            except Exception as ex:
-                self.log.error("Exception while cancelling query: %s", ex)
-            finally:
-                if http_status_code is None or http_status_code != 200:
-                    self.log.error("Unable to request query cancel on EMR Serverless. Exiting")
-                else:
-                    self.log.info(
-                        "Polling EMR Serverless for query with id %s to reach final state",
-                        self.job_id,
-                    )
-                    # This should be replaced with a boto waiter when available.
-                    waiter(
-                        get_state_callable=self.hook.conn.get_job_run,
-                        get_state_args={
-                            "applicationId": self.application_id,
-                            "jobRunId": self.job_id,
-                        },
-                        parse_response=["jobRun", "state"],
-                        desired_state=EmrServerlessHook.JOB_TERMINAL_STATES,
-                        failure_states=set(),
-                        object_type="job",
-                        action="cancelled",
-                        countdown=self.waiter_countdown,
-                        check_interval_seconds=self.waiter_check_interval_seconds,
-                    )
+            http_status_code = (
+                response.get("ResponseMetadata", {}).get("HTTPStatusCode") if response else None
+            )
+            if http_status_code is None or http_status_code != 200:
+                self.log.error("Unable to request query cancel on EMR Serverless. Exiting")
+                return
+            self.log.info(
+                "Polling EMR Serverless for query with id %s to reach final state",
+                self.job_id,
+            )
+            # This should be replaced with a boto waiter when available.
+            waiter(
+                get_state_callable=self.hook.conn.get_job_run,
+                get_state_args={
+                    "applicationId": self.application_id,
+                    "jobRunId": self.job_id,
+                },
+                parse_response=["jobRun", "state"],
+                desired_state=EmrServerlessHook.JOB_TERMINAL_STATES,
+                failure_states=set(),
+                object_type="job",
+                action="cancelled",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
+            )
 
 
 class EmrServerlessStopApplicationOperator(BaseOperator):
