@@ -118,7 +118,7 @@ with DAG(
         cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
     )
     # only describe the pod if the task above failed, to help diagnose
-    describe_pod.trigger_rule = (TriggerRule.ONE_FAILED,)
+    describe_pod.trigger_rule = TriggerRule.ONE_FAILED
 
     # [START howto_operator_eks_force_delete_cluster]
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
