@@ -26,6 +26,7 @@ from slugify import slugify
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 

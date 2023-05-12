@@ -98,7 +98,7 @@ class KubernetesExecutor(BaseExecutor):
     def _make_safe_label_value(self, input_value: str | datetime) -> str:
         """
         Normalize a provided label to be of valid length and characters.
-        See airflow.kubernetes.pod_generator.make_safe_label_value for more details
+        See airflow.kubernetes.pod_generator.make_safe_label_value for more details.
         """
         # airflow.kubernetes is an expensive import, locally import it here to
         # speed up load times of the kubernetes_executor module.
@@ -169,9 +169,9 @@ class KubernetesExecutor(BaseExecutor):
             if pod_list:
                 continue
             # Fallback to old style of using execution_date
-            kwargs["label_selector"] = (
-                f"{base_label_selector}," f"execution_date={self._make_safe_label_value(ti.execution_date)}"
-            )
+            kwargs[
+                "label_selector"
+            ] = f"{base_label_selector},execution_date={self._make_safe_label_value(ti.execution_date)}"
             pod_list = self._list_pods(kwargs)
             if pod_list:
                 continue
@@ -347,7 +347,6 @@ class KubernetesExecutor(BaseExecutor):
     ) -> None:
         if TYPE_CHECKING:
             assert self.kube_scheduler
-        from airflow.models.taskinstance import TaskInstance
 
         if state == State.RUNNING:
             self.event_buffer[key] = state, None
