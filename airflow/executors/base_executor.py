@@ -27,9 +27,12 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.kubernetes.kubernetes_helper_functions import rand_str
 from airflow.stats import Stats
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
@@ -479,3 +482,19 @@ class BaseExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @cached_property
+    def _task_handler(self) -> FileTaskHandler | None:
+        handlers = [h for h in logging.getLogger("airflow.task").handlers]
+        if not handlers:
+            return
+        handlers = [h for h in handlers if getattr(h, "_supports_arbitrary_ship", False)]
+        if not handlers:
+            return
+        return handlers[0]
+
+    def _ship_task_message(self, ti, message, level):
+        if not self._task_handler:
+            return
+        ident = rand_str(6)
+        self._task_handler._ship_message(ti=ti, identifier=ident, message=message, level=level)

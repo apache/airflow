@@ -267,6 +267,7 @@ class KubernetesExecutor(BaseExecutor):
                     key, state, pod_name, namespace, resource_version = results
                     last_resource_version[namespace] = resource_version
                     self.log.info("Changing state of %s to %s", results, state)
+                    self._ship_task_message(key, f"Changing state to {state}", level=logging.INFO)
                     try:
                         self._change_state(key, state, pod_name, namespace)
                     except Exception as e:

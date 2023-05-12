@@ -145,7 +145,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         full_path = self.handler.baseFilename
         self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
-        self.upload_on_close = is_trigger_log_context or not ti.raw
+        self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
 
     def close(self):
         """Close and upload local log file to remote storage GCS."""

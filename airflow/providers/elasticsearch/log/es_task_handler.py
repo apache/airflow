@@ -35,7 +35,7 @@ from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -151,8 +151,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
 
-    def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
+    def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         with create_session() as session:
+            if isinstance(ti, TaskInstanceKey):
+                ti = TaskInstance.from_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
@@ -354,11 +356,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             setattr(record, self.offset_field, int(time() * (10**9)))
             self.handler.emit(record)
 
-    def set_context(self, ti: TaskInstance) -> None:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
+        :param identifier: unique identifier for local filename
         """
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
@@ -371,7 +374,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    "execution_date": self._clean_date(ti.execution_date),
+                    "execution_date": self._clean_date(getattr(ti, "execution_date", None)),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -387,7 +390,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.handler.setLevel(self.level)
             self.handler.setFormatter(self.formatter)
         else:
-            super().set_context(ti)
+            kwargs = {"identifier": identifier} if identifier else {}
+            super().set_context(ti, **kwargs)
         self.context_set = True
 
     def close(self) -> None:

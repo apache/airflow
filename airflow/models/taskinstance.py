@@ -535,7 +535,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.run_id = run_id
 
-        self.try_number = 0
+        self.try_number = 1
         self.max_tries = self.task.retries
         self.unixname = getuser()
         if state:
@@ -876,6 +876,19 @@ class TaskInstance(Base, LoggingMixin):
             self.next_kwargs = ti.next_kwargs
         else:
             self.state = None
+
+    @classmethod
+    def from_ti(cls, ti_key, session):
+        return (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.task_id == ti_key.task_id,
+                TaskInstance.dag_id == ti_key.dag_id,
+                TaskInstance.run_id == ti_key.run_id,
+                TaskInstance.map_index == ti_key.map_index,
+            )
+            .one_or_none()
+        )
 
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """

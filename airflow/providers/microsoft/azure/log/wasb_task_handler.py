@@ -90,8 +90,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
-    def set_context(self, ti) -> None:
-        super().set_context(ti)
+    def set_context(self, ti, *, identifier: str | None = None) -> None:
+        super().set_context(ti, identifier=identifier)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
         if TYPE_CHECKING:
@@ -100,7 +100,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         full_path = self.handler.baseFilename
         self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
-        self.upload_on_close = is_trigger_log_context or not ti.raw
+        self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
 
     def close(self) -> None:
         """Close and upload local log file to remote storage Wasb."""

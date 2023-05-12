@@ -41,11 +41,13 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
+from airflow.kubernetes.kubernetes_helper_functions import rand_str
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -81,6 +83,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
+    from airflow.utils.log.file_task_handler import FileTaskHandler
 
 TI = TaskInstance
 DR = DagRun
@@ -672,6 +675,23 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         self._enqueue_task_instances_with_queued_state(queued_tis, session=session)
         return len(queued_tis)
 
+    @cached_property
+    def _task_handler(self) -> FileTaskHandler | None:
+        handlers = [h for h in logging.getLogger("airflow.task").handlers]
+        if not handlers:
+            return
+        handlers = [h for h in handlers if getattr(h, "_supports_arbitrary_ship", False)]
+        if not handlers:
+            return
+        return handlers[0]
+
+    def _ship_task_message(self, ti, message, level):
+        if not self._task_handler:
+            logging.warning("File task handler does not support arbitrary log shipping")
+            return
+        ident = rand_str(6)
+        self._task_handler._ship_message(ti=ti, identifier=ident, message=message, level=level)
+
     def _process_executor_events(self, session: Session) -> int:
         """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
@@ -744,6 +764,16 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 ti.queued_by_job_id,
                 ti.pid,
             )
+            self._ship_task_message(
+                ti,
+                f"task finished with "
+                f"ti.state={ti.state} "
+                f"state={state} "
+                f"info={info} "
+                f"try={ti.try_number} "
+                f"_try={ti._try_number}",
+                level=logging.INFO,
+            )
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -771,13 +801,14 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
                 self.log.error(msg, ti, state, ti.state, info)
-
+                self._ship_task_message(ti, msg % (ti, state, ti.state, info), level=logging.ERROR)
                 # Get task from the Serialized DAG
                 try:
                     dag = self.dagbag.get_dag(ti.dag_id)
                     task = dag.get_task(ti.task_id)
                 except Exception:
                     self.log.exception("Marking task instance %s as %s", ti, state)
+                    self._ship_task_message(ti, msg % (ti, state, ti.state, info), level=logging.ERROR)
                     ti.set_state(state)
                     continue
                 ti.task = task
