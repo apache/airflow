@@ -1246,8 +1246,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         self._field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
-        hook.insert_instance_template(
-            body=new_body, request_id=self.request_id, project_id=self.project_id)
+        hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
         new_instance_tmp = hook.get_instance_template(
             resource_id=self.body_patch["name"], project_id=self.project_id
         )

@@ -25,7 +25,7 @@ from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.ads.googleads.v12.services.services.customer_service import CustomerServiceClient
 from google.ads.googleads.v12.services.services.google_ads_service import GoogleAdsServiceClient
-from google.ads.googleads.v12.services.types.google_ads_service import GoogleAdsRow, SearchGoogleAdsRequest
+from google.ads.googleads.v12.services.types.google_ads_service import GoogleAdsRow
 from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
 
@@ -223,11 +223,7 @@ class GoogleAdsHook(BaseHook):
 
         iterators = []
         for client_id in client_ids:
-            iterator = service.search(request=dict(
-                customer_id=client_id,
-                query=query,
-                page_size=page_size
-            ))
+            iterator = service.search(request=dict(customer_id=client_id, query=query, page_size=page_size))
             iterators.append(iterator)
 
         self.log.info("Fetched Google Ads Iterators")

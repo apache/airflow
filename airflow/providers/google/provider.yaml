@@ -66,14 +66,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - grpcio-gcp>=0.2.2
-  - httpx
-  - json-merge-patch>=0.2
-  - looker-sdk>=22.2.0
-  - pandas-gbq
-  - pandas>=0.17.1
-  - sqlalchemy-bigquery>=1.2.1
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
   - PyOpenSSL
   - asgiref>=3.5.2

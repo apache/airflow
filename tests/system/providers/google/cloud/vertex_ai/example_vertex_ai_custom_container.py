@@ -97,7 +97,7 @@ with models.DAG(
     unzip_file = BashOperator(
         task_id="unzip_csv_data_file",
         bash_command=f"mkdir -p /custom-job-container/ && "
-                     f"unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job-container/",
+        f"unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job-container/",
     )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",

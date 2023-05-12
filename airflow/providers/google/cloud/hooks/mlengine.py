@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Callable, cast
+from typing import Callable
 
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
@@ -29,7 +29,6 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from httplib2 import Response
 from requests import Session
-from urllib.parse import quote, urlencode, urljoin
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
@@ -588,9 +587,7 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
         self._check_fileds(project_id=project_id, job_id=job_id)
         async with ClientSession() as session:
             try:
-                job = await self.get_job(
-                    project_id=project_id, job_id=job_id, session=session
-                )
+                job = await self.get_job(project_id=project_id, job_id=job_id, session=session)
                 job = await job.json(content_type=None)
                 self.log.info("Retrieving json_response: %s", job)
 

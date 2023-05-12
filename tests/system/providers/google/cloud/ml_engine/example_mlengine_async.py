@@ -257,6 +257,7 @@ with models.DAG(
             return tuple([val])  # returns a tuple.
 
         return normalize_value, ["val"]  # key order must match.
+
     # [END howto_operator_gcp_mlengine_get_metric]
 
     # [START howto_operator_gcp_mlengine_validate_error]
@@ -272,6 +273,7 @@ with models.DAG(
         if multiplier != 2:
             raise ValueError(f"Multiplier is not equal 2; multiplier: {multiplier}")
         return summary
+
     # [END howto_operator_gcp_mlengine_validate_error]
 
     # [START howto_operator_gcp_mlengine_evaluate]

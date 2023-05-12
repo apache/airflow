@@ -18,8 +18,10 @@
 
 """
 Required environment variables:
+```
 DB_CONNECTION = os.environ.get("DB_CONNECTION")
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1pzcFupf8NUUPYqSapgSSI3_dWic823kWRdJGOiFzFEs")
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "test-id")
+```
 
 First, you need a db instance that is accessible from the Airflow environment.
 You can, for example, create a Cloud SQL instance and connect to it from
@@ -27,22 +29,28 @@ within breeze with Cloud SQL proxy:
 https://cloud.google.com/sql/docs/postgres/connect-instance-auth-proxy
 
 # DB setup
-- Create db:
+Create db:
+```
 CREATE DATABASE test_db;
+```
 
-- Switch to db
+Switch to db:
+```
 \c test_db
+```
 
-- Create table and insert some rows
+Create table and insert some rows
+```
 CREATE TABLE test_table (col1 INT, col2 INT);
 INSERT INTO test_table VALUES (1,2), (3,4), (5,6), (7,8);
+```
 
 # Setup connections
-- db connection
+db connection:
 In airflow UI, set one db connection, for example "postgres_default"
 and make sure the "Test" at the bottom succeeds
 
-- google cloud connection
+google cloud connection:
 We need additional scopes for this test
 scopes: https://www.googleapis.com/auth/spreadsheets, https://www.googleapis.com/auth/cloud-platform
 
@@ -52,7 +60,9 @@ create a public sheet and get it's ID.
 
 # Tear Down
 You can delete the db with
+```
 DROP DATABASE test_db;
+```
 """
 from __future__ import annotations
 
@@ -64,7 +74,7 @@ from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSh
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DB_CONNECTION = os.environ.get("DB_CONNECTION")
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1pzcFupf8NUUPYqSapgSSI3_dWic823kWRdJGOiFzFEs")
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "test-id")
 
 DAG_ID = "example_sql_to_sheets"
 SQL = "select col2 from test_table"

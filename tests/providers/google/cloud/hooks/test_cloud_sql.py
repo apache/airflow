@@ -128,13 +128,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = export_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -200,13 +194,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = insert_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -234,13 +222,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = patch_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -308,13 +290,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = delete_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -409,13 +385,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = insert_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -465,13 +435,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = patch_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -521,13 +485,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = delete_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},

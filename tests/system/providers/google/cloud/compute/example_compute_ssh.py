@@ -34,7 +34,6 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineInsertInstanceOperator,
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_operator_gce_args_common]

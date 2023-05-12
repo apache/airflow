@@ -202,9 +202,7 @@ class CloudSQLHook(GoogleBaseHook):
         # For some delete instance operations, the operation stops being available ~9 seconds after
         # completion, so we need a shorter sleep time to make sure we don't miss the DONE status.
         self._wait_for_operation_to_complete(
-            project_id=project_id,
-            operation_name=operation_name,
-            time_to_sleep=5
+            project_id=project_id, operation_name=operation_name, time_to_sleep=5
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -379,10 +377,7 @@ class CloudSQLHook(GoogleBaseHook):
             raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
 
     def _wait_for_operation_to_complete(
-        self,
-        project_id: str,
-        operation_name: str,
-        time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
+        self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
     ) -> None:
         """
         Waits for the named operation to complete - checks status of the

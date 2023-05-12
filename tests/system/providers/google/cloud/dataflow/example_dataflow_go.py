@@ -26,20 +26,19 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from pathlib import Path
+
 from airflow import models
-from typing import Callable
-from airflow.exceptions import AirflowException
-from airflow.providers.apache.beam.operators.beam import BeamRunGoPipelineOperator
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
-from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
+from airflow.providers.apache.beam.operators.beam import BeamRunGoPipelineOperator
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobAutoScalingEventsSensor,
     DataflowJobMessagesSensor,
     DataflowJobStatusSensor,
 )
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -89,9 +88,7 @@ with models.DAG(
             "output": GCS_OUTPUT,
             "WorkerHarnessContainerImage": "apache/beam_go_sdk:2.46.0",
         },
-        dataflow_config=DataflowConfiguration(
-            job_name="start_go_job", location=LOCATION
-        ),
+        dataflow_config=DataflowConfiguration(job_name="start_go_job", location=LOCATION),
     )
 
     wait_for_go_job_async_done = DataflowJobStatusSensor(
@@ -151,7 +148,7 @@ with models.DAG(
     )
 
 
-from tests.system.utils import get_test_run
+from tests.system.utils import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

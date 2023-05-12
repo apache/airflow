@@ -28,7 +28,6 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from google.cloud import aiplatform
 from google.cloud.aiplatform import schema
 from google.protobuf.struct_pb2 import Value
 

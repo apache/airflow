@@ -96,8 +96,8 @@ with models.DAG(
     add_iam_policy_binding = BashOperator(
         task_id="add_iam_policy_binding",
         bash_command=f"gcloud projects add-iam-policy-binding {PROJECT_ID} "
-                     f"--member=serviceAccount:{WORKLOAD_POOL}[{GKE_NAMESPACE}/agent] "
-                     "--role=roles/iam.workloadIdentityUser"
+        f"--member=serviceAccount:{WORKLOAD_POOL}[{GKE_NAMESPACE}/agent] "
+        "--role=roles/iam.workloadIdentityUser",
     )
 
     # [START how_to_cloud_dataproc_create_cluster_operator_in_gke]

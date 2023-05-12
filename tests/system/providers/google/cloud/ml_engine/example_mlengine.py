@@ -312,7 +312,7 @@ with models.DAG(
 
     list_version >> [list_version_result, delete_version_v1]
     prediction >> delete_version_v1
-    
+
     # TEST TEARDOWN
     evaluate_validation >> delete_version_v1 >> delete_version_v2 >> delete_model >> delete_bucket
 
