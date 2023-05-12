@@ -20,7 +20,7 @@ How-to Guide for Pagerduty notifications
 
 Introduction
 ------------
-Pagerduty notifier (:class:`airflow.providers.pagerduty.notifications.notifier.PagerdutyNotifier`) allows users to send
+Pagerduty notifier (:class:`airflow.providers.pagerduty.notifications.pagerduty.PagerdutyNotifier`) allows users to send
 messages to a pagerduty using the various ``on_*_callbacks`` at both the DAG level and Task level
 
 Example Code:

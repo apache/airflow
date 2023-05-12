@@ -24,7 +24,7 @@ import pytest
 from airflow.models import Connection
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
-from airflow.providers.pagerduty.notifications.notifier import (
+from airflow.providers.pagerduty.notifications.pagerduty import (
     PagerdutyNotifier,
     send_pagerduty_notification,
 )
@@ -50,7 +50,7 @@ def pagerduty_api_connections():
 
 
 class TestPagerdutyNotifier:
-    @mock.patch("airflow.providers.pagerduty.notifications.notifier.PagerdutyEventsHook.create_event")
+    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook.create_event")
     def test_notifier(self, mock_pagerduty_event_hook, pagerduty_api_connections, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
@@ -70,7 +70,7 @@ class TestPagerdutyNotifier:
             dedup_key=None,
         )
 
-    @mock.patch("airflow.providers.pagerduty.notifications.notifier.PagerdutyEventsHook.create_event")
+    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook.create_event")
     def test_notifier_with_notifier_class(
         self, mock_pagerduty_event_hook, pagerduty_api_connections, dag_maker
     ):
@@ -92,7 +92,7 @@ class TestPagerdutyNotifier:
             dedup_key=None,
         )
 
-    @mock.patch("airflow.providers.pagerduty.notifications.notifier.PagerdutyEventsHook.create_event")
+    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook.create_event")
     def test_notifier_templated(self, mock_pagerduty_event_hook, pagerduty_api_connections, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
