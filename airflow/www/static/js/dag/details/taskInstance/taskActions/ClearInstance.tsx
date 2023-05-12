@@ -68,7 +68,7 @@ const ClearInstance = ({
   const [upstream, setUpstream] = useState(false);
   const onToggleUpstream = () => setUpstream(!upstream);
 
-  const [downstream, setDownstream] = useState(false);
+  const [downstream, setDownstream] = useState(true);
   const onToggleDownstream = () => setDownstream(!downstream);
 
   const [recursive, setRecursive] = useState(true);
