@@ -56,7 +56,6 @@ export default function useDagCode() {
     ["dagSourceQuery"],
     () => {
       const fileToken = dagQuery.data?.fileToken || "";
-      console.log("Hello");
       const dagSourceApiUrl = getMetaValue("dag_source_api").replace(
         "_FILE_TOKEN_",
         fileToken
