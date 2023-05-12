@@ -43,7 +43,7 @@ Bug Fixes
 - Fix template error when iterating None value and fix params documentation (#31078)
 - Fix ``apache-hive`` extra so it installs the correct package (#31068)
 - Fix issue with zip files in DAGs folder when pre-importing Airflow modules (#31061)
-- Move TaskInstanceKey to a separate file to fix circular import (#31033)
+- Move TaskInstanceKey to a separate file to fix circular import (#31033, #31204)
 - Fix deleting DagRuns and TaskInstances that have a note (#30987)
 - Fix ``airflow providers get`` command output (#30978)
 - Fix Pool schema in the OpenAPI spec (#30973)
@@ -61,6 +61,7 @@ Bug Fixes
 
 Misc/Internal
 """""""""""""
+- Upper bind dask until they solve a side effect in their test suite (#31259)
 - Show task instances affected by clearing in a table (#30633)
 - Fix missing models in API documentation (#31021)
 
