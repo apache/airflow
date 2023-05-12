@@ -861,10 +861,16 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
+            sidecar_container_image = None
+            sidecar_container_resources = None
+            if hasattr(self.hook, "get_xcom_sidecar_container_image"):
+                sidecar_container_image = self.hook.get_xcom_sidecar_container_image()
+            if hasattr(self.hook, "get_xcom_sidecar_container_resources"):
+                sidecar_container_resources = self.hook.get_xcom_sidecar_container_resources()
             pod = xcom_sidecar.add_xcom_sidecar(
                 pod,
-                sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
-                sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
+                sidecar_container_image=sidecar_container_image,
+                sidecar_container_resources=sidecar_container_resources,
             )
 
         labels = self._get_ti_pod_labels(context)
