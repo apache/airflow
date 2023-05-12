@@ -1864,6 +1864,14 @@
                                         "string"
                                     ],
                                     "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for scheduler.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
                                 }
                             }
                         }
@@ -2697,6 +2705,10 @@
                         }
                     ]
                 },
+                "logGroomerSidecar": {
+                    "$ref": "#/definitions/logGroomerConfigType",
+                    "description": "Configuration for log groomer sidecar"
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
@@ -3354,6 +3366,14 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for webserver.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for webserver.",
                                     "type": [
                                         "integer",
                                         "string"
@@ -4427,6 +4447,14 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for PgBouncer.",
                                     "type": [
                                         "integer",
                                         "string"

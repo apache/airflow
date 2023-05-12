@@ -123,6 +123,7 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -139,7 +140,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
-    from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+    from airflow.utils.task_group import TaskGroup
 
     # This is a workaround because mypy doesn't work with hybrid_property
     # TODO: remove this hack and move hybrid_property back to main import block
@@ -422,6 +423,15 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_dag_run", dag_id, run_id),
         Index("ti_state", state),
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
+        # The below index has been added to improve performance on postgres setups with tens of millions of
+        # taskinstance rows. Aim is to improve the below query (it can be used to find the last successful
+        # execution date of a task instance):
+        #    SELECT start_date FROM task_instance WHERE dag_id = 'xx' AND task_id = 'yy' AND state = 'success'
+        #    ORDER BY start_date DESC NULLS LAST LIMIT 1;
+        # Existing "ti_state_lkp" is not enough for such query when this table has millions of rows, since
+        # rows have to be fetched in order to retrieve the start_date column. With this index, INDEX ONLY SCAN
+        # is performed and that query runs within milliseconds.
+        Index("ti_state_incl_start_date", dag_id, task_id, state, postgresql_include=["start_date"]),
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),

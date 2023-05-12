@@ -405,6 +405,18 @@ def build_docs(
     "(can be any git commit-ish reference). "
     "Mutually exclusive with --last-commit.",
 )
+@click.option(
+    "--initialize-environment",
+    help="Initialize environment before running checks.",
+    is_flag=True,
+)
+@click.option(
+    "--max-initialization-attempts",
+    help="Maximum number of attempts to initialize environment before giving up.",
+    show_default=True,
+    type=click.IntRange(1, 10),
+    default=3,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -417,10 +429,36 @@ def static_checks(
     type_: str,
     file: Iterable[str],
     precommit_args: tuple,
+    initialize_environment: bool,
+    max_initialization_attempts: int,
     github_repository: str,
 ):
     assert_pre_commit_installed()
     perform_environment_checks()
+
+    if initialize_environment:
+        get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
+        get_console().print(
+            f"[info]Trying to install the environments up to {max_initialization_attempts} "
+            f"times in case of flakiness[/]"
+        )
+        i = 0
+        while True:
+            get_console().print(f"[info]Attempt number {i+1} to install pre-commit environments")
+            initialization_result = run_command(
+                [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
+                check=False,
+                no_output_dump_on_exception=True,
+                text=True,
+            )
+            if initialization_result.returncode == 0:
+                break
+            get_console().print(f"[warning]Attempt number {i+1} failed - retrying[/]")
+            if i == max_initialization_attempts - 1:
+                get_console().print("[error]Could not install pre-commit environments[/]")
+                sys.exit(initialization_result.returncode)
+            i += 1
+
     command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
     if last_commit and commit_ref:
         get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")

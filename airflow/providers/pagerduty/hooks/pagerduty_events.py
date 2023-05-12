@@ -34,7 +34,8 @@ class PagerdutyEventsHook(BaseHook):
      (i.e. Integration key) as the password/Pagerduty API token. If both supplied, the token will be used.
 
     :param integration_key: PagerDuty Events API token
-    :param pagerduty_conn_id: connection that has PagerDuty integration key in the Pagerduty API token field
+    :param pagerduty_events_conn_id: connection that has PagerDuty integration key in the Pagerduty
+     API token field
     """
 
     conn_name_attr = "pagerduty_events_conn_id"

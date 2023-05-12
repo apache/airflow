@@ -1723,7 +1723,7 @@ class Airflow(AirflowBaseView):
             )
 
         task_attrs = [
-            (attr_name, attr)
+            (attr_name, secrets_masker.redact(attr, attr_name))
             for attr_name, attr in (
                 (attr_name, getattr(task, attr_name)) for attr_name in filter(include_task_attrs, dir(task))
             )

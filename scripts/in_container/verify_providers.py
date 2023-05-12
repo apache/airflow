@@ -168,6 +168,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
     "S3ToSnowflakeOperator is deprecated.",
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.operators.pod` instead.",
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.triggers.pod` instead.",
+    "This module is deprecated. Please use `airflow.providers.slack.notifications.slack`",
 }
 
 
@@ -810,6 +811,10 @@ def verify_provider_classes():
 
 
 def run_provider_discovery():
+    import packaging.version
+
+    import airflow.version
+
     console.print("[bright_blue]List all providers[/]\n")
     subprocess.run(["airflow", "providers", "list"], check=True)
     console.print("[bright_blue]List all hooks[/]\n")
@@ -826,6 +831,12 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "secrets"], check=True)
     console.print("[bright_blue]List all auth backends[/]\n")
     subprocess.run(["airflow", "providers", "auth"], check=True)
+    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
+        # CI also check if our providers are installable and discoverable in airflow older versions
+        # But the triggers command is not available till airflow-2-6-0
+        # TODO: Remove this block once airflow dependency in providers are > 2-6-0
+        console.print("[bright_blue]List all triggers[/]\n")
+        subprocess.run(["airflow", "providers", "triggers"], check=True)
 
 
 if __name__ == "__main__":

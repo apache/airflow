@@ -82,7 +82,12 @@ class MongoHook(BaseHook):
 
         # If we are using SSL disable requiring certs from specific hostname
         if options.get("ssl", False):
-            options.update({"ssl_cert_reqs": CERT_NONE})
+            if pymongo.__version__ >= "4.0.0":
+                # In pymongo 4.0.0+ `tlsAllowInvalidCertificates=True`
+                # replaces `ssl_cert_reqs=CERT_NONE`
+                options.update({"tlsAllowInvalidCertificates": True})
+            else:
+                options.update({"ssl_cert_reqs": CERT_NONE})
 
         self.client = MongoClient(self.uri, **options)
         return self.client

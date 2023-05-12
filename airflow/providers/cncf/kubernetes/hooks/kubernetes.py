@@ -30,9 +30,10 @@ from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.models import Connection
 from airflow.utils import yaml
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
@@ -140,6 +141,22 @@ class KubernetesHook(BaseHook):
         for param in params:
             if param is not None:
                 return param
+
+    @classmethod
+    def get_connection(cls, conn_id: str) -> Connection:
+        """
+        Return requested connection.
+
+        If missing and conn_id is "kubernetes_default", will return empty connection so that hook will
+        default to cluster-derived credentials.
+        """
+        try:
+            return super().get_connection(conn_id)
+        except AirflowNotFoundException:
+            if conn_id == cls.default_conn_name:
+                return Connection(conn_id=cls.default_conn_name)
+            else:
+                raise
 
     @cached_property
     def conn_extras(self):

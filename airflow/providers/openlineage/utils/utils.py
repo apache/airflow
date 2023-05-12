@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import os
 from contextlib import suppress
 from functools import wraps
 from typing import TYPE_CHECKING, Any
@@ -28,6 +29,8 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 import attrs
 from attrs import asdict
 
+from airflow.compat.functools import cache
+from airflow.configuration import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
@@ -395,3 +398,16 @@ def print_exception(f):
             log.exception(e)
 
     return wrapper
+
+
+@cache
+def is_source_enabled() -> bool:
+    source_var = conf.get(
+        "openlineage", "disable_source_code", fallback=os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE")
+    )
+    return isinstance(source_var, str) and source_var.lower() not in ("true", "1", "t")
+
+
+def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
+    not_required_keys = {"dag", "task_group"}
+    return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
