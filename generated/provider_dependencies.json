@@ -296,7 +296,7 @@
       "apache-airflow>=2.4.0",
       "elasticsearch-dbapi",
       "elasticsearch-dsl>=5.0.0",
-      "elasticsearch>7"
+      "elasticsearch>7,<7.15.0"
     ],
     "cross-providers-deps": [
       "common.sql"
