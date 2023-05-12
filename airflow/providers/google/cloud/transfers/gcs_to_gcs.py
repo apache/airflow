@@ -428,13 +428,19 @@ class GCSToGCSOperator(BaseOperator):
             raise AirflowException(error_msg)
         self.log.info("Delimiter ignored because wildcard is in prefix")
         prefix_, delimiter = prefix.split(WILDCARD, 1)
-        match_glob = f"**/*{delimiter}" if delimiter else None
-        objects = hook.list(self.source_bucket, prefix=prefix_, match_glob=match_glob)
+        objects = hook.list(self.source_bucket, prefix=prefix_, delimiter=delimiter)
+        # TODO: After deprecating delimiter and wildcards in source objects,
+        #       remove previous line and uncomment the following:
+        # match_glob = f"**/*{delimiter}" if delimiter else None
+        # objects = hook.list(self.source_bucket, prefix=prefix_, match_glob=match_glob)
         if not self.replace:
             # If we are not replacing, list all files in the Destination GCS bucket
             # and only keep those files which are present in
             # Source GCS bucket and not in Destination GCS bucket
-            objects = self._ignore_existing_files(hook, prefix_, match_glob=match_glob, objects=objects)
+            objects = self._ignore_existing_files(hook, prefix_, delimiter=delimiter, objects=objects)
+            # TODO: After deprecating delimiter and wildcards in source objects,
+            #       remove previous line and uncomment the following:
+            # objects = self._ignore_existing_files(hook, prefix_, match_glob=match_glob, objects=objects)
 
         for source_object in objects:
             if self.destination_object is None:
