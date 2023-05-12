@@ -430,6 +430,14 @@ class TestCncfProviderProjectStructure(ExampleCoverageTest):
     }
 
 
+class TestSlackProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "slack"
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
+    DEPRECATED_CLASSES = {
+        "airflow.providers.slack.notifications.slack_notifier.py.",
+    }
+
+
 class TestDockerProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "docker"
 
