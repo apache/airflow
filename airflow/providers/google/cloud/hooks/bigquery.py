@@ -3125,20 +3125,26 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_query_resp = await job_client.query(query_request, cast(Session, session))
             return job_query_resp["jobReference"]["jobId"]
 
-    def get_records(self, query_results: dict[str, Any]) -> list[Any]:
+    def get_records(self, query_results: dict[str, Any], as_dict: bool = False) -> list[Any]:
         """
         Given the output query response from gcloud-aio bigquery, convert the response to records.
 
         :param query_results: the results from a SQL query
+        :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
         """
-        buffer = []
+        buffer: list[Any] = []
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
             fields = query_results["schema"]["fields"]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
                 typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
-                buffer.append(typed_row)
+                if not as_dict:
+                    buffer.append(typed_row)
+                else:
+                    fields_names = [field["name"] for field in fields]
+                    typed_row_dict = {k: v for k, v in zip(fields_names, typed_row)}
+                    buffer.append(typed_row_dict)
         return buffer
 
     def value_check(

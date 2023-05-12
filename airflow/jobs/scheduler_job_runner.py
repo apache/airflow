@@ -156,14 +156,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         log: logging.Logger | None = None,
         processor_poll_interval: float | None = None,
     ):
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         self.subdir = subdir
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
@@ -704,14 +697,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
-            self.log.info(
-                "Executor reports execution of %s.%s run_id=%s exited with status %s for try_number %s",
-                ti_key.dag_id,
-                ti_key.task_id,
-                ti_key.run_id,
-                state,
-                ti_key.try_number,
-            )
+            self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
             if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 

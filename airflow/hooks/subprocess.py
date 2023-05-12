@@ -60,7 +60,7 @@ class SubprocessHook(BaseHook):
         :return: :class:`namedtuple` containing ``exit_code`` and ``output``, the last line from stderr
             or stdout
         """
-        self.log.info("Tmp dir root location: \n %s", gettempdir())
+        self.log.info("Tmp dir root location: %s", gettempdir())
         with contextlib.ExitStack() as stack:
             if cwd is None:
                 cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))

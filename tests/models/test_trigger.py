@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 
 import pytest
+import pytz
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -184,3 +185,33 @@ def test_assign_unassigned(session, create_task_instance):
         session.query(Trigger).filter(Trigger.id == trigger_on_healthy_triggerer.id).one().triggerer_id
         == healthy_triggerer.id
     )
+
+
+def test_get_sorted_triggers(session, create_task_instance):
+    """
+    Tests that triggers are sorted by the creation_date.
+    """
+    trigger_old = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        created_date=datetime.datetime(
+            2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+        ),
+    )
+    trigger_old.id = 1
+    trigger_new = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        created_date=datetime.datetime(
+            2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+        ),
+    )
+    trigger_new.id = 2
+    session.add(trigger_old)
+    session.add(trigger_new)
+    session.commit()
+    assert session.query(Trigger).count() == 2
+
+    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+
+    assert trigger_ids_query == [(1,), (2,)]

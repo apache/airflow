@@ -110,7 +110,9 @@ def get_kube_client(
         _enable_tcp_keepalive()
 
     configuration = _get_default_configuration()
-    api_client_retry_configuration = conf.getjson("kubernetes", "api_client_retry_configuration", fallback={})
+    api_client_retry_configuration = conf.getjson(
+        "kubernetes_executor", "api_client_retry_configuration", fallback={}
+    )
 
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
         _disable_verify_ssl()

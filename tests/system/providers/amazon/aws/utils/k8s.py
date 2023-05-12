@@ -14,16 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.slack.notifications.slack`."""
 from __future__ import annotations
 
-import warnings
+from airflow.models.operator import Operator
+from airflow.operators.bash import BashOperator
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.slack.notifications.slack import SlackNotifier  # noqa
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.slack.notifications.slack`",
-    AirflowProviderDeprecationWarning,
-    stacklevel=2,
-)
+def get_describe_pod_operator(cluster_name: str, pod_name: str) -> Operator:
+    """Returns an operator that'll print the output of a `k describe pod` in the airflow logs."""
+    return BashOperator(
+        task_id="describe_pod",
+        bash_command=f"""
+                install_aws.sh;
+                install_kubectl.sh;
+                # configure kubectl to hit the right cluster
+                aws eks update-kubeconfig --name {cluster_name};
+                # once all this setup is done, actually describe the pod
+                echo "vvv pod description below vvv";
+                kubectl describe pod {pod_name};
+                echo "^^^ pod description above ^^^" """,
+    )

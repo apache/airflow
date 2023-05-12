@@ -758,12 +758,19 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
 
 class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
-    and returns data in a python list. The number of elements in the returned list will
-    be equal to the number of rows fetched. Each element in the list will again be a list
-    where element would represent the columns values for that row.
+    Fetches the data from a BigQuery table (alternatively fetch data for selected columns) and returns data
+    in either of the following two formats, based on "as_dict" value:
+    1. False (Default) - A Python list of lists, with the number of nested lists equal to the number of rows
+    fetched. Each nested list represents a row, where the elements within it correspond to the column values
+    for that particular row.
 
-    **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
+    **Example Result**: ``[['Tony', 10], ['Mike', 20]``
+
+
+    2. True - A Python list of dictionaries, where each dictionary represents a row. In each dictionary,
+    the keys are the column names and the values are the corresponding values for those columns.
+
+    **Example Result**: ``[{'name': 'Tony', 'age': 10}, {'name': 'Mike', 'age': 20}]``
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -810,6 +817,9 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
+    :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
+        (default: False).
+    :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
     """
 
     template_fields: Sequence[str] = (
@@ -835,6 +845,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         poll_interval: float = 4.0,
+        as_dict: bool = False,
+        use_legacy_sql: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -849,6 +861,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.as_dict = as_dict
+        self.use_legacy_sql = use_legacy_sql
 
     def _submit_job(
         self,
@@ -856,7 +870,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         job_id: str,
     ) -> BigQueryJob:
         get_query = self.generate_query()
-        configuration = {"query": {"query": get_query}}
+        configuration = {"query": {"query": get_query, "useLegacySql": self.use_legacy_sql}}
         """Submit a new job and get the job id for polling the status using Triggerer."""
         return hook.insert_job(
             configuration=configuration,
@@ -876,19 +890,23 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             query += self.selected_fields
         else:
             query += "*"
-        query += f" from {self.dataset_id}.{self.table_id} limit {self.max_results}"
+        query += f" from `{self.project_id}.{self.dataset_id}.{self.table_id}` limit {self.max_results}"
         return query
 
     def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            use_legacy_sql=self.use_legacy_sql,
         )
-        self.hook = hook
 
         if not self.deferrable:
             self.log.info(
-                "Fetching Data from %s.%s max results: %s", self.dataset_id, self.table_id, self.max_results
+                "Fetching Data from %s.%s.%s max results: %s",
+                self.project_id,
+                self.dataset_id,
+                self.table_id,
+                self.max_results,
             )
             if not self.selected_fields:
                 schema: dict[str, list] = hook.get_schema(
@@ -910,21 +928,26 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
 
             self.log.info("Total extracted rows: %s", len(rows))
 
-            table_data = [row.values() for row in rows]
+            if self.as_dict:
+                table_data = [{k: v for k, v in row.items()} for row in rows]
+            else:
+                table_data = [row.values() for row in rows]
+
             return table_data
 
         job = self._submit_job(hook, job_id="")
-        self.job_id = job.job_id
-        context["ti"].xcom_push(key="job_id", value=self.job_id)
+
+        context["ti"].xcom_push(key="job_id", value=job.job_id)
         self.defer(
             timeout=self.execution_timeout,
             trigger=BigQueryGetDataTrigger(
                 conn_id=self.gcp_conn_id,
-                job_id=self.job_id,
+                job_id=job.job_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 project_id=hook.project_id,
                 poll_interval=self.poll_interval,
+                as_dict=self.as_dict,
             ),
             method_name="execute_complete",
         )

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
 import re
 import shlex
@@ -90,6 +89,7 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, cleanup_python_generated_files
+from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -608,19 +608,36 @@ def install_provider_packages(
             package_format=package_format, install_selected_providers=install_selected_providers
         )
         get_console().print(
-            f"[info]Splitting {len(list_of_all_providers)} " f"providers into {parallelism} chunks"
+            f"[info]Splitting {len(list_of_all_providers)} " f"providers into max {parallelism} chunks"
         )
         provider_chunks = [sorted(list_of_all_providers[i::parallelism]) for i in range(parallelism)]
+        # filter out empty ones
+        provider_chunks = [chunk for chunk in provider_chunks if chunk]
+        if not provider_chunks:
+            get_console().print("[info]No providers to install")
+            return
         total_num_providers = 0
         for index, chunk in enumerate(provider_chunks):
             get_console().print(f"Chunk {index}: {chunk} ({len(chunk)} providers)")
             total_num_providers += len(chunk)
+        # For every chunk make sure that all direct dependencies are installed as well
+        # because there might be new version of the downstream dependency that is not
+        # yet released in PyPI, so we need to make sure it is installed from dist
+        for chunk in provider_chunks:
+            for provider in chunk.copy():
+                downstream_dependencies = get_related_providers(
+                    provider, upstream_dependencies=False, downstream_dependencies=True
+                )
+                for dependency in downstream_dependencies:
+                    if dependency not in chunk:
+                        chunk.append(dependency)
         if len(list_of_all_providers) != total_num_providers:
             raise Exception(
                 f"Total providers {total_num_providers} is different "
                 f"than {len(list_of_all_providers)} (just to be sure"
                 f" no rounding errors crippled in)"
             )
+        parallelism = min(parallelism, len(provider_chunks))
         with ci_group(f"Installing providers in {parallelism} chunks"):
             all_params = [f"Chunk {n}" for n in range(parallelism)]
             with run_with_pool(
@@ -996,11 +1013,8 @@ def generate_issue_content_providers(
         version: str
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
 
-    provider_dependencies: dict[str, dict[str, list[str]]] = json.loads(
-        (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
-    )
     if not packages:
-        packages = list(provider_dependencies.keys())
+        packages = list(DEPENDENCIES.keys())
     with ci_group("Generates GitHub issue content with people who can test it"):
         if excluded_pr_list:
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
