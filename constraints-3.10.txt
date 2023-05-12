@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-11T07:46:05Z
+# This constraints file was automatically generated on 2023-05-12T20:05:09Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-6-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -20,7 +20,7 @@ Flask-JWT-Extended==4.4.4
 Flask-Limiter==3.3.1
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
-Flask-Session==0.4.1
+Flask-Session==0.5.0
 Flask-WTF==1.1.1
 Flask==2.2.5
 GitPython==3.1.31
@@ -160,7 +160,7 @@ azure-common==1.1.28
 azure-core==1.26.4
 azure-cosmos==4.3.1
 azure-datalake-store==0.0.53
-azure-identity==1.12.0
+azure-identity==1.13.0
 azure-keyvault-secrets==4.7.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
@@ -232,7 +232,7 @@ dill==0.3.1.1
 distlib==0.3.6
 distributed==2023.4.1
 dnspython==2.3.0
-docker==6.1.1
+docker==6.1.2
 docopt==0.6.2
 docutils==0.20
 ecdsa==0.18.0
@@ -317,7 +317,7 @@ greenlet==2.0.2
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
 grpcio-status==1.48.2
-grpcio==1.54.0
+grpcio==1.54.2
 gssapi==1.8.2
 gunicorn==20.1.0
 h11==0.14.0
@@ -372,7 +372,7 @@ limits==3.4.0
 linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
-looker-sdk==23.6.0
+looker-sdk==23.8.1
 lxml==4.9.2
 lz4==4.3.2
 markdown-it-py==2.2.0
@@ -406,7 +406,7 @@ nbclient==0.7.4
 nbformat==5.8.0
 neo4j==5.8.0
 networkx==3.1
-nodeenv==1.7.0
+nodeenv==1.8.0
 numpy==1.24.3
 oauthlib==3.2.2
 objsize==0.6.1
@@ -442,10 +442,10 @@ pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.4.14
-pipdeptree==2.7.0
+pipdeptree==2.7.1
 pipx==1.2.0
 pkginfo==1.9.6
-platformdirs==3.5.0
+platformdirs==3.5.1
 pluggy==1.0.0
 ply==3.11
 plyvel==1.5.0
@@ -616,7 +616,7 @@ types-pyOpenSSL==23.1.0.3
 types-python-dateutil==2.8.19.13
 types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
-types-redis==4.5.5.1
+types-redis==4.5.5.2
 types-requests==2.30.0.0
 types-setuptools==67.7.0.2
 types-tabulate==0.9.0.2
@@ -642,7 +642,7 @@ websocket-client==1.5.1
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.31.0
-yandexcloud==0.211.0
+yandexcloud==0.212.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.25

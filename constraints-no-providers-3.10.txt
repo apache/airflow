@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-11T07:43:09Z
+# This constraints file was automatically generated on 2023-05-12T20:02:05Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-6-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -19,7 +19,7 @@ Flask-JWT-Extended==4.4.4
 Flask-Limiter==3.3.1
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
-Flask-Session==0.4.1
+Flask-Session==0.5.0
 Flask-WTF==1.1.1
 Flask==2.2.5
 Jinja2==3.1.2
@@ -90,7 +90,7 @@ google-auth==2.18.0
 googleapis-common-protos==1.59.0
 graphviz==0.20.1
 greenlet==2.0.2
-grpcio==1.54.0
+grpcio==1.54.2
 gssapi==1.8.2
 gunicorn==20.1.0
 h11==0.14.0
@@ -139,7 +139,7 @@ pandas==2.0.1
 partd==1.4.0
 pathspec==0.9.0
 pendulum==2.1.2
-platformdirs==3.5.0
+platformdirs==3.5.1
 pluggy==1.0.0
 plyvel==1.5.0
 prison==0.2.1
