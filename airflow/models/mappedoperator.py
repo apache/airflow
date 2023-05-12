@@ -294,6 +294,10 @@ class MappedOperator(AbstractOperator):
     is_teardown: bool = False
     on_failure_fail_dagrun: bool = False
 
+    _is_setup: bool = False
+    _is_teardown: bool = False
+    _on_failure_fail_dagrun: bool = False
+
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
             "parse_time_mapped_ti_count",
