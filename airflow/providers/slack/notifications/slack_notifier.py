@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.slack.notifications.slack import SlackNotifier  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.slack.notifications.slack",
+    "This module is deprecated. Please use `airflow.providers.slack.notifications.slack`",
     AirflowProviderDeprecationWarning,
     stacklevel=2,
 )
