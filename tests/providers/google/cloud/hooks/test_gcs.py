@@ -817,14 +817,66 @@ class TestGCSHook:
         ),
     )
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
-    def test_list(self, mock_service, prefix, result):
+    def test_list__delimiter(self, mock_service, prefix, result):
         mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+        with pytest.deprecated_call():
+            self.gcs_hook.list(
+                bucket_name="test_bucket",
+                prefix=prefix,
+                delimiter=",",
+            )
+        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch("airflow.providers.google.cloud.hooks.gcs.functools")
+    @mock.patch("google.cloud.storage.bucket._item_to_blob")
+    @mock.patch("google.cloud.storage.bucket._blobs_page_start")
+    @mock.patch("google.api_core.page_iterator.HTTPIterator")
+    def test_list__match_glob(
+        self, http_iterator, _blobs_page_start, _item_to_blob, mocked_functools, mock_service
+    ):
+        http_iterator.return_value.next_page_token = None
         self.gcs_hook.list(
             bucket_name="test_bucket",
-            prefix=prefix,
-            delimiter=",",
+            prefix="prefix",
+            match_glob="**/*.json",
         )
-        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+        http_iterator.assert_has_calls(
+            [
+                mock.call(
+                    api_request=mocked_functools.partial.return_value,
+                    client=mock_service.return_value,
+                    extra_params={"prefix": "prefix", "matchGlob": "**/*.json"},
+                    item_to_value=_item_to_blob,
+                    max_results=None,
+                    page_start=_blobs_page_start,
+                    page_token=None,
+                    path=mock_service.return_value.bucket.return_value.path.__add__.return_value,
+                )
+            ]
+        )
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_list__error_match_glob_and_invalid_delimiter(self, _):
+        with pytest.raises(AirflowException):
+            self.gcs_hook.list(
+                bucket_name="test_bucket",
+                prefix="prefix",
+                delimiter=",",
+                match_glob="**/*.json",
+            )
+
+    @pytest.mark.parametrize("delimiter", [None, "", "/"])
+    @mock.patch("google.api_core.page_iterator.HTTPIterator")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_list__error_match_glob_and_valid_delimiter(self, mock_service, http_iterator, delimiter):
+        http_iterator.return_value.next_page_token = None
+        self.gcs_hook.list(
+            bucket_name="test_bucket",
+            prefix="prefix",
+            delimiter="/",
+            match_glob="**/*.json",
+        )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_list_by_timespans(self, mock_service):
