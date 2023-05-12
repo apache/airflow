@@ -51,7 +51,6 @@ from urllib3.exceptions import HTTPError
 from airflow import version
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.kubernetes.pod_generator_deprecated import PodDefaults
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -373,10 +372,22 @@ class GKEPodHook(GoogleBaseHook):
     def is_in_cluster(self) -> bool:
         return False
 
-    @staticmethod
-    def get_xcom_sidecar_container_image():
-        """Returns the xcom sidecar image that defined in the connection"""
-        return PodDefaults.SIDECAR_CONTAINER.image
+    def _get_namespace(self):
+        """Implemented for compatibility with KubernetesHook.  Deprecated; do not use."""
+
+    def get_xcom_sidecar_container_image(self):
+        """
+        Returns the xcom sidecar image defined in the connection.
+
+        Implemented for compatibility with KubernetesHook.
+        """
+
+    def get_xcom_sidecar_container_resources(self):
+        """
+        Returns the xcom sidecar resources defined in the connection.
+
+        Implemented for compatibility with KubernetesHook.
+        """
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
