@@ -57,8 +57,8 @@ shell:bd3e004a92ebcec8feb40fc5cd95872d
 start-airflow:ee5066f1420a489864b48bc4e5e472da
 static-checks:a5448ced1a4786b2a0dac4144cd1aead
 stop:e5aa686b4e53707ced4039d8414d5cd6
-testing:docker-compose-tests:b86c044b24138af0659a05ed6331576c
+testing:docker-compose-tests:183435da5d5df96f1bec016fcb5d4c76
 testing:helm-tests:936cf28fd84ce4ff5113795fdae9624b
 testing:integration-tests:6b302f81c1038215bbc9f22f9490fcfc
 testing:tests:9a8e3645ff5341788b5cd683b1c4bdcd
-testing:405296e5ab9be9aa9e1af3f162bd296a
+testing:3ccba105be3eda9449bc446df4b34d2c

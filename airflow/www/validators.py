@@ -22,6 +22,8 @@ from json import JSONDecodeError
 
 from wtforms.validators import EqualTo, ValidationError
 
+from airflow.utils import helpers
+
 
 class GreaterEqualThan(EqualTo):
     """Compares the values of two fields.
@@ -76,3 +78,22 @@ class ValidJson:
             except JSONDecodeError as ex:
                 message = self.message or f"JSON Validation Error: {ex}"
                 raise ValidationError(message=field.gettext(message.format(field.data)))
+
+
+class ValidKey:
+    """
+    Validates values that will be used as keys
+
+    :param max_length:
+        The maximum length of the given key
+    """
+
+    def __init__(self, max_length=200):
+        self.max_length = max_length
+
+    def __call__(self, form, field):
+        if field.data:
+            try:
+                helpers.validate_key(field.data, self.max_length)
+            except Exception as e:
+                raise ValidationError(str(e))

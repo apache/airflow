@@ -27,8 +27,11 @@ from unittest.mock import MagicMock, patch
 import kubernetes
 import pytest
 from kubernetes.config import ConfigException
+from sqlalchemy.orm import make_transient
 
 from airflow import AirflowException
+from airflow.exceptions import AirflowNotFoundException
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.utils import db
@@ -52,6 +55,22 @@ NAMESPACE = "test-namespace"
 
 class DeprecationRemovalRequired(AirflowException):
     ...
+
+
+DEFAULT_CONN_ID = "kubernetes_default"
+
+
+@pytest.fixture()
+def remove_default_conn(session):
+    before_conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).one_or_none()
+    if before_conn:
+        session.delete(before_conn)
+        session.commit()
+    yield
+    if before_conn:
+        make_transient(before_conn)
+        session.add(before_conn)
+        session.commit()
 
 
 class TestKubernetesHook:
@@ -390,6 +409,20 @@ class TestKubernetesHook:
             kubernetes_hook.get_conn()
             mock_get_client.assert_called_with(cluster_context="test")
             assert kubernetes_hook.get_namespace() == "test"
+
+    def test_missing_default_connection_is_ok(self, remove_default_conn):
+        # prove to ourselves that the default conn doesn't exist
+        with pytest.raises(AirflowNotFoundException):
+            BaseHook.get_connection(DEFAULT_CONN_ID)
+
+        # verify K8sHook still works
+        hook = KubernetesHook()
+        assert hook.conn_extras == {}
+
+        # meanwhile, asking for non-default should still fail if it doesn't exist
+        hook = KubernetesHook("some_conn")
+        with pytest.raises(AirflowNotFoundException, match="The conn_id `some_conn` isn't defined"):
+            hook.conn_extras
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")

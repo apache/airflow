@@ -151,9 +151,14 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Flex alignItems="center" justifyContent="space-between" ml={6}>
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        ml={6}
+      >
         <Header />
-        <Flex>
+        <Flex flexWrap="wrap">
           {runId && !taskId && (
             <>
               <ClearRun runId={runId} mr={2} />
@@ -169,6 +174,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
+                mt={2}
                 mr={2}
               />
               <MarkInstanceAs
@@ -178,6 +184,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
+                mt={2}
                 mr={2}
               />
             </>

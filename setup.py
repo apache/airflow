@@ -240,9 +240,11 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
+    # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
+    # The upper limit can be removed when https://github.com/dask/dask/issues/10279 is fixed
     # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
-    "dask>=2.9.0,!=2022.10.1",
-    "distributed>=2.11.1",
+    "dask>=2.9.0,!=2022.10.1,<2023.5.0",
+    "distributed>=2.11.1,<2023.5.0",
 ]
 deprecated_api = [
     "requests>=2.26.0",

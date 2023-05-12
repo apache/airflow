@@ -50,7 +50,12 @@ versions:
 dependencies:
   - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - elasticsearch>7
+  # We cannot use elasticsearch 8 yet. The elasticsearch-dsl is not compatible with it.
+  # elasticsearch>=7.15.0 breaks our tests.The eleasticsearch 7 is an old version that is not
+  # supported anymore. We should move to elasticsearch 8 as
+  # likely requires getting rid of elasticsearch-dsl or waiting until there is a compatible version
+  # We can also try to replace the <7.15.0 with <8.0.0 but we need to solve the test failures first
+  - elasticsearch>7,<7.15.0
   - elasticsearch-dbapi
   - elasticsearch-dsl>=5.0.0
 
