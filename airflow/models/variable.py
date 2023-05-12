@@ -154,6 +154,7 @@ class Variable(Base, LoggingMixin):
         description: Optional[str] = None,
         serialize_json: bool = False,
         session: Session = None,
+        is_multi_cluster_enabled: bool = False,
     ):
         """
         Sets a value for an Airflow Variable with a given Key.
@@ -164,7 +165,11 @@ class Variable(Base, LoggingMixin):
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
+        :param is_multi_cluster_enabled: is set wrapped by lyft-etl sync_variable_writes_multicluster
         """
+        if not is_multi_cluster_enabled:
+            raise AirflowFailException("Please write Airflow variables using "
+                                       "sync_variable_writes_multicluster defined in lyft-etl")
         # check if the secret exists in the custom secrets backend.
         cls.check_for_write_conflict(key)
         if serialize_json:
