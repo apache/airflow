@@ -285,7 +285,7 @@ def check_remote_ghcr_io_commands():
             get_console().print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
                 "credentials you got from GitHub Actions to run are expired, and we cannot do much.[/]"
-                "\n¯\_(ツ)_/¯\n\n"
+                "\n¯\\_(ツ)_/¯\n\n"
                 "[warning]You have the following options now:\n\n"
                 "  * Close and reopen the Pull Request of yours\n"
                 "  * Rebase or amend your commit and push your branch again\n"
