@@ -39,6 +39,7 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
+from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_airflow_extras,
@@ -399,6 +400,13 @@ def build_docs(
     is_flag=True,
 )
 @click.option(
+    "-m",
+    "--only-my-changes",
+    help="Run checks for commits belonging to my PR only: for all commits between merge base to `main` "
+    "branch and HEAD of your branch.",
+    is_flag=True,
+)
+@click.option(
     "-r",
     "--commit-ref",
     help="Run checks for this commit reference only "
@@ -425,6 +433,7 @@ def static_checks(
     all_files: bool,
     show_diff_on_failure: bool,
     last_commit: bool,
+    only_my_changes: bool,
     commit_ref: str,
     type_: str,
     file: Iterable[str],
@@ -460,18 +469,39 @@ def static_checks(
             i += 1
 
     command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
-    if last_commit and commit_ref:
-        get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
+    if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
+        get_console().print(
+            "\n[error]You can only specify "
+            "one of --last-commit, --commit-ref, --only-my-changes, --all-files[/]\n"
+        )
         sys.exit(1)
     if type_:
         command_to_execute.append(type_)
+    if only_my_changes:
+        merge_base = run_command(
+            ["git", "merge-base", "HEAD", "main"], capture_output=True, check=False, text=True
+        ).stdout.strip()
+        if not merge_base:
+            get_console().print(
+                "\n[warning]Could not find merge base between HEAD and main. Running check for all files\n"
+            )
+            all_files = True
+        else:
+            get_console().print(
+                f"\n[info]Running checks for files changed in the current branch: {merge_base}..HEAD\n"
+            )
+            command_to_execute.extend(["--from-ref", merge_base, "--to-ref", "HEAD"])
     if all_files:
         command_to_execute.append("--all-files")
     if show_diff_on_failure:
         command_to_execute.append("--show-diff-on-failure")
     if last_commit:
+        get_console().print(
+            "\n[info]Running checks for last commit in the current branch current branch: HEAD^..HEAD\n"
+        )
         command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
     if commit_ref:
+        get_console().print(f"\n[info]Running checks for selected commit: {commit_ref}\n")
         command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
     if get_verbose() or get_dry_run():
         command_to_execute.append("--verbose")
