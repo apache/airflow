@@ -57,3 +57,6 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
     connection-type: discord
+
+notifications:
+  - airflow.providers.discord.notifications.discord.DiscordNotifier

@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -46,10 +45,8 @@ class DiscordNotifier(BaseNotifier):
     :param tts: Text to speech.
     """
 
-
-    #A property that specifies the attributes that can be templated. 
-    template_fields = ("discord_conn_id", "text" , "username", "avatar_url", "tts")
-    
+    # A property that specifies the attributes that can be templated.
+    template_fields = ("discord_conn_id", "text", "username", "avatar_url", "tts")
 
     def __init__(
         self,
@@ -57,17 +54,17 @@ class DiscordNotifier(BaseNotifier):
         text: str = "This is a default message",
         username: str = "Airflow",
         avatar_url: str = ICON_URL,
-        tts: bool = False 
+        tts: bool = False,
     ):
         super().__init__()
         self.discord_conn_id = discord_conn_id
         self.text = text
         self.username = username
         self.avatar_url = avatar_url
-        
-        #If you're havin problem with tts not recognized in __init__
+
+        # If you're havin problem with tts not recognized in __init__
         # you can define that after instantiate the class
-        self.tts = tts 
+        self.tts = tts
 
     @cached_property
     def hook(self) -> DiscordWebhookHook:
@@ -82,5 +79,3 @@ class DiscordNotifier(BaseNotifier):
         self.hook.tts = self.tts
 
         self.hook.execute()
-
-
