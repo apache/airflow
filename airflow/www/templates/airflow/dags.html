@@ -132,23 +132,31 @@
   <div id="main_content">
     <div class="row dags-table-header">
       <div class="col-sm-4 col-md-4 no-x-padding">
-        <div class="form-group btn-group">
-          <a
-            href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-            class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-default' }}"
-            title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
-          <a
-            href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-            class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-default' }}"
-            title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
-          <a
-            href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-            class="btn {{ 'btn-primary' if status_filter == 'paused' else 'btn-default' }}"
-            title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
-          <a
-            href="{{ url_for('Airflow.index', status='running', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-            class="btn {{ 'btn-primary' if status_filter == 'running' else 'btn-default' }}"
-            title="Show only running DAGs">Running <span class="badge">{{ "{:,}".format(status_count_running) }}</span></a>
+        <div class="row">
+          <div class="col-sm-6 col-md-6">
+            <div class="form-group btn-group">
+              <a
+                href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+                class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-default' }}"
+                title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
+              <a
+                href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+                class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-default' }}"
+                title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
+              <a
+                href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+                class="btn {{ 'btn-primary' if status_filter == 'paused' else 'btn-default' }}"
+                title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
+            </div>
+          </div>
+          <div class="col-sm-2 col-md-2 text-justify">
+            <div class="form-group btn-group">
+              <a
+                href="{{ url_for('Airflow.index', status='running', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+                class="btn {{ 'btn-primary' if status_filter == 'running' else 'btn-default' }}"
+                title="Show only currently running DAG runs">Running <span class="badge">{{ "{:,}".format(status_count_running) }}</span></a>
+            </div>
+          </div>
         </div>
       </div>
       <div class="col-sm-2 col-md-2">
