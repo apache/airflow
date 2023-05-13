@@ -1221,7 +1221,14 @@ openlineage:
       example: '{"type": "http", "url": "http://localhost:5000"}'
       default: ''
       version_added: ~
-
+    disable_source_code:
+      description: |
+        If disabled, OpenLineage events do not contain source code of particular
+        operators, like PythonOperator.
+      default: ~
+      example: ~
+      type: boolean
+      version_added: ~
 atlas:
   description: ~
   options:

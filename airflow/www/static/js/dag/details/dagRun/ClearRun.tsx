@@ -68,6 +68,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
         aria-label={clearLabel}
         disabled={!canEdit || isClearLoading || isQueueLoading}
         {...otherProps}
+        mt={2}
       >
         <Flex>
           Clear
