@@ -278,7 +278,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.0",
+    "flask-appbuilder[oauth]==4.3.1",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
