@@ -37,7 +37,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
 
     :param stack_name: stack name (templated)
     :param cloudformation_parameters: parameters to be passed to CloudFormation.
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: aws connection to use.
     """
 
     template_fields: Sequence[str] = ("stack_name", "cloudformation_parameters")
@@ -70,7 +70,7 @@ class CloudFormationDeleteStackOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudFormationDeleteStackOperator`
 
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: aws connection to use.
     """
 
     template_fields: Sequence[str] = ("stack_name",)
