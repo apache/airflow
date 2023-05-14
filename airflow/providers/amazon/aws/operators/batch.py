@@ -138,7 +138,7 @@ class BatchOperator(BaseOperator):
         waiters: Any | None = None,
         max_retries: int | None = None,
         status_retries: int | None = None,
-        aws_conn_id: str | None = None,
+        aws_conn_id: str | None = 'aws_default',
         region_name: str | None = None,
         tags: dict | None = None,
         wait_for_completion: bool = True,
