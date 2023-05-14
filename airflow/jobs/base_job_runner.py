@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.job import Job
+    from airflow.serialization.pydantic.job import JobPydantic
 
 
 class BaseJobRunner:
@@ -32,14 +33,13 @@ class BaseJobRunner:
 
     job_type = "undefined"
 
-    def __init__(self, job):
+    def __init__(self, job: Job | JobPydantic) -> None:
         if job.job_type and job.job_type != self.job_type:
             raise Exception(
                 f"The job is already assigned a different job_type: {job.job_type}."
                 f"This is a bug and should be reported."
             )
-        self.job = job
-        self.job.job_type = self.job_type
+        job.job_type = self.job_type
 
     def _execute(self) -> int | None:
         """
