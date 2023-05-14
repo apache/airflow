@@ -50,6 +50,7 @@ class EntityType(Enum):
     Sensors = "Sensors"
     Hooks = "Hooks"
     Secrets = "Secrets"
+    Trigger = "Trigger"
 
 
 class EntityTypeSummary(NamedTuple):
@@ -80,6 +81,7 @@ ENTITY_NAMES = {
     EntityType.Sensors: "Sensors",
     EntityType.Hooks: "Hooks",
     EntityType.Secrets: "Secrets",
+    EntityType.Trigger: "Trigger",
 }
 
 TOTALS: dict[EntityType, int] = {
@@ -88,6 +90,7 @@ TOTALS: dict[EntityType, int] = {
     EntityType.Sensors: 0,
     EntityType.Transfers: 0,
     EntityType.Secrets: 0,
+    EntityType.Trigger: 0,
 }
 
 OPERATORS_PATTERN = r".*Operator$"
@@ -96,6 +99,7 @@ HOOKS_PATTERN = r".*Hook$"
 SECRETS_PATTERN = r".*Backend$"
 TRANSFERS_PATTERN = r".*To[A-Z0-9].*Operator$"
 WRONG_TRANSFERS_PATTERN = r".*Transfer$|.*TransferOperator$"
+TRIGGER_PATTERN = r".*Trigger$"
 
 ALL_PATTERNS = {
     OPERATORS_PATTERN,
@@ -104,6 +108,7 @@ ALL_PATTERNS = {
     SECRETS_PATTERN,
     TRANSFERS_PATTERN,
     WRONG_TRANSFERS_PATTERN,
+    TRIGGER_PATTERN,
 }
 
 EXPECTED_SUFFIXES: dict[EntityType, str] = {
@@ -112,6 +117,7 @@ EXPECTED_SUFFIXES: dict[EntityType, str] = {
     EntityType.Sensors: "Sensor",
     EntityType.Secrets: "Backend",
     EntityType.Transfers: "Operator",
+    EntityType.Trigger: "Trigger",
 }
 
 
@@ -543,6 +549,7 @@ def get_package_class_summary(
     from airflow.models.baseoperator import BaseOperator
     from airflow.secrets import BaseSecretsBackend
     from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.base import BaseTrigger
 
     all_verified_entities: dict[EntityType, VerifiedEntities] = {
         EntityType.Operators: find_all_entities(
@@ -594,6 +601,14 @@ def get_package_class_summary(
             ancestor_match=BaseOperator,
             expected_class_name_pattern=TRANSFERS_PATTERN,
             unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, TRANSFERS_PATTERN},
+        ),
+        EntityType.Trigger: find_all_entities(
+            imported_classes=imported_classes,
+            base_package=full_package_name,
+            sub_package_pattern_match=r".*\.triggers\..*",
+            ancestor_match=BaseTrigger,
+            expected_class_name_pattern=TRIGGER_PATTERN,
+            unexpected_class_name_patterns=ALL_PATTERNS - {TRIGGER_PATTERN},
         ),
     }
     for entity in EntityType:
