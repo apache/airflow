@@ -3428,7 +3428,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         assert excepted is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, session, number_running
+            dag, dag_model, number_running, session=session
         )
 
     def test_create_dag_runs(self, dag_maker):
