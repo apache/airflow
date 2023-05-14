@@ -149,6 +149,7 @@ class SqlToS3Operator(BaseOperator):
                 # if the type wasn't identified or converted, try parsing it to datetime
                 try:
                     df[col] = pd.to_datetime(df[col])
+                    # Fill 01/01/70 in case of None value in datetime column.
                     df[col].fillna(pd.to_datetime('1970-01-01'),inplace=True)
                 except ValueError:
                     # if parsing as datetime fails, parse as string instead
