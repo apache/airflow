@@ -30,7 +30,7 @@ const usePools = () => {
   const { isRefreshOn } = useAutoRefresh();
 
   return useQuery(
-    ["get_pools"],
+    ["pools"],
     async () => axios.get<AxiosResponse, API.PoolCollection>(poolsUrl),
     {
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,

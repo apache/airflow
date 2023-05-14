@@ -27,7 +27,7 @@ const dagsUrl = getMetaValue("dags_url");
 
 const useDags = ({ paused }: API.GetDagsVariables) =>
   useQuery(
-    ["dag", paused],
+    ["dags", paused],
     async () =>
       axios.get<AxiosResponse, API.DAGCollection>(dagsUrl, {
         params: { paused },

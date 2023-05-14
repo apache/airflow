@@ -61,7 +61,10 @@ const DagRuns = (props: BoxProps) => {
               </Text>
               <Box mt={2}>
                 {data?.totalEntries !== undefined && data.totalEntries > 0 ? (
-                  <Table size="sm">
+                  <Table
+                    size="sm"
+                    style={{ tableLayout: "fixed", width: "100%" }}
+                  >
                     <Thead>
                       <Tr>
                         <Th>Dag Id</Th>
@@ -72,7 +75,11 @@ const DagRuns = (props: BoxProps) => {
                     <Tbody>
                       {data?.dagRuns?.map((dagRun) => (
                         <Tr key={dagRun.dagRunId}>
-                          <Td>
+                          <Td
+                            textOverflow="ellipsis"
+                            overflow="hidden"
+                            whiteSpace="nowrap"
+                          >
                             <Link
                               href={`dags/${
                                 dagRun.dagId

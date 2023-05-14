@@ -32,7 +32,7 @@ const useDagRuns = ({
   const dagRunsUrl = getMetaValue("dag_runs_url").replace("__DAG_ID__", dagId);
 
   return useQuery(
-    ["dag", state, dagId, limit],
+    ["dagRuns", state, dagId, limit],
     async () =>
       axios.get<AxiosResponse, API.DAGRunCollection>(dagRunsUrl, {
         params: {

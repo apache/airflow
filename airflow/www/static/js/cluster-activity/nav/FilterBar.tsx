@@ -24,7 +24,7 @@ import React from "react";
 
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
-import useFilters from "src/dashboard/useFilters";
+import useFilters from "src/cluster-activity/useFilters";
 
 const FilterBar = () => {
   const { filters, onStartDateChange, onEndDateChange, clearFilters } =
@@ -39,7 +39,12 @@ const FilterBar = () => {
   const inputStyles = { backgroundColor: "white", size: "lg" };
 
   return (
-    <Flex backgroundColor="#f0f0f0" mb={4} p={4} justifyContent="space-between">
+    <Flex
+      backgroundColor="blackAlpha.200"
+      mb={4}
+      p={4}
+      justifyContent="space-between"
+    >
       <Flex justifyContent="space-between">
         <Box px={2}>
           <Input

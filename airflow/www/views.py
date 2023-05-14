@@ -974,16 +974,16 @@ class Airflow(AirflowBaseView):
             state_color_mapping=state_color_mapping,
         )
 
-    @expose("/dashboard")
+    @expose("/cluster_activity")
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DASHBOARD),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         ]
     )
-    def dashboard(self):
-        """Dashboard view."""
+    def cluster_activity(self):
+        """Cluster Activity view."""
         return self.render_template(
-            "airflow/dashboard.html",
+            "airflow/cluster_activity.html",
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
         )
 
@@ -3807,7 +3807,7 @@ class Airflow(AirflowBaseView):
     @expose("/object/historical_metrics_data")
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DASHBOARD),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         ]
     )
     def historical_metrics_data(self):

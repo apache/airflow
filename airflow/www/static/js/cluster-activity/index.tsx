@@ -37,14 +37,14 @@ const cache = createCache({
 });
 const mainElement = document.getElementById("react-container");
 
-const Dashboard = () => (
+const ClusterActivity = () => (
   <Flex
     alignItems="flex-start"
     flexDirection="column"
     justifyContent="space-between"
   >
     <Heading mt={3} mb={2} fontWeight="normal" size="lg">
-      Dashboard
+      Cluster Activity
     </Heading>
     <LiveMetrics />
     <HistoricalMetrics />
@@ -56,7 +56,7 @@ if (mainElement) {
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
-      <Dashboard />
+      <ClusterActivity />
     </App>
   );
 }

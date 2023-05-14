@@ -27,10 +27,10 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import InfoTooltip from "src/components/InfoTooltip";
-import FilterBar from "src/dashboard/nav/FilterBar";
-import useFilters from "src/dashboard/useFilters";
+import FilterBar from "src/cluster-activity/nav/FilterBar";
+import useFilters from "src/cluster-activity/useFilters";
 import { useHistoricalMetricsData } from "src/api";
-import PieChart from "src/dashboard/historical-metrics/PieChart";
+import PieChart from "src/cluster-activity/historical-metrics/PieChart";
 
 const HistoricalMetrics = () => {
   const {
