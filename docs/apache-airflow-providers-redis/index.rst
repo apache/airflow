@@ -73,7 +73,7 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.3.0``
-``redis``           ``~=3.2``
+``redis``           ``~=4.5.5``
 ==================  ==================
 
 .. include:: ../../airflow/providers/redis/CHANGELOG.rst

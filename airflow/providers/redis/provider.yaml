@@ -39,7 +39,7 @@ dependencies:
   # as well as unquoting URLS with `urllib.parse.unquote`:
   # https://github.com/redis/redis-py/blob/master/CHANGES
   # TODO: upgrade to support redis package >=4
-  - redis~=3.2
+  - redis~=4.5.5
 
 integrations:
   - integration-name: Redis
