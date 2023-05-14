@@ -28,7 +28,7 @@ import warnings
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from functools import lru_cache
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Collection, Iterable, Iterator
 
@@ -1076,7 +1076,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable = lru_cache()(lambda dag_id: self.dagbag.get_dag(dag_id, session=session))
+        cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
+            partial(self.dagbag.get_dag, session=session)
+        )
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run.dag_id)
 
@@ -1344,7 +1346,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
         # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable = lru_cache()(lambda dag_id: self.dagbag.get_dag(dag_id, session=session))
+        cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
+            partial(self.dagbag.get_dag, session=session)
+        )
 
         for dag_run in dag_runs:
             dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
