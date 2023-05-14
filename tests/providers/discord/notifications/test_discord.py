@@ -31,7 +31,7 @@ def setup():
     db.merge_conn(
         Connection(
             conn_id="my_discord_conn_id",
-            conn_type="HTTP",
+            conn_type="discord",
             host="https://discordapp.com/api/",
             extra='{"webhook_endpoint": "webhooks/00000/some-discord-token_000"}',
         )
