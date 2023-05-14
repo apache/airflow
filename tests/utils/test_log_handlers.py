@@ -316,6 +316,52 @@ class TestFileTaskLogHandler:
         assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
 
     @pytest.mark.parametrize(
+        "remote_logs, local_logs, served_logs_checked",
+        [
+            (True, True, False),
+            (True, False, False),
+            (False, True, False),
+            (False, False, True),
+        ],
+    )
+    def test__read_served_logs_checked_when_done_and_no_local_or_remote_logs(
+        self, create_task_instance, remote_logs, local_logs, served_logs_checked
+    ):
+        """
+        Generally speaking when a task is done we should not read from logs server,
+        because we assume for log persistence that users will either set up shared
+        drive or enable remote logging.  But if they don't do that, and therefore
+        we don't find remote or local logs, we'll check worker for served logs as
+        a fallback.
+        """
+        executor_name = "CeleryExecutor"
+
+        ti = create_task_instance(
+            dag_id="dag_for_testing_celery_executor_log_read",
+            task_id="task_for_testing_celery_executor_log_read",
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+        )
+        ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
+        with conf_vars({("core", "executor"): executor_name}):
+            fth = FileTaskHandler("")
+            if remote_logs:
+                fth._read_remote_logs = mock.Mock()
+                fth._read_remote_logs.return_value = ["found remote logs"], ["remote\nlog\ncontent"]
+            if local_logs:
+                fth._read_from_local = mock.Mock()
+                fth._read_from_local.return_value = ["found local logs"], ["local\nlog\ncontent"]
+            fth._read_from_logs_server = mock.Mock()
+            fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
+            actual = fth._read(ti=ti, try_number=1)
+        if served_logs_checked:
+            fth._read_from_logs_server.assert_called_once()
+            assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
+        else:
+            fth._read_from_logs_server.assert_not_called()
+            assert actual[0] and actual[1]
+
+    @pytest.mark.parametrize(
         "pod_override, namespace_to_call",
         [
             pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-A")), "namespace-A"),
@@ -647,13 +693,8 @@ long_sample = """
 [2023-01-15T22:37:13.361-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-16T06:37:13.044492+00:00> (ID 106) fired: TriggerEvent<DateTime(2023, 1, 16, 6, 37, 13, 44492, tzinfo=Timezone('UTC'))>
 """  # noqa: E501
 
-# for line in _parse_timestamps_in_log_file(long_sample.splitlines()):
-#     print(line)
-# for line in _interleave_logs(long_sample):
-#     print(line)
 
-
-def test_this():
+def test_interleave_logs_correct_ordering():
     """
     Notice there are two messages with timestamp `2023-01-17T12:47:11.883-0800`.
     In this case, these should appear in correct order and be deduped in result.
@@ -667,9 +708,3 @@ def test_this():
     """  # noqa: E501
 
     assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
-
-
-def test_ttthis():
-    local_logs = "[2023-01-17T13:41:53.228-0800] {temporal.py:62} INFO - trigger starting\n[2023-01-17T13:41:53.228-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:54.228-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:55.229-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:56.229-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:57.229-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:58.230-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:59.231-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:00.231-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:01.232-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:02.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:03.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:04.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:05.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:06.234-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:07.235-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:08.237-0800] {temporal.py:74} INFO - yielding event with payload DateTime(2023, 1, 17, 21, 42, 8, 150776, tzinfo=Timezone('UTC'))\n[2023-01-17T13:42:08.237-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T21:42:08.150776+00:00> (ID 4) fired: TriggerEvent<DateTime(2023, 1, 17, 21, 42, 8, 150776, tzinfo=Timezone('UTC'))>\n[2023-01-17T13:42:19.050-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [queued]>\n[2023-01-17T13:42:19.074-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [queued]>\n[2023-01-17T13:42:19.074-0800] {taskinstance.py:1330} INFO - resuming after deferral\n[2023-01-17T13:42:19.087-0800] {taskinstance.py:1351} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2023-01-17 21:41:38.150776+00:00\n[2023-01-17T13:42:19.091-0800] {standard_task_runner.py:56} INFO - Started process 98604 to run task\n[2023-01-17T13:42:19.097-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-17T21:41:38.150776+00:00', '--job-id', '518', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmpx76emkve', '--no-shut-down-logging']\n[2023-01-17T13:42:19.101-0800] {standard_task_runner.py:84} INFO - Job 518: Subtask wait\n[2023-01-17T13:42:19.185-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [running]> on host Daniels-MacBook-Pro-2.local\n[2023-01-17T13:42:19.274-0800] {taskinstance.py:1369} INFO - Marking task as SUCCESS. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230117T214138, start_date=20230117T214151, end_date=20230117T214219\n[2023-01-17T13:42:19.309-0800] {local_task_job.py:220} INFO - Task exited with return code 0\n[2023-01-17T13:42:19.339-0800] {taskinstance.py:2648} INFO - 1 downstream tasks scheduled from follow-on schedule check\n"  # noqa: E501
-    remote_logs = "[2023-01-17T13:41:51.446-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [queued]>\n[2023-01-17T13:41:51.454-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [queued]>\n[2023-01-17T13:41:51.454-0800] {taskinstance.py:1332} INFO - Starting attempt 1 of 1\n[2023-01-17T13:41:51.478-0800] {taskinstance.py:1351} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2023-01-17 21:41:38.150776+00:00\n[2023-01-17T13:41:51.482-0800] {standard_task_runner.py:56} INFO - Started process 98256 to run task\n[2023-01-17T13:41:51.487-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-17T21:41:38.150776+00:00', '--job-id', '517', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmpszoemoy8', '--no-shut-down-logging']\n[2023-01-17T13:41:51.490-0800] {standard_task_runner.py:84} INFO - Job 517: Subtask wait\n[2023-01-17T13:41:51.575-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [running]> on host Daniels-MacBook-Pro-2.local\n[2023-01-17T13:41:51.651-0800] {taskinstance.py:1558} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='example_time_delta_sensor_async' AIRFLOW_CTX_TASK_ID='wait' AIRFLOW_CTX_EXECUTION_DATE='2023-01-17T21:41:38.150776+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2023-01-17T21:41:38.150776+00:00'\n[2023-01-17T13:41:51.672-0800] {taskinstance.py:1433} INFO - Pausing task as DEFERRED. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230117T214138, start_date=20230117T214151\n[2023-01-17T13:41:51.700-0800] {local_task_job.py:218} INFO - Task exited with return code 100 (task deferral)\n\n[2023-01-17T13:42:19.050-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [queued]>\n[2023-01-17T13:42:19.074-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [queued]>\n[2023-01-17T13:42:19.074-0800] {taskinstance.py:1330} INFO - resuming after deferral\n[2023-01-17T13:42:19.087-0800] {taskinstance.py:1351} INFO - Executing <Task(TimeDeltaSensorAsync): wait> on 2023-01-17 21:41:38.150776+00:00\n[2023-01-17T13:42:19.091-0800] {standard_task_runner.py:56} INFO - Started process 98604 to run task\n[2023-01-17T13:42:19.097-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-17T21:41:38.150776+00:00', '--job-id', '518', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmpx76emkve', '--no-shut-down-logging']\n[2023-01-17T13:42:19.101-0800] {standard_task_runner.py:84} INFO - Job 518: Subtask wait\n[2023-01-17T13:42:19.185-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-17T21:41:38.150776+00:00 [running]> on host Daniels-MacBook-Pro-2.local\n[2023-01-17T13:42:19.274-0800] {taskinstance.py:1369} INFO - Marking task as SUCCESS. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230117T214138, start_date=20230117T214151, end_date=20230117T214219\n[2023-01-17T13:42:19.309-0800] {local_task_job.py:220} INFO - Task exited with return code 0\n[2023-01-17T13:42:19.339-0800] {taskinstance.py:2648} INFO - 1 downstream tasks scheduled from follow-on schedule check\n[2023-01-17T13:41:53.228-0800] {temporal.py:62} INFO - trigger starting\n[2023-01-17T13:41:53.228-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:54.228-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:55.229-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:56.229-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:57.229-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:58.230-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:41:59.231-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:00.231-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:01.232-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:02.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:03.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:04.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:05.233-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:06.234-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:07.235-0800] {temporal.py:71} INFO - sleeping 1 second...\n[2023-01-17T13:42:08.237-0800] {temporal.py:74} INFO - yielding event with payload DateTime(2023, 1, 17, 21, 42, 8, 150776, tzinfo=Timezone('UTC'))\n[2023-01-17T13:42:08.237-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T21:42:08.150776+00:00> (ID 4) fired: TriggerEvent<DateTime(2023, 1, 17, 21, 42, 8, 150776, tzinfo=Timezone('UTC'))>\n"  # noqa: E501
-    print("\n".join(_interleave_logs(local_logs, remote_logs)))

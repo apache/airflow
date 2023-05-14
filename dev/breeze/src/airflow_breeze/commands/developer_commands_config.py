@@ -65,6 +65,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced flag for running",
             "options": [
+                "--install-selected-providers",
                 "--use-airflow-version",
                 "--airflow-constraints-reference",
                 "--platform",
@@ -157,12 +158,20 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Pre-commit flags",
             "options": [
                 "--type",
+                "--show-diff-on-failure",
+                "--initialize-environment",
+                "--max-initialization-attempts",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Selecting files to run the checks on",
+            "options": [
                 "--file",
                 "--all-files",
-                "--show-diff-on-failure",
-                "--last-commit",
                 "--commit-ref",
-                "--github-repository",
+                "--last-commit",
+                "--only-my-changes",
             ],
         },
     ],

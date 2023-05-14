@@ -62,7 +62,11 @@ with models.DAG(
     )
     # [START howto_transfer_s3togcs_operator]
     transfer_to_gcs = S3ToGCSOperator(
-        task_id="s3_to_gcs_task", bucket=BUCKET_NAME, prefix=PREFIX, dest_gcs=GCS_BUCKET_URL
+        task_id="s3_to_gcs_task",
+        bucket=BUCKET_NAME,
+        prefix=PREFIX,
+        dest_gcs=GCS_BUCKET_URL,
+        apply_gcs_prefix=True,
     )
     # [END howto_transfer_s3togcs_operator]
 

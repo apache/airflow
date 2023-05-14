@@ -42,6 +42,7 @@
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
@@ -248,6 +249,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
+  the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
 
   Preview with:
@@ -760,6 +763,20 @@ EOF
 Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
 It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
 (press "c" to compose a new thread)
+
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
 
 ## Add release data to Apache Committee Report Helper
 

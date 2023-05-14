@@ -324,6 +324,41 @@ class TestKubernetesPodOperator:
             "already_checked!=True,!airflow-worker"
         )
 
+    @patch(HOOK_CLASS, new=MagicMock)
+    def test_pod_dns_options(self):
+        dns_config = k8s.V1PodDNSConfig(
+            nameservers=["192.0.2.1", "192.0.2.3"],
+            searches=["ns1.svc.cluster-domain.example", "my.dns.search.suffix"],
+            options=[
+                k8s.V1PodDNSConfigOption(
+                    name="ndots",
+                    value="2",
+                )
+            ],
+        )
+        hostname = "busybox-2"
+        subdomain = "busybox-subdomain"
+
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            dns_config=dns_config,
+            hostname=hostname,
+            subdomain=subdomain,
+        )
+
+        self.run_pod(k)
+        pod_spec = k.pod.spec
+        assert pod_spec.dns_config == dns_config
+        assert pod_spec.subdomain == subdomain
+        assert pod_spec.hostname == hostname
+
     @pytest.mark.parametrize(
         "val",
         [
@@ -569,6 +604,7 @@ class TestKubernetesPodOperator:
         self.await_pod_mock.side_effect = AirflowException("fake failure")
         with pytest.raises(AirflowException, match="my-failure"):
             context = create_context(k)
+            context["ti"].xcom_push = MagicMock()
             k.execute(context=context)
         delete_pod_mock.assert_called_with(find_pod_mock.return_value)
 
@@ -1089,16 +1125,21 @@ class TestKubernetesPodOperator:
         "extra_kwargs, actual_exit_code, expected_exc",
         [
             (None, 99, AirflowException),
-            ({"skip_exit_code": 100}, 100, AirflowSkipException),
-            ({"skip_exit_code": 100}, 101, AirflowException),
-            ({"skip_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 100, AirflowException),
+            ({"skip_on_exit_code": [100]}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": (100, 101)}, 100, AirflowSkipException),
+            ({"skip_on_exit_code": 100}, 101, AirflowException),
+            ({"skip_on_exit_code": [100, 102]}, 101, AirflowException),
+            ({"skip_on_exit_code": None}, 0, None),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     def test_task_skip_when_pod_exit_with_certain_code(
         self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
     ):
-        """Tests that an AirflowSkipException is raised when the container exits with the skip_exit_code"""
+        """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
         k = KubernetesPodOperator(
             task_id="task", is_delete_operator_pod=True, **(extra_kwargs if extra_kwargs else {})
         )
@@ -1110,9 +1151,13 @@ class TestKubernetesPodOperator:
         sidecar_container.name = "airflow-xcom-sidecar"
         sidecar_container.last_state.terminated.exit_code = 0
         remote_pod.return_value.status.container_statuses = [base_container, sidecar_container]
+        remote_pod.return_value.status.phase = "Succeeded" if actual_exit_code == 0 else "Failed"
 
-        with pytest.raises(expected_exc):
+        if expected_exc is None:
             self.run_pod(k)
+        else:
+            with pytest.raises(expected_exc):
+                self.run_pod(k)
 
 
 class TestSuppress:
@@ -1221,10 +1266,9 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
-    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, mocked_conf_file):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
@@ -1284,13 +1328,13 @@ class TestKubernetesPodOperatorAsync:
         [
             (None, 0, None, "Succeeded", "success"),
             (None, 99, AirflowException, "Failed", "error"),
-            ({"skip_exit_code": 100}, 100, AirflowSkipException, "Failed", "error"),
-            ({"skip_exit_code": 100}, 101, AirflowException, "Failed", "error"),
-            ({"skip_exit_code": None}, 100, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": 100}, 100, AirflowSkipException, "Failed", "error"),
+            ({"skip_on_exit_code": 100}, 101, AirflowException, "Failed", "error"),
+            ({"skip_on_exit_code": None}, 100, AirflowException, "Failed", "error"),
         ],
     )
     @patch(HOOK_CLASS)
-    def test_async_create_pod_with_skip_exit_code_should_skip(
+    def test_async_create_pod_with_skip_on_exit_code_should_skip(
         self,
         mocked_hook,
         extra_kwargs,
@@ -1299,7 +1343,7 @@ class TestKubernetesPodOperatorAsync:
         pod_status,
         event_status,
     ):
-        """Tests that an AirflowSkipException is raised when the container exits with the skip_exit_code"""
+        """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
 
         k = KubernetesPodOperator(
             task_id=TEST_TASK_ID,

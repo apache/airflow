@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, Sequence
 
 import botocore.exceptions
@@ -157,7 +156,11 @@ class RedshiftHook(AwsBaseHook):
         return response["Cluster"] if response["Cluster"] else None
 
     def create_cluster_snapshot(
-        self, snapshot_identifier: str, cluster_identifier: str, retention_period: int = -1
+        self,
+        snapshot_identifier: str,
+        cluster_identifier: str,
+        retention_period: int = -1,
+        tags: list[Any] | None = None,
     ) -> str:
         """
         Creates a snapshot of a cluster
@@ -169,30 +172,24 @@ class RedshiftHook(AwsBaseHook):
         :param cluster_identifier: unique identifier of a cluster
         :param retention_period: The number of days that a manual snapshot is retained.
             If the value is -1, the manual snapshot is retained indefinitely.
+        :param tags: A list of tag instances
         """
+        if tags is None:
+            tags = []
         response = self.get_conn().create_cluster_snapshot(
             SnapshotIdentifier=snapshot_identifier,
             ClusterIdentifier=cluster_identifier,
             ManualSnapshotRetentionPeriod=retention_period,
+            Tags=tags,
         )
         return response["Snapshot"] if response["Snapshot"] else None
 
-    def get_cluster_snapshot_status(self, snapshot_identifier: str, cluster_identifier: str | None = None):
+    def get_cluster_snapshot_status(self, snapshot_identifier: str):
         """
         Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``
 
         :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
-        :param cluster_identifier: (deprecated) The unique identifier of the cluster
-            the snapshot was created from
         """
-        if cluster_identifier:
-            warnings.warn(
-                "Parameter `cluster_identifier` is deprecated."
-                "This option will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         try:
             response = self.get_conn().describe_cluster_snapshots(
                 SnapshotIdentifier=snapshot_identifier,

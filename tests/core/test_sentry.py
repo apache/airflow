@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 import time_machine
 from sentry_sdk import configure_scope
+from sentry_sdk.transport import Transport
 
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
@@ -69,6 +70,10 @@ def before_send(_):
     pass
 
 
+class CustomTransport(Transport):
+    pass
+
+
 class TestSentryHook:
     @pytest.fixture
     def task_instance(self, dag_maker):
@@ -98,6 +103,22 @@ class TestSentryHook:
                 ("sentry", "sentry_on"): "True",
                 ("sentry", "default_integrations"): "False",
                 ("sentry", "before_send"): "tests.core.test_sentry.before_send",
+            },
+        ):
+            from airflow import sentry
+
+            importlib.reload(sentry)
+            yield sentry.Sentry
+
+        importlib.reload(sentry)
+
+    @pytest.fixture
+    def sentry_custom_transport(self):
+        with conf_vars(
+            {
+                ("sentry", "sentry_on"): "True",
+                ("sentry", "default_integrations"): "False",
+                ("sentry", "transport"): "tests.core.test_sentry.CustomTransport",
             },
         ):
             from airflow import sentry
@@ -150,7 +171,16 @@ class TestSentryHook:
         expected = import_string("tests.core.test_sentry.before_send")
         assert called == expected
 
-    def test_before_send_minimum_config(self, sentry_sdk, sentry_minimum):
+    def test_custom_transport(self, sentry_sdk, sentry_custom_transport):
+        """
+        Test transport gets passed to the sentry SDK
+        """
+        assert sentry_custom_transport
+        called = sentry_sdk.call_args[1]["transport"]
+        expected = import_string("tests.core.test_sentry.CustomTransport")
+        assert called == expected
+
+    def test_minimum_config(self, sentry_sdk, sentry_minimum):
         """
         Test before_send doesn't raise an exception when not set
         """

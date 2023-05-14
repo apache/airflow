@@ -1319,7 +1319,6 @@ class TestStringifiedDAGs:
         assert task._is_setup == is_setup
         assert task._is_teardown == is_teardown
 
-    @pytest.mark.skipif(not airflow.settings._ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_setup_teardown_tasks(self):
         """
         Test setup and teardown task serialization/deserialization.
@@ -1377,7 +1376,6 @@ class TestStringifiedDAGs:
             se_second_group.children["group1.group2.teardown2"], is_teardown=True
         )
 
-    @pytest.mark.skipif(not airflow.settings._ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_teardown_task_on_failure_fail_dagrun_serialization(self, dag_maker):
         with dag_maker() as dag:
 

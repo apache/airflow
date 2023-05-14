@@ -151,9 +151,14 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Flex alignItems="center" justifyContent="space-between">
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        ml={6}
+      >
         <Header />
-        <Flex>
+        <Flex flexWrap="wrap">
           {runId && !taskId && (
             <>
               <ClearRun runId={runId} mr={2} />
@@ -169,18 +174,19 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
+                mt={2}
                 mr={2}
               />
-              {!isGroup && (
-                <MarkInstanceAs
-                  taskId={taskId}
-                  runId={runId}
-                  state={instance?.state}
-                  isMapped={isMapped}
-                  mapIndex={mapIndex}
-                  mr={2}
-                />
-              )}
+              <MarkInstanceAs
+                taskId={taskId}
+                runId={runId}
+                state={instance?.state}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mt={2}
+                mr={2}
+              />
             </>
           )}
           {taskId && runId && <FilterTasks taskId={taskId} />}

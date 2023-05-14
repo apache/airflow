@@ -177,6 +177,7 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
+        ("logging", "interleave_timestamp_parser"): ("core", "interleave_timestamp_parser", "2.6.1"),
         ("logging", "base_log_folder"): ("core", "base_log_folder", "2.0.0"),
         ("logging", "remote_logging"): ("core", "remote_logging", "2.0.0"),
         ("logging", "remote_log_conn_id"): ("core", "remote_log_conn_id", "2.0.0"),
@@ -199,8 +200,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
-        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.5.3"),
-        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.5.3"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),

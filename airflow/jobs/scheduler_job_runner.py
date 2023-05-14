@@ -157,14 +157,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         log: logging.Logger | None = None,
         processor_poll_interval: float | None = None,
     ):
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         self.subdir = subdir
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
@@ -599,8 +592,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if is_done or not found_new_filters:
                 break
 
-            self.log.debug(
-                "Found no task instances to queue on the %s. iteration "
+            self.log.info(
+                "Found no task instances to queue on query iteration %s "
                 "but there could be more candidate task instances to check.",
                 loop_count,
             )
@@ -627,6 +620,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 },
                 synchronize_session=False,
             )
+            for ti in executable_tis:
+                ti.emit_state_change_metric(State.QUEUED)
 
         for ti in executable_tis:
             make_transient(ti)
@@ -703,14 +698,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
-            self.log.info(
-                "Executor reports execution of %s.%s run_id=%s exited with status %s for try_number %s",
-                ti_key.dag_id,
-                ti_key.task_id,
-                ti_key.run_id,
-                state,
-                ti_key.try_number,
-            )
+            self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
             if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
@@ -780,7 +768,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # but that is handled by the zombie detection.
 
             ti_queued = ti.try_number == buffer_key.try_number and ti.state == TaskInstanceState.QUEUED
-            ti_requeued = ti.queued_by_job_id != self.job.id or self.job.executor.has_task(ti)
+            ti_requeued = (
+                ti.queued_by_job_id != self.job.id  # Another scheduler has queued this task again
+                or self.job.executor.has_task(ti)  # This scheduler has this task already
+            )
 
             if ti_queued and not ti_requeued:
                 Stats.incr(
@@ -1462,7 +1453,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
         # see #11147/commit ee90807ac for more details
-        dag_run.schedule_tis(schedulable_tis, session)
+        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
 

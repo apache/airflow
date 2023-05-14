@@ -50,7 +50,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow import version
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -73,13 +73,17 @@ class GKEHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._client: ClusterManagerClient | None = None
@@ -96,7 +100,7 @@ class GKEHook(GoogleBaseHook):
     def get_conn(self) -> container_v1.ClusterManagerClient:
         warnings.warn(
             "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.get_cluster_manager_client()
 
@@ -105,7 +109,7 @@ class GKEHook(GoogleBaseHook):
     def get_client(self) -> ClusterManagerClient:
         warnings.warn(
             "The get_client method has been deprecated. You should use the get_conn method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.get_conn()
 
@@ -303,13 +307,11 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._client: ClusterManagerAsyncClient | None = None

@@ -87,15 +87,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         pool: str | None = None,
         external_executor_id: str | None = None,
     ):
-        BaseJobRunner.__init__(self)
+        super().__init__(job)
         LoggingMixin.__init__(self, context=task_instance)
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
         self.task_instance = task_instance
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
@@ -233,7 +226,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
         if not self.task_instance.test_mode and not is_deferral:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
-                self.task_instance.schedule_downstream_tasks()
+                self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
 
     def on_kill(self):
         self.task_runner.terminate()

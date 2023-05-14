@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import time
+from unittest import mock
+from unittest.mock import patch
 
+import pytest
 from moto import mock_logs
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -26,37 +28,71 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 @mock_logs
 class TestAwsLogsHook:
-    def test_get_conn_returns_a_boto3_connection(self):
+    @pytest.mark.parametrize(
+        "get_log_events_response, num_skip_events, expected_num_events",
+        [
+            # 3 empty responses with different tokens
+            (
+                [
+                    {"nextForwardToken": "1", "events": []},
+                    {"nextForwardToken": "2", "events": []},
+                    {"nextForwardToken": "3", "events": []},
+                ],
+                0,
+                0,
+            ),
+            # 2 events on the second response with same token
+            (
+                [
+                    {"nextForwardToken": "", "events": []},
+                    {"nextForwardToken": "", "events": [{}, {}]},
+                ],
+                0,
+                2,
+            ),
+            # Different tokens, 2 events on the second response then 3 empty responses
+            (
+                [
+                    {"nextForwardToken": "1", "events": []},
+                    {"nextForwardToken": "2", "events": [{}, {}]},
+                    {"nextForwardToken": "3", "events": []},
+                    {"nextForwardToken": "4", "events": []},
+                    {"nextForwardToken": "5", "events": []},
+                    # This one is ignored
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                ],
+                0,
+                2,
+            ),
+            # 2 events on the second response, then 2 empty responses, then 2 consecutive responses with
+            # 2 events with the same token
+            (
+                [
+                    {"nextForwardToken": "1", "events": []},
+                    {"nextForwardToken": "2", "events": [{}, {}]},
+                    {"nextForwardToken": "3", "events": []},
+                    {"nextForwardToken": "4", "events": []},
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                    # This one is ignored
+                    {"nextForwardToken": "6", "events": [{}, {}]},
+                ],
+                0,
+                6,
+            ),
+        ],
+    )
+    @patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.conn", new_callable=mock.PropertyMock)
+    def test_get_log_events(self, mock_conn, get_log_events_response, num_skip_events, expected_num_events):
+        mock_conn().get_log_events.side_effect = get_log_events_response
+
         hook = AwsLogsHook(aws_conn_id="aws_default", region_name="us-east-1")
-        assert hook.get_conn() is not None
-
-    def test_get_log_events(self):
-        # moto.logs does not support proper pagination so we cannot test that yet
-        # https://github.com/spulec/moto/issues/2259
-        # ToDo: seems like mock.logs support since https://github.com/spulec/moto/pull/2361
-
-        log_group_name = "example-group"
-        log_stream_name = "example-log-stream"
-
-        hook = AwsLogsHook(aws_conn_id="aws_default", region_name="us-east-1")
-
-        # First we create some log events
-        conn = hook.get_conn()
-        conn.create_log_group(logGroupName=log_group_name)
-        conn.create_log_stream(logGroupName=log_group_name, logStreamName=log_stream_name)
-
-        input_events = [{"timestamp": int(time.time()) * 1000, "message": "Test Message 1"}]
-
-        conn.put_log_events(
-            logGroupName=log_group_name, logStreamName=log_stream_name, logEvents=input_events
+        events = hook.get_log_events(
+            log_group="example-group",
+            log_stream_name="example-log-stream",
+            skip=num_skip_events,
         )
 
-        events = hook.get_log_events(log_group=log_group_name, log_stream_name=log_stream_name)
-
-        # Iterate through entire generator
         events = list(events)
-        count = len(events)
 
-        assert count == 1
-        assert events[0]["timestamp"] == input_events[0]["timestamp"]
-        assert events[0]["message"] == input_events[0]["message"]
+        assert len(events) == expected_num_events

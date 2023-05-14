@@ -101,6 +101,12 @@ with models.DAG(
     )
     # [END howto_sensor_object_update_exists_task]
 
+    # [START howto_sensor_object_update_exists_task_async]
+    gcs_update_object_exists_async = GCSObjectUpdateSensor(
+        bucket=BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_update_sensor_task_async", deferrable=True
+    )
+    # [END howto_sensor_object_update_exists_task_async]
+
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file",
         src=UPLOAD_FILE_PATH,
@@ -137,6 +143,15 @@ with models.DAG(
         task_id="gcs_object_with_prefix_exists_task",
     )
     # [END howto_sensor_object_with_prefix_exists_task]
+
+    # [START howto_sensor_object_with_prefix_exists_task_async]
+    gcs_object_with_prefix_exists_async = GCSObjectsWithPrefixExistenceSensor(
+        bucket=BUCKET_NAME,
+        prefix=FILE_NAME[:5],
+        task_id="gcs_object_with_prefix_exists_task_async",
+        deferrable=True,
+    )
+    # [END howto_sensor_object_with_prefix_exists_task_async]
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
