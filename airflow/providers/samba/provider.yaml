@@ -21,6 +21,7 @@ name: Samba
 description: |
     `Samba <https://www.samba.org/>`__
 
+suspended: false
 versions:
   - 4.1.0
   - 4.0.0
@@ -34,7 +35,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - smbprotocol>=1.5.0
 
 integrations:

@@ -1148,12 +1148,12 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
-        async with await self.get_async_conn() as client:
-            try:
-                pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
-                return pipeline_run
-            except Exception as e:
-                raise AirflowException(e)
+        client = await self.get_async_conn()
+        try:
+            pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
+            return pipeline_run
+        except Exception as e:
+            raise AirflowException(e)
 
     async def get_adf_pipeline_run_status(
         self, run_id: str, resource_group_name: str | None = None, factory_name: str | None = None

@@ -22,7 +22,7 @@ from typing import Any
 
 import yandexcloud
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -120,7 +120,7 @@ class YandexCloudBaseHook(BaseHook):
         if connection_id:
             warnings.warn(
                 "Using `connection_id` is deprecated. Please use `yandex_conn_id` parameter.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         self.connection_id = yandex_conn_id or connection_id or self.default_conn_name

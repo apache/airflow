@@ -123,7 +123,7 @@ class TestCloudBuildOperator:
         operator = CloudBuildCreateBuildOperator(build=BUILD, task_id="id")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, delegate_to=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         build = Build(BUILD)
         mock_hook.return_value.create_build_without_waiting_for_result.assert_called_once_with(
             build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
@@ -434,7 +434,7 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
     )
     operator.execute(context=mock.MagicMock())
 
-    mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, delegate_to=None)
+    mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
     build = Build(BUILD)
     mock_hook.return_value.create_build_without_waiting_for_result.assert_called_once_with(
         build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"

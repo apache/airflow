@@ -146,7 +146,6 @@ def is_core_commit(files: list[str]) -> bool:
         "images/",
         "TESTING.rst",
         "codecov.yml",
-        "pytest.ini",
         "kubernetes_tests/",
         ".github/",
         ".pre-commit-config.yaml",
@@ -230,7 +229,16 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 
     github_handler = Github(github_token)
     milestone_issues: list[Issue] = list(
-        github_handler.search_issues(f'repo:apache/airflow milestone:"Airflow {target_version}"')
+        github_handler.search_issues(
+            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request '
+        )
+    )
+    milestone_issues.extend(
+        list(
+            github_handler.search_issues(
+                f'repo:apache/airflow milestone:"Airflow {target_version}" is:issue '
+            )
+        )
     )
 
     num_cherrypicked = 0
@@ -311,7 +319,15 @@ def changelog(previous_version, target_version, github_token):
             issue_type = get_issue_type(issue)
             files = files_touched(repo, commit["id"])
             if is_core_commit(files):
-                sections[issue_type].append(commit["subject"])
+                if issue_type in ["bug-fix", "doc-only", "misc/internal"]:
+                    with open("../RELEASE_NOTES.rst") as file:
+                        for line in file.readlines():
+                            if line.endswith(f"(#{commit['id']})"):
+                                continue
+                        else:
+                            sections[issue_type].append(commit["subject"])
+                else:
+                    sections[issue_type].append(commit["subject"])
 
         else:
             sections[DEFAULT_SECTION_NAME].append(commit["subject"])

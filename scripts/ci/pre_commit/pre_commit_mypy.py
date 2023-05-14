@@ -45,6 +45,9 @@ if __name__ == "__main__":
         get_ci_image_for_pre_commits,
         run_command,
     )
+    from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
+
+    suspended_providers_folders = get_suspended_providers_folders()
 
     files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
     if files_to_test == ["--namespace-packages"]:
@@ -60,6 +63,8 @@ if __name__ == "__main__":
             *get_extra_docker_flags(MOUNT_SELECTED, include_mypy_volume=True),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
+            "-e",
+            f"SUSPENDED_PROVIDERS_FOLDERS={' '.join(suspended_providers_folders)}",
             "-e",
             "BACKEND=sqlite",
             "--pull",

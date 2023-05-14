@@ -26,7 +26,7 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -382,11 +382,11 @@ class TestSFTPHook:
         connection = Connection(conn_id="ftp_default", login="login", host="host")
         mock_get_connection.return_value = connection
         # If `ftp_conn_id` is provided, it will be used but would show a deprecation warning.
-        with pytest.warns(DeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
             assert SFTPHook(ftp_conn_id="ftp_default").ssh_conn_id == "ftp_default"
 
         # If both are provided, ftp_conn_id  will be used but would show a deprecation warning.
-        with pytest.warns(DeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
             assert (
                 SFTPHook(ftp_conn_id="ftp_default", ssh_conn_id="sftp_default").ssh_conn_id == "ftp_default"
             )
@@ -401,14 +401,16 @@ class TestSFTPHook:
         with pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"):
             connection = Connection(conn_id="sftp_default", login="root", host="localhost")
             mock_get_connection.return_value = connection
-            with pytest.warns(DeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"
+            ):
                 SFTPHook(ssh_hook="invalid_hook")
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection")
     def test_valid_ssh_hook(self, mock_get_connection):
         connection = Connection(conn_id="sftp_test", login="root", host="localhost")
         mock_get_connection.return_value = connection
-        with pytest.warns(DeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"):
             hook = SFTPHook(ssh_hook=SSHHook(ssh_conn_id="sftp_test"))
         assert hook.ssh_conn_id == "sftp_test"
         assert isinstance(hook.get_conn(), paramiko.SFTPClient)

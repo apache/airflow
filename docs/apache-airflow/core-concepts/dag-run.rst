@@ -183,7 +183,7 @@ Run the below command
         --end-date END_DATE \
         dag_id
 
-The `backfill command <cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
+The `backfill command <../cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
 
 Re-run Tasks
 ------------
@@ -214,7 +214,7 @@ You can also clear the task through CLI using the command:
         --end-date END_DATE
 
 For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
-For more options, you can check the help of the `clear command <cli-ref.html#clear>`_ :
+For more options, you can check the help of the `clear command <../cli-and-env-variables-ref.html#clear>`_ :
 
 .. code-block:: bash
 

@@ -24,7 +24,7 @@ import warnings
 import pytest
 
 from airflow.config_templates import airflow_local_settings
-from airflow.jobs import triggerer_job
+from airflow.jobs import triggerer_job_runner
 from airflow.logging_config import configure_logging
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -51,7 +51,7 @@ def clear_logger_handlers(log):
 
 @pytest.fixture(autouse=True)
 def reload_triggerer_job():
-    importlib.reload(triggerer_job)
+    importlib.reload(triggerer_job_runner)
 
 
 def test_configure_trigger_log_handler_file():
@@ -74,11 +74,11 @@ def test_configure_trigger_log_handler_file():
     task_handlers = assert_handlers(task_logger, FileTaskHandler)
 
     # not yet configured to use wrapper
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
-    triggerer_job.configure_trigger_log_handler()
+    triggerer_job_runner.configure_trigger_log_handler()
     # after config
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is True
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is True
     root_handlers = assert_handlers(root_logger, RedirectStdHandler, TriggererHandlerWrapper)
     assert root_handlers[1].base_handler == task_handlers[0]
     # other handlers have DropTriggerLogsFilter
@@ -112,11 +112,11 @@ def test_configure_trigger_log_handler_s3():
     task_logger = logging.getLogger("airflow.task")
     task_handlers = assert_handlers(task_logger, S3TaskHandler)
     # not yet configured to use wrapper
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
-    triggerer_job.configure_trigger_log_handler()
+    triggerer_job_runner.configure_trigger_log_handler()
     # after config
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is True
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is True
     handlers = assert_handlers(root_logger, RedirectStdHandler, TriggererHandlerWrapper)
     assert handlers[1].base_handler == task_handlers[0]
     # other handlers have DropTriggerLogsFilter
@@ -196,16 +196,16 @@ def test_configure_trigger_log_handler_not_file_task_handler(cfg, cls, msg):
     assert_handlers(task_logger, cls)
 
     # not yet configured to use wrapper
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
     with warnings.catch_warnings(record=True) as captured:
-        triggerer_job.configure_trigger_log_handler()
+        triggerer_job_runner.configure_trigger_log_handler()
 
     assert [x.message.args[0] for x in captured] == msg
 
     # after config
     # doesn't use TriggererHandlerWrapper, no change in handler
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
     # still no root handlers
     assert_handlers(root_logger)
@@ -246,12 +246,12 @@ def test_configure_trigger_log_handler_fallback_task():
     # before config
     root_logger = logging.getLogger()
     assert_handlers(root_logger)
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
-    triggerer_job.configure_trigger_log_handler()
+    triggerer_job_runner.configure_trigger_log_handler()
 
     # after config
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is True
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is True
 
     handlers = assert_handlers(root_logger, TriggererHandlerWrapper)
     assert handlers[0].base_handler == task_logger.handlers[0]
@@ -297,13 +297,13 @@ def test_configure_trigger_log_handler_root_has_task_handler():
     # before config
     root_logger = logging.getLogger()
     assert_handlers(root_logger, FileTaskHandler)
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
     # configure
-    triggerer_job.configure_trigger_log_handler()
+    triggerer_job_runner.configure_trigger_log_handler()
 
     # after config
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is True
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is True
     handlers = assert_handlers(root_logger, TriggererHandlerWrapper)
     # no filters on wrapper handler
     assert handlers[0].filters == []
@@ -354,15 +354,15 @@ def test_configure_trigger_log_handler_root_not_file_task():
     # before config
     root_logger = logging.getLogger()
     assert_handlers(root_logger, logging.Handler)
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
     # configure
     with warnings.catch_warnings(record=True) as captured:
-        triggerer_job.configure_trigger_log_handler()
+        triggerer_job_runner.configure_trigger_log_handler()
     assert captured == []
 
     # after config
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is True
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is True
     handlers = assert_handlers(root_logger, logging.Handler, TriggererHandlerWrapper)
     # other handlers have DropTriggerLogsFilter
     assert handlers[0].filters[0].__class__ == DropTriggerLogsFilter
@@ -420,10 +420,10 @@ def test_configure_trigger_log_handler_root_old_file_task():
     root_logger = logging.getLogger()
     assert_handlers(root_logger, OldFileTaskHandler)
 
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is False
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is False
 
     with warnings.catch_warnings(record=True) as captured:
-        triggerer_job.configure_trigger_log_handler()
+        triggerer_job_runner.configure_trigger_log_handler()
 
     # since a root logger is explicitly configured with an old FileTaskHandler which doesn't
     # work properly with individual trigger logging, warn
@@ -435,7 +435,7 @@ def test_configure_trigger_log_handler_root_old_file_task():
     ]
 
     # after config
-    assert triggerer_job.HANDLER_SUPPORTS_TRIGGERER is True
+    assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is True
     handlers = assert_handlers(root_logger, OldFileTaskHandler, TriggererHandlerWrapper)
     # other handlers have DropTriggerLogsFilter
     assert handlers[0].filters[0].__class__ == DropTriggerLogsFilter

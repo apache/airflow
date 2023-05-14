@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 
@@ -644,7 +644,6 @@ class EksPodOperator(KubernetesPodOperator):
     :param namespace: The namespace in which to execute the pod. (templated)
     :param pod_name: The unique name to give the pod. (templated)
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
-    :param aws_profile: str
     :param region: Which AWS region the connection should use. (templated)
          If this is None or empty then the default boto3 behaviour is used.
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
@@ -692,7 +691,7 @@ class EksPodOperator(KubernetesPodOperator):
                 "Currently the default for this parameter is `False` but in a future release the default "
                 "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
                 "set `is_delete_operator_pod=False` explicitly.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             is_delete_operator_pod = False

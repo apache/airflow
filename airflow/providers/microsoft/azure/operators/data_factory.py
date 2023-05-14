@@ -27,13 +27,14 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
+    PipelineRunInfo,
     get_field,
 )
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -48,20 +49,21 @@ class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
         *,
         ti_key: TaskInstanceKey,
     ) -> str:
-        if not isinstance(operator, AzureDataFactoryRunPipelineOperator):
-            self.log.info("The %s is not %s class.", operator.__class__, AzureDataFactoryRunPipelineOperator)
-            return ""
         run_id = XCom.get_value(key="run_id", ti_key=ti_key)
-        conn_id = operator.azure_data_factory_conn_id
+        conn_id = operator.azure_data_factory_conn_id  # type: ignore
         conn = BaseHook.get_connection(conn_id)
         extras = conn.extra_dejson
-        subscription_id = get_field(extras, "subscriptionId")
+        subscription_id = get_field(extras, "subscriptionId") or get_field(
+            extras, "extra__azure__subscriptionId"
+        )
         if not subscription_id:
             raise KeyError(f"Param subscriptionId not found in conn_id '{conn_id}'")
         # Both Resource Group Name and Factory Name can either be declared in the Azure Data Factory
         # connection or passed directly to the operator.
-        resource_group_name = operator.resource_group_name or get_field(extras, "resource_group_name")
-        factory_name = operator.factory_name or get_field(extras, "factory_name")
+        resource_group_name = operator.resource_group_name or get_field(  # type: ignore
+            extras, "resource_group_name"
+        )
+        factory_name = operator.factory_name or get_field(extras, "factory_name")  # type: ignore
         url = (
             f"https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
             f"?factory=/subscriptions/{subscription_id}/"
@@ -194,19 +196,32 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                     )
             else:
                 end_time = time.time() + self.timeout
-                self.defer(
-                    timeout=self.execution_timeout,
-                    trigger=AzureDataFactoryTrigger(
-                        azure_data_factory_conn_id=self.azure_data_factory_conn_id,
-                        run_id=self.run_id,
-                        wait_for_termination=self.wait_for_termination,
-                        resource_group_name=self.resource_group_name,
-                        factory_name=self.factory_name,
-                        check_interval=self.check_interval,
-                        end_time=end_time,
-                    ),
-                    method_name="execute_complete",
+                pipeline_run_info = PipelineRunInfo(
+                    run_id=self.run_id,
+                    factory_name=self.factory_name,
+                    resource_group_name=self.resource_group_name,
                 )
+                pipeline_run_status = self.hook.get_pipeline_run_status(**pipeline_run_info)
+                if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
+                    self.defer(
+                        timeout=self.execution_timeout,
+                        trigger=AzureDataFactoryTrigger(
+                            azure_data_factory_conn_id=self.azure_data_factory_conn_id,
+                            run_id=self.run_id,
+                            wait_for_termination=self.wait_for_termination,
+                            resource_group_name=self.resource_group_name,
+                            factory_name=self.factory_name,
+                            check_interval=self.check_interval,
+                            end_time=end_time,
+                        ),
+                        method_name="execute_complete",
+                    )
+                elif pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
+                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                elif pipeline_run_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
+                    raise AzureDataFactoryPipelineRunException(
+                        f"Pipeline run {self.run_id} has failed or has been cancelled."
+                    )
         else:
             if self.deferrable is True:
                 warnings.warn(

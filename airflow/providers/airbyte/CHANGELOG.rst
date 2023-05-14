@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.2.1
+.....
+
+Misc
+~~~~
+
+* ``Clarify optional parameters in Airbyte docstrings (#30031)``
+
 3.2.0
 .....
 

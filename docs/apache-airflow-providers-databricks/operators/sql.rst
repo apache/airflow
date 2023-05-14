@@ -22,14 +22,14 @@ DatabricksSqlOperator
 =====================
 
 Use the :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator` to execute SQL
-on a `Databricks SQL endpoint  <https://docs.databricks.com/sql/admin/sql-endpoints.html>`_ or a
+on a `Databricks SQL warehouse  <https://docs.databricks.com/sql/admin/sql-endpoints.html>`_ or a
 `Databricks cluster <https://docs.databricks.com/clusters/index.html>`_.
 
 
 Using the Operator
 ------------------
 
-Operator executes given SQL queries against configured endpoint. The only required parameters are:
+Operator executes given SQL queries against configured warehouse. The only required parameters are:
 
 * ``sql`` - SQL queries to execute. There are 3 ways of specifying SQL queries:
 
@@ -37,7 +37,7 @@ Operator executes given SQL queries against configured endpoint. The only requir
   2. List of strings representing SQL statements.
   3. Name of the file with SQL queries. File must have ``.sql`` extension. Each query should finish with ``;<new_line>``
 
-* One of ``sql_endpoint_name`` (name of Databricks SQL endpoint to use) or ``http_path`` (HTTP path for Databricks SQL endpoint or Databricks cluster).
+* One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
 
 Other parameters are optional and could be found in the class documentation.
 
@@ -84,3 +84,86 @@ An example usage of the DatabricksSqlOperator to perform statements from a file 
     :language: python
     :start-after: [START howto_operator_databricks_sql_multiple_file]
     :end-before: [END howto_operator_databricks_sql_multiple_file]
+
+
+DatabricksSqlSensor
+===================
+
+Use the :class:`~airflow.providers.databricks.sensors.sql.DatabricksSqlSensor` to run the sensor
+for a table accessible via a Databricks SQL warehouse or interactive cluster.
+
+Using the Sensor
+----------------
+
+The sensor executes the SQL statement supplied by the user. The only required parameters are:
+
+* ``sql`` - SQL query to execute for the sensor.
+
+* One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
+
+Other parameters are optional and could be found in the class documentation.
+
+Examples
+--------
+Configuring Databricks connection to be used with the Sensor.
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_connection_setup]
+    :end-before: [END howto_sensor_databricks_connection_setup]
+
+Poking the specific table with the SQL statement:
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_sql]
+    :end-before: [END howto_sensor_databricks_sql]
+
+
+DatabricksPartitionSensor
+=========================
+
+Sensors are a special type of Operator that are designed to do exactly one thing - wait for something to occur. It can be time-based, or waiting for a file, or an external event, but all they do is wait until something happens, and then succeed so their downstream tasks can run.
+
+For the Databricks Partition Sensor, we check if a partition and its related value exists and if not, it waits until the partition value arrives. The waiting time and interval to check can be configured in the timeout and poke_interval parameters respectively.
+
+Use the :class:`~airflow.providers.databricks.sensors.partition.DatabricksPartitionSensor` to run the sensor
+for a table accessible via a Databricks SQL warehouse or interactive cluster.
+
+Using the Sensor
+----------------
+
+The sensor accepts the table name and partition name(s), value(s) from the user and generates the SQL query to check if
+the specified partition name, value(s) exist in the specified table.
+
+The required parameters are:
+
+* ``table_name`` (name of the table for partition check).
+
+* ``partitions`` (name of the partitions to check).
+
+* ``partition_operator`` (comparison operator for partitions, to be used for range or limit of values, such as partition_name >= partition_value). `Databricks comparison operators <https://docs.databricks.com/sql/language-manual/sql-ref-null-semantics.html#comparison-operators>`_ are supported.
+
+*   One of ``sql_warehouse_name`` (name of Databricks SQL warehouse to use) or ``http_path`` (HTTP path for Databricks SQL warehouse or Databricks cluster).
+
+Other parameters are optional and can be found in the class documentation.
+
+Examples
+--------
+Configuring Databricks connection to be used with the Sensor.
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_connection_setup]
+    :end-before: [END howto_sensor_databricks_connection_setup]
+
+Poking the specific table for existence of data/partition:
+
+.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_databricks_partition]
+    :end-before: [END howto_sensor_databricks_partition]

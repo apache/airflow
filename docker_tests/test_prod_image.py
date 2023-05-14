@@ -20,6 +20,7 @@ import json
 import os
 import subprocess
 import tempfile
+from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
@@ -129,7 +130,7 @@ class TestPythonPackages:
         "elasticsearch": ["elasticsearch", "es.elastic", "elasticsearch_dsl"],
         "google": [
             "OpenSSL",
-            "google.ads",
+            # "google.ads", Remove google ads as it is vendored in google provider now
             "googleapiclient",
             "google.auth",
             "google_auth_httplib2",
@@ -161,7 +162,6 @@ class TestPythonPackages:
         "grpc": ["grpc", "google.auth", "google_auth_httplib2"],
         "hashicorp": ["hvac"],
         "ldap": ["ldap"],
-        "mysql": ["mysql"],
         "postgres": ["psycopg2"],
         "pyodbc": ["pyodbc"],
         "redis": ["redis"],
@@ -171,6 +171,8 @@ class TestPythonPackages:
         "statsd": ["statsd"],
         "virtualenv": ["virtualenv"],
     }
+    if bool(find_spec("mysql")):
+        PACKAGE_IMPORTS["mysql"] = ["mysql"]
 
     @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())

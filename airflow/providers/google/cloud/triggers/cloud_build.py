@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.devtools.cloudbuild_v1.types import Build
@@ -41,9 +40,6 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param poll_interval: polling period in seconds to check for the status
     :param location: The location of the project.
     """
@@ -54,7 +50,6 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         project_id: str | None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         poll_interval: float = 4.0,
         location: str = "global",
     ):
@@ -63,11 +58,6 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.poll_interval = poll_interval
         self.location = location
 
@@ -80,13 +70,12 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                 "project_id": self.project_id,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
-                "delegate_to": self.delegate_to,
                 "poll_interval": self.poll_interval,
                 "location": self.location,
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current build execution status and yields a TriggerEvent"""
         hook = self._get_async_hook()
         while True:

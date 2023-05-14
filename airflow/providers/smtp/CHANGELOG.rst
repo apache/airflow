@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'EmailOperator': fix wrong assignment of 'from_email' (#30524)``
+* ``Accept None for 'EmailOperator.from_email' to load it from smtp connection (#30533)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
 1.0.0
 .....
 

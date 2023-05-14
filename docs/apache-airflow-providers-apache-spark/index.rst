@@ -64,7 +64,7 @@ Package apache-airflow-providers-apache-spark
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 4.0.0
+Release: 4.0.1
 
 Provider package
 ----------------
@@ -76,7 +76,7 @@ Installation
 ------------
 
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
+for the minimum Airflow version supported via
 ``pip install apache-airflow-providers-apache-spark``
 
 Requirements

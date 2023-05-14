@@ -21,7 +21,9 @@ name: Snowflake
 description: |
     `Snowflake <https://www.snowflake.com/>`__
 
+suspended: false
 versions:
+  - 4.0.5
   - 4.0.4
   - 4.0.3
   - 4.0.2
@@ -50,7 +52,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
   - snowflake-connector-python>=2.4.1
   - snowflake-sqlalchemy>=1.1.0

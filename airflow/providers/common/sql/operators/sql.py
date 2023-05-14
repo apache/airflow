@@ -258,6 +258,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             self.log.info("Operator output is: %s", results)
         return results
 
+    def _should_run_output_processing(self) -> bool:
+        return self.do_xcom_push
+
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
@@ -269,11 +272,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             sql=self.sql,
             autocommit=self.autocommit,
             parameters=self.parameters,
-            handler=self.handler if self.do_xcom_push else None,
+            handler=self.handler if self._should_run_output_processing() else None,
             return_last=self.return_last,
             **extra_kwargs,
         )
-        if not self.do_xcom_push:
+        if not self._should_run_output_processing():
             return None
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
             # For simplicity, we pass always list as input to _process_output, regardless if
@@ -622,7 +625,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _generate_sql_query(self):
-        self.log.info("Partition clause: %s", self.partition_clause)
+        self.log.debug("Partition clause: %s", self.partition_clause)
 
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:

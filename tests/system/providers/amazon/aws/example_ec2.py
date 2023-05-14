@@ -50,7 +50,11 @@ def get_latest_ami_id():
     image_prefix = "Amazon Linux*"
 
     images = boto3.client("ec2").describe_images(
-        Filters=[{"Name": "description", "Values": [image_prefix]}], Owners=["amazon"]
+        Filters=[
+            {"Name": "description", "Values": [image_prefix]},
+            {"Name": "architecture", "Values": ["arm64"]},
+        ],
+        Owners=["amazon"],
     )
     # Sort on CreationDate
     sorted_images = sorted(images["Images"], key=itemgetter("CreationDate"), reverse=True)
@@ -92,7 +96,7 @@ with DAG(
     image_id = get_latest_ami_id()
 
     config = {
-        "InstanceType": "t2.micro",
+        "InstanceType": "t4g.micro",
         "KeyName": key_name,
         "TagSpecifications": [
             {"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}

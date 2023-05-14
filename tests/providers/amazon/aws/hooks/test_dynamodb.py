@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import uuid
+from unittest import mock
 
 from moto import mock_dynamodb
 
@@ -55,3 +56,9 @@ class TestDynamoDBHook:
 
         table.meta.client.get_waiter("table_exists").wait(TableName="test_airflow")
         assert table.item_count == 10
+
+    @mock.patch("pathlib.Path.exists", return_value=True)
+    def test_waiter_path_generated_from_resource_type(self, _):
+        hook = DynamoDBHook(aws_conn_id="aws_default")
+        path = hook.waiter_path
+        assert path.as_uri().endswith("/airflow/airflow/providers/amazon/aws/waiters/dynamodb.json")
