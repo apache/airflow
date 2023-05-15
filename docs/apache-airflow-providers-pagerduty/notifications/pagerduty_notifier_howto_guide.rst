@@ -36,7 +36,7 @@ Example Code:
     with DAG(dag_id="pagerduty_notifier", schedule_interval=None, start_date=datetime(2023, 1, 1), catchup=False):
         BashOperator(
             task_id="mytask",
-            bash_command="redis-cli ping",
+            bash_command="fail",
             on_failure_callback=[
                 send_pagerduty_notification(
                     summary="The task {{ ti.task_id }} failed",
