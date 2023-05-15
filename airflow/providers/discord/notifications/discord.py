@@ -63,7 +63,7 @@ class DiscordNotifier(BaseNotifier):
         self.avatar_url = avatar_url
 
         # If you're havin problem with tts not recognized in __init__
-        # you can define that after instantiate the class
+        # you can define that after instantiating the class
         self.tts = tts
 
     @cached_property
