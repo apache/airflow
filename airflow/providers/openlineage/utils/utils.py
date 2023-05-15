@@ -23,7 +23,7 @@ import logging
 import os
 from contextlib import suppress
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import attrs
@@ -414,3 +414,10 @@ def is_source_enabled() -> bool:
 def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     not_required_keys = {"dag", "task_group"}
     return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
+
+
+def normalize_sql(sql: str | Iterable[str]):
+    if isinstance(sql, str):
+        sql = [stmt for stmt in sql.split(";") if stmt != ""]
+    sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
+    return ";\n".join(sql)
