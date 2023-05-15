@@ -51,6 +51,7 @@ from urllib3.exceptions import HTTPError
 from airflow import version
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -346,7 +347,7 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         )
 
 
-class GKEPodHook(GoogleBaseHook):
+class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
     """Hook for managing Google Kubernetes Engine pod APIs."""
 
     def __init__(
