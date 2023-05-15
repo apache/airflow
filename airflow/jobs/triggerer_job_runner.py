@@ -234,7 +234,7 @@ def setup_queue_listener():
         return None
 
 
-class TriggererJobRunner(BaseJobRunner, LoggingMixin):
+class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """
     TriggererJobRunner continuously runs active triggers in asyncio, watching
     for them to fire off their events and then dispatching that information
@@ -253,7 +253,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         capacity=None,
     ):
         super().__init__(job)
-        self.job = job
         if capacity is None:
             self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
         elif isinstance(capacity, int) and capacity > 0:

@@ -68,7 +68,7 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
@@ -88,7 +88,6 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         external_executor_id: str | None = None,
     ):
         super().__init__(job)
-        self.job = job
         LoggingMixin.__init__(self, context=task_instance)
         self.task_instance = task_instance
         self.ignore_all_deps = ignore_all_deps

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -27,19 +27,22 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
     from airflow.serialization.pydantic.job import JobPydantic
 
+J = TypeVar("J", "Job", "JobPydantic", "Job | JobPydantic")
 
-class BaseJobRunner:
+
+class BaseJobRunner(Generic[J]):
     """Abstract class for job runners to derive from."""
 
     job_type = "undefined"
 
-    def __init__(self, job: Job | JobPydantic) -> None:
+    def __init__(self, job: J) -> None:
         if job.job_type and job.job_type != self.job_type:
             raise Exception(
                 f"The job is already assigned a different job_type: {job.job_type}."
                 f"This is a bug and should be reported."
             )
         job.job_type = self.job_type
+        self.job: J = job
 
     def _execute(self) -> int | None:
         """

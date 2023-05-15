@@ -29,7 +29,7 @@ def empty_callback(_: Any) -> None:
     pass
 
 
-class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
+class DagProcessorJobRunner(BaseJobRunner[Job], LoggingMixin):
     """
     DagProcessorJobRunner is a job runner that runs a DagFileProcessorManager processor.
 
@@ -47,7 +47,6 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         **kwargs,
     ):
         super().__init__(job)
-        self.job = job
         self.processor = processor
         self.processor.heartbeat = lambda: perform_heartbeat(
             job=self.job,
