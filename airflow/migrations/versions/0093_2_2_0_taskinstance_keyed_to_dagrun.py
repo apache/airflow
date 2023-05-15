@@ -156,7 +156,7 @@ def upgrade():
             "run_id", existing_type=string_id_col_type, existing_nullable=True, nullable=False
         )
 
-        batch_op.drop_constraint("task_reschedule_dag_task_date_fkey", "foreignkey")
+        batch_op.drop_constraint("task_reschedule_dag_task_date_fkey", type_="foreignkey")
         if dialect_name == "mysql":
             # Mysql creates an index and a constraint -- we have to drop both
             batch_op.drop_index("task_reschedule_dag_task_date_fkey")
