@@ -19,11 +19,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+import warnings
 from typing import Any
 
 import pdpyras
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -115,6 +116,13 @@ class PagerdutyEventsHook(BaseHook):
             link's text.
         :return: PagerDuty Events API v2 response.
         """
+        warnings.warn(
+            "This method will be deprecated. Please use the "
+            "`PagerdutyEventsHook.send_event` to interact with the Events API",
+            AirflowProviderDeprecationWarning,
+            stacklevel=1,
+        )
+
         payload = {
             "summary": summary,
             "severity": severity,
@@ -152,6 +160,79 @@ class PagerdutyEventsHook(BaseHook):
         resp = session.post("/v2/enqueue", json=data)
         resp.raise_for_status()
         return resp.json()
+
+    def send_event(
+        self,
+        summary: str,
+        severity: str,
+        source: str = "airflow",
+        action: str = "trigger",
+        dedup_key: str | None = None,
+        custom_details: Any | None = None,
+        group: str | None = None,
+        component: str | None = None,
+        class_type: str | None = None,
+        images: list[Any] | None = None,
+        links: list[Any] | None = None,
+    ) -> dict:
+        """
+        Create event for service integration.
+
+        :param summary: Summary for the event
+        :param severity: Severity for the event, needs to be one of: info, warning, error, critical
+        :param source: Specific human-readable unique identifier, such as a
+            hostname, for the system having the problem.
+        :param action: Event action, needs to be one of: trigger, acknowledge,
+            resolve. Default to trigger if not specified.
+        :param dedup_key: A string which identifies the alert triggered for the given event.
+            Required for the actions acknowledge and resolve.
+        :param custom_details: Free-form details from the event. Can be a dictionary or a string.
+            If a dictionary is passed it will show up in PagerDuty as a table.
+        :param group: A cluster or grouping of sources. For example, sources
+            "prod-datapipe-02" and "prod-datapipe-03" might both be part of "prod-datapipe"
+        :param component: The part or component of the affected system that is broken.
+        :param class_type: The class/type of the event.
+        :param images: List of images to include. Each dictionary in the list accepts the following keys:
+            `src`: The source (URL) of the image being attached to the incident. This image must be served via
+            HTTPS.
+            `href`: [Optional] URL to make the image a clickable link.
+            `alt`: [Optional] Alternative text for the image.
+        :return: PagerDuty Events API v2 response.
+        """
+        payload = {
+            "summary": summary,
+            "severity": severity,
+            "source": source,
+        }
+        if custom_details is not None:
+            payload["custom_details"] = custom_details
+        if component:
+            payload["component"] = component
+        if group:
+            payload["group"] = group
+        if class_type:
+            payload["class"] = class_type
+
+        actions = ("trigger", "acknowledge", "resolve")
+        if action not in actions:
+            raise ValueError(f"Event action must be one of: {', '.join(actions)}")
+        data = {
+            "action": action,
+            "payload": payload,
+        }
+        if dedup_key:
+            data["dedup_key"] = dedup_key
+        elif action != "trigger":
+            raise ValueError(
+                f"The dedup_key property is required for action={action} events, and it must be a string."
+            )
+        if images is not None:
+            data["images"] = images
+        if links is not None:
+            data["links"] = links
+
+        session = pdpyras.EventsAPISession(self.integration_key)
+        return session.send_event(**data)
 
     def create_change_event(
         self,
