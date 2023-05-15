@@ -639,8 +639,7 @@ devel_all = get_unique_dependency_list(
 )
 
 # Those are packages excluded for "all" dependencies
-PACKAGES_EXCLUDED_FOR_ALL = []
-PACKAGES_EXCLUDED_FOR_ALL.extend(["snakebite"])
+PACKAGES_EXCLUDED_FOR_ALL: list[str] = []
 
 
 def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:

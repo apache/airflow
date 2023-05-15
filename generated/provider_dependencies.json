@@ -93,8 +93,7 @@
   "apache.hdfs": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "hdfs[avro,dataframe,kerberos]>=2.0.4",
-      "snakebite-py3"
+      "hdfs[avro,dataframe,kerberos]>=2.0.4"
     ],
     "cross-providers-deps": []
   },
