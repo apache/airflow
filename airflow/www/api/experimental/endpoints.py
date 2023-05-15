@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import base64
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
