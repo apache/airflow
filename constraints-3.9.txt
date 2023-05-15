@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-13T16:13:34Z
+# This constraints file was automatically generated on 2023-05-15T11:19:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -146,7 +146,7 @@ arrow==1.2.3
 asana==3.2.1
 asgiref==3.6.0
 asn1crypto==1.5.1
-astroid==2.15.4
+astroid==2.15.5
 asttokens==2.2.1
 async-timeout==4.0.2
 asynctest==0.13.0
@@ -515,7 +515,6 @@ python-ldap==3.4.3
 python-nvd3==0.15.0
 python-slugify==8.0.1
 python-telegram-bot==20.2
-pytz-deprecation-shim==0.1.0.post0
 pytz==2023.3
 pytzdata==2020.1
 pywinrm==0.4.3
@@ -602,7 +601,7 @@ thrift==0.16.0
 time-machine==2.9.0
 tomli==2.0.1
 toolz==0.12.0
-tornado==6.3.1
+tornado==6.3.2
 towncrier==22.12.0
 tqdm==4.65.0
 traitlets==5.9.0
@@ -630,8 +629,7 @@ types-termcolor==1.1.6.2
 types-toml==0.10.8.6
 types-urllib3==1.26.25.13
 typing_extensions==4.5.0
-tzdata==2023.3
-tzlocal==4.3
+tzlocal==5.0
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
 uritemplate==3.0.1
