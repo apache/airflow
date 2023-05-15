@@ -21,7 +21,7 @@
   Base setup for anywhere we add react to the UI
 */
 
-import React, { PropsWithChildren } from "react";
+import React, { PropsWithChildren, useEffect } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { CacheProvider } from "@emotion/react";
@@ -32,6 +32,7 @@ import theme from "./theme";
 import { ContainerRefProvider, useContainerRef } from "./context/containerRef";
 import { TimezoneProvider } from "./context/timezone";
 import { AutoRefreshProvider } from "./context/autorefresh";
+import type { IsInputInFocus } from "./types";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,8 @@ interface AppProps extends PropsWithChildren {
   cache: EmotionCache;
 }
 
+const isInputInFocus: IsInputInFocus = "isInputInFocus";
+
 // Chakra needs to access the containerRef provider so our tooltips pick up the correct styles
 const ChakraApp = ({ children }: PropsWithChildren) => {
   const containerRef = useContainerRef();
@@ -75,6 +78,9 @@ const ChakraApp = ({ children }: PropsWithChildren) => {
 };
 
 function App({ children, cache }: AppProps) {
+  useEffect(() => {
+    localStorage.setItem(isInputInFocus, "false");
+  }, []);
   return (
     <React.StrictMode>
       <CacheProvider value={cache}>

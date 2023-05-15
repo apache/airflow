@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -39,6 +39,7 @@ import { MdEdit } from "react-icons/md";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import useKeysPress from "src/utils/useKeysPress";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
+import type { IsInputInFocus } from "src/types";
 
 interface Props {
   dagId: string;
@@ -47,6 +48,8 @@ interface Props {
   mapIndex?: number;
   initialValue?: string | null;
 }
+
+const isInputIFocus: IsInputInFocus = "isInputInFocus";
 
 const NotesAccordion = ({
   dagId,
@@ -58,6 +61,8 @@ const NotesAccordion = ({
   const canEdit = getMetaValue("can_edit") === "True";
   const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
+  const [accordionIndex, setAccordionIndex] = useState(0);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const { mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading } =
     useSetDagRunNote({ dagId, runId });
@@ -82,20 +87,44 @@ const NotesAccordion = ({
     setEditMode(false);
   };
 
+  const toggleNotesAccordionIndex = () => {
+    if (accordionIndex) {
+      setAccordionIndex(0);
+    } else {
+      setAccordionIndex(1);
+    }
+  };
+
   useKeysPress(
     keyboardShortcutIdentifier.addOrEditNotes.primaryKey,
     keyboardShortcutIdentifier.addOrEditNotes.secondaryKey,
     () => {
-      if (canEdit) setEditMode(true);
+      if (canEdit) {
+        if (accordionIndex) {
+          toggleNotesAccordionIndex();
+        }
+        setEditMode(true);
+        setTimeout(() => textAreaRef.current?.focus(), 100);
+      }
     }
+  );
+
+  useKeysPress(
+    keyboardShortcutIdentifier.viewNotes.primaryKey,
+    keyboardShortcutIdentifier.viewNotes.secondaryKey,
+    toggleNotesAccordionIndex
   );
 
   return (
     <>
-      <Accordion defaultIndex={canEdit ? [0] : []} allowToggle>
+      <Accordion
+        defaultIndex={canEdit ? [0] : []}
+        index={accordionIndex}
+        allowToggle
+      >
         <AccordionItem border="0">
           <AccordionButton p={0} pb={2} fontSize="inherit">
-            <Box flex="1" textAlign="left">
+            <Box flex="1" textAlign="left" onClick={toggleNotesAccordionIndex}>
               <Text as="strong" size="lg">
                 {objectIdentifier} Notes:
               </Text>
@@ -108,6 +137,7 @@ const NotesAccordion = ({
                 <Box>
                   <Textarea
                     autoFocus
+                    ref={textAreaRef}
                     minH="unset"
                     overflow="hidden"
                     width="100%"
@@ -116,8 +146,16 @@ const NotesAccordion = ({
                     maxRows={10}
                     as={ResizeTextarea}
                     value={note}
-                    onChange={(e) => setNote(e.target.value)}
+                    onChange={(e) => {
+                      setNote(e.target.value);
+                    }}
                     data-testid="notes-input"
+                    onFocus={() => {
+                      localStorage.setItem(isInputIFocus, "true");
+                    }}
+                    onBlur={() => {
+                      localStorage.setItem(isInputIFocus, "false");
+                    }}
                   />
                 </Box>
                 <Flex mt={3} justify="right">
