@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import ast
 import sys
 from asyncio import Future
 
@@ -31,10 +30,8 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
     GKEHook,
     GKEPodAsyncHook,
-    GKEPodHook,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
-from tests import REPO_ROOT
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 if sys.version_info < (3, 8):
