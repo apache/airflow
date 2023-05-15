@@ -24,7 +24,7 @@ import warnings
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Generator, cast
 
 import pendulum
 import tenacity
@@ -40,6 +40,7 @@ from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
 

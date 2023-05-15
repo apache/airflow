@@ -1136,6 +1136,9 @@ additional-extras:
   - name: apache.beam
     dependencies:
       - apache-beam[gcp]
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=6.2.0
   - name: leveldb
     dependencies:
       - plyvel
