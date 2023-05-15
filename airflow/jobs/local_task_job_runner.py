@@ -68,7 +68,7 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
