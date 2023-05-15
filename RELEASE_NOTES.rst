@@ -21,15 +21,25 @@
 
 .. towncrier release notes start
 
-Airflow 2.6.1 (2023-05-15)
+Airflow 2.6.1 (2023-05-16)
 --------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
-No significant changes.
+
+Clarifications of the external Health Check mechanism and using ``Job`` classes (#31277).
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+In the past SchedulerJob and other ``*Job`` classes are known to have been used to perform
+external health checks for Airflow components. Those are, however, Airflow DB ORM related classes.
+The DB models and database structure of Airflow are considered as internal implementation detail, following
+`public interface <https://airflow.apache.org/docs/apache-airflow/stable/public-airflow-interface.html>`_).
+Therefore, they should not be used for external health checks. Instead, you should use the
+``airflow jobs check`` CLI command (introduced in Airflow 2.1) for that purpose.
 
 Bug Fixes
 ^^^^^^^^^
+- Fix calculation of health check threshold for SchedulerJob (#31277)
 - Fix timestamp parse failure for k8s executor pod tailing (#31175)
 - Make sure that DAG processor job row has filled value in ``job_type`` column (#31182)
 - Fix section name reference for ``api_client_retry_configuration`` (#31174)
