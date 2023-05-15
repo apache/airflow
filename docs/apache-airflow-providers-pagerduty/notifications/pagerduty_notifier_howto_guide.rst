@@ -34,10 +34,8 @@ Example Code:
     from airflow.providers.pagerduty.notifications.notifier import send_pagerduty_notification
 
     with DAG(
-        dag_id="pagerduty_notifier",
-        schedule_interval=None,
+        "pagerduty_notifier",
         start_date=datetime(2023, 1, 1),
-        catchup=False,
         on_failure_callback=[
             send_pagerduty_notification(
                 summary="The task {{ ti.task_id }} failed",
