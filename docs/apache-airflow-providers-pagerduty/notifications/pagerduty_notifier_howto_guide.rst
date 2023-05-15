@@ -33,7 +33,23 @@ Example Code:
     from airflow.operators.bash import BashOperator
     from airflow.providers.pagerduty.notifications.notifier import send_pagerduty_notification
 
-    with DAG(dag_id="pagerduty_notifier", schedule_interval=None, start_date=datetime(2023, 1, 1), catchup=False):
+    with DAG(
+        dag_id="pagerduty_notifier",
+        schedule_interval=None,
+        start_date=datetime(2023, 1, 1),
+        catchup=False,
+        on_failure_callback=[
+            send_pagerduty_notification(
+                summary="The task {{ ti.task_id }} failed",
+                severity="critical",
+                source="airflow dag_id: {{dag.dag_id}}",
+                dedup_key="{{dag.dag_id}}-{{ti.task_id}}",
+                group="{{dag.dag_id}}",
+                component="airflow",
+                class_type="Prod Data Pipeline",
+            )
+        ],
+    ):
         BashOperator(
             task_id="mytask",
             bash_command="fail",
