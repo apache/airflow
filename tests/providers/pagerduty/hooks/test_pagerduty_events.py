@@ -57,11 +57,8 @@ class TestPagerdutyEventsHook:
 
     def test_create_change_event(self, requests_mock, events_connections):
         hook = PagerdutyEventsHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
-        mock_response_body = {
-            "status": "success",
-            "message": "Event processed",
-            "dedup_key": "samplekeyhere",
-        }
+        change_event_id = "change_event_id"
+        mock_response_body = {"id": change_event_id}
         requests_mock.post("https://events.pagerduty.com/v2/change/enqueue", json=mock_response_body)
-        resp = hook.create_change_event(summary="test")
-        assert resp == mock_response_body
+        resp = hook.create_change_event(summary="test", source="airflow")
+        assert resp == change_event_id

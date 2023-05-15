@@ -192,7 +192,5 @@ class PagerdutyEventsHook(BaseHook):
         if links is not None:
             data["links"] = links
 
-        session = pdpyras.EventsAPISession(self.integration_key)
-        resp = session.post("/v2/change/enqueue", json=data)
-        resp.raise_for_status()
-        return resp.json()
+        session = pdpyras.ChangeEventsAPISession(self.integration_key)
+        return session.send_change_event(payload=payload, links=links)
