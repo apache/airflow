@@ -89,7 +89,7 @@ DM = DagModel
 @dataclass
 class ConcurrencyMap:
     """
-    Dataclass to represent concurrency maps
+    Dataclass to represent concurrency maps.
 
     It contains a map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
     to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
@@ -1158,7 +1158,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
-        if/when the next DAGRun should be created
+        if/when the next DAGRun should be created.
         """
         # Bulk Fetch DagRuns with dag_id and execution_date same
         # as DagModel.dag_id and DagModel.next_dagrun
@@ -1374,7 +1374,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @retry_db_transaction
     def _schedule_all_dag_runs(self, guard, dag_runs, session):
-        """Makes scheduling decisions for all `dag_runs`"""
+        """Makes scheduling decisions for all `dag_runs`."""
         callback_tuples = []
         for dag_run in dag_runs:
             callback_to_run = self._schedule_dag_run(dag_run, session)
@@ -1775,7 +1775,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
         Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
-        sets the dataset is_orphaned flag to True
+        sets the dataset is_orphaned flag to True.
         """
         orphaned_dataset_query = (
             session.query(DatasetModel)

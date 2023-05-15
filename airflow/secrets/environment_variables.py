@@ -35,7 +35,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         """
         Return URI representation of Connection conn_id.
         :param conn_id: the connection id
-        :return: deserialized Connection
+        :return: deserialized Connection.
         """
         warnings.warn(
             "This method is deprecated. Please use "

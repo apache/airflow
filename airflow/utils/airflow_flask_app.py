@@ -25,7 +25,7 @@ from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class AirflowApp(Flask):
-    """Airflow Flask Application"""
+    """Airflow Flask Application."""
 
     appbuilder: AirflowAppBuilder
     dag_bag: DagBag

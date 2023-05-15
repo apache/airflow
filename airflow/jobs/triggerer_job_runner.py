@@ -306,7 +306,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     def on_kill(self):
         """
         Called when there is an external kill command (via the heartbeat
-        mechanism, for example)
+        mechanism, for example).
         """
         self.trigger_runner.stop = True
 
@@ -684,7 +684,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def set_trigger_logging_metadata(self, ti: TaskInstance, trigger_id, trigger):
         """
-        Set up logging for triggers
+        Set up logging for triggers.
 
         We want to ensure that each trigger logs to its own file and that the log messages are not
         propagated to parent loggers.

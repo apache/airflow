@@ -30,8 +30,9 @@ from airflow.utils.weekday import WeekDay
 class BranchDayOfWeekOperator(BaseBranchOperator):
     """
     Branches into one of two lists of tasks depending on the current day.
-    For more information on how to use this operator, take a look at the guide:
-    :ref:`howto/operator:BranchDayOfWeekOperator`
+    For more information on how to use this operator, take a look at the guide.
+
+    :ref:`howto/operator:BranchDayOfWeekOperator`.
 
     **Example** (with single day): ::
 
