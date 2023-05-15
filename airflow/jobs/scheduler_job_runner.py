@@ -264,27 +264,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.job.executor.debug_dump()
         self.log.info("-" * 80)
 
-    def is_alive(self, grace_multiplier: float | None = None) -> bool:
-        """
-        Whether the SchedulerJob is alive.
-
-        We define alive as in a state of running and a heartbeat within the
-        threshold defined in the ``scheduler_health_check_threshold`` config
-        setting.
-
-        ``grace_multiplier`` is accepted for compatibility with the parent class.
-
-        """
-        if grace_multiplier is not None:
-            # Accept the same behaviour as superclass
-            return self.job.is_alive(grace_multiplier=grace_multiplier)
-        scheduler_health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
-        return (
-            self.job.state == State.RUNNING
-            and (timezone.utcnow() - self.job.latest_heartbeat).total_seconds()
-            < scheduler_health_check_threshold
-        )
-
     def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
         """
         Get the concurrency maps.
