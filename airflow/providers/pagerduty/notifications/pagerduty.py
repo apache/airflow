@@ -31,8 +31,6 @@ except ImportError:
 
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 
-ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static/pin_100.png"
-
 
 class PagerdutyNotifier(BaseNotifier):
     """
