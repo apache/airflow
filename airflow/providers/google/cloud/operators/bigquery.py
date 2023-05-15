@@ -2721,6 +2721,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
                     ),
                     method_name="execute_complete",
                 )
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
