@@ -82,6 +82,7 @@ MATERIALIZED_VIEW_DEFINITION = {
     "refreshIntervalMs": 2000000,
 }
 TEST_TABLE = "test-table"
+GCP_CONN_ID = "google_cloud_default"
 
 
 class TestBigQueryCreateEmptyTableOperator:
@@ -791,6 +792,7 @@ class TestBigQueryGetDataOperator:
         max_results = 100
         selected_fields = "DATE"
         operator = BigQueryGetDataOperator(
+            gcp_conn_id=GCP_CONN_ID,
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
@@ -799,8 +801,10 @@ class TestBigQueryGetDataOperator:
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,
             as_dict=as_dict,
+            use_legacy_sql=False,
         )
         operator.execute(None)
+        mock_hook.assert_called_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, use_legacy_sql=False)
         mock_hook.return_value.list_rows.assert_called_once_with(
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
@@ -818,12 +822,6 @@ class TestBigQueryGetDataOperator:
         Asserts that a task is deferred and a BigQuerygetDataTrigger will be fired
         when the BigQueryGetDataOperator is executed with deferrable=True.
         """
-        job_id = "123456"
-        hash_ = "hash"
-        real_job_id = f"{job_id}_{hash_}"
-
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
-
         ti = create_task_instance_of_operator(
             BigQueryGetDataOperator,
             dag_id="dag_id",
@@ -833,6 +831,7 @@ class TestBigQueryGetDataOperator:
             max_results=100,
             selected_fields="value,name",
             deferrable=True,
+            use_legacy_sql=False,
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -851,12 +850,6 @@ class TestBigQueryGetDataOperator:
         Asserts that a task is deferred and a BigQueryGetDataTrigger will be fired
         when the BigQueryGetDataOperator is executed with deferrable=True.
         """
-        job_id = "123456"
-        hash_ = "hash"
-        real_job_id = f"{job_id}_{hash_}"
-
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
-
         ti = create_task_instance_of_operator(
             BigQueryGetDataOperator,
             dag_id="dag_id",
@@ -866,6 +859,7 @@ class TestBigQueryGetDataOperator:
             max_results=100,
             deferrable=True,
             as_dict=as_dict,
+            use_legacy_sql=False,
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -886,6 +880,7 @@ class TestBigQueryGetDataOperator:
             max_results=100,
             deferrable=True,
             as_dict=as_dict,
+            use_legacy_sql=False,
         )
 
         with pytest.raises(AirflowException):
@@ -904,6 +899,7 @@ class TestBigQueryGetDataOperator:
             max_results=100,
             deferrable=True,
             as_dict=as_dict,
+            use_legacy_sql=False,
         )
 
         with mock.patch.object(operator.log, "info") as mock_log_info:

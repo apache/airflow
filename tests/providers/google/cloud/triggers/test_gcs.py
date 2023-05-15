@@ -160,7 +160,7 @@ class TestGCSPrefixBlobTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch(
-        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
+        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger._list_blobs_with_prefix"
     )
     async def test_gcs_prefix_blob_trigger_success(self, mock_list_blobs_with_prefixs):
         """
@@ -177,7 +177,7 @@ class TestGCSPrefixBlobTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch(
-        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
+        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger._list_blobs_with_prefix"
     )
     async def test_gcs_prefix_blob_trigger_exception(self, mock_list_blobs_with_prefixs):
         """
@@ -191,7 +191,7 @@ class TestGCSPrefixBlobTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch(
-        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger" "._list_blobs_with_prefix"
+        "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger._list_blobs_with_prefix"
     )
     async def test_gcs_prefix_blob_trigger_pending(self, mock_list_blobs_with_prefixs):
         """

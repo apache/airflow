@@ -168,6 +168,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: set[str] = {
     "S3ToSnowflakeOperator is deprecated.",
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.operators.pod` instead.",
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.triggers.pod` instead.",
+    "This module is deprecated. Please use `airflow.providers.slack.notifications.slack`",
 }
 
 

@@ -296,7 +296,7 @@
       "apache-airflow>=2.4.0",
       "elasticsearch-dbapi",
       "elasticsearch-dsl>=5.0.0",
-      "elasticsearch>7"
+      "elasticsearch>7,<7.15.0"
     ],
     "cross-providers-deps": [
       "common.sql"
@@ -346,7 +346,7 @@
       "google-auth-httplib2>=0.0.1",
       "google-auth-oauthlib<1.0.0,>=0.3.0",
       "google-auth>=1.0.0",
-      "google-cloud-aiplatform>=1.7.1,<2.0.0",
+      "google-cloud-aiplatform>=1.13.1,<2.0.0",
       "google-cloud-automl>=2.1.0",
       "google-cloud-bigquery-datatransfer>=3.0.0",
       "google-cloud-bigtable>=2.0.0,<3.0.0",

@@ -127,7 +127,7 @@ with DAG(
         cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
     )
     # only describe the pod if the task above failed, to help diagnose
-    describe_pod.trigger_rule = (TriggerRule.ONE_FAILED,)
+    describe_pod.trigger_rule = TriggerRule.ONE_FAILED
 
     # [START howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile = EksDeleteFargateProfileOperator(
