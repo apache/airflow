@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException, DagRunAlreadyExists
 from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -371,3 +372,116 @@ class TestDagRunOperator:
         )
         with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=execution_date, end_date=execution_date)
+
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_false(self):
+        """Test TriggerDagRunOperator with wait_for_completion."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            wait_for_completion=True,
+            poke_interval=10,
+            allowed_states=[State.QUEUED],
+            deferrable=False,
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_true(self):
+        """Test TriggerDagRunOperator with wait_for_completion."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            wait_for_completion=True,
+            poke_interval=10,
+            allowed_states=[State.QUEUED],
+            deferrable=True,
+            dag=self.dag,
+        )
+
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+        trigger = DagStateTrigger(
+            dag_id="down_stream",
+            execution_dates=[DEFAULT_DATE],
+            poll_interval=20,
+            states=["success", "failed"],
+        )
+
+        task.execute_complete(context={}, event=trigger.serialize())
+
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure(self):
+        """Test TriggerDagRunOperator wait_for_completion dag run in non defined state."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            wait_for_completion=True,
+            poke_interval=10,
+            allowed_states=[State.SUCCESS],
+            deferrable=True,
+            dag=self.dag,
+        )
+
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+
+        trigger = DagStateTrigger(
+            dag_id="down_stream",
+            execution_dates=[DEFAULT_DATE],
+            poll_interval=20,
+            states=["success", "failed"],
+        )
+        with pytest.raises(AirflowException) as exception:
+            task.execute_complete(
+                context={},
+                event=trigger.serialize(),
+            )
+            assert "which is not in" in str(exception)
+
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2(self):
+        """Test TriggerDagRunOperator  wait_for_completion dag run in failed state."""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            execution_date=execution_date,
+            wait_for_completion=True,
+            poke_interval=10,
+            allowed_states=[State.SUCCESS],
+            failed_states=[State.QUEUED],
+            deferrable=True,
+            dag=self.dag,
+        )
+
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+
+        trigger = DagStateTrigger(
+            dag_id="down_stream",
+            execution_dates=[DEFAULT_DATE],
+            poll_interval=20,
+            states=["success", "failed"],
+        )
+
+        with pytest.raises(AirflowException) as exception:
+            task.execute_complete(context={}, event=trigger.serialize())
+
+            assert "failed with failed state" in str(exception)

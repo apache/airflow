@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import copy
-import unittest
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -40,17 +39,17 @@ class GoogleSampleOperator(GoogleCloudBaseOperator):
         self.config = config
 
 
-class TestGoogleCloudBaseOperator(unittest.TestCase):
+class TestGoogleCloudBaseOperator:
     def test_handles_deepcopy_with_method_default(self):
         op = GoogleSampleOperator(task_id=TASK_ID)
         copied_op = copy.deepcopy(op)
 
-        self.assertEqual(copied_op.retry, DEFAULT)
-        self.assertEqual(copied_op.config, None)
+        assert copied_op.retry == DEFAULT
+        assert copied_op.config is None
 
     def test_handles_deepcopy_with_non_default_retry(self):
         op = GoogleSampleOperator(task_id=TASK_ID, retry=Retry(deadline=30), config={"config": "value"})
         copied_op = copy.deepcopy(op)
 
-        self.assertEqual(copied_op.retry.deadline, 30)
-        self.assertEqual(copied_op.config, {"config": "value"})
+        assert copied_op.retry.deadline == 30
+        assert copied_op.config == {"config": "value"}

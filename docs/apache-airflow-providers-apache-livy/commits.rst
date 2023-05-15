@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.0
+.....
+
+Latest change: 2023-03-20
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`c44c7e1b48 <https://github.com/apache/airflow/commit/c44c7e1b481b7c1a0d475265835a23b0f507506c>`_  2023-03-20   ``Add non login-password auth support for SimpleHttpOpeator (#29206)``
+`c3867781e0 <https://github.com/apache/airflow/commit/c3867781e09b7e0e0d19c0991865a2453194d9a8>`_  2023-03-08   ``adding trigger info to provider yaml (#29950)``
+=================================================================================================  ===========  ======================================================================
+
 3.3.0
 .....
 
-Latest change: 2023-02-22
+Latest change: 2023-03-03
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
 `47ebe99972 <https://github.com/apache/airflow/commit/47ebe99972b2cc3cc007460e28461b1676c03706>`_  2023-02-22   ``Add Livy Operator with deferrable mode (#29047)``
 `911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
 `2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``

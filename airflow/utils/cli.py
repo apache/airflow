@@ -32,12 +32,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
+from sqlalchemy.orm import Session
+
 from airflow import settings
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 T = TypeVar("T", bound=Callable)
 
@@ -253,7 +255,7 @@ def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
 
 
 @provide_session
-def get_dag_by_pickle(pickle_id, session=None):
+def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
     """Fetch DAG from the database using pickling"""
     from airflow.models import DagPickle
 

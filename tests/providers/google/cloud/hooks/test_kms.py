@@ -21,6 +21,7 @@ from base64 import b64decode, b64encode
 from collections import namedtuple
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
@@ -50,13 +51,16 @@ RESPONSE = Response(PLAINTEXT, PLAINTEXT)
 def mock_init(
     self,
     gcp_conn_id,
-    delegate_to=None,
     impersonation_chain=None,
 ):
     pass
 
 
 class TestCloudKMSHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudKMSHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

@@ -22,7 +22,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -45,9 +45,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         storage bucket.
     :param table_id: The name of the table to check the existence of.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -73,34 +70,78 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         dataset_id: str,
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            # TODO: Remove once deprecated
+            if "polling_interval" in kwargs:
+                kwargs["poke_interval"] = kwargs["polling_interval"]
+                warnings.warn(
+                    "Argument `poll_interval` is deprecated and will be removed "
+                    "in a future release.  Please use `poke_interval` instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                kwargs["poke_interval"] = 5
+
         super().__init__(**kwargs)
 
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
         self.log.info("Sensor checks existence of table: %s", table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         return hook.table_exists(
             project_id=self.project_id, dataset_id=self.dataset_id, table_id=self.table_id
         )
+
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTableExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Sensor checks existence of table: %s", table_uri)
+        if event:
+            if event["status"] == "success":
+                return event["message"]
+            raise AirflowException(event["message"])
+        raise AirflowException("No event received in trigger callback")
 
 
 class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
@@ -115,9 +156,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     :param table_id: The name of the table to check the existence of.
     :param partition_id: The name of the partition to check the existence of.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must
-        have domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -145,10 +183,12 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         table_id: str,
         partition_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            kwargs["poke_interval"] = 5
         super().__init__(**kwargs)
 
         self.project_id = project_id
@@ -156,19 +196,15 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.table_id = table_id
         self.partition_id = partition_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         return hook.table_partition_exists(
@@ -177,6 +213,45 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
             table_id=self.table_id,
             partition_id=self.partition_id,
         )
+
+    def execute(self, context: Context) -> None:
+        """
+        Airflow runs this method on the worker and defers using the triggers
+        if deferrable is set to True.
+        """
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTablePartitionExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        partition_id=self.partition_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
+        if event:
+            if event["status"] == "success":
+                return event["message"]
+            raise AirflowException(event["message"])
+        raise AirflowException("No event received in trigger callback")
 
 
 class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
@@ -192,9 +267,6 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-       if any. For this to work, the service account making the request must have
-       domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
        credentials, or chained list of accounts required to get the access_token
        of the last account in the list, which will be impersonated in the request.
@@ -206,47 +278,15 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     :param polling_interval: The interval in seconds to wait between checks table existence.
     """
 
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        polling_interval: float = 5.0,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.polling_interval = polling_interval
-        self.gcp_conn_id = gcp_conn_id
-
-    def execute(self, context: Context) -> None:
-        """Airflow runs this method on the worker and defers using the trigger."""
-        self.defer(
-            timeout=timedelta(seconds=self.timeout),
-            trigger=BigQueryTableExistenceTrigger(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                project_id=self.project_id,
-                poll_interval=self.polling_interval,
-                gcp_conn_id=self.gcp_conn_id,
-                hook_params={
-                    "delegate_to": self.delegate_to,
-                    "impersonation_chain": self.impersonation_chain,
-                },
-            ),
-            method_name="execute_complete",
+    def __init__(self, **kwargs):
+        warnings.warn(
+            "Class `BigQueryTableExistenceAsyncSensor` is deprecated and "
+            "will be removed in a future release. "
+            "Please use `BigQueryTableExistenceSensor` and "
+            "set `deferrable` attribute to `True` instead",
+            AirflowProviderDeprecationWarning,
         )
-
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
-        self.log.info("Sensor checks existence of table: %s", table_uri)
-        if event:
-            if event["status"] == "success":
-                return event["message"]
-            raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+        super().__init__(deferrable=True, **kwargs)
 
 
 class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistenceSensor):
@@ -274,38 +314,12 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
     :param poke_interval: The interval in seconds to wait between checks table existence.
     """
 
-    def __init__(self, poke_interval: int = 5, **kwargs):
-        super().__init__(**kwargs)
-        self.poke_interval = poke_interval
-
-    def execute(self, context: Context) -> None:
-        """Airflow runs this method on the worker and defers using the trigger."""
-        self.defer(
-            timeout=timedelta(seconds=self.timeout),
-            trigger=BigQueryTablePartitionExistenceTrigger(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                project_id=self.project_id,
-                partition_id=self.partition_id,
-                poll_interval=self.poke_interval,
-                gcp_conn_id=self.gcp_conn_id,
-                hook_params={
-                    "impersonation_chain": self.impersonation_chain,
-                },
-            ),
-            method_name="execute_complete",
+    def __init__(self, **kwargs):
+        warnings.warn(
+            "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
+            "will be removed in a future release. "
+            "Please use `BigQueryTableExistencePartitionSensor` and "
+            "set `deferrable` attribute to `True` instead",
+            AirflowProviderDeprecationWarning,
         )
-
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
-        self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
-        if event:
-            if event["status"] == "success":
-                return event["message"]
-            raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+        super().__init__(deferrable=True, **kwargs)

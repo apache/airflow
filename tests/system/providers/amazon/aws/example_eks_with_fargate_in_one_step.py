@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.eks import (
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksFargateProfileStateSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_eks_with_fargate_in_one_step"
 
@@ -99,9 +100,15 @@ with DAG(
         labels={"demo": "hello_world"},
         get_logs=True,
         startup_timeout_seconds=600,
-        # Delete the pod when it reaches its final state, or the execution is interrupted.
-        is_delete_operator_pod=True,
+        # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
+        is_delete_operator_pod=False,
     )
+
+    describe_pod = get_describe_pod_operator(
+        cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
+    )
+    # only describe the pod if the task above failed, to help diagnose
+    describe_pod.trigger_rule = TriggerRule.ONE_FAILED
 
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
@@ -127,9 +134,10 @@ with DAG(
         create_cluster_and_fargate_profile,
         await_create_fargate_profile,
         start_pod,
+        # TEST TEARDOWN
+        describe_pod,
         delete_cluster_and_fargate_profile,
         await_delete_cluster,
-        # TEST TEARDOWN
     )
 
     from tests.system.utils.watcher import watcher

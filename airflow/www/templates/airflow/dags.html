@@ -119,6 +119,12 @@
       <a href={{ get_docs_url("executor/index.html") }}><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
+  {% if otel_on | default(false) %}
+    {% call show_message(category='warning', dismissible=false) %}
+      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#running-breeze-with-an-opentelemetry-metrics-stack">
+        <b>Click here</b></a> for more information.
+    {% endcall %}
+  {% endif %}
 {% endblock %}
 
 {% block content %}

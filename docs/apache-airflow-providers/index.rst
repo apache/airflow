@@ -255,20 +255,6 @@ you can either upgrade all used provider packages first, and then upgrade Airflo
 round. The first approach - when you first upgrade all providers is probably safer, as you can do it
 incrementally, step-by-step replacing provider by provider in your environment.
 
-Customizing Provider Packages
-'''''''''''''''''''''''''''''
-
-**I have an older version of my provider package which we have lightly customized and is working
-fine with my MSSQL installation. I am upgrading my Airflow version. Do I need to upgrade my provider,
-or can I keep it as it is?**
-
-It depends on the scope of customization. There is no need to upgrade the provider packages to later
-versions unless you want to upgrade to Airflow version that introduces backwards-incompatible changes.
-Generally speaking, with Airflow 2 we are following the `Semver <https://semver.org/>`_  approach where
-we will introduce backwards-incompatible changes in Major releases, so all your modifications (as long
-as you have not used internal Airflow classes) should work for All Airflow 2.* versions.
-
-
 Creating your own providers
 '''''''''''''''''''''''''''
 
@@ -373,20 +359,8 @@ only one of them will succeed.
 
 **Can I contribute my own provider to Apache Airflow?**
 
-Of course, but it's better to check at developer's mailing list whether such contribution will be accepted by
-the Community, before investing time to make the provider compliant with community requirements.
-The Community only accepts providers that are generic enough, are well documented, fully covered by tests
-and with capabilities of being tested by people in the community. So we might not always be in the
-position to accept such contributions.
-
-
-After you think that your provider matches the expected values above,  you can read
-:doc:`howto/create-update-providers` to check all prerequisites for a new
-community Provider and discuss it at the `Devlist <http://airflow.apache.org/community/>`_.
-
-However, in case you have your own, specific provider, which you can maintain on your own or by your
-team, you are free to publish the providers in whatever form you find appropriate. The custom and
-community-managed providers have exactly the same capabilities.
+The answer depends on the provider. We have a policy for that in the
+`PROVIDERS.rst <https://github.com/apache/airflow/blob/main/PROVIDERS.rst>`_ developer documentation.
 
 **Can I advertise my own provider to Apache Airflow users and share it with others as package in PyPI?**
 
@@ -401,22 +375,6 @@ This is something that is outside of our control and domain. As an Apache projec
 commercial-friendly and there are many businesses built around Apache Airflow and many other
 Apache projects. As a community, we provide all the software for free and this will never
 change. What 3rd-party developers are doing is not under control of Apache Airflow community.
-
-Using Backport Providers in Airflow 1.10
-''''''''''''''''''''''''''''''''''''''''
-
-**I have an Airflow version (1.10.12) running and it is stable. However, because of a Cloud provider change,
-I would like to upgrade the provider package. If I don't need to upgrade the Airflow version anymore,
-how do I know that this provider version is compatible with my Airflow version?**
-
-We have Backport Providers are compatible with 1.10 but they stopped being released on
-March 17, 2021. Since then, no new changes to providers for Airflow 2.0 are going to be
-released as backport packages. It's the highest time to upgrade to Airflow 2.0.
-
-When it comes to compatibility of providers with different Airflow 2 versions, each
-provider package will keep its own dependencies, and while we expect those providers to be generally
-backwards-compatible, particular versions of particular providers might introduce dependencies on
-specific Airflow versions.
 
 
 .. toctree::

@@ -203,6 +203,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
     :param return_last: (optional) return the result of only last statement (default: True).
+    :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
+        Use with caution. It's not recommended to dump large datasets to the log. (default: False).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -223,6 +225,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         handler: Callable[[Any], Any] = fetch_all_handler,
         split_statements: bool | None = None,
         return_last: bool = True,
+        show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -232,6 +235,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.handler = handler
         self.split_statements = split_statements
         self.return_last = return_last
+        self.show_return_value_in_logs = show_return_value_in_logs
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         """
@@ -250,7 +254,12 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :param results: results in the form of list of rows.
         :param descriptions: list of descriptions returned by ``cur.description`` in the Python DBAPI
         """
+        if self.show_return_value_in_logs:
+            self.log.info("Operator output is: %s", results)
         return results
+
+    def _should_run_output_processing(self) -> bool:
+        return self.do_xcom_push
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
@@ -263,11 +272,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             sql=self.sql,
             autocommit=self.autocommit,
             parameters=self.parameters,
-            handler=self.handler if self.do_xcom_push else None,
+            handler=self.handler if self._should_run_output_processing() else None,
             return_last=self.return_last,
             **extra_kwargs,
         )
-        if not self.do_xcom_push:
+        if not self._should_run_output_processing():
             return None
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
             # For simplicity, we pass always list as input to _process_output, regardless if
@@ -616,7 +625,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _generate_sql_query(self):
-        self.log.info("Partition clause: %s", self.partition_clause)
+        self.log.debug("Partition clause: %s", self.partition_clause)
 
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:

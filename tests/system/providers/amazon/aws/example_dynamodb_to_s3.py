@@ -127,6 +127,18 @@ with DAG(
         },
     )
     # [END howto_transfer_dynamodb_to_s3_segmented]
+
+    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time]
+    backup_db_to_point_in_time = DynamoDBToS3Operator(
+        task_id="backup_db_to_point_in_time",
+        dynamodb_table_name=table_name,
+        file_size=1000,
+        s3_bucket_name=bucket_name,
+        export_time=datetime.now(),
+        s3_key_prefix=f"{S3_KEY_PREFIX}-3-",
+    )
+    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time]
+
     delete_table = delete_dynamodb_table(table_name=table_name)
 
     delete_bucket = S3DeleteBucketOperator(
@@ -146,6 +158,7 @@ with DAG(
         backup_db,
         backup_db_segment_1,
         backup_db_segment_2,
+        backup_db_to_point_in_time,
         # TEST TEARDOWN
         delete_table,
         delete_bucket,

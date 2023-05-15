@@ -78,7 +78,7 @@ class LivyTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Checks if the _polling_interval > 0, in that case it pools Livy for
         batch termination asynchronously.

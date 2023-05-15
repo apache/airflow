@@ -39,7 +39,6 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
-TEST_DELEGATE_TO = "test-delegate-to"
 TEST_LOCATION = "test-location"
 TEST_INSTANCE_ID = "test-instance-id"
 TEST_PROJECT_ID = "test-project-id"
@@ -58,6 +57,10 @@ TEST_NAME_DEFAULT_PROJECT_ID = (
 
 
 class TestCloudMemorystoreWithDefaultProjectIdHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudMemorystoreHook(gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.__init__",

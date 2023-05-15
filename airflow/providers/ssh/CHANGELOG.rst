@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SSHOperator - Restore ability to override SSHHook cmd_timeout (#30190)``
+
 3.5.0
 .....
 

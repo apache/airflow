@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksF
 # type: ignore[call-arg]
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_eks_with_fargate_profile"
 
@@ -117,10 +118,16 @@ with DAG(
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
         get_logs=True,
-        # Delete the pod when it reaches its final state, or the execution is interrupted.
-        is_delete_operator_pod=True,
+        # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
+        is_delete_operator_pod=False,
         startup_timeout_seconds=200,
     )
+
+    describe_pod = get_describe_pod_operator(
+        cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
+    )
+    # only describe the pod if the task above failed, to help diagnose
+    describe_pod.trigger_rule = TriggerRule.ONE_FAILED
 
     # [START howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile = EksDeleteFargateProfileOperator(
@@ -162,7 +169,9 @@ with DAG(
         create_fargate_profile,
         await_create_fargate_profile,
         start_pod,
-        delete_fargate_profile,
+        # TEARDOWN
+        describe_pod,
+        delete_fargate_profile,  # part of the test AND teardown
         await_delete_fargate_profile,
         delete_cluster,
         await_delete_cluster,

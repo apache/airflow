@@ -18,7 +18,6 @@
 """Serialized DAG table in database."""
 from __future__ import annotations
 
-import hashlib
 import logging
 import zlib
 from datetime import datetime, timedelta
@@ -35,7 +34,8 @@ from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.hashlib_wrapper import md5
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG, processor_subdir: str | None = None):
+    def __init__(self, dag: DAG, processor_subdir: str | None = None) -> None:
         self.dag_id = dag.dag_id
         self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
@@ -102,7 +102,7 @@ class SerializedDagModel(Base):
         dag_data = SerializedDAG.to_dict(dag)
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
-        self.dag_hash = hashlib.md5(dag_data_json).hexdigest()
+        self.dag_hash = md5(dag_data_json, usedforsecurity=False).hexdigest()
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
@@ -115,7 +115,7 @@ class SerializedDagModel(Base):
         # when COMPRESS_SERIALIZED_DAGS is True
         self.__data_cache = dag_data
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<SerializedDag: {self.dag_id}>"
 
     @classmethod
@@ -125,7 +125,7 @@ class SerializedDagModel(Base):
         dag: DAG,
         min_update_interval: int | None = None,
         processor_subdir: str | None = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> bool:
         """Serializes a DAG and writes it into database.
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
@@ -174,7 +174,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def read_all_dags(cls, session: Session = None) -> dict[str, SerializedDAG]:
+    def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
         """Reads all DAGs in serialized_dag table.
 
         :param session: ORM Session
@@ -199,7 +199,7 @@ class SerializedDagModel(Base):
         return dags
 
     @property
-    def data(self):
+    def data(self) -> dict | None:
         # use __data_cache to avoid decompress and loads
         if not hasattr(self, "__data_cache") or self.__data_cache is None:
             if self._data_compressed:
@@ -210,19 +210,20 @@ class SerializedDagModel(Base):
         return self.__data_cache
 
     @property
-    def dag(self):
+    def dag(self) -> SerializedDAG:
         """The DAG deserialized from the ``data`` column"""
         SerializedDAG._load_operator_extra_links = self.load_op_links
-
         if isinstance(self.data, dict):
-            dag = SerializedDAG.from_dict(self.data)
+            data = self.data
+        elif isinstance(self.data, str):
+            data = json.loads(self.data)
         else:
-            dag = SerializedDAG.from_json(self.data)
-        return dag
+            raise ValueError("invalid or missing serialized DAG data")
+        return SerializedDAG.from_dict(data)
 
     @classmethod
     @provide_session
-    def remove_dag(cls, dag_id: str, session: Session = None):
+    def remove_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> None:
         """Deletes a DAG with given dag_id.
         :param dag_id: dag_id to be deleted
         :param session: ORM Session
@@ -232,8 +233,11 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def remove_deleted_dags(
-        cls, alive_dag_filelocs: list[str], processor_subdir: str | None = None, session=None
-    ):
+        cls,
+        alive_dag_filelocs: list[str],
+        processor_subdir: str | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """Deletes DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
@@ -260,7 +264,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def has_dag(cls, dag_id: str, session: Session = None) -> bool:
+    def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
         """Checks a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
@@ -270,7 +274,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag(cls, dag_id: str, session: Session = None) -> SerializedDAG | None:
+    def get_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
         if row:
             return row.dag
@@ -278,7 +282,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get(cls, dag_id: str, session: Session = None) -> SerializedDagModel | None:
+    def get(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDagModel | None:
         """
         Get the SerializedDAG for the given dag ID.
         It will cope with being passed the ID of a subdag by looking up the
@@ -299,7 +303,11 @@ class SerializedDagModel(Base):
 
     @staticmethod
     @provide_session
-    def bulk_sync_to_db(dags: list[DAG], processor_subdir: str | None = None, session: Session = None):
+    def bulk_sync_to_db(
+        dags: list[DAG],
+        processor_subdir: str | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """
         Saves DAGs as Serialized DAG objects in the database. Each
         DAG is saved in a separate database query.
@@ -319,7 +327,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime | None:
+    def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
         """
         Get the date when the Serialized DAG associated to DAG was last updated
         in serialized_dag table
@@ -331,7 +339,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_max_last_updated_datetime(cls, session: Session = None) -> datetime | None:
+    def get_max_last_updated_datetime(cls, session: Session = NEW_SESSION) -> datetime | None:
         """
         Get the maximum date when any DAG was last updated in serialized_dag table
 
@@ -341,7 +349,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str | None:
+    def get_latest_version_hash(cls, dag_id: str, session: Session = NEW_SESSION) -> str | None:
         """
         Get the latest DAG version for a given DAG ID.
 
@@ -352,8 +360,26 @@ class SerializedDagModel(Base):
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
 
     @classmethod
+    def get_latest_version_hash_and_updated_datetime(
+        cls,
+        dag_id: str,
+        *,
+        session: Session,
+    ) -> tuple[str, datetime] | None:
+        """
+        Get the latest DAG version for a given DAG ID, as well as the date when the Serialized DAG associated
+        to DAG was last updated in serialized_dag table.
+
+        :meta private:
+        :param dag_id: DAG ID
+        :param session: ORM Session
+        :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
+        """
+        return session.query(cls.dag_hash, cls.last_updated).filter(cls.dag_id == dag_id).one_or_none()
+
+    @classmethod
     @provide_session
-    def get_dag_dependencies(cls, session: Session = None) -> dict[str, list[DagDependency]]:
+    def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
         Get the dependencies between DAGs
 

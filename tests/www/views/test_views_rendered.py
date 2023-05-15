@@ -21,6 +21,7 @@ from unittest import mock
 from urllib.parse import quote_plus
 
 import pytest
+from markupsafe import escape
 
 from airflow.models import DAG, RenderedTaskInstanceFields, Variable
 from airflow.operators.bash import BashOperator
@@ -206,3 +207,86 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     check_content_not_in_response("secret_unlikely_to_happen_accidentally", resp)
     ti.refresh_from_task(task_secret)
     assert ti.state == TaskInstanceState.QUEUED
+
+
+@pytest.mark.parametrize(
+    "env, expected",
+    [
+        pytest.param(
+            {"plain_key": "plain_value"},
+            "{'plain_key': 'plain_value'}",
+            id="env-plain-key-val",
+        ),
+        pytest.param(
+            {"plain_key": Variable.setdefault("plain_var", "banana")},
+            "{'plain_key': 'banana'}",
+            id="env-plain-key-plain-var",
+        ),
+        pytest.param(
+            {"plain_key": Variable.setdefault("secret_var", "monkey")},
+            "{'plain_key': '***'}",
+            id="env-plain-key-sensitive-var",
+        ),
+        pytest.param(
+            {"plain_key": "{{ var.value.plain_var }}"},
+            "{'plain_key': '{{ var.value.plain_var }}'}",
+            id="env-plain-key-plain-tpld-var",
+        ),
+        pytest.param(
+            {"plain_key": "{{ var.value.secret_var }}"},
+            "{'plain_key': '{{ var.value.secret_var }}'}",
+            id="env-plain-key-sensitive-tpld-var",
+        ),
+        pytest.param(
+            {"secret_key": "plain_value"},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-plain-val",
+        ),
+        pytest.param(
+            {"secret_key": Variable.setdefault("plain_var", "monkey")},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-plain-var",
+        ),
+        pytest.param(
+            {"secret_key": Variable.setdefault("secret_var", "monkey")},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-sensitive-var",
+        ),
+        pytest.param(
+            {"secret_key": "{{ var.value.plain_var }}"},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-plain-tpld-var",
+        ),
+        pytest.param(
+            {"secret_key": "{{ var.value.secret_var }}"},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-sensitive-tpld-var",
+        ),
+    ],
+)
+def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
+    if request.node.callspec.id.endswith("-tpld-var"):
+        Variable.set("plain_var", "banana")
+        Variable.set("secret_var", "monkey")
+
+    dag: DAG = patch_app.dag_bag.get_dag("testdag")
+    task_secret: BashOperator = dag.get_task(task_id="task1")
+    task_secret.env = env
+    date = quote_plus(str(DEFAULT_DATE))
+    url = f"task?task_id=task1&dag_id=testdag&execution_date={date}"
+
+    with create_session() as session:
+        dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
+
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response(str(escape(expected)), resp)
+
+    if request.node.callspec.id.endswith("-tpld-var"):
+        Variable.delete("plain_var")
+        Variable.delete("secret_var")

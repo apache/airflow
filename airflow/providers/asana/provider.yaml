@@ -21,6 +21,7 @@ name: Asana
 description: |
     `Asana <https://app.asana.com/>`__
 
+suspended: false
 versions:
   - 2.1.0
   - 2.0.1
@@ -32,7 +33,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - asana>=0.10
 
 integrations:

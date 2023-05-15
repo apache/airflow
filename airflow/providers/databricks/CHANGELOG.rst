@@ -24,6 +24,32 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add delete inactive run functionality to databricks provider (#30646)``
+* ``Databricks SQL sensor (#30477)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DatabricksSubmitRunOperator to support taskflow (#29840)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
 4.0.0
 .....
 

@@ -19,12 +19,26 @@ from __future__ import annotations
 
 import os
 import pathlib
+import shutil
+
+from packaging.version import Version
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    TODO: delete this function when min airflow version >= 2.6
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
@@ -36,13 +50,18 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     trigger_should_wrap = True
 
-    def __init__(self, base_log_folder: str, s3_log_folder: str, filename_template: str | None = None):
+    def __init__(
+        self, base_log_folder: str, s3_log_folder: str, filename_template: str | None = None, **kwargs
+    ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
         self.log_relative_path = ""
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self):
@@ -84,7 +103,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
             log = pathlib.Path(local_loc).read_text()
-            self.s3_write(log, remote_loc)
+            write_to_s3 = self.s3_write(log, remote_loc)
+            if write_to_s3 and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -164,16 +185,17 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 return msg
         return ""
 
-    def s3_write(self, log: str, remote_log_location: str, append: bool = True, max_retry: int = 1):
+    def s3_write(self, log: str, remote_log_location: str, append: bool = True, max_retry: int = 1) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no hook
-        was created.
+        Writes the log to the remote_log_location and return `True` when done. Fails silently
+         and return `False` if no log was created.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :param max_retry: Maximum number of times to retry on upload failure
+        :return: whether the log is successfully written to remote location or not.
         """
         try:
             if append and self.s3_log_exists(remote_log_location):
@@ -181,6 +203,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 log = "\n".join([old_log, log]) if old_log else log
         except Exception:
             self.log.exception("Could not verify previous log to append")
+            return False
 
         # Default to a single retry attempt because s3 upload failures are
         # rare but occasionally occur.  Multiple retry attempts are unlikely
@@ -199,3 +222,5 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                     self.log.warning("Failed attempt to write logs to %s, will retry", remote_log_location)
                 else:
                     self.log.exception("Could not write logs to %s", remote_log_location)
+                    return False
+        return True

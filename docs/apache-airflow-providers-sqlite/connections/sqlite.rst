@@ -23,14 +23,51 @@ The SQLite connection type provides connection to a SQLite database.
 
 Configuring the Connection
 --------------------------
-Host (required)
-    The host to connect to.
+Host (optional)
+    The host to connect to. This can either be a file on disk or an in-memory database. If not set, an in-memory database is being used.
 
-Schema (optional)
-    Specify the schema name to be used in the database.
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in the sqlite connection.
+    See `Recognized Query Parameters <https://www.sqlite.org/uri.html>`_ for all supported parameters.
 
-Login (required)
-    Specify the user name to connect.
+URI format example
+^^^^^^^^^^^^^^^^^^
 
-Password (required)
-    Specify the password to connect.
+If serializing with Airflow URI:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_SQLITE_DEFAULT='sqlite://relative/path/to/db?mode=ro'
+
+or using an absolute path:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_SQLITE_DEFAULT='sqlite:///absolute/path/to/db?mode=ro'
+
+Note the **three** slashes after the connection type.
+
+Or using an in-memory database:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_SQLITE_DEFAULT='sqlite://?mode=ro'
+
+When specifying the connection as an environment variable in Airflow versions prior to 2.3.0, you need to specify the connection using the URI format.
+
+Note that all components of the URI should be URL-encoded.
+
+JSON format example
+^^^^^^^^^^^^^^^^^^^
+
+If serializing with JSON:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_SQLITE_DEFAULT='{
+        "conn_type": "sqlite",
+        "host": "relative/path/to/db",
+        "extra": {
+            "mode": "ro"
+        }
+    }'

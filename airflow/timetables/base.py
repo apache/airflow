@@ -135,6 +135,14 @@ class Timetable(Protocol):
     This should be a list of field names on the DAG run object.
     """
 
+    active_runs_limit: int | None = None
+    """Override the max_active_runs parameter of any DAGs using this timetable.
+    This is called during DAG initializing, and will set the max_active_runs if
+    it returns a value. In most cases this should return None, but in some cases
+    (for example, the ContinuousTimetable) there are good reasons for limiting
+    the DAGRun parallelism.
+    """
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         """Deserialize a timetable from data.

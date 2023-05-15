@@ -18,12 +18,11 @@
 """This module contains Google Cloud Transfer operators."""
 from __future__ import annotations
 
-import warnings
 from copy import deepcopy
 from datetime import date, time
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
@@ -549,7 +548,9 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
         if request_filter is None:
             if "filter" in kwargs:
                 request_filter = kwargs["filter"]
-                DeprecationWarning("Use 'request_filter' instead 'filter' to pass the argument.")
+                AirflowProviderDeprecationWarning(
+                    "Use 'request_filter' instead 'filter' to pass the argument."
+                )
             else:
                 TypeError("__init__() missing 1 required positional argument: 'request_filter'")
 
@@ -795,9 +796,6 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
     :param aws_conn_id: The source S3 connection
     :param gcp_conn_id: The destination connection ID to use
         when connecting to Google Cloud Storage.
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param description: Optional transfer service job description
     :param schedule: Optional transfer service schedule;
         If not set, run transfer job once as soon as the operator runs
@@ -849,7 +847,6 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         aws_conn_id: str = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         description: str | None = None,
         schedule: dict | None = None,
         object_conditions: dict | None = None,
@@ -869,11 +866,6 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.description = description
         self.schedule = schedule
         self.object_conditions = object_conditions
@@ -891,7 +883,6 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
         body = self._create_body()
@@ -971,9 +962,6 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         owns the job
     :param gcp_conn_id: Optional connection ID to use when connecting to Google Cloud
         Storage.
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param description: Optional transfer service job description
     :param schedule: Optional transfer service schedule;
         If not set, run transfer job once as soon as the operator runs
@@ -1024,7 +1012,6 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         destination_path: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         description: str | None = None,
         schedule: dict | None = None,
         object_conditions: dict | None = None,
@@ -1043,11 +1030,6 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         self.destination_path = destination_path
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.description = description
         self.schedule = schedule
         self.object_conditions = object_conditions
@@ -1065,7 +1047,6 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 

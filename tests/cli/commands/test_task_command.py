@@ -88,8 +88,13 @@ class TestCliTasks:
 
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
         cls.dagbag.sync_to_db()
+        data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
-            state=State.NONE, run_id=cls.run_id, run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE
+            state=State.NONE,
+            run_id=cls.run_id,
+            run_type=DagRunType.MANUAL,
+            execution_date=DEFAULT_DATE,
+            data_interval=data_interval,
         )
 
     @classmethod
@@ -178,11 +183,14 @@ class TestCliTasks:
             dag = dagbag.get_dag("test_dags_folder")
             dagbag.sync_to_db(session=session)
 
+        execution_date = pendulum.now("UTC")
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
         dag.create_dagrun(
             state=State.NONE,
             run_id="abc123",
             run_type=DagRunType.MANUAL,
-            execution_date=pendulum.now("UTC"),
+            execution_date=execution_date,
+            data_interval=data_interval,
             session=session,
         )
         session.commit()
@@ -237,8 +245,8 @@ class TestCliTasks:
             # verify that the file was in different location when run
             assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
-    def test_run_with_existing_dag_run_id(self, mock_local_job):
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
+    def test_run_with_existing_dag_run_id(self, mock_local_job_runner):
         """
         Test that we can run with existing dag_run_id
         """
@@ -252,9 +260,10 @@ class TestCliTasks:
             task0_id,
             self.run_id,
         ]
-
+        mock_local_job_runner.return_value.job_type = "LocalTaskJob"
         task_command.task_run(self.parser.parse_args(args0), dag=self.dag)
-        mock_local_job.assert_called_once_with(
+        mock_local_job_runner.assert_called_once_with(
+            job=mock.ANY,
             task_instance=mock.ANY,
             mark_success=False,
             ignore_all_deps=True,
@@ -267,7 +276,7 @@ class TestCliTasks:
             external_executor_id=None,
         )
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_run_raises_when_theres_no_dagrun(self, mock_local_job):
         """
         Test that run raises when there's run_id but no dag_run
@@ -492,9 +501,11 @@ class TestCliTasks:
         task2 = dag2.get_task(task_id="print_the_context")
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
+        data_interval = dag2.timetable.infer_manual_data_interval(run_after=default_date2)
         dagrun = dag2.create_dagrun(
             state=State.RUNNING,
             execution_date=default_date2,
+            data_interval=data_interval,
             run_type=DagRunType.MANUAL,
             external_trigger=True,
         )
@@ -579,9 +590,12 @@ class TestLogsfromTaskRunCommand:
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
 
-        DagBag().get_dag(self.dag_id).create_dagrun(
+        dag = DagBag().get_dag(self.dag_id)
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=self.execution_date)
+        dag.create_dagrun(
             run_id=self.run_id,
             execution_date=self.execution_date,
+            data_interval=data_interval,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
@@ -625,13 +639,15 @@ class TestLogsfromTaskRunCommand:
             assert "logging_mixin.py" not in log_line
         return log_line
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_external_executor_id_present_for_fork_run_task(self, mock_local_job):
+        mock_local_job.return_value.job_type = "LocalTaskJob"
         args = self.parser.parse_args(self.task_args)
         args.external_executor_id = "ABCD12345"
 
         task_command.task_run(args)
         mock_local_job.assert_called_once_with(
+            job=mock.ANY,
             task_instance=mock.ANY,
             mark_success=False,
             pickle_id=None,
@@ -644,14 +660,16 @@ class TestLogsfromTaskRunCommand:
             external_executor_id="ABCD12345",
         )
 
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_external_executor_id_present_for_process_run_task(self, mock_local_job):
+        mock_local_job.return_value.job_type = "LocalTaskJob"
         args = self.parser.parse_args(self.task_args)
         args.external_executor_id = "ABCD12345"
 
         with mock.patch.dict(os.environ, {"external_executor_id": "12345FEDCBA"}):
             task_command.task_run(args)
             mock_local_job.assert_called_once_with(
+                job=mock.ANY,
                 task_instance=mock.ANY,
                 mark_success=False,
                 pickle_id=None,
@@ -862,9 +880,12 @@ def test_context_with_run():
     task_args = ["tasks", "run", dag_id, task_id, "--local", execution_date_str]
     parser = cli_parser.get_parser()
 
-    DagBag().get_dag(dag_id).create_dagrun(
+    dag = DagBag().get_dag(dag_id)
+    data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
+    dag.create_dagrun(
         run_id=run_id,
         execution_date=execution_date,
+        data_interval=data_interval,
         start_date=timezone.utcnow(),
         state=State.RUNNING,
         run_type=DagRunType.MANUAL,

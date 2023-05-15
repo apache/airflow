@@ -69,7 +69,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
     def __init__(self, namespace: str = "default", use_dill: bool = False, **kwargs) -> None:
-        self.pickling_library = dill if use_dill else pickle
+        self.use_dill = use_dill
         super().__init__(
             namespace=namespace,
             name=kwargs.pop("name", f"k8s_airflow_pod_{uuid.uuid4().hex}"),
@@ -77,10 +77,11 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             **kwargs,
         )
 
-    def _get_python_source(self):
+    # TODO: Remove me once this provider min supported Airflow version is 2.6
+    def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
         res = dedent(raw_source)
-        res = remove_task_decorator(res, "@task.kubernetes")
+        res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
     def _generate_cmds(self) -> list[str]:
@@ -111,17 +112,18 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     def execute(self, context: Context):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
+            pickling_library = dill if self.use_dill else pickle
             script_filename = os.path.join(tmp_dir, "script.py")
             input_filename = os.path.join(tmp_dir, "script.in")
 
             with open(input_filename, "wb") as file:
-                self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
+                pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
 
-            py_source = self._get_python_source()
+            py_source = self.get_python_source()
             jinja_context = {
                 "op_args": self.op_args,
                 "op_kwargs": self.op_kwargs,
-                "pickling_library": self.pickling_library.__name__,
+                "pickling_library": pickling_library.__name__,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": py_source,
                 "string_args_global": False,

@@ -87,7 +87,7 @@ class TestBigQueryToGCSOperator:
             location=None,
             timeout=None,
             retry=DEFAULT_RETRY,
-            nowait=True,
+            nowait=False,
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
