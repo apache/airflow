@@ -47,6 +47,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         **kwargs,
     ):
         super().__init__(job)
+        self.job = job
         self.processor = processor
         self.processor.heartbeat = lambda: perform_heartbeat(
             job=self.job,

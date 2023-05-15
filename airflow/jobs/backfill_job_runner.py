@@ -149,6 +149,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param kwargs:
         """
         super().__init__(job)
+        self.job = job
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
