@@ -182,6 +182,35 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
+        {{- if .Values.dagProcessor.logGroomerSidecar.enabled }}
+        - name: dag-processor-log-groomer
+          resources: {{- toYaml .Values.dagProcessor.logGroomerSidecar.resources | nindent 12 }}
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.command }}
+          command: {{ tpl (toYaml .Values.dagProcessor.logGroomerSidecar.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.args }}
+          args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.dagProcessor.extraVolumeMounts }}
+              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+          {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
           {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
         {{- end }}

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import os
-
-import pytest
-
-from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
-
-
-@pytest.mark.skipif(
-    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
-)
-class TestHdfsSensor(TestHiveEnvironment):
-    def test_hdfs_sensor(self):
-        op = HdfsSensor(
-            task_id="hdfs_sensor_check",
-            filepath="hdfs://user/hive/warehouse/airflow.db/static_babynames",
-            dag=self.dag,
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

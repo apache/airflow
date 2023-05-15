@@ -39,6 +39,14 @@ Features
    * ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
   * ``Remove skip_exit_code from KubernetesPodOperator (#30788)``
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+If ``kubernetes_default`` connection is not defined, then KubernetesHook / KubernetesPodOperator will behave as though given ``conn_id=None``.
+
 6.0.0
 .....
 

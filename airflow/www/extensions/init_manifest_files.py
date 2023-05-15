@@ -46,7 +46,7 @@ def configure_manifest_files(app):
     def get_asset_url(filename):
         if app.debug:
             parse_manifest_json()
-        return url_for("static", filename=manifest.get(filename, ""))
+        return url_for("static", filename=manifest.get(filename, filename))
 
     parse_manifest_json()
 

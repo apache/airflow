@@ -220,16 +220,23 @@ class Trigger(Base):
 
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
-        trigger_ids_query = with_row_locks(
-            session.query(cls.id)
-            .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
-            .limit(capacity),
-            session,
-            skip_locked=True,
-        ).all()
+        trigger_ids_query = cls.get_sorted_triggers(
+            capacity=capacity, alive_triggerer_ids=alive_triggerer_ids, session=session
+        )
         if trigger_ids_query:
             session.query(cls).filter(cls.id.in_([i.id for i in trigger_ids_query])).update(
                 {cls.triggerer_id: triggerer_id},
                 synchronize_session=False,
             )
         session.commit()
+
+    @classmethod
+    def get_sorted_triggers(cls, capacity, alive_triggerer_ids, session):
+        return with_row_locks(
+            session.query(cls.id)
+            .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
+            .order_by(cls.created_date)
+            .limit(capacity),
+            session,
+            skip_locked=True,
+        ).all()

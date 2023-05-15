@@ -341,7 +341,7 @@ def print_async_summary(completed_list: list[ApplyResult]) -> None:
     get_console().print()
     for result in completed_list:
         return_code, info = result.get()
-        info = info.replace("[", "\[")
+        info = info.replace("[", "\\[")
         if return_code != 0:
             get_console().print(f"[error]NOK[/] for {info}: Return code: {return_code}.")
         else:
