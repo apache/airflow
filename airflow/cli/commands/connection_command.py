@@ -207,7 +207,7 @@ def connections_add(args):
     try:
         helpers.validate_key(args.conn_id, max_length=200)
     except Exception as e:
-        raise SystemExit(f"Could not create connection. {str(e)}")
+        raise SystemExit(f"Could not create connection. {e}")
 
     if not has_type and not (has_json or has_uri):
         raise SystemExit("Must supply either conn-uri or conn-json if not supplying conn-type")
@@ -322,8 +322,7 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
             try:
                 helpers.validate_key(conn["conn_id"], max_length=200)
             except Exception as e:
-                print(f"Could not import invalid connection. {str(e)}")
-                del connections_dict["conn_id"]
+                print(f"Could not import connection. {e}")
                 continue
 
             existing_conn_id = session.query(Connection.id).filter(Connection.conn_id == conn_id).scalar()
