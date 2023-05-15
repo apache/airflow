@@ -19,9 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
-from airflow.models import Connection
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 from airflow.providers.pagerduty.notifications.pagerduty import (
@@ -32,31 +29,14 @@ from airflow.providers.pagerduty.notifications.pagerduty import (
 PAGERDUTY_API_DEFAULT_CONN_ID = PagerdutyEventsHook.default_conn_name
 
 
-@pytest.fixture(scope="module", autouse=True)
-def pagerduty_api_connections():
-    """Create tests connections"""
-    connections = [
-        Connection(
-            conn_id=PAGERDUTY_API_DEFAULT_CONN_ID,
-            conn_type="pagerduty_events",
-            password="xoxba1234567890123cdsccsccsdscww",
-        ),
-    ]
-
-    conn_uris = {f"AIRFLOW_CONN_{c.conn_id.upper()}": c.get_uri() for c in connections}
-
-    with mock.patch.dict("os.environ", values=conn_uris):
-        yield
-
-
 class TestPagerdutyNotifier:
-    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook.create_event")
-    def test_notifier(self, mock_pagerduty_event_hook, pagerduty_api_connections, dag_maker):
+    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
+    def test_notifier(self, mock_pagerduty_event_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = send_pagerduty_notification(summary="DISK at 99%", severity="critical", action="trigger")
         notifier(context={"dag": dag})
-        mock_pagerduty_event_hook.assert_called_once_with(
+        mock_pagerduty_event_hook.return_value.create_event.assert_called_once_with(
             summary="DISK at 99%",
             severity="critical",
             action="trigger",
@@ -70,15 +50,13 @@ class TestPagerdutyNotifier:
             dedup_key=None,
         )
 
-    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook.create_event")
-    def test_notifier_with_notifier_class(
-        self, mock_pagerduty_event_hook, pagerduty_api_connections, dag_maker
-    ):
+    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
+    def test_notifier_with_notifier_class(self, mock_pagerduty_event_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = PagerdutyNotifier(summary="DISK at 99%", severity="critical", action="trigger")
         notifier(context={"dag": dag})
-        mock_pagerduty_event_hook.assert_called_once_with(
+        mock_pagerduty_event_hook.return_value.create_event.assert_called_once_with(
             summary="DISK at 99%",
             severity="critical",
             action="trigger",
@@ -92,8 +70,8 @@ class TestPagerdutyNotifier:
             dedup_key=None,
         )
 
-    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook.create_event")
-    def test_notifier_templated(self, mock_pagerduty_event_hook, pagerduty_api_connections, dag_maker):
+    @mock.patch("airflow.providers.pagerduty.notifications.pagerduty.PagerdutyEventsHook")
+    def test_notifier_templated(self, mock_pagerduty_event_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
 
@@ -114,7 +92,7 @@ class TestPagerdutyNotifier:
         )
         context = {"dag": dag}
         notifier(context)
-        mock_pagerduty_event_hook.assert_called_once_with(
+        mock_pagerduty_event_hook.return_value.create_event.assert_called_once_with(
             action="trigger",
             summary="DISK at 99% test_notifier",
             severity="critical test_notifier",
