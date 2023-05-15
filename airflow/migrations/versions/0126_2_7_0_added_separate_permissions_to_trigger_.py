@@ -18,22 +18,23 @@
 
 """added separate permissions to trigger dag
 
-Revision ID: 1e5d09a0751b
-Revises: 98ae134e6fff
-Create Date: 2023-05-08 18:17:27.058808
+Revision ID: 130c2c3cc6ea
+Revises: 937cbd173ca1
+Create Date: 2023-05-15 14:21:53.846327
 
 """
+
 from __future__ import annotations
 
 from airflow.security import permissions
 from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
-revision = "1e5d09a0751b"
-down_revision = "98ae134e6fff"
+revision = "130c2c3cc6ea"
+down_revision = "937cbd173ca1"
 branch_labels = None
 depends_on = None
-airflow_version = '2.7.0'
+airflow_version = "2.7.0"
 
 
 def add_trigger_permissions():
