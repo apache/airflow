@@ -646,7 +646,7 @@ jobs:
           persist-credentials: false
       - name: "Static checks: basic checks only"
         run: >
-          breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
+          breeze static-checks --show-diff-on-failure --color always --initialize-environment
           --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
