@@ -524,8 +524,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         hook_params = {"impersonation_chain": self.impersonation_chain}
 
         if not self.deferrable:
-            super().execute(context)
-            return
+            return super().execute(context)
 
         if not self.poke(context=context):
             self.defer(
