@@ -119,7 +119,7 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
-class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
+class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
 
@@ -157,7 +157,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         processor_poll_interval: float | None = None,
     ):
         super().__init__(job)
-        self.job = job
         self.subdir = subdir
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
