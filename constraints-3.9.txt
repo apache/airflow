@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-15T11:19:31Z
+# This constraints file was automatically generated on 2023-05-15T12:34:10Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -629,7 +629,7 @@ types-termcolor==1.1.6.2
 types-toml==0.10.8.6
 types-urllib3==1.26.25.13
 typing_extensions==4.5.0
-tzlocal==5.0
+tzlocal==5.0.1
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
 uritemplate==3.0.1
